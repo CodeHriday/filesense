@@ -58,6 +58,11 @@
   transition: all 0.2s;
 }
 
+.tab-button:focus,
+.tab-button:focus-visible {
+  outline: none !important;
+}
+
 .tab-button:hover {
   color: #3b82f6;
   background: #f9fafb;
@@ -65,8 +70,7 @@
 
 .tab-button.active {
   color: #3b82f6;
-  border-bottom-color: #3b82f6;
-  background: #eff6ff;
+  font-weight: 600;
 }
 
 .error-banner {

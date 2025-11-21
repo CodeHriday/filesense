@@ -21,6 +21,9 @@ const QualityValidationEngine = require('../services/qualityValidationEngine');
 const { persistGovernanceMetadata } = require('../services/governanceService');
 const { invalidateFileCache, invalidateFileCatalogCache } = require('../src/middleware/cache');
 const PasswordVaultService = require('../services/passwordVaultService');
+const ArchiveDetectionService = require('../services/archiveDetectionService');
+const ArchiveExtractionService = require('../services/archiveExtractionService');
+const DLQService = require('../services/dlqService');
 
 // Archive and special format file extensions
 const ARCHIVE_EXTENSIONS = ['.zip', '.tar', '.tar.gz', '.tar.bz2', '.tgz', '.tbz2'];
@@ -39,6 +42,17 @@ class FileProcessingWorker {
       this.passwordVaultService = new PasswordVaultService(dbPool, auditService, logger);
     } catch (error) {
       this.logger.error('Failed to initialize password vault service', { error: error.message });
+      throw error;
+    }
+    
+    // Initialize archive services
+    try {
+      const virusScanService = require('../services/VirusScanService');
+      this.archiveDetectionService = new ArchiveDetectionService(dbPool, logger);
+      this.archiveExtractionService = new ArchiveExtractionService(dbPool, virusScanService, logger);
+      this.dlqService = new DLQService(dbPool, logger);
+    } catch (error) {
+      this.logger.error('Failed to initialize archive services', { error: error.message });
       throw error;
     }
   }
@@ -186,7 +200,7 @@ class FileProcessingWorker {
    * Process a single file upload job
    */
   async processJob(jobId, job) {
-    const { fileId, filePath, originalName, fileSize, fileType, userId, fileHash, projectId, subProjectId, qualityRuleIds, agreementId, isVendorFile } = job.data;
+    const { fileId, filePath, originalName, fileSize, fileType, userId, fileHash, projectId, subProjectId, qualityRuleIds, agreementId, isVendorFile, delimiter, headerConfig, fixedWidthSchema, archivePassword } = job.data;
     const startTime = Date.now();
 
     this.logger.info('Processing file job', {
@@ -234,25 +248,179 @@ class FileProcessingWorker {
       await this.queue.updateProgress(jobId, 10);
 
       // Step 0.5: Check if file is an archive and retrieve password if needed
-      let archivePassword = null;
+      // archivePassword may come from job.data (ad-hoc upload) or password vault (vendor agreement)
       const fileExtension = this.getFileExtension(filePath);
       const isArchive = ARCHIVE_EXTENSIONS.includes(fileExtension);
       
+      // Step 0.6: If delimiter not provided in job.data, retrieve from file metadata
+      if (!delimiter) {
+        try {
+          const metadataResult = await this.dbPool.query('SELECT metadata FROM files WHERE file_id = $1', [fileId]);
+          if (metadataResult.rows.length > 0 && metadataResult.rows[0].metadata) {
+            const metadata = typeof metadataResult.rows[0].metadata === 'string'
+              ? JSON.parse(metadataResult.rows[0].metadata)
+              : metadataResult.rows[0].metadata;
+            
+            if (metadata.delimiter) {
+              delimiter = metadata.delimiter;
+              this.logger.info('Delimiter found in file metadata', { fileId, delimiter });
+            }
+          }
+        } catch (metadataError) {
+          this.logger.warn('Could not retrieve file metadata for delimiter', { 
+            fileId, 
+            error: metadataError.message 
+          });
+          // Continue without delimiter - will use auto-detection
+        }
+      } else {
+        this.logger.info('Delimiter provided in job data', { fileId, delimiter });
+      }
+      
       if (isArchive) {
         this.logger.info('Archive file detected, checking for password', { fileId, fileExtension });
-        try {
-          archivePassword = await this.passwordVaultService.retrievePassword('file', fileId, userId);
-          if (archivePassword) {
-            this.logger.info('Archive password retrieved from vault', { fileId });
-          } else {
-            this.logger.info('No password found for archive (processing without password)', { fileId });
+        
+        // Two password flows: ad-hoc (from job.data) or vendor agreement (from vault)
+        if (!archivePassword) {
+          // No password in job.data, try retrieving from vault (vendor agreement flow)
+          try {
+            archivePassword = await this.passwordVaultService.retrievePassword('file', fileId, userId);
+            if (archivePassword) {
+              this.logger.info('Archive password retrieved from vault (vendor agreement)', { fileId });
+            } else {
+              this.logger.info('No password found for archive (processing without password)', { fileId });
+            }
+          } catch (passwordError) {
+            this.logger.warn('Failed to retrieve archive password from vault', { 
+              fileId, 
+              error: passwordError.message 
+            });
+            // Continue without password - file might not be encrypted
           }
-        } catch (passwordError) {
-          this.logger.warn('Failed to retrieve archive password', { 
-            fileId, 
-            error: passwordError.message 
+        } else {
+          // Password provided in job.data (ad-hoc upload flow)
+          this.logger.info('Using ad-hoc archive password from upload request', { fileId, passwordLength: archivePassword.length });
+        }
+
+        // Step 0.7: Extract archive contents
+        this.logger.info('Attempting to extract archive', { fileId, filePath });
+        try {
+          const extractionResult = await this.archiveExtractionService.extractArchive(
+            filePath,
+            fileId,
+            archivePassword,
+            userId
+          );
+
+          this.logger.info('Archive extraction completed successfully', {
+            fileId,
+            extractedCount: extractionResult.extractedCount,
+            files: extractionResult.files.map(f => f.filename)
           });
-          // Continue without password - file might not be encrypted
+
+          // Complete the job - extracted files will be queued separately
+          await this.queue.completeJob(jobId, {
+            success: true,
+            fileId,
+            extractedCount: extractionResult.extractedCount,
+            files: extractionResult.files,
+            message: 'Archive extracted successfully'
+          });
+
+          // Audit log: Archive extraction completed
+          if (this.auditService) {
+            await this.auditService.logExecutionStateChange({
+              executionId: jobId,
+              executionType: 'archive_extraction',
+              entityId: fileId,
+              entityName: originalName,
+              previousStatus: 'processing',
+              newStatus: 'completed',
+              triggeredByUser: userId,
+              triggerType: 'extraction',
+              metadata: {
+                extractedCount: extractionResult.extractedCount,
+                extractedFiles: extractionResult.files.map(f => f.filename)
+              },
+              context: null
+            });
+          }
+
+          return;
+        } catch (extractionError) {
+          this.logger.error('Archive extraction failed', {
+            fileId,
+            error: extractionError.message,
+            stack: extractionError.stack
+          });
+
+          // Categorize error and create DLQ job if appropriate
+          const errorCategory = this.categorizeError(extractionError);
+
+          if (errorCategory.reasonCode === 'password_missing' || 
+              extractionError.message.toLowerCase().includes('password') ||
+              extractionError.message.toLowerCase().includes('encrypted')) {
+            // Create DLQ job for password-related failures
+            await this.dlqService.createDLQJob(
+              'archive_extraction',
+              {
+                archiveFilePath: filePath,
+                archiveFileId: fileId,
+                userId: userId
+              },
+              extractionError,
+              'Provide the correct password for this password-protected archive'
+            );
+
+            this.logger.info('DLQ job created for password-protected archive', { fileId });
+
+            // Update file status to indicate password required
+            await this.dbPool.query(
+              'UPDATE files SET processing_step = $1, metadata = jsonb_set(COALESCE(metadata, \'{}\'::jsonb), \'{password_required}\', \'true\') WHERE file_id = $2',
+              ['password_required', fileId]
+            );
+
+            // Fail the job gracefully
+            await this.queue.failJob(jobId, extractionError);
+
+            // Audit log: Archive extraction failed - password required
+            if (this.auditService) {
+              await this.auditService.logExecutionStateChange({
+                executionId: jobId,
+                executionType: 'archive_extraction',
+                entityId: fileId,
+                entityName: originalName,
+                previousStatus: 'processing',
+                newStatus: 'failed_password_required',
+                triggeredByUser: userId,
+                triggerType: 'extraction',
+                metadata: {
+                  errorCode: errorCategory.reasonCode,
+                  errorMessage: extractionError.message
+                },
+                context: null
+              });
+            }
+
+            return;
+          } else {
+            // Other extraction failures - create DLQ job but don't return early
+            await this.dlqService.createDLQJob(
+              'archive_extraction',
+              {
+                archiveFilePath: filePath,
+                archiveFileId: fileId,
+                userId: userId,
+                password: archivePassword || null
+              },
+              extractionError,
+              errorCategory.actionableMessage
+            );
+
+            this.logger.warn('DLQ job created for failed archive extraction, continuing with container profiling', { fileId });
+            
+            // Continue to profile the archive container as a fallback
+          }
         }
       }
 
@@ -268,9 +436,11 @@ class FileProcessingWorker {
         this.logger.info('Using Flask profile API for archive/special format', { 
           fileId, 
           fileExtension,
-          hasPassword: !!archivePassword
+          hasPassword: !!archivePassword,
+          hasDelimiter: !!delimiter,
+          hasFixedWidthSchema: !!fixedWidthSchema
         });
-        fileInfo = await this.callFlaskProfileAPI(filePath, originalName, archivePassword);
+        fileInfo = await this.callFlaskProfileAPI(filePath, originalName, fileId, archivePassword, delimiter, headerConfig, fixedWidthSchema);
       } else {
         // Use legacy process_file.py for standard formats
         fileInfo = await this.callPythonProcessor(filePath, fileType);
@@ -346,7 +516,7 @@ class FileProcessingWorker {
       await this.queue.updateProgress(jobId, 75);
 
       // Step 4: Save metadata to database (including duplicates, hash, and header validation)
-      await this.saveFileMetadata(fileId, originalName, fileType, fileSize, fileInfo, userId, fileHash, duplicateStats, headerValidation, projectId, subProjectId, agreementId);
+      await this.saveFileMetadata(fileId, originalName, fileType, fileSize, fileInfo, userId, fileHash, duplicateStats, headerValidation, projectId, subProjectId, agreementId, delimiter, headerConfig, fixedWidthSchema);
       
       // Step 4.2: Track file processing artifacts and archive members (for archives/special formats)
       if (fileInfo.format_specific) {
@@ -830,20 +1000,17 @@ class FileProcessingWorker {
 
   /**
    * Call Flask profile API for archives and special formats
-   * Supports password-protected archives, SAS, Avro, DAT files
+   * Supports password-protected archives, SAS, Avro, DAT files, and custom delimiters
    */
-  async callFlaskProfileAPI(filePath, originalName, password = null) {
+  async callFlaskProfileAPI(filePath, originalName, fileId, password = null, delimiter = null, headerConfig = null, fixedWidthSchema = null) {
     try {
       const profileAPIUrl = process.env.PROFILE_API_URL || 'http://localhost:8000';
       
-      // Read file and encode to base64 for API transmission
-      const fileBuffer = fs.readFileSync(filePath);
-      const fileBase64 = fileBuffer.toString('base64');
-      
+      // Flask API expects local_file_path, not file_data
       const requestBody = {
-        file_path: filePath,
-        filename: originalName,
-        file_data: fileBase64
+        file_id: fileId,
+        local_file_path: filePath,
+        filename: originalName
       };
       
       // Add password if provided
@@ -851,11 +1018,27 @@ class FileProcessingWorker {
         requestBody.password = password;
       }
       
+      // Add delimiter if provided (supports multi-character delimiters)
+      if (delimiter) {
+        requestBody.delimiter = delimiter;
+      }
+      
+      // Add header configuration if provided (for files without headers)
+      if (headerConfig) {
+        requestBody.header_config = headerConfig;
+      }
+      
+      // Add fixed-width schema if provided (for .dat files without delimiters)
+      if (fixedWidthSchema) {
+        requestBody.fixed_width_schema = fixedWidthSchema;
+      }
+      
       this.logger.info('Calling Flask profile API', { 
         url: `${profileAPIUrl}/api/vendor-profile`,
         filename: originalName,
-        hasPassword: !!password,
-        fileSize: fileBuffer.length
+        filePath: filePath,
+        fileId: fileId,
+        hasPassword: !!password
       });
       
       const response = await axios.post(
@@ -874,37 +1057,85 @@ class FileProcessingWorker {
       // Transform Flask response to match process_file.py format
       const flaskResult = response.data;
       const metadata = flaskResult.metadata || {};
+      const columnProfiles = flaskResult.column_profiles || [];
+      
+      // Build schema from column profiles if available, otherwise use basic column list
+      let schema = [];
+      if (columnProfiles.length > 0) {
+        schema = columnProfiles.map(col => ({
+          name: col.name,
+          type: col.type || 'string',
+          nullable: col.nullable !== undefined ? col.nullable : true,
+          null_count: col.null_count || 0,
+          unique_count: col.unique_count || 0,
+          min_value: col.min,
+          max_value: col.max,
+          mean_value: col.mean,
+          min_length: col.min_length,
+          max_length: col.max_length,
+          avg_length: col.avg_length,
+          top_values: col.top_values || [],
+          patterns: col.patterns || [],
+          most_frequent_value: col.most_frequent_value,
+          most_frequent_count: col.most_frequent_count,
+          least_frequent_value: col.least_frequent_value,
+          least_frequent_count: col.least_frequent_count
+        }));
+      } else if (metadata.columns && metadata.columns.length > 0) {
+        schema = metadata.columns.map(colName => ({
+          name: colName,
+          type: 'string',
+          nullable: true
+        }));
+      }
       
       return {
         row_count: metadata.row_count || 0,
         column_count: metadata.column_count || 0,
-        schema: (metadata.columns || []).map(colName => ({
-          name: colName,
-          type: 'string', // Flask API doesn't provide detailed types in initial response
-          nullable: true
-        })),
+        schema: schema,
         processing_time_seconds: 0,
         size_bytes: metadata.file_size_mb ? Math.round(metadata.file_size_mb * 1024 * 1024) : 0,
         encoding: null,
         delimiter: null,
-        preview_data: [],
+        preview_data: flaskResult.preview_data || [],
         format_specific: metadata.format_specific || {} // SAS labels, Avro schema, archive manifest
       };
       
     } catch (error) {
+      // Enhanced diagnostics for Flask API errors
+      const fileExists = fs.existsSync(filePath);
+      const fileStats = fileExists ? fs.statSync(filePath) : null;
+      
       this.logger.error('Flask profile API call failed', {
         error: error.message,
-        response: error.response?.data,
-        status: error.response?.status
+        responseData: error.response?.data,
+        responseStatus: error.response?.status,
+        requestFilename: originalName,
+        requestFilePath: filePath,
+        fileExists: fileExists,
+        fileSize: fileStats ? fileStats.size : null,
+        fileModified: fileStats ? fileStats.mtime : null,
+        stackTrace: error.stack
       });
       
-      // Handle specific error cases
-      if (error.response?.status === 400 && error.response?.data?.error?.includes('password')) {
-        throw new Error('Archive requires password. Please provide a password and retry.');
+      // Handle specific error cases with detailed messages
+      if (error.response?.status === 400) {
+        const errorMsg = error.response?.data?.error || error.response?.data?.message || 'Unknown error';
+        
+        if (errorMsg.includes('password')) {
+          throw new Error('Archive requires password. Please provide a password and retry.');
+        }
+        
+        if (errorMsg.includes('Virus detected')) {
+          throw new Error('File failed virus scan. Cannot process infected archive.');
+        }
+        
+        // Include Flask error details in the thrown error
+        throw new Error(`Failed to profile file via Flask API: ${errorMsg}. File: ${originalName}, Exists: ${fileExists}`);
       }
       
-      if (error.response?.status === 400 && error.response?.data?.error?.includes('Virus detected')) {
-        throw new Error('File failed virus scan. Cannot process infected archive.');
+      if (!fileExists) {
+        throw new Error(`Failed to profile file via Flask API: File not found at ${filePath}. The file may have been deleted prematurely.`);
       }
       
       throw new Error(`Failed to profile file via Flask API: ${error.message}`);
@@ -1157,7 +1388,7 @@ print(json.dumps(result))
   /**
    * Save file metadata to database
    */
-  async saveFileMetadata(fileId, filename, fileType, fileSize, fileInfo, userId, fileHash, duplicateStats, headerValidation, projectId, subProjectId = null, agreementId = null) {
+  async saveFileMetadata(fileId, filename, fileType, fileSize, fileInfo, userId, fileHash, duplicateStats, headerValidation, projectId, subProjectId = null, agreementId = null, userDelimiter = null, headerConfig = null, fixedWidthSchema = null) {
     // Fetch existing metadata to preserve original fields (connection_id, storage_location, provider, etc.)
     let existingMetadata = {};
     try {
@@ -1180,13 +1411,16 @@ print(json.dumps(result))
 
     // Merge existing metadata with new profiling data
     // Existing fields (connection_id, storage_location, provider, etc.) are preserved
-    // New/updated fields (encoding, delimiter, preview_data, header_validation) are added
+    // New/updated fields (encoding, delimiter, preview_data, header_validation, header_config, fixed_width_schema) are added
+    // User-provided delimiter takes precedence over auto-detected delimiter
     const metadata = {
       ...existingMetadata, // Preserve original metadata
       encoding: fileInfo.encoding || null,
-      delimiter: fileInfo.delimiter || null,
+      delimiter: userDelimiter || fileInfo.delimiter || null,
       preview_data: fileInfo.preview_data || [],
-      header_validation: headerValidation || null
+      header_validation: headerValidation || null,
+      header_config: headerConfig || existingMetadata.header_config || null,
+      fixed_width_schema: fixedWidthSchema || existingMetadata.fixed_width_schema || null
     };
     
     this.logger.info('Merged metadata result', { 

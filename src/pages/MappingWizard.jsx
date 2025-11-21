@@ -18,13 +18,16 @@ import {
   FiChevronDown,
   FiChevronUp,
   FiFolder,
-  FiShield
+  FiShield,
+  FiGitBranch
 } from 'react-icons/fi';
 import axios from 'axios';
 import { API_BASE_URL } from '../config';
 import Card from '../components/Card';
 import LoadingSpinner from '../components/LoadingSpinner';
 import TableBasedMapper from '../components/TableBasedMapper';
+import RdmLookupStep from '../components/RdmLookupStep';
+import CrosswalkLookupStep from '../components/CrosswalkLookupStep';
 import S3FolderBrowser from '../components/S3FolderBrowser';
 import { getQualityRules } from '../api/qualityRulesService';
 import './MappingWizard.css';
@@ -114,6 +117,16 @@ function MappingWizard() {
   const [variables, setVariables] = useState([]);
   const [piiColumns, setPiiColumns] = useState([]);
   const [loadingSchema, setLoadingSchema] = useState(false);
+  
+  // RDM Lookup toggle and configuration
+  const [rdmDatasetEnabled, setRdmDatasetEnabled] = useState(false);
+  const [rdmCrosswalkEnabled, setRdmCrosswalkEnabled] = useState(false);
+  const [rdmStepOrder, setRdmStepOrder] = useState([]); // Track order of enabled RDM steps
+  const [rdmDatasetConfig, setRdmDatasetConfig] = useState({});
+  const [rdmCrosswalkConfig, setRdmCrosswalkConfig] = useState({});
+
+  // Cumulative schema tracking
+  const [cumulativeSchema, setCumulativeSchema] = useState([]);
 
   // Step 4: Target & Anomaly Rules
   const [targetConnectionId, setTargetConnectionId] = useState('');
@@ -145,6 +158,35 @@ function MappingWizard() {
   const [showSchemaValidationModal, setShowSchemaValidationModal] = useState(false);
   const [schemaValidationResult, setSchemaValidationResult] = useState(null);
 
+  // Recompute cumulative schema when mappings change
+  useEffect(() => {
+    const expressionsSchema = fieldMappings
+      .filter(m => m.target_field)
+      .map(m => ({ name: m.target_field, type: 'string' }));
+    
+    let cumulative = [...expressionsSchema];
+    
+    // Add dataset columns if enabled
+    if (rdmDatasetEnabled && rdmDatasetConfig?.column_mappings) {
+      const datasetCols = rdmDatasetConfig.column_mappings.map(m => ({
+        name: m.targetColumn,
+        type: m.dataType || 'string'
+      }));
+      cumulative = [...cumulative, ...datasetCols];
+    }
+    
+    // Add crosswalk columns if enabled
+    if (rdmCrosswalkEnabled && rdmCrosswalkConfig?.column_mappings) {
+      const crosswalkCols = rdmCrosswalkConfig.column_mappings.map(m => ({
+        name: m.targetColumn,
+        type: m.dataType || 'string'
+      }));
+      cumulative = [...cumulative, ...crosswalkCols];
+    }
+    
+    setCumulativeSchema(cumulative);
+  }, [fieldMappings, rdmDatasetEnabled, rdmDatasetConfig, rdmCrosswalkEnabled, rdmCrosswalkConfig]);
+
   useEffect(() => {
     fetchConnections();
     fetchProjects();
@@ -163,6 +205,29 @@ function MappingWizard() {
       setQualityRules([]);
     }
   }, [projectId]);
+  
+  // Handlers for RDM toggle changes - track order of enabled steps
+  const handleDatasetToggle = (enabled) => {
+    setRdmDatasetEnabled(enabled);
+    if (enabled) {
+      // Add to order if not already present
+      setRdmStepOrder(prev => prev.includes('dataset') ? prev : [...prev, 'dataset']);
+    } else {
+      // Remove from order
+      setRdmStepOrder(prev => prev.filter(step => step !== 'dataset'));
+    }
+  };
+
+  const handleCrosswalkToggle = (enabled) => {
+    setRdmCrosswalkEnabled(enabled);
+    if (enabled) {
+      // Add to order if not already present
+      setRdmStepOrder(prev => prev.includes('crosswalk') ? prev : [...prev, 'crosswalk']);
+    } else {
+      // Remove from order
+      setRdmStepOrder(prev => prev.filter(step => step !== 'crosswalk'));
+    }
+  };
 
   // Fetch sub-projects when projectId changes
   useEffect(() => {
@@ -467,18 +532,45 @@ function MappingWizard() {
         setViolationHandling('log_continue');
       }
       
-      // Determine max completed step based on available data
+      // Load RDM lookup configuration
+      const tempRdmStepOrder = [];
+      
+      if (mapping.rdm_dataset_config) {
+        // Parse if string, otherwise use as-is
+        const datasetConfig = typeof mapping.rdm_dataset_config === 'string' 
+          ? JSON.parse(mapping.rdm_dataset_config) 
+          : mapping.rdm_dataset_config;
+        setRdmDatasetConfig(datasetConfig);
+        setRdmDatasetEnabled(true);
+        tempRdmStepOrder.push('dataset');
+      }
+      
+      if (mapping.rdm_crosswalk_config) {
+        // Parse if string, otherwise use as-is
+        const crosswalkConfig = typeof mapping.rdm_crosswalk_config === 'string'
+          ? JSON.parse(mapping.rdm_crosswalk_config)
+          : mapping.rdm_crosswalk_config;
+        setRdmCrosswalkConfig(crosswalkConfig);
+        setRdmCrosswalkEnabled(true);
+        tempRdmStepOrder.push('crosswalk');
+      }
+      
+      // Set the RDM step order based on loaded configs
+      if (tempRdmStepOrder.length > 0) {
+        setRdmStepOrder(tempRdmStepOrder);
+      }
+      
+      // Determine max completed step based on available data (5-step model)
       let maxStep = 1; // Step 1 always completed if mapping exists
       if (mapping.file_name_pattern || mapping.source_file_pattern || mapping.file_pattern) {
         maxStep = 2; // Step 2 completed if file pattern exists
       }
       if (mapping.field_mappings && mapping.field_mappings.length > 0) {
-        maxStep = 3; // Step 3 completed if field mappings exist
+        // If field mappings exist, allow access to Step 5 (Target & Rules)
+        // This ensures backward compatibility and lets users complete the wizard
+        maxStep = 5; 
       }
-      if (mapping.target_connection_id || mapping.target_file_name || mapping.target_file_format || 
-          (mapping.anomaly_rules && Object.keys(mapping.anomaly_rules).length > 0)) {
-        maxStep = 4; // Step 4 completed if target settings or anomaly rules exist
-      }
+      // Note: Step 4 is RDM Lookup (optional/skippable) - will be marked complete when RDM config exists
       setMaxCompletedStep(maxStep);
       
       // Always start at Step 1 in edit mode for consistent user experience
@@ -611,7 +703,10 @@ function MappingWizard() {
   };
 
   const handleNext = async () => {
-    if (currentStep === 1) {
+    const steps = getWizardSteps();
+    const currentStepConfig = steps[currentStep - 1];
+
+    if (currentStepConfig?.id === 'config') {
       // Step 1 validation: Basic info
       if (!mappingName.trim()) {
         setError('Please enter a mapping name');
@@ -630,9 +725,7 @@ function MappingWizard() {
         return;
       }
       setError(null);
-      setCurrentStep(2);
-      setMaxCompletedStep(Math.max(maxCompletedStep, 2));
-    } else if (currentStep === 2) {
+    } else if (currentStepConfig?.id === 'source') {
       // Step 2 validation: Source configuration - both filePath and fileNamePattern required
       if (!filePath || !filePath.trim()) {
         setError('Please enter a file path. Use "/" for root directory or specify a folder path (e.g., /data/input/)');
@@ -650,10 +743,7 @@ function MappingWizard() {
         // Error already set by extractSchema
         return;
       }
-      
-      setCurrentStep(3);
-      setMaxCompletedStep(Math.max(maxCompletedStep, 3));
-    } else if (currentStep === 3) {
+    } else if (currentStepConfig?.id === 'expressions') {
       // Step 3 validation: Field mappings required
       if (!fieldMappings || fieldMappings.length === 0) {
         setError('Please configure at least one field mapping');
@@ -668,8 +758,15 @@ function MappingWizard() {
       }
       
       setError(null);
-      setCurrentStep(4);
-      setMaxCompletedStep(Math.max(maxCompletedStep, 4));
+    } else if (currentStepConfig?.id === 'rdm' || currentStepConfig?.id === 'crosswalk') {
+      // RDM and Crosswalk steps: Optional validation
+      setError(null);
+    }
+
+    // Move to next step
+    if (currentStep < steps.length) {
+      setCurrentStep(currentStep + 1);
+      setMaxCompletedStep(Math.max(maxCompletedStep, currentStep + 1));
     }
   };
 
@@ -737,7 +834,10 @@ function MappingWizard() {
         schema_drift_handling: schemaDriftHandling,
         source_schema: schema || null,
         quality_rule_ids: selectedQualityRules && selectedQualityRules.length > 0 ? selectedQualityRules : null,
-        violation_handling: selectedQualityRules && selectedQualityRules.length > 0 ? violationHandling : null
+        violation_handling: selectedQualityRules && selectedQualityRules.length > 0 ? violationHandling : null,
+        rdm_lookup_enabled: rdmDatasetEnabled || rdmCrosswalkEnabled,
+        rdm_dataset_config: rdmDatasetConfig || null,
+        rdm_crosswalk_config: rdmCrosswalkConfig || null
       };
 
       let response;
@@ -824,13 +924,34 @@ function MappingWizard() {
     navigate('/mappings');
   };
 
-  const renderStepIndicator = () => {
+  // Dynamic step configuration based on RDM toggles
+  const getWizardSteps = () => {
     const steps = [
-      { num: 1, label: 'Mapping Configuration' },
-      { num: 2, label: 'Source Configuration' },
-      { num: 3, label: 'Expressions' },
-      { num: 4, label: 'Target & Rules' }
+      { id: 'config', label: 'Mapping Configuration', component: 'config' },
+      { id: 'source', label: 'Source Configuration', component: 'source' },
+      { id: 'expressions', label: 'Expressions', component: 'expressions' },
     ];
+    
+    // Add RDM steps in the order they were enabled
+    rdmStepOrder.forEach(stepType => {
+      if (stepType === 'dataset' && rdmDatasetEnabled) {
+        steps.push({ id: 'rdm-dataset', label: 'Dataset Lookup', component: 'rdm-dataset' });
+      } else if (stepType === 'crosswalk' && rdmCrosswalkEnabled) {
+        steps.push({ id: 'rdm-crosswalk', label: 'Crosswalk Lookup', component: 'rdm-crosswalk' });
+      }
+    });
+    
+    steps.push({ id: 'target', label: 'Target & Rules', component: 'target' });
+    
+    return steps;
+  };
+
+  const renderStepIndicator = () => {
+    const steps = getWizardSteps().map((step, idx) => ({
+      num: idx + 1,
+      id: step.id,
+      label: step.label
+    }));
 
     const handleStepClick = (stepNum) => {
       // Only allow navigation to completed steps in edit mode
@@ -850,7 +971,9 @@ function MappingWizard() {
               <div 
                 className={`wizard-step ${currentStep === step.num ? 'active' : ''} ${currentStep > step.num ? 'completed' : ''} ${isClickable ? 'clickable' : ''}`}
                 onClick={() => handleStepClick(step.num)}
-                style={{ cursor: isClickable ? 'pointer' : 'default' }}
+                style={{ 
+                  cursor: isClickable ? 'pointer' : 'default'
+                }}
               >
                 <div className="step-number">
                   {currentStep > step.num ? <FiCheckCircle /> : step.num}
@@ -928,12 +1051,12 @@ function MappingWizard() {
         {/* Step 1: Basic Info & Source */}
         {currentStep === 1 && (
           <div className="wizard-step-content">
-            <h2><FiServer /> Mapping Configuration</h2>
+            <h2 style={{ fontSize: '10px', fontFamily: 'Inter', fontWeight: 600, textTransform: 'uppercase' }}><FiServer /> Mapping Configuration</h2>
             
             {/* Project and Sub Project side-by-side */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
               <div className="form-group">
-                <label>Project *</label>
+                <label style={{ fontSize: '10px', fontFamily: 'Inter', fontWeight: 600, textTransform: 'uppercase' }}>Project *</label>
                 <select
                   className="form-control"
                   value={projectId}
@@ -943,6 +1066,7 @@ function MappingWizard() {
                     setSubProjectId('');
                   }}
                   disabled={loadingProjects}
+                  style={{ fontSize: '10px', fontFamily: 'Inter' }}
                 >
                   <option value="">Select a project...</option>
                   {projects.map(proj => (
@@ -951,16 +1075,17 @@ function MappingWizard() {
                     </option>
                   ))}
                 </select>
-                <small className="form-help">Select the project for this mapping</small>
+                <small className="form-help" style={{ fontSize: '10px', fontFamily: 'Inter' }}>Select the project for this mapping</small>
               </div>
 
               <div className="form-group">
-                <label>Sub Project</label>
+                <label style={{ fontSize: '10px', fontFamily: 'Inter', fontWeight: 600, textTransform: 'uppercase' }}>Sub Project</label>
                 <select
                   className="form-control"
                   value={subProjectId}
                   onChange={(e) => setSubProjectId(e.target.value ? parseInt(e.target.value) : '')}
                   disabled={!projectId || loadingSubProjects || subProjects.length === 0}
+                  style={{ fontSize: '10px', fontFamily: 'Inter' }}
                 >
                   <option value="">Select a sub-project (optional)...</option>
                   {subProjects.map(sp => (
@@ -969,7 +1094,7 @@ function MappingWizard() {
                     </option>
                   ))}
                 </select>
-                <small className="form-help">
+                <small className="form-help" style={{ fontSize: '10px', fontFamily: 'Inter' }}>
                   {!projectId ? 'Select a project first' : subProjects.length === 0 ? 'No sub-projects available' : 'Optional: Select a sub-project'}
                 </small>
               </div>
@@ -978,24 +1103,26 @@ function MappingWizard() {
             {/* Name and Description side-by-side */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
               <div className="form-group">
-                <label>Mapping Name *</label>
+                <label style={{ fontSize: '10px', fontFamily: 'Inter', fontWeight: 600, textTransform: 'uppercase' }}>Mapping Name *</label>
                 <input
                   type="text"
                   className="form-control"
                   value={mappingName}
                   onChange={(e) => setMappingName(e.target.value)}
                   placeholder="e.g., Daily Sales Data Transformation"
+                  style={{ fontSize: '10px', fontFamily: 'Inter' }}
                 />
               </div>
 
               <div className="form-group">
-                <label>Mapping Description</label>
+                <label style={{ fontSize: '10px', fontFamily: 'Inter', fontWeight: 600, textTransform: 'uppercase' }}>Mapping Description</label>
                 <input
                   type="text"
                   className="form-control"
                   value={mappingDescription}
                   onChange={(e) => setMappingDescription(e.target.value)}
                   placeholder="Brief description of this mapping"
+                  style={{ fontSize: '10px', fontFamily: 'Inter' }}
                 />
               </div>
             </div>
@@ -1003,7 +1130,7 @@ function MappingWizard() {
             {/* Source Connection and Vendor Contract side-by-side */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
               <div className="form-group">
-                <label>Source Connection</label>
+                <label style={{ fontSize: '10px', fontFamily: 'Inter', fontWeight: 600, textTransform: 'uppercase' }}>Source Connection</label>
                 <select
                   className="form-control"
                   value={sourceConnectionId}
@@ -1015,6 +1142,7 @@ function MappingWizard() {
                     }
                   }}
                   disabled={!!selectedVendorAgreement}
+                  style={{ fontSize: '10px', fontFamily: 'Inter' }}
                 >
                   <option value="">Select source connection</option>
                   {connections.filter(c => c.connection_direction === 'source').map(conn => (
@@ -1023,13 +1151,13 @@ function MappingWizard() {
                     </option>
                   ))}
                 </select>
-                <small className="form-help">
+                <small className="form-help" style={{ fontSize: '10px', fontFamily: 'Inter' }}>
                   {selectedVendorAgreement ? 'Disabled (Vendor Contract selected)' : 'Select where to read files from'}
                 </small>
               </div>
 
               <div className="form-group">
-                <label>Vendor Contract</label>
+                <label style={{ fontSize: '10px', fontFamily: 'Inter', fontWeight: 600, textTransform: 'uppercase' }}>Vendor Contract</label>
                 <select
                   className="form-control"
                   value={selectedVendorAgreement}
@@ -1066,6 +1194,7 @@ function MappingWizard() {
                     }
                   }}
                   disabled={!!sourceConnectionId}
+                  style={{ fontSize: '10px', fontFamily: 'Inter' }}
                 >
                   <option value="">Select Vendor Contract</option>
                   {vendorAgreements.map(agreement => (
@@ -1074,7 +1203,7 @@ function MappingWizard() {
                     </option>
                   ))}
                 </select>
-                <small className="form-help">
+                <small className="form-help" style={{ fontSize: '10px', fontFamily: 'Inter' }}>
                   {sourceConnectionId ? 'Disabled (Source Connection selected)' : 'Or select an approved vendor contract'}
                 </small>
               </div>
@@ -1088,17 +1217,17 @@ function MappingWizard() {
               return (
                 <div className="info-box" style={{ marginTop: '1rem', padding: '1rem', backgroundColor: '#f0fdf4', border: '1px solid #86efac', borderRadius: '4px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                    <FiCheckCircle style={{ color: '#16a34a' }} />
-                    <strong style={{ color: '#15803d' }}>Vendor Contract Selected - Source Connection Auto-Populated</strong>
+                    <FiCheckCircle style={{ color: '#16a34a', fontSize: '10px' }} />
+                    <strong style={{ color: '#15803d', fontSize: '10px', fontFamily: 'Inter' }}>Vendor Contract Selected - Source Connection Auto-Populated</strong>
                   </div>
                   <div style={{ padding: '8px', backgroundColor: 'white', borderRadius: '4px', border: '1px solid #d1fae5' }}>
-                    <small style={{ color: '#6b7280', display: 'block', marginBottom: '4px' }}>Source Connection:</small>
-                    <div style={{ color: '#15803d', fontWeight: '500' }}>
+                    <small style={{ color: '#6b7280', display: 'block', marginBottom: '4px', fontSize: '10px', fontFamily: 'Inter' }}>Source Connection:</small>
+                    <div style={{ color: '#15803d', fontWeight: '500', fontSize: '10px', fontFamily: 'Inter' }}>
                       {agreement.vendor_connection_name || 'Vendor Connection'}
                     </div>
-                    <small style={{ color: '#6b7280' }}>ID: {agreement.vendor_connection_id?.substring(0, 8)}...</small>
+                    <small style={{ color: '#6b7280', fontSize: '10px', fontFamily: 'Inter' }}>ID: {agreement.vendor_connection_id?.substring(0, 8)}...</small>
                   </div>
-                  <small style={{ color: '#15803d', display: 'block', marginTop: '8px' }}>
+                  <small style={{ color: '#15803d', display: 'block', marginTop: '8px', fontSize: '10px', fontFamily: 'Inter' }}>
                     The source connection is managed by the vendor contract. You can specify your own target connection in Step 4.
                   </small>
                 </div>
@@ -1119,40 +1248,67 @@ function MappingWizard() {
         {/* Step 2: Source Configuration */}
         {currentStep === 2 && (
           <div className="wizard-step-content">
-            <h2><FiFilter /> Source Configuration</h2>
+            <h2 style={{ fontSize: '10px', fontFamily: 'Inter', fontWeight: 600, textTransform: 'uppercase' }}><FiFilter /> Source Configuration</h2>
             
+            {/* File Path and File Name/Pattern in one row */}
             <div className="form-group">
-              <label>File Path *</label>
-              <div style={{ display: 'flex', gap: '8px' }}>
-                <input
-                  type="text"
-                  className="form-control"
-                  value={filePath}
-                  onChange={(e) => setFilePath(e.target.value)}
-                  placeholder="e.g., /year/month/day/ or use / for root"
-                  style={{ flex: 1 }}
-                />
-                {(sourceConnectionId || selectedVendorAgreement) && (
-                  <button
-                    type="button"
-                    className="btn btn-secondary"
-                    onClick={() => setShowSourceBrowse(true)}
-                    style={{ display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap' }}
-                  >
-                    <FiFolder /> Browse
-                  </button>
-                )}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: '12px', alignItems: 'start' }}>
+                <div>
+                  <label style={{ fontSize: '10px', fontFamily: 'Inter', fontWeight: 600, textTransform: 'uppercase' }}>File Path *</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    value={filePath}
+                    onChange={(e) => setFilePath(e.target.value)}
+                    placeholder="e.g., /year/month/day/ or use / for root"
+                    style={{ fontSize: '10px', fontFamily: 'Inter' }}
+                  />
+                  <small className="form-help" style={{ fontSize: '10px', fontFamily: 'Inter' }}>
+                    Required. Use "/" for root directory or specify a folder path (e.g., /data/input/).<br/>
+                    Example: If file exists in bucket 'source' → subfolder 'year' → 'month' → 'day', enter: <code>/year/month/day/</code>
+                  </small>
+                </div>
+                <div>
+                  <label style={{ fontSize: '10px', fontFamily: 'Inter', fontWeight: 600, textTransform: 'uppercase' }}>File Name/Pattern *</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    value={fileNamePattern}
+                    onChange={(e) => setFileNamePattern(e.target.value)}
+                    placeholder="e.g., sales_data.csv or sales_*.csv"
+                    readOnly={!!selectedVendorAgreement}
+                    style={selectedVendorAgreement ? { backgroundColor: '#f9fafb', cursor: 'not-allowed', fontSize: '10px', fontFamily: 'Inter' } : { fontSize: '10px', fontFamily: 'Inter' }}
+                  />
+                  <small className="form-help" style={{ fontSize: '10px', fontFamily: 'Inter' }}>
+                    {selectedVendorAgreement ? (
+                      <>Auto-populated from vendor contract and locked for editing to ensure compliance.</>
+                    ) : (
+                      <>
+                        Enter a complete file name (e.g., <code>data.csv</code>) or a pattern with wildcards.<br/>
+                        Wildcards: <code>*</code> matches multiple characters, <code>?</code> matches single character.<br/>
+                        File existence will be validated during job execution.
+                      </>
+                    )}
+                  </small>
+                </div>
+                <div style={{ paddingTop: '24px' }}>
+                  {(sourceConnectionId || selectedVendorAgreement) && (
+                    <button
+                      type="button"
+                      className="btn btn-browse"
+                      onClick={() => setShowSourceBrowse(true)}
+                    >
+                      <FiFolder /> Browse
+                    </button>
+                  )}
+                </div>
               </div>
-              <small className="form-help">
-                Required. Use "/" for root directory or specify a folder path (e.g., /data/input/).<br/>
-                Example: If file exists in bucket 'source' → subfolder 'year' → 'month' → 'day', enter: <code>/year/month/day/</code>
-              </small>
             </div>
 
             {/* File Schema Selection - Show when agreement has multiple files */}
             {selectedVendorAgreement && agreementFileSchemas.length > 1 && (
               <div className="form-group">
-                <label>Select File Pattern * <span style={{ color: '#6b7280', fontWeight: 'normal' }}>(From Vendor Contract)</span></label>
+                <label style={{ fontSize: '10px', fontFamily: 'Inter', fontWeight: 600, textTransform: 'uppercase' }}>Select File Pattern * <span style={{ color: '#6b7280', fontWeight: 'normal', textTransform: 'none' }}>(From Vendor Contract)</span></label>
                 <select
                   className="form-control"
                   value={selectedFileSchema?.id || ''}
@@ -1166,7 +1322,7 @@ function MappingWizard() {
                       extractPiiColumnsFromSchema(schema.schema);
                     }
                   }}
-                  style={{ marginBottom: '0.5rem' }}
+                  style={{ marginBottom: '0.5rem', fontSize: '10px', fontFamily: 'Inter' }}
                 >
                   <option value="">Select a file pattern...</option>
                   {agreementFileSchemas.map(schema => (
@@ -1245,41 +1401,16 @@ function MappingWizard() {
               </div>
             )}
 
-            {/* File Name/Pattern Input - Show when no agreement OR only one file */}
-            {(!selectedVendorAgreement || agreementFileSchemas.length <= 1) && (
-              <div className="form-group">
-                <label>File Name/Pattern * {selectedVendorAgreement && <span style={{ color: '#6b7280', fontWeight: 'normal' }}>(From Vendor Contract)</span>}</label>
-                <input
-                  type="text"
-                  className="form-control"
-                  value={fileNamePattern}
-                  onChange={(e) => setFileNamePattern(e.target.value)}
-                  placeholder="e.g., sales_data.csv or sales_*.csv"
-                  readOnly={!!selectedVendorAgreement}
-                  style={selectedVendorAgreement ? { backgroundColor: '#f9fafb', cursor: 'not-allowed' } : {}}
-                />
-                <small className="form-help">
-                  {selectedVendorAgreement ? (
-                    <>Auto-populated from vendor contract and locked for editing to ensure compliance.</>
-                  ) : (
-                    <>
-                      Enter a complete file name (e.g., <code>data.csv</code>) or a pattern with wildcards.<br/>
-                      Wildcards: <code>*</code> matches multiple characters, <code>?</code> matches single character.<br/>
-                      File existence will be validated during job execution.
-                    </>
-                  )}
-                </small>
-              </div>
-            )}
 
             {/* Source Owner Field */}
             <div className="form-group">
-              <label>Source File Owner</label>
+              <label style={{ fontSize: '10px', fontFamily: 'Inter', fontWeight: 600, textTransform: 'uppercase' }}>Source File Owner</label>
               <select
                 className="form-control"
                 value={sourceOwner}
                 onChange={(e) => setSourceOwner(e.target.value)}
                 disabled={loadingSourceOwners}
+                style={{ fontSize: '10px', fontFamily: 'Inter' }}
               >
                 <option value="">Select source file owner (optional)...</option>
                 {availableSourceOwners.map((owner, idx) => (
@@ -1288,7 +1419,7 @@ function MappingWizard() {
                   </option>
                 ))}
               </select>
-              <small className="form-help">
+              <small className="form-help" style={{ fontSize: '10px', fontFamily: 'Inter' }}>
                 {loadingSourceOwners ? (
                   'Loading available owners...'
                 ) : selectedVendorAgreement ? (
@@ -1301,54 +1432,153 @@ function MappingWizard() {
               </small>
             </div>
 
-            {/* Schema Drift Handling - Available for all source types */}
-            <div style={{ marginTop: '1.5rem', padding: '1rem', backgroundColor: '#fef3c7', border: '1px solid #fbbf24', borderRadius: '6px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '1rem' }}>
-                <FiAlertCircle style={{ color: '#d97706' }} />
-                <strong>Schema Drift Handling *</strong>
-              </div>
-              
-              {/* Radio Options */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                {/* Abort Job Option */}
-                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', cursor: 'pointer' }} onClick={() => setSchemaDriftHandling('abort')}>
-                  <input
-                    type="radio"
-                    name="schemaDriftHandling"
-                    value="abort"
-                    checked={schemaDriftHandling === 'abort'}
-                    onChange={(e) => setSchemaDriftHandling(e.target.value)}
-                    style={{ marginTop: '2px', cursor: 'pointer' }}
-                  />
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: '600', marginBottom: '2px' }}>
-                      Abort Job - Stop processing if schema mismatch is detected
-                    </div>
-                    <div style={{ fontSize: '0.875rem', color: '#6b7280' }}>
-                      Recommended for critical data pipelines where schema consistency is mandatory
+            {/* Schema Drift Handling and RDM Lookup Toggles side-by-side */}
+            <div style={{ marginTop: '1.5rem', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+              {/* Schema Drift Handling Panel */}
+              <div style={{ padding: '1rem', backgroundColor: '#fef3c7', border: '1px solid #fbbf24', borderRadius: '6px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '1rem' }}>
+                  <FiAlertCircle style={{ color: '#d97706', fontSize: '10px' }} />
+                  <strong style={{ fontSize: '10px', fontFamily: 'Inter', fontWeight: 700 }}>Schema Drift Handling *</strong>
+                </div>
+                
+                {/* Radio Options */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                  {/* Abort Job Option */}
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', cursor: 'pointer' }} onClick={() => setSchemaDriftHandling('abort')}>
+                    <input
+                      type="radio"
+                      name="schemaDriftHandling"
+                      value="abort"
+                      checked={schemaDriftHandling === 'abort'}
+                      onChange={(e) => setSchemaDriftHandling(e.target.value)}
+                      style={{ marginTop: '2px', cursor: 'pointer' }}
+                    />
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: '10px', fontFamily: 'Inter', fontWeight: 700, marginBottom: '2px' }}>
+                        Abort Job - Stop processing if schema mismatch is detected
+                      </div>
+                      <div style={{ fontSize: '10px', fontFamily: 'Inter', fontWeight: 400, color: '#6b7280' }}>
+                        Recommended for critical data pipelines where schema consistency is mandatory
+                      </div>
                     </div>
                   </div>
+
+                  {/* Alert & Process Option */}
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', cursor: 'pointer' }} onClick={() => setSchemaDriftHandling('alert')}>
+                    <input
+                      type="radio"
+                      name="schemaDriftHandling"
+                      value="alert"
+                      checked={schemaDriftHandling === 'alert'}
+                      onChange={(e) => setSchemaDriftHandling(e.target.value)}
+                      style={{ marginTop: '2px', cursor: 'pointer' }}
+                    />
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: '10px', fontFamily: 'Inter', fontWeight: 700, marginBottom: '2px' }}>
+                        Alert & Process - Log warning and continue processing
+                      </div>
+                      <div style={{ fontSize: '10px', fontFamily: 'Inter', fontWeight: 400, color: '#6b7280' }}>
+                        Schema drift will be logged in the Monitor with "Fail" status, but the job will continue
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* RDM Lookup Toggles Panel */}
+              <div style={{ padding: '1rem', backgroundColor: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: '8px' }}>
+                {/* Panel Header */}
+                <div style={{ fontSize: '10px', fontFamily: 'Inter', fontWeight: 700, marginBottom: '1rem' }}>
+                  Enable RDM Lookup
+                </div>
+                
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                  {/* Enable Dataset Lookup Toggle */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', justifyContent: 'space-between' }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: '600', marginBottom: '4px', fontSize: '10px', fontFamily: 'Inter' }}>
+                        Enable Datasets Lookup
+                      </div>
+                    <div style={{ fontSize: '10px', color: '#6b7280', fontFamily: 'Inter', fontWeight: 400 }}>
+                      Join datasets from RDM to enrich records
+                    </div>
+                  </div>
+                  <label style={{ position: 'relative', display: 'inline-block', width: '50px', height: '28px', cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={rdmDatasetEnabled}
+                      onChange={(e) => handleDatasetToggle(e.target.checked)}
+                      style={{ opacity: 0, width: 0, height: 0 }}
+                    />
+                    <span style={{
+                      position: 'absolute',
+                      cursor: 'pointer',
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      backgroundColor: rdmDatasetEnabled ? 'hsl(221, 83%, 53%)' : '#ccc',
+                      transition: '0.4s',
+                      borderRadius: '28px'
+                    }}>
+                      <span style={{
+                        position: 'absolute',
+                        content: '""',
+                        height: '22px',
+                        width: '22px',
+                        left: rdmDatasetEnabled ? '25px' : '3px',
+                        bottom: '3px',
+                        backgroundColor: 'white',
+                        transition: '0.4s',
+                        borderRadius: '50%'
+                      }}></span>
+                    </span>
+                  </label>
                 </div>
 
-                {/* Alert & Process Option */}
-                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', cursor: 'pointer' }} onClick={() => setSchemaDriftHandling('alert')}>
-                  <input
-                    type="radio"
-                    name="schemaDriftHandling"
-                    value="alert"
-                    checked={schemaDriftHandling === 'alert'}
-                    onChange={(e) => setSchemaDriftHandling(e.target.value)}
-                    style={{ marginTop: '2px', cursor: 'pointer' }}
-                  />
+                {/* Enable Crosswalk Lookup Toggle */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', justifyContent: 'space-between' }}>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: '600', marginBottom: '2px' }}>
-                      Alert & Process - Log warning and continue processing
+                    <div style={{ fontWeight: '600', marginBottom: '4px', fontSize: '10px', fontFamily: 'Inter' }}>
+                      Enable Crosswalks Lookup
                     </div>
-                    <div style={{ fontSize: '0.875rem', color: '#6b7280' }}>
-                      Schema drift will be logged in the Monitor with "Fail" status, but the job will continue
+                    <div style={{ fontSize: '10px', color: '#6b7280', fontFamily: 'Inter', fontWeight: 400 }}>
+                      Apply crosswalk mappings to transform values
                     </div>
                   </div>
+                  <label style={{ position: 'relative', display: 'inline-block', width: '50px', height: '28px', cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={rdmCrosswalkEnabled}
+                      onChange={(e) => handleCrosswalkToggle(e.target.checked)}
+                      style={{ opacity: 0, width: 0, height: 0 }}
+                    />
+                    <span style={{
+                      position: 'absolute',
+                      cursor: 'pointer',
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      backgroundColor: rdmCrosswalkEnabled ? 'hsl(221, 83%, 53%)' : '#ccc',
+                      transition: '0.4s',
+                      borderRadius: '28px'
+                    }}>
+                      <span style={{
+                        position: 'absolute',
+                        content: '""',
+                        height: '22px',
+                        width: '22px',
+                        left: rdmCrosswalkEnabled ? '25px' : '3px',
+                        bottom: '3px',
+                        backgroundColor: 'white',
+                        transition: '0.4s',
+                        borderRadius: '50%'
+                      }}></span>
+                    </span>
+                  </label>
                 </div>
+              </div>
               </div>
             </div>
           </div>
@@ -1362,21 +1592,23 @@ function MappingWizard() {
             {loadingSchema ? (
               <LoadingSpinner size="small" />
             ) : schema && schema.length > 0 ? (
-              <TableBasedMapper
-                schema={schema}
-                fieldMappings={fieldMappings}
-                variables={variables}
-                piiColumns={piiColumns}
-                onMappingsChange={(mappings, vars, pii) => {
-                  setFieldMappings(mappings);
-                  if (vars !== undefined) {
-                    setVariables(vars);
-                  }
-                  if (pii !== undefined) {
-                    setPiiColumns(pii);
-                  }
-                }}
-              />
+              <>
+                <TableBasedMapper
+                  schema={schema}
+                  fieldMappings={fieldMappings}
+                  variables={variables}
+                  piiColumns={piiColumns}
+                  onMappingsChange={(mappings, vars, pii) => {
+                    setFieldMappings(mappings);
+                    if (vars !== undefined) {
+                      setVariables(vars);
+                    }
+                    if (pii !== undefined) {
+                      setPiiColumns(pii);
+                    }
+                  }}
+                />
+              </>
             ) : (
               <div className="alert alert-warning">
                 <FiAlertCircle /> No schema available. Please go back and validate the file pattern first.
@@ -1385,10 +1617,40 @@ function MappingWizard() {
           </div>
         )}
 
-        {/* Step 4: Target & Anomaly Rules */}
-        {currentStep === 4 && (
+        {/* Dataset Lookup Step (dynamic) */}
+        {getWizardSteps()[currentStep - 1]?.id === 'rdm-dataset' && (
           <div className="wizard-step-content">
-            <h2><FiTarget /> Target Connection & Quality Rules</h2>
+            <h2><FiServer /> Dataset Lookup</h2>
+            <RdmLookupStep
+              datasetConfig={rdmDatasetConfig}
+              crosswalkConfig={rdmCrosswalkConfig}
+              schema={schema}
+              datasetEnabled={rdmDatasetEnabled}
+              crosswalkEnabled={false}
+              onDatasetConfigChange={setRdmDatasetConfig}
+              onCrosswalkConfigChange={setRdmCrosswalkConfig}
+              onDatasetEnabledChange={handleDatasetToggle}
+              onCrosswalkEnabledChange={handleCrosswalkToggle}
+            />
+          </div>
+        )}
+
+        {/* Crosswalk Lookup Step (dynamic) */}
+        {getWizardSteps()[currentStep - 1]?.id === 'rdm-crosswalk' && (
+          <div className="wizard-step-content">
+            <h2><FiGitBranch /> Crosswalk Lookup</h2>
+            <CrosswalkLookupStep
+              crosswalkConfig={rdmCrosswalkConfig}
+              schema={cumulativeSchema}
+              onCrosswalkConfigChange={setRdmCrosswalkConfig}
+            />
+          </div>
+        )}
+
+        {/* Target & Rules Step */}
+        {getWizardSteps()[currentStep - 1]?.id === 'target' && (
+          <div className="wizard-step-content">
+            <h2 style={{ fontSize: '10px', fontFamily: 'Inter', fontWeight: 600, textTransform: 'uppercase' }}><FiTarget /> Target Connection & Quality Rules</h2>
             
             {/* Target Connection Section - 2 Column Grid */}
             <div style={{ 
@@ -1398,11 +1660,12 @@ function MappingWizard() {
               marginBottom: '1.5rem'
             }}>
               <div className="form-group" style={{ marginBottom: 0 }}>
-                <label>Target Connection</label>
+                <label style={{ fontSize: '10px', fontFamily: 'Inter', fontWeight: 600, textTransform: 'uppercase' }}>Target Connection</label>
                 <select
                   className="form-control"
                   value={targetConnectionId}
                   onChange={(e) => setTargetConnectionId(e.target.value)}
+                  style={{ fontSize: '10px', fontFamily: 'Inter' }}
                 >
                   <option value="">Select target connection</option>
                   {connections.filter(c => c.connection_direction === 'target').map(conn => (
@@ -1411,13 +1674,13 @@ function MappingWizard() {
                     </option>
                   ))}
                 </select>
-                <small className="form-help">
+                <small className="form-help" style={{ fontSize: '10px', fontFamily: 'Inter' }}>
                   Select where to write transformed files
                 </small>
               </div>
 
               <div className="form-group" style={{ marginBottom: 0 }}>
-                <label>Target File Path</label>
+                <label style={{ fontSize: '10px', fontFamily: 'Inter', fontWeight: 600, textTransform: 'uppercase' }}>Target File Path</label>
                 <div style={{ display: 'flex', gap: '8px' }}>
                   <input
                     type="text"
@@ -1425,7 +1688,7 @@ function MappingWizard() {
                     value={targetFilePath}
                     onChange={(e) => setTargetFilePath(e.target.value)}
                     placeholder="e.g., /output/processed/"
-                    style={{ flex: 1 }}
+                    style={{ flex: 1, fontSize: '10px', fontFamily: 'Inter' }}
                   />
                   {targetConnectionId && (
                     <button
@@ -1438,31 +1701,33 @@ function MappingWizard() {
                     </button>
                   )}
                 </div>
-                <small className="form-help">
+                <small className="form-help" style={{ fontSize: '10px', fontFamily: 'Inter' }}>
                   Optional: Specify folder path (e.g., <code>/folder/</code>)
                 </small>
               </div>
 
               <div className="form-group" style={{ marginBottom: 0 }}>
-                <label>Target File Name</label>
+                <label style={{ fontSize: '10px', fontFamily: 'Inter', fontWeight: 600, textTransform: 'uppercase' }}>Target File Name</label>
                 <input
                   type="text"
                   className="form-control"
                   value={targetFileName}
                   onChange={(e) => setTargetFileName(e.target.value)}
                   placeholder="e.g., output_<current_date>.csv"
+                  style={{ fontSize: '10px', fontFamily: 'Inter' }}
                 />
-                <small className="form-help">
+                <small className="form-help" style={{ fontSize: '10px', fontFamily: 'Inter' }}>
                   Use <code>&lt;current_date&gt;</code> or <code>&lt;current_timestamp&gt;</code>
                 </small>
               </div>
 
               <div className="form-group" style={{ marginBottom: 0 }}>
-                <label>Target File Format</label>
+                <label style={{ fontSize: '10px', fontFamily: 'Inter', fontWeight: 600, textTransform: 'uppercase' }}>Target File Format</label>
                 <select
                   className="form-control"
                   value={targetFileFormat}
                   onChange={(e) => setTargetFileFormat(e.target.value)}
+                  style={{ fontSize: '10px', fontFamily: 'Inter' }}
                 >
                   <option value="csv">CSV</option>
                   <option value="json">JSON</option>
@@ -1470,17 +1735,18 @@ function MappingWizard() {
                   <option value="xlsx">Excel (XLSX)</option>
                   <option value="parquet">Parquet</option>
                 </select>
-                <small className="form-help">Choose output file format</small>
+                <small className="form-help" style={{ fontSize: '10px', fontFamily: 'Inter' }}>Choose output file format</small>
               </div>
             </div>
 
             <div className="form-group">
-              <label>Target File Owner (Data Steward)</label>
+              <label style={{ fontSize: '10px', fontFamily: 'Inter', fontWeight: 600, textTransform: 'uppercase' }}>Target File Owner (Data Steward)</label>
               <select
                 className="form-control"
                 value={targetOwner}
                 onChange={(e) => setTargetOwner(e.target.value)}
                 disabled={loadingDataStewards || dataStewards.length === 0}
+                style={{ fontSize: '10px', fontFamily: 'Inter' }}
               >
                 <option value="">Select target file owner (optional)...</option>
                 {dataStewards.map((steward) => (
@@ -1489,7 +1755,7 @@ function MappingWizard() {
                   </option>
                 ))}
               </select>
-              <small className="form-help">
+              <small className="form-help" style={{ fontSize: '10px', fontFamily: 'Inter' }}>
                 {loadingDataStewards ? (
                   'Loading data stewards...'
                 ) : dataStewards.length === 0 ? (
@@ -1502,7 +1768,7 @@ function MappingWizard() {
 
             {/* Quality Rules Selection */}
             <div className="form-group">
-              <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '10px', fontFamily: 'Inter', fontWeight: 600, textTransform: 'uppercase' }}>
                 <FiShield /> Quality Rules (Optional)
               </label>
               {loadingQualityRules ? (
@@ -1552,10 +1818,10 @@ function MappingWizard() {
                         }}
                         style={{ marginRight: '0.75rem', cursor: 'pointer', flexShrink: 0 }}
                       />
-                      <span style={{ fontWeight: 500, fontSize: '0.9rem', marginRight: '0.5rem' }}>
+                      <span style={{ fontWeight: 500, fontSize: '10px', fontFamily: 'Inter', marginRight: '0.5rem' }}>
                         {rule.rule_name}
                       </span>
-                      <span style={{ fontSize: '0.85rem', color: '#64748b' }}>
+                      <span style={{ fontSize: '10px', fontFamily: 'Inter', color: '#64748b' }}>
                         Type: {rule.rule_type}
                       </span>
                     </div>
@@ -1584,18 +1850,19 @@ function MappingWizard() {
             {/* Quality Violation Handling */}
             {selectedQualityRules.length > 0 && (
               <div className="form-group">
-                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '10px', fontFamily: 'Inter', fontWeight: 600, textTransform: 'uppercase' }}>
                   <FiAlertCircle /> Quality Violation Handling
                 </label>
                 <select
                   className="form-control"
                   value={violationHandling}
                   onChange={(e) => setViolationHandling(e.target.value)}
+                  style={{ fontSize: '10px', fontFamily: 'Inter' }}
                 >
                   <option value="log_continue">Log and Proceed - Continue processing, log violations for review</option>
                   <option value="log_abort">Log and Abort - Stop processing immediately when violations are detected</option>
                 </select>
-                <small className="form-help">
+                <small className="form-help" style={{ fontSize: '10px', fontFamily: 'Inter' }}>
                   {violationHandling === 'log_continue' 
                     ? 'Processing will continue even if quality rule violations are found. All violations will be logged in Quality Violations for review.'
                     : 'Processing will stop immediately if any quality rule violations are detected. The job will be marked as failed and all violations will be logged.'
@@ -1611,7 +1878,11 @@ function MappingWizard() {
                 display: 'flex', 
                 alignItems: 'center', 
                 gap: '0.5rem',
-                userSelect: 'none'
+                userSelect: 'none',
+                fontSize: '10px',
+                fontFamily: 'Inter',
+                fontWeight: 600,
+                textTransform: 'uppercase'
               }}
             >
               <FiSettings /> 
@@ -1658,41 +1929,23 @@ function MappingWizard() {
         {/* Navigation Buttons */}
         <div className="wizard-actions">
           {currentStep > 1 && (
-            <button className="btn btn-secondary" onClick={handleBack}>
+            <button className="btn btn-back" onClick={handleBack}>
               <FiArrowLeft /> Back
             </button>
           )}
           <div className="wizard-actions-right">
-            {currentStep < 4 ? (
+            {currentStep < getWizardSteps().length ? (
               <>
-                <button 
-                  className="btn btn-outline-success" 
-                  onClick={handleSaveDraft} 
-                  disabled={loading}
-                  style={{ marginRight: '0.5rem' }}
-                >
-                  <FiSave /> {loading ? 'Saving...' : 'Save Draft'}
+                <button className="btn btn-xs btn-success" onClick={handleSave} disabled={loading} style={{ fontSize: '10px', fontFamily: 'Inter', padding: '0.125rem 0.25rem', marginRight: '0.25rem' }}>
+                  <FiSave /> {loading ? 'Saving...' : 'Save'}
                 </button>
-                {isEditMode && (
-                  <button className="btn btn-success" onClick={handleSave} disabled={loading} style={{ marginRight: '0.5rem' }}>
-                    <FiSave /> {loading ? 'Saving...' : 'Save'}
-                  </button>
-                )}
-                <button className="btn btn-primary" onClick={handleNext}>
+                <button className="btn btn-xs btn-primary" onClick={handleNext} style={{ fontSize: '10px', fontFamily: 'Inter', padding: '0.125rem 0.25rem' }}>
                   Next <FiArrowRight />
                 </button>
               </>
             ) : (
               <>
-                <button 
-                  className="btn btn-outline-success" 
-                  onClick={handleSaveDraft} 
-                  disabled={loading}
-                  style={{ marginRight: '0.5rem' }}
-                >
-                  <FiSave /> {loading ? 'Saving...' : 'Save Draft'}
-                </button>
-                <button className="btn btn-success" onClick={handleSave} disabled={loading}>
+                <button className="btn btn-xs btn-success" onClick={handleSave} disabled={loading} style={{ fontSize: '10px', fontFamily: 'Inter', padding: '0.125rem 0.25rem' }}>
                   <FiSave /> {loading ? 'Saving...' : 'Save Mapping'}
                 </button>
               </>

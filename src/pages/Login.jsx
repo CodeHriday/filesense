@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { THEME } from '../config';
@@ -27,22 +27,52 @@ const Login = () => {
   const navigate = useNavigate();
   const location = useLocation();
   
-  // Redirect if user is already logged in
+  const [activeFeature, setActiveFeature] = useState(0);
+  const observerRef = useRef(null);
+  
   useEffect(() => {
     if (currentUser) {
-      // Vendor users should go to drop page, others to their intended destination or dashboard
       const defaultPath = isVendorUser(currentUser) ? '/drop' : '/';
       const from = location.state?.from?.pathname || defaultPath;
       navigate(from, { replace: true });
     }
   }, [currentUser, navigate, location]);
   
-  // Update error message from auth context
   useEffect(() => {
     if (error) {
       setErrorMessage(error);
     }
   }, [error]);
+  
+  useEffect(() => {
+    observerRef.current = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('visible');
+          }
+        });
+      },
+      { threshold: 0.1 }
+    );
+    
+    const elements = document.querySelectorAll('.animate-on-scroll');
+    elements.forEach((el) => observerRef.current.observe(el));
+    
+    return () => {
+      if (observerRef.current) {
+        observerRef.current.disconnect();
+      }
+    };
+  }, []);
+  
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setActiveFeature((prev) => (prev + 1) % 4);
+    }, 3000);
+    
+    return () => clearInterval(interval);
+  }, []);
   
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -75,7 +105,6 @@ const Login = () => {
       const success = await login(username, password);
       
       if (success) {
-        // Redirect happens automatically in the useEffect above
       } else {
         setLoginFailed(true);
       }
@@ -93,7 +122,7 @@ const Login = () => {
   };
   
   const handleForgotPassword = () => {
-    setResetUsername(username); // Pre-fill with the entered username
+    setResetUsername(username);
     setShowResetModal(true);
     setResetMessage('');
     setResetError('');
@@ -117,7 +146,6 @@ const Login = () => {
       });
       
       setResetMessage(response.data.message);
-      // Clear form and close modal after 3 seconds
       setTimeout(() => {
         setShowResetModal(false);
         setResetUsername('');
@@ -132,7 +160,6 @@ const Login = () => {
   };
 
   const handlePasswordChanged = () => {
-    // After password is changed successfully, redirect to dashboard
     navigate('/', { replace: true });
   };
 
@@ -147,80 +174,206 @@ const Login = () => {
     );
   }
   
+  const features = [
+    {
+      title: 'Profile & Validate',
+      description: 'Use statistics to understand the data',
+      icon: '📊',
+      color: '#7C3AED'
+    },
+    {
+      title: 'Detect & Monitor',
+      description: 'Use ML to automatically find data & metadata issues',
+      icon: '🔍',
+      color: '#2563EB'
+    },
+    {
+      title: 'Transform & Orchestrate',
+      description: 'Use ETL to clean and prepare data for analytics',
+      icon: '⚙️',
+      color: '#059669'
+    },
+    {
+      title: 'Alert & Govern',
+      description: 'Use ML to generate rules for data validation',
+      icon: '🔔',
+      color: '#DC2626'
+    }
+  ];
+  
   return (
-    <div className="login-container">
-      <div className="login-card">
-        <div className="login-header">
-          <img 
-            src="/images/blumetra-logo.png" 
-            alt="Blumetra" 
-            className="login-logo" 
-            onError={(e) => {
-              e.target.onerror = null;
-              e.target.style.display = 'none';
-            }}
-          />
-          <h2>Data File Observatory</h2>
-          <h3>Sign In</h3>
-        </div>
-        
-        {errorMessage && (
-          <div className="login-error" role="alert">
-            {errorMessage}
-          </div>
-        )}
-        
-        <form onSubmit={handleSubmit} className="login-form">
-          <div className="form-group">
-            <label htmlFor="username">Username</label>
-            <input
-              type="text"
-              id="username"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              disabled={isLoading}
-              placeholder="Enter your username"
-              aria-label="Username"
-              autoComplete="username"
-            />
-          </div>
-          
-          <div className="form-group">
-            <label htmlFor="password">Password</label>
-            <PasswordInput
-              id="password"
-              name="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              disabled={isLoading}
-              placeholder="Enter your password"
-            />
-          </div>
-          
-          <button 
-            type="submit" 
-            className="login-button"
-            disabled={isLoading}
-            aria-busy={isLoading}
-          >
-            {isLoading ? 'Signing In...' : 'Sign In'}
-          </button>
-          
-          {loginFailed && (
-            <div className="forgot-password-link">
-              <button
-                type="button"
-                onClick={handleForgotPassword}
-                className="text-link"
-              >
-                Forgot Password?
-              </button>
+    <div className="login-page">
+      <div className="marketing-content">
+        <div className="marketing-scroll-container">
+          <div className="hero-section animate-on-scroll">
+            <div className="hero-badge">FILESENSE</div>
+            <h1 className="hero-title">
+              End-to-end file data quality, governance, and observability — with minimal operational effort.
+            </h1>
+            <p className="hero-subtitle">
+              Blumetra FileSense is exactly what data professionals need to make sure that the data can be trusted by the business. Built for data engineering, governance, and compliance teams, FileSense ensures that every file ingested into your enterprise pipeline is trustworthy, validated, governed, and observable — from the moment it lands to its final destination.
+            </p>
+            
+            <div className="data-flow-animation">
+              <div className="flow-item">
+                <div className="flow-icon">☁️</div>
+                <div className="flow-label">Cloud Data</div>
+              </div>
+              <div className="flow-arrow">→</div>
+              <div className="flow-item">
+                <div className="flow-icon">📁</div>
+                <div className="flow-label">Files</div>
+              </div>
+              <div className="flow-arrow">→</div>
+              <div className="flow-item">
+                <div className="flow-icon">📱</div>
+                <div className="flow-label">SaaS Apps</div>
+              </div>
             </div>
-          )}
-        </form>
+          </div>
+          
+          <div className="features-showcase">
+            <div className="showcase-header animate-on-scroll">
+              <h2>FileSense Platform</h2>
+              <p>Comprehensive data governance and quality at your fingertips</p>
+            </div>
+            
+            <div className="features-grid">
+              {features.map((feature, index) => (
+                <div
+                  key={index}
+                  className={`feature-card animate-on-scroll ${index === activeFeature ? 'active' : ''}`}
+                  style={{ animationDelay: `${index * 0.1}s` }}
+                >
+                  <div className="feature-icon" style={{ background: feature.color }}>
+                    {feature.icon}
+                  </div>
+                  <div className="feature-content">
+                    <div className="feature-bullet">●</div>
+                    <div className="feature-title">{feature.title}</div>
+                    <div className="feature-description">{feature.description}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+          
+          <div className="stats-section animate-on-scroll">
+            <div className="stat-item">
+              <div className="stat-number">15+</div>
+              <div className="stat-label">File Formats Supported</div>
+            </div>
+            <div className="stat-item">
+              <div className="stat-number">27+</div>
+              <div className="stat-label">Data Transformations</div>
+            </div>
+            <div className="stat-item">
+              <div className="stat-number">100%</div>
+              <div className="stat-label">Enterprise Security</div>
+            </div>
+          </div>
+          
+          <div className="capabilities-section animate-on-scroll">
+            <h3>Integrated. Modular. Built for Data Products.</h3>
+            <div className="capabilities-grid">
+              <div className="capability-item">
+                <span className="capability-number">01</span>
+                <h4>Vendor Integration</h4>
+                <p>Seamless vendor onboarding with agreement-level schema validation and governance</p>
+              </div>
+              <div className="capability-item">
+                <span className="capability-number">02</span>
+                <h4>Data Quality</h4>
+                <p>Continuous monitoring, verification, and reconciliation for trusted data</p>
+              </div>
+              <div className="capability-item">
+                <span className="capability-number">03</span>
+                <h4>ETL Pipeline</h4>
+                <p>Streamline data operations with unified integration and transformation</p>
+              </div>
+              <div className="capability-item">
+                <span className="capability-number">04</span>
+                <h4>Real-time Alerts</h4>
+                <p>Cloud-agnostic email notifications for job, workflow, and quality monitoring</p>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
       
-      {/* Password Reset Request Modal */}
+      <div className="login-panel">
+        <div className="login-card-glass">
+          <div className="login-header">
+            <img 
+              src="/images/blumetra-logo.png" 
+              alt="Blumetra" 
+              className="login-logo" 
+              onError={(e) => {
+                e.target.onerror = null;
+                e.target.style.display = 'none';
+              }}
+            />
+            <h2>FileSense</h2>
+            <h3>Sign In</h3>
+          </div>
+          
+          {errorMessage && (
+            <div className="login-error" role="alert">
+              {errorMessage}
+            </div>
+          )}
+          
+          <form onSubmit={handleSubmit} className="login-form">
+            <div className="form-group">
+              <label htmlFor="username">Username</label>
+              <input
+                type="text"
+                id="username"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                disabled={isLoading}
+                placeholder="Enter your username"
+                aria-label="Username"
+                autoComplete="username"
+              />
+            </div>
+            
+            <div className="form-group">
+              <label htmlFor="password">Password</label>
+              <PasswordInput
+                id="password"
+                name="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                disabled={isLoading}
+                placeholder="Enter your password"
+              />
+            </div>
+            
+            <button 
+              type="submit" 
+              className="login-button"
+              disabled={isLoading}
+              aria-busy={isLoading}
+            >
+              {isLoading ? 'Signing In...' : 'Sign In'}
+            </button>
+            
+            {loginFailed && (
+              <div className="forgot-password-link">
+                <button
+                  type="button"
+                  onClick={handleForgotPassword}
+                  className="text-link"
+                >
+                  Forgot Password?
+                </button>
+              </div>
+            )}
+          </form>
+        </div>
+      </div>
+      
       {showResetModal && (
         <div className="modal-overlay" onClick={() => setShowResetModal(false)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>

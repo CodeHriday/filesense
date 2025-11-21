@@ -472,7 +472,7 @@ function VendorFileUpload() {
                     <button 
                       className="btn btn-sm btn-primary"
                       onClick={loadVendorContracts}
-                      style={{ marginLeft: 'auto' }}
+                      style={{ marginLeft: 'auto', flex: '0 0 auto' }}
                     >
                       Load My Contracts
                     </button>

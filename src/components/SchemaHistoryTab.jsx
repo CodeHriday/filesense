@@ -112,37 +112,26 @@ function SchemaHistoryTab({ fileId }) {
 
   return (
     <div className="schema-history-container">
-      <div className="schema-history-header">
-        <div className="history-title">
-          <FiClock size={24} />
-          <h2>Schema History</h2>
-          {canonicalName && (
-            <span className="canonical-name">
-              Tracking: <strong>{canonicalName}</strong>
-            </span>
-          )}
-        </div>
-        <div className="history-meta">
-          {totalUploads > 1 && (
-            <span className="upload-count">
-              {totalUploads} upload{totalUploads !== 1 ? 's' : ''} tracked
-            </span>
-          )}
-          <span className="snapshot-count">{totalSnapshots} snapshot{totalSnapshots !== 1 ? 's' : ''} recorded</span>
-          {hasSchemaChanged && (
-            <span className="schema-changed-badge">
-              <FiAlertCircle size={14} />
-              Schema Changed
-            </span>
-          )}
-          {driftAction && getDriftActionBadge(driftAction)}
-          {transformationJobId && (
-            <Link to={`/jobs/${transformationJobId}`} className="job-link">
-              <FiExternalLink size={14} />
-              View Transformation Job
-            </Link>
-          )}
-        </div>
+      <div className="schema-history-metrics">
+        {totalUploads > 1 && (
+          <span className="upload-count">
+            {totalUploads} upload{totalUploads !== 1 ? 's' : ''} tracked
+          </span>
+        )}
+        <span className="snapshot-count">{totalSnapshots} snapshot{totalSnapshots !== 1 ? 's' : ''} recorded</span>
+        {hasSchemaChanged && (
+          <span className="schema-changed-badge">
+            <FiAlertCircle size={14} />
+            Schema Changed
+          </span>
+        )}
+        {driftAction && getDriftActionBadge(driftAction)}
+        {transformationJobId && (
+          <Link to={`/jobs/${transformationJobId}`} className="job-link">
+            <FiExternalLink size={14} />
+            View Transformation Job
+          </Link>
+        )}
       </div>
 
       {isContractUpload && contractSchema && contractSchema.schema?.columns ? (
@@ -338,111 +327,7 @@ function SchemaHistoryTab({ fileId }) {
         </div>
       ) : hasPrevious ? (
         <div className="schema-comparison-three-panel">
-          {/* Current Schema (Left Panel) */}
-          <div className="schema-section schema-current">
-            <h3>
-              Current Schema
-              {current.actualFilename && current.actualFilename !== current.fileName && (
-                <span className="schema-subtitle">{current.actualFilename}</span>
-              )}
-            </h3>
-            <div className="schema-info">
-              <p className="capture-date">
-                <FiClock size={14} />
-                {formatDate(current.capturedAt)}
-              </p>
-              <p className="schema-stats">
-                {current.columnCount} columns • {current.rowCount?.toLocaleString() || 'N/A'} rows
-              </p>
-            </div>
-            <div className="schema-table">
-              <table>
-                <thead>
-                  <tr>
-                    <th>#</th>
-                    <th>Column Name</th>
-                    <th>Data Type</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {current.schema?.columns?.map((col, index) => {
-                    const isAdded = comparison?.addedColumns?.some(c => c.name === col.name);
-                    const isModified = comparison?.modifiedColumns?.some(c => c.name === col.name);
-                    
-                    let diffClass = '';
-                    let diffBadge = null;
-                    
-                    if (isAdded) {
-                      diffClass = 'row-added';
-                      diffBadge = <span className={getDiffBadgeClass('added')}>New</span>;
-                    } else if (isModified) {
-                      diffClass = 'row-modified';
-                      const modifiedCol = comparison.modifiedColumns.find(c => c.name === col.name);
-                      diffBadge = <span className={getDiffBadgeClass('modified')}>Type: {modifiedCol?.previousType} → {modifiedCol?.currentType}</span>;
-                    }
-                    
-                    return (
-                      <tr key={index} className={diffClass}>
-                        <td>{col.index !== undefined ? col.index + 1 : index + 1}</td>
-                        <td className="column-name">
-                          {col.name}
-                          {diffBadge}
-                        </td>
-                        <td><span className="type-badge">{col.type}</span></td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {/* Previous Schema (Middle Panel) */}
-          <div className="schema-section schema-previous">
-            <h3>
-              Previous Schema
-              {previous.actualFilename && previous.actualFilename !== previous.fileName && (
-                <span className="schema-subtitle">{previous.actualFilename}</span>
-              )}
-            </h3>
-            <div className="schema-info">
-              <p className="capture-date">
-                <FiClock size={14} />
-                {formatDate(previous.capturedAt)}
-              </p>
-              <p className="schema-stats">
-                {previous.columnCount} columns • {previous.rowCount?.toLocaleString() || 'N/A'} rows
-              </p>
-            </div>
-            <div className="schema-table">
-              <table>
-                <thead>
-                  <tr>
-                    <th>#</th>
-                    <th>Column Name</th>
-                    <th>Data Type</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {previous.schema?.columns?.map((col, index) => {
-                    const isRemoved = comparison?.removedColumns?.some(c => c.name === col.name);
-                    return (
-                      <tr key={index} className={isRemoved ? 'row-removed' : ''}>
-                        <td>{col.index !== undefined ? col.index + 1 : index + 1}</td>
-                        <td className="column-name">
-                          {col.name}
-                          {isRemoved && <span className={getDiffBadgeClass('removed')}>Removed</span>}
-                        </td>
-                        <td><span className="type-badge">{col.type}</span></td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {/* Change Summary (Right Panel) */}
+          {/* Change Summary (Left Panel) */}
           <div className="schema-changes-panel">
             <h3>Change Summary</h3>
             
@@ -531,7 +416,11 @@ function SchemaHistoryTab({ fileId }) {
                     <h4>Upload History</h4>
                     <div className="snapshot-timeline">
                       {allSnapshots.slice(0, 5).map((snapshot, idx) => (
-                        <div key={snapshot.id} className={`snapshot-item ${idx === 0 ? 'snapshot-current' : ''}`}>
+                        <Link 
+                          key={snapshot.id} 
+                          to={`/files/${snapshot.fileId}`}
+                          className={`snapshot-item ${idx === 0 ? 'snapshot-current' : ''}`}
+                        >
                           <div className="snapshot-marker">{idx === 0 ? '●' : '○'}</div>
                           <div className="snapshot-details">
                             <span className="snapshot-date">{formatDate(snapshot.capturedAt)}</span>
@@ -539,7 +428,7 @@ function SchemaHistoryTab({ fileId }) {
                               {snapshot.columnCount} cols • {snapshot.rowCount?.toLocaleString() || 'N/A'} rows
                             </span>
                           </div>
-                        </div>
+                        </Link>
                       ))}
                       {allSnapshots.length > 5 && (
                         <div className="snapshot-more">+ {allSnapshots.length - 5} more upload{allSnapshots.length - 5 !== 1 ? 's' : ''}</div>
@@ -558,7 +447,11 @@ function SchemaHistoryTab({ fileId }) {
                     <h4>Upload History</h4>
                     <div className="snapshot-timeline">
                       {allSnapshots.slice(0, 5).map((snapshot, idx) => (
-                        <div key={snapshot.id} className={`snapshot-item ${idx === 0 ? 'snapshot-current' : ''}`}>
+                        <Link 
+                          key={snapshot.id} 
+                          to={`/files/${snapshot.fileId}`}
+                          className={`snapshot-item ${idx === 0 ? 'snapshot-current' : ''}`}
+                        >
                           <div className="snapshot-marker">{idx === 0 ? '●' : '○'}</div>
                           <div className="snapshot-details">
                             <span className="snapshot-date">{formatDate(snapshot.capturedAt)}</span>
@@ -566,7 +459,7 @@ function SchemaHistoryTab({ fileId }) {
                               {snapshot.columnCount} cols • {snapshot.rowCount?.toLocaleString() || 'N/A'} rows
                             </span>
                           </div>
-                        </div>
+                        </Link>
                       ))}
                       {allSnapshots.length > 5 && (
                         <div className="snapshot-more">+ {allSnapshots.length - 5} more upload{allSnapshots.length - 5 !== 1 ? 's' : ''}</div>
@@ -576,6 +469,110 @@ function SchemaHistoryTab({ fileId }) {
                 )}
               </div>
             )}
+          </div>
+
+          {/* Current Schema (Middle Panel) */}
+          <div className="schema-section schema-current">
+            <h3>
+              Current Schema
+              {current.actualFilename && current.actualFilename !== current.fileName && (
+                <span className="schema-subtitle">{current.actualFilename}</span>
+              )}
+            </h3>
+            <div className="schema-info">
+              <p className="capture-date">
+                <FiClock size={14} />
+                {formatDate(current.capturedAt)}
+              </p>
+              <p className="schema-stats">
+                {current.columnCount} columns • {current.rowCount?.toLocaleString() || 'N/A'} rows
+              </p>
+            </div>
+            <div className="schema-table">
+              <table>
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Column Name</th>
+                    <th>Data Type</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {current.schema?.columns?.map((col, index) => {
+                    const isAdded = comparison?.addedColumns?.some(c => c.name === col.name);
+                    const isModified = comparison?.modifiedColumns?.some(c => c.name === col.name);
+                    
+                    let diffClass = '';
+                    let diffBadge = null;
+                    
+                    if (isAdded) {
+                      diffClass = 'row-added';
+                      diffBadge = <span className={getDiffBadgeClass('added')}>New</span>;
+                    } else if (isModified) {
+                      diffClass = 'row-modified';
+                      const modifiedCol = comparison.modifiedColumns.find(c => c.name === col.name);
+                      diffBadge = <span className={getDiffBadgeClass('modified')}>Type: {modifiedCol?.previousType} → {modifiedCol?.currentType}</span>;
+                    }
+                    
+                    return (
+                      <tr key={index} className={diffClass}>
+                        <td>{col.index !== undefined ? col.index + 1 : index + 1}</td>
+                        <td className="column-name">
+                          {col.name}
+                          {diffBadge}
+                        </td>
+                        <td><span className="type-badge">{col.type}</span></td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Previous Schema (Right Panel) */}
+          <div className="schema-section schema-previous">
+            <h3>
+              Previous Schema
+              {previous.actualFilename && previous.actualFilename !== previous.fileName && (
+                <span className="schema-subtitle">{previous.actualFilename}</span>
+              )}
+            </h3>
+            <div className="schema-info">
+              <p className="capture-date">
+                <FiClock size={14} />
+                {formatDate(previous.capturedAt)}
+              </p>
+              <p className="schema-stats">
+                {previous.columnCount} columns • {previous.rowCount?.toLocaleString() || 'N/A'} rows
+              </p>
+            </div>
+            <div className="schema-table">
+              <table>
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Column Name</th>
+                    <th>Data Type</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {previous.schema?.columns?.map((col, index) => {
+                    const isRemoved = comparison?.removedColumns?.some(c => c.name === col.name);
+                    return (
+                      <tr key={index} className={isRemoved ? 'row-removed' : ''}>
+                        <td>{col.index !== undefined ? col.index + 1 : index + 1}</td>
+                        <td className="column-name">
+                          {col.name}
+                          {isRemoved && <span className={getDiffBadgeClass('removed')}>Removed</span>}
+                        </td>
+                        <td><span className="type-badge">{col.type}</span></td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       ) : (

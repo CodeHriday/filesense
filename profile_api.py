@@ -8,6 +8,7 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 import os
 import pandas as pd
+import numpy as np
 import logging
 import sys
 import boto3
@@ -47,6 +48,28 @@ logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 CORS(app)
+
+# Helper function to convert numpy types to Python native types
+def convert_numpy_types(obj):
+    """
+    Recursively convert numpy types to Python native types for JSON serialization
+    """
+    import numpy as np
+    
+    if isinstance(obj, dict):
+        return {key: convert_numpy_types(value) for key, value in obj.items()}
+    elif isinstance(obj, list):
+        return [convert_numpy_types(item) for item in obj]
+    elif isinstance(obj, np.bool_):
+        return bool(obj)
+    elif isinstance(obj, np.integer):
+        return int(obj)
+    elif isinstance(obj, np.floating):
+        return float(obj)
+    elif isinstance(obj, np.ndarray):
+        return obj.tolist()
+    else:
+        return obj
 
 # Database connection
 def get_db_connection():
@@ -127,7 +150,7 @@ def store_profiling_metrics_and_detect_anomalies(
         quality_score = profile_result.get('quality_score', {})
         metadata = profile_result.get('metadata', {})
         
-        # Store profiling metrics
+        # Store profiling metrics (UPSERT to handle re-profiling)
         cursor.execute("""
             INSERT INTO profiling_metrics (
                 file_id,
@@ -143,6 +166,18 @@ def store_profiling_metrics_and_detect_anomalies(
                 profiled_at,
                 file_role
             ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            ON CONFLICT (file_id, file_role) 
+            DO UPDATE SET
+                file_name = EXCLUDED.file_name,
+                mapping_id = EXCLUDED.mapping_id,
+                job_id = EXCLUDED.job_id,
+                row_count = EXCLUDED.row_count,
+                column_count = EXCLUDED.column_count,
+                completeness_score = EXCLUDED.completeness_score,
+                consistency_score = EXCLUDED.consistency_score,
+                validity_score = EXCLUDED.validity_score,
+                overall_quality_score = EXCLUDED.overall_quality_score,
+                profiled_at = EXCLUDED.profiled_at
         """, (
             file_id,
             filename,
@@ -344,10 +379,47 @@ def scan_file_with_clamav(file_path):
 # Format-Specific File Loaders
 # ============================================================================
 
-def load_csv(file_path):
-    """Load CSV file into DataFrame"""
-    df = pd.read_csv(file_path, low_memory=False)
-    raw_headers = list(pd.read_csv(file_path, nrows=0).columns)
+def load_csv(file_path, delimiter=None, header_config=None):
+    """
+    Load CSV file into DataFrame
+    
+    Args:
+        file_path: Path to CSV file
+        delimiter: Optional delimiter (supports multi-character delimiters like '~^')
+                   If None, pandas will auto-detect using sep=None
+        header_config: Optional dict with hasHeader (bool) and columnNames (list)
+    """
+    # DEBUG: Log received header_config
+    logger.info(f"load_csv called with header_config: {header_config}")
+    
+    # Determine pandas header parameter
+    header_param = 0  # Default: first row is header
+    column_names = None
+    
+    if header_config and not header_config.get('hasHeader', True):
+        # File has no headers - use provided column names
+        header_param = None
+        column_names = header_config.get('columnNames', [])
+        logger.info(f"File has no headers, using provided column names: {column_names}")
+    
+    if delimiter:
+        # Use specified delimiter (supports multi-character delimiters)
+        logger.info(f"Using specified delimiter: {repr(delimiter)}")
+        if header_param is None and column_names:
+            df = pd.read_csv(file_path, sep=delimiter, engine='python', header=None, names=column_names)
+            raw_headers = column_names
+        else:
+            df = pd.read_csv(file_path, sep=delimiter, engine='python')
+            raw_headers = list(df.columns)
+    else:
+        # Auto-detect delimiter
+        if header_param is None and column_names:
+            df = pd.read_csv(file_path, low_memory=False, header=None, names=column_names)
+            raw_headers = column_names
+        else:
+            df = pd.read_csv(file_path, low_memory=False)
+            raw_headers = list(df.columns)
+    
     return df, raw_headers, {}
 
 def load_excel(file_path):
@@ -429,21 +501,87 @@ def load_avro(file_path):
     except Exception as e:
         raise Exception(f"Failed to load Avro file: {str(e)}")
 
-def load_dat(file_path):
+def load_dat(file_path, fixed_width_schema=None, delimiter=None, header_config=None):
     """
-    Load .dat file with heuristic detection
-    Tries: delimiter detection → fixed-width → binary (requires schema)
+    Load .dat file with heuristic detection or user-provided schema
+    Tries: user delimiter → user schema → delimiter detection → fixed-width → binary (requires schema)
+    
+    header_config: Optional dict with hasHeader (bool) and columnNames (list)
+    
+    Args:
+        file_path: Path to the .dat file
+        fixed_width_schema: Optional dict with 'columns' array of {'name': str, 'width': int, 'type': str}
+        delimiter: Optional delimiter for delimited .dat files (supports multi-character delimiters like '~^')
     """
     try:
-        # Strategy 1: Try delimiter detection with pandas
+        # Strategy 0: User-provided fixed-width schema (highest priority)
+        if fixed_width_schema and isinstance(fixed_width_schema, dict):
+            columns_spec = fixed_width_schema.get('columns', [])
+            if columns_spec:
+                try:
+                    # Build column specifications for pandas read_fwf
+                    colspecs = []
+                    names = []
+                    start_pos = 0
+                    
+                    for col in columns_spec:
+                        width = col.get('width', 0)
+                        name = col.get('name', f'col_{len(names)}')
+                        names.append(name)
+                        colspecs.append((start_pos, start_pos + width))
+                        start_pos += width
+                    
+                    # Load with user-defined schema
+                    df = pd.read_fwf(file_path, colspecs=colspecs, names=names, header=None)
+                    
+                    if len(df.columns) > 0 and len(df) > 0:
+                        logger.info(f"Successfully loaded DAT file using user-provided schema ({len(names)} columns)")
+                        return df, names, {'dat_load_method': 'user_schema', 'schema_columns': len(names)}
+                except Exception as schema_error:
+                    logger.warning(f"User-provided schema failed: {str(schema_error)}")
+        
+        # Strategy 0.5: User-provided delimiter (second priority after schema)
+        if delimiter:
+            try:
+                logger.info(f"Trying user-provided delimiter for DAT file: {repr(delimiter)}")
+                
+                # Check if header configuration is provided
+                if header_config and not header_config.get('hasHeader', True):
+                    # File has no headers - use provided column names
+                    column_names = header_config.get('columnNames', [])
+                    logger.info(f"DAT file has no headers, using provided column names: {column_names}")
+                    df = pd.read_csv(file_path, sep=delimiter, engine='python', header=None, names=column_names)
+                    raw_headers = column_names
+                else:
+                    # File has headers or no config provided
+                    df = pd.read_csv(file_path, sep=delimiter, engine='python')
+                    raw_headers = list(df.columns)
+                
+                if len(df.columns) > 1 and len(df) > 0:
+                    logger.info(f"Successfully loaded DAT file using user-provided delimiter ({len(df.columns)} columns)")
+                    return df, raw_headers, {'dat_load_method': 'user_delimiter', 'delimiter': delimiter}
+            except Exception as user_delim_error:
+                logger.warning(f"User-provided delimiter failed: {str(user_delim_error)}")
+        
+        # Strategy 1: Try automatic delimiter detection with pandas
         try:
-            df = pd.read_csv(file_path, sep=None, engine='python', low_memory=False)
-            if len(df.columns) > 1 and len(df) > 0:
-                logger.info(f"Successfully loaded DAT file using delimiter detection")
+            # Check if header configuration is provided
+            if header_config and not header_config.get('hasHeader', True):
+                # File has no headers - use provided column names
+                column_names = header_config.get('columnNames', [])
+                logger.info(f"DAT file (auto-detect) has no headers, using provided column names: {column_names}")
+                df = pd.read_csv(file_path, sep=None, engine='python', header=None, names=column_names)
+                raw_headers = column_names
+            else:
+                # File has headers or no config provided
+                df = pd.read_csv(file_path, sep=None, engine='python')
                 raw_headers = list(df.columns)
+            
+            if len(df.columns) > 1 and len(df) > 0:
+                logger.info(f"Successfully loaded DAT file using automatic delimiter detection")
                 return df, raw_headers, {'dat_load_method': 'delimiter_detection'}
         except Exception as delim_error:
-            logger.debug(f"Delimiter detection failed: {str(delim_error)}")
+            logger.debug(f"Automatic delimiter detection failed: {str(delim_error)}")
         
         # Strategy 2: Try fixed-width format (use pandas default widths)
         try:
@@ -598,15 +736,21 @@ def load_archive(file_path, file_ext, password=None):
         raise Exception(f"Failed to process archive: {str(e)}")
 
 
-def profile_vendor_file(file_path, filename, password=None):
+def profile_vendor_file(file_path, filename, password=None, fixed_width_schema=None, delimiter=None, header_config=None):
     """
     Run comprehensive quality profiling on a vendor file
     Supports: CSV, JSON, XLSX, Parquet, XML, SAS (.sas7bdat, .xpt), Avro, DAT, Archives (.zip, .tar, .tar.gz, .tar.bz2)
+    
+    header_config: Optional dict with keys:
+        - hasHeader (bool): Whether file has a header row
+        - columnNames (list): Column names to use when hasHeader=False
     
     Args:
         file_path: Path to the file
         filename: Original filename
         password: Optional password for encrypted archives
+        fixed_width_schema: Optional schema for fixed-width .dat files
+        delimiter: Optional delimiter for CSV/delimited files (supports multi-character delimiters)
     
     Returns:
         Dictionary with profiling results
@@ -620,7 +764,7 @@ def profile_vendor_file(file_path, filename, password=None):
     
     try:
         if file_ext == '.csv':
-            df, raw_headers, format_metadata = load_csv(file_path)
+            df, raw_headers, format_metadata = load_csv(file_path, delimiter=delimiter, header_config=header_config)
         elif file_ext in ['.xlsx', '.xls']:
             df, raw_headers, format_metadata = load_excel(file_path)
         elif file_ext == '.json':
@@ -632,7 +776,7 @@ def profile_vendor_file(file_path, filename, password=None):
         elif file_ext == '.avro':
             df, raw_headers, format_metadata = load_avro(file_path)
         elif file_ext == '.dat':
-            df, raw_headers, format_metadata = load_dat(file_path)
+            df, raw_headers, format_metadata = load_dat(file_path, fixed_width_schema, delimiter, header_config)
         elif file_ext in ['.zip', '.tar', '.tar.gz', '.tar.bz2', '.tgz']:
             df, raw_headers, format_metadata = load_archive(file_path, file_ext, password)
         else:
@@ -761,6 +905,169 @@ def profile_vendor_file(file_path, filename, password=None):
             'details': duplicate_data
         })
     
+    # Generate preview data (first 100 rows)
+    preview_data = []
+    preview_limit = min(100, len(df))
+    for idx in range(preview_limit):
+        row_dict = {}
+        for col in df.columns:
+            value = df.iloc[idx][col]
+            # Convert to JSON-serializable format
+            if pd.isna(value):
+                row_dict[col] = None
+            elif isinstance(value, (np.integer, np.floating)):
+                row_dict[col] = float(value)
+            else:
+                row_dict[col] = str(value)
+        preview_data.append(row_dict)
+    
+    # Helper function to detect data patterns
+    def detect_patterns(col_data):
+        """Detect common data patterns in a column"""
+        patterns = {}
+        non_null = col_data.dropna()
+        if len(non_null) == 0:
+            return []
+        
+        # Sample up to 1000 values for pattern detection
+        sample = non_null.head(1000).astype(str)
+        total_sample = len(sample)
+        
+        # Email pattern
+        email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+        email_matches = sample.str.match(email_pattern).sum()
+        if email_matches > total_sample * 0.7:
+            patterns['Email'] = {'count': email_matches, 'percentage': round((email_matches / total_sample) * 100, 1)}
+        
+        # Phone patterns (US)
+        phone_patterns = [
+            (r'^\d{3}-\d{3}-\d{4}$', 'Phone (xxx-xxx-xxxx)'),
+            (r'^\(\d{3}\)\s?\d{3}-\d{4}$', 'Phone ((xxx) xxx-xxxx)'),
+            (r'^\d{10}$', 'Phone (10 digits)'),
+            (r'^\+1\d{10}$', 'Phone (+1xxxxxxxxxx)')
+        ]
+        for pattern, name in phone_patterns:
+            matches = sample.str.match(pattern).sum()
+            if matches > total_sample * 0.7:
+                patterns[name] = {'count': matches, 'percentage': round((matches / total_sample) * 100, 1)}
+        
+        # Date patterns
+        date_patterns = [
+            (r'^\d{4}-\d{2}-\d{2}$', 'Date (YYYY-MM-DD)'),
+            (r'^\d{2}/\d{2}/\d{4}$', 'Date (MM/DD/YYYY)'),
+            (r'^\d{2}-\d{2}-\d{4}$', 'Date (MM-DD-YYYY)'),
+            (r'^\d{4}/\d{2}/\d{2}$', 'Date (YYYY/MM/DD)')
+        ]
+        for pattern, name in date_patterns:
+            matches = sample.str.match(pattern).sum()
+            if matches > total_sample * 0.7:
+                patterns[name] = {'count': matches, 'percentage': round((matches / total_sample) * 100, 1)}
+        
+        # SSN pattern
+        ssn_pattern = r'^\d{3}-\d{2}-\d{4}$'
+        ssn_matches = sample.str.match(ssn_pattern).sum()
+        if ssn_matches > total_sample * 0.7:
+            patterns['SSN (xxx-xx-xxxx)'] = {'count': ssn_matches, 'percentage': round((ssn_matches / total_sample) * 100, 1)}
+        
+        # ZIP code patterns
+        zip_patterns = [
+            (r'^\d{5}$', 'ZIP (5 digits)'),
+            (r'^\d{5}-\d{4}$', 'ZIP+4 (xxxxx-xxxx)')
+        ]
+        for pattern, name in zip_patterns:
+            matches = sample.str.match(pattern).sum()
+            if matches > total_sample * 0.7:
+                patterns[name] = {'count': matches, 'percentage': round((matches / total_sample) * 100, 1)}
+        
+        # Credit card pattern (basic)
+        cc_pattern = r'^\d{4}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4}$'
+        cc_matches = sample.str.match(cc_pattern).sum()
+        if cc_matches > total_sample * 0.7:
+            patterns['Credit Card'] = {'count': cc_matches, 'percentage': round((cc_matches / total_sample) * 100, 1)}
+        
+        # Convert to array format expected by UI
+        pattern_array = []
+        for pattern_name, stats in patterns.items():
+            pattern_array.append({
+                'pattern': pattern_name,
+                'count': stats['count'],
+                'percentage': stats['percentage']
+            })
+        
+        return pattern_array
+    
+    # Generate detailed column profiling (unique values, frequencies, min/max)
+    column_profiles = []
+    for col in df.columns:
+        col_data = df[col]
+        
+        # Basic stats
+        profile = {
+            'name': col,
+            'type': str(col_data.dtype),
+            'nullable': bool(col_data.isna().any()),
+            'null_count': int(col_data.isna().sum()),
+            'null_percentage': float((col_data.isna().sum() / len(df)) * 100) if len(df) > 0 else 0.0,
+            'unique_count': int(col_data.nunique()),
+            'unique_percentage': float((col_data.nunique() / len(df)) * 100) if len(df) > 0 else 0.0
+        }
+        
+        # Get top frequent values (limit to 10)
+        try:
+            value_counts = col_data.value_counts().head(10)
+            profile['top_values'] = []
+            for val, count in value_counts.items():
+                try:
+                    if pd.isna(val):
+                        continue
+                except (TypeError, ValueError):
+                    pass
+                profile['top_values'].append({
+                    'value': str(val),
+                    'count': int(count),
+                    'percentage': float((count / len(df)) * 100)
+                })
+        except Exception:
+            profile['top_values'] = []
+        
+        # Extract most/least frequent values from top_values
+        if profile['top_values'] and len(profile['top_values']) > 0:
+            # Most frequent is the first item
+            most_freq = profile['top_values'][0]
+            profile['most_frequent_value'] = most_freq['value']
+            profile['most_frequent_count'] = most_freq['count']
+            
+            # Least frequent is the last item in top_values
+            least_freq = profile['top_values'][-1]
+            profile['least_frequent_value'] = least_freq['value']
+            profile['least_frequent_count'] = least_freq['count']
+        
+        # Get min/max for numeric or date-like columns
+        try:
+            non_null = col_data.dropna()
+            if len(non_null) > 0:
+                # Try numeric
+                if pd.api.types.is_numeric_dtype(col_data):
+                    profile['min'] = float(non_null.min())
+                    profile['max'] = float(non_null.max())
+                    profile['mean'] = float(non_null.mean())
+                else:
+                    # For strings, get min/max length
+                    str_lengths = non_null.astype(str).str.len()
+                    profile['min_length'] = int(str_lengths.min())
+                    profile['max_length'] = int(str_lengths.max())
+                    profile['avg_length'] = float(str_lengths.mean())
+        except Exception:
+            pass
+        
+        # Detect data patterns
+        try:
+            profile['patterns'] = detect_patterns(col_data)
+        except Exception:
+            profile['patterns'] = []
+        
+        column_profiles.append(profile)
+    
     # Build profiling result
     result = {
         'quality_score': quality_score,
@@ -769,6 +1076,8 @@ def profile_vendor_file(file_path, filename, password=None):
         'null_value_summary': null_value_summary,
         'date_format_issues': date_format_issues,
         'duplicate_data': duplicate_data,
+        'preview_data': preview_data,
+        'column_profiles': column_profiles,
         'metadata': {
             'row_count': len(df),
             'column_count': len(df.columns),
@@ -808,6 +1117,13 @@ def vendor_profile():
         file_id = data.get('file_id')
         local_file_path = data.get('local_file_path')
         filename = data.get('filename')
+        password = data.get('password')  # For password-protected archives
+        delimiter = data.get('delimiter')  # For delimited files (supports multi-character delimiters)
+        header_config = data.get('header_config')  # For files without headers (hasHeader, columnNames)
+        fixed_width_schema = data.get('fixed_width_schema')  # For .dat files without delimiters (columns with name and width)
+        
+        # DEBUG: Log received configuration
+        logger.info(f"/api/vendor-profile received header_config: {header_config}, fixed_width_schema: {fixed_width_schema}")
         
         # Check if using local file path (preferred)
         if local_file_path:
@@ -823,8 +1139,31 @@ def vendor_profile():
             if not filename:
                 filename = os.path.basename(local_file_path)
             
+            # Fetch fixed-width schema from database if not provided and this is a .dat file
+            if not fixed_width_schema and filename.lower().endswith('.dat'):
+                conn = get_db_connection()
+                if conn:
+                    try:
+                        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+                        cursor.execute(
+                            "SELECT schema_definition FROM fixed_width_schemas WHERE file_id = %s",
+                            (file_id,)
+                        )
+                        result = cursor.fetchone()
+                        cursor.close()
+                        
+                        if result and result['schema_definition']:
+                            fixed_width_schema = result['schema_definition']
+                            logger.info(f"Found fixed-width schema for file {file_id}: {len(fixed_width_schema.get('columns', []))} columns")
+                        
+                        conn.close()
+                    except Exception as schema_error:
+                        logger.warning(f"Failed to fetch fixed-width schema: {str(schema_error)}")
+                        if conn:
+                            conn.close()
+            
             # Profile the local file directly
-            profile_result = profile_vendor_file(local_file_path, filename)
+            profile_result = profile_vendor_file(local_file_path, filename, fixed_width_schema=fixed_width_schema, password=password, delimiter=delimiter, header_config=header_config)
             
             logger.info(f"Profiling completed for file: {file_id}, issues: {len(profile_result['issues'])}")
             
@@ -878,6 +1217,9 @@ def vendor_profile():
                     'message': 'Anomaly detection unavailable (no database connection)'
                 }
             
+            # Convert numpy types to Python native types for JSON serialization
+            profile_result = convert_numpy_types(profile_result)
+            
             return jsonify(profile_result), 200
         
         # Fallback to cloud storage download (legacy)
@@ -901,7 +1243,7 @@ def vendor_profile():
             try:
                 # Profile the file
                 filename = os.path.basename(storage_key)
-                profile_result = profile_vendor_file(temp_path, filename)
+                profile_result = profile_vendor_file(temp_path, filename, password=password, delimiter=delimiter, header_config=header_config)
                 
                 logger.info(f"Profiling completed for file: {file_id}, issues: {len(profile_result['issues'])}")
                 
@@ -925,6 +1267,9 @@ def vendor_profile():
                         'anomalies_detected': 0,
                         'message': 'Anomaly detection unavailable (no database connection)'
                     }
+                
+                # Convert numpy types to Python native types for JSON serialization
+                profile_result = convert_numpy_types(profile_result)
                 
                 return jsonify(profile_result), 200
                 

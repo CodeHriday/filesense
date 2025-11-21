@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
-import { FiUpload } from 'react-icons/fi';
+import { FiUpload, FiEye, FiEyeOff } from 'react-icons/fi';
 import Card from '../components/Card';
 import FileDropzone from '../components/FileDropzone';
 import DuplicateFileModal from '../components/DuplicateFileModal';
@@ -85,6 +85,27 @@ function FileUpload() {
   const [loadingOwners, setLoadingOwners] = useState(false);
   const [filenameValidationError, setFilenameValidationError] = useState(null);
   const [validationError, setValidationError] = useState(null); // Unified contract validation error state
+  
+  // Delimiter configuration states
+  const [delimiterType, setDelimiterType] = useState('none'); // 'comma', 'pipe', 'tab', 'semicolon', 'custom', 'none', 'fixed-width'
+  const [customDelimiter, setCustomDelimiter] = useState(''); // For multi-character delimiters like '~^'
+  
+  // Header configuration states
+  const [hasHeader, setHasHeader] = useState(true); // Whether file has a header row
+  const [columnNames, setColumnNames] = useState(''); // Comma-separated column names for files without headers
+  
+  // Fixed-width schema configuration
+  const [fixedWidthSchema, setFixedWidthSchema] = useState([
+    { name: '', width: '' }
+  ]); // Array of {name: string, width: number} for fixed-width files
+  
+  // Archive password configuration (for password-protected archives)
+  const [archivePassword, setArchivePassword] = useState('');
+  const [showArchivePassword, setShowArchivePassword] = useState(false);
+  
+  // Fixed-width schema file upload states
+  const [schemaUploadError, setSchemaUploadError] = useState('');
+  const [schemaUploadSuccess, setSchemaUploadSuccess] = useState('');
   
   // Auto-match file pattern when file is selected (contract validation mode)
   const autoMatchFilePattern = (filename) => {
@@ -433,6 +454,248 @@ function FileUpload() {
     }
   };
   
+  // Helper function to get the actual delimiter value
+  const getDelimiterValue = () => {
+    if (delimiterType === 'none' || delimiterType === 'fixed-width') {
+      return null; // No delimiter specified - let backend auto-detect or use fixed-width
+    }
+    
+    if (delimiterType === 'custom') {
+      return customDelimiter || ','; // Default to comma if custom is empty
+    }
+    
+    const delimiterMap = {
+      'comma': ',',
+      'pipe': '|',
+      'tab': '\t',
+      'semicolon': ';'
+    };
+    
+    return delimiterMap[delimiterType] || ',';
+  };
+  
+  // Helper function to build header configuration object
+  const getHeaderConfig = () => {
+    // Fixed-width files define headers in their schema, not separately
+    if (delimiterType === 'fixed-width') {
+      return null;
+    }
+    
+    if (hasHeader) {
+      return null; // File has headers - no config needed
+    }
+    
+    // File has no headers - parse column names
+    const names = columnNames
+      .split(',')
+      .map(name => name.trim())
+      .filter(name => name.length > 0);
+    
+    if (names.length === 0) {
+      return null; // No column names provided
+    }
+    
+    return {
+      hasHeader: false,
+      columnNames: names
+    };
+  };
+  
+  // Helper function to build fixed-width schema object
+  const getFixedWidthSchema = () => {
+    if (delimiterType !== 'fixed-width') {
+      return null; // Not a fixed-width file
+    }
+    
+    // Filter out empty rows and parse widths as integers
+    const columns = fixedWidthSchema
+      .filter(col => col.name.trim() && col.width)
+      .map(col => ({
+        name: col.name.trim(),
+        width: parseInt(col.width, 10),
+        type: 'string' // Default type
+      }));
+    
+    if (columns.length === 0) {
+      return null; // No valid columns defined
+    }
+    
+    return {
+      columns
+    };
+  };
+  
+  // Handle fixed-width schema file upload (JSON or CSV)
+  const handleSchemaFileUpload = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    
+    // Clear previous messages
+    setSchemaUploadError('');
+    setSchemaUploadSuccess('');
+    
+    const fileName = file.name.toLowerCase();
+    const isJSON = fileName.endsWith('.json');
+    const isCSV = fileName.endsWith('.csv');
+    
+    if (!isJSON && !isCSV) {
+      setSchemaUploadError('Please upload a .json or .csv file');
+      return;
+    }
+    
+    try {
+      const text = await file.text();
+      
+      if (isJSON) {
+        // Parse JSON schema
+        const data = JSON.parse(text);
+        
+        // Validate structure - expect { columns: [{name, width}, ...] } or [{name, width}, ...]
+        let columns = Array.isArray(data) ? data : data.columns;
+        
+        if (!Array.isArray(columns) || columns.length === 0) {
+          setSchemaUploadError('Invalid JSON format. Expected array of columns with "name" and "width" fields');
+          return;
+        }
+        
+        // Validate each column
+        const validatedColumns = [];
+        for (let i = 0; i < columns.length; i++) {
+          const col = columns[i];
+          if (!col.name || typeof col.name !== 'string') {
+            setSchemaUploadError(`Column ${i + 1}: missing or invalid "name" field`);
+            return;
+          }
+          if (!col.width) {
+            setSchemaUploadError(`Column ${i + 1}: missing "width" field`);
+            return;
+          }
+          
+          // Strict validation: width must be a positive integer (no decimals, no extra characters)
+          const widthStr = String(col.width).trim();
+          if (!/^\d+$/.test(widthStr)) {
+            setSchemaUploadError(`Column ${i + 1}: width must be a positive integer (got: "${widthStr}")`);
+            return;
+          }
+          const width = parseInt(widthStr, 10);
+          if (width <= 0) {
+            setSchemaUploadError(`Column ${i + 1}: width must be greater than 0`);
+            return;
+          }
+          validatedColumns.push({ name: col.name.trim(), width: width.toString() });
+        }
+        
+        setFixedWidthSchema(validatedColumns);
+        setSchemaUploadSuccess(`Successfully loaded ${validatedColumns.length} columns from JSON file`);
+        
+      } else if (isCSV) {
+        // Parse CSV schema
+        const lines = text.trim().split('\n');
+        if (lines.length < 2) {
+          setSchemaUploadError('CSV file must contain a header row and at least one data row');
+          return;
+        }
+        
+        // Parse header
+        const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+        const nameIndex = headers.indexOf('name');
+        const widthIndex = headers.indexOf('width');
+        
+        if (nameIndex === -1 || widthIndex === -1) {
+          setSchemaUploadError('CSV must have "name" and "width" columns in the header row');
+          return;
+        }
+        
+        // Parse data rows
+        const validatedColumns = [];
+        for (let i = 1; i < lines.length; i++) {
+          const line = lines[i].trim();
+          if (!line) continue; // Skip empty lines
+          
+          const values = line.split(',').map(v => v.trim());
+          const name = values[nameIndex];
+          const width = values[widthIndex];
+          
+          if (!name) {
+            setSchemaUploadError(`Row ${i + 1}: missing column name`);
+            return;
+          }
+          if (!width) {
+            setSchemaUploadError(`Row ${i + 1}: missing width`);
+            return;
+          }
+          
+          // Strict validation: width must be a positive integer (no decimals, no extra characters)
+          if (!/^\d+$/.test(width)) {
+            setSchemaUploadError(`Row ${i + 1}: width must be a positive integer (got: "${width}")`);
+            return;
+          }
+          const widthNum = parseInt(width, 10);
+          if (widthNum <= 0) {
+            setSchemaUploadError(`Row ${i + 1}: width must be greater than 0`);
+            return;
+          }
+          validatedColumns.push({ name: name, width: widthNum.toString() });
+        }
+        
+        if (validatedColumns.length === 0) {
+          setSchemaUploadError('No valid columns found in CSV file');
+          return;
+        }
+        
+        setFixedWidthSchema(validatedColumns);
+        setSchemaUploadSuccess(`Successfully loaded ${validatedColumns.length} columns from CSV file`);
+      }
+      
+      // Clear the file input so the same file can be uploaded again
+      event.target.value = '';
+      
+    } catch (error) {
+      console.error('Error parsing schema file:', error);
+      if (isJSON) {
+        setSchemaUploadError(`Failed to parse JSON file: ${error.message}`);
+      } else {
+        setSchemaUploadError(`Failed to parse CSV file: ${error.message}`);
+      }
+    }
+  };
+  
+  // Download JSON template
+  const downloadJSONTemplate = () => {
+    const template = {
+      columns: [
+        { name: 'ID', width: 5 },
+        { name: 'Name', width: 20 },
+        { name: 'Age', width: 3 }
+      ]
+    };
+    
+    const blob = new Blob([JSON.stringify(template, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'fixed-width-schema-template.json';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+  
+  // Download CSV template
+  const downloadCSVTemplate = () => {
+    const csvContent = 'name,width\nID,5\nName,20\nAge,3';
+    
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'fixed-width-schema-template.csv';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+  
   // Load vendor projects (or all projects for admins)
   const loadVendorProjects = async () => {
     setLoadingVendorProjects(true);
@@ -649,9 +912,15 @@ function FileUpload() {
       // Check for duplicate file first (scoped to selected project)
       const duplicateCheck = await checkDuplicateFile(file, selectedProject);
       
+      // Capture fileHash from duplicate check to avoid redundant hashing
+      const fileHash = duplicateCheck.fileHash;
+      
       if (duplicateCheck.isDuplicate) {
-        // Show duplicate modal
-        setDuplicateFileInfo(duplicateCheck.existingFile);
+        // Show duplicate modal - preserve hash for later use
+        setDuplicateFileInfo({
+          ...duplicateCheck.existingFile,
+          fileHash: fileHash  // Store hash so it can be reused in replace/keep-both flows
+        });
         setPendingFile(file);
         setPendingProgressHandler(() => progressHandler);
         setShowDuplicateModal(true);
@@ -662,7 +931,7 @@ function FileUpload() {
       }
       
       // If not duplicate, proceed with upload
-      await proceedWithUpload(file, progressHandler);
+      await proceedWithUpload(file, progressHandler, null, fileHash);
     } catch (error) {
       console.error('Error checking for duplicate or uploading file:', error);
       setDiagnosticInfo(prev => prev + `Error: ${error.message}\n`);
@@ -693,80 +962,90 @@ function FileUpload() {
         throw new Error('Please select a vendor agreement for contract validation');
       }
       
-      const results = [];
-      let successCount = 0;
-      let failedCount = 0;
+      setDiagnosticInfo(prev => prev + `Checking for duplicates and capturing file hashes...\n`);
       
-      // Process each file sequentially to show individual progress
+      // Check all files for duplicates and build hash map
+      const fileHashes = {};
+      const filesToUpload = [];
+      const skippedDuplicates = [];
+      
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
         const fileNumber = i + 1;
         
-        try {
-          // Update batch status
-          setBatchUploadStatus({ 
-            total: files.length, 
-            current: fileNumber, 
-            currentFile: file.name 
-          });
-          
-          setDiagnosticInfo(prev => prev + `\n📁 Uploading file ${fileNumber} of ${files.length}: ${file.name}\n`);
-          
-          // Create a wrapped progress handler for this specific file
-          const wrappedProgressHandler = (progressEvent) => {
-            const percentage = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-            setUploadProgress(percentage);
-            
-            // Call the original progress handler
-            if (progressHandler) {
-              progressHandler(progressEvent);
-            }
-          };
-          
-          // Upload individual file
-          const agreementIdForUpload = uploadType === 'contract' ? selectedAgreement : null;
-          const result = await uploadFile(file, wrappedProgressHandler, fileOwner, selectedProject, null, selectedSubProject, selectedQualityRules, agreementIdForUpload);
-          
-          // Extract fileId from result
-          let fileId;
-          if (result.results && result.results.length > 0) {
-            const firstResult = result.results[0];
-            fileId = firstResult.fileId || (firstResult.file && firstResult.file.file_id);
-          } else {
-            fileId = result.fileId || (result.file && result.file.file_id);
-          }
-          
-          setDiagnosticInfo(prev => prev + `✅ File ${fileNumber} uploaded successfully: ${file.name} (ID: ${fileId})\n`);
-          
-          results.push({
-            success: true,
+        setBatchUploadStatus({ 
+          total: files.length, 
+          current: fileNumber, 
+          currentFile: file.name 
+        });
+        
+        setDiagnosticInfo(prev => prev + `📁 Checking file ${fileNumber} of ${files.length}: ${file.name}\n`);
+        
+        // Check for duplicate and capture hash to avoid redundant hashing
+        const duplicateCheck = await checkDuplicateFile(file, selectedProject);
+        
+        if (duplicateCheck.isDuplicate) {
+          // In batch mode, skip duplicates automatically
+          setDiagnosticInfo(prev => prev + `⚠️ File is a duplicate of ${duplicateCheck.existingFile.filename}, skipping\n`);
+          skippedDuplicates.push({
             filename: file.name,
-            fileId: fileId
+            error: 'Duplicate file (automatically skipped in batch mode)'
           });
-          successCount++;
-          
-          // Add a small delay between files to make progress visible (400ms)
-          if (i < files.length - 1) {
-            await new Promise(resolve => setTimeout(resolve, 400));
-          }
-          
-        } catch (error) {
-          console.error(`Error uploading file ${fileNumber} (${file.name}):`, error);
-          setDiagnosticInfo(prev => prev + `❌ File ${fileNumber} failed: ${file.name} - ${error.message}\n`);
-          
-          results.push({
-            success: false,
-            filename: file.name,
-            error: error.message
-          });
-          failedCount++;
-          
-          // Add delay even on error to show the failure
-          if (i < files.length - 1) {
-            await new Promise(resolve => setTimeout(resolve, 400));
-          }
+        } else {
+          // Capture hash for non-duplicate files
+          fileHashes[file.name] = duplicateCheck.fileHash;
+          filesToUpload.push(file);
+          setDiagnosticInfo(prev => prev + `✓ File ${fileNumber} ready for upload (hash captured)\n`);
         }
       }
+      
+      setDiagnosticInfo(prev => prev + `\n📤 Uploading ${filesToUpload.length} files (${skippedDuplicates.length} duplicates skipped)...\n`);
+      
+      let results = [];
+      let successCount = 0;
+      let failedCount = skippedDuplicates.length;
+      
+      // Upload all non-duplicate files in batch with hash map
+      if (filesToUpload.length > 0) {
+        const wrappedProgressHandler = (progressEvent) => {
+          const percentage = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+          setUploadProgress(percentage);
+          
+          if (progressHandler) {
+            progressHandler(progressEvent);
+          }
+        };
+        
+        const agreementIdForUpload = uploadType === 'contract' ? selectedAgreement : null;
+        const delimiterValue = getDelimiterValue();
+        const headerConfigValue = getHeaderConfig();
+        const fixedWidthSchemaValue = getFixedWidthSchema();
+        const result = await uploadFilesBatch(filesToUpload, wrappedProgressHandler, fileOwner, selectedProject, selectedSubProject, selectedQualityRules, agreementIdForUpload, fileHashes, delimiterValue, headerConfigValue, fixedWidthSchemaValue, archivePassword);
+        
+        // Process batch results
+        if (result.results && Array.isArray(result.results)) {
+          results = result.results.map(r => ({
+            success: r.success !== false,
+            filename: r.filename,
+            fileId: r.fileId || (r.file && r.file.file_id),
+            error: r.error
+          }));
+          
+          successCount = results.filter(r => r.success).length;
+          failedCount += results.filter(r => !r.success).length;
+          
+          results.forEach(r => {
+            if (r.success) {
+              setDiagnosticInfo(prev => prev + `✅ ${r.filename} uploaded successfully (ID: ${r.fileId})\n`);
+            } else {
+              setDiagnosticInfo(prev => prev + `❌ ${r.filename} failed: ${r.error}\n`);
+            }
+          });
+        }
+      }
+      
+      // Add skipped duplicates to results
+      results = [...results, ...skippedDuplicates.map(d => ({ success: false, ...d }))];
       
       // Show final summary
       setDiagnosticInfo(prev => prev + `\n📊 Batch upload complete: ${successCount} succeeded, ${failedCount} failed\n`);
@@ -814,7 +1093,7 @@ function FileUpload() {
     }
   };
 
-  const proceedWithUpload = async (file, progressHandler, replaceFileId = null) => {
+  const proceedWithUpload = async (file, progressHandler, replaceFileId = null, fileHash = null) => {
     try {
       setDiagnosticInfo(`Starting file upload for ${file.name} (${file.size} bytes, type: ${file.type})...\n`);
       setUploadStatus('uploading');
@@ -847,6 +1126,9 @@ function FileUpload() {
       // Note: Pattern validation is done by backend, which returns detailed error messages
       const agreementIdForUpload = uploadType === 'contract' ? selectedAgreement : null;
       const fileSchemaIdForUpload = uploadType === 'contract' ? selectedFilePattern : null;
+      const delimiterValue = getDelimiterValue();
+      const headerConfigValue = getHeaderConfig();
+      const fixedWidthSchemaValue = getFixedWidthSchema();
       const result = await uploadFile(
         file, 
         wrappedProgressHandler, 
@@ -856,7 +1138,12 @@ function FileUpload() {
         selectedSubProject, 
         selectedQualityRules, 
         agreementIdForUpload,
-        fileSchemaIdForUpload  // Pass the specific file pattern schema ID for validation
+        fileSchemaIdForUpload,  // Pass the specific file pattern schema ID for validation
+        fileHash,  // Pass fileHash to avoid redundant hashing
+        delimiterValue,  // Pass delimiter for delimited files
+        headerConfigValue,  // Pass header configuration for files without headers
+        fixedWidthSchemaValue,  // Pass fixed-width schema for .dat files
+        archivePassword  // Pass archive password for password-protected archives
       );
       
       setDiagnosticInfo(prev => prev + `Upload successful: ${JSON.stringify(result, null, 2)}\n`);
@@ -882,6 +1169,12 @@ function FileUpload() {
       
       setUploadedFile(fileDetails);
       setUploadStatus('success');
+      
+      // Clear archive password after successful upload (security best practice - one-time use)
+      if (archivePassword) {
+        setArchivePassword('');
+        setShowArchivePassword(false);
+      }
       
       // Move to scanning step (virus scan happens on server after upload)
       setCurrentStep('scanning');
@@ -928,8 +1221,8 @@ function FileUpload() {
     }
   };
 
-  const proceedWithUploadWithReplacement = async (file, progressHandler, replaceFileId) => {
-    return proceedWithUpload(file, progressHandler, replaceFileId);
+  const proceedWithUploadWithReplacement = async (file, progressHandler, replaceFileId, fileHash = null) => {
+    return proceedWithUpload(file, progressHandler, replaceFileId, fileHash);
   };
 
   const handleReplaceFile = async () => {
@@ -944,7 +1237,8 @@ function FileUpload() {
     
     try {
       // Upload new file with atomic replacement (backend handles deletion)
-      const result = await proceedWithUploadWithReplacement(pendingFile, pendingProgressHandler, duplicateFileInfo.fileId);
+      // Reuse pre-calculated hash from duplicate check to avoid redundant hashing
+      const result = await proceedWithUploadWithReplacement(pendingFile, pendingProgressHandler, duplicateFileInfo.fileId, duplicateFileInfo.fileHash);
       
       // Check if replacement was successful
       if (result && result.results && result.results.length > 0 && result.results[0].replaced) {
@@ -976,7 +1270,8 @@ function FileUpload() {
     
     try {
       // Simply proceed with upload (keeps both files)
-      await proceedWithUpload(pendingFile, pendingProgressHandler);
+      // Reuse pre-calculated hash from duplicate check to avoid redundant hashing
+      await proceedWithUpload(pendingFile, pendingProgressHandler, null, duplicateFileInfo.fileHash);
       
       // Clean up state after successful upload
       setPendingFile(null);
@@ -1414,6 +1709,53 @@ function FileUpload() {
                   Edit
                 </button>
               </div>
+
+              {/* Archive Password - for password-protected ZIP/7z/TAR files */}
+              <div style={{ flex: '1 1 100%', marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid #e0e0e0' }}>
+                <label htmlFor="archive-password" style={{ fontWeight: 'bold', display: 'block', marginBottom: '0.5rem' }}>
+                  Archive Password <span style={{ fontSize: '0.875rem', fontWeight: 'normal', color: '#666' }}>(Optional)</span>
+                </label>
+                <p style={{ fontSize: '0.875rem', color: '#666', marginBottom: '0.75rem' }}>
+                  If you're uploading a password-protected archive (ZIP, 7z, TAR), enter the password here. The password is used only for extraction and is not stored.
+                </p>
+                <div style={{ position: 'relative', maxWidth: '400px' }}>
+                  <input
+                    id="archive-password"
+                    type={showArchivePassword ? 'text' : 'password'}
+                    value={archivePassword}
+                    onChange={(e) => setArchivePassword(e.target.value)}
+                    placeholder="Enter archive password..."
+                    style={{
+                      width: '100%',
+                      padding: '0.5rem',
+                      paddingRight: '2.5rem',
+                      borderRadius: '4px',
+                      border: '1px solid #ccc',
+                      fontFamily: 'monospace'
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowArchivePassword(!showArchivePassword)}
+                    style={{
+                      position: 'absolute',
+                      right: '0.5rem',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer',
+                      padding: '0.25rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      color: '#666'
+                    }}
+                    title={showArchivePassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showArchivePassword ? <FiEyeOff size={18} /> : <FiEye size={18} />}
+                  </button>
+                </div>
+              </div>
             </div>
 
             {/* Vendor Agreement Selection (Contract Validation Mode) */}
@@ -1664,6 +2006,311 @@ function FileUpload() {
                     ) : null;
                   })}
                 </div>
+              </div>
+            )}
+            
+            {/* Delimiter Configuration Section */}
+            {selectedProject && (
+              <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid #e0e0e0' }}>
+                <label htmlFor="delimiter-select" style={{ fontWeight: 'bold', display: 'block', marginBottom: '0.5rem' }}>
+                  File Delimiter (Optional):
+                </label>
+                <p style={{ fontSize: '0.875rem', color: '#666', marginBottom: '0.75rem' }}>
+                  Specify the delimiter for delimited files (.csv, .dat, .txt). Default is comma.
+                </p>
+                <select 
+                  id="delimiter-select"
+                  value={delimiterType}
+                  onChange={(e) => {
+                    setDelimiterType(e.target.value);
+                    if (e.target.value !== 'custom') {
+                      setCustomDelimiter(''); // Clear custom delimiter when switching to predefined type
+                    }
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: '0.5rem',
+                    borderRadius: '4px',
+                    border: '1px solid #ccc',
+                    cursor: 'pointer',
+                    marginBottom: delimiterType === 'custom' ? '0.75rem' : '0'
+                  }}
+                >
+                  <option value="none">Auto-detect</option>
+                  <option value="comma">Comma (,)</option>
+                  <option value="pipe">Pipe (|)</option>
+                  <option value="tab">Tab (\t)</option>
+                  <option value="semicolon">Semicolon (;)</option>
+                  <option value="custom">Custom Delimiter...</option>
+                  <option value="fixed-width">Fixed-Width (no delimiter)</option>
+                </select>
+                
+                {/* Custom delimiter input */}
+                {delimiterType === 'custom' && (
+                  <div>
+                    <label htmlFor="custom-delimiter-input" style={{ fontWeight: 'bold', display: 'block', marginBottom: '0.5rem' }}>
+                      Enter Custom Delimiter:
+                    </label>
+                    <input 
+                      id="custom-delimiter-input"
+                      type="text"
+                      value={customDelimiter}
+                      onChange={(e) => setCustomDelimiter(e.target.value)}
+                      placeholder="e.g., ~^ or || or any multi-character string"
+                      style={{
+                        width: '100%',
+                        padding: '0.5rem',
+                        borderRadius: '4px',
+                        border: '1px solid #ccc',
+                        fontFamily: 'monospace'
+                      }}
+                    />
+                    <div style={{ fontSize: '0.75rem', color: '#666', marginTop: '0.5rem' }}>
+                      Supports multi-character delimiters (e.g., '~^', '||', '::')
+                    </div>
+                  </div>
+                )}
+                
+                {/* Fixed-Width Schema Builder */}
+                {delimiterType === 'fixed-width' && (
+                  <div style={{ marginTop: '1rem' }}>
+                    <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '0.5rem' }}>
+                      Define Column Schema:
+                    </label>
+                    <p style={{ fontSize: '0.875rem', color: '#666', marginBottom: '0.75rem' }}>
+                      Fixed-width files have no delimiters. Specify each column's name and width in characters. You can upload a schema file or define it manually below.
+                    </p>
+                    
+                    {/* Schema File Upload and Template Download */}
+                    <div style={{ marginBottom: '1rem', padding: '0.75rem', backgroundColor: '#f0f8ff', borderRadius: '4px', border: '1px solid #b0d4f1' }}>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', alignItems: 'center', marginBottom: '0.5rem' }}>
+                        <label htmlFor="schema-file-upload" style={{ 
+                          padding: '0.5rem 1rem',
+                          borderRadius: '4px',
+                          border: '1px solid #007bff',
+                          backgroundColor: '#fff',
+                          color: '#007bff',
+                          cursor: 'pointer',
+                          fontSize: '0.875rem',
+                          display: 'inline-block'
+                        }}>
+                          📁 Upload Schema File
+                        </label>
+                        <input
+                          id="schema-file-upload"
+                          type="file"
+                          accept=".json,.csv"
+                          onChange={handleSchemaFileUpload}
+                          style={{ display: 'none' }}
+                        />
+                        
+                        <span style={{ fontSize: '0.875rem', color: '#666' }}>or download template:</span>
+                        
+                        <button
+                          type="button"
+                          onClick={downloadJSONTemplate}
+                          style={{
+                            padding: '0.5rem 1rem',
+                            borderRadius: '4px',
+                            border: '1px solid #28a745',
+                            backgroundColor: '#fff',
+                            color: '#28a745',
+                            cursor: 'pointer',
+                            fontSize: '0.875rem'
+                          }}
+                        >
+                          ⬇ JSON Template
+                        </button>
+                        
+                        <button
+                          type="button"
+                          onClick={downloadCSVTemplate}
+                          style={{
+                            padding: '0.5rem 1rem',
+                            borderRadius: '4px',
+                            border: '1px solid #28a745',
+                            backgroundColor: '#fff',
+                            color: '#28a745',
+                            cursor: 'pointer',
+                            fontSize: '0.875rem'
+                          }}
+                        >
+                          ⬇ CSV Template
+                        </button>
+                      </div>
+                      
+                      {/* Success/Error Messages */}
+                      {schemaUploadSuccess && (
+                        <div style={{ 
+                          padding: '0.5rem', 
+                          backgroundColor: '#d4edda', 
+                          border: '1px solid #c3e6cb',
+                          borderRadius: '4px',
+                          color: '#155724',
+                          fontSize: '0.875rem',
+                          marginTop: '0.5rem'
+                        }}>
+                          ✓ {schemaUploadSuccess}
+                        </div>
+                      )}
+                      
+                      {schemaUploadError && (
+                        <div style={{ 
+                          padding: '0.5rem', 
+                          backgroundColor: '#f8d7da', 
+                          border: '1px solid #f5c6cb',
+                          borderRadius: '4px',
+                          color: '#721c24',
+                          fontSize: '0.875rem',
+                          marginTop: '0.5rem'
+                        }}>
+                          ✗ {schemaUploadError}
+                        </div>
+                      )}
+                      
+                      <div style={{ fontSize: '0.75rem', color: '#666', marginTop: '0.5rem' }}>
+                        Accepted formats: .json or .csv with "name" and "width" columns
+                      </div>
+                    </div>
+                    
+                    <div style={{ border: '1px solid #ccc', borderRadius: '4px', padding: '0.75rem', backgroundColor: '#f9f9f9' }}>
+                      {fixedWidthSchema.map((column, index) => (
+                        <div key={index} style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem', alignItems: 'center' }}>
+                          <input 
+                            type="text"
+                            value={column.name}
+                            onChange={(e) => {
+                              const newSchema = [...fixedWidthSchema];
+                              newSchema[index].name = e.target.value;
+                              setFixedWidthSchema(newSchema);
+                            }}
+                            placeholder="Column Name"
+                            style={{
+                              flex: 2,
+                              padding: '0.5rem',
+                              borderRadius: '4px',
+                              border: '1px solid #ccc'
+                            }}
+                          />
+                          <input 
+                            type="number"
+                            value={column.width}
+                            onChange={(e) => {
+                              const newSchema = [...fixedWidthSchema];
+                              newSchema[index].width = e.target.value;
+                              setFixedWidthSchema(newSchema);
+                            }}
+                            placeholder="Width"
+                            min="1"
+                            style={{
+                              flex: 1,
+                              padding: '0.5rem',
+                              borderRadius: '4px',
+                              border: '1px solid #ccc'
+                            }}
+                          />
+                          <button 
+                            type="button"
+                            onClick={() => {
+                              const newSchema = fixedWidthSchema.filter((_, i) => i !== index);
+                              setFixedWidthSchema(newSchema.length > 0 ? newSchema : [{ name: '', width: '' }]);
+                            }}
+                            style={{
+                              padding: '0.5rem 0.75rem',
+                              borderRadius: '4px',
+                              border: '1px solid #dc3545',
+                              backgroundColor: '#fff',
+                              color: '#dc3545',
+                              cursor: 'pointer',
+                              fontSize: '0.875rem'
+                            }}
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      ))}
+                      
+                      <button 
+                        type="button"
+                        onClick={() => {
+                          setFixedWidthSchema([...fixedWidthSchema, { name: '', width: '' }]);
+                        }}
+                        style={{
+                          marginTop: '0.5rem',
+                          padding: '0.5rem 1rem',
+                          borderRadius: '4px',
+                          border: '1px solid #28a745',
+                          backgroundColor: '#fff',
+                          color: '#28a745',
+                          cursor: 'pointer',
+                          fontSize: '0.875rem'
+                        }}
+                      >
+                        + Add Column
+                      </button>
+                    </div>
+                    
+                    <div style={{ fontSize: '0.75rem', color: '#666', marginTop: '0.5rem' }}>
+                      Example: ID (width: 5), Name (width: 20), Age (width: 3)
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+            
+            {/* Header Configuration Section - hide when fixed-width is selected */}
+            {selectedProject && delimiterType !== 'fixed-width' && (
+              <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid #e0e0e0' }}>
+                <label htmlFor="has-header-checkbox" style={{ fontWeight: 'bold', display: 'block', marginBottom: '0.5rem' }}>
+                  Header Configuration:
+                </label>
+                <p style={{ fontSize: '0.875rem', color: '#666', marginBottom: '0.75rem' }}>
+                  Specify whether your file has a header row. If not, provide column names.
+                </p>
+                
+                <div style={{ marginBottom: '0.75rem' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                    <input 
+                      id="has-header-checkbox"
+                      type="checkbox"
+                      checked={hasHeader}
+                      onChange={(e) => {
+                        setHasHeader(e.target.checked);
+                        if (e.target.checked) {
+                          setColumnNames(''); // Clear column names when header is present
+                        }
+                      }}
+                      style={{ marginRight: '0.5rem', cursor: 'pointer' }}
+                    />
+                    <span>File has a header row</span>
+                  </label>
+                </div>
+                
+                {/* Column names input (shown when hasHeader is false) */}
+                {!hasHeader && (
+                  <div>
+                    <label htmlFor="column-names-input" style={{ fontWeight: 'bold', display: 'block', marginBottom: '0.5rem' }}>
+                      Enter Column Names (comma-separated):
+                    </label>
+                    <input 
+                      id="column-names-input"
+                      type="text"
+                      value={columnNames}
+                      onChange={(e) => setColumnNames(e.target.value)}
+                      placeholder="e.g., PatientID, Name, DOB, Visit Date"
+                      style={{
+                        width: '100%',
+                        padding: '0.5rem',
+                        borderRadius: '4px',
+                        border: '1px solid #ccc',
+                        fontFamily: 'monospace'
+                      }}
+                    />
+                    <div style={{ fontSize: '0.75rem', color: '#666', marginTop: '0.5rem' }}>
+                      Separate column names with commas. These will be used as headers for your data.
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
@@ -2452,44 +3099,6 @@ function FileUpload() {
             </div>
           </div>
         )}
-      </Card>
-
-      {/* Debug Tools */}
-      <Card>
-        <div className="debug-section">
-          <h2>API Diagnostics</h2>
-          <div className="debug-status">
-            <div className="api-status">
-              <span>API Status: </span>
-              <span className={`status-badge ${apiStatus.status}`}>
-                {!apiStatus.checked ? 'Checking...' : 
-                  apiStatus.status === 'connected' ? 'Connected' : 'Error'}
-              </span>
-            </div>
-            
-            <div className="debug-actions">
-              <button 
-                className="btn btn-secondary"
-                onClick={handleTestConnection}
-              >
-                Test API Connection
-              </button>
-              <button 
-                className="btn btn-primary"
-                onClick={handleDirectUpload}
-              >
-                Test Direct Upload
-              </button>
-            </div>
-          </div>
-          
-          <div className="diagnostic-info">
-            <h3>Diagnostic Information</h3>
-            <pre>
-              {diagnosticInfo || 'No diagnostic information available yet.'}
-            </pre>
-          </div>
-        </div>
       </Card>
     </div>
   );

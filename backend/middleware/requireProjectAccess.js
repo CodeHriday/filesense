@@ -267,8 +267,15 @@ async function lookupResourceProject(req, resourceType) {
 
     case 'connection':
       if (req.params.connectionId || req.params.id) {
-        query = 'SELECT project_id FROM storage_connections WHERE connection_id = $1 OR id = $1';
+        query = 'SELECT project_id FROM storage_connections WHERE connection_id = $1';
         params = [req.params.connectionId || req.params.id];
+      }
+      break;
+
+    case 'alert_policy':
+      if (req.params.id) {
+        query = 'SELECT project_id FROM alert_policies WHERE id = $1';
+        params = [req.params.id];
       }
       break;
 

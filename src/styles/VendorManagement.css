@@ -1,5 +1,5 @@
 .vendor-management-container {
-  padding: 20px;
+  padding: 0 20px 20px 20px;
   max-width: 1200px;
   margin: 0 auto;
 }
@@ -8,12 +8,13 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
+  margin-bottom: 12px;
+  margin-top: 0;
 }
 
 .vendor-management-container h1 {
   margin-bottom: 0;
-  font-size: 2rem;
+  font-size: 1.5rem;
   color: #025043;
 }
 

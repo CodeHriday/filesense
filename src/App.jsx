@@ -14,7 +14,7 @@ import Header from './components/Header';
 import Sidebar from './components/Sidebar';
 import NotificationList from './components/Notifications/NotificationList';
 import PerformanceOptimizations from './pages/PerformanceOptimizations';
-import Dashboard from './pages/Dashboard';
+import ExecutiveDashboard from './pages/ExecutiveDashboard';
 import FileUpload from './pages/FileUpload';
 import { FileCatalog } from './pages/FileCatalog';
 import DataProfile from './pages/DataProfile';
@@ -48,6 +48,7 @@ import VendorRoleManagement from './pages/VendorRoleManagement';
 import VendorAgreements from './pages/VendorAgreements';
 import VendorFileUpload from './pages/VendorFileUpload';
 import VendorFileQuality from './pages/VendorFileQuality';
+import SLAMonitoring from './pages/SLAMonitoring';
 import DBTTransformations from './pages/DBTTransformations';
 import HooksDemo from './pages/HooksDemo';
 // Business Process Management imports
@@ -71,6 +72,13 @@ import SystemCleanup from './pages/SystemCleanup';
 import RetentionPolicies from './pages/RetentionPolicies';
 import ArchivedFiles from './pages/ArchivedFiles';
 import Anomalies from './pages/Anomalies';
+import { AlertsConfig } from './pages/AlertsConfig';
+import { EmailProvidersConfig } from './pages/EmailProvidersConfig';
+import AlertHistory from './pages/AlertHistory';
+import { OAuth2Callback } from './pages/OAuth2Callback';
+import APITokens from './pages/APITokens';
+import APIDocumentation from './pages/APIDocumentation';
+import FailedJobs from './pages/FailedJobs';
 import WorkflowCanvas from './pages/WorkflowCanvas';
 import WorkflowCanvasFixed from './pages/WorkflowCanvasFixed';
 import WorkflowCanvasStandalone from './pages/WorkflowCanvasStandalone';
@@ -138,7 +146,7 @@ const ProtectedRoute = ({ children }) => {
   return children;
 };
 
-// Component to redirect vendor users to vendor file upload page, others to dashboard
+// Component to redirect vendor users to vendor file upload page, others to executive dashboard
 const DashboardOrRedirect = () => {
   const { currentUser } = useAuth();
   
@@ -147,8 +155,8 @@ const DashboardOrRedirect = () => {
     return <Navigate to="/vendor-file-upload" replace />;
   }
   
-  // Show dashboard for all other users
-  return <Dashboard />;
+  // Show executive dashboard for all other users
+  return <ExecutiveDashboard />;
 };
 
 // Component to block vendor users from accessing regular file upload
@@ -214,15 +222,15 @@ function AppContent({ showOnboarding, setShowOnboarding }) {
       {/* Skip to main content link for keyboard users */}
       <a href="#main-content" className="skip-link">Skip to main content</a>
       
-      {/* Show header and sidebar only if logged in */}
+      {/* Show sidebar only if logged in */}
       {currentUser && (
         <>
-          <Header showAIInsights={toggleAIInsights} />
           <div className="main-container">
             <Sidebar />
-            <main id="main-content" className={`content ${isCollapsed ? 'sidebar-collapsed' : ''}`} tabIndex="-1">
+            <main id="main-content" className={`content ${isCollapsed ? 'sidebar-collapsed' : ''} full-width`} tabIndex="-1">
               <Routes>
                 <Route path="/" element={<ProtectedRoute><DashboardOrRedirect /></ProtectedRoute>} />
+                <Route path="/executive-dashboard" element={<ProtectedRoute><ExecutiveDashboard /></ProtectedRoute>} />
                 <Route path="/upload" element={<ProtectedRoute><FileUploadOrRedirect /></ProtectedRoute>} />
                 <Route path="/drop" element={<ProtectedRoute><FileUploadOrRedirect /></ProtectedRoute>} />
                 <Route path="/file-catalog" element={<ProtectedRoute><FileCatalog /></ProtectedRoute>} />
@@ -292,7 +300,9 @@ function AppContent({ showOnboarding, setShowOnboarding }) {
                 <Route path="/vendor-agreements" element={<ProtectedRoute><VendorAgreements /></ProtectedRoute>} />
                 <Route path="/vendor-file-upload" element={<ProtectedRoute><VendorFileUpload /></ProtectedRoute>} />
                 <Route path="/vendor-file-quality" element={<ProtectedRoute><VendorFileQuality /></ProtectedRoute>} />
+                <Route path="/sla-monitoring" element={<ProtectedRoute><SLAMonitoring /></ProtectedRoute>} />
                 <Route path="/dbt-transformations" element={<ProtectedRoute><DBTTransformations /></ProtectedRoute>} />
+                <Route path="/failed-jobs" element={<ProtectedRoute><FailedJobs /></ProtectedRoute>} />
                 {/* Business Process Management routes */}
                 <Route path="/groups" element={<ProtectedRoute><Groups /></ProtectedRoute>} />
                 <Route path="/business-processes" element={<ProtectedRoute><BusinessProcesses /></ProtectedRoute>} />
@@ -317,10 +327,16 @@ function AppContent({ showOnboarding, setShowOnboarding }) {
                 <Route path="/archived-files" element={<ProtectedRoute><ArchivedFiles /></ProtectedRoute>} />
                 <Route path="/anomalies" element={<ProtectedRoute><Anomalies /></ProtectedRoute>} />
                 <Route path="/tag-management" element={<ProtectedRoute><TagManagement /></ProtectedRoute>} />
+                <Route path="/api-tokens" element={<ProtectedRoute><APITokens /></ProtectedRoute>} />
+                <Route path="/api-documentation" element={<ProtectedRoute><APIDocumentation /></ProtectedRoute>} />
                 <Route path="/projects" element={<ProtectedRoute><Projects /></ProtectedRoute>} />
                 <Route path="/project-management" element={<ProtectedRoute><ProjectManagement /></ProtectedRoute>} />
                 <Route path="/group-management" element={<ProtectedRoute><GroupManagement /></ProtectedRoute>} />
                 <Route path="/system-cleanup" element={<ProtectedRoute><SystemCleanup /></ProtectedRoute>} />
+                <Route path="/alerts-config" element={<ProtectedRoute><AlertsConfig /></ProtectedRoute>} />
+                <Route path="/alert-history" element={<ProtectedRoute><AlertHistory /></ProtectedRoute>} />
+                <Route path="/email-providers" element={<ProtectedRoute><EmailProvidersConfig /></ProtectedRoute>} />
+                <Route path="/oauth2-callback" element={<OAuth2Callback />} />
                 <Route path="/workflow-canvas" element={<ProtectedRoute><WorkflowCanvasStandalone /></ProtectedRoute>} />
                 <Route path="/workflow-test" element={<ProtectedRoute><WorkflowTest /></ProtectedRoute>} />
                 {/* Development Routes */}

@@ -270,7 +270,7 @@ function GroupManagement() {
     <div className="group-management">
       <div className="page-header">
         <h1>Group Management</h1>
-        <button className="btn-primary btn-create-group" onClick={() => setShowCreateModal(true)}>
+        <button className="btn-primary header-action-btn" onClick={() => setShowCreateModal(true)} style={{ paddingLeft: '10px', paddingRight: '10px', width: 'auto', flex: 'none' }}>
           + Create Group
         </button>
       </div>

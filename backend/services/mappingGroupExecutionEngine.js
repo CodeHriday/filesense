@@ -2,6 +2,7 @@ const { v4: uuidv4 } = require('uuid');
 const pool = require('../db');
 const { systemLogger } = require('../utils/logger');
 const { executeTransformationJob } = require('./jobExecutionEngine');
+const alertAggregationWorker = require('./AlertAggregationWorker');
 
 /**
  * Mapping Group Execution Engine
@@ -179,6 +180,25 @@ async function executeMappingGroup(groupId, maxConcurrency = 10, triggeredBy = n
       durationMs
     });
     
+    // Emit alert event (fire-and-forget, non-blocking)
+    setImmediate(() => {
+      try {
+        alertAggregationWorker.onMappingGroupCompleted(groupId.toString(), 'completed').catch(err => {
+          systemLogger.warn('Failed to emit mapping group completion alert event', {
+            groupId,
+            executionId,
+            error: err.message
+          });
+        });
+      } catch (err) {
+        systemLogger.warn('Error emitting mapping group completion alert event', {
+          groupId,
+          executionId,
+          error: err.message
+        });
+      }
+    });
+    
     return {
       success: true,
       executionId,
@@ -214,6 +234,25 @@ async function executeMappingGroup(groupId, maxConcurrency = 10, triggeredBy = n
             updated_at = CURRENT_TIMESTAMP
         WHERE id = $4
       `, [error.message, endTime, durationMs, executionRecordId]);
+      
+      // Emit alert event (fire-and-forget, non-blocking)
+      setImmediate(() => {
+        try {
+          alertAggregationWorker.onMappingGroupCompleted(groupId.toString(), 'failed').catch(err => {
+            systemLogger.warn('Failed to emit mapping group failure alert event', {
+              groupId,
+              executionId,
+              error: err.message
+            });
+          });
+        } catch (err) {
+          systemLogger.warn('Error emitting mapping group failure alert event', {
+            groupId,
+            executionId,
+            error: err.message
+          });
+        }
+      });
     }
     
     throw error;

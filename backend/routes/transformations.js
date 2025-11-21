@@ -224,7 +224,10 @@ router.post('/',
       status = 'draft',
       quality_rule_ids = null,
       violation_handling = 'log_continue',
-      sub_project_id = null
+      sub_project_id = null,
+      rdm_lookup_enabled = false,
+      rdm_dataset_config = null,
+      rdm_crosswalk_config = null
     } = req.body;
     
     const actualFilePattern = file_name_pattern || source_file_pattern;
@@ -393,8 +396,8 @@ router.post('/',
         file_name_pattern, source_file_pattern, target_connection_id, target_table_name,
         target_file_path, target_file_name, target_file_format,
         field_mappings, variables, pii_columns, anomaly_rules, schema_drift_handling, source_schema, status, created_by, project_id, sub_project_id, violation_handling,
-        source_owner, target_owner
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27)
+        source_owner, target_owner, rdm_lookup_enabled, rdm_dataset_config, rdm_crosswalk_config
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30)
       RETURNING *
     `, [
       mappingId, mapping_name, sourceConnectionIdForDb, vendor_agreement_id, vendor_agreement_file_schema_id, source_type, file_path,
@@ -404,7 +407,8 @@ router.post('/',
       schema_drift_handling,
       source_schema ? JSON.stringify(source_schema) : null,
       status, req.user?.id || null, projectId, sub_project_id, violation_handling,
-      req.body.source_owner || null, req.body.target_owner || null
+      req.body.source_owner || null, req.body.target_owner || null,
+      rdm_lookup_enabled, rdm_dataset_config ? JSON.stringify(rdm_dataset_config) : null, rdm_crosswalk_config ? JSON.stringify(rdm_crosswalk_config) : null
     ]);
     
     // Insert quality rule associations if provided
@@ -475,7 +479,10 @@ router.put('/:id',
       violation_handling,
       sub_project_id,
       source_owner,
-      target_owner
+      target_owner,
+      rdm_lookup_enabled,
+      rdm_dataset_config,
+      rdm_crosswalk_config
     } = req.body;
     
     const actualFilePattern = file_name_pattern || source_file_pattern;
@@ -764,6 +771,21 @@ router.put('/:id',
     if (target_owner !== undefined) {
       updates.push(`target_owner = $${paramIndex}`);
       values.push(target_owner);
+      paramIndex++;
+    }
+    if (rdm_lookup_enabled !== undefined) {
+      updates.push(`rdm_lookup_enabled = $${paramIndex}`);
+      values.push(rdm_lookup_enabled);
+      paramIndex++;
+    }
+    if (rdm_dataset_config !== undefined) {
+      updates.push(`rdm_dataset_config = $${paramIndex}`);
+      values.push(rdm_dataset_config ? JSON.stringify(rdm_dataset_config) : null);
+      paramIndex++;
+    }
+    if (rdm_crosswalk_config !== undefined) {
+      updates.push(`rdm_crosswalk_config = $${paramIndex}`);
+      values.push(rdm_crosswalk_config ? JSON.stringify(rdm_crosswalk_config) : null);
       paramIndex++;
     }
     

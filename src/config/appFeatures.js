@@ -25,7 +25,8 @@ import {
   FiBriefcase,
   FiTruck,
   FiCheckCircle,
-  FiArchive
+  FiArchive,
+  FiKey
 } from 'react-icons/fi';
 
 export const APP_FEATURES = [
@@ -280,6 +281,22 @@ export const APP_FEATURES = [
     showInSidebar: true
   },
   { 
+    id: 'api_tokens', 
+    name: 'API Tokens', 
+    category: 'Administration',
+    icon: FiKey,
+    route: '/api-tokens',
+    showInSidebar: true
+  },
+  { 
+    id: 'api_documentation', 
+    name: 'API Documentation', 
+    category: 'Administration',
+    icon: FiBookOpen,
+    route: '/api-documentation',
+    showInSidebar: true
+  },
+  { 
     id: 'vendor_management', 
     name: 'Vendor Management', 
     category: 'Administration',
@@ -332,6 +349,15 @@ export const APP_FEATURES = [
         category: 'Administration',
         icon: null,
         route: '/vendor-agreements',
+        showInSidebar: true
+      },
+      {
+        id: 'sla_monitoring',
+        name: 'SLA Monitoring',
+        parentId: 'vendor_management',
+        category: 'Administration',
+        icon: null,
+        route: '/sla-monitoring',
         showInSidebar: true
       }
     ]
@@ -413,6 +439,14 @@ export const APP_FEATURES = [
   },
   
   // Insights
+  { 
+    id: 'executive_dashboard', 
+    name: 'Executive Dashboard', 
+    category: 'Insights',
+    icon: FiTrendingUp,
+    route: '/executive-dashboard',
+    showInSidebar: true
+  },
   { 
     id: 'file_insights', 
     name: 'File Insights', 

@@ -849,8 +849,12 @@
   transition: all 0.2s;
 }
 
+.tab-button:focus,
+.tab-button:focus-visible {
+  outline: none !important;
+}
+
 .tab-button.active {
-  border-bottom-color: #3b82f6;
   color: #3b82f6;
   font-weight: 500;
 }

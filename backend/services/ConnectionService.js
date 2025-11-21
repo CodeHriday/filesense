@@ -79,6 +79,76 @@ class ConnectionService {
           encryptedConfig.outlook_client_secret = encrypt(config.outlook_client_secret);
         }
         break;
+      
+      // Email Provider Types
+      case 'smtp':
+        if (config.password) {
+          encryptedConfig.password = encrypt(config.password);
+        }
+        break;
+      
+      case 'gmail_oauth2':
+        if (config.client_secret) {
+          encryptedConfig.client_secret = encrypt(config.client_secret);
+        }
+        if (config.refresh_token) {
+          encryptedConfig.refresh_token = encrypt(config.refresh_token);
+        }
+        if (config.access_token) {
+          encryptedConfig.access_token = encrypt(config.access_token);
+        }
+        break;
+      
+      case 'outlook_oauth2':
+        if (config.client_secret) {
+          encryptedConfig.client_secret = encrypt(config.client_secret);
+        }
+        if (config.refresh_token) {
+          encryptedConfig.refresh_token = encrypt(config.refresh_token);
+        }
+        if (config.access_token) {
+          encryptedConfig.access_token = encrypt(config.access_token);
+        }
+        break;
+      
+      case 'sendgrid':
+        if (config.api_key) {
+          encryptedConfig.api_key = encrypt(config.api_key);
+        }
+        break;
+      
+      case 'ses':
+        // AWS SES uses AWS credentials
+        if (config.access_key_id) {
+          encryptedConfig.access_key_id = encrypt(config.access_key_id);
+        }
+        if (config.secret_access_key) {
+          encryptedConfig.secret_access_key = encrypt(config.secret_access_key);
+        }
+        break;
+      
+      case 'azure_email':
+        // Azure Communication Services
+        if (config.connection_string) {
+          encryptedConfig.connection_string = encrypt(config.connection_string);
+        }
+        if (config.access_key) {
+          encryptedConfig.access_key = encrypt(config.access_key);
+        }
+        break;
+      
+      case 'gcp_email':
+        // GCP SMTP Relay or SendGrid on GCP
+        if (config.private_key) {
+          encryptedConfig.private_key = encrypt(config.private_key);
+        }
+        if (config.api_key) {
+          encryptedConfig.api_key = encrypt(config.api_key);
+        }
+        if (config.password) {
+          encryptedConfig.password = encrypt(config.password);
+        }
+        break;
     }
     
     return encryptedConfig;
@@ -154,6 +224,76 @@ class ConnectionService {
       case 'outlook':
         if (config.outlook_client_secret) {
           decryptedConfig.outlook_client_secret = decrypt(config.outlook_client_secret);
+        }
+        break;
+      
+      // Email Provider Types
+      case 'smtp':
+        if (config.password) {
+          decryptedConfig.password = decrypt(config.password);
+        }
+        break;
+      
+      case 'gmail_oauth2':
+        if (config.client_secret) {
+          decryptedConfig.client_secret = decrypt(config.client_secret);
+        }
+        if (config.refresh_token) {
+          decryptedConfig.refresh_token = decrypt(config.refresh_token);
+        }
+        if (config.access_token) {
+          decryptedConfig.access_token = decrypt(config.access_token);
+        }
+        break;
+      
+      case 'outlook_oauth2':
+        if (config.client_secret) {
+          decryptedConfig.client_secret = decrypt(config.client_secret);
+        }
+        if (config.refresh_token) {
+          decryptedConfig.refresh_token = decrypt(config.refresh_token);
+        }
+        if (config.access_token) {
+          decryptedConfig.access_token = decrypt(config.access_token);
+        }
+        break;
+      
+      case 'sendgrid':
+        if (config.api_key) {
+          decryptedConfig.api_key = decrypt(config.api_key);
+        }
+        break;
+      
+      case 'ses':
+        // AWS SES uses AWS credentials
+        if (config.access_key_id) {
+          decryptedConfig.access_key_id = decrypt(config.access_key_id);
+        }
+        if (config.secret_access_key) {
+          decryptedConfig.secret_access_key = decrypt(config.secret_access_key);
+        }
+        break;
+      
+      case 'azure_email':
+        // Azure Communication Services
+        if (config.connection_string) {
+          decryptedConfig.connection_string = decrypt(config.connection_string);
+        }
+        if (config.access_key) {
+          decryptedConfig.access_key = decrypt(config.access_key);
+        }
+        break;
+      
+      case 'gcp_email':
+        // GCP SMTP Relay or SendGrid on GCP
+        if (config.private_key) {
+          decryptedConfig.private_key = decrypt(config.private_key);
+        }
+        if (config.api_key) {
+          decryptedConfig.api_key = decrypt(config.api_key);
+        }
+        if (config.password) {
+          decryptedConfig.password = decrypt(config.password);
         }
         break;
     }
@@ -431,7 +571,15 @@ class ConnectionService {
           databricks: ['databricks_token'],
           sharepoint: ['sharepoint_client_secret'],
           outlook: ['outlook_client_secret'],
-          vendor: ['access_key_id', 'secret_access_key', 'service_account_key', 'account_key']
+          vendor: ['access_key_id', 'secret_access_key', 'service_account_key', 'account_key'],
+          // Email Provider Types
+          smtp: ['password'],
+          gmail_oauth2: ['client_secret', 'refresh_token', 'access_token'],
+          outlook_oauth2: ['client_secret', 'refresh_token', 'access_token'],
+          sendgrid: ['api_key'],
+          ses: ['access_key_id', 'secret_access_key'],
+          azure_email: ['connection_string', 'access_key'],
+          gcp_email: ['private_key', 'api_key', 'password']
         };
         
         const sensitiveFields = sensitiveFieldsByType[connectionType] || [];

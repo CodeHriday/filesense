@@ -75,17 +75,18 @@ a:hover {
 .page-container {
   background-color: var(--bg-page);
   min-height: 100vh;
-  padding: var(--space-6);
+  padding: 0 var(--space-6) var(--space-6) var(--space-6);
 }
 
 .page-header {
-  padding: var(--space-6) 0;
-  margin-bottom: var(--space-6);
+  padding: 0;
+  margin-top: 0;
+  margin-bottom: 12px;
 }
 
 .page-header h1 {
   color: #025043;
-  font-size: 2rem;
+  font-size: 1.1rem;
   margin-bottom: 0;
   font-weight: var(--font-semibold);
 }
@@ -425,12 +426,12 @@ div.spinner {
 /* === RESPONSIVE === */
 @media (max-width: 960px) {
   .page-container {
-    padding: var(--space-4);
+    padding: 0 var(--space-4) var(--space-4) var(--space-4);
   }
   
   .page-header {
-    margin: calc(var(--space-4) * -1) calc(var(--space-4) * -1) var(--space-6) calc(var(--space-4) * -1);
-    padding: var(--space-4);
+    margin: 0 0 12px 0;
+    padding: 0;
   }
   
   .card {
@@ -475,7 +476,7 @@ div.spinner {
 }
 
 .data-table th {
-  padding: var(--space-4);
+  padding: var(--space-2);
   text-align: left;
   font-weight: 600;
   color: var(--text-primary);
@@ -486,7 +487,7 @@ div.spinner {
 }
 
 .data-table td {
-  padding: var(--space-4);
+  padding: var(--space-2);
   border-bottom: 1px solid var(--border-color);
   color: var(--text-secondary);
   font-size: 0.75rem;

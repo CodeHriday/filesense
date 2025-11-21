@@ -6,8 +6,8 @@
 
 .main-container {
   display: flex;
-  margin-top: 60px; /* Height of fixed header */
-  height: calc(100vh - 60px);
+  margin-top: 0; /* No header at top */
+  height: 100vh;
   overflow: hidden;
 }
 
@@ -23,6 +23,16 @@
 
 .content.sidebar-collapsed {
   margin-left: 70px; /* Width of collapsed sidebar */
+  width: calc(100% - 70px);
+}
+
+.content.full-width {
+  margin-left: 250px;
+  width: calc(100% - 250px);
+}
+
+.content.full-width.sidebar-collapsed {
+  margin-left: 70px;
   width: calc(100% - 70px);
 }
 
@@ -79,6 +89,25 @@
 
 .btn-outline:hover {
   background-color: var(--color-primary-50);
+}
+
+/* Standardized Header Action Button - 36px height for all header Create/Add buttons */
+/* High specificity to override all page-specific CSS that loads after App.css */
+button.btn-primary.header-action-btn,
+button.btn.header-action-btn,
+.header-action-btn.btn-primary,
+.header-action-btn.btn,
+.header-action-btn {
+  padding: 8px 16px !important;
+  font-size: 0.875rem !important;
+  height: 36px !important;
+  min-height: 36px !important;
+  max-height: 36px !important;
+  line-height: 1.25 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  box-sizing: border-box !important;
 }
 
 .card {

@@ -109,6 +109,11 @@
   transition: all 0.2s;
 }
 
+.tab-button:focus,
+.tab-button:focus-visible {
+  outline: none !important;
+}
+
 .tab-button:hover {
   color: #495057;
   background: rgba(0, 0, 0, 0.02);
@@ -116,8 +121,7 @@
 
 .tab-button.active {
   color: var(--primary-color, #025043);
-  border-bottom-color: var(--primary-color, #025043);
-  background: #ffffff;
+  font-weight: 600;
 }
 
 .tab-content {

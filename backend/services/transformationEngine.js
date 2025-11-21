@@ -11,9 +11,10 @@ const { systemLogger } = require('../utils/logger');
  * @param {string} transformationType - Type of transformation
  * @param {any} value - Input value
  * @param {Object} params - Transformation parameters
+ * @param {Object} context - Execution context (includes RDM data, variables, etc.)
  * @returns {any} - Transformed value
  */
-function applyTransformation(transformationType, value, params = {}) {
+function applyTransformation(transformationType, value, params = {}, context = {}) {
   try {
     switch (transformationType) {
       case 'null_to_value':
@@ -90,6 +91,12 @@ function applyTransformation(transformationType, value, params = {}) {
       
       case 'coalesce':
         return coalesce(value, params);
+      
+      case 'rdm_crosswalk_lookup':
+        return rdmCrosswalkLookup(value, params, context);
+      
+      case 'rdm_dataset_join':
+        return rdmDatasetJoin(value, params, context);
       
       default:
         systemLogger.warn(`Unknown transformation type: ${transformationType}`);
@@ -710,16 +717,131 @@ function coalesce(value, params) {
 }
 
 /**
+ * RDM Crosswalk Lookup - lookup a value in an RDM crosswalk table
+ * This transformation requires RDM context to be preloaded
+ */
+function rdmCrosswalkLookup(value, params, context = {}) {
+  const { 
+    rdmCrosswalkId, 
+    sourceField = 'source_code',
+    targetField = 'target_code', 
+    defaultValue = null,
+    caseInsensitive = true
+  } = params;
+  
+  if (!rdmCrosswalkId) {
+    systemLogger.warn('rdm_crosswalk_lookup: rdmCrosswalkId is required');
+    return defaultValue;
+  }
+  
+  // Get preloaded crosswalk data from context
+  const rdmData = context.rdm || {};
+  const crosswalkData = rdmData.crosswalks?.[rdmCrosswalkId];
+  
+  if (!crosswalkData) {
+    systemLogger.warn(`rdm_crosswalk_lookup: Crosswalk ${rdmCrosswalkId} not found in context`);
+    return defaultValue;
+  }
+  
+  if (!crosswalkData.map) {
+    systemLogger.warn(`rdm_crosswalk_lookup: Crosswalk ${rdmCrosswalkId} has no mapping data`);
+    return defaultValue;
+  }
+  
+  // Perform lookup
+  const lookupKey = caseInsensitive ? String(value).toLowerCase() : String(value);
+  const result = crosswalkData.map.get(lookupKey);
+  
+  if (result && result[targetField] !== undefined) {
+    return result[targetField];
+  }
+  
+  return defaultValue !== null ? defaultValue : value;
+}
+
+/**
+ * RDM Dataset Join - enrich row with data from RDM reference dataset
+ * This transformation requires RDM context to be preloaded
+ */
+function rdmDatasetJoin(value, params, context = {}) {
+  const { 
+    rdmDatasetId,
+    join = {},
+    selectFields = [],
+    prefix = 'rdm_',
+    defaultValue = null
+  } = params;
+  
+  const { sourceField, datasetField, joinType = 'left' } = join;
+  
+  if (!rdmDatasetId) {
+    systemLogger.warn('rdm_dataset_join: rdmDatasetId is required');
+    return defaultValue;
+  }
+  
+  if (!sourceField || !datasetField) {
+    systemLogger.warn('rdm_dataset_join: sourceField and datasetField are required in join config');
+    return defaultValue;
+  }
+  
+  // Get preloaded dataset from context
+  const rdmData = context.rdm || {};
+  const datasetData = rdmData.datasets?.[rdmDatasetId];
+  
+  if (!datasetData) {
+    systemLogger.warn(`rdm_dataset_join: Dataset ${rdmDatasetId} not found in context`);
+    return defaultValue;
+  }
+  
+  if (!datasetData.map) {
+    systemLogger.warn(`rdm_dataset_join: Dataset ${rdmDatasetId} has no mapping data`);
+    return defaultValue;
+  }
+  
+  // value should be the full row object for this transformation
+  const joinKey = String(value[sourceField]).toLowerCase();
+  const datasetRow = datasetData.map.get(joinKey);
+  
+  if (!datasetRow) {
+    // No match found - return based on join type
+    if (joinType === 'inner') {
+      return null; // Inner join - exclude row
+    }
+    return defaultValue; // Left join - continue with default
+  }
+  
+  // Build enriched object
+  const enrichedData = {};
+  
+  if (selectFields && selectFields.length > 0) {
+    // Only select specified fields
+    selectFields.forEach(field => {
+      enrichedData[`${prefix}${field}`] = datasetRow[field];
+    });
+  } else {
+    // Select all fields from dataset (except join field)
+    Object.keys(datasetRow).forEach(key => {
+      if (key !== datasetField) {
+        enrichedData[`${prefix}${key}`] = datasetRow[key];
+      }
+    });
+  }
+  
+  return enrichedData;
+}
+
+/**
  * Apply multiple transformations in sequence
  * @param {any} value - Input value
  * @param {Array} transformations - Array of transformation definitions
+ * @param {Object} context - Execution context (includes RDM data, variables, etc.)
  * @returns {any} - Final transformed value
  */
-function applyTransformationChain(value, transformations) {
+function applyTransformationChain(value, transformations, context = {}) {
   let result = value;
   
   for (const transform of transformations) {
-    result = applyTransformation(transform.type, result, transform.params || {});
+    result = applyTransformation(transform.type, result, transform.params || {}, context);
   }
   
   return result;
@@ -730,9 +852,10 @@ function applyTransformationChain(value, transformations) {
  * @param {Object} row - Input row
  * @param {Object} fieldMappings - Field mapping configuration
  * @param {Array} variables - Variable definitions (optional)
+ * @param {Object} context - Execution context (includes RDM data, variables, etc.)
  * @returns {Object} - Transformed row
  */
-function transformRow(row, fieldMappings, variables = []) {
+function transformRow(row, fieldMappings, variables = [], context = {}) {
   // If no field mappings provided, pass through original row
   if (!fieldMappings || fieldMappings.length === 0) {
     return row;
@@ -759,7 +882,7 @@ function transformRow(row, fieldMappings, variables = []) {
         if (transformations.length > 0 && (transformations[0].type === 'concat' || transformations[0].type === 'coalesce' || isMathWithMultipleFields)) {
           // Multi-field operations - pass enriched row and transformations are applied inside
           // DO NOT apply transformations again (already applied with row context)
-          value = applyTransformationChain(enrichedRow, transformations);
+          value = applyTransformationChain(enrichedRow, transformations, context);
         } else {
           // PRIORITY 2: Check if source is a variable reference
           const firstSource = sourceFields[0];
@@ -768,17 +891,17 @@ function transformRow(row, fieldMappings, variables = []) {
             const varName = firstSource.substring(1);
             value = variableValues[varName];
             // Apply transformations to variable value
-            value = applyTransformationChain(value, transformations);
+            value = applyTransformationChain(value, transformations, context);
           } else {
             // Single field reference
             value = enrichedRow[firstSource];
             // Apply transformations to single field value
-            value = applyTransformationChain(value, transformations);
+            value = applyTransformationChain(value, transformations, context);
           }
         }
       } else {
         // System-generated or static value
-        value = applyTransformationChain(null, transformations);
+        value = applyTransformationChain(null, transformations, context);
       }
       
       // Apply data type conversion if specified
@@ -810,7 +933,7 @@ function transformRow(row, fieldMappings, variables = []) {
       
       if (transformations.length > 0 && (transformations[0].type === 'concat' || transformations[0].type === 'coalesce' || isMathWithMultipleFields)) {
         // Multi-field operations - pass enriched row
-        value = applyTransformationChain(enrichedRow, transformations);
+        value = applyTransformationChain(enrichedRow, transformations, context);
       } else {
         // PRIORITY 2: Check if source is a variable reference
         const firstSource = sourceFields[0];
@@ -819,16 +942,16 @@ function transformRow(row, fieldMappings, variables = []) {
           // Variable reference
           const varName = firstSource.substring(1);
           value = variableValues[varName];
-          value = applyTransformationChain(value, transformations);
+          value = applyTransformationChain(value, transformations, context);
         } else {
           // Use first source field
           value = enrichedRow[firstSource];
-          value = applyTransformationChain(value, transformations);
+          value = applyTransformationChain(value, transformations, context);
         }
       }
     } else {
       // Static or system-generated value
-      value = applyTransformationChain(null, transformations);
+      value = applyTransformationChain(null, transformations, context);
     }
     
     transformedRow[targetField] = value;

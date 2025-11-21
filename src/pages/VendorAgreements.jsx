@@ -79,6 +79,10 @@ const VendorAgreements = () => {
     message: ''
   });
   
+  // Archive password state
+  const [hasArchivePassword, setHasArchivePassword] = useState(false);
+  const [showArchivePassword, setShowArchivePassword] = useState(false);
+  
   const [formData, setFormData] = useState({
     vendor_id: '',
     vendor_code: '',
@@ -117,7 +121,13 @@ const VendorAgreements = () => {
     expected_arrival_time: '',
     delivery_method: '',
     contract_start_date: new Date().toISOString().split('T')[0],
-    contract_end_date: ''
+    contract_end_date: '',
+    sla_enabled: false,
+    frequency_pattern: 'daily',
+    arrival_time: '09:00',
+    arrival_days: '',
+    alert_threshold_minutes: 60,
+    archive_password: ''
   });
   
   const [templateFile, setTemplateFile] = useState(null);
@@ -608,12 +618,20 @@ const VendorAgreements = () => {
         const minutes = String(now.getMinutes()).padStart(2, '0');
         return `${year}-${month}-${day}T${hours}:${minutes}`;
       })(),
-      contract_end_date: ''
+      contract_end_date: '',
+      sla_enabled: false,
+      frequency_pattern: 'daily',
+      arrival_time: '09:00',
+      arrival_days: '',
+      alert_threshold_minutes: 60,
+      archive_password: ''
     });
     setTemplateFile(null);
     setModalMode('create');
     setError('');
     setSuccessMessage('');
+    setHasArchivePassword(false);
+    setShowArchivePassword(false);
     setModalOpen(true);
   };
   
@@ -642,6 +660,15 @@ const VendorAgreements = () => {
     } catch (error) {
       console.error('Error loading file schemas:', error);
       setFileConfigurations([]);
+    }
+    
+    // Check if archive password exists for this agreement
+    try {
+      const passwordResponse = await axios.get(`/api/vendor-agreements/${agreement.id}/archive-password`);
+      setHasArchivePassword(passwordResponse.data.exists || false);
+    } catch (error) {
+      console.error('Error checking archive password:', error);
+      setHasArchivePassword(false);
     }
     
     // Format date for HTML date input (YYYY-MM-DD)
@@ -705,11 +732,18 @@ const VendorAgreements = () => {
       expected_arrival_time: agreement.expected_arrival_time || '',
       delivery_method: agreement.delivery_method || '',
       contract_start_date: formattedStartDate,
-      contract_end_date: formattedEndDate
+      contract_end_date: formattedEndDate,
+      sla_enabled: agreement.sla_enabled || false,
+      frequency_pattern: agreement.frequency_pattern || 'daily',
+      arrival_time: agreement.arrival_time || '09:00',
+      arrival_days: agreement.arrival_days || '',
+      alert_threshold_minutes: agreement.alert_threshold_minutes || 60,
+      archive_password: ''
     });
     setTemplateFile(null);
     setModalMode('edit');
     setSuccessMessage('');
+    setShowArchivePassword(false);
     setModalOpen(true);
   };
   
@@ -724,6 +758,9 @@ const VendorAgreements = () => {
     setModalOpen(false);
     setSelectedAgreement(null);
     setTemplateFile(null);
+    // Clear password field to prevent stale values across modal sessions
+    setFormData(prev => ({ ...prev, archive_password: '' }));
+    setShowArchivePassword(false);
   };
   
   const closeDetailModal = () => {
@@ -995,6 +1032,27 @@ const VendorAgreements = () => {
         }
       } else {
         console.log('Skipping file configurations save:', { agreementId, hasConfigs: fileConfigurations.length > 0 });
+      }
+      
+      // Save archive password if provided (only if user entered a new password)
+      if (agreementId && formData.archive_password && formData.archive_password.trim() !== '') {
+        try {
+          console.log('Saving archive password for agreement:', agreementId);
+          await axios.post(`/api/vendor-agreements/${agreementId}/archive-password`, {
+            password: formData.archive_password
+          });
+          console.log('Archive password saved successfully');
+          // Refresh password existence state
+          setHasArchivePassword(true);
+        } catch (passwordError) {
+          console.error('Error saving archive password:', passwordError);
+          setNotificationModal({
+            isOpen: true,
+            type: 'warning',
+            title: 'Partial Success',
+            message: 'Agreement saved but failed to save archive password: ' + (passwordError.response?.data?.error || passwordError.message)
+          });
+        }
       }
       
       setTimeout(() => {
@@ -2191,6 +2249,111 @@ const VendorAgreements = () => {
                   </div>
                 </div>
                 
+                {/* Section 8: SLA Monitoring Configuration */}
+                <div className="form-section">
+                  <h3 className="section-title">SLA Monitoring Configuration</h3>
+                  
+                  {/* SLA Enabled Toggle */}
+                  <div className="form-group" style={{ marginBottom: '1.5rem' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+                      <input
+                        type="checkbox"
+                        name="sla_enabled"
+                        checked={formData.sla_enabled}
+                        onChange={(e) => setFormData(prev => ({ ...prev, sla_enabled: e.target.checked }))}
+                        style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+                      />
+                      <span style={{ fontWeight: 500 }}>Enable SLA Monitoring</span>
+                    </label>
+                    <small style={{ color: '#6b7280', fontSize: '0.875rem', display: 'block', marginTop: '0.5rem', marginLeft: '26px' }}>
+                      Automatically track file arrival times and send alerts when files are late
+                    </small>
+                  </div>
+                  
+                  {formData.sla_enabled && (
+                    <>
+                      <div className="form-row-grid">
+                        <div className="form-group">
+                          <label htmlFor="frequency_pattern">
+                            Frequency Pattern <span className="required-field">*</span>
+                          </label>
+                          <select
+                            id="frequency_pattern"
+                            name="frequency_pattern"
+                            value={formData.frequency_pattern}
+                            onChange={handleInputChange}
+                            required={formData.sla_enabled}
+                          >
+                            <option value="daily">Daily</option>
+                            <option value="weekly">Weekly</option>
+                            <option value="monthly">Monthly</option>
+                            <option value="custom">Custom</option>
+                          </select>
+                          <small style={{ color: '#6b7280', fontSize: '0.875rem', display: 'block', marginTop: '0.5rem' }}>
+                            How often the file is expected to arrive
+                          </small>
+                        </div>
+                        
+                        <div className="form-group">
+                          <label htmlFor="arrival_time">
+                            Expected Arrival Time <span className="required-field">*</span>
+                          </label>
+                          <input
+                            type="time"
+                            id="arrival_time"
+                            name="arrival_time"
+                            value={formData.arrival_time}
+                            onChange={handleInputChange}
+                            required={formData.sla_enabled}
+                          />
+                          <small style={{ color: '#6b7280', fontSize: '0.875rem', display: 'block', marginTop: '0.5rem' }}>
+                            Time of day the file should arrive (24-hour format)
+                          </small>
+                        </div>
+                      </div>
+                      
+                      {formData.frequency_pattern === 'weekly' && (
+                        <div className="form-group">
+                          <label htmlFor="arrival_days">
+                            Expected Arrival Days <span className="required-field">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            id="arrival_days"
+                            name="arrival_days"
+                            value={formData.arrival_days}
+                            onChange={handleInputChange}
+                            placeholder="e.g., 1,3,5 for Monday, Wednesday, Friday"
+                            required={formData.sla_enabled && formData.frequency_pattern === 'weekly'}
+                          />
+                          <small style={{ color: '#6b7280', fontSize: '0.875rem', display: 'block', marginTop: '0.5rem' }}>
+                            Days of the week: 0=Sunday, 1=Monday, 2=Tuesday, 3=Wednesday, 4=Thursday, 5=Friday, 6=Saturday
+                          </small>
+                        </div>
+                      )}
+                      
+                      <div className="form-group">
+                        <label htmlFor="alert_threshold_minutes">
+                          Alert Threshold (Minutes) <span className="required-field">*</span>
+                        </label>
+                        <input
+                          type="number"
+                          id="alert_threshold_minutes"
+                          name="alert_threshold_minutes"
+                          value={formData.alert_threshold_minutes}
+                          onChange={handleInputChange}
+                          placeholder="e.g., 60"
+                          min="0"
+                          required={formData.sla_enabled}
+                        />
+                        <small style={{ color: '#6b7280', fontSize: '0.875rem', display: 'block', marginTop: '0.5rem' }}>
+                          Grace period in minutes after expected arrival time before triggering an alert
+                        </small>
+                      </div>
+                    </>
+                  )}
+                </div>
+                
                 {/* Section 4: Connection Configuration */}
                 <div className="form-section">
                   <h3 className="section-title">Connection Configuration</h3>
@@ -2236,7 +2399,7 @@ const VendorAgreements = () => {
                         </small>
                       </div>
                       
-                      <div className="form-group" style={{ marginBottom: 0 }}>
+                      <div className="form-group" style={{ marginBottom: '1rem' }}>
                         <label htmlFor="drop_location_path">Drop Location Path</label>
                         <input
                           type="text"
@@ -2249,6 +2412,93 @@ const VendorAgreements = () => {
                         />
                         <small style={{ color: '#6b7280', fontSize: '0.875rem', display: 'block', marginTop: '0.5rem' }}>
                           Auto-populated from connection
+                        </small>
+                      </div>
+                      
+                      <div className="form-group" style={{ marginBottom: 0 }}>
+                        <label htmlFor="archive_password">
+                          Archive Password (Optional)
+                        </label>
+                        {modalMode === 'edit' && hasArchivePassword && (
+                          <div style={{ 
+                            marginBottom: '0.5rem', 
+                            padding: '0.5rem', 
+                            backgroundColor: '#ecfdf5', 
+                            border: '1px solid #10b981',
+                            borderRadius: '4px',
+                            fontSize: '0.875rem',
+                            color: '#065f46',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between'
+                          }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                              <FiEye size={14} />
+                              <span>Archive password configured</span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                if (window.confirm('Are you sure you want to remove the archive password?')) {
+                                  try {
+                                    // Await DELETE to ensure it completes before updating UI state
+                                    await axios.delete(`/api/vendor-agreements/${selectedAgreement.id}/archive-password`);
+                                    // Update state only after successful deletion
+                                    setHasArchivePassword(false);
+                                    // Clear the password input field
+                                    setFormData(prev => ({ ...prev, archive_password: '' }));
+                                    addToast('success', 'Password Removed', 'Archive password has been removed');
+                                  } catch (error) {
+                                    console.error('Error removing archive password:', error);
+                                    addToast('error', 'Error', 'Failed to remove archive password');
+                                  }
+                                }
+                              }}
+                              style={{
+                                padding: '0.25rem 0.5rem',
+                                fontSize: '0.75rem',
+                                backgroundColor: '#ffffff',
+                                border: '1px solid #d1d5db',
+                                borderRadius: '4px',
+                                cursor: 'pointer',
+                                color: '#374151'
+                              }}
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        )}
+                        <div style={{ position: 'relative' }}>
+                          <input
+                            type={showArchivePassword ? 'text' : 'password'}
+                            id="archive_password"
+                            name="archive_password"
+                            value={formData.archive_password}
+                            onChange={handleInputChange}
+                            placeholder={modalMode === 'edit' && hasArchivePassword ? 'Enter new password to update' : 'Password for encrypted archives'}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowArchivePassword(!showArchivePassword)}
+                            style={{
+                              position: 'absolute',
+                              right: '10px',
+                              top: '50%',
+                              transform: 'translateY(-50%)',
+                              border: 'none',
+                              background: 'transparent',
+                              cursor: 'pointer',
+                              padding: '4px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              color: '#6b7280'
+                            }}
+                          >
+                            {showArchivePassword ? <FiSlash size={16} /> : <FiEye size={16} />}
+                          </button>
+                        </div>
+                        <small style={{ color: '#6b7280', fontSize: '0.875rem', display: 'block', marginTop: '0.5rem' }}>
+                          For password-protected ZIP, 7z, or TAR archives (encrypted with AES-256)
                         </small>
                       </div>
                     </div>

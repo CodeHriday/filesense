@@ -1,16 +1,17 @@
 .job-groups-container {
-  padding: 20px;
+  padding: 0 20px 20px 20px;
 }
 
 .job-groups-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
+  margin-bottom: 12px;
+  margin-top: 0;
 }
 
 .job-groups-title {
-  font-size: 2rem;
+  font-size: 1.5rem;
   font-weight: 600;
   color: #025043;
 }

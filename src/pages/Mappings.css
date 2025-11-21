@@ -1,12 +1,13 @@
 .mappings-container {
-  padding: 20px;
+  padding: 0 20px 20px 20px;
 }
 
 .mappings-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
+  margin-bottom: 12px;
+  margin-top: 0;
 }
 
 .mappings-header h1 {
@@ -14,12 +15,12 @@
 }
 
 .page-container .page-header h1 {
-  font-size: 2rem;
+  font-size: 1.5rem;
   color: #025043;
 }
 
 .page-container .page-header p {
-  font-size: 0.95rem;
+  font-size: 0.8rem;
 }
 
 .btn-icon {
@@ -651,8 +652,8 @@
   font-weight: 600;
   font-size: 0.8125rem;
   color: #475569;
-  text-transform: uppercase;
   letter-spacing: 0.05em;
+  text-transform: none;
 }
 
 .mappings-table tbody tr {

@@ -1,0 +1,27 @@
+========================================
+MAPPING GROUP {{#if (isSuccess status)}}COMPLETED{{else}}FAILED{{/if}}
+========================================
+
+Group Name: {{groupName}}
+Group ID: {{groupId}}
+Project: {{projectName}}
+
+Status: {{status}}
+Execution Time: {{formatDate executionTime}}
+
+Job Execution:
+--------------
+Jobs Completed: {{jobsCompleted}} of {{totalJobs}}
+{{#if failedJobs}}
+Failed Jobs: {{formatNumber failedJobs}}
+{{/if}}
+Duration: {{formatDuration duration}}
+
+{{#if error}}
+Error Details:
+--------------
+{{error}}
+{{/if}}
+
+========================================
+This is an automated alert from Data File Observatory

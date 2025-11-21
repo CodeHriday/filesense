@@ -35,6 +35,246 @@ ChartJS.register(
   Legend
 );
 
+function DelimiterConfigModal({ fileId, onClose, onSave, setErrorMessage }) {
+  const [delimiterType, setDelimiterType] = useState('comma');
+  const [customDelimiter, setCustomDelimiter] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const getDelimiterValue = () => {
+    if (delimiterType === 'custom') {
+      return customDelimiter || ',';
+    }
+    
+    const delimiterMap = {
+      'comma': ',',
+      'pipe': '|',
+      'tab': '\t',
+      'semicolon': ';'
+    };
+    
+    return delimiterMap[delimiterType] || ',';
+  };
+
+  const handleSave = async () => {
+    try {
+      setSaving(true);
+      
+      if (delimiterType === 'custom' && !customDelimiter) {
+        setErrorMessage('Please enter a custom delimiter');
+        setSaving(false);
+        return;
+      }
+      
+      const delimiter = getDelimiterValue();
+      const encodedFileId = encodeURIComponent(fileId);
+      
+      await axios.post(
+        `/api/files/${encodedFileId}/delimiter`,
+        { delimiter },
+        { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
+      );
+      
+      onSave();
+    } catch (err) {
+      console.error('Error saving delimiter:', err);
+      const errorMsg = err.response?.data?.details || err.response?.data?.error || 'Failed to save delimiter';
+      setErrorMessage(errorMsg);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="modal-overlay">
+      <div className="modal-content" style={{ maxWidth: '500px' }}>
+        <h2>Configure File Delimiter</h2>
+        <p style={{ marginBottom: '20px', color: '#64748b' }}>
+          Specify the delimiter used in this delimited file to parse columns correctly.
+        </p>
+        
+        <div className="form-group">
+          <label htmlFor="delimiter-select" style={{ fontWeight: 'bold', display: 'block', marginBottom: '0.5rem' }}>
+            Delimiter Type:
+          </label>
+          <select 
+            id="delimiter-select"
+            value={delimiterType}
+            onChange={(e) => {
+              setDelimiterType(e.target.value);
+              if (e.target.value !== 'custom') {
+                setCustomDelimiter('');
+              }
+            }}
+            className="form-control"
+            style={{ marginBottom: delimiterType === 'custom' ? '1rem' : '0' }}
+          >
+            <option value="comma">Comma (,)</option>
+            <option value="pipe">Pipe (|)</option>
+            <option value="tab">Tab (\t)</option>
+            <option value="semicolon">Semicolon (;)</option>
+            <option value="custom">Custom Delimiter...</option>
+          </select>
+          
+          {delimiterType === 'custom' && (
+            <div style={{ marginTop: '1rem' }}>
+              <label htmlFor="custom-delimiter-input" style={{ fontWeight: 'bold', display: 'block', marginBottom: '0.5rem' }}>
+                Enter Custom Delimiter:
+              </label>
+              <input 
+                id="custom-delimiter-input"
+                type="text"
+                value={customDelimiter}
+                onChange={(e) => setCustomDelimiter(e.target.value)}
+                placeholder="e.g., ~^ or || or any multi-character string"
+                className="form-control"
+                style={{ fontFamily: 'monospace' }}
+              />
+              <div style={{ fontSize: '0.75rem', color: '#666', marginTop: '0.5rem' }}>
+                Supports multi-character delimiters (e.g., '~^', '||', '::')
+              </div>
+            </div>
+          )}
+        </div>
+        
+        <div className="modal-footer">
+          <button
+            className="btn btn-secondary"
+            onClick={onClose}
+            disabled={saving}
+          >
+            Cancel
+          </button>
+          <button
+            className="btn btn-primary"
+            onClick={handleSave}
+            disabled={saving}
+          >
+            {saving ? 'Saving...' : 'Save & Re-profile'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function FixedWidthSchemaModal({ fileId, onClose, onSave, setErrorMessage }) {
+  const [columns, setColumns] = useState([{ name: '', width: '' }]);
+  const [saving, setSaving] = useState(false);
+
+  const addColumn = () => {
+    setColumns([...columns, { name: '', width: '' }]);
+  };
+
+  const removeColumn = (index) => {
+    const newColumns = columns.filter((_, i) => i !== index);
+    setColumns(newColumns);
+  };
+
+  const updateColumn = (index, field, value) => {
+    const newColumns = [...columns];
+    newColumns[index][field] = value;
+    setColumns(newColumns);
+  };
+
+  const handleSave = async () => {
+    try {
+      setSaving(true);
+      
+      const validColumns = columns.filter(col => col.name && col.width);
+      
+      if (validColumns.length === 0) {
+        setErrorMessage('Please add at least one column with name and width');
+        setSaving(false);
+        return;
+      }
+      
+      const parsedColumns = validColumns.map(col => ({
+        name: col.name.trim(),
+        width: parseInt(col.width, 10),
+        type: 'string'
+      }));
+      
+      if (parsedColumns.some(col => isNaN(col.width) || col.width <= 0)) {
+        setErrorMessage('Column widths must be positive numbers');
+        setSaving(false);
+        return;
+      }
+      
+      const encodedFileId = encodeURIComponent(fileId);
+      await axios.post(
+        `/api/files/${encodedFileId}/fixed-width-schema`,
+        { schema_definition: { columns: parsedColumns } },
+        { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
+      );
+      
+      onSave();
+    } catch (err) {
+      console.error('Error saving schema:', err);
+      const errorMsg = err.response?.data?.error || 'Failed to save schema';
+      setErrorMessage(errorMsg);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="modal-overlay">
+      <div className="modal-content" style={{ maxWidth: '600px' }}>
+        <h2>Configure Fixed-Width File Headers</h2>
+        <p style={{ marginBottom: '20px', color: '#64748b' }}>
+          Define column names and their character widths for this .dat file.
+        </p>
+        
+        <div className="form-group">
+          {columns.map((col, index) => (
+            <div key={index} style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
+              <input
+                type="text"
+                placeholder="Column Name"
+                value={col.name}
+                onChange={(e) => updateColumn(index, 'name', e.target.value)}
+                className="form-control"
+                style={{ flex: 2 }}
+              />
+              <input
+                type="number"
+                placeholder="Width"
+                value={col.width}
+                onChange={(e) => updateColumn(index, 'width', e.target.value)}
+                className="form-control"
+                style={{ flex: 1 }}
+                min="1"
+              />
+              {columns.length > 1 && (
+                <button
+                  className="btn btn-secondary"
+                  onClick={() => removeColumn(index)}
+                  style={{ padding: '8px 16px' }}
+                >
+                  Remove
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+        
+        <button className="btn btn-secondary" onClick={addColumn} style={{ marginBottom: '20px' }}>
+          + Add Column
+        </button>
+        
+        <div className="modal-actions">
+          <button className="btn btn-secondary" onClick={onClose} disabled={saving}>
+            Cancel
+          </button>
+          <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
+            {saving ? 'Saving...' : 'Save & Re-profile'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function SensitivityTagModal({ fileId, columnName, currentTags, availableTags, onClose, onSave, setErrorMessage }) {
   const [selectedTagIds, setSelectedTagIds] = useState((currentTags || []).map(t => t.tag_id));
   const [saving, setSaving] = useState(false);
@@ -388,6 +628,12 @@ function DataProfile() {
   
   // Error modal state
   const [errorMessage, setErrorMessage] = useState(null);
+  
+  // Fixed-width schema modal state
+  const [showFixedWidthModal, setShowFixedWidthModal] = useState(false);
+  
+  // Delimiter configuration modal state
+  const [showDelimiterModal, setShowDelimiterModal] = useState(false);
 
   // Quality Rules state
   const [qualityViolations, setQualityViolations] = useState(null);
@@ -714,31 +960,31 @@ function DataProfile() {
     fetchData();
   }, [fileId]);
 
+  const handleSensitivityChange = async (e) => {
+    const newSensitivity = e.target.value;
+    setFileSensitivity(newSensitivity);
+    
+    try {
+      const token = localStorage.getItem('token');
+      const encodedFileId = encodeURIComponent(fileId);
+      await axios.put(
+        `/api/files/${encodedFileId}/sensitivity`,
+        { sensitivity_level: newSensitivity },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      await fetchOwnership();
+    } catch (error) {
+      console.error('Error saving sensitivity:', error);
+      setErrorMessage('Failed to save sensitivity level');
+    }
+  };
+
   const renderOverviewTab = () => {
     if (!file || !profile) return null;
     
     // Get data from the updated API response format
     const basicInfo = profile.basic_info || {};
     const columns = profile.columns || [];
-    
-    const handleSensitivityChange = async (e) => {
-      const newSensitivity = e.target.value;
-      setFileSensitivity(newSensitivity);
-      
-      try {
-        const token = localStorage.getItem('token');
-        const encodedFileId = encodeURIComponent(fileId);
-        await axios.put(
-          `/api/files/${encodedFileId}/sensitivity`,
-          { sensitivity_level: newSensitivity },
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-        await fetchOwnership();
-      } catch (error) {
-        console.error('Error saving sensitivity:', error);
-        setErrorMessage('Failed to save sensitivity level');
-      }
-    };
     
     const handleTagToggle = async (tagId) => {
       const isSelected = fileTags.some(ft => ft.tag_id === tagId);
@@ -788,26 +1034,8 @@ function DataProfile() {
     
     return (
       <div className="profile-overview">
-        <Card title="File Governance">
-          <div className="file-governance-grid">
-            <div className="governance-field">
-              <label htmlFor="sensitivity">Sensitivity Level</label>
-              <select 
-                id="sensitivity"
-                value={fileSensitivity}
-                onChange={handleSensitivityChange}
-                className="governance-select"
-              >
-                <option value="Public">Public</option>
-                <option value="Internal">Internal</option>
-                <option value="Confidential">Confidential</option>
-                <option value="Restricted">Restricted</option>
-              </select>
-            </div>
-          </div>
-        </Card>
         
-        {headerValidation && (
+        {headerValidation && hasHeaderIssues && (
           <Card title="Header Validation">
             <div className="header-validation-container">
               <div className="header-validation-status">
@@ -818,7 +1046,7 @@ function DataProfile() {
                      headerValidation.status === 'warning' ? 'Warning' : 'Critical'}
                   </h4>
                   <p>
-                    {headerValidation.issues_found === 0 
+                    {(headerValidation.issues_found || 0) === 0
                       ? 'No header issues detected' 
                       : `${headerValidation.issues_found} issue${headerValidation.issues_found > 1 ? 's' : ''} found`}
                   </p>
@@ -890,12 +1118,9 @@ function DataProfile() {
           </Card>
           
           <Card className="file-stat-card">
-            <div className="stat-icon age-icon">
-              <FiCalendar />
-            </div>
-            <div className="stat-details">
-              <h3>{getTimeSince(basicInfo.created_at || file.created_at)}</h3>
-              <p>Age</p>
+            <div className="stat-details stat-timestamps-only">
+              <div><strong>Created:</strong> {formatDate(basicInfo.created_at || file.created_at)}</div>
+              <div><strong>Updated:</strong> {formatDate(basicInfo.updated_at || basicInfo.created_at || file.created_at)}</div>
             </div>
           </Card>
           
@@ -1036,25 +1261,6 @@ function DataProfile() {
               <p>No completeness data available.</p>
             </div>
           )}
-        </Card>
-        
-        <Card title="Data Freshness">
-          <div className="freshness-stats">
-            <div className="freshness-stat">
-              <h3>Last Updated</h3>
-              <p>{formatDate(basicInfo.updated_at || basicInfo.created_at || file.created_at)}</p>
-            </div>
-            
-            <div className="freshness-stat">
-              <h3>Created At</h3>
-              <p>{formatDate(basicInfo.created_at || file.created_at)}</p>
-            </div>
-            
-            <div className="freshness-stat">
-              <h3>File Type</h3>
-              <p>{basicInfo.file_type || file.file_type || 'Unknown'}</p>
-            </div>
-          </div>
         </Card>
       </div>
     );
@@ -1258,15 +1464,15 @@ function DataProfile() {
                           </span>
                         )}
                       </div>
-                      <div className="null-metrics">
-                        <div className="null-metric">
-                          <span className="null-label">Count:</span>
+                      <div className="null-metrics-vertical">
+                        <div className="null-metric-vertical">
+                          <span className="null-label">Count</span>
                           <span className={`null-value ${hasNulls ? 'has-nulls' : ''}`}>
                             {nullCount.toLocaleString()}
                           </span>
                         </div>
-                        <div className="null-metric">
-                          <span className="null-label">Percentage:</span>
+                        <div className="null-metric-vertical">
+                          <span className="null-label">Percentage</span>
                           <span className={`null-value ${hasNulls ? 'has-nulls' : ''}`}>
                             {nullPercentage}%
                           </span>
@@ -1958,42 +2164,61 @@ function DataProfile() {
         </div>
       ) : file ? (
         <>
-          <div className="profile-header-three-line">
+          <div className="profile-header-two-line">
             <div className="header-line-1">
-              <span className="file-icon">{file.file_type.toUpperCase()}</span>
-              <h1>{file.filename}</h1>
+              <div className="header-left">
+                <span className="file-icon">{file.file_type.toUpperCase()}</span>
+                <h1>{file.filename}</h1>
+              </div>
+              <div className="header-right">
+                <span className="header-property">
+                  <FiUser className="icon-inline" />
+                  <strong>Creator:</strong> {ownership?.creator_name || ownership?.creator_email || 'Unknown'}
+                </span>
+                <span className="header-property">
+                  <FiUser className="icon-inline" />
+                  <strong>Owner:</strong> {ownership?.owner_name || ownership?.owner_email || 'Unassigned'}
+                  <button 
+                    className="btn-icon-small" 
+                    onClick={() => setShowOwnershipModal(true)}
+                    disabled={!currentUser?.roles?.includes('Admin')}
+                    title={currentUser?.roles?.includes('Admin') ? "Edit ownership" : "Only Admin can edit file ownership"}
+                  >
+                    <FiEdit2 />
+                  </button>
+                </span>
+              </div>
             </div>
             <div className="header-line-2">
-              <span className="header-property">
-                <strong>Size:</strong> {file.file_size ? formatBytes(file.file_size) : 'Unknown'}
-              </span>
-              <span className="header-property">
-                <strong>Uploaded:</strong> {getTimeSince(file.created_at)}
-              </span>
-              <span className="header-property">
-                <strong>Encoding:</strong> {file.encoding || profile?.basic_info?.encoding || 'UTF-8'}
-              </span>
-              <span className="header-property">
-                <strong>Format:</strong> {file.file_type || 'Unknown'}
-              </span>
-            </div>
-            <div className="header-line-3">
-              <span className="header-property">
-                <FiUser className="icon-inline" />
-                <strong>Creator:</strong> {ownership?.creator_name || ownership?.creator_email || 'Unknown'}
-              </span>
-              <span className="header-property">
-                <FiUser className="icon-inline" />
-                <strong>Owner:</strong> {ownership?.owner_name || ownership?.owner_email || 'Unassigned'}
-                <button 
-                  className="btn-icon-small" 
-                  onClick={() => setShowOwnershipModal(true)}
-                  disabled={!currentUser?.roles?.includes('Admin')}
-                  title={currentUser?.roles?.includes('Admin') ? "Edit ownership" : "Only Admin can edit file ownership"}
-                >
-                  <FiEdit2 />
-                </button>
-              </span>
+              <div className="header-line-2-left">
+                <span className="header-property">
+                  <strong>Size:</strong> {file.file_size ? formatBytes(file.file_size) : 'Unknown'}
+                </span>
+                <span className="header-property">
+                  <strong>Uploaded:</strong> {getTimeSince(file.created_at)}
+                </span>
+                <span className="header-property">
+                  <strong>Encoding:</strong> {file.encoding || profile?.basic_info?.encoding || 'UTF-8'}
+                </span>
+                <span className="header-property">
+                  <strong>Format:</strong> {file.file_type || 'Unknown'}
+                </span>
+              </div>
+              <div className="header-line-2-right">
+                <span className="header-property sensitivity-select-wrapper">
+                  <strong>Sensitivity:</strong>
+                  <select 
+                    value={fileSensitivity}
+                    onChange={handleSensitivityChange}
+                    className="sensitivity-select"
+                  >
+                    <option value="Public">Public</option>
+                    <option value="Internal">Internal</option>
+                    <option value="Confidential">Confidential</option>
+                    <option value="Restricted">Restricted</option>
+                  </select>
+                </span>
+              </div>
             </div>
           </div>
           
@@ -2004,6 +2229,30 @@ function DataProfile() {
                 <div className="error-text-content">
                   <h3>File Processing Failed</h3>
                   <p>{file.processing_error}</p>
+                </div>
+              </div>
+            </div>
+          )}
+          
+          {/* Delimiter detection banner */}
+          {profile && profile.columns && profile.columns.length === 1 && file.file_type && 
+           ['csv', 'dat', 'txt'].includes(file.file_type.toLowerCase()) && (
+            <div className="info-banner" style={{ backgroundColor: '#fef3c7', borderColor: '#f59e0b', marginBottom: '20px' }}>
+              <div className="error-banner-content">
+                <span className="error-icon">⚠️</span>
+                <div className="error-text-content">
+                  <h3>Delimiter Configuration Needed</h3>
+                  <p>
+                    This file has only 1 column, which may indicate an incorrect delimiter. 
+                    Configure the correct delimiter to properly parse the columns.
+                  </p>
+                  <button 
+                    className="btn btn-primary" 
+                    style={{ marginTop: '10px' }}
+                    onClick={() => setShowDelimiterModal(true)}
+                  >
+                    Configure Delimiter
+                  </button>
                 </div>
               </div>
             </div>
@@ -2086,6 +2335,55 @@ function DataProfile() {
                 if (profile && profile.columns) {
                   await fetchAllColumnGovernanceData(profile.columns);
                 }
+              }}
+              setErrorMessage={setErrorMessage}
+            />
+          )}
+          
+          {showFixedWidthModal && (
+            <FixedWidthSchemaModal
+              fileId={fileId}
+              onClose={() => setShowFixedWidthModal(false)}
+              onSave={async () => {
+                setShowFixedWidthModal(false);
+                try {
+                  const encodedFileId = encodeURIComponent(fileId);
+                  const response = await axios.post(
+                    `/api/files/${encodedFileId}/retry`,
+                    {},
+                    { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
+                  );
+                  
+                  setSuccessMessage('Schema saved and file re-profiled successfully!');
+                  
+                  setTimeout(async () => {
+                    setSuccessMessage(null);
+                    await fetchFileDetails();
+                    await fetchProfileData();
+                  }, 1500);
+                } catch (err) {
+                  console.error('Error triggering re-profile:', err);
+                  const errorMsg = err.response?.data?.details || err.response?.data?.error || 'Re-profiling failed';
+                  setErrorMessage(`Schema saved but re-profiling failed: ${errorMsg}`);
+                }
+              }}
+              setErrorMessage={setErrorMessage}
+            />
+          )}
+          
+          {showDelimiterModal && (
+            <DelimiterConfigModal
+              fileId={fileId}
+              onClose={() => setShowDelimiterModal(false)}
+              onSave={async () => {
+                setShowDelimiterModal(false);
+                setSuccessMessage('Delimiter saved and file re-profiled successfully!');
+                
+                setTimeout(async () => {
+                  setSuccessMessage(null);
+                  await fetchFileDetails();
+                  await fetchProfileData();
+                }, 1500);
               }}
               setErrorMessage={setErrorMessage}
             />

@@ -23,6 +23,7 @@ const { setupEnhancedFeatures } = require('./backend/integration');
 const { getQueue } = require('./backend/queue/queueFactory');
 const FileProcessingWorker = require('./backend/workers/fileProcessingWorker');
 const SchedulerWorker = require('./backend/workers/schedulerWorker');
+const SLAMonitorWorker = require('./backend/workers/slaMonitorWorker');
 const InsightsAggregationWorker = require('./backend/workers/insightsAggregationWorker');
 const RetentionPolicyWorker = require('./backend/workers/retentionPolicyWorker');
 
@@ -42,6 +43,13 @@ const schedulerWorker = new SchedulerWorker(
   60000 // Check every 60 seconds
 );
 schedulerWorker.start();
+
+// Initialize SLA monitor worker (checks vendor file arrival SLAs every 15 minutes)
+const slaMonitorWorker = new SLAMonitorWorker(
+  diContainer.get('logger'),
+  900000 // Check every 15 minutes
+);
+slaMonitorWorker.start();
 
 // Initialize insights aggregation worker (runs daily at 2 AM)
 const insightsWorker = new InsightsAggregationWorker(
@@ -435,12 +443,34 @@ const ALLOWED_FILE_TYPES = [
   'application/json',
   'application/vnd.apache.parquet',
   'application/x-parquet',
-  'application/octet-stream', // For parquet files that might be detected as binary
+  'application/octet-stream', // For binary files (parquet, avro, dat, archives)
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
   'text/xml',
-  'application/xml'
+  'application/xml',
+  // Archive formats
+  'application/x-tar',
+  'application/tar',
+  'application/zip',
+  'application/x-zip',
+  'application/x-zip-compressed',
+  'application/gzip',
+  'application/x-gzip',
+  'application/x-7z-compressed',
+  // Data formats
+  'application/avro',
+  'application/x-avro',
+  'application/x-sas-data', // SAS datasets
+  'application/x-sas-xport' // SAS XPORT files
 ];
-const ALLOWED_EXTENSIONS = ['.csv', '.json', '.parquet', '.xlsx', '.xml'];
+const ALLOWED_EXTENSIONS = [
+  '.csv', '.json', '.parquet', '.xlsx', '.xml',
+  // Archive formats
+  '.tar', '.zip', '.gz', '.gzip', '.7z',
+  // Data formats
+  '.avro', '.dat',
+  // SAS formats
+  '.sas7bdat', '.xpt'
+];
 
 const fileFilter = (req, file, cb) => {
   // Get file extension
@@ -458,8 +488,10 @@ const fileFilter = (req, file, cb) => {
   
   // Check MIME type
   if (!ALLOWED_FILE_TYPES.includes(file.mimetype)) {
-    // Allow if extension matches even if MIME type is generic
-    if ((ext === '.parquet' || ext === '.xlsx') && file.mimetype === 'application/octet-stream') {
+    // Allow if extension is valid even if MIME type is generic octet-stream
+    // Many binary formats (parquet, avro, archives, dat files) are detected as octet-stream
+    const binaryExtensions = ['.parquet', '.xlsx', '.avro', '.dat', '.tar', '.zip', '.gz', '.gzip', '.7z', '.sas7bdat', '.xpt'];
+    if (binaryExtensions.includes(ext) && file.mimetype === 'application/octet-stream') {
       return cb(null, true);
     }
     
@@ -664,6 +696,149 @@ app.get('/api/test-di', (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ status: 'error', message: error.message });
+  }
+});
+
+// RDM (Reference Data Management) API Proxy Endpoints
+// These endpoints forward requests to the external RDM system using secrets
+
+// Get all datasets from RDM
+app.get('/api/rdm/datasets', authenticateToken, async (req, res) => {
+  try {
+    const rdmBaseUrl = process.env.RDM_BASE_URL;
+    const rdmApiKey = process.env.RDM_API_KEY;
+    
+    if (!rdmBaseUrl || !rdmApiKey) {
+      return res.status(500).json({ 
+        error: 'RDM configuration missing',
+        message: 'RDM_BASE_URL or RDM_API_KEY not configured'
+      });
+    }
+    
+    const response = await axios.get(`${rdmBaseUrl}/api/external/datasets`, {
+      headers: {
+        'Authorization': `Bearer ${rdmApiKey}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    res.json(response.data);
+  } catch (error) {
+    logger.error('Error fetching datasets from RDM', { 
+      error: error.message,
+      status: error.response?.status,
+      data: error.response?.data
+    });
+    res.status(error.response?.status || 500).json({ 
+      error: 'Failed to fetch datasets from RDM',
+      message: error.response?.data?.message || error.message
+    });
+  }
+});
+
+// Get dataset schema from RDM
+app.get('/api/rdm/datasets/:datasetId/schema', authenticateToken, async (req, res) => {
+  try {
+    const { datasetId } = req.params;
+    const rdmBaseUrl = process.env.RDM_BASE_URL;
+    const rdmApiKey = process.env.RDM_API_KEY;
+    
+    if (!rdmBaseUrl || !rdmApiKey) {
+      return res.status(500).json({ 
+        error: 'RDM configuration missing',
+        message: 'RDM_BASE_URL or RDM_API_KEY not configured'
+      });
+    }
+    
+    const response = await axios.get(`${rdmBaseUrl}/api/external/datasets/${datasetId}/schema`, {
+      headers: {
+        'Authorization': `Bearer ${rdmApiKey}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    res.json(response.data);
+  } catch (error) {
+    logger.error('Error fetching dataset schema from RDM', { 
+      datasetId: req.params.datasetId,
+      error: error.message,
+      status: error.response?.status,
+      data: error.response?.data
+    });
+    res.status(error.response?.status || 500).json({ 
+      error: 'Failed to fetch dataset schema from RDM',
+      message: error.response?.data?.message || error.message
+    });
+  }
+});
+
+// Get all crosswalks from RDM
+app.get('/api/rdm/crosswalks', authenticateToken, async (req, res) => {
+  try {
+    const rdmBaseUrl = process.env.RDM_BASE_URL;
+    const rdmApiKey = process.env.RDM_API_KEY;
+    
+    if (!rdmBaseUrl || !rdmApiKey) {
+      return res.status(500).json({ 
+        error: 'RDM configuration missing',
+        message: 'RDM_BASE_URL or RDM_API_KEY not configured'
+      });
+    }
+    
+    const response = await axios.get(`${rdmBaseUrl}/api/external/crosswalks`, {
+      headers: {
+        'Authorization': `Bearer ${rdmApiKey}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    res.json(response.data);
+  } catch (error) {
+    logger.error('Error fetching crosswalks from RDM', { 
+      error: error.message,
+      status: error.response?.status,
+      data: error.response?.data
+    });
+    res.status(error.response?.status || 500).json({ 
+      error: 'Failed to fetch crosswalks from RDM',
+      message: error.response?.data?.message || error.message
+    });
+  }
+});
+
+// Get crosswalk schema from RDM
+app.get('/api/rdm/crosswalks/:crosswalkId/schema', authenticateToken, async (req, res) => {
+  try {
+    const { crosswalkId } = req.params;
+    const rdmBaseUrl = process.env.RDM_BASE_URL;
+    const rdmApiKey = process.env.RDM_API_KEY;
+    
+    if (!rdmBaseUrl || !rdmApiKey) {
+      return res.status(500).json({ 
+        error: 'RDM configuration missing',
+        message: 'RDM_BASE_URL or RDM_API_KEY not configured'
+      });
+    }
+    
+    const response = await axios.get(`${rdmBaseUrl}/api/external/crosswalks/${crosswalkId}/schema`, {
+      headers: {
+        'Authorization': `Bearer ${rdmApiKey}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    res.json(response.data);
+  } catch (error) {
+    logger.error('Error fetching crosswalk schema from RDM', { 
+      crosswalkId: req.params.crosswalkId,
+      error: error.message,
+      status: error.response?.status,
+      data: error.response?.data
+    });
+    res.status(error.response?.status || 500).json({ 
+      error: 'Failed to fetch crosswalk schema from RDM',
+      message: error.response?.data?.message || error.message
+    });
   }
 });
 
@@ -1341,8 +1516,8 @@ app.post('/api/files/check-duplicate', authenticateToken, uploadLimiter, upload.
     
     const result = await dbPool.query(query, params);
     
-    // Delete temporary uploaded file
-    fs.unlinkSync(file.path);
+    // NOTE: File is NOT deleted here - it will be used by the subsequent /api/files/upload request
+    // The FileProcessingWorker will handle cleanup after profiling completes
     
     if (result.rows.length > 0) {
       const existingFile = result.rows[0];
@@ -1366,10 +1541,7 @@ app.post('/api/files/check-duplicate', authenticateToken, uploadLimiter, upload.
   } catch (error) {
     logger.error('Duplicate check error', { error: error.message });
     
-    // Clean up temp file on error
-    if (req.file && req.file.path) {
-      try { fs.unlinkSync(req.file.path); } catch (e) {}
-    }
+    // NOTE: Don't delete file on error - the upload endpoint will handle cleanup if needed
     
     res.status(500).json({ 
       error: 'Duplicate check failed',
@@ -1380,6 +1552,10 @@ app.post('/api/files/check-duplicate', authenticateToken, uploadLimiter, upload.
 
 // File upload endpoint with async queue processing (supports batch uploads)
 app.post('/api/files/upload', authenticateToken, invalidateCache('cache:*:*files*'), uploadLimiter, upload.array('files', 20), async (req, res) => {
+  console.log('========== UPLOAD ENDPOINT HIT ==========');
+  console.log('req.body keys:', Object.keys(req.body));
+  console.log('req.body.archive_password:', req.body.archive_password);
+  console.log('req.files count:', req.files?.length);
   try {
     // Check if user has file_upload:write permission
     if (!req.user || !req.user.permissions || !req.user.permissions.includes('file_upload:write')) {
@@ -1418,6 +1594,75 @@ app.post('/api/files/upload', authenticateToken, invalidateCache('cache:*:*files
       } catch (e) {
         logger.warn('Invalid quality_rule_ids format', { quality_rule_ids: req.body.quality_rule_ids });
         qualityRuleIds = [];
+      }
+    }
+    
+    // Get delimiter if provided (supports multi-character delimiters)
+    const delimiter = req.body.delimiter || null;
+    if (delimiter) {
+      logger.info('Delimiter provided for upload', { delimiter, userId: req.user?.id });
+    }
+    
+    // Get header configuration if provided (for files without headers)
+    let headerConfig = null;
+    if (req.body.headerConfig) {
+      try {
+        headerConfig = JSON.parse(req.body.headerConfig);
+        logger.info('Header configuration provided for upload', { 
+          hasHeader: headerConfig.hasHeader,
+          columnCount: headerConfig.columnNames?.length || 0,
+          userId: req.user?.id 
+        });
+      } catch (e) {
+        logger.warn('Invalid headerConfig format', { headerConfig: req.body.headerConfig });
+        headerConfig = null;
+      }
+    }
+    
+    // Get fixed-width schema if provided (for .dat files without delimiters)
+    let fixedWidthSchema = null;
+    if (req.body.fixedWidthSchema) {
+      try {
+        fixedWidthSchema = JSON.parse(req.body.fixedWidthSchema);
+        logger.info('Fixed-width schema provided for upload', { 
+          columnCount: fixedWidthSchema.columns?.length || 0,
+          userId: req.user?.id 
+        });
+      } catch (e) {
+        logger.warn('Invalid fixedWidthSchema format', { fixedWidthSchema: req.body.fixedWidthSchema });
+        fixedWidthSchema = null;
+      }
+    }
+    
+    // Get archive password if provided (for password-protected archives - ad-hoc upload flow)
+    logger.info('[DIAGNOSTIC] Checking for archive password in req.body', {
+      hasField: 'archive_password' in req.body,
+      fieldValue: req.body.archive_password,
+      allBodyKeys: Object.keys(req.body)
+    });
+    
+    const archivePassword = req.body.archive_password || null;
+    if (archivePassword) {
+      logger.info('Archive password provided for ad-hoc upload', { 
+        userId: req.user?.id,
+        passwordLength: archivePassword.length
+      });
+    } else {
+      logger.warn('[DIAGNOSTIC] No archive password found in request body');
+    }
+    
+    // Get pre-calculated file hashes if provided (optimization to avoid double hashing)
+    let fileHashes = {};
+    if (req.body.fileHashes) {
+      try {
+        fileHashes = JSON.parse(req.body.fileHashes);
+        if (typeof fileHashes !== 'object') {
+          fileHashes = {};
+        }
+        logger.info('Pre-calculated hashes provided', { count: Object.keys(fileHashes).length });
+      } catch (e) {
+        logger.warn('Invalid fileHashes format', { fileHashes: req.body.fileHashes });
+        fileHashes = {};
       }
     }
     
@@ -1656,7 +1901,6 @@ app.post('/api/files/upload', authenticateToken, invalidateCache('cache:*:*files
     
     const userId = req.user ? req.user.id : null;
     const crypto = require('crypto');
-    const virusScanner = require('./backend/services/VirusScanService');
     
     // Process each file in batch
     const results = [];
@@ -1666,54 +1910,35 @@ app.post('/api/files/upload', authenticateToken, invalidateCache('cache:*:*files
       const fileType = path.extname(file.originalname).substring(1).toLowerCase();
       
       try {
-        // Virus scan the uploaded file
-        const scanResult = await virusScanner.scanFile(file.path);
+        // OPTIMIZATION: Virus scanning moved to async worker for faster upload response
+        // Files are queued immediately and scanned by uploadWorker.js
         
-        if (scanResult.isInfected) {
-          logger.warn('Virus detected in uploaded file', {
+        // Calculate file hash (or use pre-calculated hash if provided)
+        let fileHash;
+        if (fileHashes[file.originalname]) {
+          // Use pre-calculated hash from duplicate check to avoid redundant file read
+          fileHash = fileHashes[file.originalname];
+          logger.info('Using pre-calculated hash (optimization)', {
             fileId,
             filename: file.originalname,
-            viruses: scanResult.viruses,
-            userId
-          });
-          
-          // Delete infected file
-          try { fs.unlinkSync(file.path); } catch (e) {}
-          
-          results.push({
-            success: false,
-            filename: file.originalname,
-            error: 'Virus detected',
-            message: `The uploaded file contains malware: ${scanResult.viruses.join(', ')}`,
-            viruses: scanResult.viruses
-          });
-          continue;
-        }
-        
-        if (scanResult.skipped) {
-          logger.warn('Virus scan skipped for uploaded file', {
-            fileId,
-            filename: file.originalname,
-            reason: scanResult.message,
-            userId
+            hashPrefix: fileHash.substring(0, 16) + '...'
           });
         } else {
-          logger.info('File passed virus scan', {
+          // Calculate hash if not provided
+          fileHash = await new Promise((resolve, reject) => {
+            const hash = crypto.createHash('sha256');
+            const stream = fs.createReadStream(file.path);
+            
+            stream.on('data', (data) => hash.update(data));
+            stream.on('end', () => resolve(hash.digest('hex')));
+            stream.on('error', reject);
+          });
+          logger.info('Calculated file hash', {
             fileId,
             filename: file.originalname,
-            userId
+            hashPrefix: fileHash.substring(0, 16) + '...'
           });
         }
-        
-        // Calculate file hash
-        const fileHash = await new Promise((resolve, reject) => {
-          const hash = crypto.createHash('sha256');
-          const stream = fs.createReadStream(file.path);
-          
-          stream.on('data', (data) => hash.update(data));
-          stream.on('end', () => resolve(hash.digest('hex')));
-          stream.on('error', reject);
-        });
         
         logger.info('File uploaded, adding to processing queue', { 
           fileId,
@@ -1723,6 +1948,17 @@ app.post('/api/files/upload', authenticateToken, invalidateCache('cache:*:*files
           userId,
           fileHash: fileHash.substring(0, 16) + '...'
         });
+        
+        // Store ad-hoc archive password in vault if provided (for password-protected archives)
+        if (archivePassword) {
+          const passwordVaultService = diContainer.get('passwordVaultService');
+          await passwordVaultService.storePassword('file', fileId, archivePassword, userId);
+          logger.info('Ad-hoc archive password stored in vault', { 
+            fileId, 
+            userId,
+            filename: file.originalname 
+          });
+        }
         
         // Extract quality rules from vendor agreement if contract validation is enabled
         let mergedQualityRuleIds = [...qualityRuleIds]; // Start with manually provided rules
@@ -1754,7 +1990,11 @@ app.post('/api/files/upload', authenticateToken, invalidateCache('cache:*:*files
           projectId,
           subProjectId,
           qualityRuleIds: mergedQualityRuleIds,
-          agreementId
+          agreementId,
+          delimiter,
+          headerConfig,
+          fixedWidthSchema,
+          archivePassword
         }, {
           attempts: 3,
           backoff: { type: 'exponential', delay: 5000 },
@@ -2954,12 +3194,103 @@ app.post('/api/files/:fileId/retry', authenticateToken, async (req, res) => {
       INNER JOIN user_groups ug ON pag.group_id = ug.group_id
       WHERE pag.project_id = $1 AND ug.user_id = $2
     `;
-    const accessResult = await pool.query(projectAccessQuery, [file.project_id, userId]);
+    const accessResult = await dbPool.query(projectAccessQuery, [file.project_id, userId]);
     
     if (accessResult.rows.length === 0 && !req.user.roles?.includes('Admin')) {
       return res.status(403).json({ error: 'Unauthorized to access this file' });
     }
 
+    // Check if this is a fixed-width .dat file with schema configuration
+    const isFixedWidth = file.filename && file.filename.toLowerCase().endsWith('.dat');
+    
+    if (isFixedWidth) {
+      // Fetch schema configuration for this file
+      const schemaResult = await dbPool.query(
+        'SELECT schema_definition FROM fixed_width_schemas WHERE file_id = $1',
+        [fileId]
+      );
+      
+      if (schemaResult.rows.length > 0) {
+        logger.info('Re-profiling fixed-width file with schema', { fileId });
+        
+        const { filename, created_at } = file;
+        
+        // Find the actual file on disk - files are named {timestamp}-{filename}
+        // We need to search for the file in the uploads directory
+        const uploadDir = path.join(__dirname, 'uploads');
+        const filePattern = `*-${filename}`;
+        
+        try {
+          const files = fs.readdirSync(uploadDir);
+          const matchingFiles = files.filter(f => f.endsWith(`-${filename}`));
+          
+          if (matchingFiles.length === 0) {
+            logger.error('File not found on disk', { fileId, filename, uploadDir });
+            return res.status(404).json({ 
+              error: 'File not found on disk',
+              details: `Could not find ${filename} in uploads directory`
+            });
+          }
+          
+          // If multiple matches, find the one closest to the created_at timestamp
+          let actualFilePath;
+          if (matchingFiles.length === 1) {
+            actualFilePath = path.join(uploadDir, matchingFiles[0]);
+          } else {
+            // Sort by timestamp and pick the one closest to created_at
+            const createdTimestamp = new Date(created_at).getTime();
+            matchingFiles.sort((a, b) => {
+              const tsA = parseInt(a.split('-')[0]);
+              const tsB = parseInt(b.split('-')[0]);
+              const diffA = Math.abs(tsA - createdTimestamp);
+              const diffB = Math.abs(tsB - createdTimestamp);
+              return diffA - diffB;
+            });
+            actualFilePath = path.join(uploadDir, matchingFiles[0]);
+          }
+          
+          logger.info('Found file on disk for re-profiling', { fileId, actualFilePath, filename });
+          
+          // Fetch header_config from file metadata if present
+          let headerConfig = null;
+          if (file.metadata) {
+            const metadata = typeof file.metadata === 'string' ? JSON.parse(file.metadata) : file.metadata;
+            headerConfig = metadata.header_config || null;
+          }
+          
+          // Call Flask profiling API directly (it will fetch schema from DB automatically)
+          const profilingResponse = await axios.post(`${process.env.PROFILING_SERVICE_URL || 'http://localhost:8000'}/api/vendor-profile`, {
+            file_id: fileId,
+            local_file_path: actualFilePath,
+            filename,
+            header_config: headerConfig
+          });
+          
+          logger.info('Fixed-width file re-profiled successfully', { fileId });
+          
+          return res.json({
+            success: true,
+            message: 'File re-profiled successfully with custom schema.',
+            fileId,
+            profile: profilingResponse.data
+          });
+        } catch (flaskError) {
+          logger.error('Flask profiling API error', { 
+            fileId, 
+            status: flaskError.response?.status,
+            statusText: flaskError.response?.statusText,
+            data: flaskError.response?.data,
+            message: flaskError.message
+          });
+          return res.status(500).json({
+            error: 'Failed to re-profile file',
+            details: flaskError.response?.data || flaskError.message
+          });
+        }
+      }
+    }
+
+    // Standard retry flow for non-fixed-width files
     // Re-queue the file for processing
     const queue = diContainer.get('queue');
     await queue.addJob(`process_file_${fileId}`, {
@@ -2970,7 +3301,7 @@ app.post('/api/files/:fileId/retry', authenticateToken, async (req, res) => {
     });
 
     // Update file status to processing
-    await pool.query(
+    await dbPool.query(
       'UPDATE files SET processing_step = $1, failure_reason_code = NULL, processing_error = NULL WHERE file_id = $2',
       ['processing', fileId]
     );
@@ -2984,7 +3315,7 @@ app.post('/api/files/:fileId/retry', authenticateToken, async (req, res) => {
     });
 
   } catch (error) {
-    logger.error('Error retrying file processing', { fileId, error: error.message });
+    logger.error('Error retrying file processing', { fileId, error: error.message, stack: error.stack });
     res.status(500).json({ 
       error: 'Failed to retry file processing', 
       details: error.message 
@@ -3899,6 +4230,8 @@ const { up: migrateVendorAgreementSchemasToFileSchemas } = require('./backend/mi
 const { addPrimaryKeyColumnsToQualityRuleViolations } = require('./backend/migrations/addPrimaryKeyColumnsToQualityRuleViolations');
 const seedGovernanceTags = require('./backend/migrations/seedGovernanceTags');
 const migrateColumnSensitivityToGovernance = require('./backend/migrations/migrateColumnSensitivityToGovernance');
+const { up: addSLAMonitoringToVendorAgreements } = require('./backend/migrations/addSLAMonitoringToVendorAgreements');
+const { addVendorSLAToAlertScope } = require('./backend/migrations/addVendorSLAToAlertScope');
 
 // Run schema migrations asynchronously with tracking to prevent re-running
 (async () => {
@@ -3943,6 +4276,8 @@ const migrateColumnSensitivityToGovernance = require('./backend/migrations/migra
     await migrationTracker.runOnce('addPrimaryKeyColumnsToQualityRuleViolations', () => addPrimaryKeyColumnsToQualityRuleViolations(dbPool));
     await migrationTracker.runOnce('seedGovernanceTags', () => seedGovernanceTags(dbPool));
     await migrationTracker.runOnce('migrateColumnSensitivityToGovernance', () => migrateColumnSensitivityToGovernance(dbPool));
+    await migrationTracker.runOnce('addSLAMonitoringToVendorAgreements', () => addSLAMonitoringToVendorAgreements());
+    await migrationTracker.runOnce('addVendorSLAToAlertScope', () => addVendorSLAToAlertScope(dbPool));
     
     console.log('🎉 All migrations completed successfully');
   } catch (err) {
@@ -4610,6 +4945,207 @@ app.put('/api/files/:fileId/ownership', authenticateToken, invalidateCache('cach
   } catch (err) {
     console.error('Error updating file ownership:', err);
     res.status(500).json({ error: 'Failed to update file ownership' });
+  }
+});
+
+// Fixed-Width File Schema API endpoints
+
+// Get fixed-width schema for a file
+app.get('/api/files/:fileId/fixed-width-schema', cacheMiddleware(300), async (req, res) => {
+  try {
+    const { fileId } = req.params;
+    
+    const result = await dbPool.query(
+      'SELECT * FROM fixed_width_schemas WHERE file_id = $1',
+      [fileId]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'No schema found for this file' });
+    }
+    
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error('Error fetching fixed-width schema:', err);
+    res.status(500).json({ error: 'Failed to fetch fixed-width schema' });
+  }
+});
+
+// Create or update fixed-width schema
+app.post('/api/files/:fileId/fixed-width-schema', authenticateToken, async (req, res) => {
+  try {
+    const { fileId } = req.params;
+    const { schema_definition } = req.body;
+    
+    if (!schema_definition || !Array.isArray(schema_definition.columns)) {
+      return res.status(400).json({ error: 'Invalid schema definition. Must include columns array.' });
+    }
+    
+    // Validate schema structure
+    for (const col of schema_definition.columns) {
+      if (!col.name || typeof col.width !== 'number' || col.width <= 0) {
+        return res.status(400).json({ 
+          error: 'Invalid column definition. Each column must have name and positive width.' 
+        });
+      }
+    }
+    
+    const result = await dbPool.query(
+      `INSERT INTO fixed_width_schemas (file_id, schema_definition, created_by)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (file_id) DO UPDATE
+       SET schema_definition = $2, updated_at = CURRENT_TIMESTAMP
+       RETURNING *`,
+      [fileId, JSON.stringify(schema_definition), req.user?.id || null]
+    );
+    
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error('Error saving fixed-width schema:', err);
+    res.status(500).json({ error: 'Failed to save fixed-width schema' });
+  }
+});
+
+// Delete fixed-width schema
+app.delete('/api/files/:fileId/fixed-width-schema', authenticateToken, async (req, res) => {
+  try {
+    const { fileId } = req.params;
+    
+    const result = await dbPool.query(
+      'DELETE FROM fixed_width_schemas WHERE file_id = $1 RETURNING *',
+      [fileId]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Schema not found' });
+    }
+    
+    res.json({ message: 'Schema deleted successfully' });
+  } catch (err) {
+    console.error('Error deleting fixed-width schema:', err);
+    res.status(500).json({ error: 'Failed to delete schema' });
+  }
+});
+
+// Configure delimiter for delimited files (CSV, DAT, TXT)
+app.post('/api/files/:fileId/delimiter', authenticateToken, async (req, res) => {
+  try {
+    const { fileId } = req.params;
+    const { delimiter } = req.body;
+    const userId = req.user.id;
+    
+    if (!delimiter) {
+      return res.status(400).json({ error: 'Delimiter is required' });
+    }
+    
+    // Verify file exists and user has access
+    const fileResult = await dbPool.query(
+      'SELECT file_id, project_id, filename, metadata FROM files WHERE file_id = $1',
+      [fileId]
+    );
+    
+    if (fileResult.rows.length === 0) {
+      return res.status(404).json({ error: 'File not found' });
+    }
+    
+    const file = fileResult.rows[0];
+    
+    // Check file ownership - user must have access to the project
+    const projectAccessQuery = `
+      SELECT 1 FROM project_members 
+      WHERE project_id = $1 AND user_id = $2
+      UNION
+      SELECT 1 FROM project_access_groups pag
+      INNER JOIN user_groups ug ON pag.group_id = ug.group_id
+      WHERE pag.project_id = $1 AND ug.user_id = $2
+    `;
+    const accessResult = await dbPool.query(projectAccessQuery, [file.project_id, userId]);
+    
+    if (accessResult.rows.length === 0 && !req.user.roles?.includes('Admin')) {
+      return res.status(403).json({ error: 'Unauthorized to access this file' });
+    }
+    
+    // Update file metadata with delimiter
+    let metadata = file.metadata || {};
+    if (typeof metadata === 'string') {
+      metadata = JSON.parse(metadata);
+    }
+    
+    // Preserve existing header_config if present
+    const headerConfig = metadata.header_config || null;
+    
+    metadata.delimiter = delimiter;
+    
+    await dbPool.query(
+      'UPDATE files SET metadata = $1 WHERE file_id = $2',
+      [JSON.stringify(metadata), fileId]
+    );
+    
+    logger.info('Delimiter saved for file', { fileId, delimiter, userId, headerConfig });
+    
+    // Trigger re-profiling by queueing a file-processing job with delimiter
+    const fileService = diContainer.get('fileService');
+    const fileDetails = await fileService.getFileById(fileId);
+    
+    if (!fileDetails) {
+      return res.status(404).json({ error: 'File details not found' });
+    }
+    
+    const { filename, created_at, file_type, file_size, checksum, project_id, sub_project_id, vendor_agreement_id } = fileDetails;
+    const createdAtString = created_at instanceof Date ? created_at.toISOString() : created_at;
+    const storagePath = path.join(process.env.FILE_STORAGE_PATH || './file_storage', createdAtString.substring(0, 10), filename);
+    
+    // Clear existing profiling data
+    await dbPool.query(
+      'DELETE FROM profiling_metrics WHERE file_id = $1',
+      [fileId]
+    );
+    
+    // Re-queue file for processing with delimiter and header config
+    const queue = diContainer.get('queue');
+    const jobId = await queue.addJob('file-processing', {
+      fileId,
+      filePath: storagePath,
+      originalName: filename,
+      fileSize: file_size,
+      fileType: file_type,
+      userId,
+      fileHash: checksum,
+      projectId: project_id,
+      subProjectId: sub_project_id,
+      qualityRuleIds: [],
+      agreementId: vendor_agreement_id,
+      delimiter,
+      headerConfig,
+      fixedWidthSchema: null  // Not supported in re-profile flow yet
+    }, {
+      attempts: 3,
+      backoff: { type: 'exponential', delay: 5000 },
+      timeout: 1800000
+    });
+    
+    logger.info('File re-profiling job queued with delimiter', { fileId, jobId, delimiter });
+    
+    // Update file status
+    await dbPool.query(
+      'UPDATE files SET processing_step = $1, failure_reason_code = NULL, processing_error = NULL WHERE file_id = $2',
+      ['queued', fileId]
+    );
+    
+    // Invalidate cache
+    await invalidateFileCache(fileId);
+    await invalidateFileCatalogCache();
+    
+    res.json({ 
+      message: 'Delimiter saved and file queued for re-profiling',
+      delimiter 
+    });
+  } catch (err) {
+    console.error('Error saving delimiter:', err);
+    res.status(500).json({ 
+      error: 'Failed to save delimiter',
+      details: err.message 
+    });
   }
 });
 
@@ -9152,6 +9688,11 @@ const vendorAgreementRoutes = require('./backend/routes/vendorAgreementRoutes');
 app.use('/api/vendor-agreements', authenticateToken, vendorAgreementRoutes);
 console.log('Added vendor agreement routes');
 
+// Vendor SLA monitoring routes
+const vendorSLARoutes = require('./backend/routes/vendorSLARoutes');
+app.use('/api/vendor-sla', authenticateToken, vendorSLARoutes);
+console.log('Added vendor SLA monitoring routes');
+
 // Vendor agreement file schema routes
 const vendorAgreementFileSchemaRoutes = require('./backend/routes/vendorAgreementFileSchemaRoutes');
 app.use('/api/vendor-agreements', authenticateToken, vendorAgreementFileSchemaRoutes);
@@ -9181,6 +9722,41 @@ console.log('Added vendor agreement template routes');
 const notificationRoutes = require('./backend/routes/notifications');
 app.use('/api/notifications', notificationRoutes);
 console.log('Added notifications routes');
+
+// RDM routes
+const rdmRoutes = require('./backend/routes/rdm');
+app.use('/api/rdm', authenticateToken, rdmRoutes);
+console.log('Added RDM integration routes');
+
+// Alert policy routes
+const alertPolicyRoutes = require('./backend/routes/alertPolicyRoutes');
+app.use('/api/alert-policies', authenticateToken, alertPolicyRoutes);
+console.log('Added alert policy routes');
+
+// Email connection routes
+const emailConnectionRoutes = require('./backend/routes/emailConnectionRoutes');
+app.use('/api/email-connections', authenticateToken, emailConnectionRoutes);
+console.log('Added email connection routes');
+
+// Alert history routes
+const alertHistoryRoutes = require('./backend/routes/alertHistoryRoutes');
+app.use('/api/alert-history', authenticateToken, alertHistoryRoutes);
+console.log('Added alert history routes');
+
+// Programmatic upload routes
+const uploadRoutes = require('./backend/routes/uploadRoutes');
+app.use('/api/uploads', uploadRoutes);
+console.log('Added programmatic upload routes');
+
+// API token management routes
+const apiTokenRoutes = require('./backend/routes/apiTokenRoutes');
+app.use('/api/tokens', apiTokenRoutes);
+console.log('Added API token management routes');
+
+// DLQ (Dead Letter Queue) routes
+const dlqRoutes = require('./backend/routes/dlqRoutes');
+app.use('/api/dlq-jobs', authenticateToken, dlqRoutes);
+console.log('Added DLQ routes');
 
 // Setup enhanced backend features
 setupEnhancedFeatures(app);
@@ -9224,6 +9800,8 @@ const errorHandler = require('./backend/middleware/errorHandler');
 app.use(errorHandler);
 
 // Initialize database and start the server
+let uploadWorker = null;
+
 async function startServer() {
   try {
     logger.info('Starting server initialization...');
@@ -9247,6 +9825,19 @@ async function startServer() {
       console.warn('⚠️  WARNING: ENCRYPTION_KEY environment variable is not set!');
       console.warn('   Cloud storage credentials cannot be encrypted/decrypted without this key.');
       console.warn('   Please add ENCRYPTION_KEY to your Replit Secrets.');
+    }
+    
+    // Start upload worker for BullMQ file processing (requires Redis)
+    try {
+      const UploadWorker = require('./backend/workers/uploadWorker');
+      uploadWorker = new UploadWorker();
+      uploadWorker.start(5);
+      logger.info('Upload worker initialized with 5 concurrent workers');
+    } catch (error) {
+      logger.warn('Upload worker not started - Redis unavailable', {
+        error: error.message,
+        note: 'File uploads will still work but may process slower without queue-based parallelization'
+      });
     }
     
     // Start the HTTP server - bind to 0.0.0.0 for Replit
@@ -9288,6 +9879,9 @@ const gracefulShutdown = async (signal) => {
     // Stop scheduler worker
     await schedulerWorker.stop();
     
+    // Stop SLA monitor worker
+    await slaMonitorWorker.stop();
+    
     // Stop insights aggregation worker
     if (insightsWorker) {
       insightsWorker.stop();
@@ -9300,6 +9894,11 @@ const gracefulShutdown = async (signal) => {
     
     // Stop file processing worker
     await fileWorker.stop();
+    
+    // Stop upload worker
+    if (uploadWorker) {
+      await uploadWorker.stop();
+    }
     
     // Close database connections
     const database = diContainer.get('database');

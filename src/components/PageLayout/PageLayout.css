@@ -1,6 +1,6 @@
 /* Page Layout Container */
 .page-layout-container {
-  padding: 10px 20px 20px 20px;
+  padding: 0 20px 20px 20px;
   max-width: 1200px;
   margin: 0 auto;
 }
@@ -20,14 +20,14 @@
 
 .page-layout-title {
   margin: 0;
-  font-size: 2rem;
+  font-size: 1.5rem;
   font-weight: 600;
   color: #025043;
 }
 
 .page-layout-subtitle {
-  margin: 0.3rem 0 0 0;
-  font-size: 0.9rem;
+  margin: 0.25rem 0 0 0;
+  font-size: 0.8rem;
   color: #037c6e;
 }
 
@@ -96,7 +96,7 @@ table.page-layout-table tbody tr:last-child td {
 /* Responsive adjustments */
 @media (max-width: 768px) {
   .page-layout-container {
-    padding: 10px 15px 15px 15px;
+    padding: 0 15px 15px 15px;
   }
 
   .page-layout-header {
@@ -111,6 +111,6 @@ table.page-layout-table tbody tr:last-child td {
   }
 
   .page-layout-title {
-    font-size: 1.5rem;
+    font-size: 1.25rem;
   }
 }

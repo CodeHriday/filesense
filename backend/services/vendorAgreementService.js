@@ -287,8 +287,9 @@ class VendorAgreementService {
           vendor_connection_id, drop_location_path, project_id, sub_project_id,
           manager_contact, governance_manager_user_id,
           contains_pii, file_type, data_classification, domain, retention_days, expected_arrival_time, delivery_method,
+          sla_enabled, frequency_pattern, arrival_time, arrival_days, alert_threshold_minutes,
           status, contract_start_date, contract_end_date, approval_status, version, created_by, created_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, 1, $41, CURRENT_TIMESTAMP)
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44, $45, 1, $46, CURRENT_TIMESTAMP)
         RETURNING *`,
         [
           vendor_id, agreementCode, file_name, file_description, description || null, parsedSchema ? JSON.stringify(parsedSchema) : null,
@@ -299,6 +300,7 @@ class VendorAgreementService {
           vendor_connection_id, drop_location_path || null, project_id, sub_project_id || null,
           finalManagerContact, governance_manager_user_id || null,
           contains_pii, file_type, data_classification, domain, retention_days, expected_arrival_time, delivery_method,
+          sla_enabled || false, frequency_pattern || 'daily', arrival_time || '09:00', arrival_days || null, alert_threshold_minutes || 60,
           finalStatus, contract_start_date || null, contract_end_date || null, approvalStatus,
           createdBy
         ]
@@ -445,7 +447,12 @@ class VendorAgreementService {
         contract_start_date,
         contract_end_date,
         sub_project_id,
-        status
+        status,
+        sla_enabled,
+        frequency_pattern,
+        arrival_time,
+        arrival_days,
+        alert_threshold_minutes
       } = updateData;
       
       // Check for duplicate file_name (excluding current agreement)
@@ -822,6 +829,41 @@ class VendorAgreementService {
         updates.push(`delivery_method = $${paramIndex}`);
         params.push(delivery_method);
         changes.delivery_method = { from: current.delivery_method, to: delivery_method };
+        paramIndex++;
+      }
+      
+      if (sla_enabled !== undefined && sla_enabled !== current.sla_enabled) {
+        updates.push(`sla_enabled = $${paramIndex}`);
+        params.push(sla_enabled);
+        changes.sla_enabled = { from: current.sla_enabled, to: sla_enabled };
+        paramIndex++;
+      }
+      
+      if (frequency_pattern !== undefined && frequency_pattern !== current.frequency_pattern) {
+        updates.push(`frequency_pattern = $${paramIndex}`);
+        params.push(frequency_pattern);
+        changes.frequency_pattern = { from: current.frequency_pattern, to: frequency_pattern };
+        paramIndex++;
+      }
+      
+      if (arrival_time !== undefined && arrival_time !== current.arrival_time) {
+        updates.push(`arrival_time = $${paramIndex}`);
+        params.push(arrival_time);
+        changes.arrival_time = { from: current.arrival_time, to: arrival_time };
+        paramIndex++;
+      }
+      
+      if (arrival_days !== undefined && arrival_days !== current.arrival_days) {
+        updates.push(`arrival_days = $${paramIndex}`);
+        params.push(arrival_days || null);
+        changes.arrival_days = { from: current.arrival_days, to: arrival_days };
+        paramIndex++;
+      }
+      
+      if (alert_threshold_minutes !== undefined && alert_threshold_minutes !== current.alert_threshold_minutes) {
+        updates.push(`alert_threshold_minutes = $${paramIndex}`);
+        params.push(alert_threshold_minutes);
+        changes.alert_threshold_minutes = { from: current.alert_threshold_minutes, to: alert_threshold_minutes };
         paramIndex++;
       }
       

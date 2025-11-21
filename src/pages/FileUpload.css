@@ -30,15 +30,18 @@
   transition: all 0.2s ease;
 }
 
+.tab-button:focus,
+.tab-button:focus-visible {
+  outline: none !important;
+}
+
 .tab-button:hover {
   border-color: var(--border-medium);
   color: var(--text-primary);
 }
 
 .tab-button.active {
-  background-color: white;
   color: var(--color-primary);
-  border: 2px solid var(--color-primary);
   font-weight: var(--font-semibold);
 }
 

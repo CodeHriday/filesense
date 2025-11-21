@@ -1,0 +1,34 @@
+========================================
+JOB {{#if (isSuccess status)}}COMPLETED{{else}}FAILED{{/if}}
+========================================
+
+Job Name: {{jobName}}
+Job ID: {{jobId}}
+Project: {{projectName}}
+
+Status: {{status}}
+Execution Time: {{formatDate executionTime}}
+
+Execution Metrics:
+------------------
+Duration: {{formatDuration duration}}
+Records Processed: {{formatNumber recordsProcessed}}
+{{#if hasViolations}}
+Quality Violations: {{formatNumber qualityViolations}}
+{{/if}}
+
+{{#if error}}
+Error Details:
+--------------
+{{error}}
+{{/if}}
+
+{{#if hasViolations}}
+Quality Violations:
+-------------------
+This job encountered {{formatNumber qualityViolations}} quality violations.
+Please review the attached report for details.
+{{/if}}
+
+========================================
+This is an automated alert from Data File Observatory

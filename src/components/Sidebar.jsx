@@ -1,10 +1,13 @@
-import React, { useState } from 'react';
-import { NavLink } from 'react-router-dom';
-import { FiChevronDown, FiChevronRight, FiChevronLeft } from 'react-icons/fi';
+import React, { useState, useRef, useEffect } from 'react';
+import { NavLink, Link, useNavigate, useLocation } from 'react-router-dom';
+import { FiChevronDown, FiChevronRight, FiChevronLeft, FiHome } from 'react-icons/fi';
+import { FaUser, FaCog, FaSignOutAlt, FaChartBar, FaUsers, FaExclamationTriangle } from 'react-icons/fa';
 import { useAuth } from '../context/AuthContext';
 import { useSidebar } from '../context/SidebarContext';
 import { APP_FEATURES, getSidebarCategoryName, FEATURE_CATEGORIES_ORDER } from '../config/appFeatures';
 import OnboardingWizard from './OnboardingWizard';
+import NotificationBell from './NotificationBell';
+import ThemeToggle from './ThemeToggle';
 import { isVendorUser } from '../utils/userHelpers';
 import './Sidebar.css';
 
@@ -12,8 +15,38 @@ function Sidebar() {
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [expandedMenus, setExpandedMenus] = useState({});
   const [expandedCategories, setExpandedCategories] = useState({});
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const dropdownRef = useRef(null);
   const { isCollapsed, toggleSidebar } = useSidebar();
-  const { currentUser, hasPermission } = useAuth();
+  const { currentUser, logout, hasPermission } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+  
+  // Check if user is on dashboard page
+  const isOnDashboard = location.pathname === '/' || location.pathname === '/dashboard';
+  
+  // Handle click outside to close dropdown
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setDropdownOpen(false);
+      }
+    }
+    
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+  
+  const handleLogout = async () => {
+    try {
+      await logout();
+      navigate('/login');
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
+  };
   
   const toggleMenu = (featureId) => {
     setExpandedMenus(prev => ({
@@ -195,6 +228,25 @@ function Sidebar() {
   return (
     <div>
       <aside className={`sidebar ${isCollapsed ? 'collapsed' : ''}`}>
+        {/* Top Section: Header with Home Button and Notifications */}
+        <div className="sidebar-header">
+          <div className="sidebar-header-content">
+            <button 
+              className="sidebar-home-btn" 
+              onClick={() => navigate('/')}
+              title="Go to Home"
+              aria-label="Go to Home"
+            >
+              <FiHome />
+            </button>
+            <Link to="/" className="sidebar-logo">
+              <h1>FileSense</h1>
+            </Link>
+            <NotificationBell />
+          </div>
+        </div>
+
+        {/* Middle Section: Navigation */}
         <div className="sidebar-toggle" onClick={toggleSidebar} title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}>
           {isCollapsed ? <FiChevronRight /> : <FiChevronLeft />}
         </div>
@@ -204,6 +256,76 @@ function Sidebar() {
             {FEATURE_CATEGORIES_ORDER.map(category => renderCategoryItems(category))}
           </ul>
         </nav>
+
+        {/* Bottom Section: User Menu and Theme Toggle */}
+        <div className="sidebar-footer">
+          <ThemeToggle />
+          <div className="sidebar-user-menu" ref={dropdownRef}>
+            <button
+              className="sidebar-user-btn"
+              onClick={() => setDropdownOpen(!dropdownOpen)}
+              aria-expanded={dropdownOpen}
+              aria-haspopup="true"
+              aria-label="User menu"
+            >
+              <FaUser />
+              <span className="sidebar-username">{currentUser.username}</span>
+            </button>
+            
+            {dropdownOpen && (
+              <div className="sidebar-dropdown-menu">
+                <div className="sidebar-dropdown-header">
+                  <div className="sidebar-user-info">
+                    <strong>{currentUser.username}</strong>
+                    <small>{currentUser.email || ''}</small>
+                    <div className="sidebar-user-roles">
+                      {currentUser.roles && currentUser.roles.map(role => (
+                        <span key={role} className="sidebar-role-badge">{role}</span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="sidebar-dropdown-content">
+                  <Link to="/dashboard-settings" className="sidebar-dropdown-item" onClick={() => setDropdownOpen(false)}>
+                    <FaCog /> Settings
+                  </Link>
+                  
+                  <Link to="/insights" className="sidebar-dropdown-item" onClick={() => setDropdownOpen(false)}>
+                    <FaChartBar /> Data Insights
+                  </Link>
+                  
+                  {(currentUser.roles.includes('Admin') || hasPermission('user_view')) && (
+                    <>
+                      <Link to="/users" className="sidebar-dropdown-item" onClick={() => setDropdownOpen(false)}>
+                        <FaUsers /> User Management
+                      </Link>
+                      <Link to="/vendors" className="sidebar-dropdown-item" onClick={() => setDropdownOpen(false)}>
+                        <FaUsers /> Vendor Management
+                      </Link>
+                      <Link to="/vendor-users" className="sidebar-dropdown-item" onClick={() => setDropdownOpen(false)} style={{ paddingLeft: '2rem' }}>
+                        <FaUsers /> Vendor User Management
+                      </Link>
+                      <Link to="/vendor-roles" className="sidebar-dropdown-item" onClick={() => setDropdownOpen(false)} style={{ paddingLeft: '2rem' }}>
+                        <FaCog /> Vendor Role Management
+                      </Link>
+                      <Link to="/vendor-agreements" className="sidebar-dropdown-item" onClick={() => setDropdownOpen(false)}>
+                        <FaCog /> Vendor Contracts
+                      </Link>
+                      <Link to="/failed-jobs" className="sidebar-dropdown-item" onClick={() => setDropdownOpen(false)}>
+                        <FaExclamationTriangle /> Failed Jobs
+                      </Link>
+                    </>
+                  )}
+                  
+                  <button className="sidebar-dropdown-item" onClick={handleLogout}>
+                    <FaSignOutAlt /> Logout
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
       </aside>
 
       {showOnboarding && (
