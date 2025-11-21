@@ -514,6 +514,51 @@ async function executeTransformationJob(pool, mappingId, userId, options = {}) {
           if (validationResult.schemaDrift) {
             const driftMessage = `Schema drift detected: ${validationResult.message}`;
             
+            // Create anomaly record for schema drift
+            try {
+              const { v4: uuidv4 } = require('uuid');
+              const anomalyId = `DRIFT-${Date.now()}-${uuidv4().substring(0, 8)}`;
+              
+              // Determine severity based on differences
+              let severity = 'medium';
+              if (validationResult.differences) {
+                const { missingFields = [], newFields = [] } = validationResult.differences;
+                if (missingFields.length > 0) {
+                  severity = 'high';
+                } else if (newFields.length > 3) {
+                  severity = 'medium';
+                } else {
+                  severity = 'low';
+                }
+              }
+              
+              await pool.query(`
+                INSERT INTO anomalies (
+                  anomaly_id, file_id, file_name, mapping_id, job_id,
+                  anomaly_type, severity, title, description, anomaly_details,
+                  expected_value, actual_value, status, detected_at
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, NOW())
+              `, [
+                anomalyId,
+                sourceFileId || null,
+                sourceName,
+                mapping.id,
+                jobId,
+                'schema_drift',
+                severity,
+                'Schema Drift Detected',
+                driftMessage,
+                JSON.stringify(validationResult.differences || {}),
+                JSON.stringify(validationResult.expectedSchema || []),
+                JSON.stringify(validationResult.actualSchema || []),
+                'active'
+              ]);
+              
+              await logJobExecution(pool, jobId, 'info', `Anomaly record created for schema drift: ${anomalyId}`);
+            } catch (anomalyError) {
+              await logJobExecution(pool, jobId, 'warn', `Failed to create anomaly record: ${anomalyError.message}`);
+            }
+            
             if (mapping.schema_drift_handling === 'abort') {
               // Abort job execution
               await updateJob(pool, jobId, { 
