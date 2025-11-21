@@ -192,285 +192,356 @@ router.get('/executive-metrics', dashboardCacheMiddleware, async (req, res) => {
     const isAdmin = userRoles.includes('Admin');
     const projectId = req.query.project_id ? parseInt(req.query.project_id, 10) : null;
     
-    // Get time range from query params (default: 30 days)
     const timeRange = parseInt(req.query.days) || 30;
-    const comparisonRange = timeRange; // Compare to previous period of same length
+    const comparisonRange = timeRange;
     
     const now = new Date();
     const rangeStart = new Date(now.getTime() - timeRange * 24 * 60 * 60 * 1000);
     const comparisonStart = new Date(rangeStart.getTime() - comparisonRange * 24 * 60 * 60 * 1000);
+    const sparklineStart = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
-    // Build project filter for non-admin users and project-specific filtering
-    let fileProjectFilter = '';
-    let baseParams = [];
-    let paramOffset = 1;
-    
-    if (projectId) {
-      if (isAdmin) {
-        fileProjectFilter = `AND f.project_id = $${paramOffset}`;
-        baseParams = [projectId];
-        paramOffset++;
-      } else {
-        fileProjectFilter = `AND f.project_id = $${paramOffset + 1} AND f.project_id IN (SELECT project_id FROM get_user_projects($${paramOffset}))`;
-        baseParams = [userId, projectId];
-        paramOffset += 2;
-      }
-    } else if (!isAdmin) {
-      fileProjectFilter = `AND f.project_id IN (SELECT project_id FROM get_user_projects($${paramOffset}))`;
-      baseParams = [userId];
-      paramOffset++;
+    let healthIndex = null, prevHealthIndex = null, currentCount = 0, prevCount = 0;
+    let completedJobs = 0, totalJobs = 0, criticalAlerts = 0, highRiskPII = 0;
+    let totalVendors = 0, compliantVendors = 0, totalFiles = 0, taggedFiles = 0;
+    let activeTokens = 0, apiRequests = 0;
+    let healthSparkline = [], throughputSparkline = [];
+
+    if (isAdmin && !projectId) {
+      const healthResult = await pool.query(`
+        SELECT ROUND(AVG(COALESCE(quality_score, 0))::numeric, 1) as health_index, COUNT(*) as sample_size
+        FROM files f WHERE f.created_at >= $1 AND f.quality_score IS NOT NULL
+      `, [rangeStart]);
+      healthIndex = healthResult.rows[0]?.sample_size > 0 ? parseFloat(healthResult.rows[0]?.health_index || 0) : null;
+
+      const prevHealthResult = await pool.query(`
+        SELECT ROUND(AVG(COALESCE(quality_score, 0))::numeric, 1) as health_index, COUNT(*) as sample_size
+        FROM files f WHERE f.created_at >= $1 AND f.created_at < $2 AND f.quality_score IS NOT NULL
+      `, [comparisonStart, rangeStart]);
+      prevHealthIndex = prevHealthResult.rows[0]?.sample_size > 0 ? parseFloat(prevHealthResult.rows[0]?.health_index || 0) : null;
+
+      const currentThroughput = await pool.query(`SELECT COUNT(*) as count FROM files f WHERE f.created_at >= $1`, [rangeStart]);
+      currentCount = parseInt(currentThroughput.rows[0]?.count || 0);
+
+      const prevThroughput = await pool.query(`SELECT COUNT(*) as count FROM files f WHERE f.created_at >= $1 AND f.created_at < $2`, [comparisonStart, rangeStart]);
+      prevCount = parseInt(prevThroughput.rows[0]?.count || 0);
+
+      const jobsResult = await pool.query(`
+        SELECT COUNT(*) FILTER (WHERE status = 'completed') as completed, COUNT(*) as total
+        FROM transformation_jobs tj WHERE tj.created_at >= $1
+      `, [rangeStart]);
+      completedJobs = parseInt(jobsResult.rows[0]?.completed || 0);
+      totalJobs = parseInt(jobsResult.rows[0]?.total || 0);
+
+      const alertsResult = await pool.query(`
+        SELECT COUNT(DISTINCT ae.id) as count FROM alert_events ae
+        INNER JOIN alert_runs ar ON ae.run_id = ar.id
+        INNER JOIN alert_policies ap ON ar.policy_id = ap.id
+        WHERE ae.status IN ('OPEN', 'ACTIVE', 'TRIGGERED')
+      `, []);
+      criticalAlerts = parseInt(alertsResult.rows[0]?.count || 0);
+
+      const piiResult = await pool.query(`
+        SELECT COUNT(DISTINCT f.id) as count FROM files f
+        WHERE f.contains_pii = true AND f.data_classification IN ('Confidential', 'PHI', 'PII')
+        AND (f.quality_score < 90 OR EXISTS (SELECT 1 FROM quality_rule_violations qrv WHERE qrv.file_id = f.file_id AND qrv.severity IN ('high', 'critical')))
+      `, []);
+      highRiskPII = parseInt(piiResult.rows[0]?.count || 0);
+
+      const vendorResult = await pool.query(`
+        SELECT COUNT(DISTINCT va.id) as total_vendors,
+        COUNT(DISTINCT va.id) FILTER (WHERE EXISTS (SELECT 1 FROM files f WHERE f.project_id = va.project_id AND f.created_at >= $1)) as compliant_vendors
+        FROM vendor_agreements va WHERE va.status = 'active'
+      `, [rangeStart]);
+      totalVendors = parseInt(vendorResult.rows[0]?.total_vendors || 0);
+      compliantVendors = parseInt(vendorResult.rows[0]?.compliant_vendors || 0);
+
+      const govResult = await pool.query(`
+        SELECT COUNT(DISTINCT f.id) as total_files,
+        COUNT(DISTINCT f.id) FILTER (WHERE EXISTS (SELECT 1 FROM column_governance_tag_assignments cgta WHERE cgta.file_id = f.file_id AND cgta.tag_id IS NOT NULL)) as tagged_files
+        FROM files f WHERE f.created_at >= $1
+      `, [rangeStart]);
+      totalFiles = parseInt(govResult.rows[0]?.total_files || 0);
+      taggedFiles = parseInt(govResult.rows[0]?.tagged_files || 0);
+
+      const apiResult = await pool.query(`
+        SELECT COUNT(DISTINCT at.id) as active_tokens, COUNT(DISTINCT f.id) as total_requests
+        FROM api_tokens at LEFT JOIN files f ON f.created_at >= $1 AND f.metadata->>'upload_method' = 'api'
+        WHERE at.is_active = true AND at.revoked_at IS NULL AND (at.expires_at IS NULL OR at.expires_at > NOW())
+      `, [rangeStart]);
+      activeTokens = parseInt(apiResult.rows[0]?.active_tokens || 0);
+      apiRequests = parseInt(apiResult.rows[0]?.total_requests || 0);
+
+      const sparklineResult = await pool.query(`
+        WITH date_series AS (SELECT generate_series($1::date, CURRENT_DATE, '1 day'::interval)::date as date),
+        daily_health AS (SELECT f.created_at::date as date, ROUND(AVG(COALESCE(f.quality_score, 0))::numeric, 1) as health_score FROM files f WHERE f.created_at >= $1 AND f.quality_score IS NOT NULL GROUP BY f.created_at::date),
+        daily_files AS (SELECT f.created_at::date as date, COUNT(*) as file_count FROM files f WHERE f.created_at >= $1 GROUP BY f.created_at::date)
+        SELECT ds.date, COALESCE(dh.health_score, 0) as health_score, COALESCE(df.file_count, 0) as file_count
+        FROM date_series ds LEFT JOIN daily_health dh ON ds.date = dh.date LEFT JOIN daily_files df ON ds.date = df.date ORDER BY ds.date
+      `, [sparklineStart]);
+      healthSparkline = sparklineResult.rows.map(r => parseFloat(r.health_score) || 0);
+      throughputSparkline = sparklineResult.rows.map(r => parseInt(r.file_count) || 0);
+
+    } else if (isAdmin && projectId) {
+      const healthResult = await pool.query(`
+        SELECT ROUND(AVG(COALESCE(quality_score, 0))::numeric, 1) as health_index, COUNT(*) as sample_size
+        FROM files f WHERE f.created_at >= $1 AND f.quality_score IS NOT NULL AND f.project_id = $2
+      `, [rangeStart, projectId]);
+      healthIndex = healthResult.rows[0]?.sample_size > 0 ? parseFloat(healthResult.rows[0]?.health_index || 0) : null;
+
+      const prevHealthResult = await pool.query(`
+        SELECT ROUND(AVG(COALESCE(quality_score, 0))::numeric, 1) as health_index, COUNT(*) as sample_size
+        FROM files f WHERE f.created_at >= $1 AND f.created_at < $2 AND f.quality_score IS NOT NULL AND f.project_id = $3
+      `, [comparisonStart, rangeStart, projectId]);
+      prevHealthIndex = prevHealthResult.rows[0]?.sample_size > 0 ? parseFloat(prevHealthResult.rows[0]?.health_index || 0) : null;
+
+      const currentThroughput = await pool.query(`SELECT COUNT(*) as count FROM files f WHERE f.created_at >= $1 AND f.project_id = $2`, [rangeStart, projectId]);
+      currentCount = parseInt(currentThroughput.rows[0]?.count || 0);
+
+      const prevThroughput = await pool.query(`SELECT COUNT(*) as count FROM files f WHERE f.created_at >= $1 AND f.created_at < $2 AND f.project_id = $3`, [comparisonStart, rangeStart, projectId]);
+      prevCount = parseInt(prevThroughput.rows[0]?.count || 0);
+
+      const jobsResult = await pool.query(`
+        SELECT COUNT(*) FILTER (WHERE status = 'completed') as completed, COUNT(*) as total
+        FROM transformation_jobs tj WHERE tj.created_at >= $1 AND tj.project_id = $2
+      `, [rangeStart, projectId]);
+      completedJobs = parseInt(jobsResult.rows[0]?.completed || 0);
+      totalJobs = parseInt(jobsResult.rows[0]?.total || 0);
+
+      const alertsResult = await pool.query(`
+        SELECT COUNT(DISTINCT ae.id) as count FROM alert_events ae
+        INNER JOIN alert_runs ar ON ae.run_id = ar.id
+        INNER JOIN alert_policies ap ON ar.policy_id = ap.id
+        WHERE ae.status IN ('OPEN', 'ACTIVE', 'TRIGGERED') AND ap.project_id = $1
+      `, [projectId]);
+      criticalAlerts = parseInt(alertsResult.rows[0]?.count || 0);
+
+      const piiResult = await pool.query(`
+        SELECT COUNT(DISTINCT f.id) as count FROM files f
+        WHERE f.contains_pii = true AND f.data_classification IN ('Confidential', 'PHI', 'PII')
+        AND (f.quality_score < 90 OR EXISTS (SELECT 1 FROM quality_rule_violations qrv WHERE qrv.file_id = f.file_id AND qrv.severity IN ('high', 'critical')))
+        AND f.project_id = $1
+      `, [projectId]);
+      highRiskPII = parseInt(piiResult.rows[0]?.count || 0);
+
+      const vendorResult = await pool.query(`
+        SELECT COUNT(DISTINCT va.id) as total_vendors,
+        COUNT(DISTINCT va.id) FILTER (WHERE EXISTS (SELECT 1 FROM files f WHERE f.project_id = va.project_id AND f.created_at >= $1)) as compliant_vendors
+        FROM vendor_agreements va WHERE va.status = 'active'
+      `, [rangeStart]);
+      totalVendors = parseInt(vendorResult.rows[0]?.total_vendors || 0);
+      compliantVendors = parseInt(vendorResult.rows[0]?.compliant_vendors || 0);
+
+      const govResult = await pool.query(`
+        SELECT COUNT(DISTINCT f.id) as total_files,
+        COUNT(DISTINCT f.id) FILTER (WHERE EXISTS (SELECT 1 FROM column_governance_tag_assignments cgta WHERE cgta.file_id = f.file_id AND cgta.tag_id IS NOT NULL)) as tagged_files
+        FROM files f WHERE f.created_at >= $1
+      `, [rangeStart]);
+      totalFiles = parseInt(govResult.rows[0]?.total_files || 0);
+      taggedFiles = parseInt(govResult.rows[0]?.tagged_files || 0);
+
+      const apiResult = await pool.query(`
+        SELECT COUNT(DISTINCT at.id) as active_tokens, COUNT(DISTINCT f.id) as total_requests
+        FROM api_tokens at LEFT JOIN files f ON f.created_at >= $1 AND f.metadata->>'upload_method' = 'api'
+        WHERE at.is_active = true AND at.revoked_at IS NULL AND (at.expires_at IS NULL OR at.expires_at > NOW())
+      `, [rangeStart]);
+      activeTokens = parseInt(apiResult.rows[0]?.active_tokens || 0);
+      apiRequests = parseInt(apiResult.rows[0]?.total_requests || 0);
+
+      const sparklineResult = await pool.query(`
+        WITH date_series AS (SELECT generate_series($1::date, CURRENT_DATE, '1 day'::interval)::date as date),
+        daily_health AS (SELECT f.created_at::date as date, ROUND(AVG(COALESCE(f.quality_score, 0))::numeric, 1) as health_score FROM files f WHERE f.created_at >= $1 AND f.quality_score IS NOT NULL GROUP BY f.created_at::date),
+        daily_files AS (SELECT f.created_at::date as date, COUNT(*) as file_count FROM files f WHERE f.created_at >= $1 GROUP BY f.created_at::date)
+        SELECT ds.date, COALESCE(dh.health_score, 0) as health_score, COALESCE(df.file_count, 0) as file_count
+        FROM date_series ds LEFT JOIN daily_health dh ON ds.date = dh.date LEFT JOIN daily_files df ON ds.date = df.date ORDER BY ds.date
+      `, [sparklineStart]);
+      healthSparkline = sparklineResult.rows.map(r => parseFloat(r.health_score) || 0);
+      throughputSparkline = sparklineResult.rows.map(r => parseInt(r.file_count) || 0);
+
+    } else if (!isAdmin && !projectId) {
+      const healthResult = await pool.query(`
+        SELECT ROUND(AVG(COALESCE(quality_score, 0))::numeric, 1) as health_index, COUNT(*) as sample_size
+        FROM files f WHERE f.created_at >= $1 AND f.quality_score IS NOT NULL 
+        AND f.project_id IN (SELECT project_id FROM get_user_projects($2))
+      `, [rangeStart, userId]);
+      healthIndex = healthResult.rows[0]?.sample_size > 0 ? parseFloat(healthResult.rows[0]?.health_index || 0) : null;
+
+      const prevHealthResult = await pool.query(`
+        SELECT ROUND(AVG(COALESCE(quality_score, 0))::numeric, 1) as health_index, COUNT(*) as sample_size
+        FROM files f WHERE f.created_at >= $1 AND f.created_at < $2 AND f.quality_score IS NOT NULL 
+        AND f.project_id IN (SELECT project_id FROM get_user_projects($3))
+      `, [comparisonStart, rangeStart, userId]);
+      prevHealthIndex = prevHealthResult.rows[0]?.sample_size > 0 ? parseFloat(prevHealthResult.rows[0]?.health_index || 0) : null;
+
+      const currentThroughput = await pool.query(`
+        SELECT COUNT(*) as count FROM files f WHERE f.created_at >= $1 
+        AND f.project_id IN (SELECT project_id FROM get_user_projects($2))
+      `, [rangeStart, userId]);
+      currentCount = parseInt(currentThroughput.rows[0]?.count || 0);
+
+      const prevThroughput = await pool.query(`
+        SELECT COUNT(*) as count FROM files f WHERE f.created_at >= $1 AND f.created_at < $2 
+        AND f.project_id IN (SELECT project_id FROM get_user_projects($3))
+      `, [comparisonStart, rangeStart, userId]);
+      prevCount = parseInt(prevThroughput.rows[0]?.count || 0);
+
+      const jobsResult = await pool.query(`
+        SELECT COUNT(*) FILTER (WHERE status = 'completed') as completed, COUNT(*) as total
+        FROM transformation_jobs tj WHERE tj.created_at >= $1 
+        AND tj.project_id IN (SELECT project_id FROM get_user_projects($2))
+      `, [rangeStart, userId]);
+      completedJobs = parseInt(jobsResult.rows[0]?.completed || 0);
+      totalJobs = parseInt(jobsResult.rows[0]?.total || 0);
+
+      const alertsResult = await pool.query(`
+        SELECT COUNT(DISTINCT ae.id) as count FROM alert_events ae
+        INNER JOIN alert_runs ar ON ae.run_id = ar.id
+        INNER JOIN alert_policies ap ON ar.policy_id = ap.id
+        WHERE ae.status IN ('OPEN', 'ACTIVE', 'TRIGGERED') 
+        AND ap.project_id IN (SELECT project_id FROM get_user_projects($1))
+      `, [userId]);
+      criticalAlerts = parseInt(alertsResult.rows[0]?.count || 0);
+
+      const piiResult = await pool.query(`
+        SELECT COUNT(DISTINCT f.id) as count FROM files f
+        WHERE f.contains_pii = true AND f.data_classification IN ('Confidential', 'PHI', 'PII')
+        AND (f.quality_score < 90 OR EXISTS (SELECT 1 FROM quality_rule_violations qrv WHERE qrv.file_id = f.file_id AND qrv.severity IN ('high', 'critical')))
+        AND f.project_id IN (SELECT project_id FROM get_user_projects($1))
+      `, [userId]);
+      highRiskPII = parseInt(piiResult.rows[0]?.count || 0);
+
+      const vendorResult = await pool.query(`
+        SELECT COUNT(DISTINCT va.id) as total_vendors,
+        COUNT(DISTINCT va.id) FILTER (WHERE EXISTS (SELECT 1 FROM files f WHERE f.project_id = va.project_id AND f.created_at >= $1)) as compliant_vendors
+        FROM vendor_agreements va WHERE va.status = 'active' 
+        AND va.project_id IN (SELECT project_id FROM get_user_projects($2))
+      `, [rangeStart, userId]);
+      totalVendors = parseInt(vendorResult.rows[0]?.total_vendors || 0);
+      compliantVendors = parseInt(vendorResult.rows[0]?.compliant_vendors || 0);
+
+      const govResult = await pool.query(`
+        SELECT COUNT(DISTINCT f.id) as total_files,
+        COUNT(DISTINCT f.id) FILTER (WHERE EXISTS (SELECT 1 FROM column_governance_tag_assignments cgta WHERE cgta.file_id = f.file_id AND cgta.tag_id IS NOT NULL)) as tagged_files
+        FROM files f WHERE f.created_at >= $1 
+        AND f.project_id IN (SELECT project_id FROM get_user_projects($2))
+      `, [rangeStart, userId]);
+      totalFiles = parseInt(govResult.rows[0]?.total_files || 0);
+      taggedFiles = parseInt(govResult.rows[0]?.tagged_files || 0);
+
+      const apiResult = await pool.query(`
+        SELECT COUNT(DISTINCT at.id) as active_tokens, COUNT(DISTINCT f.id) as total_requests
+        FROM api_tokens at LEFT JOIN files f ON f.created_at >= $1 AND f.metadata->>'upload_method' = 'api'
+        WHERE at.is_active = true AND at.revoked_at IS NULL AND (at.expires_at IS NULL OR at.expires_at > NOW())
+        AND (at.project_id IS NULL OR at.project_id IN (SELECT project_id FROM get_user_projects($2)))
+      `, [rangeStart, userId]);
+      activeTokens = parseInt(apiResult.rows[0]?.active_tokens || 0);
+      apiRequests = parseInt(apiResult.rows[0]?.total_requests || 0);
+
+      const sparklineResult = await pool.query(`
+        WITH date_series AS (SELECT generate_series($1::date, CURRENT_DATE, '1 day'::interval)::date as date),
+        daily_health AS (SELECT f.created_at::date as date, ROUND(AVG(COALESCE(f.quality_score, 0))::numeric, 1) as health_score FROM files f WHERE f.created_at >= $1 AND f.quality_score IS NOT NULL AND f.project_id IN (SELECT project_id FROM get_user_projects($2)) GROUP BY f.created_at::date),
+        daily_files AS (SELECT f.created_at::date as date, COUNT(*) as file_count FROM files f WHERE f.created_at >= $1 AND f.project_id IN (SELECT project_id FROM get_user_projects($2)) GROUP BY f.created_at::date)
+        SELECT ds.date, COALESCE(dh.health_score, 0) as health_score, COALESCE(df.file_count, 0) as file_count
+        FROM date_series ds LEFT JOIN daily_health dh ON ds.date = dh.date LEFT JOIN daily_files df ON ds.date = df.date ORDER BY ds.date
+      `, [sparklineStart, userId]);
+      healthSparkline = sparklineResult.rows.map(r => parseFloat(r.health_score) || 0);
+      throughputSparkline = sparklineResult.rows.map(r => parseInt(r.file_count) || 0);
+
+    } else {
+      const healthResult = await pool.query(`
+        SELECT ROUND(AVG(COALESCE(quality_score, 0))::numeric, 1) as health_index, COUNT(*) as sample_size
+        FROM files f WHERE f.created_at >= $1 AND f.quality_score IS NOT NULL 
+        AND f.project_id = $2 AND f.project_id IN (SELECT project_id FROM get_user_projects($3))
+      `, [rangeStart, projectId, userId]);
+      healthIndex = healthResult.rows[0]?.sample_size > 0 ? parseFloat(healthResult.rows[0]?.health_index || 0) : null;
+
+      const prevHealthResult = await pool.query(`
+        SELECT ROUND(AVG(COALESCE(quality_score, 0))::numeric, 1) as health_index, COUNT(*) as sample_size
+        FROM files f WHERE f.created_at >= $1 AND f.created_at < $2 AND f.quality_score IS NOT NULL 
+        AND f.project_id = $3 AND f.project_id IN (SELECT project_id FROM get_user_projects($4))
+      `, [comparisonStart, rangeStart, projectId, userId]);
+      prevHealthIndex = prevHealthResult.rows[0]?.sample_size > 0 ? parseFloat(prevHealthResult.rows[0]?.health_index || 0) : null;
+
+      const currentThroughput = await pool.query(`
+        SELECT COUNT(*) as count FROM files f WHERE f.created_at >= $1 
+        AND f.project_id = $2 AND f.project_id IN (SELECT project_id FROM get_user_projects($3))
+      `, [rangeStart, projectId, userId]);
+      currentCount = parseInt(currentThroughput.rows[0]?.count || 0);
+
+      const prevThroughput = await pool.query(`
+        SELECT COUNT(*) as count FROM files f WHERE f.created_at >= $1 AND f.created_at < $2 
+        AND f.project_id = $3 AND f.project_id IN (SELECT project_id FROM get_user_projects($4))
+      `, [comparisonStart, rangeStart, projectId, userId]);
+      prevCount = parseInt(prevThroughput.rows[0]?.count || 0);
+
+      const jobsResult = await pool.query(`
+        SELECT COUNT(*) FILTER (WHERE status = 'completed') as completed, COUNT(*) as total
+        FROM transformation_jobs tj WHERE tj.created_at >= $1 
+        AND tj.project_id = $2 AND tj.project_id IN (SELECT project_id FROM get_user_projects($3))
+      `, [rangeStart, projectId, userId]);
+      completedJobs = parseInt(jobsResult.rows[0]?.completed || 0);
+      totalJobs = parseInt(jobsResult.rows[0]?.total || 0);
+
+      const alertsResult = await pool.query(`
+        SELECT COUNT(DISTINCT ae.id) as count FROM alert_events ae
+        INNER JOIN alert_runs ar ON ae.run_id = ar.id
+        INNER JOIN alert_policies ap ON ar.policy_id = ap.id
+        WHERE ae.status IN ('OPEN', 'ACTIVE', 'TRIGGERED') 
+        AND ap.project_id = $1 AND ap.project_id IN (SELECT project_id FROM get_user_projects($2))
+      `, [projectId, userId]);
+      criticalAlerts = parseInt(alertsResult.rows[0]?.count || 0);
+
+      const piiResult = await pool.query(`
+        SELECT COUNT(DISTINCT f.id) as count FROM files f
+        WHERE f.contains_pii = true AND f.data_classification IN ('Confidential', 'PHI', 'PII')
+        AND (f.quality_score < 90 OR EXISTS (SELECT 1 FROM quality_rule_violations qrv WHERE qrv.file_id = f.file_id AND qrv.severity IN ('high', 'critical')))
+        AND f.project_id = $1 AND f.project_id IN (SELECT project_id FROM get_user_projects($2))
+      `, [projectId, userId]);
+      highRiskPII = parseInt(piiResult.rows[0]?.count || 0);
+
+      const vendorResult = await pool.query(`
+        SELECT COUNT(DISTINCT va.id) as total_vendors,
+        COUNT(DISTINCT va.id) FILTER (WHERE EXISTS (SELECT 1 FROM files f WHERE f.project_id = va.project_id AND f.created_at >= $1)) as compliant_vendors
+        FROM vendor_agreements va WHERE va.status = 'active' 
+        AND va.project_id IN (SELECT project_id FROM get_user_projects($2))
+      `, [rangeStart, userId]);
+      totalVendors = parseInt(vendorResult.rows[0]?.total_vendors || 0);
+      compliantVendors = parseInt(vendorResult.rows[0]?.compliant_vendors || 0);
+
+      const govResult = await pool.query(`
+        SELECT COUNT(DISTINCT f.id) as total_files,
+        COUNT(DISTINCT f.id) FILTER (WHERE EXISTS (SELECT 1 FROM column_governance_tag_assignments cgta WHERE cgta.file_id = f.file_id AND cgta.tag_id IS NOT NULL)) as tagged_files
+        FROM files f WHERE f.created_at >= $1 
+        AND f.project_id IN (SELECT project_id FROM get_user_projects($2))
+      `, [rangeStart, userId]);
+      totalFiles = parseInt(govResult.rows[0]?.total_files || 0);
+      taggedFiles = parseInt(govResult.rows[0]?.tagged_files || 0);
+
+      const apiResult = await pool.query(`
+        SELECT COUNT(DISTINCT at.id) as active_tokens, COUNT(DISTINCT f.id) as total_requests
+        FROM api_tokens at LEFT JOIN files f ON f.created_at >= $1 AND f.metadata->>'upload_method' = 'api'
+        WHERE at.is_active = true AND at.revoked_at IS NULL AND (at.expires_at IS NULL OR at.expires_at > NOW())
+        AND (at.project_id IS NULL OR at.project_id IN (SELECT project_id FROM get_user_projects($2)))
+      `, [rangeStart, userId]);
+      activeTokens = parseInt(apiResult.rows[0]?.active_tokens || 0);
+      apiRequests = parseInt(apiResult.rows[0]?.total_requests || 0);
+
+      const sparklineResult = await pool.query(`
+        WITH date_series AS (SELECT generate_series($1::date, CURRENT_DATE, '1 day'::interval)::date as date),
+        daily_health AS (SELECT f.created_at::date as date, ROUND(AVG(COALESCE(f.quality_score, 0))::numeric, 1) as health_score FROM files f WHERE f.created_at >= $1 AND f.quality_score IS NOT NULL AND f.project_id IN (SELECT project_id FROM get_user_projects($2)) GROUP BY f.created_at::date),
+        daily_files AS (SELECT f.created_at::date as date, COUNT(*) as file_count FROM files f WHERE f.created_at >= $1 AND f.project_id IN (SELECT project_id FROM get_user_projects($2)) GROUP BY f.created_at::date)
+        SELECT ds.date, COALESCE(dh.health_score, 0) as health_score, COALESCE(df.file_count, 0) as file_count
+        FROM date_series ds LEFT JOIN daily_health dh ON ds.date = dh.date LEFT JOIN daily_files df ON ds.date = df.date ORDER BY ds.date
+      `, [sparklineStart, userId]);
+      healthSparkline = sparklineResult.rows.map(r => parseFloat(r.health_score) || 0);
+      throughputSparkline = sparklineResult.rows.map(r => parseInt(r.file_count) || 0);
     }
 
-    // ========== 1. DATA HEALTH INDEX ==========
-    // Average quality score from files table
-    const healthQuery = `
-      SELECT 
-        ROUND(AVG(COALESCE(quality_score, 0))::numeric, 1) as health_index,
-        COUNT(*) as sample_size
-      FROM files f
-      WHERE f.created_at >= $${paramOffset}
-      AND f.quality_score IS NOT NULL
-      ${fileProjectFilter}
-    `;
-    const healthParams = [...baseParams, rangeStart];
-    const healthResult = await pool.query(healthQuery, healthParams);
-    const healthIndex = healthResult.rows[0]?.sample_size > 0 
-      ? parseFloat(healthResult.rows[0]?.health_index || 0) 
-      : null;
-
-    // Get previous period for comparison
-    const prevHealthQuery = `
-      SELECT 
-        ROUND(AVG(COALESCE(quality_score, 0))::numeric, 1) as health_index,
-        COUNT(*) as sample_size
-      FROM files f
-      WHERE f.created_at >= $${paramOffset} AND f.created_at < $${paramOffset + 1}
-      AND f.quality_score IS NOT NULL
-      ${fileProjectFilter}
-    `;
-    const prevHealthParams = [...baseParams, comparisonStart, rangeStart];
-    const prevHealthResult = await pool.query(prevHealthQuery, prevHealthParams);
-    const prevHealthIndex = prevHealthResult.rows[0]?.sample_size > 0
-      ? parseFloat(prevHealthResult.rows[0]?.health_index || 0)
-      : null;
-    const healthDelta = (healthIndex !== null && prevHealthIndex !== null) 
-      ? healthIndex - prevHealthIndex 
-      : 0;
-
-    // ========== 2. FILE THROUGHPUT ==========
-    // Count of files uploaded in current period vs previous period
-    const throughputQuery = `
-      SELECT COUNT(*) as count
-      FROM files f
-      WHERE f.created_at >= $${paramOffset}
-      ${fileProjectFilter}
-    `;
-    const currentThroughput = await pool.query(throughputQuery, healthParams);
-    const currentCount = parseInt(currentThroughput.rows[0]?.count || 0);
-
-    const prevThroughputQuery = `
-      SELECT COUNT(*) as count
-      FROM files f
-      WHERE f.created_at >= $${paramOffset} AND f.created_at < $${paramOffset + 1}
-      ${fileProjectFilter}
-    `;
-    const prevThroughput = await pool.query(prevThroughputQuery, prevHealthParams);
-    const prevCount = parseInt(prevThroughput.rows[0]?.count || 0);
+    const healthDelta = (healthIndex !== null && prevHealthIndex !== null) ? healthIndex - prevHealthIndex : 0;
     const throughputDelta = prevCount > 0 ? ((currentCount - prevCount) / prevCount * 100) : 0;
-
-    // ========== 3. ETL JOB SUCCESS RATE ==========
-    // Build job project filter
-    let jobProjectFilter = '';
-    if (projectId) {
-      if (isAdmin) {
-        jobProjectFilter = `AND tj.project_id = $2`;
-      } else {
-        jobProjectFilter = `AND tj.project_id = $3 AND tj.project_id IN (SELECT project_id FROM get_user_projects($2))`;
-      }
-    } else if (!isAdmin) {
-      jobProjectFilter = `AND tj.project_id IN (SELECT project_id FROM get_user_projects($2))`;
-    }
-
-    const jobsQuery = `
-      SELECT 
-        COUNT(*) FILTER (WHERE status = 'completed') as completed,
-        COUNT(*) FILTER (WHERE status = 'failed') as failed,
-        COUNT(*) as total
-      FROM transformation_jobs tj
-      WHERE tj.created_at >= $1
-      ${jobProjectFilter}
-    `;
-    const jobParams = projectId && !isAdmin ? [rangeStart, userId, projectId] : 
-                      projectId && isAdmin ? [rangeStart, projectId] :
-                      !isAdmin ? [rangeStart, userId] : [rangeStart];
-    const jobsResult = await pool.query(jobsQuery, jobParams);
-    const completedJobs = parseInt(jobsResult.rows[0]?.completed || 0);
-    const totalJobs = parseInt(jobsResult.rows[0]?.total || 0);
     const jobSuccessRate = totalJobs > 0 ? (completedJobs / totalJobs * 100) : 100;
-
-    // ========== 4. ACTIVE CRITICAL ALERTS ==========
-    // Build alert project filter
-    let alertProjectFilter = '';
-    if (projectId) {
-      if (isAdmin) {
-        alertProjectFilter = `AND ap.project_id = $1`;
-      } else {
-        alertProjectFilter = `AND ap.project_id = $2 AND ap.project_id IN (SELECT project_id FROM get_user_projects($1))`;
-      }
-    } else if (!isAdmin) {
-      alertProjectFilter = `AND ap.project_id IN (SELECT project_id FROM get_user_projects($1))`;
-    }
-
-    const alertsQuery = `
-      SELECT COUNT(DISTINCT ae.id) as count
-      FROM alert_events ae
-      INNER JOIN alert_runs ar ON ae.run_id = ar.id
-      INNER JOIN alert_policies ap ON ar.policy_id = ap.id
-      WHERE ae.status IN ('OPEN', 'ACTIVE', 'TRIGGERED')
-      ${alertProjectFilter}
-    `;
-    const alertParams = projectId && !isAdmin ? [userId, projectId] :
-                        projectId && isAdmin ? [projectId] :
-                        !isAdmin ? [userId] : [];
-    const alertsResult = await pool.query(alertsQuery, alertParams);
-    const criticalAlerts = parseInt(alertsResult.rows[0]?.count || 0);
-
-    // ========== 5. HIGH-RISK PII EXPOSURE ==========
-    // Files with PII/PHI classification AND quality issues
-    const piiQuery = `
-      SELECT COUNT(DISTINCT f.id) as count
-      FROM files f
-      WHERE f.contains_pii = true
-      AND f.data_classification IN ('Confidential', 'PHI', 'PII')
-      AND (
-        f.quality_score < 90 
-        OR EXISTS (
-          SELECT 1 FROM quality_rule_violations qrv 
-          WHERE qrv.file_id = f.file_id AND qrv.severity IN ('high', 'critical')
-        )
-      )
-      ${fileProjectFilter}
-    `;
-    const piiResult = await pool.query(piiQuery, baseParams);
-    const highRiskPII = parseInt(piiResult.rows[0]?.count || 0);
-
-    // ========== 6. VENDOR SLA COMPLIANCE ==========
-    // Percentage of vendors meeting upload SLA (using current timeRange)
-    const vendorQuery = `
-      SELECT 
-        COUNT(DISTINCT va.id) as total_vendors,
-        COUNT(DISTINCT va.id) FILTER (
-          WHERE EXISTS (
-            SELECT 1 FROM files f 
-            WHERE f.project_id = va.project_id 
-            AND f.created_at >= $${isAdmin ? '1' : '2'}
-          )
-        ) as compliant_vendors
-      FROM vendor_agreements va
-      WHERE va.status = 'active'
-      ${isAdmin ? '' : 'AND va.project_id IN (SELECT project_id FROM get_user_projects($1))'}
-    `;
-    const vendorResult = await pool.query(vendorQuery, isAdmin ? [rangeStart] : [userId, rangeStart]);
-    const totalVendors = parseInt(vendorResult.rows[0]?.total_vendors || 0);
-    const compliantVendors = parseInt(vendorResult.rows[0]?.compliant_vendors || 0);
     const vendorCompliance = totalVendors > 0 ? (compliantVendors / totalVendors * 100) : 100;
-
-    // ========== 7. GOVERNANCE TAG COVERAGE ==========
-    // Percentage of files with governance tags
-    const govQuery = `
-      SELECT 
-        COUNT(DISTINCT f.id) as total_files,
-        COUNT(DISTINCT f.id) FILTER (
-          WHERE EXISTS (
-            SELECT 1 FROM column_governance_tag_assignments cgta 
-            WHERE cgta.file_id = f.file_id 
-            AND cgta.tag_id IS NOT NULL
-          )
-        ) as tagged_files
-      FROM files f
-      WHERE f.created_at >= $${isAdmin ? '1' : '2'}
-      ${projectFilter}
-    `;
-    const govResult = await pool.query(govQuery, isAdmin ? [rangeStart] : [userId, rangeStart]);
-    const totalFiles = parseInt(govResult.rows[0]?.total_files || 0);
-    const taggedFiles = parseInt(govResult.rows[0]?.tagged_files || 0);
     const tagCoverage = totalFiles > 0 ? (taggedFiles / totalFiles * 100) : 0;
 
-    // ========== 8. API USAGE ==========
-    // Active API tokens and upload volume
-    const apiQuery = `
-      SELECT 
-        COUNT(DISTINCT at.id) as active_tokens,
-        COUNT(DISTINCT f.id) as total_requests
-      FROM api_tokens at
-      LEFT JOIN files f ON f.created_at >= $1
-        AND f.metadata->>'upload_method' = 'api'
-      WHERE at.is_active = true
-      AND at.revoked_at IS NULL
-      AND (at.expires_at IS NULL OR at.expires_at > NOW())
-      ${isAdmin ? '' : 'AND (at.project_id IS NULL OR at.project_id IN (SELECT project_id FROM get_user_projects($2)))'}
-    `;
-    const apiResult = await pool.query(apiQuery, isAdmin ? [rangeStart] : [rangeStart, userId]);
-    const activeTokens = parseInt(apiResult.rows[0]?.active_tokens || 0);
-    const apiRequests = parseInt(apiResult.rows[0]?.total_requests || 0);
-
-    // ========== SPARKLINE DATA (7-day daily breakdown) ==========
-    // Generate sparklines for Data Health Index and File Throughput
-    const sparklineQuery = `
-      WITH date_series AS (
-        SELECT generate_series(
-          $${isAdmin ? '1' : '2'}::date,
-          CURRENT_DATE,
-          '1 day'::interval
-        )::date as date
-      ),
-      daily_health AS (
-        SELECT 
-          f.created_at::date as date,
-          ROUND(AVG(COALESCE(f.quality_score, 0))::numeric, 1) as health_score
-        FROM files f
-        WHERE f.created_at >= $${isAdmin ? '1' : '2'}
-        AND f.quality_score IS NOT NULL
-        ${projectFilter}
-        GROUP BY f.created_at::date
-      ),
-      daily_files AS (
-        SELECT 
-          f.created_at::date as date,
-          COUNT(*) as file_count
-        FROM files f
-        WHERE f.created_at >= $${isAdmin ? '1' : '2'}
-        ${projectFilter}
-        GROUP BY f.created_at::date
-      )
-      SELECT 
-        ds.date,
-        COALESCE(dh.health_score, 0) as health_score,
-        COALESCE(df.file_count, 0) as file_count
-      FROM date_series ds
-      LEFT JOIN daily_health dh ON ds.date = dh.date
-      LEFT JOIN daily_files df ON ds.date = df.date
-      ORDER BY ds.date
-    `;
-    const sparklineStart = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-    const sparklineResult = await pool.query(sparklineQuery, 
-      isAdmin ? [sparklineStart] : [userId, sparklineStart]);
-    
-    const healthSparkline = sparklineResult.rows.map(r => parseFloat(r.health_score) || 0);
-    const throughputSparkline = sparklineResult.rows.map(r => parseInt(r.file_count) || 0);
-
-    // Log calculated values for debugging
-    console.log('=== EXECUTIVE METRICS DEBUG ===');
-    console.log('Time Range:', timeRange, 'days');
-    console.log('Range Start:', rangeStart);
-    console.log('User ID:', userId, 'Is Admin:', isAdmin);
-    console.log('Data Health Index:', healthIndex);
-    console.log('File Count (current):', currentCount);
-    console.log('ETL Jobs (completed/total):', completedJobs, '/', totalJobs);
-    console.log('Vendor Compliance:', vendorCompliance, '(', compliantVendors, '/', totalVendors, ')');
-    console.log('================================');
-
-    // Return all metrics with sparklines
     res.json({
       success: true,
       timeRange: timeRange,
@@ -551,11 +622,10 @@ router.get('/project-health-scores', dashboardCacheMiddleware, async (req, res) 
     const userRoles = req.user.roles || [];
     const isAdmin = userRoles.includes('Admin');
 
-    let projectHealthQuery;
-    let queryParams;
+    let result;
 
     if (isAdmin) {
-      projectHealthQuery = `
+      result = await pool.query(`
         WITH project_quality AS (
           SELECT 
             p.id,
@@ -586,10 +656,9 @@ router.get('/project-health-scores', dashboardCacheMiddleware, async (req, res) 
         FROM project_quality
         WHERE total_files > 0
         ORDER BY health_score DESC, name ASC
-      `;
-      queryParams = [];
+      `, []);
     } else {
-      projectHealthQuery = `
+      result = await pool.query(`
         WITH accessible_projects AS (
           SELECT project_id FROM get_user_projects($1)
         ),
@@ -624,11 +693,8 @@ router.get('/project-health-scores', dashboardCacheMiddleware, async (req, res) 
         FROM project_quality
         WHERE total_files > 0
         ORDER BY health_score DESC, name ASC
-      `;
-      queryParams = [userId];
+      `, [userId]);
     }
-
-    const result = await pool.query(projectHealthQuery, queryParams);
 
     const projectHealthScores = result.rows.map(row => ({
       projectId: row.id,
