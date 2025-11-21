@@ -700,7 +700,7 @@ router.get('/project-health-scores', dashboardCacheMiddleware, async (req, res) 
       projectId: row.id,
       projectName: row.name,
       projectType: row.project_type,
-      healthScore: parseFloat(row.health_score.toFixed(1)),
+      healthScore: parseFloat(parseFloat(row.health_score || 0).toFixed(1)),
       healthStatus: row.health_status,
       totalFiles: parseInt(row.total_files),
       excellentFiles: parseInt(row.excellent_files),
@@ -815,7 +815,7 @@ router.get('/file-type-distribution', dashboardCacheMiddleware, async (req, res)
       count: parseInt(row.count),
       percentage: totalFiles > 0 ? parseFloat(((parseInt(row.count) / totalFiles) * 100).toFixed(1)) : 0,
       totalSize: parseInt(row.total_size || 0),
-      avgQuality: parseFloat((row.avg_quality || 0).toFixed(1))
+      avgQuality: parseFloat(parseFloat(row.avg_quality || 0).toFixed(1))
     }));
 
     res.json({
