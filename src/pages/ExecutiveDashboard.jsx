@@ -391,10 +391,6 @@ const ExecutiveDashboard = () => {
         </div>
       </div>
 
-      <div className="section-header project-metrics-header">
-        <h2>Project Metrics</h2>
-      </div>
-
       <div className="health-score-hero">
         <div className="health-score-card">
           <div className="health-label">Overall Data Health Index</div>
