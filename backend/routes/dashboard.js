@@ -209,20 +209,38 @@ router.get('/executive-metrics', dashboardCacheMiddleware, async (req, res) => {
     if (isAdmin && !projectId) {
       const healthResult = await pool.query(`
         SELECT ROUND(AVG(COALESCE(quality_score, 0))::numeric, 1) as health_index, COUNT(*) as sample_size
-        FROM files f WHERE f.created_at >= $1 AND f.quality_score IS NOT NULL
+        FROM files f 
+        LEFT JOIN file_audit_details fad ON f.file_id = fad.file_id
+        WHERE f.created_at >= $1 AND f.quality_score IS NOT NULL 
+        AND (fad.file_role IS NULL OR fad.file_role != 'target')
       `, [rangeStart]);
       healthIndex = healthResult.rows[0]?.sample_size > 0 ? parseFloat(healthResult.rows[0]?.health_index || 0) : null;
 
       const prevHealthResult = await pool.query(`
         SELECT ROUND(AVG(COALESCE(quality_score, 0))::numeric, 1) as health_index, COUNT(*) as sample_size
-        FROM files f WHERE f.created_at >= $1 AND f.created_at < $2 AND f.quality_score IS NOT NULL
+        FROM files f 
+        LEFT JOIN file_audit_details fad ON f.file_id = fad.file_id
+        WHERE f.created_at >= $1 AND f.created_at < $2 AND f.quality_score IS NOT NULL 
+        AND (fad.file_role IS NULL OR fad.file_role != 'target')
       `, [comparisonStart, rangeStart]);
       prevHealthIndex = prevHealthResult.rows[0]?.sample_size > 0 ? parseFloat(prevHealthResult.rows[0]?.health_index || 0) : null;
 
-      const currentThroughput = await pool.query(`SELECT COUNT(*) as count FROM files f WHERE f.created_at >= $1`, [rangeStart]);
+      const currentThroughput = await pool.query(`
+        SELECT COUNT(*) as count 
+        FROM files f 
+        LEFT JOIN file_audit_details fad ON f.file_id = fad.file_id
+        WHERE f.created_at >= $1 
+        AND (fad.file_role IS NULL OR fad.file_role != 'target')
+      `, [rangeStart]);
       currentCount = parseInt(currentThroughput.rows[0]?.count || 0);
 
-      const prevThroughput = await pool.query(`SELECT COUNT(*) as count FROM files f WHERE f.created_at >= $1 AND f.created_at < $2`, [comparisonStart, rangeStart]);
+      const prevThroughput = await pool.query(`
+        SELECT COUNT(*) as count 
+        FROM files f 
+        LEFT JOIN file_audit_details fad ON f.file_id = fad.file_id
+        WHERE f.created_at >= $1 AND f.created_at < $2 
+        AND (fad.file_role IS NULL OR fad.file_role != 'target')
+      `, [comparisonStart, rangeStart]);
       prevCount = parseInt(prevThroughput.rows[0]?.count || 0);
 
       const jobsResult = await pool.query(`
@@ -241,15 +259,23 @@ router.get('/executive-metrics', dashboardCacheMiddleware, async (req, res) => {
       criticalAlerts = parseInt(alertsResult.rows[0]?.count || 0);
 
       const piiResult = await pool.query(`
-        SELECT COUNT(DISTINCT f.id) as count FROM files f
+        SELECT COUNT(DISTINCT f.id) as count 
+        FROM files f
+        LEFT JOIN file_audit_details fad ON f.file_id = fad.file_id
         WHERE f.contains_pii = true AND f.data_classification IN ('Confidential', 'PHI', 'PII')
         AND (f.quality_score < 90 OR EXISTS (SELECT 1 FROM quality_rule_violations qrv WHERE qrv.file_id = f.file_id AND qrv.severity IN ('high', 'critical')))
+        AND (fad.file_role IS NULL OR fad.file_role != 'target')
       `, []);
       highRiskPII = parseInt(piiResult.rows[0]?.count || 0);
 
       const vendorResult = await pool.query(`
         SELECT COUNT(DISTINCT va.id) as total_vendors,
-        COUNT(DISTINCT va.id) FILTER (WHERE EXISTS (SELECT 1 FROM files f WHERE f.project_id = va.project_id AND f.created_at >= $1)) as compliant_vendors
+        COUNT(DISTINCT va.id) FILTER (WHERE EXISTS (
+          SELECT 1 FROM files f 
+          LEFT JOIN file_audit_details fad ON f.file_id = fad.file_id
+          WHERE f.project_id = va.project_id AND f.created_at >= $1 
+          AND (fad.file_role IS NULL OR fad.file_role != 'target')
+        )) as compliant_vendors
         FROM vendor_agreements va WHERE va.status = 'active'
       `, [rangeStart]);
       totalVendors = parseInt(vendorResult.rows[0]?.total_vendors || 0);
@@ -258,23 +284,43 @@ router.get('/executive-metrics', dashboardCacheMiddleware, async (req, res) => {
       const govResult = await pool.query(`
         SELECT COUNT(DISTINCT f.id) as total_files,
         COUNT(DISTINCT f.id) FILTER (WHERE EXISTS (SELECT 1 FROM column_governance_tag_assignments cgta WHERE cgta.file_id = f.file_id AND cgta.tag_id IS NOT NULL)) as tagged_files
-        FROM files f WHERE f.created_at >= $1
+        FROM files f 
+        LEFT JOIN file_audit_details fad ON f.file_id = fad.file_id
+        WHERE f.created_at >= $1 
+        AND (fad.file_role IS NULL OR fad.file_role != 'target')
       `, [rangeStart]);
       totalFiles = parseInt(govResult.rows[0]?.total_files || 0);
       taggedFiles = parseInt(govResult.rows[0]?.tagged_files || 0);
 
       const apiResult = await pool.query(`
         SELECT COUNT(DISTINCT at.id) as active_tokens, COUNT(DISTINCT f.id) as total_requests
-        FROM api_tokens at LEFT JOIN files f ON f.created_at >= $1 AND f.metadata->>'upload_method' = 'api'
+        FROM api_tokens at 
+        LEFT JOIN files f ON f.created_at >= $1 AND f.metadata->>'upload_method' = 'api'
+        LEFT JOIN file_audit_details fad ON f.file_id = fad.file_id
         WHERE at.is_active = true AND at.revoked_at IS NULL AND (at.expires_at IS NULL OR at.expires_at > NOW())
+        AND (f.id IS NULL OR fad.file_role IS NULL OR fad.file_role != 'target')
       `, [rangeStart]);
       activeTokens = parseInt(apiResult.rows[0]?.active_tokens || 0);
       apiRequests = parseInt(apiResult.rows[0]?.total_requests || 0);
 
       const sparklineResult = await pool.query(`
         WITH date_series AS (SELECT generate_series($1::date, CURRENT_DATE, '1 day'::interval)::date as date),
-        daily_health AS (SELECT f.created_at::date as date, ROUND(AVG(COALESCE(f.quality_score, 0))::numeric, 1) as health_score FROM files f WHERE f.created_at >= $1 AND f.quality_score IS NOT NULL GROUP BY f.created_at::date),
-        daily_files AS (SELECT f.created_at::date as date, COUNT(*) as file_count FROM files f WHERE f.created_at >= $1 GROUP BY f.created_at::date)
+        daily_health AS (
+          SELECT f.created_at::date as date, ROUND(AVG(COALESCE(f.quality_score, 0))::numeric, 1) as health_score 
+          FROM files f 
+          LEFT JOIN file_audit_details fad ON f.file_id = fad.file_id
+          WHERE f.created_at >= $1 AND f.quality_score IS NOT NULL 
+          AND (fad.file_role IS NULL OR fad.file_role != 'target')
+          GROUP BY f.created_at::date
+        ),
+        daily_files AS (
+          SELECT f.created_at::date as date, COUNT(*) as file_count 
+          FROM files f 
+          LEFT JOIN file_audit_details fad ON f.file_id = fad.file_id
+          WHERE f.created_at >= $1 
+          AND (fad.file_role IS NULL OR fad.file_role != 'target')
+          GROUP BY f.created_at::date
+        )
         SELECT ds.date, COALESCE(dh.health_score, 0) as health_score, COALESCE(df.file_count, 0) as file_count
         FROM date_series ds LEFT JOIN daily_health dh ON ds.date = dh.date LEFT JOIN daily_files df ON ds.date = df.date ORDER BY ds.date
       `, [sparklineStart]);
@@ -284,20 +330,38 @@ router.get('/executive-metrics', dashboardCacheMiddleware, async (req, res) => {
     } else if (isAdmin && projectId) {
       const healthResult = await pool.query(`
         SELECT ROUND(AVG(COALESCE(quality_score, 0))::numeric, 1) as health_index, COUNT(*) as sample_size
-        FROM files f WHERE f.created_at >= $1 AND f.quality_score IS NOT NULL AND f.project_id = $2
+        FROM files f 
+        LEFT JOIN file_audit_details fad ON f.file_id = fad.file_id
+        WHERE f.created_at >= $1 AND f.quality_score IS NOT NULL AND f.project_id = $2 
+        AND (fad.file_role IS NULL OR fad.file_role != 'target')
       `, [rangeStart, projectId]);
       healthIndex = healthResult.rows[0]?.sample_size > 0 ? parseFloat(healthResult.rows[0]?.health_index || 0) : null;
 
       const prevHealthResult = await pool.query(`
         SELECT ROUND(AVG(COALESCE(quality_score, 0))::numeric, 1) as health_index, COUNT(*) as sample_size
-        FROM files f WHERE f.created_at >= $1 AND f.created_at < $2 AND f.quality_score IS NOT NULL AND f.project_id = $3
+        FROM files f 
+        LEFT JOIN file_audit_details fad ON f.file_id = fad.file_id
+        WHERE f.created_at >= $1 AND f.created_at < $2 AND f.quality_score IS NOT NULL AND f.project_id = $3 
+        AND (fad.file_role IS NULL OR fad.file_role != 'target')
       `, [comparisonStart, rangeStart, projectId]);
       prevHealthIndex = prevHealthResult.rows[0]?.sample_size > 0 ? parseFloat(prevHealthResult.rows[0]?.health_index || 0) : null;
 
-      const currentThroughput = await pool.query(`SELECT COUNT(*) as count FROM files f WHERE f.created_at >= $1 AND f.project_id = $2`, [rangeStart, projectId]);
+      const currentThroughput = await pool.query(`
+        SELECT COUNT(*) as count 
+        FROM files f 
+        LEFT JOIN file_audit_details fad ON f.file_id = fad.file_id
+        WHERE f.created_at >= $1 AND f.project_id = $2 
+        AND (fad.file_role IS NULL OR fad.file_role != 'target')
+      `, [rangeStart, projectId]);
       currentCount = parseInt(currentThroughput.rows[0]?.count || 0);
 
-      const prevThroughput = await pool.query(`SELECT COUNT(*) as count FROM files f WHERE f.created_at >= $1 AND f.created_at < $2 AND f.project_id = $3`, [comparisonStart, rangeStart, projectId]);
+      const prevThroughput = await pool.query(`
+        SELECT COUNT(*) as count 
+        FROM files f 
+        LEFT JOIN file_audit_details fad ON f.file_id = fad.file_id
+        WHERE f.created_at >= $1 AND f.created_at < $2 AND f.project_id = $3 
+        AND (fad.file_role IS NULL OR fad.file_role != 'target')
+      `, [comparisonStart, rangeStart, projectId]);
       prevCount = parseInt(prevThroughput.rows[0]?.count || 0);
 
       const jobsResult = await pool.query(`
@@ -316,16 +380,24 @@ router.get('/executive-metrics', dashboardCacheMiddleware, async (req, res) => {
       criticalAlerts = parseInt(alertsResult.rows[0]?.count || 0);
 
       const piiResult = await pool.query(`
-        SELECT COUNT(DISTINCT f.id) as count FROM files f
+        SELECT COUNT(DISTINCT f.id) as count 
+        FROM files f
+        LEFT JOIN file_audit_details fad ON f.file_id = fad.file_id
         WHERE f.contains_pii = true AND f.data_classification IN ('Confidential', 'PHI', 'PII')
         AND (f.quality_score < 90 OR EXISTS (SELECT 1 FROM quality_rule_violations qrv WHERE qrv.file_id = f.file_id AND qrv.severity IN ('high', 'critical')))
-        AND f.project_id = $1
+        AND f.project_id = $1 
+        AND (fad.file_role IS NULL OR fad.file_role != 'target')
       `, [projectId]);
       highRiskPII = parseInt(piiResult.rows[0]?.count || 0);
 
       const vendorResult = await pool.query(`
         SELECT COUNT(DISTINCT va.id) as total_vendors,
-        COUNT(DISTINCT va.id) FILTER (WHERE EXISTS (SELECT 1 FROM files f WHERE f.project_id = va.project_id AND f.created_at >= $1)) as compliant_vendors
+        COUNT(DISTINCT va.id) FILTER (WHERE EXISTS (
+          SELECT 1 FROM files f 
+          LEFT JOIN file_audit_details fad ON f.file_id = fad.file_id
+          WHERE f.project_id = va.project_id AND f.created_at >= $1 
+          AND (fad.file_role IS NULL OR fad.file_role != 'target')
+        )) as compliant_vendors
         FROM vendor_agreements va WHERE va.status = 'active'
       `, [rangeStart]);
       totalVendors = parseInt(vendorResult.rows[0]?.total_vendors || 0);
@@ -334,23 +406,43 @@ router.get('/executive-metrics', dashboardCacheMiddleware, async (req, res) => {
       const govResult = await pool.query(`
         SELECT COUNT(DISTINCT f.id) as total_files,
         COUNT(DISTINCT f.id) FILTER (WHERE EXISTS (SELECT 1 FROM column_governance_tag_assignments cgta WHERE cgta.file_id = f.file_id AND cgta.tag_id IS NOT NULL)) as tagged_files
-        FROM files f WHERE f.created_at >= $1
+        FROM files f 
+        LEFT JOIN file_audit_details fad ON f.file_id = fad.file_id
+        WHERE f.created_at >= $1 
+        AND (fad.file_role IS NULL OR fad.file_role != 'target')
       `, [rangeStart]);
       totalFiles = parseInt(govResult.rows[0]?.total_files || 0);
       taggedFiles = parseInt(govResult.rows[0]?.tagged_files || 0);
 
       const apiResult = await pool.query(`
         SELECT COUNT(DISTINCT at.id) as active_tokens, COUNT(DISTINCT f.id) as total_requests
-        FROM api_tokens at LEFT JOIN files f ON f.created_at >= $1 AND f.metadata->>'upload_method' = 'api'
+        FROM api_tokens at 
+        LEFT JOIN files f ON f.created_at >= $1 AND f.metadata->>'upload_method' = 'api'
+        LEFT JOIN file_audit_details fad ON f.file_id = fad.file_id
         WHERE at.is_active = true AND at.revoked_at IS NULL AND (at.expires_at IS NULL OR at.expires_at > NOW())
+        AND (f.id IS NULL OR fad.file_role IS NULL OR fad.file_role != 'target')
       `, [rangeStart]);
       activeTokens = parseInt(apiResult.rows[0]?.active_tokens || 0);
       apiRequests = parseInt(apiResult.rows[0]?.total_requests || 0);
 
       const sparklineResult = await pool.query(`
         WITH date_series AS (SELECT generate_series($1::date, CURRENT_DATE, '1 day'::interval)::date as date),
-        daily_health AS (SELECT f.created_at::date as date, ROUND(AVG(COALESCE(f.quality_score, 0))::numeric, 1) as health_score FROM files f WHERE f.created_at >= $1 AND f.quality_score IS NOT NULL GROUP BY f.created_at::date),
-        daily_files AS (SELECT f.created_at::date as date, COUNT(*) as file_count FROM files f WHERE f.created_at >= $1 GROUP BY f.created_at::date)
+        daily_health AS (
+          SELECT f.created_at::date as date, ROUND(AVG(COALESCE(f.quality_score, 0))::numeric, 1) as health_score 
+          FROM files f 
+          LEFT JOIN file_audit_details fad ON f.file_id = fad.file_id
+          WHERE f.created_at >= $1 AND f.quality_score IS NOT NULL 
+          AND (fad.file_role IS NULL OR fad.file_role != 'target')
+          GROUP BY f.created_at::date
+        ),
+        daily_files AS (
+          SELECT f.created_at::date as date, COUNT(*) as file_count 
+          FROM files f 
+          LEFT JOIN file_audit_details fad ON f.file_id = fad.file_id
+          WHERE f.created_at >= $1 
+          AND (fad.file_role IS NULL OR fad.file_role != 'target')
+          GROUP BY f.created_at::date
+        )
         SELECT ds.date, COALESCE(dh.health_score, 0) as health_score, COALESCE(df.file_count, 0) as file_count
         FROM date_series ds LEFT JOIN daily_health dh ON ds.date = dh.date LEFT JOIN daily_files df ON ds.date = df.date ORDER BY ds.date
       `, [sparklineStart]);
@@ -360,27 +452,41 @@ router.get('/executive-metrics', dashboardCacheMiddleware, async (req, res) => {
     } else if (!isAdmin && !projectId) {
       const healthResult = await pool.query(`
         SELECT ROUND(AVG(COALESCE(quality_score, 0))::numeric, 1) as health_index, COUNT(*) as sample_size
-        FROM files f WHERE f.created_at >= $1 AND f.quality_score IS NOT NULL 
-        AND f.project_id IN (SELECT project_id FROM get_user_projects($2))
+        FROM files f 
+        LEFT JOIN file_audit_details fad ON f.file_id = fad.file_id
+        WHERE f.created_at >= $1 AND f.quality_score IS NOT NULL 
+        AND f.project_id IN (SELECT project_id FROM get_user_projects($2)) 
+        AND (fad.file_role IS NULL OR fad.file_role != 'target')
       `, [rangeStart, userId]);
       healthIndex = healthResult.rows[0]?.sample_size > 0 ? parseFloat(healthResult.rows[0]?.health_index || 0) : null;
 
       const prevHealthResult = await pool.query(`
         SELECT ROUND(AVG(COALESCE(quality_score, 0))::numeric, 1) as health_index, COUNT(*) as sample_size
-        FROM files f WHERE f.created_at >= $1 AND f.created_at < $2 AND f.quality_score IS NOT NULL 
-        AND f.project_id IN (SELECT project_id FROM get_user_projects($3))
+        FROM files f 
+        LEFT JOIN file_audit_details fad ON f.file_id = fad.file_id
+        WHERE f.created_at >= $1 AND f.created_at < $2 AND f.quality_score IS NOT NULL 
+        AND f.project_id IN (SELECT project_id FROM get_user_projects($3)) 
+        AND (fad.file_role IS NULL OR fad.file_role != 'target')
       `, [comparisonStart, rangeStart, userId]);
       prevHealthIndex = prevHealthResult.rows[0]?.sample_size > 0 ? parseFloat(prevHealthResult.rows[0]?.health_index || 0) : null;
 
       const currentThroughput = await pool.query(`
-        SELECT COUNT(*) as count FROM files f WHERE f.created_at >= $1 
-        AND f.project_id IN (SELECT project_id FROM get_user_projects($2))
+        SELECT COUNT(*) as count 
+        FROM files f 
+        LEFT JOIN file_audit_details fad ON f.file_id = fad.file_id
+        WHERE f.created_at >= $1 
+        AND f.project_id IN (SELECT project_id FROM get_user_projects($2)) 
+        AND (fad.file_role IS NULL OR fad.file_role != 'target')
       `, [rangeStart, userId]);
       currentCount = parseInt(currentThroughput.rows[0]?.count || 0);
 
       const prevThroughput = await pool.query(`
-        SELECT COUNT(*) as count FROM files f WHERE f.created_at >= $1 AND f.created_at < $2 
-        AND f.project_id IN (SELECT project_id FROM get_user_projects($3))
+        SELECT COUNT(*) as count 
+        FROM files f 
+        LEFT JOIN file_audit_details fad ON f.file_id = fad.file_id
+        WHERE f.created_at >= $1 AND f.created_at < $2 
+        AND f.project_id IN (SELECT project_id FROM get_user_projects($3)) 
+        AND (fad.file_role IS NULL OR fad.file_role != 'target')
       `, [comparisonStart, rangeStart, userId]);
       prevCount = parseInt(prevThroughput.rows[0]?.count || 0);
 
@@ -402,16 +508,24 @@ router.get('/executive-metrics', dashboardCacheMiddleware, async (req, res) => {
       criticalAlerts = parseInt(alertsResult.rows[0]?.count || 0);
 
       const piiResult = await pool.query(`
-        SELECT COUNT(DISTINCT f.id) as count FROM files f
+        SELECT COUNT(DISTINCT f.id) as count 
+        FROM files f
+        LEFT JOIN file_audit_details fad ON f.file_id = fad.file_id
         WHERE f.contains_pii = true AND f.data_classification IN ('Confidential', 'PHI', 'PII')
         AND (f.quality_score < 90 OR EXISTS (SELECT 1 FROM quality_rule_violations qrv WHERE qrv.file_id = f.file_id AND qrv.severity IN ('high', 'critical')))
-        AND f.project_id IN (SELECT project_id FROM get_user_projects($1))
+        AND f.project_id IN (SELECT project_id FROM get_user_projects($1)) 
+        AND (fad.file_role IS NULL OR fad.file_role != 'target')
       `, [userId]);
       highRiskPII = parseInt(piiResult.rows[0]?.count || 0);
 
       const vendorResult = await pool.query(`
         SELECT COUNT(DISTINCT va.id) as total_vendors,
-        COUNT(DISTINCT va.id) FILTER (WHERE EXISTS (SELECT 1 FROM files f WHERE f.project_id = va.project_id AND f.created_at >= $1)) as compliant_vendors
+        COUNT(DISTINCT va.id) FILTER (WHERE EXISTS (
+          SELECT 1 FROM files f 
+          LEFT JOIN file_audit_details fad ON f.file_id = fad.file_id
+          WHERE f.project_id = va.project_id AND f.created_at >= $1 
+          AND (fad.file_role IS NULL OR fad.file_role != 'target')
+        )) as compliant_vendors
         FROM vendor_agreements va WHERE va.status = 'active' 
         AND va.project_id IN (SELECT project_id FROM get_user_projects($2))
       `, [rangeStart, userId]);
@@ -421,25 +535,47 @@ router.get('/executive-metrics', dashboardCacheMiddleware, async (req, res) => {
       const govResult = await pool.query(`
         SELECT COUNT(DISTINCT f.id) as total_files,
         COUNT(DISTINCT f.id) FILTER (WHERE EXISTS (SELECT 1 FROM column_governance_tag_assignments cgta WHERE cgta.file_id = f.file_id AND cgta.tag_id IS NOT NULL)) as tagged_files
-        FROM files f WHERE f.created_at >= $1 
-        AND f.project_id IN (SELECT project_id FROM get_user_projects($2))
+        FROM files f 
+        LEFT JOIN file_audit_details fad ON f.file_id = fad.file_id
+        WHERE f.created_at >= $1 
+        AND f.project_id IN (SELECT project_id FROM get_user_projects($2)) 
+        AND (fad.file_role IS NULL OR fad.file_role != 'target')
       `, [rangeStart, userId]);
       totalFiles = parseInt(govResult.rows[0]?.total_files || 0);
       taggedFiles = parseInt(govResult.rows[0]?.tagged_files || 0);
 
       const apiResult = await pool.query(`
         SELECT COUNT(DISTINCT at.id) as active_tokens, COUNT(DISTINCT f.id) as total_requests
-        FROM api_tokens at LEFT JOIN files f ON f.created_at >= $1 AND f.metadata->>'upload_method' = 'api'
+        FROM api_tokens at 
+        LEFT JOIN files f ON f.created_at >= $1 AND f.metadata->>'upload_method' = 'api'
+        LEFT JOIN file_audit_details fad ON f.file_id = fad.file_id
         WHERE at.is_active = true AND at.revoked_at IS NULL AND (at.expires_at IS NULL OR at.expires_at > NOW())
-        AND (at.project_id IS NULL OR at.project_id IN (SELECT project_id FROM get_user_projects($2)))
+        AND (at.project_id IS NULL OR at.project_id IN (SELECT project_id FROM get_user_projects($2))) 
+        AND (f.id IS NULL OR fad.file_role IS NULL OR fad.file_role != 'target')
       `, [rangeStart, userId]);
       activeTokens = parseInt(apiResult.rows[0]?.active_tokens || 0);
       apiRequests = parseInt(apiResult.rows[0]?.total_requests || 0);
 
       const sparklineResult = await pool.query(`
         WITH date_series AS (SELECT generate_series($1::date, CURRENT_DATE, '1 day'::interval)::date as date),
-        daily_health AS (SELECT f.created_at::date as date, ROUND(AVG(COALESCE(f.quality_score, 0))::numeric, 1) as health_score FROM files f WHERE f.created_at >= $1 AND f.quality_score IS NOT NULL AND f.project_id IN (SELECT project_id FROM get_user_projects($2)) GROUP BY f.created_at::date),
-        daily_files AS (SELECT f.created_at::date as date, COUNT(*) as file_count FROM files f WHERE f.created_at >= $1 AND f.project_id IN (SELECT project_id FROM get_user_projects($2)) GROUP BY f.created_at::date)
+        daily_health AS (
+          SELECT f.created_at::date as date, ROUND(AVG(COALESCE(f.quality_score, 0))::numeric, 1) as health_score 
+          FROM files f 
+          LEFT JOIN file_audit_details fad ON f.file_id = fad.file_id
+          WHERE f.created_at >= $1 AND f.quality_score IS NOT NULL 
+          AND f.project_id IN (SELECT project_id FROM get_user_projects($2)) 
+          AND (fad.file_role IS NULL OR fad.file_role != 'target')
+          GROUP BY f.created_at::date
+        ),
+        daily_files AS (
+          SELECT f.created_at::date as date, COUNT(*) as file_count 
+          FROM files f 
+          LEFT JOIN file_audit_details fad ON f.file_id = fad.file_id
+          WHERE f.created_at >= $1 
+          AND f.project_id IN (SELECT project_id FROM get_user_projects($2)) 
+          AND (fad.file_role IS NULL OR fad.file_role != 'target')
+          GROUP BY f.created_at::date
+        )
         SELECT ds.date, COALESCE(dh.health_score, 0) as health_score, COALESCE(df.file_count, 0) as file_count
         FROM date_series ds LEFT JOIN daily_health dh ON ds.date = dh.date LEFT JOIN daily_files df ON ds.date = df.date ORDER BY ds.date
       `, [sparklineStart, userId]);
@@ -449,27 +585,41 @@ router.get('/executive-metrics', dashboardCacheMiddleware, async (req, res) => {
     } else {
       const healthResult = await pool.query(`
         SELECT ROUND(AVG(COALESCE(quality_score, 0))::numeric, 1) as health_index, COUNT(*) as sample_size
-        FROM files f WHERE f.created_at >= $1 AND f.quality_score IS NOT NULL 
-        AND f.project_id = $2 AND f.project_id IN (SELECT project_id FROM get_user_projects($3))
+        FROM files f 
+        LEFT JOIN file_audit_details fad ON f.file_id = fad.file_id
+        WHERE f.created_at >= $1 AND f.quality_score IS NOT NULL 
+        AND f.project_id = $2 AND f.project_id IN (SELECT project_id FROM get_user_projects($3)) 
+        AND (fad.file_role IS NULL OR fad.file_role != 'target')
       `, [rangeStart, projectId, userId]);
       healthIndex = healthResult.rows[0]?.sample_size > 0 ? parseFloat(healthResult.rows[0]?.health_index || 0) : null;
 
       const prevHealthResult = await pool.query(`
         SELECT ROUND(AVG(COALESCE(quality_score, 0))::numeric, 1) as health_index, COUNT(*) as sample_size
-        FROM files f WHERE f.created_at >= $1 AND f.created_at < $2 AND f.quality_score IS NOT NULL 
-        AND f.project_id = $3 AND f.project_id IN (SELECT project_id FROM get_user_projects($4))
+        FROM files f 
+        LEFT JOIN file_audit_details fad ON f.file_id = fad.file_id
+        WHERE f.created_at >= $1 AND f.created_at < $2 AND f.quality_score IS NOT NULL 
+        AND f.project_id = $3 AND f.project_id IN (SELECT project_id FROM get_user_projects($4)) 
+        AND (fad.file_role IS NULL OR fad.file_role != 'target')
       `, [comparisonStart, rangeStart, projectId, userId]);
       prevHealthIndex = prevHealthResult.rows[0]?.sample_size > 0 ? parseFloat(prevHealthResult.rows[0]?.health_index || 0) : null;
 
       const currentThroughput = await pool.query(`
-        SELECT COUNT(*) as count FROM files f WHERE f.created_at >= $1 
-        AND f.project_id = $2 AND f.project_id IN (SELECT project_id FROM get_user_projects($3))
+        SELECT COUNT(*) as count 
+        FROM files f 
+        LEFT JOIN file_audit_details fad ON f.file_id = fad.file_id
+        WHERE f.created_at >= $1 
+        AND f.project_id = $2 AND f.project_id IN (SELECT project_id FROM get_user_projects($3)) 
+        AND (fad.file_role IS NULL OR fad.file_role != 'target')
       `, [rangeStart, projectId, userId]);
       currentCount = parseInt(currentThroughput.rows[0]?.count || 0);
 
       const prevThroughput = await pool.query(`
-        SELECT COUNT(*) as count FROM files f WHERE f.created_at >= $1 AND f.created_at < $2 
-        AND f.project_id = $3 AND f.project_id IN (SELECT project_id FROM get_user_projects($4))
+        SELECT COUNT(*) as count 
+        FROM files f 
+        LEFT JOIN file_audit_details fad ON f.file_id = fad.file_id
+        WHERE f.created_at >= $1 AND f.created_at < $2 
+        AND f.project_id = $3 AND f.project_id IN (SELECT project_id FROM get_user_projects($4)) 
+        AND (fad.file_role IS NULL OR fad.file_role != 'target')
       `, [comparisonStart, rangeStart, projectId, userId]);
       prevCount = parseInt(prevThroughput.rows[0]?.count || 0);
 
@@ -491,16 +641,24 @@ router.get('/executive-metrics', dashboardCacheMiddleware, async (req, res) => {
       criticalAlerts = parseInt(alertsResult.rows[0]?.count || 0);
 
       const piiResult = await pool.query(`
-        SELECT COUNT(DISTINCT f.id) as count FROM files f
+        SELECT COUNT(DISTINCT f.id) as count 
+        FROM files f
+        LEFT JOIN file_audit_details fad ON f.file_id = fad.file_id
         WHERE f.contains_pii = true AND f.data_classification IN ('Confidential', 'PHI', 'PII')
         AND (f.quality_score < 90 OR EXISTS (SELECT 1 FROM quality_rule_violations qrv WHERE qrv.file_id = f.file_id AND qrv.severity IN ('high', 'critical')))
-        AND f.project_id = $1 AND f.project_id IN (SELECT project_id FROM get_user_projects($2))
+        AND f.project_id = $1 AND f.project_id IN (SELECT project_id FROM get_user_projects($2)) 
+        AND (fad.file_role IS NULL OR fad.file_role != 'target')
       `, [projectId, userId]);
       highRiskPII = parseInt(piiResult.rows[0]?.count || 0);
 
       const vendorResult = await pool.query(`
         SELECT COUNT(DISTINCT va.id) as total_vendors,
-        COUNT(DISTINCT va.id) FILTER (WHERE EXISTS (SELECT 1 FROM files f WHERE f.project_id = va.project_id AND f.created_at >= $1)) as compliant_vendors
+        COUNT(DISTINCT va.id) FILTER (WHERE EXISTS (
+          SELECT 1 FROM files f 
+          LEFT JOIN file_audit_details fad ON f.file_id = fad.file_id
+          WHERE f.project_id = va.project_id AND f.created_at >= $1 
+          AND (fad.file_role IS NULL OR fad.file_role != 'target')
+        )) as compliant_vendors
         FROM vendor_agreements va WHERE va.status = 'active' 
         AND va.project_id IN (SELECT project_id FROM get_user_projects($2))
       `, [rangeStart, userId]);
@@ -510,25 +668,47 @@ router.get('/executive-metrics', dashboardCacheMiddleware, async (req, res) => {
       const govResult = await pool.query(`
         SELECT COUNT(DISTINCT f.id) as total_files,
         COUNT(DISTINCT f.id) FILTER (WHERE EXISTS (SELECT 1 FROM column_governance_tag_assignments cgta WHERE cgta.file_id = f.file_id AND cgta.tag_id IS NOT NULL)) as tagged_files
-        FROM files f WHERE f.created_at >= $1 
-        AND f.project_id IN (SELECT project_id FROM get_user_projects($2))
+        FROM files f 
+        LEFT JOIN file_audit_details fad ON f.file_id = fad.file_id
+        WHERE f.created_at >= $1 
+        AND f.project_id IN (SELECT project_id FROM get_user_projects($2)) 
+        AND (fad.file_role IS NULL OR fad.file_role != 'target')
       `, [rangeStart, userId]);
       totalFiles = parseInt(govResult.rows[0]?.total_files || 0);
       taggedFiles = parseInt(govResult.rows[0]?.tagged_files || 0);
 
       const apiResult = await pool.query(`
         SELECT COUNT(DISTINCT at.id) as active_tokens, COUNT(DISTINCT f.id) as total_requests
-        FROM api_tokens at LEFT JOIN files f ON f.created_at >= $1 AND f.metadata->>'upload_method' = 'api'
+        FROM api_tokens at 
+        LEFT JOIN files f ON f.created_at >= $1 AND f.metadata->>'upload_method' = 'api'
+        LEFT JOIN file_audit_details fad ON f.file_id = fad.file_id
         WHERE at.is_active = true AND at.revoked_at IS NULL AND (at.expires_at IS NULL OR at.expires_at > NOW())
-        AND (at.project_id IS NULL OR at.project_id IN (SELECT project_id FROM get_user_projects($2)))
+        AND (at.project_id IS NULL OR at.project_id IN (SELECT project_id FROM get_user_projects($2))) 
+        AND (f.id IS NULL OR fad.file_role IS NULL OR fad.file_role != 'target')
       `, [rangeStart, userId]);
       activeTokens = parseInt(apiResult.rows[0]?.active_tokens || 0);
       apiRequests = parseInt(apiResult.rows[0]?.total_requests || 0);
 
       const sparklineResult = await pool.query(`
         WITH date_series AS (SELECT generate_series($1::date, CURRENT_DATE, '1 day'::interval)::date as date),
-        daily_health AS (SELECT f.created_at::date as date, ROUND(AVG(COALESCE(f.quality_score, 0))::numeric, 1) as health_score FROM files f WHERE f.created_at >= $1 AND f.quality_score IS NOT NULL AND f.project_id IN (SELECT project_id FROM get_user_projects($2)) GROUP BY f.created_at::date),
-        daily_files AS (SELECT f.created_at::date as date, COUNT(*) as file_count FROM files f WHERE f.created_at >= $1 AND f.project_id IN (SELECT project_id FROM get_user_projects($2)) GROUP BY f.created_at::date)
+        daily_health AS (
+          SELECT f.created_at::date as date, ROUND(AVG(COALESCE(f.quality_score, 0))::numeric, 1) as health_score 
+          FROM files f 
+          LEFT JOIN file_audit_details fad ON f.file_id = fad.file_id
+          WHERE f.created_at >= $1 AND f.quality_score IS NOT NULL 
+          AND f.project_id IN (SELECT project_id FROM get_user_projects($2)) 
+          AND (fad.file_role IS NULL OR fad.file_role != 'target')
+          GROUP BY f.created_at::date
+        ),
+        daily_files AS (
+          SELECT f.created_at::date as date, COUNT(*) as file_count 
+          FROM files f 
+          LEFT JOIN file_audit_details fad ON f.file_id = fad.file_id
+          WHERE f.created_at >= $1 
+          AND f.project_id IN (SELECT project_id FROM get_user_projects($2)) 
+          AND (fad.file_role IS NULL OR fad.file_role != 'target')
+          GROUP BY f.created_at::date
+        )
         SELECT ds.date, COALESCE(dh.health_score, 0) as health_score, COALESCE(df.file_count, 0) as file_count
         FROM date_series ds LEFT JOIN daily_health dh ON ds.date = dh.date LEFT JOIN daily_files df ON ds.date = df.date ORDER BY ds.date
       `, [sparklineStart, userId]);
