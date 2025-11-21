@@ -521,6 +521,14 @@ const ExecutiveDashboard = () => {
               <div className="kpi-value">{(metrics.platformOverview?.internalConnections || 0).toLocaleString()}</div>
               <div className="kpi-trend neutral">Local storage paths</div>
             </div>
+
+            <div className="kpi-card">
+              <div className="kpi-label">SLA Breaches</div>
+              <div className="kpi-value">{(metrics.platformOverview?.slaBreaches || 0).toLocaleString()}</div>
+              <div className="kpi-trend neutral">
+                {metrics.slaBreaches ? `${metrics.slaBreaches.missingFiles || 0} missing, ${metrics.slaBreaches.lateFiles || 0} late` : 'No breaches'}
+              </div>
+            </div>
           </div>
         </>
       )}
