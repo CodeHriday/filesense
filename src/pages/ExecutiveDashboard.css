@@ -15,12 +15,12 @@
   --exec-chart-blue: #4C6EF5;
   --exec-chart-orange: #FF9F43;
   
-  /* Typography - 25% smaller for compact design */
-  --exec-font-family: 'Inter', 'SF Pro Display', sans-serif;
-  --exec-text-xl: 18px;
-  --exec-text-lg: 13.5px;
-  --exec-text-md: 10.5px;
-  --exec-text-sm: 9px;
+  /* Typography - Standardized 12px medium Inter */
+  --exec-font-family: 'Inter', sans-serif;
+  --exec-text-xl: 12px;
+  --exec-text-lg: 12px;
+  --exec-text-md: 12px;
+  --exec-text-sm: 12px;
   --exec-font-semibold: 600;
   --exec-font-medium: 500;
   --exec-font-regular: 400;
@@ -56,8 +56,9 @@
 }
 
 .dashboard-header h1 {
-  font-size: 1.1rem;
-  font-weight: 600;
+  font-size: 12px;
+  font-family: 'Inter', sans-serif;
+  font-weight: var(--exec-font-medium);
   color: #333;
   margin: 0;
 }
@@ -72,14 +73,17 @@
 }
 
 .section-header h2 {
-  font-size: 15px;
-  font-weight: var(--exec-font-semibold);
+  font-size: 12px;
+  font-family: 'Inter', sans-serif;
+  font-weight: var(--exec-font-medium);
   color: #025043;
   margin: 0;
 }
 
 .section-description {
-  font-size: var(--exec-text-sm);
+  font-size: 12px;
+  font-family: 'Inter', sans-serif;
+  font-weight: var(--exec-font-medium);
   color: var(--exec-text-muted);
   margin: 4px 0 0 0;
 }
@@ -150,7 +154,8 @@
 }
 
 .health-label {
-  font-size: var(--exec-text-md);
+  font-size: 12px;
+  font-family: 'Inter', sans-serif;
   font-weight: var(--exec-font-medium);
   text-transform: uppercase;
   letter-spacing: 1px;
@@ -159,16 +164,17 @@
 }
 
 .health-value {
-  font-size: 36px;
-  font-weight: 700;
+  font-size: 12px;
+  font-family: 'Inter', sans-serif;
+  font-weight: var(--exec-font-medium);
   line-height: 1;
   margin-bottom: var(--exec-space-sm);
-  text-shadow: 0px 3px 9px rgba(0, 0, 0, 0.1);
 }
 
 .health-status {
-  font-size: var(--exec-text-lg);
-  font-weight: var(--exec-font-semibold);
+  font-size: 12px;
+  font-family: 'Inter', sans-serif;
+  font-weight: var(--exec-font-medium);
   margin-bottom: var(--exec-space-md);
   opacity: 0.95;
 }
@@ -190,7 +196,8 @@
 }
 
 .health-metric span:first-child {
-  font-size: var(--exec-text-sm);
+  font-size: 12px;
+  font-family: 'Inter', sans-serif;
   font-weight: var(--exec-font-medium);
   opacity: 0.85;
   text-transform: uppercase;
@@ -198,8 +205,9 @@
 }
 
 .health-metric span:last-child {
-  font-size: 18px;
-  font-weight: 700;
+  font-size: 12px;
+  font-family: 'Inter', sans-serif;
+  font-weight: var(--exec-font-medium);
   color: white;
 }
 
@@ -226,7 +234,8 @@
 }
 
 .kpi-label {
-  font-size: var(--exec-text-sm);
+  font-size: 12px;
+  font-family: 'Inter', sans-serif;
   font-weight: var(--exec-font-medium);
   color: var(--exec-text-muted);
   text-transform: uppercase;
@@ -235,8 +244,9 @@
 }
 
 .kpi-value {
-  font-size: 21px;
-  font-weight: 700;
+  font-size: 12px;
+  font-family: 'Inter', sans-serif;
+  font-weight: var(--exec-font-medium);
   color: var(--exec-text-title);
   line-height: 1.2;
   margin-bottom: var(--exec-space-sm);
@@ -248,7 +258,8 @@
 }
 
 .kpi-trend {
-  font-size: var(--exec-text-sm);
+  font-size: 12px;
+  font-family: 'Inter', sans-serif;
   font-weight: var(--exec-font-medium);
   display: flex;
   align-items: center;
@@ -309,7 +320,8 @@
 
 .chart-header h3 {
   font-size: 12px;
-  font-weight: var(--exec-font-semibold);
+  font-family: 'Inter', sans-serif;
+  font-weight: var(--exec-font-medium);
   color: var(--exec-text-title);
   margin: 0;
 }
@@ -334,7 +346,8 @@
   justify-content: center;
   height: 100%;
   color: var(--exec-text-muted);
-  font-size: var(--exec-text-md);
+  font-size: 12px;
+  font-family: 'Inter', sans-serif;
   font-weight: var(--exec-font-medium);
 }
 
@@ -361,8 +374,9 @@
 }
 
 .stat-header h3 {
-  font-size: var(--exec-text-lg);
-  font-weight: var(--exec-font-semibold);
+  font-size: 12px;
+  font-family: 'Inter', sans-serif;
+  font-weight: var(--exec-font-medium);
   color: var(--exec-text-title);
   margin: 0;
 }
@@ -389,7 +403,7 @@
 .stat-value {
   font-size: 12px;
   font-family: 'Inter', sans-serif;
-  font-weight: var(--exec-font-semibold);
+  font-weight: var(--exec-font-medium);
   color: var(--exec-text-title);
 }
 
@@ -420,7 +434,9 @@
   border-radius: var(--exec-radius-card);
   padding: var(--exec-space-xl);
   box-shadow: var(--exec-shadow-card);
-  font-size: var(--exec-text-lg);
+  font-size: 12px;
+  font-family: 'Inter', sans-serif;
+  font-weight: var(--exec-font-medium);
   color: var(--exec-text-body);
 }
 
@@ -444,10 +460,6 @@
   .project-selector,
   .time-range-selector {
     width: 100%;
-  }
-
-  .health-value {
-    font-size: 48px;
   }
 
   .health-breakdown {
@@ -476,16 +488,8 @@
 }
 
 @media (max-width: 480px) {
-  .health-value {
-    font-size: 40px;
-  }
-
   .health-breakdown {
     grid-template-columns: 1fr;
-  }
-
-  .kpi-value {
-    font-size: 24px;
   }
   
   .chart-container {
