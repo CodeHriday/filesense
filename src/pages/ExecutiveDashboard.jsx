@@ -456,11 +456,11 @@ const ExecutiveDashboard = () => {
       </div>
 
       <div className="charts-grid">
-        <div className="chart-card wide">
+        <div className="chart-card">
           <div className="chart-header">
             <h3>Project Health Scores (Top 10)</h3>
           </div>
-          <div className="chart-container-tall">
+          <div className="chart-container">
             {projectHealthScores.length > 0 ? (
               <Bar data={projectHealthChartData} options={projectHealthChartOptions} />
             ) : (
