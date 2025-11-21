@@ -45,6 +45,8 @@ const ExecutiveDashboard = () => {
   const [fileTypeDistribution, setFileTypeDistribution] = useState([]);
   const [jobTrend, setJobTrend] = useState([]);
   const [schemaDriftTrend, setSchemaDriftTrend] = useState([]);
+  const [qualityViolations, setQualityViolations] = useState([]);
+  const [activeQualityTab, setActiveQualityTab] = useState('all');
 
   const fetchProjects = async () => {
     try {
@@ -109,6 +111,19 @@ const ExecutiveDashboard = () => {
     }
   };
 
+  const fetchQualityViolations = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const projectParam = selectedProject ? `?project_id=${selectedProject}` : '';
+      const response = await axios.get(`${API_BASE_URL}/api/dashboard/quality-violations-trend${projectParam}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setQualityViolations(response.data.violationsTrend || []);
+    } catch (err) {
+      console.error('Error fetching quality violations:', err);
+    }
+  };
+
   const fetchExecutiveMetrics = async (showLoading = true) => {
     try {
       setError(null);
@@ -148,6 +163,7 @@ const ExecutiveDashboard = () => {
     fetchFileTypeDistribution();
     fetchJobTrend();
     fetchSchemaDriftTrend();
+    fetchQualityViolations();
   }, [timeRange, selectedProject]);
 
   const handleRefresh = () => {
@@ -521,6 +537,165 @@ const ExecutiveDashboard = () => {
     }
   };
 
+  // Quality Violations Chart (Stacked Bar with Tabs)
+  const dimensionColors = {
+    completeness: '#FF6B6B',
+    uniqueness: '#4ECDC4',
+    validity: '#FFE66D',
+    consistency: '#95E1D3',
+    accuracy: '#A8E6CF'
+  };
+
+  const dimensionLabels = {
+    completeness: 'Completeness',
+    uniqueness: 'Uniqueness',
+    validity: 'Validity',
+    consistency: 'Consistency',
+    accuracy: 'Accuracy'
+  };
+
+  const processQualityViolations = () => {
+    // Group data by date
+    const dateMap = {};
+    
+    qualityViolations.forEach(item => {
+      if (!dateMap[item.date]) {
+        dateMap[item.date] = {
+          completeness: 0,
+          uniqueness: 0,
+          validity: 0,
+          consistency: 0,
+          accuracy: 0
+        };
+      }
+      dateMap[item.date][item.dimension] = item.count;
+    });
+
+    const dates = Object.keys(dateMap).sort();
+    return dates.map(date => ({
+      date,
+      ...dateMap[date]
+    }));
+  };
+
+  const processedViolations = processQualityViolations();
+
+  const qualityViolationsChartData = {
+    labels: processedViolations.map(item => new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })),
+    datasets: activeQualityTab === 'all' 
+      ? [
+          {
+            label: dimensionLabels.completeness,
+            data: processedViolations.map(item => item.completeness),
+            backgroundColor: dimensionColors.completeness,
+            borderRadius: 4,
+            maxBarThickness: 20
+          },
+          {
+            label: dimensionLabels.uniqueness,
+            data: processedViolations.map(item => item.uniqueness),
+            backgroundColor: dimensionColors.uniqueness,
+            borderRadius: 4,
+            maxBarThickness: 20
+          },
+          {
+            label: dimensionLabels.validity,
+            data: processedViolations.map(item => item.validity),
+            backgroundColor: dimensionColors.validity,
+            borderRadius: 4,
+            maxBarThickness: 20
+          },
+          {
+            label: dimensionLabels.consistency,
+            data: processedViolations.map(item => item.consistency),
+            backgroundColor: dimensionColors.consistency,
+            borderRadius: 4,
+            maxBarThickness: 20
+          },
+          {
+            label: dimensionLabels.accuracy,
+            data: processedViolations.map(item => item.accuracy),
+            backgroundColor: dimensionColors.accuracy,
+            borderRadius: 4,
+            maxBarThickness: 20
+          }
+        ]
+      : [
+          {
+            label: dimensionLabels[activeQualityTab],
+            data: processedViolations.map(item => item[activeQualityTab]),
+            backgroundColor: dimensionColors[activeQualityTab],
+            borderRadius: 4,
+            maxBarThickness: 20
+          }
+        ]
+  };
+
+  const qualityViolationsChartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        display: true,
+        position: 'top',
+        labels: {
+          usePointStyle: true,
+          pointStyle: 'circle',
+          padding: 8,
+          font: { size: 10, family: "'Inter', sans-serif" },
+          color: '#374151'
+        }
+      },
+      tooltip: {
+        backgroundColor: '#fff',
+        titleColor: '#1F2937',
+        bodyColor: '#374151',
+        borderColor: '#E5E7EB',
+        borderWidth: 1,
+        padding: 10
+      },
+      datalabels: {
+        display: (context) => {
+          const value = context.dataset.data[context.dataIndex];
+          return value > 0;
+        },
+        color: '#000000',
+        font: {
+          size: 10,
+          weight: 'bold',
+          family: "'Inter', sans-serif"
+        },
+        rotation: -90,
+        anchor: 'center',
+        align: 'center',
+        formatter: (value) => {
+          return value > 0 ? value : '';
+        }
+      }
+    },
+    scales: {
+      x: {
+        stacked: activeQualityTab === 'all',
+        grid: { color: '#E5E7EB', drawBorder: false },
+        ticks: { 
+          color: '#6B7280', 
+          font: { size: 10, family: "'Inter', sans-serif" },
+          maxRotation: 45,
+          minRotation: 0
+        }
+      },
+      y: {
+        stacked: activeQualityTab === 'all',
+        grid: { color: '#E5E7EB', drawBorder: false },
+        ticks: { 
+          color: '#6B7280', 
+          font: { size: 10, family: "'Inter', sans-serif" },
+          precision: 0
+        }
+      }
+    }
+  };
+
   const calculateOverallHealth = () => {
     if (!metrics) return 0;
     const healthIndex = metrics.dataHealthIndex?.value || 0;
@@ -678,6 +853,53 @@ const ExecutiveDashboard = () => {
           </div>
         </div>
 
+        <div className="chart-card">
+          <div className="chart-header">
+            <h3>Data Quality Violations (Last 30 Days)</h3>
+            <div className="quality-tabs">
+              <button 
+                className={`tab-button ${activeQualityTab === 'all' ? 'active' : ''}`}
+                onClick={() => setActiveQualityTab('all')}
+              >
+                All
+              </button>
+              <button 
+                className={`tab-button ${activeQualityTab === 'completeness' ? 'active' : ''}`}
+                onClick={() => setActiveQualityTab('completeness')}
+              >
+                Completeness
+              </button>
+              <button 
+                className={`tab-button ${activeQualityTab === 'uniqueness' ? 'active' : ''}`}
+                onClick={() => setActiveQualityTab('uniqueness')}
+              >
+                Uniqueness
+              </button>
+              <button 
+                className={`tab-button ${activeQualityTab === 'validity' ? 'active' : ''}`}
+                onClick={() => setActiveQualityTab('validity')}
+              >
+                Validity
+              </button>
+              <button 
+                className={`tab-button ${activeQualityTab === 'consistency' ? 'active' : ''}`}
+                onClick={() => setActiveQualityTab('consistency')}
+              >
+                Consistency
+              </button>
+            </div>
+          </div>
+          <div className="chart-container">
+            {processedViolations.length > 0 ? (
+              <Bar data={qualityViolationsChartData} options={qualityViolationsChartOptions} />
+            ) : (
+              <div className="no-data">No quality violations data available</div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="charts-grid">
         <div className="chart-card">
           <div className="chart-header">
             <h3>File Processing Trend</h3>

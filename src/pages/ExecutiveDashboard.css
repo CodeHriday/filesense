@@ -352,6 +352,38 @@
   margin: 0;
 }
 
+/* Quality Tabs */
+.quality-tabs {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+
+.tab-button {
+  padding: 4px 10px;
+  font-size: 10px;
+  font-weight: 500;
+  font-family: 'Inter', sans-serif;
+  color: #6B7280;
+  background-color: #F3F4F6;
+  border: 1px solid #E5E7EB;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.tab-button:hover {
+  background-color: #E5E7EB;
+  color: #374151;
+}
+
+.tab-button.active {
+  background-color: #025043;
+  color: #FFFFFF;
+  border-color: #025043;
+}
+
 .executive-dashboard .chart-container {
   position: relative;
   height: 180px;
