@@ -258,7 +258,10 @@ const ExecutiveDashboard = () => {
   };
 
   const fileTypeChartData = {
-    labels: fileTypeDistribution.map(ft => ft.fileType.toUpperCase()),
+    labels: fileTypeDistribution.map(ft => {
+      const type = ft.fileType.toLowerCase();
+      return type.charAt(0).toUpperCase() + type.slice(1);
+    }),
     datasets: [{
       data: fileTypeDistribution.map(ft => ft.count),
       backgroundColor: [
@@ -287,7 +290,7 @@ const ExecutiveDashboard = () => {
           usePointStyle: true,
           pointStyle: 'circle',
           padding: 12,
-          font: { size: 12, family: "'Inter', sans-serif" },
+          font: { size: 10, family: "'Inter', sans-serif" },
           color: '#374151',
           generateLabels: (chart) => {
             const data = chart.data;
