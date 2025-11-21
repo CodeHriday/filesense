@@ -236,6 +236,10 @@
   color: #EF4444;
 }
 
+.kpi-trend.neutral {
+  color: var(--exec-text-muted);
+}
+
 /* Charts Grid */
 .charts-grid {
   display: grid;

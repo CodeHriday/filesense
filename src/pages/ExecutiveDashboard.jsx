@@ -435,6 +435,78 @@ const ExecutiveDashboard = () => {
         </div>
       </div>
 
+      {metrics.platformOverview && (
+        <>
+          <div style={{ marginTop: '24px', marginBottom: '12px' }}>
+            <h3 style={{ fontSize: '18px', fontWeight: '600', color: '#025043', marginBottom: '16px' }}>
+              Platform Overview
+            </h3>
+          </div>
+
+          <div className="kpi-cards">
+            <div className="kpi-card">
+              <div className="kpi-label">Projects</div>
+              <div className="kpi-value">{(metrics.platformOverview?.projects || 0).toLocaleString()}</div>
+              <div className="kpi-trend neutral">Total active projects</div>
+            </div>
+
+            <div className="kpi-card">
+              <div className="kpi-label">Schedules</div>
+              <div className="kpi-value">{(metrics.platformOverview?.schedules || 0).toLocaleString()}</div>
+              <div className="kpi-trend neutral">Active automated jobs</div>
+            </div>
+
+            <div className="kpi-card">
+              <div className="kpi-label">Mapping Jobs</div>
+              <div className="kpi-value">{(metrics.platformOverview?.mappingJobs || 0).toLocaleString()}</div>
+              <div className="kpi-trend neutral">Unique transformations</div>
+            </div>
+
+            <div className="kpi-card">
+              <div className="kpi-label">Governance Tags</div>
+              <div className="kpi-value">{(metrics.platformOverview?.governanceTags || 0).toLocaleString()}</div>
+              <div className="kpi-trend neutral">Total tags defined</div>
+            </div>
+
+            <div className="kpi-card">
+              <div className="kpi-label">Policies</div>
+              <div className="kpi-value">{(metrics.platformOverview?.policies || 0).toLocaleString()}</div>
+              <div className="kpi-trend neutral">Active access policies</div>
+            </div>
+
+            <div className="kpi-card">
+              <div className="kpi-label">Lineage Tracked</div>
+              <div className="kpi-value">{(metrics.platformOverview?.lineageTrackedFiles || 0).toLocaleString()}</div>
+              <div className="kpi-trend neutral">Files with lineage</div>
+            </div>
+
+            <div className="kpi-card">
+              <div className="kpi-label">Vendors</div>
+              <div className="kpi-value">{(metrics.platformOverview?.vendors || 0).toLocaleString()}</div>
+              <div className="kpi-trend neutral">Total registered</div>
+            </div>
+
+            <div className="kpi-card">
+              <div className="kpi-label">Vendor Agreements</div>
+              <div className="kpi-value">{(metrics.platformOverview?.vendorAgreements || 0).toLocaleString()}</div>
+              <div className="kpi-trend neutral">Active contracts</div>
+            </div>
+
+            <div className="kpi-card">
+              <div className="kpi-label">Internal Users</div>
+              <div className="kpi-value">{(metrics.platformOverview?.internalUsers || 0).toLocaleString()}</div>
+              <div className="kpi-trend neutral">Company users</div>
+            </div>
+
+            <div className="kpi-card">
+              <div className="kpi-label">External Users</div>
+              <div className="kpi-value">{(metrics.platformOverview?.externalUsers || 0).toLocaleString()}</div>
+              <div className="kpi-trend neutral">Vendor users</div>
+            </div>
+          </div>
+        </>
+      )}
+
       <div className="charts-grid">
         <div className="chart-card wide">
           <div className="chart-header">
