@@ -380,13 +380,15 @@
 }
 
 .stat-label {
-  font-size: var(--exec-text-md);
+  font-size: 12px;
+  font-family: 'Inter', sans-serif;
   font-weight: var(--exec-font-medium);
   color: var(--exec-text-body);
 }
 
 .stat-value {
-  font-size: 15px;
+  font-size: 12px;
+  font-family: 'Inter', sans-serif;
   font-weight: var(--exec-font-semibold);
   color: var(--exec-text-title);
 }
