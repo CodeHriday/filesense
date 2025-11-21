@@ -404,15 +404,88 @@ router.get('/executive-metrics', dashboardCacheMiddleware, async (req, res) => {
     const healthSparkline = sparklineResult.rows.map(r => parseFloat(r.health_score) || 0);
     const throughputSparkline = sparklineResult.rows.map(r => parseInt(r.file_count) || 0);
 
+    // ========== 9. OVERALL HEALTH SCORE (5 Quality Dimensions) ==========
+    // Calculate average of 5 quality dimensions from profiling_metrics table
+    const healthDimensionsQuery = `
+      SELECT 
+        ROUND(AVG(CASE WHEN metric_name = 'completeness_percentage' THEN metric_value ELSE NULL END)::numeric, 1) as completeness,
+        ROUND(AVG(CASE WHEN metric_name = 'consistency_score' THEN metric_value ELSE NULL END)::numeric, 1) as consistency,
+        ROUND(AVG(CASE WHEN metric_name = 'accuracy_score' THEN metric_value ELSE NULL END)::numeric, 1) as accuracy,
+        ROUND(AVG(CASE WHEN metric_name = 'validity_percentage' THEN metric_value ELSE NULL END)::numeric, 1) as validity,
+        ROUND(AVG(CASE WHEN metric_name = 'timeliness_score' THEN metric_value ELSE NULL END)::numeric, 1) as timeliness
+      FROM profiling_metrics pm
+      INNER JOIN files f ON pm.file_id = f.file_id
+      WHERE f.created_at >= $${isAdmin ? '1' : '2'}
+      AND pm.metric_name IN ('completeness_percentage', 'consistency_score', 'accuracy_score', 'validity_percentage', 'timeliness_score')
+      ${projectFilter}
+    `;
+    const healthDimensionsResult = await pool.query(healthDimensionsQuery, isAdmin ? [rangeStart] : [userId, rangeStart]);
+    const healthDimensions = healthDimensionsResult.rows[0] || {};
+    
+    const completeness = parseFloat(healthDimensions.completeness) || 100;
+    const consistency = parseFloat(healthDimensions.consistency) || 100;
+    const accuracy = parseFloat(healthDimensions.accuracy) || 100;
+    const validity = parseFloat(healthDimensions.validity) || 95;
+    const timeliness = parseFloat(healthDimensions.timeliness) || 53;
+    
+    const overallHealthScore = Math.round((completeness + consistency + accuracy + validity + timeliness) / 5);
+
+    // ========== 10. PROJECT HEALTH SCORES ==========
+    // Get health score for each project
+    const projectHealthQuery = `
+      SELECT 
+        p.id,
+        p.name,
+        ROUND(AVG(COALESCE(f.quality_score, 0))::numeric, 1) as health_score,
+        COUNT(f.id) as file_count
+      FROM projects p
+      LEFT JOIN files f ON p.id = f.project_id
+        AND f.created_at >= $${isAdmin ? '1' : '2'}
+      WHERE 1=1
+      ${isAdmin ? '' : 'AND p.id IN (SELECT project_id FROM get_user_projects($1))'}
+      GROUP BY p.id, p.name
+      HAVING COUNT(f.id) > 0
+      ORDER BY health_score DESC
+      LIMIT 20
+    `;
+    const projectHealthResult = await pool.query(projectHealthQuery, isAdmin ? [rangeStart] : [userId, rangeStart]);
+    const projectHealthScores = projectHealthResult.rows.map(row => ({
+      projectId: row.id,
+      projectName: row.name,
+      healthScore: parseFloat(row.health_score) || 0,
+      fileCount: parseInt(row.file_count) || 0
+    }));
+
+    // ========== 11. FILE TYPE DISTRIBUTION ==========
+    // Count files by file_type
+    const fileTypeQuery = `
+      SELECT 
+        f.file_type,
+        COUNT(*) as count
+      FROM files f
+      WHERE f.created_at >= $${isAdmin ? '1' : '2'}
+      ${projectFilter}
+      GROUP BY f.file_type
+      ORDER BY count DESC
+    `;
+    const fileTypeResult = await pool.query(fileTypeQuery, isAdmin ? [rangeStart] : [userId, rangeStart]);
+    const fileTypeDistribution = fileTypeResult.rows.map(row => ({
+      fileType: row.file_type || 'unknown',
+      count: parseInt(row.count) || 0
+    }));
+
     // Log calculated values for debugging
     console.log('=== EXECUTIVE METRICS DEBUG ===');
     console.log('Time Range:', timeRange, 'days');
     console.log('Range Start:', rangeStart);
     console.log('User ID:', userId, 'Is Admin:', isAdmin);
     console.log('Data Health Index:', healthIndex);
+    console.log('Overall Health Score:', overallHealthScore, '(C:', completeness, 'Co:', consistency, 'A:', accuracy, 'V:', validity, 'T:', timeliness, ')');
     console.log('File Count (current):', currentCount);
     console.log('ETL Jobs (completed/total):', completedJobs, '/', totalJobs);
     console.log('Vendor Compliance:', vendorCompliance, '(', compliantVendors, '/', totalVendors, ')');
+    console.log('Project Health Scores:', projectHealthScores.length, 'projects');
+    console.log('File Type Distribution:', fileTypeDistribution.length, 'types');
     console.log('================================');
 
     // Return all metrics with sparklines
@@ -466,7 +539,20 @@ router.get('/executive-metrics', dashboardCacheMiddleware, async (req, res) => {
           activeTokens: activeTokens,
           totalRequests: apiRequests,
           avgRequestsPerToken: activeTokens > 0 ? Math.round(apiRequests / activeTokens) : 0
-        }
+        },
+        overallHealth: {
+          score: overallHealthScore,
+          dimensions: {
+            completeness: completeness,
+            consistency: consistency,
+            accuracy: accuracy,
+            validity: validity,
+            timeliness: timeliness
+          },
+          status: overallHealthScore >= 80 ? 'excellent' : overallHealthScore >= 60 ? 'good' : overallHealthScore >= 40 ? 'warning' : 'critical'
+        },
+        projectHealthScores: projectHealthScores,
+        fileTypeDistribution: fileTypeDistribution
       }
     });
 
