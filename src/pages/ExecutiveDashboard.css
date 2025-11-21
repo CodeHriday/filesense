@@ -243,6 +243,13 @@
 }
 
 /* Platform Overview: Blue numbers */
+.platform-overview-section .kpi-label {
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 12px;
+  font-family: 'Inter', sans-serif;
+}
+
 .platform-overview-section .kpi-value {
   color: #4C6EF5;
 }
