@@ -414,10 +414,12 @@
   font-family: 'Inter', sans-serif;
   font-weight: var(--exec-font-medium);
   color: var(--exec-text-body);
+  text-transform: none;
+  letter-spacing: 0;
 }
 
 .stat-value {
-  font-size: 12px;
+  font-size: 18px;
   font-family: 'Inter', sans-serif;
   font-weight: var(--exec-font-semibold);
   color: var(--exec-text-title);
