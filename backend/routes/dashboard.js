@@ -210,6 +210,7 @@ router.get('/executive-metrics', dashboardCacheMiddleware, async (req, res) => {
     let governanceTagsCount = 0, policiesCount = 0, lineageCount = 0;
     let vendorAgreementsCount = 0, internalUsersCount = 0, externalUsersCount = 0;
     let rolesCount = 0, externalConnectionsCount = 0, internalConnectionsCount = 0;
+    let slaBreaches = 0, missingFiles = 0, lateFiles = 0;
 
     if (isAdmin && !projectId) {
       const healthResult = await pool.query(`
@@ -361,6 +362,52 @@ router.get('/executive-metrics', dashboardCacheMiddleware, async (req, res) => {
       rolesCount = parseInt(platformMetricsResult.rows[0]?.roles_count || 0);
       externalConnectionsCount = parseInt(platformMetricsResult.rows[0]?.external_connections_count || 0);
       internalConnectionsCount = parseInt(platformMetricsResult.rows[0]?.internal_connections_count || 0);
+
+      const slaResult = await pool.query(`
+        WITH sla_agreements AS (
+          SELECT va.id, va.file_name, va.frequency, va.alert_threshold_minutes, va.project_id, va.created_at,
+                 CASE 
+                   WHEN va.frequency = 'daily' THEN INTERVAL '1 day'
+                   WHEN va.frequency = 'weekly' THEN INTERVAL '7 days'
+                   WHEN va.frequency = 'monthly' THEN INTERVAL '30 days'
+                   WHEN va.frequency = 'quarterly' THEN INTERVAL '90 days'
+                   ELSE INTERVAL '1 day'
+                 END as expected_interval
+          FROM vendor_agreements va
+          WHERE va.sla_enabled = true AND va.status = 'active'
+        ),
+        latest_uploads AS (
+          SELECT f.project_id, f.filename, MAX(f.created_at) as last_upload
+          FROM files f
+          LEFT JOIN file_audit_details fad ON f.file_id = fad.file_id
+          WHERE (fad.file_role IS NULL OR fad.file_role = 'source')
+          GROUP BY f.project_id, f.filename
+        ),
+        sla_checks AS (
+          SELECT 
+            sa.id,
+            sa.file_name,
+            sa.expected_interval,
+            sa.alert_threshold_minutes,
+            lu.last_upload,
+            CASE 
+              WHEN lu.last_upload IS NULL THEN 'missing'
+              WHEN lu.last_upload < (NOW() - sa.expected_interval - (sa.alert_threshold_minutes || ' minutes')::interval) THEN 'late'
+              ELSE 'ok'
+            END as sla_status
+          FROM sla_agreements sa
+          LEFT JOIN latest_uploads lu ON sa.project_id = lu.project_id 
+            AND (lu.filename LIKE REPLACE(sa.file_name, '*', '%') OR lu.filename = sa.file_name)
+        )
+        SELECT 
+          COUNT(*) FILTER (WHERE sla_status IN ('missing', 'late')) as total_breaches,
+          COUNT(*) FILTER (WHERE sla_status = 'missing') as missing_count,
+          COUNT(*) FILTER (WHERE sla_status = 'late') as late_count
+        FROM sla_checks
+      `, []);
+      slaBreaches = parseInt(slaResult.rows[0]?.total_breaches || 0);
+      missingFiles = parseInt(slaResult.rows[0]?.missing_count || 0);
+      lateFiles = parseInt(slaResult.rows[0]?.late_count || 0);
 
     } else if (isAdmin && projectId) {
       const healthResult = await pool.query(`
@@ -819,6 +866,12 @@ router.get('/executive-metrics', dashboardCacheMiddleware, async (req, res) => {
           totalRequests: apiRequests,
           avgRequestsPerToken: activeTokens > 0 ? Math.round(apiRequests / activeTokens) : 0
         },
+        slaBreaches: {
+          count: slaBreaches,
+          missingFiles: missingFiles,
+          lateFiles: lateFiles,
+          status: slaBreaches === 0 ? 'excellent' : slaBreaches <= 3 ? 'warning' : 'critical'
+        },
         platformOverview: {
           projects: projectsCount,
           schedules: schedulesCount,
@@ -832,7 +885,8 @@ router.get('/executive-metrics', dashboardCacheMiddleware, async (req, res) => {
           externalUsers: externalUsersCount,
           roles: rolesCount,
           externalConnections: externalConnectionsCount,
-          internalConnections: internalConnectionsCount
+          internalConnections: internalConnectionsCount,
+          slaBreaches: slaBreaches
         }
       }
     });
