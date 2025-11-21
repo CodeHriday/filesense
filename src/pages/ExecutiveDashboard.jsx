@@ -350,10 +350,6 @@ const ExecutiveDashboard = () => {
     <div className="executive-dashboard">
       <div className="dashboard-header">
         <h1>Executive Dashboard</h1>
-      </div>
-
-      <div className="section-header project-metrics-header">
-        <h2>Project Metrics</h2>
         <div className="dashboard-controls">
           <select 
             className="project-selector"
@@ -377,6 +373,10 @@ const ExecutiveDashboard = () => {
             <option value="90">Last 90 Days</option>
           </select>
         </div>
+      </div>
+
+      <div className="section-header project-metrics-header">
+        <h2>Project Metrics</h2>
       </div>
 
       <div className="health-score-hero">
@@ -501,7 +501,7 @@ const ExecutiveDashboard = () => {
             <p className="section-description">Global metrics across all projects and resources</p>
           </div>
 
-          <div className="kpi-cards">
+          <div className="kpi-cards platform-overview-section">
             <div className="kpi-card">
               <div className="kpi-label">Projects</div>
               <div className="kpi-value">{(metrics.platformOverview?.projects || 0).toLocaleString()}</div>

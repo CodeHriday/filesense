@@ -15,25 +15,25 @@
   --exec-chart-blue: #4C6EF5;
   --exec-chart-orange: #FF9F43;
   
-  /* Typography */
+  /* Typography - 25% smaller for compact design */
   --exec-font-family: 'Inter', 'SF Pro Display', sans-serif;
-  --exec-text-xl: 24px;
-  --exec-text-lg: 18px;
-  --exec-text-md: 14px;
-  --exec-text-sm: 12px;
+  --exec-text-xl: 18px;
+  --exec-text-lg: 13.5px;
+  --exec-text-md: 10.5px;
+  --exec-text-sm: 9px;
   --exec-font-semibold: 600;
   --exec-font-medium: 500;
   --exec-font-regular: 400;
   
-  /* Radius */
-  --exec-radius-card: 16px;
-  --exec-radius-button: 8px;
+  /* Radius - 25% smaller */
+  --exec-radius-card: 12px;
+  --exec-radius-button: 6px;
   
-  /* Spacing (8px grid) */
-  --exec-space-sm: 8px;
-  --exec-space-md: 16px;
-  --exec-space-lg: 24px;
-  --exec-space-xl: 32px;
+  /* Spacing - 25% smaller (6px grid) */
+  --exec-space-sm: 6px;
+  --exec-space-md: 12px;
+  --exec-space-lg: 18px;
+  --exec-space-xl: 24px;
   
   /* Shadow */
   --exec-shadow-card: 0px 4px 12px rgba(0, 0, 0, 0.05);
@@ -56,9 +56,9 @@
 }
 
 .dashboard-header h1 {
-  font-size: var(--exec-text-xl);
-  font-weight: var(--exec-font-semibold);
-  color: var(--exec-text-title);
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #333;
   margin: 0;
 }
 
@@ -72,7 +72,7 @@
 }
 
 .section-header h2 {
-  font-size: 20px;
+  font-size: 15px;
   font-weight: var(--exec-font-semibold);
   color: #025043;
   margin: 0;
@@ -89,7 +89,8 @@
 }
 
 .project-metrics-header {
-  margin-top: var(--exec-space-xl);
+  margin-top: 0;
+  margin-bottom: var(--exec-space-md);
 }
 
 /* Section Divider */
@@ -107,7 +108,7 @@
 
 .project-selector,
 .time-range-selector {
-  padding: 10px 16px;
+  padding: 7px 12px;
   font-size: var(--exec-text-md);
   font-weight: var(--exec-font-medium);
   font-family: var(--exec-font-family);
@@ -118,7 +119,7 @@
   box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.04);
   cursor: pointer;
   transition: all 0.2s ease;
-  min-width: 180px;
+  min-width: 135px;
 }
 
 .project-selector:hover,
@@ -142,8 +143,8 @@
 .health-score-card {
   background: linear-gradient(135deg, #025043 0%, #2ECC71 100%);
   border-radius: var(--exec-radius-card);
-  padding: 24px;
-  box-shadow: 0px 8px 24px rgba(2, 80, 67, 0.15);
+  padding: 18px;
+  box-shadow: 0px 6px 18px rgba(2, 80, 67, 0.15);
   color: white;
   text-align: center;
 }
@@ -158,11 +159,11 @@
 }
 
 .health-value {
-  font-size: 48px;
+  font-size: 36px;
   font-weight: 700;
   line-height: 1;
   margin-bottom: var(--exec-space-sm);
-  text-shadow: 0px 4px 12px rgba(0, 0, 0, 0.1);
+  text-shadow: 0px 3px 9px rgba(0, 0, 0, 0.1);
 }
 
 .health-status {
@@ -174,8 +175,8 @@
 
 .health-breakdown {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(105px, 1fr));
+  gap: 12px;
   margin-top: var(--exec-space-md);
   padding-top: var(--exec-space-md);
   border-top: 1px solid rgba(255, 255, 255, 0.2);
@@ -197,7 +198,7 @@
 }
 
 .health-metric span:last-child {
-  font-size: 24px;
+  font-size: 18px;
   font-weight: 700;
   color: white;
 }
@@ -205,15 +206,15 @@
 /* KPI Cards Row */
 .kpi-cards {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
   margin-bottom: var(--exec-space-xl);
 }
 
 .kpi-card {
   background: var(--exec-bg-surface);
   border-radius: var(--exec-radius-card);
-  padding: 20px;
+  padding: 15px;
   box-shadow: var(--exec-shadow-card);
   border: 1px solid var(--exec-border);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
@@ -234,11 +235,16 @@
 }
 
 .kpi-value {
-  font-size: 28px;
+  font-size: 21px;
   font-weight: 700;
   color: var(--exec-text-title);
   line-height: 1.2;
   margin-bottom: var(--exec-space-sm);
+}
+
+/* Platform Overview: Blue numbers */
+.platform-overview-section .kpi-value {
+  color: #4C6EF5;
 }
 
 .kpi-trend {
@@ -310,16 +316,16 @@
 
 .chart-container {
   position: relative;
-  height: 240px;
+  height: 180px;
 }
 
 .chart-container-tall {
   position: relative;
-  height: 240px;
+  height: 180px;
 }
 
 .chart-container.donut {
-  height: 240px;
+  height: 180px;
 }
 
 .no-data {
@@ -343,7 +349,7 @@
 .stat-card {
   background: var(--exec-bg-surface);
   border-radius: var(--exec-radius-card);
-  padding: var(--exec-space-lg);
+  padding: var(--exec-space-md);
   box-shadow: var(--exec-shadow-card);
   border: 1px solid var(--exec-border);
 }
@@ -380,7 +386,7 @@
 }
 
 .stat-value {
-  font-size: 20px;
+  font-size: 15px;
   font-weight: var(--exec-font-semibold);
   color: var(--exec-text-title);
 }
