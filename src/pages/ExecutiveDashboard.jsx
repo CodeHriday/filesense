@@ -14,7 +14,6 @@ import {
   Legend,
   Filler
 } from 'chart.js';
-import { FiBriefcase, FiDatabase, FiCalendar, FiPlay, FiAlertTriangle } from 'react-icons/fi';
 import { API_BASE_URL } from '../config';
 import './ExecutiveDashboard.css';
 
@@ -33,43 +32,20 @@ ChartJS.register(
 
 const ExecutiveDashboard = () => {
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
   const [metrics, setMetrics] = useState(null);
-  const [projects, setProjects] = useState([]);
-  const [selectedProject, setSelectedProject] = useState('all');
   const [timeRange, setTimeRange] = useState(30);
-  const [assetStats, setAssetStats] = useState(null);
+  const [lastUpdate, setLastUpdate] = useState(new Date());
 
-  const fetchProjects = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const response = await axios.get(`${API_BASE_URL}/api/projects`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setProjects(response.data.projects || []);
-    } catch (err) {
-      console.error('Error fetching projects:', err);
-    }
-  };
-
-  const fetchAssetStats = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const response = await axios.get(`${API_BASE_URL}/api/dashboard/metrics`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (response.data.success) {
-        setAssetStats(response.data.metrics);
-      }
-    } catch (err) {
-      console.error('Error fetching asset stats:', err);
-    }
-  };
-
-  const fetchExecutiveMetrics = async () => {
+  const fetchExecutiveMetrics = async (showLoading = true) => {
     try {
       setError(null);
-      setLoading(true);
+      if (showLoading) {
+        setLoading(true);
+      } else {
+        setRefreshing(true);
+      }
 
       const token = localStorage.getItem('token');
       const response = await axios.get(
@@ -79,20 +55,24 @@ const ExecutiveDashboard = () => {
 
       if (response.data.success) {
         setMetrics(response.data.metrics);
+        setLastUpdate(new Date());
       }
     } catch (err) {
       console.error('Error fetching executive metrics:', err);
-      setError(err.response?.data?.error || 'Failed to load metrics');
+      setError(err.response?.data?.error || 'Failed to load metrics. Please try again.');
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
   useEffect(() => {
-    fetchProjects();
-    fetchAssetStats();
     fetchExecutiveMetrics();
   }, [timeRange]);
+
+  const handleRefresh = () => {
+    fetchExecutiveMetrics(false);
+  };
 
   if (loading) {
     return (
@@ -118,31 +98,23 @@ const ExecutiveDashboard = () => {
     );
   }
 
-  // Filter project health scores if specific project selected
-  const filteredProjectHealth = selectedProject === 'all' 
-    ? metrics.projectHealthScores || []
-    : (metrics.projectHealthScores || []).filter(p => p.projectId === parseInt(selectedProject));
-
-  // Project Health Scores Chart
-  const projectHealthData = {
-    labels: filteredProjectHealth.map(p => p.projectName),
-    datasets: [{
-      label: 'Health Score',
-      data: filteredProjectHealth.map(p => p.healthScore),
-      backgroundColor: filteredProjectHealth.map(p => {
-        if (p.healthScore >= 80) return '#025043';
-        if (p.healthScore >= 60) return '#FFA500';
-        return '#EF4444';
-      }),
-      borderRadius: 8,
-      maxBarThickness: 60
-    }]
+  // Chart Data & Options
+  const throughputChartData = {
+    labels: metrics.throughputTrend?.sparkline?.map((_, i) => `Day ${i + 1}`) || [],
+    datasets: [
+      {
+        label: 'Files Processed',
+        data: metrics.throughputTrend?.sparkline || [],
+        backgroundColor: '#2ECC71',
+        borderRadius: 8,
+        maxBarThickness: 16
+      }
+    ]
   };
 
-  const projectHealthOptions = {
+  const throughputChartOptions = {
     responsive: true,
     maintainAspectRatio: false,
-    indexAxis: 'y',
     plugins: {
       legend: { display: false },
       tooltip: {
@@ -152,47 +124,31 @@ const ExecutiveDashboard = () => {
         borderColor: '#E5E7EB',
         borderWidth: 1,
         padding: 12,
-        callbacks: {
-          label: (context) => `Health Score: ${context.parsed.x.toFixed(1)}%`
-        }
+        displayColors: false
       }
     },
     scales: {
-      x: {
-        min: 0,
-        max: 100,
-        grid: { color: '#E5E7EB' },
-        ticks: { color: '#6B7280', font: { size: 12, family: 'Inter' } }
-      },
+      x: { display: false },
       y: {
-        grid: { display: false },
-        ticks: { color: '#374151', font: { size: 12, family: 'Inter', weight: 500 } }
+        grid: { color: '#E5E7EB', drawBorder: false },
+        ticks: { color: '#6B7280', font: { size: 12 } }
       }
     }
   };
 
-  // File Type Distribution Chart
-  const fileTypeData = {
-    labels: (metrics.fileTypeDistribution || []).map(ft => ft.fileType.toUpperCase()),
+  const qualityChartData = {
+    labels: ['Excellent (90-100%)', 'Good (75-89%)', 'Fair (50-74%)', 'Poor (<50%)'],
     datasets: [{
-      data: (metrics.fileTypeDistribution || []).map(ft => ft.count),
-      backgroundColor: [
-        '#025043', // teal
-        '#4C6EF5', // blue
-        '#FFA500', // orange
-        '#2ECC71', // green
-        '#9B59B6', // purple
-        '#F39C12', // yellow
-        '#E74C3C', // red
-        '#1ABC9C'  // turquoise
-      ],
+      data: [45, 30, 20, 5],
+      backgroundColor: ['#2ECC71', '#4C6EF5', '#FF9F43', '#EF4444'],
       borderWidth: 0
     }]
   };
 
-  const fileTypeOptions = {
+  const qualityChartOptions = {
     responsive: true,
     maintainAspectRatio: false,
+    cutout: '70%',
     plugins: {
       legend: {
         display: true,
@@ -201,25 +157,8 @@ const ExecutiveDashboard = () => {
           usePointStyle: true,
           pointStyle: 'circle',
           padding: 16,
-          font: { size: 12, family: 'Inter' },
-          color: '#374151',
-          generateLabels: (chart) => {
-            const data = chart.data;
-            if (data.labels.length && data.datasets.length) {
-              return data.labels.map((label, i) => {
-                const value = data.datasets[0].data[i];
-                const total = data.datasets[0].data.reduce((a, b) => a + b, 0);
-                const percentage = total > 0 ? ((value / total) * 100).toFixed(0) : 0;
-                return {
-                  text: `${label} (${percentage}%)`,
-                  fillStyle: data.datasets[0].backgroundColor[i],
-                  hidden: false,
-                  index: i
-                };
-              });
-            }
-            return [];
-          }
+          font: { size: 14, family: "'Inter', sans-serif" },
+          color: '#374151'
         }
       },
       tooltip: {
@@ -228,279 +167,131 @@ const ExecutiveDashboard = () => {
         bodyColor: '#374151',
         borderColor: '#E5E7EB',
         borderWidth: 1,
-        padding: 12,
-        callbacks: {
-          label: (context) => {
-            const label = context.label || '';
-            const value = context.parsed || 0;
-            const total = context.dataset.data.reduce((a, b) => a + b, 0);
-            const percentage = ((value / total) * 100).toFixed(1);
-            return `${label}: ${value} files (${percentage}%)`;
-          }
-        }
+        padding: 12
       }
     }
   };
 
-  // Health Dimensions Data
-  const healthDimensions = metrics.overallHealth?.dimensions || {};
-  const overallScore = metrics.overallHealth?.score || 0;
-
-  const getHealthColor = (score) => {
-    if (score >= 80) return '#025043';
-    if (score >= 60) return '#FFA500';
-    return '#EF4444';
+  const getTrendIcon = (sparkline) => {
+    if (!sparkline || sparkline.length < 2) return null;
+    return sparkline[sparkline.length - 1] > sparkline[0] ? '↑' : '↓';
   };
 
-  const getHealthStatus = (score) => {
-    if (score >= 80) return 'Excellent';
-    if (score >= 60) return 'Good';
-    if (score >= 40) return 'Fair';
-    return 'Poor';
+  const getTrendClass = (sparkline) => {
+    if (!sparkline || sparkline.length < 2) return '';
+    return sparkline[sparkline.length - 1] > sparkline[0] ? 'trend-up' : 'trend-down';
   };
+
+  const getStatusClass = (status) => `status-${status}`;
 
   return (
     <div className="executive-dashboard">
       <div className="dashboard-header">
-        <div className="header-content">
-          <h1>Executive Dashboard</h1>
-          <div className="header-controls">
-            <select 
-              className="project-selector"
-              value={selectedProject}
-              onChange={(e) => setSelectedProject(e.target.value)}
-            >
-              <option value="all">All Projects</option>
-              {projects.map(project => (
-                <option key={project.id} value={project.id}>
-                  {project.name}
-                </option>
-              ))}
-            </select>
-            <select 
-              className="time-range-selector"
-              value={timeRange}
-              onChange={(e) => setTimeRange(parseInt(e.target.value))}
-            >
-              <option value={7}>Last 7 Days</option>
-              <option value={30}>Last 30 Days</option>
-              <option value={90}>Last 90 Days</option>
-            </select>
+        <h1>Executive Dashboard</h1>
+      </div>
+
+      <div className="kpi-cards">
+        <div className="kpi-card">
+          <div className="kpi-label">Total Files</div>
+          <div className="kpi-value">{(metrics.totalFiles || 0).toLocaleString()}</div>
+          <div className={`kpi-trend ${getTrendClass(metrics.throughputTrend?.sparkline)}`}>
+            {getTrendIcon(metrics.throughputTrend?.sparkline)} 
+            {metrics.throughputTrend?.currentPeriodCount || 0} this month
+          </div>
+        </div>
+
+        <div className="kpi-card">
+          <div className="kpi-label">Avg Quality Score</div>
+          <div className="kpi-value">{metrics.avgQualityScore?.toFixed(1) || 0}%</div>
+          <div className={`kpi-trend ${getStatusClass(metrics.jobSuccessRate?.status)}`}>
+            {metrics.jobSuccessRate?.rate || 0}% job success
+          </div>
+        </div>
+
+        <div className="kpi-card">
+          <div className="kpi-label">Vendor Compliance</div>
+          <div className="kpi-value">{metrics.vendorCompliance?.rate || 0}%</div>
+          <div className={`kpi-trend ${getStatusClass(metrics.vendorCompliance?.status)}`}>
+            {metrics.vendorCompliance?.compliantVendors || 0}/{metrics.vendorCompliance?.totalVendors || 0} compliant
+          </div>
+        </div>
+
+        <div className="kpi-card">
+          <div className="kpi-label">Governance Coverage</div>
+          <div className="kpi-value">{metrics.governanceCoverage?.rate || 0}%</div>
+          <div className={`kpi-trend ${getStatusClass(metrics.governanceCoverage?.status)}`}>
+            {(metrics.governanceCoverage?.taggedFiles || 0).toLocaleString()} files tagged
+          </div>
+        </div>
+
+        <div className="kpi-card">
+          <div className="kpi-label">Critical Alerts</div>
+          <div className="kpi-value">{metrics.criticalAlerts?.count || 0}</div>
+          <div className={`kpi-trend ${getStatusClass(metrics.criticalAlerts?.status)}`}>
+            {metrics.highRiskPII?.count || 0} high-risk PII
           </div>
         </div>
       </div>
 
-      {/* Asset Stats KPI Cards */}
-      <div className="asset-stats">
-        <div className="stat-card-compact">
-          <FiBriefcase className="stat-icon" />
-          <div className="stat-info">
-            <div className="stat-label">Projects</div>
-            <div className="stat-value">{assetStats?.projects || 0}</div>
-          </div>
-        </div>
-        <div className="stat-card-compact">
-          <FiDatabase className="stat-icon" />
-          <div className="stat-info">
-            <div className="stat-label">Files</div>
-            <div className="stat-value">{assetStats?.files || 0}</div>
-          </div>
-        </div>
-        <div className="stat-card-compact">
-          <FiCalendar className="stat-icon" />
-          <div className="stat-info">
-            <div className="stat-label">Schedules</div>
-            <div className="stat-value">{assetStats?.schedules || 0}</div>
-          </div>
-        </div>
-        <div className="stat-card-compact">
-          <FiPlay className="stat-icon" />
-          <div className="stat-info">
-            <div className="stat-label">Jobs</div>
-            <div className="stat-value">{assetStats?.jobs || 0}</div>
-          </div>
-        </div>
-        <div className="stat-card-compact">
-          <FiAlertTriangle className="stat-icon" />
-          <div className="stat-info">
-            <div className="stat-label">Anomalies</div>
-            <div className="stat-value">{assetStats?.anomalies || 0}</div>
-          </div>
-        </div>
-      </div>
-
-      {/* Data Health Metrics */}
-      <div className="health-metrics-section">
-        <h2>Data Health Metrics</h2>
-        <div className="health-gauges">
-          <div className="health-gauge">
-            <div className="gauge-label">Completeness</div>
-            <div className="gauge-value" style={{ color: getHealthColor(healthDimensions.completeness) }}>
-              {healthDimensions.completeness?.toFixed(0) || 100}%
-            </div>
-            <div className="gauge-bar">
-              <div 
-                className="gauge-fill" 
-                style={{ 
-                  width: `${healthDimensions.completeness || 100}%`,
-                  backgroundColor: getHealthColor(healthDimensions.completeness)
-                }}
-              />
-            </div>
-          </div>
-          <div className="health-gauge">
-            <div className="gauge-label">Consistency</div>
-            <div className="gauge-value" style={{ color: getHealthColor(healthDimensions.consistency) }}>
-              {healthDimensions.consistency?.toFixed(0) || 100}%
-            </div>
-            <div className="gauge-bar">
-              <div 
-                className="gauge-fill" 
-                style={{ 
-                  width: `${healthDimensions.consistency || 100}%`,
-                  backgroundColor: getHealthColor(healthDimensions.consistency)
-                }}
-              />
-            </div>
-          </div>
-          <div className="health-gauge">
-            <div className="gauge-label">Accuracy</div>
-            <div className="gauge-value" style={{ color: getHealthColor(healthDimensions.accuracy) }}>
-              {healthDimensions.accuracy?.toFixed(0) || 100}%
-            </div>
-            <div className="gauge-bar">
-              <div 
-                className="gauge-fill" 
-                style={{ 
-                  width: `${healthDimensions.accuracy || 100}%`,
-                  backgroundColor: getHealthColor(healthDimensions.accuracy)
-                }}
-              />
-            </div>
-          </div>
-          <div className="health-gauge">
-            <div className="gauge-label">Validity</div>
-            <div className="gauge-value" style={{ color: getHealthColor(healthDimensions.validity) }}>
-              {healthDimensions.validity?.toFixed(0) || 95}%
-            </div>
-            <div className="gauge-bar">
-              <div 
-                className="gauge-fill" 
-                style={{ 
-                  width: `${healthDimensions.validity || 95}%`,
-                  backgroundColor: getHealthColor(healthDimensions.validity)
-                }}
-              />
-            </div>
-          </div>
-          <div className="health-gauge">
-            <div className="gauge-label">Timeliness</div>
-            <div className="gauge-value" style={{ color: getHealthColor(healthDimensions.timeliness) }}>
-              {healthDimensions.timeliness?.toFixed(0) || 53}%
-            </div>
-            <div className="gauge-bar">
-              <div 
-                className="gauge-fill" 
-                style={{ 
-                  width: `${healthDimensions.timeliness || 53}%`,
-                  backgroundColor: getHealthColor(healthDimensions.timeliness)
-                }}
-              />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Overall Health Score */}
-      <div className="overall-health-section">
-        <div className="overall-health-card">
-          <h2>Overall Health Score</h2>
-          <div 
-            className="overall-health-value" 
-            style={{ color: getHealthColor(overallScore) }}
-          >
-            {overallScore}
-          </div>
-          <div className="overall-health-status" style={{ color: getHealthColor(overallScore) }}>
-            {getHealthStatus(overallScore)}
-          </div>
-          <div className="health-breakdown">
-            <div className="breakdown-item">
-              <span>Completeness:</span>
-              <strong>{healthDimensions.completeness?.toFixed(0)}%</strong>
-            </div>
-            <div className="breakdown-item">
-              <span>Consistency:</span>
-              <strong>{healthDimensions.consistency?.toFixed(0)}%</strong>
-            </div>
-            <div className="breakdown-item">
-              <span>Accuracy:</span>
-              <strong>{healthDimensions.accuracy?.toFixed(0)}%</strong>
-            </div>
-            <div className="breakdown-item">
-              <span>Validity:</span>
-              <strong>{healthDimensions.validity?.toFixed(0)}%</strong>
-            </div>
-            <div className="breakdown-item">
-              <span>Timeliness:</span>
-              <strong>{healthDimensions.timeliness?.toFixed(0)}%</strong>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Charts Grid */}
       <div className="charts-grid">
         <div className="chart-card">
           <div className="chart-header">
-            <h3>Project Health Scores</h3>
+            <h3>File Processing Trend (Last 30 Days)</h3>
           </div>
-          <div className="chart-container horizontal-bar">
-            {filteredProjectHealth.length > 0 ? (
-              <Bar data={projectHealthData} options={projectHealthOptions} />
-            ) : (
-              <div className="no-data">No project data available</div>
-            )}
+          <div className="chart-container">
+            <Bar data={throughputChartData} options={throughputChartOptions} />
           </div>
         </div>
 
         <div className="chart-card">
           <div className="chart-header">
-            <h3>File Type Distribution</h3>
+            <h3>Quality Score Distribution</h3>
           </div>
           <div className="chart-container donut">
-            {metrics.fileTypeDistribution && metrics.fileTypeDistribution.length > 0 ? (
-              <Doughnut data={fileTypeData} options={fileTypeOptions} />
-            ) : (
-              <div className="no-data">No file type data available</div>
-            )}
+            <Doughnut data={qualityChartData} options={qualityChartOptions} />
           </div>
         </div>
       </div>
 
-      {/* Governance & Compliance */}
-      <div className="governance-section">
-        <h2>Governance & Compliance</h2>
-        <div className="governance-cards">
-          <div className="governance-card">
-            <div className="governance-label">High-Risk PII Exposure</div>
-            <div className="governance-value">{metrics.highRiskPII?.count || 0}</div>
-            <div className={`governance-status status-${metrics.highRiskPII?.status}`}>
-              {metrics.highRiskPII?.status}
+      <div className="stats-cards">
+        <div className="stat-card">
+          <div className="stat-header">
+            <h3>API Usage</h3>
+          </div>
+          <div className="stat-content">
+            <div className="stat-row">
+              <span className="stat-label">Active Tokens</span>
+              <span className="stat-value">{metrics.apiUsage?.activeTokens || 0}</span>
+            </div>
+            <div className="stat-row">
+              <span className="stat-label">Total Requests</span>
+              <span className="stat-value">{(metrics.apiUsage?.totalRequests || 0).toLocaleString()}</span>
+            </div>
+            <div className="stat-row">
+              <span className="stat-label">Avg Requests/Token</span>
+              <span className="stat-value">{metrics.apiUsage?.avgRequestsPerToken || 0}</span>
             </div>
           </div>
-          <div className="governance-card">
-            <div className="governance-label">Vendor SLA Compliance</div>
-            <div className="governance-value">{metrics.vendorCompliance?.rate?.toFixed(1) || 0}%</div>
-            <div className={`governance-status status-${metrics.vendorCompliance?.status}`}>
-              {metrics.vendorCompliance?.compliantVendors}/{metrics.vendorCompliance?.totalVendors} compliant
-            </div>
+        </div>
+
+        <div className="stat-card">
+          <div className="stat-header">
+            <h3>System Health</h3>
           </div>
-          <div className="governance-card">
-            <div className="governance-label">Governance Coverage</div>
-            <div className="governance-value">{metrics.governanceCoverage?.rate?.toFixed(1) || 0}%</div>
-            <div className={`governance-status status-${metrics.governanceCoverage?.status}`}>
-              {metrics.governanceCoverage?.taggedFiles?.toLocaleString()} files tagged
+          <div className="stat-content">
+            <div className="stat-row">
+              <span className="stat-label">Job Success Rate</span>
+              <span className={`stat-value ${getStatusClass(metrics.jobSuccessRate?.status)}`}>
+                {metrics.jobSuccessRate?.rate || 0}%
+              </span>
+            </div>
+            <div className="stat-row">
+              <span className="stat-label">Completed Jobs</span>
+              <span className="stat-value">{(metrics.jobSuccessRate?.completedJobs || 0).toLocaleString()}</span>
+            </div>
+            <div className="stat-row">
+              <span className="stat-label">Failed Jobs</span>
+              <span className="stat-value status-critical">{metrics.jobSuccessRate?.failedJobs || 0}</span>
             </div>
           </div>
         </div>
