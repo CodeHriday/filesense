@@ -337,7 +337,7 @@ router.get('/executive-metrics', dashboardCacheMiddleware, async (req, res) => {
           (SELECT COUNT(*) FROM file_schedules WHERE is_active = true) as schedules_count,
           (SELECT COUNT(DISTINCT id) FROM transformation_mappings) as mapping_jobs_count,
           (SELECT COUNT(*) FROM governance_tags) as governance_tags_count,
-          (SELECT COUNT(*) FROM access_policies WHERE is_active = true) as policies_count,
+          (SELECT COUNT(*) FROM rbac_policies WHERE is_active = true) as policies_count,
           (SELECT COUNT(DISTINCT f.id) FROM files f WHERE f.metadata->>'lineage_tracked' = 'true') as lineage_count,
           (SELECT COUNT(*) FROM vendors) as vendors_count,
           (SELECT COUNT(*) FROM vendor_agreements WHERE status = 'active') as vendor_agreements_count,
