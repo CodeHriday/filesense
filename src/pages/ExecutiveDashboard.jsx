@@ -14,6 +14,7 @@ import {
   Legend,
   Filler
 } from 'chart.js';
+import ChartDataLabels from 'chartjs-plugin-datalabels';
 import { API_BASE_URL } from '../config';
 import './ExecutiveDashboard.css';
 
@@ -27,7 +28,8 @@ ChartJS.register(
   Title,
   Tooltip,
   Legend,
-  Filler
+  Filler,
+  ChartDataLabels
 );
 
 const ExecutiveDashboard = () => {
@@ -203,6 +205,9 @@ const ExecutiveDashboard = () => {
         borderWidth: 1,
         padding: 12,
         displayColors: false
+      },
+      datalabels: {
+        display: false
       }
     },
     scales: {
@@ -265,6 +270,9 @@ const ExecutiveDashboard = () => {
             return fullLabel;
           }
         }
+      },
+      datalabels: {
+        display: false
       }
     },
     scales: {
@@ -350,6 +358,9 @@ const ExecutiveDashboard = () => {
             ];
           }
         }
+      },
+      datalabels: {
+        display: false
       }
     }
   };
@@ -397,6 +408,25 @@ const ExecutiveDashboard = () => {
         borderColor: '#E5E7EB',
         borderWidth: 1,
         padding: 10
+      },
+      datalabels: {
+        display: (context) => {
+          // Only show label if the value is > 0 and the bar is tall enough
+          const value = context.dataset.data[context.dataIndex];
+          return value > 0;
+        },
+        color: '#FFFFFF',
+        font: {
+          size: 10,
+          weight: 'bold',
+          family: "'Inter', sans-serif"
+        },
+        rotation: -90,
+        anchor: 'center',
+        align: 'center',
+        formatter: (value) => {
+          return value > 0 ? value : '';
+        }
       }
     },
     scales: {
@@ -463,6 +493,9 @@ const ExecutiveDashboard = () => {
         borderColor: '#E5E7EB',
         borderWidth: 1,
         padding: 10
+      },
+      datalabels: {
+        display: false
       }
     },
     scales: {
@@ -809,7 +842,7 @@ const ExecutiveDashboard = () => {
         </div>
       </div>
 
-      <div className="charts-grid">
+      <div className="trend-charts-row">
         <div className="chart-card">
           <div className="chart-header">
             <h3>Daily Job Trend (Last 30 Days)</h3>
