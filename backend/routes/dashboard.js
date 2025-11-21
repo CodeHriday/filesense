@@ -926,25 +926,29 @@ router.get('/file-type-distribution', dashboardCacheMiddleware, async (req, res)
       if (projectId) {
         fileTypeQuery = `
           SELECT 
-            file_type,
+            f.file_type,
             COUNT(*) as count,
-            SUM(file_size::bigint) as total_size,
-            AVG(quality_score) as avg_quality
-          FROM files
-          WHERE project_id = $1
-          GROUP BY file_type
+            SUM(f.file_size::bigint) as total_size,
+            AVG(f.quality_score) as avg_quality
+          FROM files f
+          LEFT JOIN file_audit_details fad ON f.file_id = fad.file_id
+          WHERE f.project_id = $1 
+          AND (fad.file_role IS NULL OR fad.file_role != 'target')
+          GROUP BY f.file_type
           ORDER BY count DESC
         `;
         queryParams = [projectId];
       } else {
         fileTypeQuery = `
           SELECT 
-            file_type,
+            f.file_type,
             COUNT(*) as count,
-            SUM(file_size::bigint) as total_size,
-            AVG(quality_score) as avg_quality
-          FROM files
-          GROUP BY file_type
+            SUM(f.file_size::bigint) as total_size,
+            AVG(f.quality_score) as avg_quality
+          FROM files f
+          LEFT JOIN file_audit_details fad ON f.file_id = fad.file_id
+          WHERE (fad.file_role IS NULL OR fad.file_role != 'target')
+          GROUP BY f.file_type
           ORDER BY count DESC
         `;
         queryParams = [];
@@ -962,7 +966,9 @@ router.get('/file-type-distribution', dashboardCacheMiddleware, async (req, res)
             AVG(f.quality_score) as avg_quality
           FROM files f
           INNER JOIN accessible_projects ap ON f.project_id = ap.project_id
-          WHERE f.project_id = $2
+          LEFT JOIN file_audit_details fad ON f.file_id = fad.file_id
+          WHERE f.project_id = $2 
+          AND (fad.file_role IS NULL OR fad.file_role != 'target')
           GROUP BY f.file_type
           ORDER BY count DESC
         `;
@@ -979,6 +985,8 @@ router.get('/file-type-distribution', dashboardCacheMiddleware, async (req, res)
             AVG(f.quality_score) as avg_quality
           FROM files f
           INNER JOIN accessible_projects ap ON f.project_id = ap.project_id
+          LEFT JOIN file_audit_details fad ON f.file_id = fad.file_id
+          WHERE (fad.file_role IS NULL OR fad.file_role != 'target')
           GROUP BY f.file_type
           ORDER BY count DESC
         `;
