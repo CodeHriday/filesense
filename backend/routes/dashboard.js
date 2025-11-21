@@ -209,6 +209,7 @@ router.get('/executive-metrics', dashboardCacheMiddleware, async (req, res) => {
     let projectsCount = 0, schedulesCount = 0, mappingJobsCount = 0;
     let governanceTagsCount = 0, policiesCount = 0, lineageCount = 0;
     let vendorAgreementsCount = 0, internalUsersCount = 0, externalUsersCount = 0;
+    let rolesCount = 0, externalConnectionsCount = 0, internalConnectionsCount = 0;
 
     if (isAdmin && !projectId) {
       const healthResult = await pool.query(`
@@ -334,15 +335,18 @@ router.get('/executive-metrics', dashboardCacheMiddleware, async (req, res) => {
       const platformMetricsResult = await pool.query(`
         SELECT
           (SELECT COUNT(*) FROM projects) as projects_count,
-          (SELECT COUNT(*) FROM file_schedules WHERE is_active = true) as schedules_count,
+          (SELECT COUNT(*) FROM schedules WHERE is_active = true) as schedules_count,
           (SELECT COUNT(DISTINCT id) FROM transformation_mappings) as mapping_jobs_count,
           (SELECT COUNT(*) FROM governance_tags) as governance_tags_count,
-          (SELECT COUNT(*) FROM rbac_policies WHERE is_active = true) as policies_count,
-          (SELECT COUNT(DISTINCT f.id) FROM files f WHERE f.metadata->>'lineage_tracked' = 'true') as lineage_count,
+          (SELECT COUNT(*) FROM governance_policies) as policies_count,
+          (SELECT COUNT(*) FROM transformation_lineage) as lineage_count,
           (SELECT COUNT(*) FROM vendors) as vendors_count,
           (SELECT COUNT(*) FROM vendor_agreements WHERE status = 'active') as vendor_agreements_count,
           (SELECT COUNT(*) FROM users WHERE vendor_id IS NULL) as internal_users_count,
-          (SELECT COUNT(*) FROM users WHERE vendor_id IS NOT NULL) as external_users_count
+          (SELECT COUNT(*) FROM users WHERE vendor_id IS NOT NULL) as external_users_count,
+          (SELECT COUNT(*) FROM roles) as roles_count,
+          (SELECT COUNT(*) FROM storage_connections WHERE (is_deleted = false OR is_deleted IS NULL)) as external_connections_count,
+          (SELECT 0) as internal_connections_count
       `, []);
       projectsCount = parseInt(platformMetricsResult.rows[0]?.projects_count || 0);
       schedulesCount = parseInt(platformMetricsResult.rows[0]?.schedules_count || 0);
@@ -354,6 +358,9 @@ router.get('/executive-metrics', dashboardCacheMiddleware, async (req, res) => {
       vendorAgreementsCount = parseInt(platformMetricsResult.rows[0]?.vendor_agreements_count || 0);
       internalUsersCount = parseInt(platformMetricsResult.rows[0]?.internal_users_count || 0);
       externalUsersCount = parseInt(platformMetricsResult.rows[0]?.external_users_count || 0);
+      rolesCount = parseInt(platformMetricsResult.rows[0]?.roles_count || 0);
+      externalConnectionsCount = parseInt(platformMetricsResult.rows[0]?.external_connections_count || 0);
+      internalConnectionsCount = parseInt(platformMetricsResult.rows[0]?.internal_connections_count || 0);
 
     } else if (isAdmin && projectId) {
       const healthResult = await pool.query(`
@@ -763,10 +770,20 @@ router.get('/executive-metrics', dashboardCacheMiddleware, async (req, res) => {
           sparkline: healthSparkline,
           hasData: healthIndex !== null
         },
+        dataHealthIndex: {
+          value: healthIndex || 0,
+          delta: parseFloat(healthDelta.toFixed(1)),
+          status: healthIndex === null ? 'unknown' : healthIndex >= 90 ? 'excellent' : healthIndex >= 75 ? 'good' : healthIndex >= 60 ? 'warning' : 'critical'
+        },
         fileThroughput: {
           count: currentCount,
           delta: parseFloat(throughputDelta.toFixed(1)),
           trend: throughputDelta >= 0 ? 'up' : 'down',
+          previousPeriodCount: prevCount,
+          sparkline: throughputSparkline
+        },
+        throughputTrend: {
+          currentPeriodCount: currentCount,
           previousPeriodCount: prevCount,
           sparkline: throughputSparkline
         },
@@ -812,7 +829,10 @@ router.get('/executive-metrics', dashboardCacheMiddleware, async (req, res) => {
           vendors: totalVendors,
           vendorAgreements: vendorAgreementsCount,
           internalUsers: internalUsersCount,
-          externalUsers: externalUsersCount
+          externalUsers: externalUsersCount,
+          roles: rolesCount,
+          externalConnections: externalConnectionsCount,
+          internalConnections: internalConnectionsCount
         }
       }
     });
