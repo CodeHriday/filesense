@@ -234,8 +234,8 @@ function Sidebar() {
             <button 
               className="sidebar-home-btn" 
               onClick={() => navigate('/')}
-              title="Go to Dashboard"
-              aria-label="Go to Dashboard"
+              title="Go to Home"
+              aria-label="Go to Home"
             >
               <FiHome />
             </button>

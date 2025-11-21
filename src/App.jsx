@@ -14,7 +14,6 @@ import Header from './components/Header';
 import Sidebar from './components/Sidebar';
 import NotificationList from './components/Notifications/NotificationList';
 import PerformanceOptimizations from './pages/PerformanceOptimizations';
-import Dashboard from './pages/Dashboard';
 import ExecutiveDashboard from './pages/ExecutiveDashboard';
 import FileUpload from './pages/FileUpload';
 import { FileCatalog } from './pages/FileCatalog';
@@ -147,7 +146,7 @@ const ProtectedRoute = ({ children }) => {
   return children;
 };
 
-// Component to redirect vendor users to vendor file upload page, others to dashboard
+// Component to redirect vendor users to vendor file upload page, others to executive dashboard
 const DashboardOrRedirect = () => {
   const { currentUser } = useAuth();
   
@@ -156,8 +155,8 @@ const DashboardOrRedirect = () => {
     return <Navigate to="/vendor-file-upload" replace />;
   }
   
-  // Show dashboard for all other users
-  return <Dashboard />;
+  // Show executive dashboard for all other users
+  return <ExecutiveDashboard />;
 };
 
 // Component to block vendor users from accessing regular file upload
