@@ -203,6 +203,21 @@
   color: white;
 }
 
+/* Project Metrics Section: Camel Case Labels at 12px */
+.health-score-card .health-label {
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 12px;
+  font-family: 'Inter', sans-serif;
+}
+
+.health-metric span:first-child {
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 12px;
+  font-family: 'Inter', sans-serif;
+}
+
 /* KPI Cards Row */
 .kpi-cards {
   display: grid;
@@ -232,6 +247,14 @@
   text-transform: uppercase;
   letter-spacing: 0.5px;
   margin-bottom: var(--exec-space-sm);
+}
+
+/* Project Metrics KPI Cards: Camel Case at 12px (exclude Platform Overview) */
+.kpi-cards:not(.platform-overview-section) .kpi-label {
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 12px;
+  font-family: 'Inter', sans-serif;
 }
 
 .kpi-value {
