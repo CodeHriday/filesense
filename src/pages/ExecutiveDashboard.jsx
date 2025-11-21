@@ -228,7 +228,13 @@ const ExecutiveDashboard = () => {
         bodyColor: '#374151',
         borderColor: '#E5E7EB',
         borderWidth: 1,
-        padding: 12
+        padding: 12,
+        callbacks: {
+          title: function(context) {
+            const fullLabel = projectHealthScores[context[0].dataIndex]?.projectName || '';
+            return fullLabel;
+          }
+        }
       }
     },
     scales: {
@@ -239,7 +245,14 @@ const ExecutiveDashboard = () => {
       },
       y: {
         grid: { display: false },
-        ticks: { color: '#374151', font: { size: 12, family: "'Inter', sans-serif", weight: '500' } }
+        ticks: { 
+          color: '#374151', 
+          font: { size: 10, family: "'Inter', sans-serif", weight: '500' },
+          callback: function(value, index, ticks) {
+            const label = this.getLabelForValue(value);
+            return label.length > 15 ? label.substring(0, 15) + '...' : label;
+          }
+        }
       }
     }
   };
