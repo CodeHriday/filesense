@@ -335,6 +335,8 @@ const ExecutiveDashboard = () => {
             return data.labels.map((label, i) => ({
               text: `${label} (${data.datasets[0].data[i]})`,
               fillStyle: data.datasets[0].backgroundColor[i],
+              strokeStyle: 'transparent',
+              lineWidth: 0,
               hidden: false,
               index: i
             }));
@@ -415,7 +417,7 @@ const ExecutiveDashboard = () => {
           const value = context.dataset.data[context.dataIndex];
           return value > 0;
         },
-        color: '#FFFFFF',
+        color: '#000000',
         font: {
           size: 10,
           weight: 'bold',
