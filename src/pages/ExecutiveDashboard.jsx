@@ -503,6 +503,24 @@ const ExecutiveDashboard = () => {
               <div className="kpi-value">{(metrics.platformOverview?.externalUsers || 0).toLocaleString()}</div>
               <div className="kpi-trend neutral">Vendor users</div>
             </div>
+
+            <div className="kpi-card">
+              <div className="kpi-label">Roles</div>
+              <div className="kpi-value">{(metrics.platformOverview?.roles || 0).toLocaleString()}</div>
+              <div className="kpi-trend neutral">Total RBAC roles</div>
+            </div>
+
+            <div className="kpi-card">
+              <div className="kpi-label">External Connections</div>
+              <div className="kpi-value">{(metrics.platformOverview?.externalConnections || 0).toLocaleString()}</div>
+              <div className="kpi-trend neutral">Cloud storage links</div>
+            </div>
+
+            <div className="kpi-card">
+              <div className="kpi-label">Internal Connections</div>
+              <div className="kpi-value">{(metrics.platformOverview?.internalConnections || 0).toLocaleString()}</div>
+              <div className="kpi-trend neutral">Local storage paths</div>
+            </div>
           </div>
         </>
       )}
