@@ -362,15 +362,16 @@
 
 .tab-button {
   padding: 4px 10px;
-  font-size: 12px;
-  font-weight: 500;
-  font-family: 'Inter', sans-serif;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  font-family: 'Inter', sans-serif !important;
   color: #6B7280;
   background-color: #F3F4F6;
   border: 1px solid #E5E7EB;
   border-radius: 6px;
   cursor: pointer;
   transition: all 0.2s ease;
+  line-height: 1.4;
 }
 
 .tab-button:hover {
