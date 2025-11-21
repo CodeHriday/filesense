@@ -213,6 +213,35 @@ router.get('/executive-metrics', dashboardCacheMiddleware, async (req, res) => {
     let rolesCount = 0, externalConnectionsCount = 0, internalConnectionsCount = 0;
     let slaBreaches = 0, missingFiles = 0, lateFiles = 0;
 
+    const platformMetricsResult = await pool.query(`
+      SELECT
+        (SELECT COUNT(*) FROM projects) as projects_count,
+        (SELECT COUNT(*) FROM schedules WHERE is_active = true) as schedules_count,
+        (SELECT COUNT(DISTINCT id) FROM transformation_mappings) as mapping_jobs_count,
+        (SELECT COUNT(*) FROM governance_tags) as governance_tags_count,
+        (SELECT COUNT(*) FROM governance_policies) as policies_count,
+        (SELECT COUNT(*) FROM transformation_lineage) as lineage_count,
+        (SELECT COUNT(*) FROM vendors) as vendors_count,
+        (SELECT COUNT(*) FROM vendor_agreements WHERE status = 'active') as vendor_agreements_count,
+        (SELECT COUNT(*) FROM users WHERE vendor_id IS NULL) as internal_users_count,
+        (SELECT COUNT(*) FROM users WHERE vendor_id IS NOT NULL) as external_users_count,
+        (SELECT COUNT(*) FROM roles) as roles_count,
+        (SELECT COUNT(*) FROM storage_connections WHERE (is_deleted = false OR is_deleted IS NULL)) as external_connections_count,
+        (SELECT 0) as internal_connections_count
+    `, []);
+    projectsCount = parseInt(platformMetricsResult.rows[0]?.projects_count || 0);
+    schedulesCount = parseInt(platformMetricsResult.rows[0]?.schedules_count || 0);
+    mappingJobsCount = parseInt(platformMetricsResult.rows[0]?.mapping_jobs_count || 0);
+    governanceTagsCount = parseInt(platformMetricsResult.rows[0]?.governance_tags_count || 0);
+    policiesCount = parseInt(platformMetricsResult.rows[0]?.policies_count || 0);
+    lineageCount = parseInt(platformMetricsResult.rows[0]?.lineage_count || 0);
+    vendorAgreementsCount = parseInt(platformMetricsResult.rows[0]?.vendor_agreements_count || 0);
+    internalUsersCount = parseInt(platformMetricsResult.rows[0]?.internal_users_count || 0);
+    externalUsersCount = parseInt(platformMetricsResult.rows[0]?.external_users_count || 0);
+    rolesCount = parseInt(platformMetricsResult.rows[0]?.roles_count || 0);
+    externalConnectionsCount = parseInt(platformMetricsResult.rows[0]?.external_connections_count || 0);
+    internalConnectionsCount = parseInt(platformMetricsResult.rows[0]?.internal_connections_count || 0);
+
     if (isAdmin && !projectId) {
       const healthResult = await pool.query(`
         SELECT ROUND(AVG(COALESCE(quality_score, 0))::numeric, 1) as health_index, COUNT(*) as sample_size
@@ -276,8 +305,8 @@ router.get('/executive-metrics', dashboardCacheMiddleware, async (req, res) => {
       highRiskPII = parseInt(piiResult.rows[0]?.count || 0);
 
       const vendorResult = await pool.query(`
-        SELECT COUNT(DISTINCT va.id) as total_vendors,
-        COUNT(DISTINCT va.id) FILTER (WHERE EXISTS (
+        SELECT COUNT(DISTINCT va.vendor_id) as total_vendors,
+        COUNT(DISTINCT va.vendor_id) FILTER (WHERE EXISTS (
           SELECT 1 FROM files f 
           LEFT JOIN file_audit_details fad ON f.file_id = fad.file_id
           WHERE f.project_id = va.project_id AND f.created_at >= $1 
@@ -333,36 +362,6 @@ router.get('/executive-metrics', dashboardCacheMiddleware, async (req, res) => {
       `, [sparklineStart]);
       healthSparkline = sparklineResult.rows.map(r => parseFloat(r.health_score) || 0);
       throughputSparkline = sparklineResult.rows.map(r => parseInt(r.file_count) || 0);
-
-      const platformMetricsResult = await pool.query(`
-        SELECT
-          (SELECT COUNT(*) FROM projects) as projects_count,
-          (SELECT COUNT(*) FROM schedules WHERE is_active = true) as schedules_count,
-          (SELECT COUNT(DISTINCT id) FROM transformation_mappings) as mapping_jobs_count,
-          (SELECT COUNT(*) FROM governance_tags) as governance_tags_count,
-          (SELECT COUNT(*) FROM governance_policies) as policies_count,
-          (SELECT COUNT(*) FROM transformation_lineage) as lineage_count,
-          (SELECT COUNT(*) FROM vendors) as vendors_count,
-          (SELECT COUNT(*) FROM vendor_agreements WHERE status = 'active') as vendor_agreements_count,
-          (SELECT COUNT(*) FROM users WHERE vendor_id IS NULL) as internal_users_count,
-          (SELECT COUNT(*) FROM users WHERE vendor_id IS NOT NULL) as external_users_count,
-          (SELECT COUNT(*) FROM roles) as roles_count,
-          (SELECT COUNT(*) FROM storage_connections WHERE (is_deleted = false OR is_deleted IS NULL)) as external_connections_count,
-          (SELECT 0) as internal_connections_count
-      `, []);
-      projectsCount = parseInt(platformMetricsResult.rows[0]?.projects_count || 0);
-      schedulesCount = parseInt(platformMetricsResult.rows[0]?.schedules_count || 0);
-      mappingJobsCount = parseInt(platformMetricsResult.rows[0]?.mapping_jobs_count || 0);
-      governanceTagsCount = parseInt(platformMetricsResult.rows[0]?.governance_tags_count || 0);
-      policiesCount = parseInt(platformMetricsResult.rows[0]?.policies_count || 0);
-      lineageCount = parseInt(platformMetricsResult.rows[0]?.lineage_count || 0);
-      totalVendors = parseInt(platformMetricsResult.rows[0]?.vendors_count || 0);
-      vendorAgreementsCount = parseInt(platformMetricsResult.rows[0]?.vendor_agreements_count || 0);
-      internalUsersCount = parseInt(platformMetricsResult.rows[0]?.internal_users_count || 0);
-      externalUsersCount = parseInt(platformMetricsResult.rows[0]?.external_users_count || 0);
-      rolesCount = parseInt(platformMetricsResult.rows[0]?.roles_count || 0);
-      externalConnectionsCount = parseInt(platformMetricsResult.rows[0]?.external_connections_count || 0);
-      internalConnectionsCount = parseInt(platformMetricsResult.rows[0]?.internal_connections_count || 0);
 
       const slaResult = await pool.query(`
         WITH sla_agreements AS (
@@ -474,8 +473,8 @@ router.get('/executive-metrics', dashboardCacheMiddleware, async (req, res) => {
       highRiskPII = parseInt(piiResult.rows[0]?.count || 0);
 
       const vendorResult = await pool.query(`
-        SELECT COUNT(DISTINCT va.id) as total_vendors,
-        COUNT(DISTINCT va.id) FILTER (WHERE EXISTS (
+        SELECT COUNT(DISTINCT va.vendor_id) as total_vendors,
+        COUNT(DISTINCT va.vendor_id) FILTER (WHERE EXISTS (
           SELECT 1 FROM files f 
           LEFT JOIN file_audit_details fad ON f.file_id = fad.file_id
           WHERE f.project_id = va.project_id AND f.created_at >= $1 
@@ -602,8 +601,8 @@ router.get('/executive-metrics', dashboardCacheMiddleware, async (req, res) => {
       highRiskPII = parseInt(piiResult.rows[0]?.count || 0);
 
       const vendorResult = await pool.query(`
-        SELECT COUNT(DISTINCT va.id) as total_vendors,
-        COUNT(DISTINCT va.id) FILTER (WHERE EXISTS (
+        SELECT COUNT(DISTINCT va.vendor_id) as total_vendors,
+        COUNT(DISTINCT va.vendor_id) FILTER (WHERE EXISTS (
           SELECT 1 FROM files f 
           LEFT JOIN file_audit_details fad ON f.file_id = fad.file_id
           WHERE f.project_id = va.project_id AND f.created_at >= $1 
@@ -735,8 +734,8 @@ router.get('/executive-metrics', dashboardCacheMiddleware, async (req, res) => {
       highRiskPII = parseInt(piiResult.rows[0]?.count || 0);
 
       const vendorResult = await pool.query(`
-        SELECT COUNT(DISTINCT va.id) as total_vendors,
-        COUNT(DISTINCT va.id) FILTER (WHERE EXISTS (
+        SELECT COUNT(DISTINCT va.vendor_id) as total_vendors,
+        COUNT(DISTINCT va.vendor_id) FILTER (WHERE EXISTS (
           SELECT 1 FROM files f 
           LEFT JOIN file_audit_details fad ON f.file_id = fad.file_id
           WHERE f.project_id = va.project_id AND f.created_at >= $1 
@@ -802,7 +801,7 @@ router.get('/executive-metrics', dashboardCacheMiddleware, async (req, res) => {
     const healthDelta = (healthIndex !== null && prevHealthIndex !== null) ? healthIndex - prevHealthIndex : 0;
     const throughputDelta = prevCount > 0 ? ((currentCount - prevCount) / prevCount * 100) : 0;
     const jobSuccessRate = totalJobs > 0 ? (completedJobs / totalJobs * 100) : 100;
-    const vendorCompliance = totalVendors > 0 ? (compliantVendors / totalVendors * 100) : 100;
+    const vendorCompliance = Math.min(100, totalVendors > 0 ? (compliantVendors / totalVendors * 100) : 100);
     const tagCoverage = totalFiles > 0 ? (taggedFiles / totalFiles * 100) : 0;
 
     res.json({

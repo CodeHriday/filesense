@@ -350,6 +350,109 @@ const ExecutiveDashboard = () => {
     <div className="executive-dashboard">
       <div className="dashboard-header">
         <h1>Executive Dashboard</h1>
+      </div>
+
+      {metrics.platformOverview && (
+        <>
+          <div className="section-header platform-overview-header">
+            <h2>Platform Overview</h2>
+            <p className="section-description">Global metrics across all projects and resources</p>
+          </div>
+
+          <div className="kpi-cards">
+            <div className="kpi-card">
+              <div className="kpi-label">Projects</div>
+              <div className="kpi-value">{(metrics.platformOverview?.projects || 0).toLocaleString()}</div>
+              <div className="kpi-trend neutral">Total active projects</div>
+            </div>
+
+            <div className="kpi-card">
+              <div className="kpi-label">Schedules</div>
+              <div className="kpi-value">{(metrics.platformOverview?.schedules || 0).toLocaleString()}</div>
+              <div className="kpi-trend neutral">Active automated jobs</div>
+            </div>
+
+            <div className="kpi-card">
+              <div className="kpi-label">Mapping Jobs</div>
+              <div className="kpi-value">{(metrics.platformOverview?.mappingJobs || 0).toLocaleString()}</div>
+              <div className="kpi-trend neutral">Unique transformations</div>
+            </div>
+
+            <div className="kpi-card">
+              <div className="kpi-label">Governance Tags</div>
+              <div className="kpi-value">{(metrics.platformOverview?.governanceTags || 0).toLocaleString()}</div>
+              <div className="kpi-trend neutral">Total tags defined</div>
+            </div>
+
+            <div className="kpi-card">
+              <div className="kpi-label">Policies</div>
+              <div className="kpi-value">{(metrics.platformOverview?.policies || 0).toLocaleString()}</div>
+              <div className="kpi-trend neutral">Active access policies</div>
+            </div>
+
+            <div className="kpi-card">
+              <div className="kpi-label">Lineage Tracked</div>
+              <div className="kpi-value">{(metrics.platformOverview?.lineageTrackedFiles || 0).toLocaleString()}</div>
+              <div className="kpi-trend neutral">Files with lineage</div>
+            </div>
+
+            <div className="kpi-card">
+              <div className="kpi-label">Vendors</div>
+              <div className="kpi-value">{(metrics.platformOverview?.vendors || 0).toLocaleString()}</div>
+              <div className="kpi-trend neutral">Total registered</div>
+            </div>
+
+            <div className="kpi-card">
+              <div className="kpi-label">Vendor Agreements</div>
+              <div className="kpi-value">{(metrics.platformOverview?.vendorAgreements || 0).toLocaleString()}</div>
+              <div className="kpi-trend neutral">Active contracts</div>
+            </div>
+
+            <div className="kpi-card">
+              <div className="kpi-label">Internal Users</div>
+              <div className="kpi-value">{(metrics.platformOverview?.internalUsers || 0).toLocaleString()}</div>
+              <div className="kpi-trend neutral">Company users</div>
+            </div>
+
+            <div className="kpi-card">
+              <div className="kpi-label">External Users</div>
+              <div className="kpi-value">{(metrics.platformOverview?.externalUsers || 0).toLocaleString()}</div>
+              <div className="kpi-trend neutral">Vendor users</div>
+            </div>
+
+            <div className="kpi-card">
+              <div className="kpi-label">Roles</div>
+              <div className="kpi-value">{(metrics.platformOverview?.roles || 0).toLocaleString()}</div>
+              <div className="kpi-trend neutral">Total RBAC roles</div>
+            </div>
+
+            <div className="kpi-card">
+              <div className="kpi-label">External Connections</div>
+              <div className="kpi-value">{(metrics.platformOverview?.externalConnections || 0).toLocaleString()}</div>
+              <div className="kpi-trend neutral">Cloud storage links</div>
+            </div>
+
+            <div className="kpi-card">
+              <div className="kpi-label">Internal Connections</div>
+              <div className="kpi-value">{(metrics.platformOverview?.internalConnections || 0).toLocaleString()}</div>
+              <div className="kpi-trend neutral">Local storage paths</div>
+            </div>
+
+            <div className="kpi-card">
+              <div className="kpi-label">SLA Breaches</div>
+              <div className="kpi-value">{(metrics.platformOverview?.slaBreaches || 0).toLocaleString()}</div>
+              <div className="kpi-trend neutral">
+                {metrics.slaBreaches ? `${metrics.slaBreaches.missingFiles || 0} missing, ${metrics.slaBreaches.lateFiles || 0} late` : 'No breaches'}
+              </div>
+            </div>
+          </div>
+
+          <div className="section-divider"></div>
+        </>
+      )}
+
+      <div className="section-header project-metrics-header">
+        <h2>Project Metrics</h2>
         <div className="dashboard-controls">
           <select 
             className="project-selector"
@@ -450,104 +553,6 @@ const ExecutiveDashboard = () => {
           </div>
         </div>
       </div>
-
-      {metrics.platformOverview && (
-        <>
-          <div style={{ marginTop: '24px', marginBottom: '12px' }}>
-            <h3 style={{ fontSize: '18px', fontWeight: '600', color: '#025043', marginBottom: '16px' }}>
-              Platform Overview
-            </h3>
-          </div>
-
-          <div className="kpi-cards">
-            <div className="kpi-card">
-              <div className="kpi-label">Projects</div>
-              <div className="kpi-value">{(metrics.platformOverview?.projects || 0).toLocaleString()}</div>
-              <div className="kpi-trend neutral">Total active projects</div>
-            </div>
-
-            <div className="kpi-card">
-              <div className="kpi-label">Schedules</div>
-              <div className="kpi-value">{(metrics.platformOverview?.schedules || 0).toLocaleString()}</div>
-              <div className="kpi-trend neutral">Active automated jobs</div>
-            </div>
-
-            <div className="kpi-card">
-              <div className="kpi-label">Mapping Jobs</div>
-              <div className="kpi-value">{(metrics.platformOverview?.mappingJobs || 0).toLocaleString()}</div>
-              <div className="kpi-trend neutral">Unique transformations</div>
-            </div>
-
-            <div className="kpi-card">
-              <div className="kpi-label">Governance Tags</div>
-              <div className="kpi-value">{(metrics.platformOverview?.governanceTags || 0).toLocaleString()}</div>
-              <div className="kpi-trend neutral">Total tags defined</div>
-            </div>
-
-            <div className="kpi-card">
-              <div className="kpi-label">Policies</div>
-              <div className="kpi-value">{(metrics.platformOverview?.policies || 0).toLocaleString()}</div>
-              <div className="kpi-trend neutral">Active access policies</div>
-            </div>
-
-            <div className="kpi-card">
-              <div className="kpi-label">Lineage Tracked</div>
-              <div className="kpi-value">{(metrics.platformOverview?.lineageTrackedFiles || 0).toLocaleString()}</div>
-              <div className="kpi-trend neutral">Files with lineage</div>
-            </div>
-
-            <div className="kpi-card">
-              <div className="kpi-label">Vendors</div>
-              <div className="kpi-value">{(metrics.platformOverview?.vendors || 0).toLocaleString()}</div>
-              <div className="kpi-trend neutral">Total registered</div>
-            </div>
-
-            <div className="kpi-card">
-              <div className="kpi-label">Vendor Agreements</div>
-              <div className="kpi-value">{(metrics.platformOverview?.vendorAgreements || 0).toLocaleString()}</div>
-              <div className="kpi-trend neutral">Active contracts</div>
-            </div>
-
-            <div className="kpi-card">
-              <div className="kpi-label">Internal Users</div>
-              <div className="kpi-value">{(metrics.platformOverview?.internalUsers || 0).toLocaleString()}</div>
-              <div className="kpi-trend neutral">Company users</div>
-            </div>
-
-            <div className="kpi-card">
-              <div className="kpi-label">External Users</div>
-              <div className="kpi-value">{(metrics.platformOverview?.externalUsers || 0).toLocaleString()}</div>
-              <div className="kpi-trend neutral">Vendor users</div>
-            </div>
-
-            <div className="kpi-card">
-              <div className="kpi-label">Roles</div>
-              <div className="kpi-value">{(metrics.platformOverview?.roles || 0).toLocaleString()}</div>
-              <div className="kpi-trend neutral">Total RBAC roles</div>
-            </div>
-
-            <div className="kpi-card">
-              <div className="kpi-label">External Connections</div>
-              <div className="kpi-value">{(metrics.platformOverview?.externalConnections || 0).toLocaleString()}</div>
-              <div className="kpi-trend neutral">Cloud storage links</div>
-            </div>
-
-            <div className="kpi-card">
-              <div className="kpi-label">Internal Connections</div>
-              <div className="kpi-value">{(metrics.platformOverview?.internalConnections || 0).toLocaleString()}</div>
-              <div className="kpi-trend neutral">Local storage paths</div>
-            </div>
-
-            <div className="kpi-card">
-              <div className="kpi-label">SLA Breaches</div>
-              <div className="kpi-value">{(metrics.platformOverview?.slaBreaches || 0).toLocaleString()}</div>
-              <div className="kpi-trend neutral">
-                {metrics.slaBreaches ? `${metrics.slaBreaches.missingFiles || 0} missing, ${metrics.slaBreaches.lateFiles || 0} late` : 'No breaches'}
-              </div>
-            </div>
-          </div>
-        </>
-      )}
 
       <div className="charts-grid">
         <div className="chart-card wide">
