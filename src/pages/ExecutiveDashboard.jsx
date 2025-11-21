@@ -425,26 +425,32 @@ const ExecutiveDashboard = () => {
         bodyColor: '#374151',
         borderColor: '#E5E7EB',
         borderWidth: 1,
-        padding: 10
+        padding: 12,
+        callbacks: {
+          title: (tooltipItems) => {
+            return tooltipItems[0].label;
+          },
+          afterTitle: (tooltipItems) => {
+            const index = tooltipItems[0].dataIndex;
+            const completed = tooltipItems.find(item => item.dataset.label === 'Completed')?.parsed.y || 0;
+            const failed = tooltipItems.find(item => item.dataset.label === 'Failed')?.parsed.y || 0;
+            const total = completed + failed;
+            return `Total Jobs: ${total}`;
+          },
+          label: (context) => {
+            const value = context.parsed.y;
+            const index = context.dataIndex;
+            const allDatasets = context.chart.data.datasets;
+            const completed = allDatasets[0].data[index] || 0;
+            const failed = allDatasets[1].data[index] || 0;
+            const total = completed + failed;
+            const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
+            return `${context.dataset.label}: ${value} (${percentage}%)`;
+          }
+        }
       },
       datalabels: {
-        display: (context) => {
-          // Only show label if the value is > 0 and the bar is tall enough
-          const value = context.dataset.data[context.dataIndex];
-          return value > 0;
-        },
-        color: '#4C6EF5',
-        font: {
-          size: 10,
-          weight: 'bold',
-          family: "'Inter', sans-serif"
-        },
-        rotation: -90,
-        anchor: 'center',
-        align: 'center',
-        formatter: (value) => {
-          return value > 0 ? value : '';
-        }
+        display: false
       }
     },
     scales: {
@@ -652,25 +658,29 @@ const ExecutiveDashboard = () => {
         bodyColor: '#374151',
         borderColor: '#E5E7EB',
         borderWidth: 1,
-        padding: 10
+        padding: 12,
+        callbacks: {
+          title: (tooltipItems) => {
+            return tooltipItems[0].label;
+          },
+          afterTitle: () => {
+            const index = arguments[0][0].dataIndex;
+            const dayData = processedViolations[index];
+            const total = dayData.completeness + dayData.uniqueness + dayData.validity + dayData.consistency + dayData.accuracy;
+            return `Total Violations: ${total}`;
+          },
+          label: (context) => {
+            const value = context.parsed.y;
+            const index = context.dataIndex;
+            const dayData = processedViolations[index];
+            const total = dayData.completeness + dayData.uniqueness + dayData.validity + dayData.consistency + dayData.accuracy;
+            const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
+            return `${context.dataset.label}: ${value} (${percentage}%)`;
+          }
+        }
       },
       datalabels: {
-        display: (context) => {
-          const value = context.dataset.data[context.dataIndex];
-          return value > 0;
-        },
-        color: '#4C6EF5',
-        font: {
-          size: 10,
-          weight: 'bold',
-          family: "'Inter', sans-serif"
-        },
-        rotation: -90,
-        anchor: 'center',
-        align: 'center',
-        formatter: (value) => {
-          return value > 0 ? value : '';
-        }
+        display: false
       }
     },
     scales: {
