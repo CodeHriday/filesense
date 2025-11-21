@@ -316,7 +316,7 @@
 /* Charts Grid */
 .executive-dashboard .charts-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   gap: 10px;
   margin-bottom: var(--exec-space-lg);
 }
@@ -362,7 +362,7 @@
 
 .tab-button {
   padding: 4px 10px;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 500;
   font-family: 'Inter', sans-serif;
   color: #6B7280;
@@ -374,14 +374,14 @@
 }
 
 .tab-button:hover {
-  background-color: #E5E7EB;
+  background-color: #D1D5DB;
   color: #374151;
 }
 
 .tab-button.active {
-  background-color: #025043;
+  background-color: #E5E7EB;
   color: #FFFFFF;
-  border-color: #025043;
+  border-color: #E5E7EB;
 }
 
 .executive-dashboard .chart-container {
