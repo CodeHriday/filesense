@@ -176,8 +176,24 @@ const ExecutiveDashboard = () => {
       }
     },
     scales: {
-      x: { display: false },
+      x: {
+        display: true,
+        title: {
+          display: true,
+          text: 'Time Period',
+          color: '#6B7280',
+          font: { size: 12, family: 'Inter' }
+        },
+        grid: { color: '#E5E7EB', drawBorder: false },
+        ticks: { color: '#6B7280', font: { size: 10 } }
+      },
       y: {
+        title: {
+          display: true,
+          text: 'Files Processed',
+          color: '#6B7280',
+          font: { size: 12, family: 'Inter' }
+        },
         grid: { color: '#E5E7EB', drawBorder: false },
         ticks: { color: '#6B7280', font: { size: 12 } }
       }
