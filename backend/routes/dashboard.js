@@ -205,6 +205,10 @@ router.get('/executive-metrics', dashboardCacheMiddleware, async (req, res) => {
     let totalVendors = 0, compliantVendors = 0, totalFiles = 0, taggedFiles = 0;
     let activeTokens = 0, apiRequests = 0;
     let healthSparkline = [], throughputSparkline = [];
+    
+    let projectsCount = 0, schedulesCount = 0, mappingJobsCount = 0;
+    let governanceTagsCount = 0, policiesCount = 0, lineageCount = 0;
+    let vendorAgreementsCount = 0, internalUsersCount = 0, externalUsersCount = 0;
 
     if (isAdmin && !projectId) {
       const healthResult = await pool.query(`
@@ -326,6 +330,30 @@ router.get('/executive-metrics', dashboardCacheMiddleware, async (req, res) => {
       `, [sparklineStart]);
       healthSparkline = sparklineResult.rows.map(r => parseFloat(r.health_score) || 0);
       throughputSparkline = sparklineResult.rows.map(r => parseInt(r.file_count) || 0);
+
+      const platformMetricsResult = await pool.query(`
+        SELECT
+          (SELECT COUNT(*) FROM projects) as projects_count,
+          (SELECT COUNT(*) FROM file_schedules WHERE is_active = true) as schedules_count,
+          (SELECT COUNT(DISTINCT id) FROM transformation_mappings) as mapping_jobs_count,
+          (SELECT COUNT(*) FROM governance_tags) as governance_tags_count,
+          (SELECT COUNT(*) FROM access_policies WHERE is_active = true) as policies_count,
+          (SELECT COUNT(DISTINCT f.id) FROM files f WHERE f.metadata->>'lineage_tracked' = 'true') as lineage_count,
+          (SELECT COUNT(*) FROM vendors) as vendors_count,
+          (SELECT COUNT(*) FROM vendor_agreements WHERE status = 'active') as vendor_agreements_count,
+          (SELECT COUNT(*) FROM users WHERE vendor_id IS NULL) as internal_users_count,
+          (SELECT COUNT(*) FROM users WHERE vendor_id IS NOT NULL) as external_users_count
+      `, []);
+      projectsCount = parseInt(platformMetricsResult.rows[0]?.projects_count || 0);
+      schedulesCount = parseInt(platformMetricsResult.rows[0]?.schedules_count || 0);
+      mappingJobsCount = parseInt(platformMetricsResult.rows[0]?.mapping_jobs_count || 0);
+      governanceTagsCount = parseInt(platformMetricsResult.rows[0]?.governance_tags_count || 0);
+      policiesCount = parseInt(platformMetricsResult.rows[0]?.policies_count || 0);
+      lineageCount = parseInt(platformMetricsResult.rows[0]?.lineage_count || 0);
+      totalVendors = parseInt(platformMetricsResult.rows[0]?.vendors_count || 0);
+      vendorAgreementsCount = parseInt(platformMetricsResult.rows[0]?.vendor_agreements_count || 0);
+      internalUsersCount = parseInt(platformMetricsResult.rows[0]?.internal_users_count || 0);
+      externalUsersCount = parseInt(platformMetricsResult.rows[0]?.external_users_count || 0);
 
     } else if (isAdmin && projectId) {
       const healthResult = await pool.query(`
@@ -726,6 +754,7 @@ router.get('/executive-metrics', dashboardCacheMiddleware, async (req, res) => {
       success: true,
       timeRange: timeRange,
       metrics: {
+        totalFiles: currentCount,
         dataHealth: {
           index: healthIndex || 0,
           delta: parseFloat(healthDelta.toFixed(1)),
@@ -772,6 +801,18 @@ router.get('/executive-metrics', dashboardCacheMiddleware, async (req, res) => {
           activeTokens: activeTokens,
           totalRequests: apiRequests,
           avgRequestsPerToken: activeTokens > 0 ? Math.round(apiRequests / activeTokens) : 0
+        },
+        platformOverview: {
+          projects: projectsCount,
+          schedules: schedulesCount,
+          mappingJobs: mappingJobsCount,
+          governanceTags: governanceTagsCount,
+          policies: policiesCount,
+          lineageTrackedFiles: lineageCount,
+          vendors: totalVendors,
+          vendorAgreements: vendorAgreementsCount,
+          internalUsers: internalUsersCount,
+          externalUsers: externalUsersCount
         }
       }
     });
