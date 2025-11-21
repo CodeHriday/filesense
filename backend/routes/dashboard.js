@@ -190,6 +190,7 @@ router.get('/executive-metrics', dashboardCacheMiddleware, async (req, res) => {
     const userId = parseInt(req.user.id, 10);
     const userRoles = req.user.roles || [];
     const isAdmin = userRoles.includes('Admin');
+    const projectId = req.query.project_id ? parseInt(req.query.project_id, 10) : null;
     
     // Get time range from query params (default: 30 days)
     const timeRange = parseInt(req.query.days) || 30;
@@ -199,11 +200,26 @@ router.get('/executive-metrics', dashboardCacheMiddleware, async (req, res) => {
     const rangeStart = new Date(now.getTime() - timeRange * 24 * 60 * 60 * 1000);
     const comparisonStart = new Date(rangeStart.getTime() - comparisonRange * 24 * 60 * 60 * 1000);
 
-    // Build project filter for non-admin users
-    const projectFilter = isAdmin 
-      ? '' 
-      : 'AND f.project_id IN (SELECT project_id FROM get_user_projects($1))';
-    const projectParams = isAdmin ? [] : [userId];
+    // Build project filter for non-admin users and project-specific filtering
+    let fileProjectFilter = '';
+    let baseParams = [];
+    let paramOffset = 1;
+    
+    if (projectId) {
+      if (isAdmin) {
+        fileProjectFilter = `AND f.project_id = $${paramOffset}`;
+        baseParams = [projectId];
+        paramOffset++;
+      } else {
+        fileProjectFilter = `AND f.project_id = $${paramOffset + 1} AND f.project_id IN (SELECT project_id FROM get_user_projects($${paramOffset}))`;
+        baseParams = [userId, projectId];
+        paramOffset += 2;
+      }
+    } else if (!isAdmin) {
+      fileProjectFilter = `AND f.project_id IN (SELECT project_id FROM get_user_projects($${paramOffset}))`;
+      baseParams = [userId];
+      paramOffset++;
+    }
 
     // ========== 1. DATA HEALTH INDEX ==========
     // Average quality score from files table
@@ -212,20 +228,28 @@ router.get('/executive-metrics', dashboardCacheMiddleware, async (req, res) => {
         ROUND(AVG(COALESCE(quality_score, 0))::numeric, 1) as health_index,
         COUNT(*) as sample_size
       FROM files f
-      WHERE f.created_at >= $${isAdmin ? '1' : '2'}
+      WHERE f.created_at >= $${paramOffset}
       AND f.quality_score IS NOT NULL
-      ${projectFilter}
+      ${fileProjectFilter}
     `;
-    const healthParams = isAdmin ? [rangeStart] : [userId, rangeStart];
+    const healthParams = [...baseParams, rangeStart];
     const healthResult = await pool.query(healthQuery, healthParams);
     const healthIndex = healthResult.rows[0]?.sample_size > 0 
       ? parseFloat(healthResult.rows[0]?.health_index || 0) 
       : null;
 
     // Get previous period for comparison
-    const prevHealthResult = await pool.query(healthQuery.replace('>= $' + (isAdmin ? '1' : '2'), 
-      `>= $${isAdmin ? '1' : '2'} AND f.created_at < $${isAdmin ? '2' : '3'}`), 
-      isAdmin ? [comparisonStart, rangeStart] : [userId, comparisonStart, rangeStart]);
+    const prevHealthQuery = `
+      SELECT 
+        ROUND(AVG(COALESCE(quality_score, 0))::numeric, 1) as health_index,
+        COUNT(*) as sample_size
+      FROM files f
+      WHERE f.created_at >= $${paramOffset} AND f.created_at < $${paramOffset + 1}
+      AND f.quality_score IS NOT NULL
+      ${fileProjectFilter}
+    `;
+    const prevHealthParams = [...baseParams, comparisonStart, rangeStart];
+    const prevHealthResult = await pool.query(prevHealthQuery, prevHealthParams);
     const prevHealthIndex = prevHealthResult.rows[0]?.sample_size > 0
       ? parseFloat(prevHealthResult.rows[0]?.health_index || 0)
       : null;
@@ -238,46 +262,77 @@ router.get('/executive-metrics', dashboardCacheMiddleware, async (req, res) => {
     const throughputQuery = `
       SELECT COUNT(*) as count
       FROM files f
-      WHERE f.created_at >= $${isAdmin ? '1' : '2'}
-      ${projectFilter}
+      WHERE f.created_at >= $${paramOffset}
+      ${fileProjectFilter}
     `;
-    const currentThroughput = await pool.query(throughputQuery, isAdmin ? [rangeStart] : [userId, rangeStart]);
+    const currentThroughput = await pool.query(throughputQuery, healthParams);
     const currentCount = parseInt(currentThroughput.rows[0]?.count || 0);
 
-    const prevThroughputQuery = throughputQuery.replace('>= $' + (isAdmin ? '1' : '2'), 
-      `>= $${isAdmin ? '1' : '2'} AND f.created_at < $${isAdmin ? '2' : '3'}`);
-    const prevThroughput = await pool.query(prevThroughputQuery, 
-      isAdmin ? [comparisonStart, rangeStart] : [userId, comparisonStart, rangeStart]);
+    const prevThroughputQuery = `
+      SELECT COUNT(*) as count
+      FROM files f
+      WHERE f.created_at >= $${paramOffset} AND f.created_at < $${paramOffset + 1}
+      ${fileProjectFilter}
+    `;
+    const prevThroughput = await pool.query(prevThroughputQuery, prevHealthParams);
     const prevCount = parseInt(prevThroughput.rows[0]?.count || 0);
     const throughputDelta = prevCount > 0 ? ((currentCount - prevCount) / prevCount * 100) : 0;
 
     // ========== 3. ETL JOB SUCCESS RATE ==========
-    // Percentage of completed jobs vs total jobs
+    // Build job project filter
+    let jobProjectFilter = '';
+    if (projectId) {
+      if (isAdmin) {
+        jobProjectFilter = `AND tj.project_id = $2`;
+      } else {
+        jobProjectFilter = `AND tj.project_id = $3 AND tj.project_id IN (SELECT project_id FROM get_user_projects($2))`;
+      }
+    } else if (!isAdmin) {
+      jobProjectFilter = `AND tj.project_id IN (SELECT project_id FROM get_user_projects($2))`;
+    }
+
     const jobsQuery = `
       SELECT 
         COUNT(*) FILTER (WHERE status = 'completed') as completed,
         COUNT(*) FILTER (WHERE status = 'failed') as failed,
         COUNT(*) as total
       FROM transformation_jobs tj
-      WHERE tj.created_at >= $${isAdmin ? '1' : '2'}
-      ${isAdmin ? '' : 'AND tj.project_id IN (SELECT project_id FROM get_user_projects($1))'}
+      WHERE tj.created_at >= $1
+      ${jobProjectFilter}
     `;
-    const jobsResult = await pool.query(jobsQuery, isAdmin ? [rangeStart] : [rangeStart, userId]);
+    const jobParams = projectId && !isAdmin ? [rangeStart, userId, projectId] : 
+                      projectId && isAdmin ? [rangeStart, projectId] :
+                      !isAdmin ? [rangeStart, userId] : [rangeStart];
+    const jobsResult = await pool.query(jobsQuery, jobParams);
     const completedJobs = parseInt(jobsResult.rows[0]?.completed || 0);
     const totalJobs = parseInt(jobsResult.rows[0]?.total || 0);
     const jobSuccessRate = totalJobs > 0 ? (completedJobs / totalJobs * 100) : 100;
 
     // ========== 4. ACTIVE CRITICAL ALERTS ==========
-    // Count of open/active alert events
+    // Build alert project filter
+    let alertProjectFilter = '';
+    if (projectId) {
+      if (isAdmin) {
+        alertProjectFilter = `AND ap.project_id = $1`;
+      } else {
+        alertProjectFilter = `AND ap.project_id = $2 AND ap.project_id IN (SELECT project_id FROM get_user_projects($1))`;
+      }
+    } else if (!isAdmin) {
+      alertProjectFilter = `AND ap.project_id IN (SELECT project_id FROM get_user_projects($1))`;
+    }
+
     const alertsQuery = `
       SELECT COUNT(DISTINCT ae.id) as count
       FROM alert_events ae
       INNER JOIN alert_runs ar ON ae.run_id = ar.id
       INNER JOIN alert_policies ap ON ar.policy_id = ap.id
       WHERE ae.status IN ('OPEN', 'ACTIVE', 'TRIGGERED')
-      ${isAdmin ? '' : 'AND ap.project_id IN (SELECT project_id FROM get_user_projects($1))'}
+      ${alertProjectFilter}
     `;
-    const alertsResult = await pool.query(alertsQuery, isAdmin ? [] : [userId]);
+    const alertParams = projectId && !isAdmin ? [userId, projectId] :
+                        projectId && isAdmin ? [projectId] :
+                        !isAdmin ? [userId] : [];
+    const alertsResult = await pool.query(alertsQuery, alertParams);
     const criticalAlerts = parseInt(alertsResult.rows[0]?.count || 0);
 
     // ========== 5. HIGH-RISK PII EXPOSURE ==========
@@ -294,9 +349,9 @@ router.get('/executive-metrics', dashboardCacheMiddleware, async (req, res) => {
           WHERE qrv.file_id = f.file_id AND qrv.severity IN ('high', 'critical')
         )
       )
-      ${projectFilter}
+      ${fileProjectFilter}
     `;
-    const piiResult = await pool.query(piiQuery, projectParams);
+    const piiResult = await pool.query(piiQuery, baseParams);
     const highRiskPII = parseInt(piiResult.rows[0]?.count || 0);
 
     // ========== 6. VENDOR SLA COMPLIANCE ==========
@@ -474,6 +529,239 @@ router.get('/executive-metrics', dashboardCacheMiddleware, async (req, res) => {
     console.error('Error fetching executive metrics:', error);
     res.status(500).json({
       error: 'Failed to fetch executive metrics',
+      details: error.message
+    });
+  }
+});
+
+/**
+ * GET /api/dashboard/project-health-scores
+ * Calculate health scores for all accessible projects based on quality dimensions
+ * Returns: Array of projects with health scores (0-100) calculated from quality metrics
+ */
+router.get('/project-health-scores', dashboardCacheMiddleware, async (req, res) => {
+  const pool = req.app.locals.pool || req.app.get('db');
+  
+  if (!req.user || !req.user.id) {
+    return res.status(401).json({ error: 'Authentication required' });
+  }
+
+  try {
+    const userId = parseInt(req.user.id, 10);
+    const userRoles = req.user.roles || [];
+    const isAdmin = userRoles.includes('Admin');
+
+    let projectHealthQuery;
+    let queryParams;
+
+    if (isAdmin) {
+      projectHealthQuery = `
+        WITH project_quality AS (
+          SELECT 
+            p.id,
+            p.name,
+            p.project_type,
+            COUNT(f.id) as total_files,
+            AVG(f.quality_score) as avg_quality_score,
+            COUNT(CASE WHEN f.quality_score >= 90 THEN 1 END) as excellent_files,
+            COUNT(CASE WHEN f.quality_score < 70 THEN 1 END) as poor_files
+          FROM projects p
+          LEFT JOIN files f ON p.id = f.project_id
+          GROUP BY p.id, p.name, p.project_type
+        )
+        SELECT 
+          id,
+          name,
+          project_type,
+          total_files,
+          COALESCE(avg_quality_score, 0) as health_score,
+          excellent_files,
+          poor_files,
+          CASE 
+            WHEN COALESCE(avg_quality_score, 0) >= 90 THEN 'excellent'
+            WHEN COALESCE(avg_quality_score, 0) >= 75 THEN 'good'
+            WHEN COALESCE(avg_quality_score, 0) >= 60 THEN 'fair'
+            ELSE 'poor'
+          END as health_status
+        FROM project_quality
+        WHERE total_files > 0
+        ORDER BY health_score DESC, name ASC
+      `;
+      queryParams = [];
+    } else {
+      projectHealthQuery = `
+        WITH accessible_projects AS (
+          SELECT project_id FROM get_user_projects($1)
+        ),
+        project_quality AS (
+          SELECT 
+            p.id,
+            p.name,
+            p.project_type,
+            COUNT(f.id) as total_files,
+            AVG(f.quality_score) as avg_quality_score,
+            COUNT(CASE WHEN f.quality_score >= 90 THEN 1 END) as excellent_files,
+            COUNT(CASE WHEN f.quality_score < 70 THEN 1 END) as poor_files
+          FROM projects p
+          INNER JOIN accessible_projects ap ON p.id = ap.project_id
+          LEFT JOIN files f ON p.id = f.project_id
+          GROUP BY p.id, p.name, p.project_type
+        )
+        SELECT 
+          id,
+          name,
+          project_type,
+          total_files,
+          COALESCE(avg_quality_score, 0) as health_score,
+          excellent_files,
+          poor_files,
+          CASE 
+            WHEN COALESCE(avg_quality_score, 0) >= 90 THEN 'excellent'
+            WHEN COALESCE(avg_quality_score, 0) >= 75 THEN 'good'
+            WHEN COALESCE(avg_quality_score, 0) >= 60 THEN 'fair'
+            ELSE 'poor'
+          END as health_status
+        FROM project_quality
+        WHERE total_files > 0
+        ORDER BY health_score DESC, name ASC
+      `;
+      queryParams = [userId];
+    }
+
+    const result = await pool.query(projectHealthQuery, queryParams);
+
+    const projectHealthScores = result.rows.map(row => ({
+      projectId: row.id,
+      projectName: row.name,
+      projectType: row.project_type,
+      healthScore: parseFloat(row.health_score.toFixed(1)),
+      healthStatus: row.health_status,
+      totalFiles: parseInt(row.total_files),
+      excellentFiles: parseInt(row.excellent_files),
+      poorFiles: parseInt(row.poor_files)
+    }));
+
+    res.json({
+      projects: projectHealthScores,
+      totalProjects: projectHealthScores.length
+    });
+
+  } catch (error) {
+    console.error('Error fetching project health scores:', error);
+    res.status(500).json({
+      error: 'Failed to fetch project health scores',
+      details: error.message
+    });
+  }
+});
+
+/**
+ * GET /api/dashboard/file-type-distribution
+ * Get file type distribution across accessible projects
+ * Supports optional project_id query parameter for filtering
+ */
+router.get('/file-type-distribution', dashboardCacheMiddleware, async (req, res) => {
+  const pool = req.app.locals.pool || req.app.get('db');
+  
+  if (!req.user || !req.user.id) {
+    return res.status(401).json({ error: 'Authentication required' });
+  }
+
+  try {
+    const userId = parseInt(req.user.id, 10);
+    const userRoles = req.user.roles || [];
+    const isAdmin = userRoles.includes('Admin');
+    const projectId = req.query.project_id ? parseInt(req.query.project_id, 10) : null;
+
+    let fileTypeQuery;
+    let queryParams;
+
+    if (isAdmin) {
+      if (projectId) {
+        fileTypeQuery = `
+          SELECT 
+            file_type,
+            COUNT(*) as count,
+            SUM(file_size::bigint) as total_size,
+            AVG(quality_score) as avg_quality
+          FROM files
+          WHERE project_id = $1
+          GROUP BY file_type
+          ORDER BY count DESC
+        `;
+        queryParams = [projectId];
+      } else {
+        fileTypeQuery = `
+          SELECT 
+            file_type,
+            COUNT(*) as count,
+            SUM(file_size::bigint) as total_size,
+            AVG(quality_score) as avg_quality
+          FROM files
+          GROUP BY file_type
+          ORDER BY count DESC
+        `;
+        queryParams = [];
+      }
+    } else {
+      if (projectId) {
+        fileTypeQuery = `
+          WITH accessible_projects AS (
+            SELECT project_id FROM get_user_projects($1)
+          )
+          SELECT 
+            f.file_type,
+            COUNT(*) as count,
+            SUM(f.file_size::bigint) as total_size,
+            AVG(f.quality_score) as avg_quality
+          FROM files f
+          INNER JOIN accessible_projects ap ON f.project_id = ap.project_id
+          WHERE f.project_id = $2
+          GROUP BY f.file_type
+          ORDER BY count DESC
+        `;
+        queryParams = [userId, projectId];
+      } else {
+        fileTypeQuery = `
+          WITH accessible_projects AS (
+            SELECT project_id FROM get_user_projects($1)
+          )
+          SELECT 
+            f.file_type,
+            COUNT(*) as count,
+            SUM(f.file_size::bigint) as total_size,
+            AVG(f.quality_score) as avg_quality
+          FROM files f
+          INNER JOIN accessible_projects ap ON f.project_id = ap.project_id
+          GROUP BY f.file_type
+          ORDER BY count DESC
+        `;
+        queryParams = [userId];
+      }
+    }
+
+    const result = await pool.query(fileTypeQuery, queryParams);
+
+    const totalFiles = result.rows.reduce((sum, row) => sum + parseInt(row.count), 0);
+
+    const fileTypes = result.rows.map(row => ({
+      fileType: row.file_type || 'unknown',
+      count: parseInt(row.count),
+      percentage: totalFiles > 0 ? parseFloat(((parseInt(row.count) / totalFiles) * 100).toFixed(1)) : 0,
+      totalSize: parseInt(row.total_size || 0),
+      avgQuality: parseFloat((row.avg_quality || 0).toFixed(1))
+    }));
+
+    res.json({
+      fileTypes: fileTypes,
+      totalFiles: totalFiles,
+      projectId: projectId
+    });
+
+  } catch (error) {
+    console.error('Error fetching file type distribution:', error);
+    res.status(500).json({
+      error: 'Failed to fetch file type distribution',
       details: error.message
     });
   }

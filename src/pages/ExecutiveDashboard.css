@@ -49,6 +49,9 @@
 
 /* Header */
 .dashboard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   margin-bottom: var(--exec-space-lg);
 }
 
@@ -57,6 +60,109 @@
   font-weight: var(--exec-font-semibold);
   color: var(--exec-text-title);
   margin: 0;
+}
+
+.dashboard-controls {
+  display: flex;
+  gap: var(--exec-space-md);
+  align-items: center;
+}
+
+.project-selector,
+.time-range-selector {
+  padding: 10px 16px;
+  font-size: var(--exec-text-md);
+  font-weight: var(--exec-font-medium);
+  font-family: var(--exec-font-family);
+  color: var(--exec-text-body);
+  background-color: var(--exec-bg-surface);
+  border: 1px solid var(--exec-border);
+  border-radius: var(--exec-radius-button);
+  box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.04);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 180px;
+}
+
+.project-selector:hover,
+.time-range-selector:hover {
+  border-color: #025043;
+  box-shadow: 0px 4px 8px rgba(2, 80, 67, 0.1);
+}
+
+.project-selector:focus,
+.time-range-selector:focus {
+  outline: none;
+  border-color: #025043;
+  box-shadow: 0 0 0 3px rgba(2, 80, 67, 0.1);
+}
+
+/* Health Score Hero Section */
+.health-score-hero {
+  margin-bottom: var(--exec-space-xl);
+}
+
+.health-score-card {
+  background: linear-gradient(135deg, #025043 0%, #2ECC71 100%);
+  border-radius: var(--exec-radius-card);
+  padding: var(--exec-space-xl);
+  box-shadow: 0px 8px 24px rgba(2, 80, 67, 0.15);
+  color: white;
+  text-align: center;
+}
+
+.health-label {
+  font-size: var(--exec-text-md);
+  font-weight: var(--exec-font-medium);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: var(--exec-space-sm);
+  opacity: 0.9;
+}
+
+.health-value {
+  font-size: 64px;
+  font-weight: 700;
+  line-height: 1;
+  margin-bottom: var(--exec-space-sm);
+  text-shadow: 0px 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.health-status {
+  font-size: var(--exec-text-lg);
+  font-weight: var(--exec-font-semibold);
+  margin-bottom: var(--exec-space-lg);
+  opacity: 0.95;
+}
+
+.health-breakdown {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: var(--exec-space-md);
+  margin-top: var(--exec-space-lg);
+  padding-top: var(--exec-space-lg);
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.health-metric {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  text-align: center;
+}
+
+.health-metric span:first-child {
+  font-size: var(--exec-text-sm);
+  font-weight: var(--exec-font-medium);
+  opacity: 0.85;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.health-metric span:last-child {
+  font-size: 24px;
+  font-weight: 700;
+  color: white;
 }
 
 /* KPI Cards Row */
@@ -146,6 +252,10 @@
   border: 1px solid var(--exec-border);
 }
 
+.chart-card.wide {
+  grid-column: span 2;
+}
+
 .chart-header {
   margin-bottom: var(--exec-space-md);
 }
@@ -162,8 +272,23 @@
   height: 300px;
 }
 
+.chart-container-tall {
+  position: relative;
+  height: 450px;
+}
+
 .chart-container.donut {
   height: 350px;
+}
+
+.no-data {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--exec-text-muted);
+  font-size: var(--exec-text-md);
+  font-weight: var(--exec-font-medium);
 }
 
 /* Stats Cards */
@@ -256,12 +381,40 @@
 
 /* Responsive Design */
 @media (max-width: 768px) {
+  .dashboard-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--exec-space-md);
+  }
+
+  .dashboard-controls {
+    width: 100%;
+    flex-direction: column;
+  }
+
+  .project-selector,
+  .time-range-selector {
+    width: 100%;
+  }
+
+  .health-value {
+    font-size: 48px;
+  }
+
+  .health-breakdown {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
   .kpi-cards {
     grid-template-columns: 1fr;
   }
   
   .charts-grid {
     grid-template-columns: 1fr;
+  }
+
+  .chart-card.wide {
+    grid-column: span 1;
   }
   
   .stats-cards {
@@ -274,12 +427,24 @@
 }
 
 @media (max-width: 480px) {
+  .health-value {
+    font-size: 40px;
+  }
+
+  .health-breakdown {
+    grid-template-columns: 1fr;
+  }
+
   .kpi-value {
     font-size: 24px;
   }
   
   .chart-container {
     height: 250px;
+  }
+
+  .chart-container-tall {
+    height: 350px;
   }
   
   .chart-container.donut {

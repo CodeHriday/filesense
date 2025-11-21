@@ -37,6 +37,47 @@ const ExecutiveDashboard = () => {
   const [metrics, setMetrics] = useState(null);
   const [timeRange, setTimeRange] = useState(30);
   const [lastUpdate, setLastUpdate] = useState(new Date());
+  const [selectedProject, setSelectedProject] = useState(null);
+  const [projects, setProjects] = useState([]);
+  const [projectHealthScores, setProjectHealthScores] = useState([]);
+  const [fileTypeDistribution, setFileTypeDistribution] = useState([]);
+
+  const fetchProjects = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`${API_BASE_URL}/api/projects`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setProjects(response.data.projects || []);
+    } catch (err) {
+      console.error('Error fetching projects:', err);
+    }
+  };
+
+  const fetchProjectHealthScores = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`${API_BASE_URL}/api/dashboard/project-health-scores`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setProjectHealthScores(response.data.projects || []);
+    } catch (err) {
+      console.error('Error fetching project health scores:', err);
+    }
+  };
+
+  const fetchFileTypeDistribution = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const projectParam = selectedProject ? `?project_id=${selectedProject}` : '';
+      const response = await axios.get(`${API_BASE_URL}/api/dashboard/file-type-distribution${projectParam}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setFileTypeDistribution(response.data.fileTypes || []);
+    } catch (err) {
+      console.error('Error fetching file type distribution:', err);
+    }
+  };
 
   const fetchExecutiveMetrics = async (showLoading = true) => {
     try {
@@ -48,8 +89,9 @@ const ExecutiveDashboard = () => {
       }
 
       const token = localStorage.getItem('token');
+      const projectParam = selectedProject ? `&project_id=${selectedProject}` : '';
       const response = await axios.get(
-        `${API_BASE_URL}/api/dashboard/executive-metrics?days=${timeRange}`,
+        `${API_BASE_URL}/api/dashboard/executive-metrics?days=${timeRange}${projectParam}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
@@ -67,8 +109,14 @@ const ExecutiveDashboard = () => {
   };
 
   useEffect(() => {
+    fetchProjects();
+    fetchProjectHealthScores();
+  }, []);
+
+  useEffect(() => {
     fetchExecutiveMetrics();
-  }, [timeRange]);
+    fetchFileTypeDistribution();
+  }, [timeRange, selectedProject]);
 
   const handleRefresh = () => {
     fetchExecutiveMetrics(false);
@@ -136,31 +184,28 @@ const ExecutiveDashboard = () => {
     }
   };
 
-  const qualityChartData = {
-    labels: ['Excellent (90-100%)', 'Good (75-89%)', 'Fair (50-74%)', 'Poor (<50%)'],
+  const projectHealthChartData = {
+    labels: projectHealthScores.slice(0, 10).map(p => p.projectName),
     datasets: [{
-      data: [45, 30, 20, 5],
-      backgroundColor: ['#2ECC71', '#4C6EF5', '#FF9F43', '#EF4444'],
-      borderWidth: 0
+      label: 'Health Score',
+      data: projectHealthScores.slice(0, 10).map(p => p.healthScore),
+      backgroundColor: projectHealthScores.slice(0, 10).map(p => {
+        if (p.healthScore >= 90) return '#025043';
+        if (p.healthScore >= 75) return '#2ECC71';
+        if (p.healthScore >= 60) return '#FF9F43';
+        return '#EF4444';
+      }),
+      borderRadius: 6,
+      maxBarThickness: 32
     }]
   };
 
-  const qualityChartOptions = {
+  const projectHealthChartOptions = {
+    indexAxis: 'y',
     responsive: true,
     maintainAspectRatio: false,
-    cutout: '70%',
     plugins: {
-      legend: {
-        display: true,
-        position: 'right',
-        labels: {
-          usePointStyle: true,
-          pointStyle: 'circle',
-          padding: 16,
-          font: { size: 14, family: "'Inter', sans-serif" },
-          color: '#374151'
-        }
-      },
+      legend: { display: false },
       tooltip: {
         backgroundColor: '#fff',
         titleColor: '#1F2937',
@@ -169,7 +214,106 @@ const ExecutiveDashboard = () => {
         borderWidth: 1,
         padding: 12
       }
+    },
+    scales: {
+      x: {
+        grid: { color: '#E5E7EB', drawBorder: false },
+        ticks: { color: '#6B7280', font: { size: 11, family: "'Inter', sans-serif" } },
+        max: 100
+      },
+      y: {
+        grid: { display: false },
+        ticks: { color: '#374151', font: { size: 12, family: "'Inter', sans-serif", weight: '500' } }
+      }
     }
+  };
+
+  const fileTypeChartData = {
+    labels: fileTypeDistribution.map(ft => ft.fileType.toUpperCase()),
+    datasets: [{
+      data: fileTypeDistribution.map(ft => ft.count),
+      backgroundColor: [
+        '#025043',
+        '#2ECC71',
+        '#4C6EF5',
+        '#FF9F43',
+        '#EF4444',
+        '#8B5CF6',
+        '#EC4899',
+        '#06B6D4'
+      ],
+      borderWidth: 0
+    }]
+  };
+
+  const fileTypeChartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    cutout: '65%',
+    plugins: {
+      legend: {
+        display: true,
+        position: 'right',
+        labels: {
+          usePointStyle: true,
+          pointStyle: 'circle',
+          padding: 12,
+          font: { size: 12, family: "'Inter', sans-serif" },
+          color: '#374151',
+          generateLabels: (chart) => {
+            const data = chart.data;
+            return data.labels.map((label, i) => ({
+              text: `${label} (${data.datasets[0].data[i]})`,
+              fillStyle: data.datasets[0].backgroundColor[i],
+              hidden: false,
+              index: i
+            }));
+          }
+        }
+      },
+      tooltip: {
+        backgroundColor: '#fff',
+        titleColor: '#1F2937',
+        bodyColor: '#374151',
+        borderColor: '#E5E7EB',
+        borderWidth: 1,
+        padding: 12,
+        callbacks: {
+          label: (context) => {
+            const fileType = fileTypeDistribution[context.dataIndex];
+            return [
+              `Count: ${fileType.count}`,
+              `Percentage: ${fileType.percentage}%`,
+              `Avg Quality: ${fileType.avgQuality}%`
+            ];
+          }
+        }
+      }
+    }
+  };
+
+  const calculateOverallHealth = () => {
+    if (!metrics) return 0;
+    const healthIndex = metrics.dataHealthIndex?.value || 0;
+    const jobSuccess = metrics.jobSuccessRate?.rate || 0;
+    const vendorCompliance = metrics.vendorCompliance?.rate || 0;
+    const governanceCoverage = metrics.governanceCoverage?.rate || 0;
+    
+    return ((healthIndex + jobSuccess + vendorCompliance + governanceCoverage) / 4).toFixed(1);
+  };
+
+  const getHealthColor = (score) => {
+    if (score >= 90) return '#025043';
+    if (score >= 75) return '#2ECC71';
+    if (score >= 60) return '#FF9F43';
+    return '#EF4444';
+  };
+
+  const getHealthLabel = (score) => {
+    if (score >= 90) return 'Excellent';
+    if (score >= 75) return 'Good';
+    if (score >= 60) return 'Fair';
+    return 'Poor';
   };
 
   const getTrendIcon = (sparkline) => {
@@ -184,10 +328,68 @@ const ExecutiveDashboard = () => {
 
   const getStatusClass = (status) => `status-${status}`;
 
+  const overallHealth = calculateOverallHealth();
+
   return (
     <div className="executive-dashboard">
       <div className="dashboard-header">
         <h1>Executive Dashboard</h1>
+        <div className="dashboard-controls">
+          <select 
+            className="project-selector"
+            value={selectedProject || ''}
+            onChange={(e) => setSelectedProject(e.target.value || null)}
+          >
+            <option value="">All Projects</option>
+            {projects.map(project => (
+              <option key={project.id} value={project.id}>
+                {project.name}
+              </option>
+            ))}
+          </select>
+          <select 
+            className="time-range-selector"
+            value={timeRange}
+            onChange={(e) => setTimeRange(parseInt(e.target.value))}
+          >
+            <option value="7">Last 7 Days</option>
+            <option value="30">Last 30 Days</option>
+            <option value="90">Last 90 Days</option>
+          </select>
+        </div>
+      </div>
+
+      <div className="health-score-hero">
+        <div className="health-score-card">
+          <div className="health-label">Overall Data Health Index</div>
+          <div 
+            className="health-value" 
+            style={{ color: getHealthColor(overallHealth) }}
+          >
+            {overallHealth}%
+          </div>
+          <div className="health-status" style={{ color: getHealthColor(overallHealth) }}>
+            {getHealthLabel(overallHealth)}
+          </div>
+          <div className="health-breakdown">
+            <div className="health-metric">
+              <span>Data Health</span>
+              <span>{metrics?.dataHealthIndex?.value || 0}%</span>
+            </div>
+            <div className="health-metric">
+              <span>Job Success</span>
+              <span>{metrics?.jobSuccessRate?.rate || 0}%</span>
+            </div>
+            <div className="health-metric">
+              <span>Vendor Compliance</span>
+              <span>{metrics?.vendorCompliance?.rate || 0}%</span>
+            </div>
+            <div className="health-metric">
+              <span>Governance</span>
+              <span>{metrics?.governanceCoverage?.rate || 0}%</span>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div className="kpi-cards">
@@ -196,15 +398,15 @@ const ExecutiveDashboard = () => {
           <div className="kpi-value">{(metrics.totalFiles || 0).toLocaleString()}</div>
           <div className={`kpi-trend ${getTrendClass(metrics.throughputTrend?.sparkline)}`}>
             {getTrendIcon(metrics.throughputTrend?.sparkline)} 
-            {metrics.throughputTrend?.currentPeriodCount || 0} this month
+            {metrics.throughputTrend?.currentPeriodCount || 0} this period
           </div>
         </div>
 
         <div className="kpi-card">
-          <div className="kpi-label">Avg Quality Score</div>
-          <div className="kpi-value">{metrics.avgQualityScore?.toFixed(1) || 0}%</div>
-          <div className={`kpi-trend ${getStatusClass(metrics.jobSuccessRate?.status)}`}>
-            {metrics.jobSuccessRate?.rate || 0}% job success
+          <div className="kpi-label">Data Health Index</div>
+          <div className="kpi-value">{metrics.dataHealthIndex?.value?.toFixed(1) || 0}%</div>
+          <div className={`kpi-trend ${getStatusClass(metrics.dataHealthIndex?.status)}`}>
+            {metrics.dataHealthIndex?.delta > 0 ? '+' : ''}{metrics.dataHealthIndex?.delta?.toFixed(1) || 0}% vs prev
           </div>
         </div>
 
@@ -234,21 +436,38 @@ const ExecutiveDashboard = () => {
       </div>
 
       <div className="charts-grid">
-        <div className="chart-card">
+        <div className="chart-card wide">
           <div className="chart-header">
-            <h3>File Processing Trend (Last 30 Days)</h3>
+            <h3>Project Health Scores (Top 10)</h3>
           </div>
-          <div className="chart-container">
-            <Bar data={throughputChartData} options={throughputChartOptions} />
+          <div className="chart-container-tall">
+            {projectHealthScores.length > 0 ? (
+              <Bar data={projectHealthChartData} options={projectHealthChartOptions} />
+            ) : (
+              <div className="no-data">No project data available</div>
+            )}
           </div>
         </div>
 
         <div className="chart-card">
           <div className="chart-header">
-            <h3>Quality Score Distribution</h3>
+            <h3>File Type Distribution</h3>
           </div>
           <div className="chart-container donut">
-            <Doughnut data={qualityChartData} options={qualityChartOptions} />
+            {fileTypeDistribution.length > 0 ? (
+              <Doughnut data={fileTypeChartData} options={fileTypeChartOptions} />
+            ) : (
+              <div className="no-data">No file type data available</div>
+            )}
+          </div>
+        </div>
+
+        <div className="chart-card">
+          <div className="chart-header">
+            <h3>File Processing Trend</h3>
+          </div>
+          <div className="chart-container">
+            <Bar data={throughputChartData} options={throughputChartOptions} />
           </div>
         </div>
       </div>
