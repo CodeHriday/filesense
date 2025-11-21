@@ -287,14 +287,14 @@
 .charts-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: var(--exec-space-md);
+  gap: 10px;
   margin-bottom: var(--exec-space-lg);
 }
 
 .chart-card {
   background: var(--exec-bg-surface);
   border-radius: var(--exec-radius-card);
-  padding: var(--exec-space-md);
+  padding: 10px;
   box-shadow: var(--exec-shadow-card);
   border: 1px solid var(--exec-border);
 }
@@ -304,11 +304,11 @@
 }
 
 .chart-header {
-  margin-bottom: var(--exec-space-md);
+  margin-bottom: 8px;
 }
 
 .chart-header h3 {
-  font-size: var(--exec-text-lg);
+  font-size: 12px;
   font-weight: var(--exec-font-semibold);
   color: var(--exec-text-title);
   margin: 0;
