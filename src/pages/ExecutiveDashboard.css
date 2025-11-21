@@ -321,6 +321,14 @@
   margin-bottom: var(--exec-space-lg);
 }
 
+/* Trend Charts - 2 column layout (50% each) */
+.executive-dashboard .trend-charts-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: var(--exec-space-lg);
+}
+
 .executive-dashboard .chart-card {
   background: var(--exec-bg-surface);
   border-radius: var(--exec-radius-card);
@@ -491,6 +499,10 @@
   }
   
   .executive-dashboard .charts-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .executive-dashboard .trend-charts-row {
     grid-template-columns: 1fr;
   }
 
