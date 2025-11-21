@@ -1358,4 +1358,124 @@ router.get('/schema-drift-trend', dashboardCacheMiddleware, async (req, res) => 
   }
 });
 
+/**
+ * GET /api/dashboard/quality-violations-trend
+ * Get daily quality violation counts grouped by quality dimension for last 30 days
+ */
+router.get('/quality-violations-trend', dashboardCacheMiddleware, async (req, res) => {
+  const pool = req.app.locals.pool || req.app.get('db');
+  
+  if (!req.user || !req.user.id) {
+    return res.status(401).json({
+      error: 'Authentication required'
+    });
+  }
+
+  try {
+    const userId = parseInt(req.user.id, 10);
+    const userRoles = req.user.roles || [];
+    const isAdmin = userRoles.includes('Admin');
+    const projectId = req.query.project_id ? parseInt(req.query.project_id, 10) : null;
+
+    let violationsTrendQuery;
+    let queryParams;
+
+    if (isAdmin) {
+      if (projectId) {
+        violationsTrendQuery = `
+          SELECT 
+            DATE(qrv.created_at) as date,
+            qr.rule_type as dimension,
+            COUNT(*) as violation_count
+          FROM quality_rule_violations qrv
+          INNER JOIN quality_rules qr ON qrv.rule_id = qr.id
+          INNER JOIN files f ON qrv.file_id = f.file_id
+          WHERE qrv.created_at >= CURRENT_DATE - INTERVAL '30 days'
+          AND f.project_id = $1
+          AND qr.rule_type IN ('completeness', 'uniqueness', 'validity', 'consistency', 'accuracy')
+          GROUP BY DATE(qrv.created_at), qr.rule_type
+          ORDER BY DATE(qrv.created_at), qr.rule_type
+        `;
+        queryParams = [projectId];
+      } else {
+        violationsTrendQuery = `
+          SELECT 
+            DATE(qrv.created_at) as date,
+            qr.rule_type as dimension,
+            COUNT(*) as violation_count
+          FROM quality_rule_violations qrv
+          INNER JOIN quality_rules qr ON qrv.rule_id = qr.id
+          WHERE qrv.created_at >= CURRENT_DATE - INTERVAL '30 days'
+          AND qr.rule_type IN ('completeness', 'uniqueness', 'validity', 'consistency', 'accuracy')
+          GROUP BY DATE(qrv.created_at), qr.rule_type
+          ORDER BY DATE(qrv.created_at), qr.rule_type
+        `;
+        queryParams = [];
+      }
+    } else {
+      if (projectId) {
+        violationsTrendQuery = `
+          WITH accessible_projects AS (
+            SELECT project_id FROM get_user_projects($1)
+          )
+          SELECT 
+            DATE(qrv.created_at) as date,
+            qr.rule_type as dimension,
+            COUNT(*) as violation_count
+          FROM quality_rule_violations qrv
+          INNER JOIN quality_rules qr ON qrv.rule_id = qr.id
+          INNER JOIN files f ON qrv.file_id = f.file_id
+          INNER JOIN accessible_projects ap ON f.project_id = ap.project_id
+          WHERE qrv.created_at >= CURRENT_DATE - INTERVAL '30 days'
+          AND f.project_id = $2
+          AND qr.rule_type IN ('completeness', 'uniqueness', 'validity', 'consistency', 'accuracy')
+          GROUP BY DATE(qrv.created_at), qr.rule_type
+          ORDER BY DATE(qrv.created_at), qr.rule_type
+        `;
+        queryParams = [userId, projectId];
+      } else {
+        violationsTrendQuery = `
+          WITH accessible_projects AS (
+            SELECT project_id FROM get_user_projects($1)
+          )
+          SELECT 
+            DATE(qrv.created_at) as date,
+            qr.rule_type as dimension,
+            COUNT(*) as violation_count
+          FROM quality_rule_violations qrv
+          INNER JOIN quality_rules qr ON qrv.rule_id = qr.id
+          INNER JOIN files f ON qrv.file_id = f.file_id
+          INNER JOIN accessible_projects ap ON f.project_id = ap.project_id
+          WHERE qrv.created_at >= CURRENT_DATE - INTERVAL '30 days'
+          AND qr.rule_type IN ('completeness', 'uniqueness', 'validity', 'consistency', 'accuracy')
+          GROUP BY DATE(qrv.created_at), qr.rule_type
+          ORDER BY DATE(qrv.created_at), qr.rule_type
+        `;
+        queryParams = [userId];
+      }
+    }
+
+    const result = await pool.query(violationsTrendQuery, queryParams);
+
+    // Transform rows into structured format
+    const violationsTrend = result.rows.map(row => ({
+      date: typeof row.date === 'string' ? row.date : row.date.toISOString().split('T')[0],
+      dimension: row.dimension,
+      count: parseInt(row.violation_count || 0)
+    }));
+
+    res.json({
+      violationsTrend: violationsTrend,
+      projectId: projectId
+    });
+
+  } catch (error) {
+    console.error('Error fetching quality violations trend:', error);
+    res.status(500).json({
+      error: 'Failed to fetch quality violations trend',
+      details: error.message
+    });
+  }
+});
+
 module.exports = router;
