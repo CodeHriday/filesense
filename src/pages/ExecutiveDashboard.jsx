@@ -48,7 +48,7 @@ const ExecutiveDashboard = () => {
       const response = await axios.get(`${API_BASE_URL}/api/projects`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      setProjects(response.data.projects || []);
+      setProjects(Array.isArray(response.data) ? response.data : []);
     } catch (err) {
       console.error('Error fetching projects:', err);
     }
