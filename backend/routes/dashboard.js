@@ -480,8 +480,8 @@ router.get('/executive-metrics', dashboardCacheMiddleware, async (req, res) => {
           WHERE f.project_id = va.project_id AND f.created_at >= $1 
           AND (fad.file_role IS NULL OR fad.file_role != 'target')
         )) as compliant_vendors
-        FROM vendor_agreements va WHERE va.status = 'active'
-      `, [rangeStart]);
+        FROM vendor_agreements va WHERE va.status = 'active' AND va.project_id = $2
+      `, [rangeStart, projectId]);
       totalVendors = parseInt(vendorResult.rows[0]?.total_vendors || 0);
       compliantVendors = parseInt(vendorResult.rows[0]?.compliant_vendors || 0);
 
@@ -490,9 +490,9 @@ router.get('/executive-metrics', dashboardCacheMiddleware, async (req, res) => {
         COUNT(DISTINCT f.id) FILTER (WHERE EXISTS (SELECT 1 FROM column_governance_tag_assignments cgta WHERE cgta.file_id = f.file_id AND cgta.tag_id IS NOT NULL)) as tagged_files
         FROM files f 
         LEFT JOIN file_audit_details fad ON f.file_id = fad.file_id
-        WHERE f.created_at >= $1 
+        WHERE f.created_at >= $1 AND f.project_id = $2 
         AND (fad.file_role IS NULL OR fad.file_role != 'target')
-      `, [rangeStart]);
+      `, [rangeStart, projectId]);
       totalFiles = parseInt(govResult.rows[0]?.total_files || 0);
       taggedFiles = parseInt(govResult.rows[0]?.tagged_files || 0);
 
