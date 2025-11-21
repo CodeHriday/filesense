@@ -426,14 +426,17 @@ const ExecutiveDashboard = () => {
         borderColor: '#E5E7EB',
         borderWidth: 1,
         padding: 12,
+        mode: 'index',
+        intersect: false,
         callbacks: {
           title: (tooltipItems) => {
             return tooltipItems[0].label;
           },
           afterTitle: (tooltipItems) => {
             const index = tooltipItems[0].dataIndex;
-            const completed = tooltipItems.find(item => item.dataset.label === 'Completed')?.parsed.y || 0;
-            const failed = tooltipItems.find(item => item.dataset.label === 'Failed')?.parsed.y || 0;
+            const allDatasets = tooltipItems[0].chart.data.datasets;
+            const completed = allDatasets[0].data[index] || 0;
+            const failed = allDatasets[1].data[index] || 0;
             const total = completed + failed;
             return `Total Jobs: ${total}`;
           },
@@ -663,19 +666,29 @@ const ExecutiveDashboard = () => {
           title: (tooltipItems) => {
             return tooltipItems[0].label;
           },
-          afterTitle: () => {
-            const index = arguments[0][0].dataIndex;
+          afterTitle: (tooltipItems) => {
+            const index = tooltipItems[0].dataIndex;
             const dayData = processedViolations[index];
             const total = dayData.completeness + dayData.uniqueness + dayData.validity + dayData.consistency + dayData.accuracy;
             return `Total Violations: ${total}`;
           },
-          label: (context) => {
-            const value = context.parsed.y;
-            const index = context.dataIndex;
+          beforeBody: (tooltipItems) => {
+            const index = tooltipItems[0].dataIndex;
             const dayData = processedViolations[index];
             const total = dayData.completeness + dayData.uniqueness + dayData.validity + dayData.consistency + dayData.accuracy;
-            const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
-            return `${context.dataset.label}: ${value} (${percentage}%)`;
+            
+            const lines = [];
+            if (total > 0) {
+              lines.push(`Completeness: ${dayData.completeness} (${((dayData.completeness / total) * 100).toFixed(1)}%)`);
+              lines.push(`Uniqueness: ${dayData.uniqueness} (${((dayData.uniqueness / total) * 100).toFixed(1)}%)`);
+              lines.push(`Validity: ${dayData.validity} (${((dayData.validity / total) * 100).toFixed(1)}%)`);
+              lines.push(`Consistency: ${dayData.consistency} (${((dayData.consistency / total) * 100).toFixed(1)}%)`);
+              lines.push(`Accuracy: ${dayData.accuracy} (${((dayData.accuracy / total) * 100).toFixed(1)}%)`);
+            }
+            return lines;
+          },
+          label: () => {
+            return null;
           }
         }
       },
