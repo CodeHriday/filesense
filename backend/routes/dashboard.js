@@ -499,11 +499,11 @@ router.get('/executive-metrics', dashboardCacheMiddleware, async (req, res) => {
       const apiResult = await pool.query(`
         SELECT COUNT(DISTINCT at.id) as active_tokens, COUNT(DISTINCT f.id) as total_requests
         FROM api_tokens at 
-        LEFT JOIN files f ON f.created_at >= $1 AND f.metadata->>'upload_method' = 'api'
+        LEFT JOIN files f ON f.created_at >= $1 AND f.metadata->>'upload_method' = 'api' AND f.project_id = $2
         LEFT JOIN file_audit_details fad ON f.file_id = fad.file_id
         WHERE at.is_active = true AND at.revoked_at IS NULL AND (at.expires_at IS NULL OR at.expires_at > NOW())
         AND (f.id IS NULL OR fad.file_role IS NULL OR fad.file_role != 'target')
-      `, [rangeStart]);
+      `, [rangeStart, projectId]);
       activeTokens = parseInt(apiResult.rows[0]?.active_tokens || 0);
       apiRequests = parseInt(apiResult.rows[0]?.total_requests || 0);
 
@@ -513,7 +513,7 @@ router.get('/executive-metrics', dashboardCacheMiddleware, async (req, res) => {
           SELECT f.created_at::date as date, ROUND(AVG(COALESCE(f.quality_score, 0))::numeric, 1) as health_score 
           FROM files f 
           LEFT JOIN file_audit_details fad ON f.file_id = fad.file_id
-          WHERE f.created_at >= $1 AND f.quality_score IS NOT NULL 
+          WHERE f.created_at >= $1 AND f.quality_score IS NOT NULL AND f.project_id = $2 
           AND (fad.file_role IS NULL OR fad.file_role != 'target')
           GROUP BY f.created_at::date
         ),
@@ -521,13 +521,13 @@ router.get('/executive-metrics', dashboardCacheMiddleware, async (req, res) => {
           SELECT f.created_at::date as date, COUNT(*) as file_count 
           FROM files f 
           LEFT JOIN file_audit_details fad ON f.file_id = fad.file_id
-          WHERE f.created_at >= $1 
+          WHERE f.created_at >= $1 AND f.project_id = $2 
           AND (fad.file_role IS NULL OR fad.file_role != 'target')
           GROUP BY f.created_at::date
         )
         SELECT ds.date, COALESCE(dh.health_score, 0) as health_score, COALESCE(df.file_count, 0) as file_count
         FROM date_series ds LEFT JOIN daily_health dh ON ds.date = dh.date LEFT JOIN daily_files df ON ds.date = df.date ORDER BY ds.date
-      `, [sparklineStart]);
+      `, [sparklineStart, projectId]);
       healthSparkline = sparklineResult.rows.map(r => parseFloat(r.health_score) || 0);
       throughputSparkline = sparklineResult.rows.map(r => parseInt(r.file_count) || 0);
 
