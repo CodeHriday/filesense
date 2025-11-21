@@ -433,7 +433,7 @@ const ExecutiveDashboard = () => {
           const value = context.dataset.data[context.dataIndex];
           return value > 0;
         },
-        color: '#000000',
+        color: '#4C6EF5',
         font: {
           size: 10,
           weight: 'bold',
@@ -659,7 +659,7 @@ const ExecutiveDashboard = () => {
           const value = context.dataset.data[context.dataIndex];
           return value > 0;
         },
-        color: '#000000',
+        color: '#4C6EF5',
         font: {
           size: 10,
           weight: 'bold',
