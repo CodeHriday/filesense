@@ -244,12 +244,26 @@ router.get('/filters', authenticateToken, async (req, res) => {
       LIMIT 100
     `);
     
+    // Get available source files
+    const filesResult = await pool.query(`
+      SELECT DISTINCT 
+        f.id, 
+        f.filename,
+        f.file_type,
+        f.created_at
+      FROM files f
+      WHERE f.file_role = 'source'
+      ORDER BY f.created_at DESC
+      LIMIT 100
+    `);
+    
     res.json({
       success: true,
       filters: {
         projects: projectsResult.rows,
         vendors: vendorsResult.rows,
-        agreements: agreementsResult.rows
+        agreements: agreementsResult.rows,
+        files: filesResult.rows
       }
     });
     
