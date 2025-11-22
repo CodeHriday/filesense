@@ -209,7 +209,7 @@ async function traverseFromFile(fileId, projectId, nodes, edges, visited, depth,
   });
   
   // Find ETL mappings that use this file as input
-  // Convert wildcard pattern to PostgreSQL LIKE pattern: * -> %
+  // Extract basename from filename and match against pattern (* -> %)
   const mappingsResult = await pool.query(`
     SELECT DISTINCT
       tm.id,
@@ -222,7 +222,10 @@ async function traverseFromFile(fileId, projectId, nodes, edges, visited, depth,
       tm.project_id,
       tm.description
     FROM transformation_mappings tm
-    WHERE $1 LIKE REPLACE(tm.source_file_pattern, '*', '%')
+    WHERE (
+      $1 LIKE '%' || REPLACE(tm.source_file_pattern, '*', '%')
+      OR substring($1 from '[^/]+$') LIKE REPLACE(tm.source_file_pattern, '*', '%')
+    )
       AND ($2::integer IS NULL OR tm.project_id = $2)
       AND tm.status != 'deleted'
     LIMIT 50
@@ -671,11 +674,26 @@ async function getNodeDetails(nodeId, nodeType, projectId) {
             COUNT(DISTINCT qrv.id) as violation_count
           FROM files f
           LEFT JOIN vendor_agreements va ON f.vendor_agreement_id = va.id
-          LEFT JOIN quality_rule_violations qrv ON qrv.file_id = f.id AND qrv.status != 'resolved'
-          WHERE f.id = $1
+          LEFT JOIN quality_rule_violations qrv ON qrv.file_id = f.id::text AND qrv.status != 'resolved'
+          WHERE f.id = $1::integer
           GROUP BY f.id, va.agreement_code
         `, [fileId]);
-        return fileResult.rows[0] || null;
+        
+        if (fileResult.rows.length === 0) return null;
+        
+        const fileData = fileResult.rows[0];
+        
+        // Get PII columns for this file
+        const piiColumnsResult = await pool.query(`
+          SELECT DISTINCT cta.column_name
+          FROM column_governance_tag_assignments cta
+          WHERE cta.file_id = $1 AND cta.tag_id = 'tag_pii'
+          ORDER BY cta.column_name
+        `, [fileData.file_id]);
+        
+        fileData.pii_columns = piiColumnsResult.rows.map(row => row.column_name);
+        
+        return fileData;
         
       case 'transformation':
         const mappingId = nodeId.replace('mapping-', '');
