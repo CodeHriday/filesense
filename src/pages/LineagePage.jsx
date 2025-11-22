@@ -37,6 +37,7 @@ const nodeTypes = {
 };
 
 const LineagePageContent = () => {
+  const { fitView } = useReactFlow();
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [selectedNode, setSelectedNode] = useState(null);
@@ -74,6 +75,17 @@ const LineagePageContent = () => {
     };
     loadFilters();
   }, []);
+  
+  // Auto-fit view when nodes are loaded
+  useEffect(() => {
+    if (nodes.length > 0) {
+      // Small delay to ensure DOM is updated
+      const timer = setTimeout(() => {
+        fitView({ padding: 0.2, duration: 800 });
+      }, 50);
+      return () => clearTimeout(timer);
+    }
+  }, [nodes.length, fitView]);
   
   // Load lineage graph
   const loadGraph = async () => {
