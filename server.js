@@ -3659,6 +3659,15 @@ try {
   console.error('✗ Failed to register /api/lineage:', error.message);
 }
 
+// Lineage Graph routes (visual lineage for Data Governance page)
+try {
+  const lineageGraphRoutes = require('./server/routes/lineageGraph');
+  app.use('/api/lineage-graph', lineageGraphRoutes);
+  console.log('✓ Registered /api/lineage-graph route');
+} catch (error) {
+  console.error('✗ Failed to register /api/lineage-graph:', error.message);
+}
+
 // Job routes
 try {
   const jobRoutes = require('./backend/routes/jobs');

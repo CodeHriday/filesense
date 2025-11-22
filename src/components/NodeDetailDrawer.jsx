@@ -1,0 +1,239 @@
+import React, { useState, useEffect } from 'react';
+import './NodeDetailDrawer.css';
+import { FaTimes, FaFileContract, FaFile, FaCog, FaCalculator, FaTable, FaPlayCircle, FaExclamationTriangle } from 'react-icons/fa';
+import { fetchNodeDetails } from '../services/lineageGraphService';
+
+const NodeDetailDrawer = ({ node, open, onClose }) => {
+  const [details, setDetails] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  
+  useEffect(() => {
+    if (open && node) {
+      loadDetails();
+    } else {
+      setDetails(null);
+      setError(null);
+    }
+  }, [open, node]);
+  
+  const loadDetails = async () => {
+    if (!node) return;
+    
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const response = await fetchNodeDetails(node.id, node.data.type, node.data.projectId);
+      if (response.success) {
+        setDetails(response.node.details);
+      } else {
+        setError(response.error || 'Failed to load node details');
+      }
+    } catch (err) {
+      setError(err.message || 'Failed to load node details');
+      console.error('Error loading node details:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  if (!open || !node) return null;
+  
+  const getIcon = () => {
+    const iconProps = { size: 20 };
+    switch (node.data.type) {
+      case 'vendorContract':
+        return <FaFileContract {...iconProps} style={{ color: '#6366F1' }} />;
+      case 'sourceFile':
+        return <FaFile {...iconProps} style={{ color: '#3B82F6' }} />;
+      case 'transformation':
+        return <FaCog {...iconProps} style={{ color: '#F59E0B' }} />;
+      case 'derivedColumn':
+        return <FaCalculator {...iconProps} style={{ color: '#8B5CF6' }} />;
+      case 'targetTable':
+        return <FaTable {...iconProps} style={{ color: '#025043' }} />;
+      case 'job':
+        return <FaPlayCircle {...iconProps} style={{ color: '#10B981' }} />;
+      default:
+        return null;
+    }
+  };
+  
+  const renderContent = () => {
+    if (loading) {
+      return <div className="drawer-loading">Loading details...</div>;
+    }
+    
+    if (error) {
+      return <div className="drawer-error">{error}</div>;
+    }
+    
+    return (
+      <div className="drawer-content">
+        {/* Basic Metadata */}
+        <section className="drawer-section">
+          <h3>Metadata</h3>
+          <div className="drawer-metadata">
+            {Object.entries(node.data).map(([key, value]) => {
+              // Skip internal fields
+              if (['label', 'type', 'incidents', 'hasIncidents', 'derivedColumns'].includes(key)) {
+                return null;
+              }
+              
+              // Format value
+              let displayValue = value;
+              if (value === null || value === undefined) {
+                return null;
+              }
+              if (typeof value === 'boolean') {
+                displayValue = value ? 'Yes' : 'No';
+              }
+              if (value instanceof Date) {
+                displayValue = value.toLocaleString();
+              }
+              if (typeof value === 'string' && value.match(/^\d{4}-\d{2}-\d{2}T/)) {
+                displayValue = new Date(value).toLocaleString();
+              }
+              
+              return (
+                <div className="drawer-metadata-item" key={key}>
+                  <span className="drawer-metadata-key">
+                    {key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}:
+                  </span>
+                  <span className="drawer-metadata-value">{String(displayValue)}</span>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+        
+        {/* Derived Columns */}
+        {node.data.derivedColumns && node.data.derivedColumns.length > 0 && (
+          <section className="drawer-section">
+            <h3>Derived Columns ({node.data.derivedColumns.length})</h3>
+            <div className="drawer-derived-columns">
+              {node.data.derivedColumns.map((col, index) => (
+                <div className="drawer-derived-column" key={index}>
+                  <div className="drawer-derived-column-name">
+                    <FaCalculator size={12} style={{ color: '#8B5CF6' }} />
+                    {col.target_field}
+                  </div>
+                  <div className="drawer-derived-column-expression">
+                    {col.expression}
+                  </div>
+                  <div className="drawer-derived-column-meta">
+                    Type: {col.transformation_type} | 
+                    Sources: {col.source_fields.join(', ')}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+        
+        {/* Incidents */}
+        {node.data.hasIncidents && node.data.incidents && (
+          <section className="drawer-section">
+            <h3>Quality Incidents</h3>
+            <div className="drawer-incidents-summary">
+              <div className="drawer-incident-stat drawer-incident-critical">
+                <FaExclamationTriangle />
+                <div>
+                  <div className="drawer-incident-stat-value">{node.data.incidents.criticalCount}</div>
+                  <div className="drawer-incident-stat-label">Critical</div>
+                </div>
+              </div>
+              <div className="drawer-incident-stat drawer-incident-warning">
+                <FaExclamationTriangle />
+                <div>
+                  <div className="drawer-incident-stat-value">{node.data.incidents.warningCount}</div>
+                  <div className="drawer-incident-stat-label">Warnings</div>
+                </div>
+              </div>
+              <div className="drawer-incident-stat">
+                <div>
+                  <div className="drawer-incident-stat-value">{node.data.incidents.totalViolations}</div>
+                  <div className="drawer-incident-stat-label">Total</div>
+                </div>
+              </div>
+            </div>
+            
+            <div className="drawer-incidents-list">
+              {node.data.incidents.violations.map((violation, index) => (
+                <div className="drawer-incident-item" key={index}>
+                  <div className={`drawer-incident-severity drawer-incident-severity-${violation.severity}`}>
+                    {violation.severity}
+                  </div>
+                  <div className="drawer-incident-details">
+                    <div className="drawer-incident-rule">{violation.ruleName}</div>
+                    <div className="drawer-incident-type">{violation.ruleType}</div>
+                    <div className="drawer-incident-count">{violation.count} violations</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+        
+        {/* Extended Details from Backend */}
+        {details && (
+          <section className="drawer-section">
+            <h3>Extended Information</h3>
+            <div className="drawer-metadata">
+              {Object.entries(details).map(([key, value]) => {
+                if (value === null || value === undefined || key === 'id') {
+                  return null;
+                }
+                
+                let displayValue = value;
+                if (typeof value === 'object') {
+                  displayValue = JSON.stringify(value, null, 2);
+                }
+                if (typeof value === 'boolean') {
+                  displayValue = value ? 'Yes' : 'No';
+                }
+                if (typeof value === 'string' && value.match(/^\d{4}-\d{2}-\d{2}T/)) {
+                  displayValue = new Date(value).toLocaleString();
+                }
+                
+                return (
+                  <div className="drawer-metadata-item" key={key}>
+                    <span className="drawer-metadata-key">
+                      {key.replace(/_/g, ' ').replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}:
+                    </span>
+                    <span className="drawer-metadata-value">{String(displayValue)}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        )}
+      </div>
+    );
+  };
+  
+  return (
+    <div className={`node-detail-drawer ${open ? 'open' : ''}`}>
+      <div className="drawer-overlay" onClick={onClose}></div>
+      <div className="drawer-panel">
+        <div className="drawer-header">
+          <div className="drawer-title">
+            {getIcon()}
+            <div>
+              <div className="drawer-title-main">{node.data.label}</div>
+              <div className="drawer-title-sub">{node.data.type}</div>
+            </div>
+          </div>
+          <button className="drawer-close" onClick={onClose}>
+            <FaTimes />
+          </button>
+        </div>
+        
+        {renderContent()}
+      </div>
+    </div>
+  );
+};
+
+export default NodeDetailDrawer;

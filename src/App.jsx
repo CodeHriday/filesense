@@ -29,6 +29,7 @@ import ETLJobDetails from './pages/ETLJobDetails';
 import Transform from './pages/Transform';
 import FileLineage from './pages/FileLineage';
 import LineageImpact from './pages/LineageImpact';
+import LineagePage from './pages/LineagePage';
 import Monitor from './pages/Monitor';
 import Scheduler from './pages/Scheduler';
 import Badges from './pages/Badges';
@@ -272,6 +273,7 @@ function AppContent({ showOnboarding, setShowOnboarding }) {
                 <Route path="/transformations" element={<ProtectedRoute><Transform /></ProtectedRoute>} />
                 <Route path="/transform" element={<ProtectedRoute><Transform /></ProtectedRoute>} />
                 <Route path="/lineage" element={<ProtectedRoute><FileLineage /></ProtectedRoute>} />
+                <Route path="/visual-lineage" element={<ProtectedRoute><LineagePage /></ProtectedRoute>} />
                 <Route path="/lineage/impact/:fileId" element={<ProtectedRoute>
                   {({ fileId }) => {
                     return fileId ? (

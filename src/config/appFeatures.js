@@ -198,6 +198,14 @@ export const APP_FEATURES = [
     showInSidebar: true
   },
   { 
+    id: 'visual_lineage', 
+    name: 'Visual Lineage', 
+    category: 'Governance',
+    icon: FiGitBranch,
+    route: '/visual-lineage',
+    showInSidebar: true
+  },
+  { 
     id: 'policies', 
     name: 'Policies', 
     category: 'Governance',
