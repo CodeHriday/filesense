@@ -54,7 +54,8 @@ const LineagePage = () => {
   const [filterOptions, setFilterOptions] = useState({
     projects: [],
     vendors: [],
-    agreements: []
+    agreements: [],
+    files: []
   });
   
   // Fetch filter options on mount
@@ -324,8 +325,6 @@ const LineagePage = () => {
             <select value={rootType} onChange={(e) => setRootType(e.target.value)}>
               <option value="vendorAgreement">Vendor Agreement</option>
               <option value="file">Source File</option>
-              <option value="mapping">ETL Mapping</option>
-              <option value="job">Job Execution</option>
             </select>
           </div>
           
@@ -341,24 +340,16 @@ const LineagePage = () => {
                 ))}
               </select>
             )}
-            {rootType !== 'vendorAgreement' && (
-              <input
-                type="text"
-                placeholder={`Enter ${rootType} ID`}
-                value={rootId}
-                onChange={(e) => setRootId(e.target.value)}
-              />
+            {rootType === 'file' && (
+              <select value={rootId} onChange={(e) => setRootId(e.target.value)}>
+                <option value="">Select File</option>
+                {filterOptions.files.map(file => (
+                  <option key={file.id} value={file.id}>
+                    {file.filename} ({file.file_type})
+                  </option>
+                ))}
+              </select>
             )}
-          </div>
-          
-          <div className="lineage-filter-group">
-            <label>Project</label>
-            <select value={projectId || ''} onChange={(e) => setProjectId(e.target.value || null)}>
-              <option value="">All Projects</option>
-              {filterOptions.projects.map(proj => (
-                <option key={proj.id} value={proj.id}>{proj.project_name}</option>
-              ))}
-            </select>
           </div>
           
           <div className="lineage-filter-group">
