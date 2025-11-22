@@ -126,6 +126,8 @@ const LineagePage = () => {
           'LR' // Left to Right layout
         );
         
+        console.log('Layout applied - sample positions:', layoutedNodes.slice(0, 3).map(n => ({ id: n.id, x: n.position.x, y: n.position.y })));
+        
         setNodes(layoutedNodes);
         setEdges(layoutedEdges);
       } else {
