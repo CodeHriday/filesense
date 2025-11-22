@@ -52,33 +52,34 @@
   box-sizing: border-box !important;
 }
 
-.react-flow {
+/* Scoped to Workflow Canvas only - prevents interference with other React Flow instances */
+.reactflow-wrapper .react-flow {
   position: relative !important;
   width: 100% !important;
   height: 100% !important;
 }
 
-.react-flow__renderer {
+.reactflow-wrapper .react-flow__renderer {
   position: absolute !important;
   width: 100% !important;
   height: 100% !important;
 }
 
-.react-flow__viewport {
+.reactflow-wrapper .react-flow__viewport {
   position: relative !important;
   transform-origin: 0 0 !important;
   z-index: 1 !important;
   pointer-events: none !important;
 }
 
-.react-flow__nodes {
+.reactflow-wrapper .react-flow__nodes {
   position: absolute !important;
   width: 1px !important;
   height: 1px !important;
   pointer-events: none !important;
 }
 
-.react-flow__node {
+.reactflow-wrapper .react-flow__node {
   position: absolute !important;
   user-select: none !important;
   pointer-events: all !important;
@@ -87,28 +88,28 @@
   z-index: 10 !important;
 }
 
-.react-flow__edges {
+.reactflow-wrapper .react-flow__edges {
   position: absolute !important;
   width: 1px !important;
   height: 1px !important;
   pointer-events: none !important;
 }
 
-.react-flow__edge {
+.reactflow-wrapper .react-flow__edge {
   position: absolute !important;
   pointer-events: visibleStroke !important;
   z-index: 5 !important;
 }
 
 /* Ensure ReactFlow controls and minimap are visible */
-.react-flow__controls,
-.react-flow__minimap {
+.reactflow-wrapper .react-flow__controls,
+.reactflow-wrapper .react-flow__minimap {
   position: absolute !important;
   z-index: 1000 !important;
 }
 
 /* Fix for custom node rendering */
-.react-flow__node-custom {
+.reactflow-wrapper .react-flow__node-custom {
   background: white !important;
   border: 2px solid #888 !important;
   border-radius: 8px !important;
