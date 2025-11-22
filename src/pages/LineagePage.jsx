@@ -104,13 +104,30 @@ const LineagePageContent = () => {
   
   // Trigger fitView when nodes are loaded and instance is ready
   useEffect(() => {
+    console.log('fitView effect triggered - nodes:', nodes.length, 'instance:', !!reactFlowInstance);
     if (nodes.length > 0 && reactFlowInstance) {
+      console.log('Calling fitView - current viewport:', reactFlowInstance.getViewport());
       const timer = setTimeout(() => {
         reactFlowInstance.fitView({ padding: 0.2, duration: 800 });
+        console.log('fitView called - new viewport:', reactFlowInstance.getViewport());
       }, 150);
       return () => clearTimeout(timer);
     }
   }, [nodes.length, reactFlowInstance]);
+  
+  // Handle onInit to ensure fitView when both instance and nodes are ready
+  const handleReactFlowInit = useCallback((instance) => {
+    console.log('React Flow initialized, nodes count:', nodes.length);
+    setReactFlowInstance(instance);
+    
+    // If nodes already loaded, trigger fitView
+    if (nodes.length > 0) {
+      setTimeout(() => {
+        console.log('Fitting view from onInit');
+        instance.fitView({ padding: 0.2, duration: 800 });
+      }, 150);
+    }
+  }, [nodes.length]);
   
   // Load lineage graph
   const loadGraph = async () => {
@@ -464,7 +481,7 @@ const LineagePageContent = () => {
           edges={edges}
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
-          onInit={setReactFlowInstance}
+          onInit={handleReactFlowInit}
           onNodeClick={onNodeClick}
           nodeTypes={nodeTypes}
           fitView
