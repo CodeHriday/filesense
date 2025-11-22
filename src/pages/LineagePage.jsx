@@ -146,7 +146,10 @@ const LineagePageContent = () => {
             derivedColumns: node.derivedColumns
           },
           position: { x: 0, y: 0 }, // Will be set by dagre
+          style: { width: 220, height: 80 }, // Explicit dimensions
         }));
+        
+        console.log('Node types created:', flowNodes.map(n => ({ id: n.id, type: n.type, label: n.data.label })));
         
         // Transform backend edges to React Flow format
         const flowEdges = response.edges.map(edge => ({

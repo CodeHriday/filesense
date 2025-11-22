@@ -386,7 +386,7 @@
 .react-flow__node:active {
   z-index: 1000 !important;
   filter: drop-shadow(0px 4px 8px rgba(0,0,0,0.2));
-  transform: scale(1.01);
+  /* Removed transform: scale(1.01) to avoid overriding React Flow's translate positioning */
 }
 
 .react-flow__node.dragging {
