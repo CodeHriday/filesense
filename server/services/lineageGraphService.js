@@ -177,11 +177,11 @@ async function traverseFromFile(fileId, projectId, nodes, edges, visited, depth,
   
   // Get PII columns for this file
   const piiColumnsResult = await pool.query(`
-    SELECT DISTINCT fct.column_name
-    FROM file_column_tags fct
-    WHERE fct.file_id = $1 AND fct.tag_id = 'tag_pii'
-    ORDER BY fct.column_name
-  `, [fileId]);
+    SELECT DISTINCT cta.column_name
+    FROM column_governance_tag_assignments cta
+    WHERE cta.file_id = $1 AND cta.tag_id = 'tag_pii'
+    ORDER BY cta.column_name
+  `, [file.file_id]);
   
   const piiColumns = piiColumnsResult.rows.map(row => row.column_name);
   
@@ -209,6 +209,7 @@ async function traverseFromFile(fileId, projectId, nodes, edges, visited, depth,
   });
   
   // Find ETL mappings that use this file as input
+  // Convert wildcard pattern to PostgreSQL LIKE pattern: * -> %
   const mappingsResult = await pool.query(`
     SELECT DISTINCT
       tm.id,
@@ -221,11 +222,11 @@ async function traverseFromFile(fileId, projectId, nodes, edges, visited, depth,
       tm.project_id,
       tm.description
     FROM transformation_mappings tm
-    WHERE tm.source_file_pattern LIKE $1
+    WHERE $1 LIKE REPLACE(tm.source_file_pattern, '*', '%')
       AND ($2::integer IS NULL OR tm.project_id = $2)
       AND tm.status != 'deleted'
     LIMIT 50
-  `, [`%${file.filename}%`, projectId]);
+  `, [file.filename, projectId]);
   
   // Traverse each mapping
   for (const mapping of mappingsResult.rows) {
@@ -417,11 +418,11 @@ async function traverseFromJob(jobId, projectId, nodes, edges, visited, depth, f
       
       // Get PII columns for target file
       const targetPiiColumnsResult = await pool.query(`
-        SELECT DISTINCT fct.column_name
-        FROM file_column_tags fct
-        WHERE fct.file_id = $1 AND fct.tag_id = 'tag_pii'
-        ORDER BY fct.column_name
-      `, [targetFile.id]);
+        SELECT DISTINCT cta.column_name
+        FROM column_governance_tag_assignments cta
+        WHERE cta.file_id = $1 AND cta.tag_id = 'tag_pii'
+        ORDER BY cta.column_name
+      `, [targetFile.file_id]);
       
       const targetPiiColumns = targetPiiColumnsResult.rows.map(row => row.column_name);
       
