@@ -102,30 +102,32 @@ const LineagePageContent = () => {
     return () => resizeObserver.disconnect();
   }, []);
   
-  // Trigger fitView when nodes are loaded and instance is ready
+  // Trigger fitBounds when nodes are loaded and instance is ready
   useEffect(() => {
-    console.log('fitView effect triggered - nodes:', nodes.length, 'instance:', !!reactFlowInstance);
+    console.log('fitBounds effect triggered - nodes:', nodes.length, 'instance:', !!reactFlowInstance);
     if (nodes.length > 0 && reactFlowInstance) {
-      console.log('Calling fitView - current viewport:', reactFlowInstance.getViewport());
-      const timer = setTimeout(() => {
-        reactFlowInstance.fitView({ padding: 0.2, duration: 800 });
-        console.log('fitView called - new viewport:', reactFlowInstance.getViewport());
-      }, 150);
-      return () => clearTimeout(timer);
+      console.log('Attempting fitBounds with requestAnimationFrame');
+      requestAnimationFrame(() => {
+        const bounds = getRectOfNodes(nodes);
+        console.log('Node bounds:', bounds);
+        reactFlowInstance.fitBounds(bounds, { padding: 0.2, duration: 800 });
+        console.log('fitBounds called - new viewport:', reactFlowInstance.getViewport());
+      });
     }
   }, [nodes.length, reactFlowInstance]);
   
-  // Handle onInit to ensure fitView when both instance and nodes are ready
+  // Handle onInit to ensure fitBounds when both instance and nodes are ready
   const handleReactFlowInit = useCallback((instance) => {
     console.log('React Flow initialized, nodes count:', nodes.length);
     setReactFlowInstance(instance);
     
-    // If nodes already loaded, trigger fitView
+    // If nodes already loaded, trigger fitBounds
     if (nodes.length > 0) {
-      setTimeout(() => {
-        console.log('Fitting view from onInit');
-        instance.fitView({ padding: 0.2, duration: 800 });
-      }, 150);
+      requestAnimationFrame(() => {
+        console.log('Fitting bounds from onInit');
+        const bounds = getRectOfNodes(nodes);
+        instance.fitBounds(bounds, { padding: 0.2, duration: 800 });
+      });
     }
   }, [nodes.length]);
   
