@@ -216,9 +216,9 @@ router.get('/filters', authenticateToken, async (req, res) => {
     
     // Get available projects (user has access to)
     const projectsResult = await pool.query(`
-      SELECT DISTINCT p.id, p.project_name
+      SELECT DISTINCT p.id, p.name as project_name
       FROM projects p
-      ORDER BY p.project_name
+      ORDER BY p.name
       LIMIT 100
     `);
     
