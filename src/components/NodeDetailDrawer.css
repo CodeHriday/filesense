@@ -151,6 +151,94 @@
   word-break: break-word;
 }
 
+/* Data Governance */
+.drawer-governance {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.drawer-governance-item {
+  display: flex;
+  align-items: flex-start;
+  font-size: 11px;
+  gap: 8px;
+}
+
+.drawer-governance-item.drawer-governance-columns {
+  flex-direction: column;
+  gap: 8px;
+}
+
+.drawer-governance-label {
+  font-weight: 500;
+  color: #6B7280;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 140px;
+  flex-shrink: 0;
+}
+
+.drawer-governance-value {
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 3px;
+}
+
+.drawer-governance-yes {
+  color: #7C3AED;
+  background: #F5F3FF;
+}
+
+.drawer-governance-no {
+  color: #6B7280;
+  background: #F3F4F6;
+}
+
+.drawer-governance-classification {
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 3px;
+  color: white;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.drawer-governance-classification-confidential {
+  background: #DC2626;
+}
+
+.drawer-governance-classification-phi {
+  background: #7C3AED;
+}
+
+.drawer-governance-classification-internal {
+  background: #F59E0B;
+}
+
+.drawer-governance-classification-public {
+  background: #10B981;
+}
+
+.drawer-pii-columns-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-left: 0;
+}
+
+.drawer-pii-column-badge {
+  background: #F5F3FF;
+  color: #7C3AED;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 3px;
+  border: 1px solid #DDD6FE;
+}
+
 /* Derived Columns */
 .drawer-derived-columns {
   display: flex;

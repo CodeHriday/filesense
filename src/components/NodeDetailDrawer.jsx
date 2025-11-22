@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import './NodeDetailDrawer.css';
-import { FaTimes, FaFileContract, FaFile, FaCog, FaCalculator, FaTable, FaPlayCircle, FaExclamationTriangle } from 'react-icons/fa';
+import { FaTimes, FaFileContract, FaFile, FaCog, FaCalculator, FaTable, FaPlayCircle, FaExclamationTriangle, FaShieldAlt, FaLock } from 'react-icons/fa';
 import { fetchNodeDetails } from '../services/lineageGraphService';
 
 const NodeDetailDrawer = ({ node, open, onClose }) => {
@@ -76,8 +76,8 @@ const NodeDetailDrawer = ({ node, open, onClose }) => {
           <h3>Metadata</h3>
           <div className="drawer-metadata">
             {Object.entries(node.data).map(([key, value]) => {
-              // Skip internal fields
-              if (['label', 'type', 'incidents', 'hasIncidents', 'derivedColumns'].includes(key)) {
+              // Skip internal fields and PII fields (shown in dedicated section)
+              if (['label', 'type', 'incidents', 'hasIncidents', 'derivedColumns', 'containsPii', 'dataClassification', 'piiColumns'].includes(key)) {
                 return null;
               }
               
@@ -107,6 +107,52 @@ const NodeDetailDrawer = ({ node, open, onClose }) => {
             })}
           </div>
         </section>
+        
+        {/* PII & Data Classification */}
+        {(node.data.type === 'sourceFile' || node.data.type === 'targetTable') && (
+          <section className="drawer-section">
+            <h3>Data Governance</h3>
+            <div className="drawer-governance">
+              <div className="drawer-governance-item">
+                <span className="drawer-governance-label">
+                  <FaShieldAlt style={{ color: node.data.containsPii ? '#7C3AED' : '#9CA3AF' }} />
+                  Contains PII:
+                </span>
+                <span className={`drawer-governance-value ${node.data.containsPii ? 'drawer-governance-yes' : 'drawer-governance-no'}`}>
+                  {node.data.containsPii ? 'Yes' : 'No'}
+                </span>
+              </div>
+              
+              {node.data.dataClassification && (
+                <div className="drawer-governance-item">
+                  <span className="drawer-governance-label">
+                    <FaLock style={{ color: '#6B7280' }} />
+                    Classification:
+                  </span>
+                  <span className={`drawer-governance-classification drawer-governance-classification-${node.data.dataClassification.toLowerCase()}`}>
+                    {node.data.dataClassification}
+                  </span>
+                </div>
+              )}
+              
+              {node.data.piiColumns && node.data.piiColumns.length > 0 && (
+                <div className="drawer-governance-item drawer-governance-columns">
+                  <span className="drawer-governance-label">
+                    <FaShieldAlt style={{ color: '#7C3AED' }} />
+                    PII Columns ({node.data.piiColumns.length}):
+                  </span>
+                  <div className="drawer-pii-columns-list">
+                    {node.data.piiColumns.map((col, index) => (
+                      <span key={index} className="drawer-pii-column-badge">
+                        {col}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </section>
+        )}
         
         {/* Derived Columns */}
         {node.data.derivedColumns && node.data.derivedColumns.length > 0 && (
