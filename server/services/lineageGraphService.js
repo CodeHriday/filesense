@@ -120,17 +120,17 @@ async function traverseFromVendorAgreement(agreementId, projectId, nodes, edges,
   const filesResult = await pool.query(`
     SELECT DISTINCT
       f.id,
-      f.file_name,
+      f.filename,
       f.file_type,
       f.file_size,
-      f.upload_date,
-      f.status,
-      f.storage_path,
+      f.created_at as upload_date,
+      f.processing_step as status,
+      f.file_id as storage_path,
       f.project_id
     FROM files f
     WHERE f.vendor_agreement_id = $1
       AND ($2::integer IS NULL OR f.project_id = $2)
-    ORDER BY f.upload_date DESC
+    ORDER BY f.created_at DESC
     LIMIT 100
   `, [agreementId, projectId]);
   
@@ -179,15 +179,15 @@ async function traverseFromFile(fileId, projectId, nodes, edges, visited, depth,
   nodes.push({
     id: nodeId,
     type: 'sourceFile',
-    label: file.file_name,
+    label: file.filename,
     metadata: {
       id: file.id,
-      fileName: file.file_name,
+      fileName: file.filename,
       fileType: file.file_type,
       fileSize: file.file_size,
-      uploadDate: file.upload_date,
-      status: file.status,
-      storagePath: file.storage_path,
+      uploadDate: file.created_at,
+      status: file.processing_step,
+      storagePath: file.file_id,
       projectId: file.project_id,
       vendorAgreementCode: file.agreement_code,
       checksum: file.checksum,
@@ -212,7 +212,7 @@ async function traverseFromFile(fileId, projectId, nodes, edges, visited, depth,
       AND ($2::integer IS NULL OR tm.project_id = $2)
       AND tm.status != 'deleted'
     LIMIT 50
-  `, [`%${file.file_name}%`, projectId]);
+  `, [`%${file.filename}%`, projectId]);
   
   // Traverse each mapping
   for (const mapping of mappingsResult.rows) {
