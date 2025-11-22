@@ -426,6 +426,10 @@
 }
 
 /* React Flow Customizations */
+.lineage-canvas .react-flow__node {
+  position: absolute !important;
+}
+
 .react-flow__node.selected .lineage-node {
   box-shadow: 0 0 0 3px rgba(2, 80, 67, 0.3);
 }
