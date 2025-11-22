@@ -9,6 +9,7 @@ import ReactFlow, {
   getRectOfNodes,
   getTransformForBounds
 } from 'reactflow';
+import dagre from 'dagre';
 import 'reactflow/dist/style.css';
 import './LineagePage.css';
 import { fetchLineageGraph, fetchFilterOptions, exportLineageGraph } from '../services/lineageGraphService';
@@ -91,8 +92,8 @@ const LineagePage = () => {
       });
       
       if (response.success) {
-        // Transform backend nodes to React Flow format
-        const flowNodes = response.nodes.map((node, index) => ({
+        // Transform backend nodes to React Flow format (without position initially)
+        const flowNodes = response.nodes.map((node) => ({
           id: node.id,
           type: node.type,
           data: { 
@@ -103,7 +104,7 @@ const LineagePage = () => {
             hasIncidents: node.hasIncidents,
             derivedColumns: node.derivedColumns
           },
-          position: calculateNodePosition(index, response.nodes.length), // Auto-layout
+          position: { x: 0, y: 0 }, // Will be set by dagre
         }));
         
         // Transform backend edges to React Flow format
@@ -117,8 +118,15 @@ const LineagePage = () => {
           style: getEdgeStyle(edge.relationship)
         }));
         
-        setNodes(flowNodes);
-        setEdges(flowEdges);
+        // Apply dagre layout to position nodes based on their connections
+        const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(
+          flowNodes,
+          flowEdges,
+          'LR' // Left to Right layout
+        );
+        
+        setNodes(layoutedNodes);
+        setEdges(layoutedEdges);
       } else {
         setError(response.error || 'Failed to load lineage graph');
       }
@@ -130,16 +138,45 @@ const LineagePage = () => {
     }
   };
   
-  // Simple auto-layout algorithm (hierarchical top-to-bottom)
-  const calculateNodePosition = (index, total) => {
-    const cols = Math.ceil(Math.sqrt(total));
-    const row = Math.floor(index / cols);
-    const col = index % cols;
+  // Dagre-based hierarchical layout
+  const getLayoutedElements = (nodes, edges, direction = 'LR') => {
+    const dagreGraph = new dagre.graphlib.Graph();
+    dagreGraph.setDefaultEdgeLabel(() => ({}));
     
-    return {
-      x: col * 300 + 50,
-      y: row * 200 + 50
-    };
+    const nodeWidth = 280;
+    const nodeHeight = 120;
+    
+    const isHorizontal = direction === 'LR';
+    dagreGraph.setGraph({ 
+      rankdir: direction,
+      nodesep: 80,
+      ranksep: 150,
+      edgesep: 50
+    });
+    
+    nodes.forEach((node) => {
+      dagreGraph.setNode(node.id, { width: nodeWidth, height: nodeHeight });
+    });
+    
+    edges.forEach((edge) => {
+      dagreGraph.setEdge(edge.source, edge.target);
+    });
+    
+    dagre.layout(dagreGraph);
+    
+    const layoutedNodes = nodes.map((node) => {
+      const nodeWithPosition = dagreGraph.node(node.id);
+      
+      return {
+        ...node,
+        position: {
+          x: nodeWithPosition.x - nodeWidth / 2,
+          y: nodeWithPosition.y - nodeHeight / 2,
+        },
+      };
+    });
+    
+    return { nodes: layoutedNodes, edges };
   };
   
   // Get edge styling based on relationship type
