@@ -5,6 +5,8 @@ import ReactFlow, {
   Background,
   useNodesState,
   useEdgesState,
+  useReactFlow,
+  ReactFlowProvider,
   Panel,
   getRectOfNodes,
   getTransformForBounds
@@ -34,7 +36,8 @@ const nodeTypes = {
   job: JobNode
 };
 
-const LineagePage = () => {
+const LineagePageContent = () => {
+  const reactFlowInstance = useReactFlow();
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [selectedNode, setSelectedNode] = useState(null);
@@ -130,6 +133,11 @@ const LineagePage = () => {
         
         setNodes(layoutedNodes);
         setEdges(layoutedEdges);
+        
+        // Trigger fitView after a brief delay to ensure nodes are rendered
+        setTimeout(() => {
+          reactFlowInstance.fitView({ padding: 0.2, duration: 800 });
+        }, 100);
       } else {
         setError(response.error || 'Failed to load lineage graph');
       }
@@ -403,6 +411,9 @@ const LineagePage = () => {
           onNodeClick={onNodeClick}
           nodeTypes={nodeTypes}
           fitView
+          fitViewOptions={{ padding: 0.2, minZoom: 0.1, maxZoom: 1.5 }}
+          minZoom={0.1}
+          maxZoom={2}
           attributionPosition="bottom-left"
         >
           <Background color="#E5E7EB" gap={16} />
@@ -482,6 +493,15 @@ const LineagePage = () => {
         onClose={() => setDrawerOpen(false)}
       />
     </div>
+  );
+};
+
+// Wrap with ReactFlowProvider
+const LineagePage = () => {
+  return (
+    <ReactFlowProvider>
+      <LineagePageContent />
+    </ReactFlowProvider>
   );
 };
 
