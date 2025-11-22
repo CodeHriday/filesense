@@ -277,10 +277,16 @@
   margin-top: 4px;
 }
 
-.lineage-node-incident-badge {
+.lineage-node-badges {
   position: absolute;
-  top: -6px;
-  right: -6px;
+  top: -8px;
+  right: -8px;
+  display: flex;
+  gap: 4px;
+  flex-direction: row-reverse;
+}
+
+.lineage-node-incident-badge {
   background: #DC2626;
   color: white;
   border-radius: 50%;
@@ -292,6 +298,46 @@
   font-size: 10px;
   font-weight: 600;
   border: 2px solid white;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.lineage-node-pii-badge {
+  background: #7C3AED;
+  color: white;
+  border-radius: 3px;
+  padding: 2px 6px;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 9px;
+  font-weight: 600;
+  border: 2px solid white;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  white-space: nowrap;
+}
+
+.lineage-node-pii-badge svg {
+  font-size: 9px;
+}
+
+.lineage-node-classification-badge {
+  color: white;
+  border-radius: 3px;
+  padding: 2px 6px;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 9px;
+  font-weight: 600;
+  border: 2px solid white;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  white-space: nowrap;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.lineage-node-classification-badge svg {
+  font-size: 8px;
 }
 
 .lineage-node-derived-badge {
