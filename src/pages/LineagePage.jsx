@@ -37,7 +37,6 @@ const nodeTypes = {
 };
 
 const LineagePageContent = () => {
-  const reactFlowInstance = useReactFlow();
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [selectedNode, setSelectedNode] = useState(null);
@@ -133,11 +132,6 @@ const LineagePageContent = () => {
         
         setNodes(layoutedNodes);
         setEdges(layoutedEdges);
-        
-        // Trigger fitView after a brief delay to ensure nodes are rendered
-        setTimeout(() => {
-          reactFlowInstance.fitView({ padding: 0.2, duration: 800 });
-        }, 100);
       } else {
         setError(response.error || 'Failed to load lineage graph');
       }
