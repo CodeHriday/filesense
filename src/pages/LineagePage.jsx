@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import ReactFlow, {
   MiniMap,
   Controls,
@@ -37,7 +37,9 @@ const nodeTypes = {
 };
 
 const LineagePageContent = () => {
-  const { fitView } = useReactFlow();
+  const containerRef = useRef(null);
+  const [reactFlowInstance, setReactFlowInstance] = useState(null);
+  const [containerReady, setContainerReady] = useState(false);
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [selectedNode, setSelectedNode] = useState(null);
@@ -76,21 +78,39 @@ const LineagePageContent = () => {
     loadFilters();
   }, []);
   
-  // Auto-fit view when nodes are loaded
+  // Wait for canvas container to be measured before allowing layout
   useEffect(() => {
-    if (nodes.length > 0) {
-      // Small delay to ensure DOM is updated
-      const timer = setTimeout(() => {
-        fitView({ padding: 0.2, duration: 800 });
-      }, 50);
-      return () => clearTimeout(timer);
+    if (!containerRef.current) return;
+    
+    const el = containerRef.current;
+    
+    // Check if already measured
+    if (el.clientWidth > 20 && el.clientHeight > 20) {
+      setContainerReady(true);
+      return;
     }
-  }, [nodes.length, fitView]);
+    
+    // Set up ResizeObserver to wait for measurement
+    const resizeObserver = new ResizeObserver(() => {
+      if (el.clientWidth > 20 && el.clientHeight > 20) {
+        setContainerReady(true);
+        resizeObserver.disconnect();
+      }
+    });
+    
+    resizeObserver.observe(el);
+    return () => resizeObserver.disconnect();
+  }, []);
   
   // Load lineage graph
   const loadGraph = async () => {
     if (!rootId) {
       setError('Please select a root entity');
+      return;
+    }
+    
+    if (!containerReady) {
+      setError('Canvas not ready. Please wait a moment and try again.');
       return;
     }
     
@@ -109,7 +129,7 @@ const LineagePageContent = () => {
       if (response.success) {
         // Transform backend nodes to React Flow format (without position initially)
         const flowNodes = response.nodes.map((node) => ({
-          id: node.id,
+          id: String(node.id), // Ensure string IDs
           type: node.type,
           data: { 
             ...node.metadata,
@@ -125,13 +145,15 @@ const LineagePageContent = () => {
         // Transform backend edges to React Flow format
         const flowEdges = response.edges.map(edge => ({
           id: edge.id,
-          source: edge.source,
-          target: edge.target,
+          source: String(edge.source), // Ensure string IDs
+          target: String(edge.target),
           label: edge.label,
           type: 'smoothstep',
           animated: edge.relationship === 'DERIVES',
           style: getEdgeStyle(edge.relationship)
         }));
+        
+        console.log('Applying dagre layout to nodes:', flowNodes.length, 'edges:', flowEdges.length);
         
         // Apply dagre layout to position nodes based on their connections
         const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(
@@ -144,6 +166,13 @@ const LineagePageContent = () => {
         
         setNodes(layoutedNodes);
         setEdges(layoutedEdges);
+        
+        // Trigger fitView after nodes are set
+        if (reactFlowInstance) {
+          setTimeout(() => {
+            reactFlowInstance.fitView({ padding: 0.2, duration: 800 });
+          }, 100);
+        }
       } else {
         setError(response.error || 'Failed to load lineage graph');
       }
@@ -157,13 +186,31 @@ const LineagePageContent = () => {
   
   // Dagre-based hierarchical layout
   const getLayoutedElements = (nodes, edges, direction = 'LR') => {
+    // Match actual CSS node dimensions (150-250px width, ~80px height)
+    const nodeWidth = 220;
+    const nodeHeight = 80;
+    const isHorizontal = direction === 'LR';
+    
+    // Fallback to grid layout if no edges (disconnected nodes)
+    if (!edges || edges.length === 0) {
+      const cols = 4;
+      const spacingX = 260;
+      const spacingY = 120;
+      const layoutedNodes = nodes.map((n, i) => ({
+        ...n,
+        position: { 
+          x: (i % cols) * spacingX, 
+          y: Math.floor(i / cols) * spacingY 
+        },
+        targetPosition: 'left',
+        sourcePosition: 'right'
+      }));
+      return { nodes: layoutedNodes, edges: [] };
+    }
+    
     const dagreGraph = new dagre.graphlib.Graph();
     dagreGraph.setDefaultEdgeLabel(() => ({}));
     
-    const nodeWidth = 280;
-    const nodeHeight = 120;
-    
-    const isHorizontal = direction === 'LR';
     dagreGraph.setGraph({ 
       rankdir: direction,
       nodesep: 80,
@@ -408,12 +455,13 @@ const LineagePageContent = () => {
       )}
       
       {/* React Flow Canvas */}
-      <div className="lineage-canvas">
+      <div className="lineage-canvas" ref={containerRef}>
         <ReactFlow
           nodes={nodes}
           edges={edges}
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
+          onInit={setReactFlowInstance}
           onNodeClick={onNodeClick}
           nodeTypes={nodeTypes}
           fitView
