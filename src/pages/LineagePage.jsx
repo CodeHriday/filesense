@@ -102,6 +102,16 @@ const LineagePageContent = () => {
     return () => resizeObserver.disconnect();
   }, []);
   
+  // Trigger fitView when nodes are loaded and instance is ready
+  useEffect(() => {
+    if (nodes.length > 0 && reactFlowInstance) {
+      const timer = setTimeout(() => {
+        reactFlowInstance.fitView({ padding: 0.2, duration: 800 });
+      }, 150);
+      return () => clearTimeout(timer);
+    }
+  }, [nodes.length, reactFlowInstance]);
+  
   // Load lineage graph
   const loadGraph = async () => {
     if (!rootId) {
@@ -166,13 +176,6 @@ const LineagePageContent = () => {
         
         setNodes(layoutedNodes);
         setEdges(layoutedEdges);
-        
-        // Trigger fitView after nodes are set
-        if (reactFlowInstance) {
-          setTimeout(() => {
-            reactFlowInstance.fitView({ padding: 0.2, duration: 800 });
-          }, 100);
-        }
       } else {
         setError(response.error || 'Failed to load lineage graph');
       }
