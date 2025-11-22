@@ -102,34 +102,11 @@ const LineagePageContent = () => {
     return () => resizeObserver.disconnect();
   }, []);
   
-  // Trigger fitBounds when nodes are loaded and instance is ready
-  useEffect(() => {
-    console.log('fitBounds effect triggered - nodes:', nodes.length, 'instance:', !!reactFlowInstance);
-    if (nodes.length > 0 && reactFlowInstance) {
-      console.log('Attempting fitBounds with requestAnimationFrame');
-      requestAnimationFrame(() => {
-        const bounds = getRectOfNodes(nodes);
-        console.log('Node bounds:', bounds);
-        reactFlowInstance.fitBounds(bounds, { padding: 0.2, duration: 800 });
-        console.log('fitBounds called - new viewport:', reactFlowInstance.getViewport());
-      });
-    }
-  }, [nodes.length, reactFlowInstance]);
-  
-  // Handle onInit to ensure fitBounds when both instance and nodes are ready
+  // Simple onInit handler without viewport manipulation
   const handleReactFlowInit = useCallback((instance) => {
-    console.log('React Flow initialized, nodes count:', nodes.length);
+    console.log('React Flow initialized');
     setReactFlowInstance(instance);
-    
-    // If nodes already loaded, trigger fitBounds
-    if (nodes.length > 0) {
-      requestAnimationFrame(() => {
-        console.log('Fitting bounds from onInit');
-        const bounds = getRectOfNodes(nodes);
-        instance.fitBounds(bounds, { padding: 0.2, duration: 800 });
-      });
-    }
-  }, [nodes.length]);
+  }, []);
   
   // Load lineage graph
   const loadGraph = async () => {
@@ -192,9 +169,25 @@ const LineagePageContent = () => {
         );
         
         console.log('Layout applied - sample positions:', layoutedNodes.slice(0, 3).map(n => ({ id: n.id, x: n.position.x, y: n.position.y })));
+        console.log('ALL layoutedNodes positions:', layoutedNodes.map(n => ({ id: n.id, x: n.position.x, y: n.position.y })));
+        
+        // Verify positions are numbers
+        const hasInvalidPositions = layoutedNodes.some(n => 
+          typeof n.position?.x !== 'number' || typeof n.position?.y !== 'number'
+        );
+        if (hasInvalidPositions) {
+          console.error('ERROR: Some nodes have invalid positions!', layoutedNodes.filter(n => 
+            typeof n.position?.x !== 'number' || typeof n.position?.y !== 'number'
+          ));
+        }
         
         setNodes(layoutedNodes);
         setEdges(layoutedEdges);
+        
+        // Log nodes after setNodes to verify they persisted
+        setTimeout(() => {
+          console.log('Nodes in state after setNodes:', layoutedNodes.slice(0, 3).map(n => ({ id: n.id, x: n.position?.x, y: n.position?.y })));
+        }, 100);
       } else {
         setError(response.error || 'Failed to load lineage graph');
       }
@@ -486,8 +479,7 @@ const LineagePageContent = () => {
           onInit={handleReactFlowInit}
           onNodeClick={onNodeClick}
           nodeTypes={nodeTypes}
-          fitView
-          fitViewOptions={{ padding: 0.2, minZoom: 0.1, maxZoom: 1.5 }}
+          defaultViewport={{ x: 100, y: 100, zoom: 0.5 }}
           minZoom={0.1}
           maxZoom={2}
           attributionPosition="bottom-left"
