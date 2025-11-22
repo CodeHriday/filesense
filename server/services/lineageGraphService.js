@@ -159,7 +159,7 @@ async function traverseFromFile(fileId, projectId, nodes, edges, visited, depth,
   if (visited.has(nodeId)) return;
   visited.add(nodeId);
   
-  // Get file details
+  // Get file details with PII metadata
   const fileResult = await pool.query(`
     SELECT 
       f.*,
@@ -174,6 +174,16 @@ async function traverseFromFile(fileId, projectId, nodes, edges, visited, depth,
   if (fileResult.rows.length === 0) return;
   
   const file = fileResult.rows[0];
+  
+  // Get PII columns for this file
+  const piiColumnsResult = await pool.query(`
+    SELECT DISTINCT fct.column_name
+    FROM file_column_tags fct
+    WHERE fct.file_id = $1 AND fct.tag_id = 'tag_pii'
+    ORDER BY fct.column_name
+  `, [fileId]);
+  
+  const piiColumns = piiColumnsResult.rows.map(row => row.column_name);
   
   // Add file node
   nodes.push({
@@ -191,7 +201,10 @@ async function traverseFromFile(fileId, projectId, nodes, edges, visited, depth,
       projectId: file.project_id,
       vendorAgreementCode: file.agreement_code,
       checksum: file.checksum,
-      rowCount: file.row_count
+      rowCount: file.row_count,
+      containsPii: file.contains_pii || false,
+      dataClassification: file.data_classification,
+      piiColumns: piiColumns
     }
   });
   
@@ -386,8 +399,60 @@ async function traverseFromJob(jobId, projectId, nodes, edges, visited, depth, f
     }
   });
   
-  // If job has target table, add target node
-  if (job.target_table_name) {
+  // Find target file created by this job
+  const targetFileResult = await pool.query(`
+    SELECT f.*
+    FROM files f
+    WHERE f.id LIKE $1
+      AND f.file_role = 'target'
+    LIMIT 1
+  `, [`transformed_${job.job_id}%`]);
+  
+  if (targetFileResult.rows.length > 0) {
+    const targetFile = targetFileResult.rows[0];
+    const targetNodeId = `target-${targetFile.id}`;
+    
+    if (!visited.has(targetNodeId)) {
+      visited.add(targetNodeId);
+      
+      // Get PII columns for target file
+      const targetPiiColumnsResult = await pool.query(`
+        SELECT DISTINCT fct.column_name
+        FROM file_column_tags fct
+        WHERE fct.file_id = $1 AND fct.tag_id = 'tag_pii'
+        ORDER BY fct.column_name
+      `, [targetFile.id]);
+      
+      const targetPiiColumns = targetPiiColumnsResult.rows.map(row => row.column_name);
+      
+      nodes.push({
+        id: targetNodeId,
+        type: 'targetTable',
+        label: targetFile.filename || job.target_table_name,
+        metadata: {
+          id: targetFile.id,
+          fileName: targetFile.filename,
+          tableName: job.target_table_name,
+          fileType: targetFile.file_type,
+          lastUpdated: targetFile.created_at,
+          rowsWritten: targetFile.row_count || job.rows_written,
+          containsPii: targetFile.contains_pii || false,
+          dataClassification: targetFile.data_classification,
+          piiColumns: targetPiiColumns
+        }
+      });
+    }
+    
+    // Add edge from job to target file
+    edges.push({
+      id: `${nodeId}-to-${targetNodeId}`,
+      source: nodeId,
+      target: targetNodeId,
+      relationship: 'OUTPUT_TO',
+      label: 'outputs to'
+    });
+  } else if (job.target_table_name) {
+    // Fallback to target table name if no file found
     const targetNodeId = `table-${job.target_table_name}`;
     
     if (!visited.has(targetNodeId)) {
@@ -400,7 +465,10 @@ async function traverseFromJob(jobId, projectId, nodes, edges, visited, depth, f
         metadata: {
           tableName: job.target_table_name,
           lastUpdated: job.end_time,
-          rowsWritten: job.rows_written
+          rowsWritten: job.rows_written,
+          containsPii: false,
+          dataClassification: null,
+          piiColumns: []
         }
       });
     }
