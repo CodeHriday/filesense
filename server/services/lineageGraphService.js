@@ -500,8 +500,8 @@ function extractDerivedColumns(fieldMappings) {
   for (const mapping of fieldMappings) {
     const transformationType = mapping.transformation_type || mapping.type;
     
-    // Skip direct mappings
-    if (transformationType === 'direct' || transformationType === 'copy') {
+    // Skip direct mappings or mappings without transformation type
+    if (!transformationType || transformationType === 'direct' || transformationType === 'copy') {
       continue;
     }
     
