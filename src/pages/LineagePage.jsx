@@ -423,6 +423,8 @@ const LineagePage = () => {
           {/* Legend Panel */}
           <Panel position="top-right" className="lineage-legend">
             <div className="lineage-legend-title">Legend</div>
+            
+            <div className="lineage-legend-section">Node Types</div>
             <div className="lineage-legend-item">
               <span className="lineage-legend-color" style={{ background: '#6366F1' }}></span>
               Vendor Contract
@@ -433,19 +435,39 @@ const LineagePage = () => {
             </div>
             <div className="lineage-legend-item">
               <span className="lineage-legend-color" style={{ background: '#F59E0B' }}></span>
-              Transformation
-            </div>
-            <div className="lineage-legend-item">
-              <span className="lineage-legend-color" style={{ background: '#8B5CF6' }}></span>
-              Derived Column
+              Mapping Job
             </div>
             <div className="lineage-legend-item">
               <span className="lineage-legend-color" style={{ background: '#025043' }}></span>
               Target Table
             </div>
+            
+            <div className="lineage-legend-divider"></div>
+            
+            <div className="lineage-legend-section">Data Classification</div>
             <div className="lineage-legend-item">
-              <span className="lineage-legend-color" style={{ background: '#10B981' }}></span>
-              Job Execution
+              <span className="lineage-legend-badge lineage-legend-badge-phi">PHI</span>
+              Protected Health Info
+            </div>
+            <div className="lineage-legend-item">
+              <span className="lineage-legend-badge lineage-legend-badge-confidential">CONFIDENTIAL</span>
+              Confidential Data
+            </div>
+            <div className="lineage-legend-item">
+              <span className="lineage-legend-badge lineage-legend-badge-internal">INTERNAL</span>
+              Internal Use Only
+            </div>
+            <div className="lineage-legend-item">
+              <span className="lineage-legend-badge lineage-legend-badge-public">PUBLIC</span>
+              Public Data
+            </div>
+            
+            <div className="lineage-legend-divider"></div>
+            
+            <div className="lineage-legend-section">PII Indicators</div>
+            <div className="lineage-legend-item">
+              <span className="lineage-legend-badge lineage-legend-badge-pii">PII</span>
+              Contains PII
             </div>
           </Panel>
         </ReactFlow>
