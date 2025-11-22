@@ -407,7 +407,7 @@ async function traverseFromJob(jobId, projectId, nodes, edges, visited, depth, f
   const targetFileResult = await pool.query(`
     SELECT f.*
     FROM files f
-    WHERE f.id LIKE $1
+    WHERE f.file_id LIKE $1
       AND f.file_role = 'target'
     LIMIT 1
   `, [`transformed_${job.job_id}%`]);
