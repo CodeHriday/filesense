@@ -155,6 +155,15 @@ export const APP_FEATURES = [
     showInSidebar: true
   },
   { 
+    id: 'workflow_builder', 
+    name: 'Visual Workflow Builder', 
+    category: 'Jobs and Monitoring', 
+    supportsExecute: true,
+    icon: FiGrid,
+    route: '/workflow-builder',
+    showInSidebar: true
+  },
+  { 
     id: 'schedule', 
     name: 'Job Schedules', 
     category: 'Jobs and Monitoring', 
