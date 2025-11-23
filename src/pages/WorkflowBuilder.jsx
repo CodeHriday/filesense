@@ -201,7 +201,25 @@ const WorkflowBuilderContent = () => {
       const workflow = response.data;
       setWorkflowName(workflow.name || '');
       setWorkflowDescription(workflow.description || '');
-      setProjectId(workflow.project_id || null);
+      
+      // Set project first
+      const workflowProjectId = workflow.project_id || null;
+      setProjectId(workflowProjectId);
+      
+      // If there's a project, load its subprojects and then set the subproject
+      if (workflowProjectId) {
+        try {
+          const subProjectsResponse = await axios.get(`/api/projects/${workflowProjectId}/sub-projects`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          setSubProjects(Array.isArray(subProjectsResponse.data) ? subProjectsResponse.data : []);
+        } catch (err) {
+          console.error('Failed to load subprojects for workflow:', err);
+          setSubProjects([]);
+        }
+      }
+      
+      // Now set the subproject after subprojects are loaded
       setSubProjectId(workflow.sub_project_id || null);
       
       // Load graph data (nodes and edges)
@@ -413,7 +431,7 @@ const WorkflowBuilderContent = () => {
       {/* Header */}
       <div className="workflow-builder-header">
         <div className="workflow-builder-header-left">
-          <h1>Visual Workflow Builder</h1>
+          <h1>Visual Workflow Builder{workflowId && workflowName ? ` - Editing: ${workflowName}` : ''}</h1>
           <p>Drag ETL mapping jobs onto the canvas and connect them to create workflows</p>
         </div>
         <div className="workflow-builder-header-actions">
