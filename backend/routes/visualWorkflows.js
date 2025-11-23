@@ -7,7 +7,7 @@ const { executeVisualWorkflow } = require('../services/visualWorkflowExecutor');
 router.get('/', async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT id, name, description, graph_data, execution_mode, created_at, updated_at, is_active
+      `SELECT id, name, description, graph_data, created_at, updated_at, is_active
        FROM visual_workflows
        WHERE created_by = $1 AND is_active = true
        ORDER BY created_at DESC`,
@@ -50,7 +50,7 @@ router.get('/:id', async (req, res) => {
 
 router.post('/', async (req, res) => {
   try {
-    const { name, description, graph_data, execution_mode } = req.body;
+    const { name, description, graph_data } = req.body;
 
     if (!name || !graph_data) {
       return res.status(400).json({ error: 'Name and graph_data are required' });
@@ -62,10 +62,10 @@ router.post('/', async (req, res) => {
     }
 
     const result = await pool.query(
-      `INSERT INTO visual_workflows (name, description, graph_data, execution_mode, created_by)
-       VALUES ($1, $2, $3, $4, $5)
+      `INSERT INTO visual_workflows (name, description, graph_data, created_by)
+       VALUES ($1, $2, $3, $4)
        RETURNING *`,
-      [name, description || '', JSON.stringify(graph_data), execution_mode || 'sequential', req.user.id]
+      [name, description || '', JSON.stringify(graph_data), req.user.id]
     );
 
     systemLogger.info('Created visual workflow', {
@@ -87,7 +87,7 @@ router.post('/', async (req, res) => {
 router.put('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, description, graph_data, execution_mode } = req.body;
+    const { name, description, graph_data } = req.body;
 
     if (!name || !graph_data) {
       return res.status(400).json({ error: 'Name and graph_data are required' });
@@ -100,10 +100,10 @@ router.put('/:id', async (req, res) => {
 
     const result = await pool.query(
       `UPDATE visual_workflows
-       SET name = $1, description = $2, graph_data = $3, execution_mode = $4, updated_at = CURRENT_TIMESTAMP
-       WHERE id = $5 AND created_by = $6 AND is_active = true
+       SET name = $1, description = $2, graph_data = $3, updated_at = CURRENT_TIMESTAMP
+       WHERE id = $4 AND created_by = $5 AND is_active = true
        RETURNING *`,
-      [name, description || '', JSON.stringify(graph_data), execution_mode || 'sequential', id, req.user.id]
+      [name, description || '', JSON.stringify(graph_data), id, req.user.id]
     );
 
     if (result.rows.length === 0) {

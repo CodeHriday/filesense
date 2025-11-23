@@ -329,6 +329,36 @@
   line-height: 1.4;
 }
 
+.workflow-builder-info-box {
+  display: flex;
+  gap: 12px;
+  padding: 12px;
+  background: #e8f5f3;
+  border: 1px solid #b3ddd6;
+  border-radius: 6px;
+  margin-bottom: 16px;
+}
+
+.workflow-builder-info-icon {
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.workflow-builder-info-box strong {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  color: #025043;
+  margin-bottom: 4px;
+}
+
+.workflow-builder-info-box p {
+  font-size: 10px;
+  color: #333;
+  margin: 0;
+  line-height: 1.5;
+}
+
 .workflow-builder-stats {
   display: grid;
   grid-template-columns: 1fr 1fr;

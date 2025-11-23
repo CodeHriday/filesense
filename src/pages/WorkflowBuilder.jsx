@@ -47,7 +47,6 @@ const WorkflowBuilderContent = () => {
   const [workflowId, setWorkflowId] = useState(null);
   const [workflowName, setWorkflowName] = useState('');
   const [workflowDescription, setWorkflowDescription] = useState('');
-  const [executionMode, setExecutionMode] = useState('sequential');
   
   // Available jobs for palette
   const [availableJobs, setAvailableJobs] = useState([]);
@@ -195,8 +194,7 @@ const WorkflowBuilderContent = () => {
       const payload = {
         name: workflowName,
         description: workflowDescription,
-        graph_data: graphData,
-        execution_mode: executionMode
+        graph_data: graphData
       };
       
       let response;
@@ -424,18 +422,11 @@ const WorkflowBuilderContent = () => {
                 />
               </div>
               
-              <div className="workflow-builder-form-group">
-                <label>Execution Mode</label>
-                <select
-                  value={executionMode}
-                  onChange={(e) => setExecutionMode(e.target.value)}
-                  className="workflow-builder-select"
-                >
-                  <option value="sequential">Sequential</option>
-                  <option value="parallel">Parallel</option>
-                </select>
-                <div className="workflow-builder-help-text">
-                  Sequential: Jobs run in dependency order. Parallel: Independent jobs run simultaneously.
+              <div className="workflow-builder-info-box">
+                <div className="workflow-builder-info-icon">ℹ️</div>
+                <div>
+                  <strong>Smart Execution</strong>
+                  <p>Jobs are executed based on their dependencies. Independent jobs run in parallel, while dependent jobs run sequentially in the correct order.</p>
                 </div>
               </div>
               

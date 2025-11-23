@@ -40,11 +40,8 @@ class VisualWorkflowExecutor {
         executionOrder: executionOrder.map(n => ({ id: n.id, type: n.type, assetId: n.data?.assetId }))
       });
 
-      if (workflow.execution_mode === 'parallel') {
-        await this.executeParallel(executionOrder, edges);
-      } else {
-        await this.executeSequential(executionOrder);
-      }
+      // Always use smart parallel execution (respects dependencies)
+      await this.executeSmartParallel(executionOrder, edges);
 
       const summary = this.generateExecutionSummary();
       
@@ -125,13 +122,7 @@ class VisualWorkflowExecutor {
     return sorted;
   }
 
-  async executeSequential(nodes) {
-    for (const node of nodes) {
-      await this.executeNode(node);
-    }
-  }
-
-  async executeParallel(nodes, edges) {
+  async executeSmartParallel(nodes, edges) {
     const graph = new Map();
     const completed = new Set();
 
@@ -162,6 +153,12 @@ class VisualWorkflowExecutor {
         return false;
       }
 
+      systemLogger.info('Executing batch of independent nodes in parallel', {
+        workflowId: this.workflowId,
+        batchSize: readyNodes.length,
+        nodeIds: readyNodes.map(n => n.id)
+      });
+
       await Promise.all(
         readyNodes.map(async (node) => {
           await this.executeNode(node);
@@ -183,6 +180,7 @@ class VisualWorkflowExecutor {
   async executeNode(node) {
     const { type, data } = node;
     const assetId = data?.assetId;
+    const assetType = data?.assetType || type; // Support both assetType and type fields
 
     if (!assetId) {
       const error = `Node ${node.id} missing asset ID`;
@@ -195,13 +193,19 @@ class VisualWorkflowExecutor {
       systemLogger.info('Executing node', {
         nodeId: node.id,
         type,
+        assetType,
         assetId
       });
 
       let result;
 
-      switch (type) {
+      // Support both old and new node type naming
+      const nodeType = assetType || type;
+      
+      switch (nodeType) {
+        case 'transformation_mapping':
         case 'mapping':
+        case 'job':
           result = await this.executeMapping(assetId);
           break;
         
@@ -214,7 +218,7 @@ class VisualWorkflowExecutor {
           break;
         
         default:
-          throw new Error(`Unknown node type: ${type}`);
+          throw new Error(`Unknown node type: ${nodeType}`);
       }
 
       this.executionResults.set(node.id, result);
@@ -222,6 +226,7 @@ class VisualWorkflowExecutor {
       systemLogger.info('Node execution completed', {
         nodeId: node.id,
         type,
+        assetType,
         assetId,
         success: result.success
       });
@@ -230,6 +235,7 @@ class VisualWorkflowExecutor {
       systemLogger.error('Node execution failed', {
         nodeId: node.id,
         type,
+        assetType,
         assetId,
         error: error.message
       });
