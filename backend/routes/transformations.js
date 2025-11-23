@@ -129,12 +129,9 @@ router.get('/', async (req, res) => {
     
     const countResult = await pool.query(countQuery, countParams);
     
-    res.json({
-      mappings: result.rows,
-      total: parseInt(countResult.rows[0].count),
-      limit: parseInt(limit),
-      offset: parseInt(offset)
-    });
+    // Return direct array for workflow builder compatibility
+    // If pagination metadata is needed, query parameters can indicate that
+    res.json(result.rows);
     
   } catch (error) {
     systemLogger.error('Error listing transformations:', error);
