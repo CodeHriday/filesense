@@ -134,30 +134,38 @@ async function traverseFromVendorAgreement(agreementId, projectId, nodes, edges,
     LIMIT 100
   `, [agreementId, projectId]);
   
-  // Traverse each file
-  systemLogger.info(`Found ${filesResult.rows.length} files for agreement ${agreementId}`);
+  // Group files by filename to handle multiple versions
+  const filesByName = new Map();
   for (const file of filesResult.rows) {
-    systemLogger.info(`Processing file ${file.id}: ${file.filename}`);
-    await traverseFromFile(file.id, projectId, nodes, edges, visited, depth - 1, filters);
+    if (!filesByName.has(file.filename)) {
+      filesByName.set(file.filename, []);
+    }
+    filesByName.get(file.filename).push(file);
+  }
+  
+  // Traverse each file group (only latest version per filename)
+  for (const [filename, versions] of filesByName.entries()) {
+    const latestFile = versions[0]; // Already sorted by created_at DESC
+    const versionCount = versions.length;
+    
+    // Pass version count to traverseFromFile via a map
+    await traverseFromFile(latestFile.id, projectId, nodes, edges, visited, depth - 1, filters, versionCount);
     
     // Add edge from vendor agreement to file
-    const edgeId = `${nodeId}-to-file-${file.id}`;
-    systemLogger.info(`Creating edge ${edgeId} from ${nodeId} to file-${file.id}`);
     edges.push({
-      id: edgeId,
+      id: `${nodeId}-to-file-${latestFile.id}`,
       source: nodeId,
-      target: `file-${file.id}`,
+      target: `file-${latestFile.id}`,
       relationship: 'SOURCE_OF',
       label: 'provides'
     });
   }
-  systemLogger.info(`Total nodes after vendor agreement traversal: ${nodes.length}, edges: ${edges.length}`);
 }
 
 /**
  * Traverse lineage starting from file
  */
-async function traverseFromFile(fileId, projectId, nodes, edges, visited, depth, filters) {
+async function traverseFromFile(fileId, projectId, nodes, edges, visited, depth, filters, versionCount = 1) {
   if (depth < 0) return;
   
   const nodeId = `file-${fileId}`;
@@ -209,7 +217,8 @@ async function traverseFromFile(fileId, projectId, nodes, edges, visited, depth,
       rowCount: file.row_count,
       containsPii: file.contains_pii || false,
       dataClassification: file.data_classification,
-      piiColumns: piiColumns
+      piiColumns: piiColumns,
+      versionCount: versionCount
     }
   });
   
