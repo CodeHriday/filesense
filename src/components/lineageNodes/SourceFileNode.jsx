@@ -49,6 +49,14 @@ const SourceFileNode = ({ data }) => {
       </div>
       
       <div className="lineage-node-badges">
+        {data.versionCount > 1 && (
+          <div 
+            className="lineage-node-version-badge" 
+            title={`${data.versionCount} versions of this file uploaded`}
+          >
+            {data.versionCount} versions
+          </div>
+        )}
         {data.hasIncidents && (
           <div className="lineage-node-incident-badge" title="Quality Violations">
             {data.incidents?.totalViolations || 0}
