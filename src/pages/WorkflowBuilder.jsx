@@ -111,6 +111,16 @@ const WorkflowBuilderContent = () => {
     return () => resizeObserver.disconnect();
   }, []);
   
+  // Load workflow if ID is in URL
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const id = params.get('id');
+    if (id) {
+      setWorkflowId(parseInt(id));
+      loadWorkflow(parseInt(id));
+    }
+  }, []);
+  
   // Load all available assets
   useEffect(() => {
     loadAvailableAssets();
@@ -177,6 +187,42 @@ const WorkflowBuilderContent = () => {
     } catch (err) {
       console.error('Failed to load subprojects:', err);
       setSubProjects([]);
+    }
+  };
+  
+  const loadWorkflow = async (id) => {
+    try {
+      setLoading(true);
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`/api/visual-workflows/${id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      const workflow = response.data;
+      setWorkflowName(workflow.name || '');
+      setWorkflowDescription(workflow.description || '');
+      setProjectId(workflow.project_id || null);
+      setSubProjectId(workflow.sub_project_id || null);
+      
+      // Load graph data (nodes and edges)
+      if (workflow.graph_data) {
+        const graphData = typeof workflow.graph_data === 'string' 
+          ? JSON.parse(workflow.graph_data) 
+          : workflow.graph_data;
+          
+        if (graphData.nodes && Array.isArray(graphData.nodes)) {
+          setNodes(graphData.nodes);
+        }
+        if (graphData.edges && Array.isArray(graphData.edges)) {
+          setEdges(graphData.edges);
+        }
+      }
+      
+      setLoading(false);
+    } catch (err) {
+      console.error('Failed to load workflow:', err);
+      setError('Failed to load workflow');
+      setLoading(false);
     }
   };
   

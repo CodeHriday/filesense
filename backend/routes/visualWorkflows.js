@@ -7,10 +7,17 @@ const { executeVisualWorkflow } = require('../services/visualWorkflowExecutor');
 router.get('/', async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT id, name, description, graph_data, created_at, updated_at, is_active
-       FROM visual_workflows
-       WHERE created_by = $1 AND is_active = true
-       ORDER BY created_at DESC`,
+      `SELECT 
+        vw.id, vw.name, vw.description, vw.graph_data, 
+        vw.created_at, vw.updated_at, vw.is_active,
+        vw.project_id, vw.sub_project_id,
+        p.name as project_name,
+        sp.name as sub_project_name
+       FROM visual_workflows vw
+       LEFT JOIN projects p ON vw.project_id = p.id
+       LEFT JOIN projects sp ON vw.sub_project_id = sp.id
+       WHERE vw.created_by = $1 AND vw.is_active = true
+       ORDER BY vw.created_at DESC`,
       [req.user.id]
     );
 
@@ -29,7 +36,14 @@ router.get('/:id', async (req, res) => {
     const { id } = req.params;
     
     const result = await pool.query(
-      `SELECT * FROM visual_workflows WHERE id = $1 AND created_by = $2 AND is_active = true`,
+      `SELECT 
+        vw.*,
+        p.name as project_name,
+        sp.name as sub_project_name
+       FROM visual_workflows vw
+       LEFT JOIN projects p ON vw.project_id = p.id
+       LEFT JOIN projects sp ON vw.sub_project_id = sp.id
+       WHERE vw.id = $1 AND vw.created_by = $2 AND vw.is_active = true`,
       [id, req.user.id]
     );
 
@@ -50,7 +64,7 @@ router.get('/:id', async (req, res) => {
 
 router.post('/', async (req, res) => {
   try {
-    const { name, description, graph_data } = req.body;
+    const { name, description, graph_data, project_id, sub_project_id } = req.body;
 
     if (!name || !graph_data) {
       return res.status(400).json({ error: 'Name and graph_data are required' });
@@ -62,15 +76,16 @@ router.post('/', async (req, res) => {
     }
 
     const result = await pool.query(
-      `INSERT INTO visual_workflows (name, description, graph_data, created_by)
-       VALUES ($1, $2, $3, $4)
+      `INSERT INTO visual_workflows (name, description, graph_data, project_id, sub_project_id, created_by)
+       VALUES ($1, $2, $3, $4, $5, $6)
        RETURNING *`,
-      [name, description || '', JSON.stringify(graph_data), req.user.id]
+      [name, description || '', JSON.stringify(graph_data), project_id || null, sub_project_id || null, req.user.id]
     );
 
     systemLogger.info('Created visual workflow', {
       workflowId: result.rows[0].id,
       name,
+      projectId: project_id,
       userId: req.user.id
     });
 
@@ -87,7 +102,7 @@ router.post('/', async (req, res) => {
 router.put('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, description, graph_data } = req.body;
+    const { name, description, graph_data, project_id, sub_project_id } = req.body;
 
     if (!name || !graph_data) {
       return res.status(400).json({ error: 'Name and graph_data are required' });
@@ -100,10 +115,10 @@ router.put('/:id', async (req, res) => {
 
     const result = await pool.query(
       `UPDATE visual_workflows
-       SET name = $1, description = $2, graph_data = $3, updated_at = CURRENT_TIMESTAMP
-       WHERE id = $4 AND created_by = $5 AND is_active = true
+       SET name = $1, description = $2, graph_data = $3, project_id = $4, sub_project_id = $5, updated_at = CURRENT_TIMESTAMP
+       WHERE id = $6 AND created_by = $7 AND is_active = true
        RETURNING *`,
-      [name, description || '', JSON.stringify(graph_data), id, req.user.id]
+      [name, description || '', JSON.stringify(graph_data), project_id || null, sub_project_id || null, id, req.user.id]
     );
 
     if (result.rows.length === 0) {
@@ -113,6 +128,7 @@ router.put('/:id', async (req, res) => {
     systemLogger.info('Updated visual workflow', {
       workflowId: id,
       name,
+      projectId: project_id,
       userId: req.user.id
     });
 
