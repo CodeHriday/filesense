@@ -30,28 +30,6 @@ const SourceFileNode = ({ data }) => {
   
   return (
     <div className="lineage-node lineage-node-file">
-      <div className="lineage-node-badges">
-        {data.hasIncidents && (
-          <div className="lineage-node-incident-badge" title="Quality Violations">
-            {data.incidents?.totalViolations || 0}
-          </div>
-        )}
-        {data.containsPii && (
-          <div className="lineage-node-pii-badge" title="Contains PII">
-            <FaShieldAlt /> PII
-          </div>
-        )}
-        {data.dataClassification && (
-          <div 
-            className="lineage-node-classification-badge" 
-            style={{ backgroundColor: getClassificationColor(data.dataClassification) }}
-            title={`Classification: ${data.dataClassification}`}
-          >
-            <FaLock /> {data.dataClassification}
-          </div>
-        )}
-      </div>
-      
       <Handle type="target" position={targetPosition} />
       
       <div className="lineage-node-header">
@@ -66,6 +44,28 @@ const SourceFileNode = ({ data }) => {
         {data.piiColumns && data.piiColumns.length > 0 && (
           <div title={`PII Columns: ${data.piiColumns.join(', ')}`}>
             PII Cols: {data.piiColumns.length}
+          </div>
+        )}
+      </div>
+      
+      <div className="lineage-node-badges">
+        {data.hasIncidents && (
+          <div className="lineage-node-incident-badge" title="Quality Violations">
+            {data.incidents?.totalViolations || 0}
+          </div>
+        )}
+        {data.containsPii && (
+          <div className="lineage-node-pii-badge" title="Contains PII">
+            <FaShieldAlt /> PII
+          </div>
+        )}
+        {data.dataClassification && (
+          <div 
+            className="lineage-node-classification-badge" 
+            style={{ borderColor: getClassificationColor(data.dataClassification) }}
+            title={`Classification: ${data.dataClassification}`}
+          >
+            <FaLock /> {data.dataClassification}
           </div>
         )}
       </div>

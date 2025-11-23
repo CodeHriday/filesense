@@ -370,62 +370,62 @@
 }
 
 .lineage-node-badges {
-  position: absolute;
-  top: -8px;
-  right: -8px;
   display: flex;
   gap: 4px;
-  flex-direction: row-reverse;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: 6px;
 }
 
 .lineage-node-incident-badge {
-  background: #DC2626;
-  color: white;
-  border-radius: 50%;
-  width: 20px;
-  height: 20px;
+  background: white;
+  color: #6B7280;
+  border: 1.5px solid #DC2626;
+  border-radius: 4px;
+  padding: 2px 6px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 10px;
+  font-size: 8px;
   font-weight: 600;
-  border: 2px solid white;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
 }
 
 .lineage-node-pii-badge {
-  background: #7C3AED;
-  color: white;
-  border-radius: 3px;
+  background: white;
+  color: #6B7280;
+  border: 1.5px solid #7C3AED;
+  border-radius: 4px;
   padding: 2px 6px;
   display: flex;
   align-items: center;
   gap: 3px;
-  font-size: 9px;
+  font-size: 8px;
   font-weight: 600;
-  border: 2px solid white;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
   white-space: nowrap;
 }
 
 .lineage-node-pii-badge svg {
-  font-size: 9px;
+  font-size: 8px;
 }
 
 .lineage-node-classification-badge {
-  color: white;
-  border-radius: 3px;
+  background: white;
+  color: #6B7280;
+  border: 1.5px solid;
+  border-radius: 4px;
   padding: 2px 6px;
   display: flex;
   align-items: center;
   gap: 3px;
-  font-size: 9px;
+  font-size: 8px;
   font-weight: 600;
-  border: 2px solid white;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
-  white-space: nowrap;
   text-transform: uppercase;
   letter-spacing: 0.3px;
+  white-space: nowrap;
 }
 
 .lineage-node-classification-badge svg {
@@ -482,9 +482,11 @@
 }
 
 .lineage-canvas .react-flow__node:hover,
-.lineage-canvas .react-flow__node.selected {
+.lineage-canvas .react-flow__node.selected,
+.lineage-canvas .react-flow__node:active {
   box-shadow: none !important;
   filter: none !important;
+  background: transparent !important;
 }
 
 .lineage-canvas .react-flow__node.selected .lineage-node {
