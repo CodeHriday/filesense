@@ -229,6 +229,8 @@ async function traverseFromFile(fileId, projectId, nodes, edges, visited, depth,
     ? file.filename.substring(file.filename.lastIndexOf('/') + 1)
     : file.filename;
     
+  systemLogger.info('Matching file to mappings', { filename: file.filename, basename });
+    
   const mappingsResult = await pool.query(`
     SELECT DISTINCT
       tm.id,
@@ -258,6 +260,12 @@ async function traverseFromFile(fileId, projectId, nodes, edges, visited, depth,
       AND tm.status != 'deleted'
     LIMIT 50
   `, [basename, projectId]);
+  
+  systemLogger.info('Matched mappings', { 
+    filename: basename, 
+    matchedCount: mappingsResult.rows.length,
+    mappings: mappingsResult.rows.map(m => ({ name: m.mapping_name, pattern: m.source_file_pattern }))
+  });
   
   // Traverse each mapping
   for (const mapping of mappingsResult.rows) {
