@@ -198,41 +198,35 @@ const WorkflowManager = () => {
 
         <div className="workflow-manager-controls">
           <div className="workflow-manager-filters">
-            <div className="filter-group">
-              <label>Project</label>
-              <select 
-                value={selectedProject} 
-                onChange={(e) => {
-                  setSelectedProject(e.target.value);
-                  setSelectedSubProject('all');
-                }}
-                className="filter-select"
-              >
-                <option value="all">All Projects</option>
-                {projects.map(project => (
-                  <option key={project.id} value={project.id}>{project.name}</option>
-                ))}
-              </select>
-            </div>
+            <select 
+              value={selectedProject} 
+              onChange={(e) => {
+                setSelectedProject(e.target.value);
+                setSelectedSubProject('all');
+              }}
+              className="filter-select"
+            >
+              <option value="all">All Projects</option>
+              {projects.map(project => (
+                <option key={project.id} value={project.id}>{project.name}</option>
+              ))}
+            </select>
             
-            <div className="filter-group">
-              <label>Subproject</label>
-              <select 
-                value={selectedSubProject} 
-                onChange={(e) => setSelectedSubProject(e.target.value)}
-                className="filter-select"
-              >
-                <option value="all">All Subprojects</option>
-                {subProjects.map(subProject => (
-                  <option key={subProject.id} value={subProject.id}>{subProject.name}</option>
-                ))}
-              </select>
-            </div>
+            <select 
+              value={selectedSubProject} 
+              onChange={(e) => setSelectedSubProject(e.target.value)}
+              className="filter-select"
+            >
+              <option value="all">All Subprojects</option>
+              {subProjects.map(subProject => (
+                <option key={subProject.id} value={subProject.id}>{subProject.name}</option>
+              ))}
+            </select>
           </div>
 
           <button 
             onClick={() => navigate('/workflow-builder')} 
-            className="btn btn-primary"
+            className="btn-create-workflow"
           >
             <FiPlusCircle /> Create Workflow
           </button>
@@ -292,15 +286,14 @@ const WorkflowManager = () => {
                         {formatDateTime(schedule?.last_run)}
                       </td>
                       <td className="workflow-actions">
-                        {schedule && (
-                          <button
-                            className="action-icon"
-                            onClick={() => handleToggle(workflow.id, isEnabled)}
-                            title={isEnabled ? 'Disable' : 'Enable'}
-                          >
-                            <FiPower className={isEnabled ? 'icon-active' : 'icon-inactive'} />
-                          </button>
-                        )}
+                        <button
+                          className="action-icon"
+                          onClick={() => handleToggle(workflow.id, isEnabled)}
+                          title={schedule ? (isEnabled ? 'Disable' : 'Enable') : 'No schedule'}
+                          disabled={!schedule}
+                        >
+                          <FiPower className={schedule ? (isEnabled ? 'icon-active' : 'icon-inactive') : 'icon-disabled'} />
+                        </button>
                         <button
                           className="action-icon"
                           onClick={() => handleEdit(workflow.id)}
