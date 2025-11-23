@@ -86,6 +86,9 @@ const WorkflowBuilderContent = () => {
   const [projects, setProjects] = useState([]);
   const [subProjects, setSubProjects] = useState([]);
   
+  // Schedule modal
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
+  
   // Wait for canvas container to be measured before allowing layout
   useEffect(() => {
     if (!containerRef.current) return;
@@ -134,7 +137,7 @@ const WorkflowBuilderContent = () => {
       ]);
       
       setAvailableJobs(Array.isArray(jobsRes.data) ? jobsRes.data : []);
-      setAvailableJobGroups(Array.isArray(groupsRes.data) ? groupsRes.data : []);
+      setAvailableJobGroups(groupsRes.data?.groups && Array.isArray(groupsRes.data.groups) ? groupsRes.data.groups : []);
       setAvailableWorkflows(Array.isArray(workflowsRes.data) ? workflowsRes.data : []);
     } catch (err) {
       console.error('Failed to load available assets:', err);
@@ -219,9 +222,9 @@ const WorkflowBuilderContent = () => {
         assetId = assetData.mapping_id;
         assetType = 'mapping_job';
       } else if (assetData.assetType === 'job_group') {
-        nodeId = `group-${assetData.group_id}-${Date.now()}`;
-        nodeLabel = assetData.group_name;
-        assetId = assetData.group_id;
+        nodeId = `group-${assetData.id}-${Date.now()}`;
+        nodeLabel = assetData.name;
+        assetId = assetData.id;
         assetType = 'job_group';
       } else if (assetData.assetType === 'workflow') {
         nodeId = `workflow-${assetData.id}-${Date.now()}`;
@@ -308,6 +311,9 @@ const WorkflowBuilderContent = () => {
       
       setSuccess('Workflow saved successfully');
       setTimeout(() => setSuccess(null), 3000);
+      
+      // Show schedule modal after successful save
+      setShowScheduleModal(true);
     } catch (err) {
       console.error('Failed to save workflow:', err);
       setError(err.response?.data?.error || 'Failed to save workflow');
@@ -349,7 +355,7 @@ const WorkflowBuilderContent = () => {
   );
   
   const filteredJobGroups = (Array.isArray(availableJobGroups) ? availableJobGroups : []).filter(group =>
-    group.group_name?.toLowerCase().includes(searchQuery.toLowerCase())
+    group.name?.toLowerCase().includes(searchQuery.toLowerCase())
   );
   
   const filteredWorkflows = (Array.isArray(availableWorkflows) ? availableWorkflows : []).filter(workflow =>
@@ -485,12 +491,12 @@ const WorkflowBuilderContent = () => {
                     ) : (
                       filteredJobGroups.map(group => (
                         <div
-                          key={group.group_id}
+                          key={group.id}
                           className="workflow-builder-palette-item"
                           draggable
                           onDragStart={(e) => onDragStart(e, { ...group, assetType: 'job_group' })}
                         >
-                          {group.group_name}
+                          {group.name}
                         </div>
                       ))
                     )}
@@ -666,6 +672,51 @@ const WorkflowBuilderContent = () => {
           >
             ⚙️ Settings
           </button>
+        )}
+        
+        {/* Schedule Modal */}
+        {showScheduleModal && (
+          <div className="workflow-builder-modal-overlay" onClick={() => setShowScheduleModal(false)}>
+            <div className="workflow-builder-modal" onClick={(e) => e.stopPropagation()}>
+              <div className="workflow-builder-modal-header">
+                <h3>Schedule Workflow</h3>
+                <button 
+                  className="workflow-builder-modal-close"
+                  onClick={() => setShowScheduleModal(false)}
+                >
+                  ×
+                </button>
+              </div>
+              
+              <div className="workflow-builder-modal-content">
+                <p className="workflow-builder-modal-message">
+                  Workflow "<strong>{workflowName}</strong>" has been saved successfully.
+                </p>
+                <p className="workflow-builder-modal-subtitle">
+                  Would you like to schedule this workflow to run automatically?
+                </p>
+                
+                <div className="workflow-builder-modal-actions">
+                  <button 
+                    className="workflow-builder-btn workflow-builder-btn-secondary"
+                    onClick={() => setShowScheduleModal(false)}
+                  >
+                    Skip for now
+                  </button>
+                  <button 
+                    className="workflow-builder-btn workflow-builder-btn-primary"
+                    onClick={() => {
+                      setShowScheduleModal(false);
+                      window.location.href = '/scheduler';
+                    }}
+                  >
+                    <FaClock style={{ marginRight: '6px' }} />
+                    Set up schedule
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
         )}
       </div>
     </div>
