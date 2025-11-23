@@ -61,17 +61,30 @@ const WorkflowBuilderContent = () => {
   const [workflowName, setWorkflowName] = useState('');
   const [workflowDescription, setWorkflowDescription] = useState('');
   
-  // Available jobs for palette
+  // Available assets for palette
   const [availableJobs, setAvailableJobs] = useState([]);
+  const [availableJobGroups, setAvailableJobGroups] = useState([]);
+  const [availableWorkflows, setAvailableWorkflows] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
   
+  // Palette section collapse states
+  const [showJobs, setShowJobs] = useState(true);
+  const [showJobGroups, setShowJobGroups] = useState(true);
+  const [showWorkflows, setShowWorkflows] = useState(true);
+  
   // Palette panel visibility
   const [showPalette, setShowPalette] = useState(true);
   const [showConfig, setShowConfig] = useState(true);
+  
+  // Project context
+  const [projectId, setProjectId] = useState(null);
+  const [subProjectId, setSubProjectId] = useState(null);
+  const [projects, setProjects] = useState([]);
+  const [subProjects, setSubProjects] = useState([]);
   
   // Wait for canvas container to be measured before allowing layout
   useEffect(() => {
@@ -95,34 +108,72 @@ const WorkflowBuilderContent = () => {
     return () => resizeObserver.disconnect();
   }, []);
   
-  // Load available ETL mapping jobs
+  // Load all available assets
   useEffect(() => {
-    loadAvailableJobs();
+    loadAvailableAssets();
+    loadProjects();
   }, []);
   
-  const loadAvailableJobs = async () => {
+  const loadAvailableAssets = async () => {
+    const token = localStorage.getItem('token');
+    try {
+      // Load mapping jobs, job groups, and workflows in parallel
+      const [jobsRes, groupsRes, workflowsRes] = await Promise.all([
+        axios.get('/api/transformations', {
+          headers: { Authorization: `Bearer ${token}`, 'Cache-Control': 'no-cache' },
+          params: { _t: Date.now() }
+        }),
+        axios.get('/api/mapping-groups', {
+          headers: { Authorization: `Bearer ${token}`, 'Cache-Control': 'no-cache' },
+          params: { _t: Date.now() }
+        }),
+        axios.get('/api/visual-workflows', {
+          headers: { Authorization: `Bearer ${token}`, 'Cache-Control': 'no-cache' },
+          params: { _t: Date.now() }
+        })
+      ]);
+      
+      setAvailableJobs(Array.isArray(jobsRes.data) ? jobsRes.data : []);
+      setAvailableJobGroups(Array.isArray(groupsRes.data) ? groupsRes.data : []);
+      setAvailableWorkflows(Array.isArray(workflowsRes.data) ? workflowsRes.data : []);
+    } catch (err) {
+      console.error('Failed to load available assets:', err);
+      setError('Failed to load workflow assets');
+    }
+  };
+  
+  const loadProjects = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get('/api/transformations', {
-        headers: { 
-          Authorization: `Bearer ${token}`,
-          'Cache-Control': 'no-cache'
-        },
-        params: {
-          _t: Date.now() // Cache-busting timestamp
-        }
+      const response = await axios.get('/api/projects', {
+        headers: { Authorization: `Bearer ${token}` }
       });
-      
-      if (response.data && Array.isArray(response.data)) {
-        setAvailableJobs(response.data);
-      } else {
-        console.warn('API returned non-array data:', response.data);
-        setAvailableJobs([]);
-      }
+      setProjects(Array.isArray(response.data) ? response.data : []);
     } catch (err) {
-      console.error('Failed to load available jobs:', err);
-      setError('Failed to load ETL mapping jobs');
-      setAvailableJobs([]);
+      console.error('Failed to load projects:', err);
+    }
+  };
+  
+  // Load subprojects when project changes
+  useEffect(() => {
+    if (projectId) {
+      loadSubProjects(projectId);
+    } else {
+      setSubProjects([]);
+      setSubProjectId(null);
+    }
+  }, [projectId]);
+  
+  const loadSubProjects = async (pid) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`/api/projects/${pid}/sub-projects`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setSubProjects(Array.isArray(response.data) ? response.data : []);
+    } catch (err) {
+      console.error('Failed to load subprojects:', err);
+      setSubProjects([]);
     }
   };
   
@@ -139,10 +190,10 @@ const WorkflowBuilderContent = () => {
     [setEdges]
   );
   
-  // Drag job from palette to canvas
-  const onDragStart = (event, job) => {
+  // Drag asset from palette to canvas (supports jobs, job groups, workflows)
+  const onDragStart = (event, asset) => {
     event.dataTransfer.effectAllowed = 'move';
-    event.dataTransfer.setData('application/reactflow', JSON.stringify(job));
+    event.dataTransfer.setData('application/reactflow', JSON.stringify(asset));
   };
   
   const onDrop = useCallback(
@@ -153,22 +204,42 @@ const WorkflowBuilderContent = () => {
         return;
       }
       
-      const jobData = JSON.parse(event.dataTransfer.getData('application/reactflow'));
+      const assetData = JSON.parse(event.dataTransfer.getData('application/reactflow'));
       const position = reactFlowInstance.project({
         x: event.clientX - 250,
         y: event.clientY - 80
       });
       
+      // Determine node properties based on asset type
+      let nodeId, nodeLabel, assetId, assetType;
+      
+      if (assetData.assetType === 'mapping_job') {
+        nodeId = `job-${assetData.mapping_id}-${Date.now()}`;
+        nodeLabel = assetData.mapping_name;
+        assetId = assetData.mapping_id;
+        assetType = 'mapping_job';
+      } else if (assetData.assetType === 'job_group') {
+        nodeId = `group-${assetData.group_id}-${Date.now()}`;
+        nodeLabel = assetData.group_name;
+        assetId = assetData.group_id;
+        assetType = 'job_group';
+      } else if (assetData.assetType === 'workflow') {
+        nodeId = `workflow-${assetData.id}-${Date.now()}`;
+        nodeLabel = assetData.name;
+        assetId = assetData.id;
+        assetType = 'workflow';
+      } else {
+        return; // Unknown asset type
+      }
+      
       const newNode = {
-        id: `job-${jobData.mapping_id}-${Date.now()}`,
+        id: nodeId,
         type: 'job',
         position,
         data: {
-          label: jobData.mapping_name,
-          description: jobData.description,
-          assetId: jobData.mapping_id,
-          assetType: 'transformation_mapping',
-          sourcePattern: jobData.source_file_pattern
+          label: nodeLabel,
+          assetId: assetId,
+          assetType: assetType
         }
       };
       
@@ -186,6 +257,11 @@ const WorkflowBuilderContent = () => {
   const saveWorkflow = async () => {
     if (!workflowName.trim()) {
       setError('Please enter a workflow name');
+      return;
+    }
+    
+    if (!projectId) {
+      setError('Please select a project');
       return;
     }
     
@@ -213,7 +289,9 @@ const WorkflowBuilderContent = () => {
       const payload = {
         name: workflowName,
         description: workflowDescription,
-        graph_data: graphData
+        graph_data: graphData,
+        project_id: projectId,
+        sub_project_id: subProjectId
       };
       
       let response;
@@ -265,11 +343,17 @@ const WorkflowBuilderContent = () => {
     setEdges((eds) => eds.filter((edge) => !edge.selected));
   };
   
-  // Filter jobs by search query
+  // Filter assets by search query
   const filteredJobs = (Array.isArray(availableJobs) ? availableJobs : []).filter(job =>
-    job.mapping_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (job.description && job.description?.toLowerCase().includes(searchQuery.toLowerCase())) ||
-    job.source_file_pattern?.toLowerCase().includes(searchQuery.toLowerCase())
+    job.mapping_name?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+  
+  const filteredJobGroups = (Array.isArray(availableJobGroups) ? availableJobGroups : []).filter(group =>
+    group.group_name?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+  
+  const filteredWorkflows = (Array.isArray(availableWorkflows) ? availableWorkflows : []).filter(workflow =>
+    workflow.name?.toLowerCase().includes(searchQuery.toLowerCase())
   );
   
   return (
@@ -319,11 +403,11 @@ const WorkflowBuilderContent = () => {
       
       {/* Main content */}
       <div className="workflow-builder-content">
-        {/* Job Palette */}
+        {/* Asset Palette - 3 Sections */}
         {showPalette && (
           <div className="workflow-builder-palette">
             <div className="workflow-builder-palette-header">
-              <h3>ETL Mapping Jobs</h3>
+              <h3>Assets</h3>
               <button 
                 className="workflow-builder-close-btn"
                 onClick={() => setShowPalette(false)}
@@ -336,40 +420,118 @@ const WorkflowBuilderContent = () => {
               <FaSearch className="workflow-builder-search-icon" />
               <input
                 type="text"
-                placeholder="Search jobs..."
+                placeholder="Search assets..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="workflow-builder-search-input"
               />
             </div>
             
-            <div className="workflow-builder-palette-jobs">
-              {filteredJobs.length === 0 ? (
-                <div className="workflow-builder-palette-empty">
-                  {searchQuery ? 'No jobs match your search' : 'No ETL mapping jobs available'}
+            <div className="workflow-builder-palette-content">
+              {/* Section 1: Mapping Jobs */}
+              <div className="workflow-builder-palette-section">
+                <div 
+                  className="workflow-builder-palette-section-header"
+                  onClick={() => setShowJobs(!showJobs)}
+                >
+                  <span className="workflow-builder-palette-section-toggle">
+                    {showJobs ? '▼' : '▶'}
+                  </span>
+                  <span className="workflow-builder-palette-section-title">
+                    MAPPING JOBS ({filteredJobs.length})
+                  </span>
                 </div>
-              ) : (
-                filteredJobs.map(job => (
-                  <div
-                    key={job.mapping_id}
-                    className="workflow-builder-palette-job"
-                    draggable
-                    onDragStart={(e) => onDragStart(e, job)}
-                  >
-                    <div className="workflow-builder-palette-job-title">
-                      {job.mapping_name}
-                    </div>
-                    {job.description && (
-                      <div className="workflow-builder-palette-job-desc">
-                        {job.description}
+                {showJobs && (
+                  <div className="workflow-builder-palette-section-items">
+                    {filteredJobs.length === 0 ? (
+                      <div className="workflow-builder-palette-empty">
+                        {searchQuery ? 'No matches' : 'No mapping jobs'}
                       </div>
+                    ) : (
+                      filteredJobs.map(job => (
+                        <div
+                          key={job.mapping_id}
+                          className="workflow-builder-palette-item"
+                          draggable
+                          onDragStart={(e) => onDragStart(e, { ...job, assetType: 'mapping_job' })}
+                        >
+                          {job.mapping_name}
+                        </div>
+                      ))
                     )}
-                    <div className="workflow-builder-palette-job-pattern">
-                      {job.source_file_pattern}
-                    </div>
                   </div>
-                ))
-              )}
+                )}
+              </div>
+              
+              {/* Section 2: Job Groups */}
+              <div className="workflow-builder-palette-section">
+                <div 
+                  className="workflow-builder-palette-section-header"
+                  onClick={() => setShowJobGroups(!showJobGroups)}
+                >
+                  <span className="workflow-builder-palette-section-toggle">
+                    {showJobGroups ? '▼' : '▶'}
+                  </span>
+                  <span className="workflow-builder-palette-section-title">
+                    JOB GROUPS ({filteredJobGroups.length})
+                  </span>
+                </div>
+                {showJobGroups && (
+                  <div className="workflow-builder-palette-section-items">
+                    {filteredJobGroups.length === 0 ? (
+                      <div className="workflow-builder-palette-empty">
+                        {searchQuery ? 'No matches' : 'No job groups'}
+                      </div>
+                    ) : (
+                      filteredJobGroups.map(group => (
+                        <div
+                          key={group.group_id}
+                          className="workflow-builder-palette-item"
+                          draggable
+                          onDragStart={(e) => onDragStart(e, { ...group, assetType: 'job_group' })}
+                        >
+                          {group.group_name}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                )}
+              </div>
+              
+              {/* Section 3: Workflows */}
+              <div className="workflow-builder-palette-section">
+                <div 
+                  className="workflow-builder-palette-section-header"
+                  onClick={() => setShowWorkflows(!showWorkflows)}
+                >
+                  <span className="workflow-builder-palette-section-toggle">
+                    {showWorkflows ? '▼' : '▶'}
+                  </span>
+                  <span className="workflow-builder-palette-section-title">
+                    WORKFLOWS ({filteredWorkflows.length})
+                  </span>
+                </div>
+                {showWorkflows && (
+                  <div className="workflow-builder-palette-section-items">
+                    {filteredWorkflows.length === 0 ? (
+                      <div className="workflow-builder-palette-empty">
+                        {searchQuery ? 'No matches' : 'No workflows'}
+                      </div>
+                    ) : (
+                      filteredWorkflows.map(workflow => (
+                        <div
+                          key={workflow.id}
+                          className="workflow-builder-palette-item"
+                          draggable
+                          onDragStart={(e) => onDragStart(e, { ...workflow, assetType: 'workflow' })}
+                        >
+                          {workflow.name}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         )}
@@ -419,6 +581,40 @@ const WorkflowBuilderContent = () => {
             </div>
             
             <div className="workflow-builder-config-content">
+              <div className="workflow-builder-form-group">
+                <label>Project *</label>
+                <select
+                  value={projectId || ''}
+                  onChange={(e) => setProjectId(e.target.value ? parseInt(e.target.value) : null)}
+                  className="workflow-builder-input"
+                >
+                  <option value="">Select a project</option>
+                  {projects.map(project => (
+                    <option key={project.id} value={project.id}>
+                      {project.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              
+              {projectId && subProjects.length > 0 && (
+                <div className="workflow-builder-form-group">
+                  <label>Sub-Project</label>
+                  <select
+                    value={subProjectId || ''}
+                    onChange={(e) => setSubProjectId(e.target.value ? parseInt(e.target.value) : null)}
+                    className="workflow-builder-input"
+                  >
+                    <option value="">None (use main project)</option>
+                    {subProjects.map(subProject => (
+                      <option key={subProject.id} value={subProject.id}>
+                        {subProject.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+              
               <div className="workflow-builder-form-group">
                 <label>Workflow Name *</label>
                 <input
