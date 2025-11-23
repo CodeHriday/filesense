@@ -1,185 +1,221 @@
-.workflow-manager {
-  padding: 24px;
-  background: #f5f5f5;
-  min-height: calc(100vh - 60px);
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+.workflow-manager-page {
+  padding: 0;
 }
 
-.workflow-manager-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 32px;
-}
-
-.workflow-manager-header h1 {
-  margin: 0;
-  font-size: 28px;
-  font-weight: 600;
-  color: #025043;
-}
-
-.workflow-manager-header p {
-  margin: 4px 0 0 0;
-  font-size: 14px;
-  color: #666;
-}
-
-.workflow-manager-btn-primary {
+/* Project Header Styling */
+.project-header {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 10px 20px;
-  background: #025043;
-  color: white;
-  border: none;
-  border-radius: 6px;
-  font-size: 14px;
-  font-weight: 500;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background: white;
+  color: #6b7280;
   cursor: pointer;
-  transition: background 0.2s;
+  user-select: none;
+  fontWeight: 500;
+  fontSize: 0.8125rem;
+  transition: all 0.2s ease;
 }
 
-.workflow-manager-btn-primary:hover {
-  background: #013d33;
+.project-header:hover {
+  background: #f9fafb;
 }
 
-.workflow-manager-loading {
-  text-align: center;
-  padding: 48px;
-  font-size: 16px;
-  color: #666;
+.count-badge {
+  color: #9ca3af;
+  fontSize: 0.75rem;
+  fontWeight: 400;
 }
 
-.workflow-manager-error {
-  background: #fee;
-  color: #c00;
-  padding: 16px;
-  border-radius: 6px;
-  margin-bottom: 24px;
-  border: 1px solid #fcc;
-}
-
-.workflow-manager-empty {
-  text-align: center;
-  padding: 64px 24px;
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-}
-
-.workflow-manager-empty p {
-  font-size: 16px;
-  color: #666;
-  margin-bottom: 24px;
-}
-
-.workflow-manager-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 24px;
-}
-
-.workflow-manager-card {
-  background: white;
-  border-radius: 8px;
-  padding: 20px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  transition: box-shadow 0.2s;
-  border: 1px solid #e0e0e0;
-}
-
-.workflow-manager-card:hover {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-}
-
-.workflow-manager-card-header {
+/* Subproject Header Styling */
+.subproject-header {
   display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 12px;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.75rem;
+  background: white;
+  cursor: pointer;
+  user-select: none;
+  margin-left: 1.5rem;
+  fontWeight: 400;
+  fontSize: 0.75rem;
+  transition: all 0.2s ease;
+  color: #9ca3af;
 }
 
-.workflow-manager-card-header h3 {
-  margin: 0;
-  font-size: 18px;
+.subproject-header:hover {
+  background: #f9fafb;
+}
+
+.sub-count-badge {
+  color: #d1d5db;
+  fontSize: 0.6875rem;
+  fontWeight: 400;
+}
+
+/* Workflow Table */
+.workflow-table-wrapper {
+  margin-left: 1.5rem;
+  margin-top: 0.5rem;
+  overflow-x: auto;
+}
+
+.workflow-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: white;
+  font-size: 0.8125rem;
+}
+
+.workflow-table thead {
+  background: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.workflow-table th {
+  padding: 0.625rem 0.75rem;
+  text-align: left;
   font-weight: 600;
-  color: #025043;
-  flex: 1;
-}
-
-.workflow-manager-card-actions {
-  display: flex;
-  gap: 8px;
-}
-
-.workflow-manager-icon-btn {
-  background: none;
-  border: 1px solid #ddd;
-  padding: 6px 10px;
-  border-radius: 4px;
-  cursor: pointer;
-  color: #666;
-  font-size: 14px;
-  transition: all 0.2s;
-}
-
-.workflow-manager-icon-btn:hover {
-  background: #f0f9f7;
-  border-color: #025043;
-  color: #025043;
-}
-
-.workflow-manager-icon-btn-danger:hover {
-  background: #fee;
-  border-color: #c00;
-  color: #c00;
-}
-
-.workflow-manager-card-description {
-  font-size: 14px;
-  color: #666;
-  margin-bottom: 16px;
-  line-height: 1.5;
-}
-
-.workflow-manager-card-stats {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
-  padding: 16px 0;
-  border-top: 1px solid #e0e0e0;
-  border-bottom: 1px solid #e0e0e0;
-  margin-bottom: 12px;
-}
-
-.workflow-manager-stat {
-  text-align: center;
-}
-
-.workflow-manager-stat-label {
-  display: block;
-  font-size: 11px;
-  color: #999;
+  font-size: 0.6875rem;
+  color: #6b7280;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin-bottom: 4px;
+  letter-spacing: 0.025em;
 }
 
-.workflow-manager-stat-value {
-  display: block;
-  font-size: 24px;
+.workflow-table tbody tr {
+  border-bottom: 1px solid #f3f4f6;
+  transition: background-color 0.15s ease;
+}
+
+.workflow-table tbody tr:hover {
+  background: #f9fafb;
+}
+
+.workflow-table td {
+  padding: 0.75rem;
+  color: #374151;
+  vertical-align: middle;
+}
+
+.workflow-name {
+  font-weight: 500;
+  color: #111827;
+}
+
+.workflow-type {
+  color: #6b7280;
+  font-size: 0.75rem;
+}
+
+.workflow-schedule {
+  color: #374151;
+  font-size: 0.75rem;
+  font-family: 'Courier New', monospace;
+}
+
+.workflow-status {
+  
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+  font-size: 0.6875rem;
   font-weight: 600;
-  color: #025043;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
 }
 
-.workflow-manager-card-footer {
+.status-enabled {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.status-disabled {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.status-no-schedule {
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
+.workflow-next-run,
+.workflow-last-run {
+  color: #6b7280;
+  font-size: 0.75rem;
+}
+
+.workflow-actions {
   display: flex;
-  justify-content: space-between;
+  gap: 0.5rem;
   align-items: center;
 }
 
-.workflow-manager-card-date {
-  font-size: 12px;
-  color: #999;
+.action-btn {
+  background: none;
+  border: none;
+  padding: 0.375rem;
+  cursor: pointer;
+  color: #6b7280;
+  border-radius: 0.25rem;
+  transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.action-btn:hover {
+  background: #f3f4f6;
+  color: #111827;
+}
+
+.action-btn-enabled {
+  color: #059669;
+}
+
+.action-btn-enabled:hover {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.action-btn-disabled {
+  color: #9ca3af;
+}
+
+.action-btn-disabled:hover {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.action-btn-execute:hover {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.action-btn-delete:hover {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 3rem 1.5rem;
+  background: white;
+  border-radius: 0.5rem;
+  border: 1px solid #e5e7eb;
+}
+
+.empty-state p {
+  color: #6b7280;
+  margin-bottom: 1rem;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+  margin-top: 1.5rem;
 }
