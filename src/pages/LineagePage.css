@@ -208,15 +208,57 @@
   padding: 10px;
   font-size: 11px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  transition: all 0.3s ease;
+  max-height: 80vh;
+  overflow: hidden;
+}
+
+.lineage-legend.collapsed {
+  max-height: 40px;
+}
+
+.lineage-legend-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
 }
 
 .lineage-legend-title {
   font-weight: 600;
   font-size: 12px;
-  margin-bottom: 8px;
   color: #374151;
   text-transform: uppercase;
   letter-spacing: 0.3px;
+}
+
+.lineage-legend-toggle {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #6B7280;
+  transition: color 0.2s;
+  font-size: 12px;
+}
+
+.lineage-legend-toggle:hover {
+  color: #025043;
+}
+
+.lineage-legend-content {
+  transition: opacity 0.3s ease;
+  opacity: 1;
+}
+
+.lineage-legend.collapsed .lineage-legend-content {
+  opacity: 0;
+  height: 0;
+  overflow: hidden;
 }
 
 .lineage-legend-item {
