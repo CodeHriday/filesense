@@ -135,18 +135,23 @@ async function traverseFromVendorAgreement(agreementId, projectId, nodes, edges,
   `, [agreementId, projectId]);
   
   // Traverse each file
+  systemLogger.info(`Found ${filesResult.rows.length} files for agreement ${agreementId}`);
   for (const file of filesResult.rows) {
+    systemLogger.info(`Processing file ${file.id}: ${file.filename}`);
     await traverseFromFile(file.id, projectId, nodes, edges, visited, depth - 1, filters);
     
     // Add edge from vendor agreement to file
+    const edgeId = `${nodeId}-to-file-${file.id}`;
+    systemLogger.info(`Creating edge ${edgeId} from ${nodeId} to file-${file.id}`);
     edges.push({
-      id: `${nodeId}-to-file-${file.id}`,
+      id: edgeId,
       source: nodeId,
       target: `file-${file.id}`,
       relationship: 'SOURCE_OF',
       label: 'provides'
     });
   }
+  systemLogger.info(`Total nodes after vendor agreement traversal: ${nodes.length}, edges: ${edges.length}`);
 }
 
 /**
