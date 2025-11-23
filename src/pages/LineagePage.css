@@ -479,14 +479,17 @@
   background: transparent !important;
   box-shadow: none !important;
   padding: 0 !important;
+  outline: none !important;
 }
 
 .lineage-canvas .react-flow__node:hover,
 .lineage-canvas .react-flow__node.selected,
-.lineage-canvas .react-flow__node:active {
+.lineage-canvas .react-flow__node:active,
+.lineage-canvas .react-flow__node:focus {
   box-shadow: none !important;
   filter: none !important;
   background: transparent !important;
+  outline: none !important;
 }
 
 .lineage-canvas .react-flow__node.selected .lineage-node {
