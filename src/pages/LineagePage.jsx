@@ -143,7 +143,8 @@ const LineagePageContent = () => {
             type: node.type,
             incidents: node.incidents,
             hasIncidents: node.hasIncidents,
-            derivedColumns: node.derivedColumns
+            derivedColumns: node.derivedColumns,
+            // Handle positions will be set by dagre layout
           },
           position: { x: 0, y: 0 }, // Will be set by dagre
         }));
@@ -203,6 +204,12 @@ const LineagePageContent = () => {
             width: nodeWidth,
             height: nodeHeight,
           },
+          // Pass handle positions to node data
+          data: {
+            ...n.data,
+            targetPosition: 'left',
+            sourcePosition: 'right',
+          },
           targetPosition: 'left',
           sourcePosition: 'right'
         };
@@ -243,6 +250,12 @@ const LineagePageContent = () => {
           ...node.style,
           width: nodeWidth,
           height: nodeHeight,
+        },
+        // Pass handle positions to node data for components to use
+        data: {
+          ...node.data,
+          targetPosition: isHorizontal ? 'left' : 'top',
+          sourcePosition: isHorizontal ? 'right' : 'bottom',
         },
         targetPosition: isHorizontal ? 'left' : 'top',
         sourcePosition: isHorizontal ? 'right' : 'bottom',
