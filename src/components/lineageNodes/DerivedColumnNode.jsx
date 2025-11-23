@@ -3,9 +3,12 @@ import { Handle, Position } from 'reactflow';
 import { FaCalculator } from 'react-icons/fa';
 
 const DerivedColumnNode = ({ data }) => {
+  const targetPosition = data.targetPosition || Position.Left;
+  const sourcePosition = data.sourcePosition || Position.Right;
+  
   return (
     <div className="lineage-node lineage-node-derived">
-      <Handle type="target" position={Position.Top} />
+      <Handle type="target" position={targetPosition} />
       
       <div className="lineage-node-header">
         <FaCalculator className="lineage-node-icon" style={{ color: '#8B5CF6' }} />
@@ -33,7 +36,7 @@ const DerivedColumnNode = ({ data }) => {
         )}
       </div>
       
-      <Handle type="source" position={Position.Bottom} />
+      <Handle type="source" position={sourcePosition} />
     </div>
   );
 };
