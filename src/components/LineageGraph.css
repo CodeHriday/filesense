@@ -314,9 +314,9 @@
   fill: #555;
 }
 
-/* Animations for nodes */
+/* Animations for nodes - removed transform to avoid overriding React Flow positioning */
 .react-flow__node {
-  transition: transform 0.3s ease, opacity 0.3s ease;
+  transition: opacity 0.3s ease;
   animation: nodeAppear 0.3s ease forwards;
   opacity: 0;
 }
@@ -324,11 +324,9 @@
 @keyframes nodeAppear {
   from {
     opacity: 0;
-    transform: translateY(10px);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
   }
 }
 
