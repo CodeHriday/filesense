@@ -7,7 +7,9 @@ import ReactFlow, {
   useEdgesState,
   addEdge,
   ReactFlowProvider,
-  Panel
+  Panel,
+  Handle,
+  Position
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import './WorkflowBuilder.css';
@@ -18,8 +20,13 @@ import { FaSave, FaPlay, FaClock, FaPlus, FaTrash, FaSearch } from 'react-icons/
 const JobNode = ({ data }) => {
   return (
     <div className="workflow-job-node">
+      <Handle 
+        type="target" 
+        position={Position.Left} 
+        id="input"
+        className="workflow-job-node-handle"
+      />
       <div className="workflow-job-node-header">
-        <span className="workflow-job-node-icon">📊</span>
         <span className="workflow-job-node-title">{data.label}</span>
       </div>
       {data.description && (
@@ -28,6 +35,12 @@ const JobNode = ({ data }) => {
       <div className="workflow-job-node-footer">
         <span className="workflow-job-node-id">#{data.assetId}</span>
       </div>
+      <Handle 
+        type="source" 
+        position={Position.Right} 
+        id="output"
+        className="workflow-job-node-handle"
+      />
     </div>
   );
 };
@@ -344,7 +357,7 @@ const WorkflowBuilderContent = () => {
                     onDragStart={(e) => onDragStart(e, job)}
                   >
                     <div className="workflow-builder-palette-job-title">
-                      📊 {job.mapping_name}
+                      {job.mapping_name}
                     </div>
                     {job.description && (
                       <div className="workflow-builder-palette-job-desc">
