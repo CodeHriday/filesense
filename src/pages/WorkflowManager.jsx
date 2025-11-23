@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { FiPlusCircle, FiPower, FiEdit2, FiTrash2, FiPlay, FiChevronDown, FiChevronRight } from 'react-icons/fi';
+import { FiPlusCircle, FiPower, FiEdit2, FiTrash2, FiPlay } from 'react-icons/fi';
 import { parseCronExpression } from '../utils/cronParser';
 import PageHeader from '../components/PageHeader';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -16,9 +16,12 @@ const WorkflowManager = () => {
   const [schedules, setSchedules] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [expansionState, setExpansionState] = useState({});
   const [deleteModal, setDeleteModal] = useState({ show: false, workflowId: null });
   const { showSuccess, showError } = useNotification();
+
+  // Filter state
+  const [selectedProject, setSelectedProject] = useState('all');
+  const [selectedSubProject, setSelectedSubProject] = useState('all');
 
   useEffect(() => {
     loadData();
@@ -52,81 +55,49 @@ const WorkflowManager = () => {
     }
   };
 
-  // Group workflows by project and subproject
-  const groupedProjects = useMemo(() => {
+  // Get unique projects and subprojects
+  const projects = useMemo(() => {
     const projectMap = new Map();
-
     workflows.forEach(workflow => {
       const projectId = workflow.project_id || 0;
       const projectName = workflow.project_name || 'Unknown Project';
-      const subProjectId = workflow.sub_project_id || null;
-      const subProjectName = workflow.sub_project_name || null;
-
       if (!projectMap.has(projectId)) {
-        projectMap.set(projectId, {
-          projectId,
-          projectName,
-          subprojects: new Map(),
-          workflowsCount: 0
-        });
+        projectMap.set(projectId, { id: projectId, name: projectName });
       }
-
-      const project = projectMap.get(projectId);
-      project.workflowsCount++;
-
-      // Create subproject key (null for main project workflows)
-      const subKey = subProjectId || 'main';
-      const subName = subProjectName || 'No Subproject';
-
-      if (!project.subprojects.has(subKey)) {
-        project.subprojects.set(subKey, {
-          subProjectId: subKey,
-          subProjectName: subName,
-          workflows: []
-        });
-      }
-
-      project.subprojects.get(subKey).workflows.push(workflow);
     });
-
-    // Convert to array and sort
-    return Array.from(projectMap.values())
-      .sort((a, b) => a.projectName.localeCompare(b.projectName))
-      .map(project => ({
-        ...project,
-        subprojects: Array.from(project.subprojects.values())
-          .sort((a, b) => a.subProjectName.localeCompare(b.subProjectName))
-      }));
+    return Array.from(projectMap.values()).sort((a, b) => a.name.localeCompare(b.name));
   }, [workflows]);
 
-  // Initialize expansion state
-  useEffect(() => {
-    if (groupedProjects.length > 0) {
-      const newState = {};
-      groupedProjects.forEach(project => {
-        const projectKey = `project-${project.projectId}`;
-        if (!(projectKey in expansionState)) {
-          newState[projectKey] = true; // Expand by default
+  const subProjects = useMemo(() => {
+    const subProjectMap = new Map();
+    workflows
+      .filter(w => selectedProject === 'all' || w.project_id === parseInt(selectedProject))
+      .forEach(workflow => {
+        const subProjectId = workflow.sub_project_id || null;
+        const subProjectName = workflow.sub_project_name || 'No Subproject';
+        const key = subProjectId || 'null';
+        if (!subProjectMap.has(key)) {
+          subProjectMap.set(key, { id: key, name: subProjectName });
         }
-        project.subprojects.forEach(subproject => {
-          const subKey = `subproject-${project.projectId}-${subproject.subProjectId}`;
-          if (!(subKey in expansionState)) {
-            newState[subKey] = true; // Expand by default
-          }
-        });
       });
-      if (Object.keys(newState).length > 0) {
-        setExpansionState(prev => ({ ...prev, ...newState }));
-      }
-    }
-  }, [groupedProjects]);
+    return Array.from(subProjectMap.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [workflows, selectedProject]);
 
-  const toggleExpansion = (key) => {
-    setExpansionState(prev => ({
-      ...prev,
-      [key]: !prev[key]
-    }));
-  };
+  // Filter workflows
+  const filteredWorkflows = useMemo(() => {
+    return workflows.filter(workflow => {
+      if (selectedProject !== 'all' && workflow.project_id !== parseInt(selectedProject)) {
+        return false;
+      }
+      if (selectedSubProject !== 'all') {
+        const subKey = workflow.sub_project_id || 'null';
+        if (subKey.toString() !== selectedSubProject) {
+          return false;
+        }
+      }
+      return true;
+    });
+  }, [workflows, selectedProject, selectedSubProject]);
 
   // Find schedule for a workflow
   const getWorkflowSchedule = (workflowId) => {
@@ -225,7 +196,40 @@ const WorkflowManager = () => {
           hideHomeButton={true}
         />
 
-        <div style={{ marginBottom: '1.5rem' }}>
+        <div className="workflow-manager-controls">
+          <div className="workflow-manager-filters">
+            <div className="filter-group">
+              <label>Project</label>
+              <select 
+                value={selectedProject} 
+                onChange={(e) => {
+                  setSelectedProject(e.target.value);
+                  setSelectedSubProject('all');
+                }}
+                className="filter-select"
+              >
+                <option value="all">All Projects</option>
+                {projects.map(project => (
+                  <option key={project.id} value={project.id}>{project.name}</option>
+                ))}
+              </select>
+            </div>
+            
+            <div className="filter-group">
+              <label>Subproject</label>
+              <select 
+                value={selectedSubProject} 
+                onChange={(e) => setSelectedSubProject(e.target.value)}
+                className="filter-select"
+              >
+                <option value="all">All Subprojects</option>
+                {subProjects.map(subProject => (
+                  <option key={subProject.id} value={subProject.id}>{subProject.name}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
           <button 
             onClick={() => navigate('/workflow-builder')} 
             className="btn btn-primary"
@@ -238,154 +242,92 @@ const WorkflowManager = () => {
           <div className="alert alert-danger">{error}</div>
         )}
 
-        {workflows.length === 0 ? (
+        {filteredWorkflows.length === 0 ? (
           <div className="empty-state">
-            <p>No visual workflows found. Create one to get started!</p>
+            <p>No visual workflows found{selectedProject !== 'all' || selectedSubProject !== 'all' ? ' for the selected filters' : ''}.</p>
           </div>
         ) : (
-          <div className="table-container">
-            <div>
-              {groupedProjects.map(project => {
-                const projectKey = `project-${project.projectId}`;
-                const isProjectExpanded = expansionState[projectKey];
+          <div className="workflow-table-container">
+            <table className="workflow-table">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Type</th>
+                  <th>Schedule</th>
+                  <th>Status</th>
+                  <th>Next Run</th>
+                  <th>Last Run</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredWorkflows.map(workflow => {
+                  const schedule = getWorkflowSchedule(workflow.id);
+                  const isEnabled = schedule?.enabled || false;
 
-                return (
-                  <div key={project.projectId} style={{ marginBottom: '1.25rem' }}>
-                    {/* Project Header */}
-                    <div
-                      onClick={() => toggleExpansion(projectKey)}
-                      className="project-header"
-                    >
-                      {isProjectExpanded ? (
-                        <FiChevronDown size={14} />
-                      ) : (
-                        <FiChevronRight size={14} />
-                      )}
-                      <span style={{ flex: 1 }}>Project : {project.projectName}</span>
-                      <span className="count-badge">
-                        {project.workflowsCount} {project.workflowsCount === 1 ? 'workflow' : 'workflows'}
-                      </span>
-                    </div>
-
-                    {/* Project Content - Subprojects */}
-                    {isProjectExpanded && (
-                      <div style={{ marginTop: '0.75rem', paddingLeft: '0.5rem' }}>
-                        {project.subprojects.map(subproject => {
-                          const subprojectKey = `subproject-${project.projectId}-${subproject.subProjectId}`;
-                          const isSubprojectExpanded = expansionState[subprojectKey];
-
-                          return (
-                            <div key={subproject.subProjectId} style={{ marginBottom: '0.75rem' }}>
-                              {/* Subproject Header */}
-                              <div
-                                onClick={() => toggleExpansion(subprojectKey)}
-                                className="subproject-header"
-                              >
-                                {isSubprojectExpanded ? (
-                                  <FiChevronDown size={12} />
-                                ) : (
-                                  <FiChevronRight size={12} />
-                                )}
-                                <span style={{ flex: 1 }}>{subproject.subProjectName}</span>
-                                <span className="sub-count-badge">
-                                  {subproject.workflows.length}
-                                </span>
-                              </div>
-
-                              {/* Workflows Table */}
-                              {isSubprojectExpanded && subproject.workflows.length > 0 && (
-                                <div className="workflow-table-wrapper">
-                                  <table className="workflow-table">
-                                    <thead>
-                                      <tr>
-                                        <th>NAME</th>
-                                        <th>TYPE</th>
-                                        <th>SCHEDULE</th>
-                                        <th>STATUS</th>
-                                        <th>NEXT RUN</th>
-                                        <th>LAST RUN</th>
-                                        <th>ACTIONS</th>
-                                      </tr>
-                                    </thead>
-                                    <tbody>
-                                      {subproject.workflows.map(workflow => {
-                                        const schedule = getWorkflowSchedule(workflow.id);
-                                        const isEnabled = schedule?.enabled || false;
-
-                                        return (
-                                          <tr key={workflow.id}>
-                                            <td className="workflow-name">{workflow.name}</td>
-                                            <td className="workflow-type">Visual Workflow</td>
-                                            <td className="workflow-schedule">
-                                              {schedule ? (
-                                                schedule.schedule_type === 'cron' 
-                                                  ? parseCronExpression(schedule.cron_expression)
-                                                  : `Every ${schedule.interval_value} ${schedule.interval_unit}${schedule.interval_value > 1 ? 's' : ''}`
-                                              ) : '-'}
-                                            </td>
-                                            <td className="workflow-status">
-                                              {schedule ? (
-                                                <span className={`status-badge ${isEnabled ? 'status-enabled' : 'status-disabled'}`}>
-                                                  {isEnabled ? 'ENABLED' : 'DISABLED'}
-                                                </span>
-                                              ) : (
-                                                <span className="status-badge status-no-schedule">NO SCHEDULE</span>
-                                              )}
-                                            </td>
-                                            <td className="workflow-next-run">
-                                              {formatDateTime(schedule?.next_run)}
-                                            </td>
-                                            <td className="workflow-last-run">
-                                              {formatDateTime(schedule?.last_run)}
-                                            </td>
-                                            <td className="workflow-actions">
-                                              {schedule && (
-                                                <button
-                                                  className={`action-btn ${isEnabled ? 'action-btn-enabled' : 'action-btn-disabled'}`}
-                                                  onClick={() => handleToggle(workflow.id, isEnabled)}
-                                                  title={isEnabled ? 'Disable' : 'Enable'}
-                                                >
-                                                  <FiPower size={16} />
-                                                </button>
-                                              )}
-                                              <button
-                                                className="action-btn"
-                                                onClick={() => handleEdit(workflow.id)}
-                                                title="Edit"
-                                              >
-                                                <FiEdit2 size={16} />
-                                              </button>
-                                              <button
-                                                className="action-btn action-btn-execute"
-                                                onClick={() => handleExecute(workflow.id)}
-                                                title="Execute"
-                                              >
-                                                <FiPlay size={16} />
-                                              </button>
-                                              <button
-                                                className="action-btn action-btn-delete"
-                                                onClick={() => handleDeleteClick(workflow.id)}
-                                                title="Delete"
-                                              >
-                                                <FiTrash2 size={16} />
-                                              </button>
-                                            </td>
-                                          </tr>
-                                        );
-                                      })}
-                                    </tbody>
-                                  </table>
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
+                  return (
+                    <tr key={workflow.id}>
+                      <td className="workflow-name">{workflow.name}</td>
+                      <td className="workflow-type">Visual Workflow</td>
+                      <td className="workflow-schedule">
+                        {schedule ? (
+                          schedule.schedule_type === 'cron' 
+                            ? parseCronExpression(schedule.cron_expression)
+                            : `Every ${schedule.interval_value} ${schedule.interval_unit}${schedule.interval_value > 1 ? 's' : ''}`
+                        ) : '-'}
+                      </td>
+                      <td className="workflow-status">
+                        {schedule ? (
+                          <span className={`status-badge ${isEnabled ? 'status-active' : 'status-inactive'}`}>
+                            {isEnabled ? 'Active' : 'Inactive'}
+                          </span>
+                        ) : (
+                          <span className="status-badge status-no-schedule">No Schedule</span>
+                        )}
+                      </td>
+                      <td className="workflow-datetime">
+                        {formatDateTime(schedule?.next_run)}
+                      </td>
+                      <td className="workflow-datetime">
+                        {formatDateTime(schedule?.last_run)}
+                      </td>
+                      <td className="workflow-actions">
+                        {schedule && (
+                          <button
+                            className="action-icon"
+                            onClick={() => handleToggle(workflow.id, isEnabled)}
+                            title={isEnabled ? 'Disable' : 'Enable'}
+                          >
+                            <FiPower className={isEnabled ? 'icon-active' : 'icon-inactive'} />
+                          </button>
+                        )}
+                        <button
+                          className="action-icon"
+                          onClick={() => handleEdit(workflow.id)}
+                          title="Edit"
+                        >
+                          <FiEdit2 className="icon-edit" />
+                        </button>
+                        <button
+                          className="action-icon"
+                          onClick={() => handleExecute(workflow.id)}
+                          title="Execute"
+                        >
+                          <FiPlay className="icon-execute" />
+                        </button>
+                        <button
+                          className="action-icon"
+                          onClick={() => handleDeleteClick(workflow.id)}
+                          title="Delete"
+                        >
+                          <FiTrash2 className="icon-delete" />
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         )}
 
