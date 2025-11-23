@@ -197,10 +197,9 @@ const LineagePageContent = () => {
         return {
           ...n,
           position: { x, y },
-          // Force inline transform style
+          // Set explicit dimensions for consistent sizing
           style: {
             ...n.style,
-            transform: `translate(${x}px, ${y}px)`,
             width: nodeWidth,
             height: nodeHeight,
           },
@@ -239,10 +238,9 @@ const LineagePageContent = () => {
       return {
         ...node,
         position: { x, y },
-        // Force inline transform style to bypass any CSS conflicts
+        // Set explicit dimensions for consistent sizing
         style: {
           ...node.style,
-          transform: `translate(${x}px, ${y}px)`,
           width: nodeWidth,
           height: nodeHeight,
         },
