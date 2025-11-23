@@ -7623,10 +7623,25 @@ app.get('/api/debug/hash-password/:password', async (req, res) => {
   }
 })();
 
-// Transformations endpoints
+// Transformations endpoints (returns transformation_mappings for workflow builder)
 app.get('/api/transformations', authenticateToken, async (req, res) => {
   try {
-    const result = await dbPool.query('SELECT * FROM transformations ORDER BY created_at DESC');
+    const result = await dbPool.query(`
+      SELECT 
+        id,
+        mapping_id,
+        mapping_name,
+        description,
+        source_file_pattern,
+        project_id,
+        status,
+        enabled,
+        created_at,
+        updated_at
+      FROM transformation_mappings 
+      WHERE enabled = true
+      ORDER BY created_at DESC
+    `);
     res.json(result.rows);
   } catch (err) {
     console.error('Error fetching transformations:', err);

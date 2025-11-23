@@ -142,14 +142,15 @@ const WorkflowBuilderContent = () => {
       });
       
       const newNode = {
-        id: `job-${jobData.id}-${Date.now()}`,
+        id: `job-${jobData.mapping_id}-${Date.now()}`,
         type: 'job',
         position,
         data: {
-          label: jobData.name,
+          label: jobData.mapping_name,
           description: jobData.description,
-          assetId: jobData.id,
-          assetType: 'transformation_mapping'
+          assetId: jobData.mapping_id,
+          assetType: 'transformation_mapping',
+          sourcePattern: jobData.source_file_pattern
         }
       };
       
@@ -249,8 +250,9 @@ const WorkflowBuilderContent = () => {
   
   // Filter jobs by search query
   const filteredJobs = (Array.isArray(availableJobs) ? availableJobs : []).filter(job =>
-    job.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (job.description && job.description?.toLowerCase().includes(searchQuery.toLowerCase()))
+    job.mapping_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (job.description && job.description?.toLowerCase().includes(searchQuery.toLowerCase())) ||
+    job.source_file_pattern?.toLowerCase().includes(searchQuery.toLowerCase())
   );
   
   return (
@@ -332,21 +334,21 @@ const WorkflowBuilderContent = () => {
               ) : (
                 filteredJobs.map(job => (
                   <div
-                    key={job.id}
+                    key={job.mapping_id}
                     className="workflow-builder-palette-job"
                     draggable
                     onDragStart={(e) => onDragStart(e, job)}
                   >
                     <div className="workflow-builder-palette-job-title">
-                      📊 {job.name}
+                      📊 {job.mapping_name}
                     </div>
                     {job.description && (
                       <div className="workflow-builder-palette-job-desc">
                         {job.description}
                       </div>
                     )}
-                    <div className="workflow-builder-palette-job-id">
-                      ID: {job.id}
+                    <div className="workflow-builder-palette-job-pattern">
+                      {job.source_file_pattern}
                     </div>
                   </div>
                 ))
