@@ -223,7 +223,12 @@ async function traverseFromFile(fileId, projectId, nodes, edges, visited, depth,
   });
   
   // Find ETL mappings that use this file as input
-  // Extract basename from filename and match against pattern (* -> %)
+  // Extract basename from filename and match against pattern
+  // Exact patterns (no *) must match basename exactly, wildcard patterns (* -> %) use LIKE
+  const basename = file.filename.includes('/') 
+    ? file.filename.substring(file.filename.lastIndexOf('/') + 1)
+    : file.filename;
+    
   const mappingsResult = await pool.query(`
     SELECT DISTINCT
       tm.id,
@@ -237,13 +242,22 @@ async function traverseFromFile(fileId, projectId, nodes, edges, visited, depth,
       tm.description
     FROM transformation_mappings tm
     WHERE (
-      $1 LIKE '%' || REPLACE(tm.source_file_pattern, '*', '%')
-      OR substring($1 from '[^/]+$') LIKE REPLACE(tm.source_file_pattern, '*', '%')
+      (
+        -- Exact pattern match (no wildcard) - basename must match exactly
+        tm.source_file_pattern NOT LIKE '%*%'
+        AND $1 = tm.source_file_pattern
+      )
+      OR
+      (
+        -- Wildcard pattern match - use LIKE with % replacement
+        tm.source_file_pattern LIKE '%*%'
+        AND $1 LIKE REPLACE(tm.source_file_pattern, '*', '%')
+      )
     )
       AND ($2::integer IS NULL OR tm.project_id = $2)
       AND tm.status != 'deleted'
     LIMIT 50
-  `, [file.filename, projectId]);
+  `, [basename, projectId]);
   
   // Traverse each mapping
   for (const mapping of mappingsResult.rows) {
