@@ -470,6 +470,8 @@
 /* React Flow Customizations */
 .lineage-canvas .react-flow__node {
   position: absolute !important;
+  border: none !important;
+  background: transparent !important;
 }
 
 .react-flow__node.selected .lineage-node {
