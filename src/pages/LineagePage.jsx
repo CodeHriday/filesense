@@ -186,10 +186,21 @@ const LineagePageContent = () => {
         setNodes(layoutedNodes);
         setEdges(layoutedEdges);
         
-        // Log nodes after setNodes to verify they persisted
+        // Log nodes after setNodes to verify they persisted and check actual DOM transforms
         setTimeout(() => {
           console.log('Nodes in state after setNodes:', layoutedNodes.slice(0, 3).map(n => ({ id: n.id, x: n.position?.x, y: n.position?.y })));
-        }, 100);
+          
+          // Check actual DOM elements to verify transforms are applied
+          const domNodes = document.querySelectorAll('.react-flow__node');
+          console.log(`Found ${domNodes.length} DOM nodes`);
+          domNodes.forEach((el, i) => {
+            if (i < 5) { // Log first 5 nodes
+              const transform = getComputedStyle(el).transform;
+              const inlineTransform = el.style.transform;
+              console.log(`Node ${i}: inline="${inlineTransform}", computed="${transform}"`);
+            }
+          });
+        }, 500); // Give React Flow time to render
       } else {
         setError(response.error || 'Failed to load lineage graph');
       }
