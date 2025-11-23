@@ -295,32 +295,34 @@
   font-size: 8px;
   font-weight: 600;
   padding: 2px 6px;
-  border-radius: 2px;
+  border-radius: 4px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  color: white;
+  background: white;
+  color: #6B7280;
   min-width: 50px;
   text-align: center;
+  border: 1.5px solid;
 }
 
 .lineage-legend-badge-phi {
-  background: #7C3AED;
+  border-color: #7C3AED;
 }
 
 .lineage-legend-badge-confidential {
-  background: #DC2626;
+  border-color: #DC2626;
 }
 
 .lineage-legend-badge-internal {
-  background: #F59E0B;
+  border-color: #F59E0B;
 }
 
 .lineage-legend-badge-public {
-  background: #10B981;
+  border-color: #10B981;
 }
 
 .lineage-legend-badge-pii {
-  background: #7C3AED;
+  border-color: #7C3AED;
 }
 
 /* Custom Node Styles */
@@ -467,14 +469,25 @@
   border-color: #10B981;
 }
 
-/* React Flow Customizations */
-.lineage-canvas .react-flow__node {
+/* React Flow Customizations - Override all global React Flow styles */
+.lineage-canvas .react-flow__node,
+.lineage-canvas .react-flow__node-default,
+.lineage-canvas .react-flow__node-input,
+.lineage-canvas .react-flow__node-output {
   position: absolute !important;
   border: none !important;
   background: transparent !important;
+  box-shadow: none !important;
+  padding: 0 !important;
 }
 
-.react-flow__node.selected .lineage-node {
+.lineage-canvas .react-flow__node:hover,
+.lineage-canvas .react-flow__node.selected {
+  box-shadow: none !important;
+  filter: none !important;
+}
+
+.lineage-canvas .react-flow__node.selected .lineage-node {
   box-shadow: 0 0 0 3px rgba(2, 80, 67, 0.3);
 }
 
