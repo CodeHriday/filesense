@@ -91,7 +91,13 @@ const WorkflowBuilderContent = () => {
     try {
       const token = localStorage.getItem('token');
       const response = await axios.get('/api/transformations', {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { 
+          Authorization: `Bearer ${token}`,
+          'Cache-Control': 'no-cache'
+        },
+        params: {
+          _t: Date.now() // Cache-busting timestamp
+        }
       });
       
       if (response.data && Array.isArray(response.data)) {
