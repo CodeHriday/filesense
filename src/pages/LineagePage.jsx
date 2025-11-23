@@ -146,7 +146,6 @@ const LineagePageContent = () => {
             derivedColumns: node.derivedColumns
           },
           position: { x: 0, y: 0 }, // Will be set by dagre
-          style: { width: 220, height: 80 }, // Explicit dimensions
         }));
         
         console.log('Node types created:', flowNodes.map(n => ({ id: n.id, type: n.type, label: n.data.label })));
@@ -214,15 +213,23 @@ const LineagePageContent = () => {
       const cols = 4;
       const spacingX = 260;
       const spacingY = 120;
-      const layoutedNodes = nodes.map((n, i) => ({
-        ...n,
-        position: { 
-          x: (i % cols) * spacingX, 
-          y: Math.floor(i / cols) * spacingY 
-        },
-        targetPosition: 'left',
-        sourcePosition: 'right'
-      }));
+      const layoutedNodes = nodes.map((n, i) => {
+        const x = (i % cols) * spacingX;
+        const y = Math.floor(i / cols) * spacingY;
+        return {
+          ...n,
+          position: { x, y },
+          // Force inline transform style
+          style: {
+            ...n.style,
+            transform: `translate(${x}px, ${y}px)`,
+            width: nodeWidth,
+            height: nodeHeight,
+          },
+          targetPosition: 'left',
+          sourcePosition: 'right'
+        };
+      });
       return { nodes: layoutedNodes, edges: [] };
     }
     
@@ -248,12 +255,18 @@ const LineagePageContent = () => {
     
     const layoutedNodes = nodes.map((node) => {
       const nodeWithPosition = dagreGraph.node(node.id);
+      const x = nodeWithPosition.x - nodeWidth / 2;
+      const y = nodeWithPosition.y - nodeHeight / 2;
       
       return {
         ...node,
-        position: {
-          x: nodeWithPosition.x - nodeWidth / 2,
-          y: nodeWithPosition.y - nodeHeight / 2,
+        position: { x, y },
+        // Force inline transform style to bypass any CSS conflicts
+        style: {
+          ...node.style,
+          transform: `translate(${x}px, ${y}px)`,
+          width: nodeWidth,
+          height: nodeHeight,
         },
         targetPosition: isHorizontal ? 'left' : 'top',
         sourcePosition: isHorizontal ? 'right' : 'bottom',
