@@ -21,6 +21,9 @@ const JobNode = ({ data }) => {
     return `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
   };
   
+  const targetPosition = data.targetPosition || Position.Left;
+  const sourcePosition = data.sourcePosition || Position.Right;
+  
   return (
     <div className="lineage-node lineage-node-job">
       {data.hasIncidents && (
@@ -29,7 +32,7 @@ const JobNode = ({ data }) => {
         </div>
       )}
       
-      <Handle type="target" position={Position.Top} />
+      <Handle type="target" position={targetPosition} />
       
       <div className="lineage-node-header">
         {getStatusIcon()}
@@ -42,7 +45,7 @@ const JobNode = ({ data }) => {
         {data.rowsWritten && <div>Written: {data.rowsWritten.toLocaleString()} rows</div>}
       </div>
       
-      <Handle type="source" position={Position.Bottom} />
+      <Handle type="source" position={sourcePosition} />
     </div>
   );
 };

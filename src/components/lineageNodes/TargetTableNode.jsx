@@ -18,6 +18,8 @@ const TargetTableNode = ({ data }) => {
     }
   };
   
+  const targetPosition = data.targetPosition || Position.Left;
+  
   return (
     <div className="lineage-node lineage-node-target">
       <div className="lineage-node-badges">
@@ -37,7 +39,7 @@ const TargetTableNode = ({ data }) => {
         )}
       </div>
       
-      <Handle type="target" position={Position.Top} />
+      <Handle type="target" position={targetPosition} />
       
       <div className="lineage-node-header">
         <FaTable className="lineage-node-icon" style={{ color: '#025043' }} />

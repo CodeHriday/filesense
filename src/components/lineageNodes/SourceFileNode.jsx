@@ -25,6 +25,9 @@ const SourceFileNode = ({ data }) => {
     }
   };
   
+  const targetPosition = data.targetPosition || Position.Left;
+  const sourcePosition = data.sourcePosition || Position.Right;
+  
   return (
     <div className="lineage-node lineage-node-file">
       <div className="lineage-node-badges">
@@ -49,7 +52,7 @@ const SourceFileNode = ({ data }) => {
         )}
       </div>
       
-      <Handle type="target" position={Position.Top} />
+      <Handle type="target" position={targetPosition} />
       
       <div className="lineage-node-header">
         <FaFile className="lineage-node-icon" style={{ color: '#3B82F6' }} />
@@ -67,7 +70,7 @@ const SourceFileNode = ({ data }) => {
         )}
       </div>
       
-      <Handle type="source" position={Position.Bottom} />
+      <Handle type="source" position={sourcePosition} />
     </div>
   );
 };

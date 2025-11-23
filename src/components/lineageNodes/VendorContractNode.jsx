@@ -3,6 +3,8 @@ import { Handle, Position } from 'reactflow';
 import { FaFileContract } from 'react-icons/fa';
 
 const VendorContractNode = ({ data }) => {
+  const sourcePosition = data.sourcePosition || Position.Right;
+  
   return (
     <div className="lineage-node lineage-node-vendor">
       {data.hasIncidents && (
@@ -21,7 +23,7 @@ const VendorContractNode = ({ data }) => {
         {data.effectiveFrom && <div>Effective: {new Date(data.effectiveFrom).toLocaleDateString()}</div>}
       </div>
       
-      <Handle type="source" position={Position.Bottom} />
+      <Handle type="source" position={sourcePosition} />
     </div>
   );
 };
