@@ -148,8 +148,6 @@ const LineagePageContent = () => {
           position: { x: 0, y: 0 }, // Will be set by dagre
         }));
         
-        console.log('Node types created:', flowNodes.map(n => ({ id: n.id, type: n.type, label: n.data.label })));
-        
         // Transform backend edges to React Flow format
         const flowEdges = response.edges.map(edge => ({
           id: edge.id,
@@ -161,8 +159,6 @@ const LineagePageContent = () => {
           style: getEdgeStyle(edge.relationship)
         }));
         
-        console.log('Applying dagre layout to nodes:', flowNodes.length, 'edges:', flowEdges.length);
-        
         // Apply dagre layout to position nodes based on their connections
         const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(
           flowNodes,
@@ -170,37 +166,8 @@ const LineagePageContent = () => {
           'LR' // Left to Right layout
         );
         
-        console.log('Layout applied - sample positions:', layoutedNodes.slice(0, 3).map(n => ({ id: n.id, x: n.position.x, y: n.position.y })));
-        console.log('ALL layoutedNodes positions:', layoutedNodes.map(n => ({ id: n.id, x: n.position.x, y: n.position.y })));
-        
-        // Verify positions are numbers
-        const hasInvalidPositions = layoutedNodes.some(n => 
-          typeof n.position?.x !== 'number' || typeof n.position?.y !== 'number'
-        );
-        if (hasInvalidPositions) {
-          console.error('ERROR: Some nodes have invalid positions!', layoutedNodes.filter(n => 
-            typeof n.position?.x !== 'number' || typeof n.position?.y !== 'number'
-          ));
-        }
-        
         setNodes(layoutedNodes);
         setEdges(layoutedEdges);
-        
-        // Log nodes after setNodes to verify they persisted and check actual DOM transforms
-        setTimeout(() => {
-          console.log('Nodes in state after setNodes:', layoutedNodes.slice(0, 3).map(n => ({ id: n.id, x: n.position?.x, y: n.position?.y })));
-          
-          // Check actual DOM elements to verify transforms are applied
-          const domNodes = document.querySelectorAll('.react-flow__node');
-          console.log(`Found ${domNodes.length} DOM nodes`);
-          domNodes.forEach((el, i) => {
-            if (i < 5) { // Log first 5 nodes
-              const transform = getComputedStyle(el).transform;
-              const inlineTransform = el.style.transform;
-              console.log(`Node ${i}: inline="${inlineTransform}", computed="${transform}"`);
-            }
-          });
-        }, 500); // Give React Flow time to render
       } else {
         setError(response.error || 'Failed to load lineage graph');
       }
