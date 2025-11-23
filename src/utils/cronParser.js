@@ -4,14 +4,19 @@
  * @returns {string} Human-readable description
  */
 export const parseCronExpression = (cronExpression) => {
-  if (!cronExpression || cronExpression === '* * * * *') {
-    return 'Every minute';
-  }
+  try {
+    if (!cronExpression || typeof cronExpression !== 'string' || cronExpression.trim() === '') {
+      return '-';
+    }
+    
+    if (cronExpression === '* * * * *') {
+      return 'Every minute';
+    }
 
-  const parts = cronExpression.trim().split(' ');
-  if (parts.length < 5) {
-    return 'Custom';
-  }
+    const parts = cronExpression.trim().split(' ');
+    if (parts.length < 5) {
+      return 'Custom';
+    }
 
   const [minute, hour, dayOfMonth, month, dayOfWeek] = parts;
 
@@ -64,4 +69,8 @@ export const parseCronExpression = (cronExpression) => {
   }
 
   return 'Custom schedule';
+  } catch (error) {
+    console.error('Error parsing cron expression:', error);
+    return '-';
+  }
 };
