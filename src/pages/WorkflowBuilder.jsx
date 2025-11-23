@@ -95,12 +95,16 @@ const WorkflowBuilderContent = () => {
         headers: { Authorization: `Bearer ${token}` }
       });
       
-      if (response.data) {
+      if (response.data && Array.isArray(response.data)) {
         setAvailableJobs(response.data);
+      } else {
+        console.warn('API returned non-array data:', response.data);
+        setAvailableJobs([]);
       }
     } catch (err) {
       console.error('Failed to load available jobs:', err);
       setError('Failed to load ETL mapping jobs');
+      setAvailableJobs([]);
     }
   };
   
@@ -244,9 +248,9 @@ const WorkflowBuilderContent = () => {
   };
   
   // Filter jobs by search query
-  const filteredJobs = availableJobs.filter(job =>
-    job.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (job.description && job.description.toLowerCase().includes(searchQuery.toLowerCase()))
+  const filteredJobs = (Array.isArray(availableJobs) ? availableJobs : []).filter(job =>
+    job.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (job.description && job.description?.toLowerCase().includes(searchQuery.toLowerCase()))
   );
   
   return (
