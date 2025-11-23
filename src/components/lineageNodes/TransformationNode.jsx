@@ -3,9 +3,12 @@ import { Handle, Position } from 'reactflow';
 import { FaCog } from 'react-icons/fa';
 
 const TransformationNode = ({ data }) => {
+  const targetPosition = data.targetPosition || Position.Left;
+  const sourcePosition = data.sourcePosition || Position.Right;
+  
   return (
     <div className="lineage-node lineage-node-transformation">
-      <Handle type="target" position={Position.Top} />
+      <Handle type="target" position={targetPosition} />
       
       <div className="lineage-node-header">
         <FaCog className="lineage-node-icon" style={{ color: '#F59E0B' }} />
@@ -22,7 +25,7 @@ const TransformationNode = ({ data }) => {
         )}
       </div>
       
-      <Handle type="source" position={Position.Bottom} />
+      <Handle type="source" position={sourcePosition} />
     </div>
   );
 };
