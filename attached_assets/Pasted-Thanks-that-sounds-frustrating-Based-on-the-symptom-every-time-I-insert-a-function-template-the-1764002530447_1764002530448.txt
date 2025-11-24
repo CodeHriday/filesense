@@ -1,0 +1,120 @@
+Thanks — that sounds frustrating. Based on the symptom (“every time I insert a function template the caret is offset by 2 characters: to delete the character I must place the cursor 2 positions after it”), the most likely causes and fixes are below — with short diagnostics you can run right away and concrete code to fix the insertion/caret logic.
+
+TL;DR — most likely cause
+
+Your code is mixing two different string length metrics:
+
+JavaScript string .length counts UTF-16 code units.
+
+Iterating with spread [...str] or Array.from(str) counts Unicode code points (surrogate pairs count as 1).
+
+Certain emoji / non-BMP characters or invisible characters (zero-width joiners, BOM) occupy two UTF-16 code units but render as a single glyph. That makes the caret appear “shifted by 1” when you compute offsets using the other metric — leading to the 2-char behaviour you see.
+
+Another possibility is your insertion contains invisible characters (zero-width space \u200B, BOM \uFEFF, or other control chars) which change the index mapping.
+
+Quick checks (debug in browser console)
+
+Inspect the characters you insert:
+
+const s = "INSERTED_TEXT_FROM_YOUR_FUNCTION_TEMPLATE";
+for (let i = 0; i < s.length; i++) {
+  console.log(i, s[i], s.charCodeAt(i).toString(16));
+}
+
+
+If you see surrogate high/low pairs (values in 0xD800..0xDBFF and 0xDC00..0xDFFF) or unexpected 200B/FEFF etc., that’s the culprit.
+
+Detect zero-width / hidden characters:
+
+/[^\u0000-\u007F]/.test(s)          // any non-ASCII?
+/[\u200B-\u200D\uFEFF]/.test(s)     // zero-widths / BOM?
+
+
+Count code units vs code points:
+
+console.log("codeUnits:", s.length, "codePoints:", [...s].length);
+
+
+If codeUnits !== codePoints, you will get caret indexing problems if your code uses one count but the browser uses the other.
+
+Likely scenarios in your app
+
+You insert the template using a codepoints-aware method (e.g. [...insertText]) but then call textarea.setSelectionRange using a code-unit index — indexes mismatch.
+
+Your template string includes hidden Unicode (emoji, fancy bullets, or a BOM) that visually looks like 1 char but counts as two code units.
+
+You compute the new caret position by converting strings to arrays of graphemes/code points and then use that numeric result with setSelectionRange which expects UTF-16 code unit offset.
+
+Concrete fix — canonical insertion helper
+
+Use only UTF-16 code unit counts everywhere when working with textarea.selectionStart / selectionEnd / setSelectionRange. The following helper is safe and simple:
+
+function insertAtCursor(textarea, insertText) {
+  textarea.focus();
+  const start = textarea.selectionStart;    // code-unit index
+  const end   = textarea.selectionEnd;      // code-unit index
+
+  // If you suspect hidden characters in insertText, optionally sanitize:
+  // insertText = insertText.replace(/[\u200B-\u200D\uFEFF]/g, '');
+
+  // Compose new value using code-unit string slices
+  const newValue = textarea.value.slice(0, start) + insertText + textarea.value.slice(end);
+  textarea.value = newValue;
+
+  // Compute new caret position in code-units (string.length returns code units)
+  const newCaretPos = start + insertText.length;
+
+  // Set selection using code-unit indexes (the browser expects code units)
+  textarea.setSelectionRange(newCaretPos, newCaretPos);
+}
+
+
+Use this helper instead of doing things like const newPos = start + [...insertText].length (don't mix code point lengths).
+
+If you need to support grapheme clusters (multi-codepoint glyphs)
+
+If you intentionally want to treat user-perceived characters (grapheme clusters) instead of UTF-16 code units, you have to convert your caret indices back and forth between code-unit and grapheme indices. This is more complicated and rarely required for textareas; prefer to keep everything in code units.
+
+Sanitizing inserted templates
+
+If your function templates come from UI labels that include emoji or hidden chars, strip them before inserting:
+
+function sanitizeTemplate(s){
+  // remove zero-width and BOM characters
+  return s.replace(/[\u200B-\u200D\uFEFF]/g, '');
+}
+
+
+Apply sanitizeTemplate(insertText) before calling insertAtCursor().
+
+Troubleshooting checklist (step-by-step)
+
+Reproduce in console: copy one function template string and run the codeUnits vs codePoints check above. If mismatch, you found it.
+
+Inspect for zero-width chars (use .charCodeAt() loop).
+
+Replace insertion routine with the insertAtCursor() helper above and retest.
+
+If you use any libraries that map indices (e.g., you're converting to DOM Range or using contentEditable), ensure they consistently use UTF-16 code units.
+
+Common places bugs hide
+
+You use Array.from(insertText).length or [...insertText].length when computing new caret position — that returns code points, not code units.
+
+Your UI copy comes from a label that has an emoji or complex glyph.
+
+You normalize strings (NFC/NFD) in some places but not others; normalization changes code units for composed characters.
+
+Example: faulty vs correct
+
+Faulty code (causes 2-char offset when string contains surrogate pairs):
+
+const inserted = "🧩case_when(...)"      // emoji is 2 code units
+const newCaret = start + [...inserted].length; // counts emoji as 1
+textarea.setSelectionRange(newCaret, newCaret); // wrong — browser expects code-units
+
+
+Correct code:
+
+const newCaret = start + inserted.length; // inserted.length returns UTF-16 code units
+textarea.setSelectionRange(newCaret, newCaret);
