@@ -775,7 +775,7 @@ const WorkflowBuilderContent = () => {
                       setShowScheduleModal(false);
                       navigate('/etl-scheduler/create', {
                         state: {
-                          entityType: 'Workflow',
+                          entityType: 'workflow',
                           entityId: workflowId,
                           entityName: workflowName,
                           projectId: projectId,
