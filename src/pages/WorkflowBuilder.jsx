@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import ReactFlow, {
   MiniMap,
   Controls,
@@ -50,6 +51,7 @@ const nodeTypes = {
 };
 
 const WorkflowBuilderContent = () => {
+  const navigate = useNavigate();
   const containerRef = useRef(null);
   const [reactFlowInstance, setReactFlowInstance] = useState(null);
   const [containerReady, setContainerReady] = useState(false);
@@ -771,7 +773,7 @@ const WorkflowBuilderContent = () => {
                     className="workflow-builder-btn workflow-builder-btn-primary"
                     onClick={() => {
                       setShowScheduleModal(false);
-                      window.location.href = '/scheduler';
+                      navigate('/scheduler');
                     }}
                   >
                     <FaClock style={{ marginRight: '6px' }} />
