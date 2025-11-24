@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { FiCheck, FiArrowRight, FiTrash2, FiEdit2, FiX, FiPlus, FiChevronDown, FiChevronUp, FiChevronRight, FiLock } from 'react-icons/fi';
+import Editor from 'react-simple-code-editor';
 import './TableBasedMapper.css';
 
 const TRANSFORMATION_OPTIONS = [
@@ -137,9 +138,11 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
   // Position cursor after React updates newVariable expression in DOM
   useEffect(() => {
     if (pendingCursorPos !== null && expressionTextareaRef.current) {
-      const textarea = expressionTextareaRef.current;
-      textarea.focus();
-      textarea.setSelectionRange(pendingCursorPos, pendingCursorPos);
+      const textarea = expressionTextareaRef.current.querySelector('textarea');
+      if (textarea) {
+        textarea.focus();
+        textarea.setSelectionRange(pendingCursorPos, pendingCursorPos);
+      }
       // Clear pending position after applying
       setPendingCursorPos(null);
     }
@@ -148,9 +151,11 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
   // Position cursor after React updates editingVariable expression in DOM
   useEffect(() => {
     if (pendingEditCursorPos !== null && editExpressionTextareaRef.current) {
-      const textarea = editExpressionTextareaRef.current;
-      textarea.focus();
-      textarea.setSelectionRange(pendingEditCursorPos, pendingEditCursorPos);
+      const textarea = editExpressionTextareaRef.current.querySelector('textarea');
+      if (textarea) {
+        textarea.focus();
+        textarea.setSelectionRange(pendingEditCursorPos, pendingEditCursorPos);
+      }
       // Clear pending position after applying
       setPendingEditCursorPos(null);
     }
@@ -383,9 +388,9 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
     return buildExpression(mapping);
   };
 
-  // Syntax highlighting function
+  // Syntax highlighting function for react-simple-code-editor (returns HTML string)
   const highlightExpression = (expression) => {
-    if (!expression) return '';
+    if (!expression) return expression || '';
     
     // Get all column names and variable names for matching
     const columnNames = schema.map(f => f.name);
@@ -446,20 +451,27 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
       });
     }
     
-    // Convert tokens to JSX
-    return tokens.map((token, idx) => {
-      const style = {
-        color: token.type === 'conditional' ? '#f59e0b' :  // amber for if/case_when
-               token.type === 'function' ? '#10B981' :     // green
-               token.type === 'column' ? '#3B82F6' :       // blue
-               token.type === 'variable' ? '#8B5CF6' :     // purple for variables
-               token.type === 'string' ? '#000000' :       // black
-               '#374151',  // default dark gray
-        fontWeight: 'normal'  // Always use normal weight to maintain character width alignment with textarea
-      };
+    // Convert tokens to HTML string for react-simple-code-editor
+    const htmlParts = tokens.map((token) => {
+      const color = token.type === 'conditional' ? '#f59e0b' :  // amber for if/case_when
+                    token.type === 'function' ? '#10B981' :     // green
+                    token.type === 'column' ? '#3B82F6' :       // blue
+                    token.type === 'variable' ? '#8B5CF6' :     // purple for variables
+                    token.type === 'string' ? '#000000' :       // black
+                    '#374151';  // default dark gray
       
-      return <span key={idx} style={style}>{token.text}</span>;
+      // Escape HTML special characters
+      const escapedText = token.text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+      
+      return `<span style="color: ${color};">${escapedText}</span>`;
     });
+    
+    return htmlParts.join('');
   };
 
   // Variable handlers
@@ -480,15 +492,29 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
       .normalize('NFC');                      // Normalize to canonical composition
   };
 
-  // Helper function to insert text at cursor position in textarea
+  // Helper function to insert text at cursor position in expression editor
   const insertAtCursor = (text, isEditMode = false) => {
     // Sanitize the text before insertion to prevent invisible character issues
     const sanitizedText = sanitizeText(text);
-    const textarea = isEditMode ? editExpressionTextareaRef.current : expressionTextareaRef.current;
-    if (!textarea) return;
+    
+    // Get the textarea element from the Editor component ref
+    const editorRef = isEditMode ? editExpressionTextareaRef.current : expressionTextareaRef.current;
+    const textarea = editorRef?.querySelector('textarea');
+    
+    if (!textarea) {
+      // Fallback: append to end if no textarea ref available
+      if (isEditMode) {
+        const currentValue = editingVariable?.expression || '';
+        setEditingVariable({ ...editingVariable, expression: currentValue + sanitizedText });
+      } else {
+        const currentValue = newVariable.expression || '';
+        setNewVariable({ ...newVariable, expression: currentValue + sanitizedText });
+      }
+      return;
+    }
 
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
+    const start = textarea.selectionStart || 0;
+    const end = textarea.selectionEnd || 0;
     const currentValue = isEditMode ? (editingVariable?.expression || '') : (newVariable.expression || '');
     const newValue = currentValue.substring(0, start) + sanitizedText + currentValue.substring(end);
     
@@ -1266,21 +1292,22 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
                       <div className="expression-builder-header">
                         <label>Expression *</label>
                       </div>
-                      <div className="expression-editor-container">
-                        <div className="expression-highlight-layer expression-editor-surface">
-                          {highlightExpression(newVariable.expression)}
-                          {!newVariable.expression && (
-                            <span className="expression-placeholder">
-                              Click + buttons to insert columns and functions, or type directly...
-                            </span>
-                          )}
-                        </div>
-                        <textarea
-                          ref={expressionTextareaRef}
-                          className="expression-textarea expression-textarea-overlay expression-editor-surface"
+                      <div className="expression-editor-container" ref={expressionTextareaRef}>
+                        <Editor
                           value={newVariable.expression}
-                          onChange={(e) => setNewVariable({ ...newVariable, expression: e.target.value })}
-                          spellCheck="false"
+                          onValueChange={(code) => setNewVariable({ ...newVariable, expression: code })}
+                          highlight={highlightExpression}
+                          padding={8}
+                          placeholder="Click + buttons to insert columns and functions, or type directly..."
+                          style={{
+                            fontFamily: "'Consolas', 'Monaco', 'Courier New', monospace",
+                            fontSize: 10,
+                            minHeight: '200px',
+                            border: '1px solid #d1d5db',
+                            borderRadius: '6px',
+                            backgroundColor: '#fff'
+                          }}
+                          textareaClassName="expression-code-input"
                         />
                       </div>
 
@@ -1444,21 +1471,22 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
                       <div className="expression-builder-header">
                         <label>Expression *</label>
                       </div>
-                      <div className="expression-editor-container">
-                        <div className="expression-highlight-layer expression-editor-surface">
-                          {highlightExpression(editingVariable.expression || '')}
-                          {!editingVariable.expression && (
-                            <span className="expression-placeholder">
-                              Click + buttons to insert columns and functions, or type directly...
-                            </span>
-                          )}
-                        </div>
-                        <textarea
-                          ref={editExpressionTextareaRef}
-                          className="expression-textarea expression-textarea-overlay expression-editor-surface"
+                      <div className="expression-editor-container" ref={editExpressionTextareaRef}>
+                        <Editor
                           value={editingVariable.expression || ''}
-                          onChange={(e) => setEditingVariable({ ...editingVariable, expression: e.target.value })}
-                          spellCheck="false"
+                          onValueChange={(code) => setEditingVariable({ ...editingVariable, expression: code })}
+                          highlight={highlightExpression}
+                          padding={8}
+                          placeholder="Click + buttons to insert columns and functions, or type directly..."
+                          style={{
+                            fontFamily: "'Consolas', 'Monaco', 'Courier New', monospace",
+                            fontSize: 10,
+                            minHeight: '200px',
+                            border: '1px solid #d1d5db',
+                            borderRadius: '6px',
+                            backgroundColor: '#fff'
+                          }}
+                          textareaClassName="expression-code-input"
                         />
                       </div>
 
