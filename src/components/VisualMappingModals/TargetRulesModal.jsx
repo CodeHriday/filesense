@@ -76,7 +76,7 @@ const TargetRulesModal = ({ isOpen, onClose, onSave, initialConfig = {}, project
       // Fallback: fetch all data stewards
       try {
         const fallbackResponse = await axios.get('/api/users/data-stewards');
-        setDatastewards(fallbackResponse.data || []);
+        setDatastewards(fallbackResponse.data.dataStewards || []);
       } catch (fallbackError) {
         console.error('Error fetching all data stewards:', fallbackError);
         setDatastewards([]);
