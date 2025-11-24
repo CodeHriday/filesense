@@ -49,9 +49,11 @@ const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
   const fetchDatastewards = async () => {
     try {
       const response = await axios.get('/api/users/data-stewards');
-      setDatastewards(response.data || []);
+      const users = Array.isArray(response.data) ? response.data : (response.data.users || []);
+      setDatastewards(users);
     } catch (error) {
       console.error('Error fetching data stewards:', error);
+      setDatastewards([]);
     }
   };
   
