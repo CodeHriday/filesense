@@ -438,6 +438,19 @@ const VisualMappingCanvasContent = () => {
     }
   }, [nodes]);
   
+  // Update all nodes with the latest handleNodeConfigure reference
+  useEffect(() => {
+    setNodes((nds) =>
+      nds.map((node) => ({
+        ...node,
+        data: {
+          ...node.data,
+          onConfigure: handleNodeConfigure
+        }
+      }))
+    );
+  }, [handleNodeConfigure, setNodes]);
+  
   const handleSaveNodeConfig = useCallback((config) => {
     setNodes((nds) =>
       nds.map((node) => {
