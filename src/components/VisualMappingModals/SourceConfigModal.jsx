@@ -31,24 +31,56 @@ const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
       if (agreement) {
         console.log('Auto-populating from vendor agreement:', agreement);
         
-        // Auto-populate connection, file path, file pattern, and file owner
+        // Auto-populate connection - inject into connections list if missing
         if (agreement.vendor_connection_id) {
-          setConnectionId(String(agreement.vendor_connection_id));
+          const connectionIdStr = String(agreement.vendor_connection_id);
+          setConnectionId(connectionIdStr);
+          
+          // Check if connection exists in list, if not add it
+          const connectionExists = connections.some(c => 
+            String(c.id || c.connection_id) === connectionIdStr
+          );
+          if (!connectionExists && agreement.vendor_connection_name) {
+            setConnections(prev => [...prev, {
+              id: connectionIdStr,
+              connection_id: connectionIdStr,
+              name: agreement.vendor_connection_name,
+              connection_type: 'S3',
+              type: 'S3'
+            }]);
+          }
         }
+        
+        // Auto-populate file path
         if (agreement.drop_location_path) {
           setFilePath(agreement.drop_location_path);
         }
-        if (agreement.file_name) {
+        
+        // Auto-populate file pattern (only if not empty)
+        if (agreement.file_name && agreement.file_name.trim()) {
           setFilePattern(agreement.file_name);
         }
+        
+        // Auto-populate file owner - inject into datastewards list if missing
         if (agreement.file_owner_user_id) {
           const ownerIdStr = String(agreement.file_owner_user_id);
           console.log('Setting file owner to:', ownerIdStr);
           setSourceFileOwnerId(ownerIdStr);
+          
+          // Check if owner exists in list, if not add it
+          const ownerExists = datastewards.some(ds => String(ds.id) === ownerIdStr);
+          if (!ownerExists && agreement.owner_username) {
+            setDatastewards(prev => [...prev, {
+              id: agreement.file_owner_user_id,
+              username: agreement.owner_username,
+              full_name: agreement.owner_username,
+              email: agreement.owner_email || ''
+            }]);
+          }
         }
       }
     }
-  }, [vendorAgreementId, vendorAgreements]);
+  }, [vendorAgreementId, vendorAgreements, connections, datastewards]);
   
   const fetchConnections = async () => {
     setLoading(true);
