@@ -119,8 +119,15 @@ const SourceConfigNode = ({ data }) => {
 };
 
 const ExpressionNode = ({ data }) => {
+  const statusBadge = data.statusBadge;
+  
   return (
     <div className="visual-mapping-node visual-mapping-node-expression">
+      {statusBadge && (
+        <div className={`visual-mapping-node-status-badge status-${statusBadge.text.toLowerCase()}`}>
+          <span>{statusBadge.icon}</span>
+        </div>
+      )}
       <Handle 
         type="target" 
         position={Position.Top} 
@@ -153,8 +160,15 @@ const ExpressionNode = ({ data }) => {
 };
 
 const RdmDatasetNode = ({ data }) => {
+  const statusBadge = data.statusBadge;
+  
   return (
     <div className="visual-mapping-node visual-mapping-node-rdm-dataset">
+      {statusBadge && (
+        <div className={`visual-mapping-node-status-badge status-${statusBadge.text.toLowerCase()}`}>
+          <span>{statusBadge.icon}</span>
+        </div>
+      )}
       <Handle 
         type="target" 
         position={Position.Top} 
@@ -187,8 +201,15 @@ const RdmDatasetNode = ({ data }) => {
 };
 
 const RdmCrosswalkNode = ({ data }) => {
+  const statusBadge = data.statusBadge;
+  
   return (
     <div className="visual-mapping-node visual-mapping-node-rdm-crosswalk">
+      {statusBadge && (
+        <div className={`visual-mapping-node-status-badge status-${statusBadge.text.toLowerCase()}`}>
+          <span>{statusBadge.icon}</span>
+        </div>
+      )}
       <Handle 
         type="target" 
         position={Position.Top} 
@@ -221,8 +242,15 @@ const RdmCrosswalkNode = ({ data }) => {
 };
 
 const TargetRulesNode = ({ data }) => {
+  const statusBadge = data.statusBadge;
+  
   return (
     <div className="visual-mapping-node visual-mapping-node-target">
+      {statusBadge && (
+        <div className={`visual-mapping-node-status-badge status-${statusBadge.text.toLowerCase()}`}>
+          <span>{statusBadge.icon}</span>
+        </div>
+      )}
       <Handle 
         type="target" 
         position={Position.Top} 
