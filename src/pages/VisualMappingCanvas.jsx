@@ -28,7 +28,9 @@ import {
   FaRandom,
   FaCheckCircle,
   FaChevronDown,
-  FaChevronUp
+  FaChevronUp,
+  FaChevronLeft,
+  FaChevronRight
 } from 'react-icons/fa';
 import MappingConfigModal from '../components/VisualMappingModals/MappingConfigModal';
 import SourceConfigModal from '../components/VisualMappingModals/SourceConfigModal';
@@ -305,6 +307,7 @@ const VisualMappingCanvasContent = () => {
   const [showConfig, setShowConfig] = useState(true);
   const [showMappingDetails, setShowMappingDetails] = useState(true);
   const [showComponents, setShowComponents] = useState(true);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   
   // UI states
   const [loading, setLoading] = useState(false);
@@ -683,7 +686,18 @@ const VisualMappingCanvasContent = () => {
       <div className="visual-mapping-content">
         {/* Left Palette Panel */}
         {showPalette && (
-          <div className="visual-mapping-palette">
+          <div className={`visual-mapping-palette ${sidebarCollapsed ? 'collapsed' : ''}`}>
+            {/* Sidebar Toggle Button */}
+            <button 
+              className="visual-mapping-sidebar-toggle"
+              onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+              title={sidebarCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar'}
+            >
+              {sidebarCollapsed ? <FaChevronRight /> : <FaChevronLeft />}
+            </button>
+            
+            {!sidebarCollapsed && (
+              <>
             {/* Mapping Details Section */}
             <div className="visual-mapping-sidebar-section">
               <div 
@@ -816,6 +830,8 @@ const VisualMappingCanvasContent = () => {
                 </div>
               )}
             </div>
+              </>
+            )}
           </div>
         )}
         
