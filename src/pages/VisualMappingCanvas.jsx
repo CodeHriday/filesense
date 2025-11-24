@@ -335,6 +335,9 @@ const VisualMappingCanvasContent = () => {
   const [configNodeId, setConfigNodeId] = useState(null);
   const [configNodeType, setConfigNodeType] = useState(null);
   
+  // Use ref to avoid stale closure in node event handlers
+  const nodesRef = useRef(nodes);
+  
   // Wait for canvas container to be ready
   useEffect(() => {
     if (!containerRef.current) return;
@@ -430,13 +433,12 @@ const VisualMappingCanvasContent = () => {
     fetchMapping();
   }, [mappingId, isEditMode, reactFlowInstance]);
   
-  const onConnect = useCallback((params) => setEdges((eds) => addEdge(params, eds)), [setEdges]);
-  
-  // Use ref to avoid stale closure in node event handlers
-  const nodesRef = useRef(nodes);
+  // Update nodes ref whenever nodes change
   useEffect(() => {
     nodesRef.current = nodes;
   }, [nodes]);
+  
+  const onConnect = useCallback((params) => setEdges((eds) => addEdge(params, eds)), [setEdges]);
   
   const handleNodeConfigure = useCallback((nodeId) => {
     const node = nodesRef.current.find(n => n.id === nodeId);
