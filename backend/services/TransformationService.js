@@ -13,6 +13,7 @@ const { v4: uuidv4 } = require('uuid');
 const ServiceBase = require('./ServiceBase');
 const { processTransformationAsync } = require('../utils/asyncProcessor');
 const fileService = require('./FileService');
+const { executeTransformationJob } = require('./jobExecutionEngine');
 
 // Promisify fs functions
 const readFile = promisify(fs.readFile);
@@ -379,17 +380,22 @@ class TransformationService extends ServiceBase {
    * Execute a transformation
    * 
    * @param {string} transformationId - Transformation ID
-   * @param {Object} options - Execution options
-   * @returns {Promise<Object>} Execution result with task ID
+   * @param {string} userId - User ID executing the transformation
+   * @param {Object} options - Execution options (may include visualMappingExecutionId)
+   * @returns {Promise<Object>} Execution result with job ID
    */
-  async executeTransformation(transformationId, options = {}) {
+  async executeTransformation(transformationId, userId, options = {}) {
     const traceId = this.generateTraceId();
-    this.logger.info('Executing transformation', { transformationId, traceId });
+    this.logger.info('Executing transformation via TransformationService', { 
+      transformationId, 
+      userId,
+      hasVisualMappingExecutionId: !!options.visualMappingExecutionId,
+      traceId 
+    });
     
     try {
-      // Get transformation details with input validation in a read transaction
+      // Get transformation details to validate existence
       const transformation = await this.executeReadTransaction(async (client) => {
-        // Get the transformation
         const transformResult = await client.query(
           `SELECT * FROM transformations WHERE transformation_id = $1`,
           [transformationId]
@@ -399,30 +405,7 @@ class TransformationService extends ServiceBase {
           throw new Error(`Transformation not found: ${transformationId}`);
         }
         
-        const transformation = transformResult.rows[0];
-        
-        // Validate existence of input files if needed
-        const inputFiles = JSON.parse(transformation.input_files || '[]');
-        if (inputFiles.length > 0 && options.validateInputs !== false) {
-          this.logger.debug('Validating input files', { 
-            transformationId, 
-            inputFiles,
-            traceId 
-          });
-          
-          for (const fileId of inputFiles) {
-            const fileResult = await client.query(
-              `SELECT COUNT(*) as count FROM files WHERE file_id = $1`,
-              [fileId]
-            );
-            
-            if (fileResult.rows[0].count === 0) {
-              throw new Error(`Input file not found: ${fileId}`);
-            }
-          }
-        }
-        
-        return transformation;
+        return transformResult.rows[0];
       }, { 
         traceId, 
         isolationLevel: 'REPEATABLE READ' 
@@ -445,7 +428,7 @@ class TransformationService extends ServiceBase {
           RETURNING *
         `;
         
-        const executionResult = await client.query(insertQuery, [
+        await client.query(insertQuery, [
           executionId,
           transformationId,
           'RUNNING',
@@ -460,10 +443,7 @@ class TransformationService extends ServiceBase {
           [executionId, transformationId]
         );
         
-        return {
-          executionId,
-          execution: executionResult.rows[0]
-        };
+        return { executionId };
       }, { 
         traceId,
         isolationLevel: 'SERIALIZABLE' 
@@ -471,88 +451,36 @@ class TransformationService extends ServiceBase {
       
       const { executionId } = executionDetails;
       
-      // Define handler for completion outside worker data
-      const handleCompletion = async (result) => {
-        // Update execution record when complete using a transaction
-        try {
-          await this.executeTransaction(async (client) => {
-            const status = result.success ? 'COMPLETED' : 'FAILED';
-            
-            // Update execution status
-            await client.query(
-              `UPDATE transformation_executions
-               SET status = $1,
-                   completed_at = NOW(),
-                   result = $2,
-                   updated_at = NOW()
-               WHERE execution_id = $3`,
-              [status, JSON.stringify(result), executionId]
-            );
-            
-            // If successful and contains output files, record them
-            if (result.success && result.result && result.result.outputFiles) {
-              for (const outputFile of result.result.outputFiles) {
-                await client.query(
-                  `INSERT INTO transformation_outputs
-                   (execution_id, transformation_id, file_id, file_path, created_at)
-                   VALUES ($1, $2, $3, $4, NOW())`,
-                  [executionId, transformationId, outputFile.fileId, outputFile.filePath]
-                );
-              }
-              
-              this.logger.debug('Recorded output files', {
-                executionId,
-                outputCount: result.result.outputFiles.length,
-                traceId
-              });
-            }
-            
-            // Update transformation stats
-            const statsUpdate = status === 'COMPLETED' 
-              ? `total_successful_executions = total_successful_executions + 1`
-              : `total_failed_executions = total_failed_executions + 1`;
-            
-            await client.query(
-              `UPDATE transformations
-               SET ${statsUpdate}, 
-                   updated_at = NOW()
-               WHERE transformation_id = $1`,
-              [transformationId]
-            );
-          }, { 
-            traceId,
-            isolationLevel: 'READ COMMITTED',
-            maxRetries: 5  // More retries for this critical operation
-          });
-        } catch (updateErr) {
-          this.logger.error('Failed to update execution status', {
-            error: updateErr.message,
-            executionId,
-            traceId
-          });
-        }
+      // Delegate to jobExecutionEngine with executionId and all options
+      const mergedOptions = {
+        ...options,
+        transformationExecutionId: executionId
       };
       
-      // Start async processing
-      const processingTask = processTransformationAsync({
-        transformation,
-        executionId,
-        traceId,
-        options
-      }, handleCompletion);
+      const result = await executeTransformationJob(
+        this.dbPool, 
+        transformationId, 
+        userId, 
+        mergedOptions
+      );
       
-      // Return task information
-      return {
+      this.logger.info('Transformation job created successfully', {
         transformationId,
         executionId,
-        taskId: processingTask.taskId,
-        status: 'RUNNING'
+        jobId: result.job_id,
+        traceId
+      });
+      
+      return {
+        ...result,
+        executionId
       };
     } catch (error) {
       this.logger.error('Error executing transformation', { 
         error: error.message,
         stack: error.stack,
         transformationId,
+        userId,
         traceId
       });
       throw error;

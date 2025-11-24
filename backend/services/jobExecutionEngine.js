@@ -18,6 +18,7 @@ const { profileFileBuffer, downloadAndProfileFile } = require('./transformationP
 const { persistGovernanceMetadata } = require('./governanceService');
 const { loadRDMContext } = require('./rdmContextLoader');
 const alertAggregationWorker = require('./AlertAggregationWorker');
+const visualMappingWS = require('./visualMappingWebSocket');
 const crypto = require('crypto');
 
 /**
@@ -284,6 +285,40 @@ async function persistViolations(pool, jobId, fileId, violations) {
 }
 
 /**
+ * Update transformation_executions record (called by TransformationService)
+ * @param {Pool} pool - Database connection pool
+ * @param {string} executionId - Execution ID
+ * @param {string} status - Status (COMPLETED or FAILED)
+ * @param {Object} result - Result data
+ */
+async function updateTransformationExecution(pool, executionId, status, result = {}) {
+  if (!executionId) return; // Skip if no execution tracking
+  
+  try {
+    await pool.query(
+      `UPDATE transformation_executions
+       SET status = $1,
+           completed_at = NOW(),
+           result = $2,
+           updated_at = NOW()
+       WHERE execution_id = $3`,
+      [status, JSON.stringify(result), executionId]
+    );
+    
+    systemLogger.debug('Updated transformation_executions record', {
+      executionId,
+      status
+    });
+  } catch (error) {
+    systemLogger.warn('Failed to update transformation_executions', {
+      executionId,
+      status,
+      error: error.message
+    });
+  }
+}
+
+/**
  * Execute a transformation mapping
  * @param {Pool} pool - Database connection pool
  * @param {string} mappingId - Mapping ID
@@ -300,7 +335,9 @@ async function executeTransformationJob(pool, mappingId, userId, options = {}) {
     mappingGroupExecutionId = null,
     scheduleId = null,
     workflowExecutionId = null,
-    visualWorkflowExecutionId = null
+    visualWorkflowExecutionId = null,
+    visualMappingExecutionId = null,  // NEW: passed directly from visual mappings route
+    transformationExecutionId = null  // NEW: passed from TransformationService for execution tracking
   } = options;
   
   let job = existingJob;
@@ -322,6 +359,24 @@ async function executeTransformationJob(pool, mappingId, userId, options = {}) {
     
     // Get mapping configuration
     const mapping = await getMappingConfig(pool, mappingId);
+    
+    // Track if this is a visual mapping execution
+    const isVisualMapping = mapping.is_visual_mapping && mapping.visual_mapping_id;
+    let visualExecutionId = null;
+    
+    // Use visualMappingExecutionId from options if provided (avoids query)
+    if (isVisualMapping && visualMappingExecutionId) {
+      visualExecutionId = visualMappingExecutionId;
+      
+      // Emit execution start event
+      visualMappingWS.emitExecutionProgress(visualExecutionId, 0);
+      systemLogger.info('Visual mapping execution started - WebSocket tracking enabled', {
+        visualExecutionId,
+        visualMappingId: mapping.visual_mapping_id,
+        jobId,
+        source: 'options.visualMappingExecutionId'
+      });
+    }
     
     // Load RDM context once for this job (before processing any files)
     let rdmContext = {};
@@ -363,6 +418,11 @@ async function executeTransformationJob(pool, mappingId, userId, options = {}) {
         status: 'failed',
         error_message: `RDM context loading failed: ${rdmError.message}`,
         end_time: new Date()
+      });
+      
+      // Update transformation_executions if tracking
+      await updateTransformationExecution(pool, transformationExecutionId, 'FAILED', {
+        error: rdmError.message
       });
       
       throw rdmError;
@@ -408,6 +468,12 @@ async function executeTransformationJob(pool, mappingId, userId, options = {}) {
         status: 'failed', 
         error_message: errorMessage,
         end_time: new Date()
+      });
+      
+      // Update transformation_executions if tracking
+      await updateTransformationExecution(pool, transformationExecutionId, 'FAILED', {
+        error: errorMessage,
+        filesProcessed: 0
       });
       
       await logJobExecution(pool, jobId, 'error', errorMessage, { 
@@ -758,12 +824,55 @@ async function executeTransformationJob(pool, mappingId, userId, options = {}) {
       end_time: new Date()
     });
     
+    // Update transformation_executions if tracking
+    await updateTransformationExecution(pool, transformationExecutionId, 'COMPLETED', {
+      filesProcessed: matchingFiles.length,
+      rowsRead: totalRowsRead,
+      rowsWritten: totalRowsWritten,
+      rowsFailed: totalRowsFailed
+    });
+    
     await logJobExecution(pool, jobId, 'info', 'Job execution completed', {
       filesProcessed: matchingFiles.length,
       rowsRead: totalRowsRead,
       rowsWritten: totalRowsWritten,
       rowsFailed: totalRowsFailed
     });
+    
+    // Emit visual mapping execution complete event
+    if (visualExecutionId) {
+      visualMappingWS.emitExecutionProgress(visualExecutionId, 100);
+      visualMappingWS.emitExecutionComplete(visualExecutionId, {
+        filesProcessed: matchingFiles.length,
+        rowsRead: totalRowsRead,
+        rowsWritten: totalRowsWritten,
+        rowsFailed: totalRowsFailed
+      });
+      systemLogger.info('Visual mapping execution completed - WebSocket event emitted', {
+        visualExecutionId,
+        jobId
+      });
+    }
+    
+    // Cleanup temporary transformation mapping if this was a visual mapping execution
+    if (mapping.is_temporary && mapping.is_visual_mapping) {
+      try {
+        await pool.query(
+          'DELETE FROM transformation_mappings WHERE mapping_id = $1 AND is_temporary = true',
+          [mappingId]
+        );
+        systemLogger.info('Temporary transformation mapping cleaned up', {
+          mappingId,
+          jobId
+        });
+      } catch (cleanupError) {
+        systemLogger.warn('Failed to cleanup temporary transformation mapping', {
+          mappingId,
+          jobId,
+          error: cleanupError.message
+        });
+      }
+    }
     
     // Emit alert event (fire-and-forget, non-blocking)
     setImmediate(() => {
@@ -805,6 +914,36 @@ async function executeTransformationJob(pool, mappingId, userId, options = {}) {
         error: error.message,
         stack: error.stack
       });
+      
+      // Emit visual mapping execution error event
+      if (visualExecutionId) {
+        visualMappingWS.emitExecutionError(visualExecutionId, error);
+        systemLogger.info('Visual mapping execution failed - WebSocket event emitted', {
+          visualExecutionId,
+          jobId: job.job_id,
+          error: error.message
+        });
+      }
+      
+      // Cleanup temporary transformation mapping on failure
+      if (mapping && mapping.is_temporary && mapping.is_visual_mapping) {
+        try {
+          await pool.query(
+            'DELETE FROM transformation_mappings WHERE mapping_id = $1 AND is_temporary = true',
+            [mapping.mapping_id]
+          );
+          systemLogger.info('Temporary transformation mapping cleaned up after failure', {
+            mappingId: mapping.mapping_id,
+            jobId: job.job_id
+          });
+        } catch (cleanupError) {
+          systemLogger.warn('Failed to cleanup temporary transformation mapping after failure', {
+            mappingId: mapping.mapping_id,
+            jobId: job.job_id,
+            error: cleanupError.message
+          });
+        }
+      }
       
       // Emit alert event (fire-and-forget, non-blocking)
       setImmediate(() => {
