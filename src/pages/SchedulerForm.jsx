@@ -252,7 +252,7 @@ const SchedulerForm = () => {
 
         <div className="form-container">
           <form onSubmit={handleSubmit} className="data-form">
-            {/* Row 1: Project and Entity Type */}
+            {/* Row 1: Project and Subproject */}
             <div className="form-row">
               <div className="form-group">
                 <label>Project *</label>
@@ -275,6 +275,29 @@ const SchedulerForm = () => {
               </div>
 
               <div className="form-group">
+                <label>Subproject</label>
+                <select
+                  value={formData.sub_project_id}
+                  onChange={e => setFormData({ ...formData, sub_project_id: e.target.value })}
+                  className="form-select"
+                  disabled={!formData.project_id || subProjects.length === 0}
+                >
+                  <option value="">None (use main project)</option>
+                  {subProjects.map(subProject => (
+                    <option key={subProject.id} value={subProject.id}>
+                      {subProject.name}
+                    </option>
+                  ))}
+                </select>
+                <small className="form-help">
+                  Optional: select a subproject for this schedule
+                </small>
+              </div>
+            </div>
+
+            {/* Row 2: Entity Type */}
+            <div className="form-row">
+              <div className="form-group">
                 <label>Entity Type *</label>
                 <select
                   value={formData.entity_type}
@@ -288,7 +311,7 @@ const SchedulerForm = () => {
               </div>
             </div>
 
-            {/* Row 2: Select Entity and Schedule Type */}
+            {/* Row 3: Select Entity and Schedule Type */}
             <div className="form-row">
               <div className="form-group">
                 <label>Select {formData.entity_type.replace('_', ' ')} *</label>
