@@ -29,6 +29,12 @@ import {
   FaRandom,
   FaCheckCircle
 } from 'react-icons/fa';
+import MappingConfigModal from '../components/VisualMappingModals/MappingConfigModal';
+import SourceConfigModal from '../components/VisualMappingModals/SourceConfigModal';
+import ExpressionModal from '../components/VisualMappingModals/ExpressionModal';
+import RdmDatasetModal from '../components/VisualMappingModals/RdmDatasetModal';
+import RdmCrosswalkModal from '../components/VisualMappingModals/RdmCrosswalkModal';
+import TargetRulesModal from '../components/VisualMappingModals/TargetRulesModal';
 
 // Custom node components for different mapping node types
 const MappingConfigNode = ({ data }) => {
@@ -382,6 +388,55 @@ const VisualMappingCanvasContent = () => {
     }
   }, [nodes]);
   
+  const handleSaveNodeConfig = useCallback((config) => {
+    setNodes((nds) =>
+      nds.map((node) => {
+        if (node.id === configNodeId) {
+          return {
+            ...node,
+            data: {
+              ...node.data,
+              config,
+              label: config.name || config.connectionName || node.data.label
+            }
+          };
+        }
+        return node;
+      })
+    );
+    setConfigModalOpen(false);
+    setConfigNodeId(null);
+    setConfigNodeType(null);
+  }, [configNodeId, setNodes]);
+  
+  const getCurrentNodeConfig = useCallback(() => {
+    const node = nodes.find(n => n.id === configNodeId);
+    return node?.data?.config || {};
+  }, [nodes, configNodeId]);
+  
+  const getCumulativeSchema = useCallback(() => {
+    // For RDM nodes, calculate cumulative schema from upstream nodes
+    if (!configNodeId) return [];
+    
+    const node = nodes.find(n => n.id === configNodeId);
+    if (!node) return [];
+    
+    // Find all upstream nodes (this is a simplified version - full implementation would traverse the graph)
+    const upstreamEdges = edges.filter(e => e.target === configNodeId);
+    const sourceNodeIds = upstreamEdges.map(e => e.source);
+    
+    // Collect schemas from source nodes
+    let schema = [];
+    sourceNodeIds.forEach(sourceId => {
+      const sourceNode = nodes.find(n => n.id === sourceId);
+      if (sourceNode?.data?.config?.schema) {
+        schema = [...schema, ...sourceNode.data.config.schema];
+      }
+    });
+    
+    return schema;
+  }, [nodes, edges, configNodeId]);
+  
   const addNode = (type, label) => {
     const newNode = {
       id: `${type}-${Date.now()}`,
@@ -641,6 +696,64 @@ const VisualMappingCanvasContent = () => {
           )}
         </div>
       </div>
+      
+      {/* Configuration Modals */}
+      {configNodeType === 'mappingConfig' && (
+        <MappingConfigModal
+          isOpen={configModalOpen}
+          onClose={() => setConfigModalOpen(false)}
+          onSave={handleSaveNodeConfig}
+          initialConfig={getCurrentNodeConfig()}
+        />
+      )}
+      
+      {configNodeType === 'sourceConfig' && (
+        <SourceConfigModal
+          isOpen={configModalOpen}
+          onClose={() => setConfigModalOpen(false)}
+          onSave={handleSaveNodeConfig}
+          initialConfig={getCurrentNodeConfig()}
+        />
+      )}
+      
+      {configNodeType === 'expression' && (
+        <ExpressionModal
+          isOpen={configModalOpen}
+          onClose={() => setConfigModalOpen(false)}
+          onSave={handleSaveNodeConfig}
+          initialConfig={getCurrentNodeConfig()}
+          schema={getCumulativeSchema()}
+        />
+      )}
+      
+      {configNodeType === 'rdmDataset' && (
+        <RdmDatasetModal
+          isOpen={configModalOpen}
+          onClose={() => setConfigModalOpen(false)}
+          onSave={handleSaveNodeConfig}
+          initialConfig={getCurrentNodeConfig()}
+          cumulativeSchema={getCumulativeSchema()}
+        />
+      )}
+      
+      {configNodeType === 'rdmCrosswalk' && (
+        <RdmCrosswalkModal
+          isOpen={configModalOpen}
+          onClose={() => setConfigModalOpen(false)}
+          onSave={handleSaveNodeConfig}
+          initialConfig={getCurrentNodeConfig()}
+          cumulativeSchema={getCumulativeSchema()}
+        />
+      )}
+      
+      {configNodeType === 'targetRules' && (
+        <TargetRulesModal
+          isOpen={configModalOpen}
+          onClose={() => setConfigModalOpen(false)}
+          onSave={handleSaveNodeConfig}
+          initialConfig={getCurrentNodeConfig()}
+        />
+      )}
     </div>
   );
 };

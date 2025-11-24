@@ -2,6 +2,8 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../db');
 const { systemLogger } = require('../utils/logger');
+const visualMappingCompiler = require('../services/visualMappingCompiler');
+const { v4: uuidv4 } = require('uuid');
 
 /**
  * GET /api/visual-mappings
@@ -309,27 +311,139 @@ router.post('/:id/execute', async (req, res) => {
     
     const mapping = mappingResult.rows[0];
     
+    // Parse JSON fields
+    if (typeof mapping.graph_data === 'string') {
+      mapping.graph_data = JSON.parse(mapping.graph_data);
+    }
+    
+    // Compile the visual mapping into transformation mapping
+    const compilationResult = visualMappingCompiler.compile(mapping);
+    
+    if (!compilationResult.success) {
+      systemLogger.error('Visual mapping compilation failed', {
+        mappingId: id,
+        errors: compilationResult.errors
+      });
+      return res.status(400).json({
+        error: 'Visual mapping validation failed',
+        errors: compilationResult.errors
+      });
+    }
+    
     // Create execution record
-    const executionId = `VMEXEC-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const executionId = uuidv4();
     await pool.query(
       `INSERT INTO visual_mapping_executions (execution_id, mapping_id, status, triggered_by)
-       VALUES ($1, $2, 'pending', $3)`,
+       VALUES ($1, $2, 'running', $3)`,
       [executionId, id, req.user.id]
     );
     
-    // Execute the mapping (will be implemented in compilation service)
-    // For now, return the execution ID
-    systemLogger.info('Visual mapping execution requested', {
+    // Update last executed timestamp and increment execution count
+    await pool.query(
+      `UPDATE visual_mapping_defs 
+       SET last_executed_at = NOW(), execution_count = execution_count + 1
+       WHERE id = $1`,
+      [id]
+    );
+    
+    systemLogger.info('Visual mapping compiled successfully, starting execution', {
       mappingId: id,
       executionId,
       userId: req.user.id
     });
     
-    res.json({
-      message: 'Visual mapping execution started',
-      execution_id: executionId,
-      mapping_id: id
-    });
+    // Check user has permission to execute in this project
+    const { getUserProjects } = require('../middleware/requireProjectAccess');
+    const userProjects = await getUserProjects(req.user.id);
+    const hasAccess = userProjects.some(p => p.id === mapping.project_id) || req.user?.roles?.includes('Admin');
+    
+    if (!hasAccess) {
+      return res.status(403).json({ error: 'You do not have permission to execute this visual mapping' });
+    }
+    
+    // Create a temporary transformation mapping for this execution
+    // This will be cleaned up after execution completes
+    const transformResult = await pool.query(
+      `INSERT INTO transformation_mappings (
+        name, description, project_id, sub_project_id,
+        source_connection_id, source_file_path, source_file_pattern,
+        target_connection_id, target_file_path, target_file_name, target_file_format,
+        field_mappings, variables, pii_columns,
+        rdm_dataset_config, rdm_crosswalk_config,
+        schema_drift_handling, violation_handling,
+        quality_rule_ids, enable_anomaly_detection,
+        created_by, is_visual_mapping, visual_mapping_id, is_temporary
+      ) VALUES (
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, true, $22, true
+      ) RETURNING id`,
+      [
+        `[VM] ${transformationMapping.name}`,
+        transformationMapping.description,
+        transformationMapping.project_id,
+        transformationMapping.sub_project_id,
+        transformationMapping.source_connection_id,
+        transformationMapping.source_file_path,
+        transformationMapping.source_file_pattern,
+        transformationMapping.target_connection_id,
+        transformationMapping.target_file_path,
+        transformationMapping.target_file_name,
+        transformationMapping.target_file_format,
+        JSON.stringify(transformationMapping.field_mappings),
+        JSON.stringify(transformationMapping.variables),
+        JSON.stringify(transformationMapping.pii_columns),
+        transformationMapping.rdm_dataset_config ? JSON.stringify(transformationMapping.rdm_dataset_config) : null,
+        transformationMapping.rdm_crosswalk_config ? JSON.stringify(transformationMapping.rdm_crosswalk_config) : null,
+        transformationMapping.schema_drift_handling,
+        transformationMapping.violation_handling,
+        transformationMapping.quality_rule_ids,
+        transformationMapping.enable_anomaly_detection,
+        req.user.id,
+        id
+      ]
+    );
+    
+    const transformationId = transformResult.rows[0].id;
+    
+    // Use transformationService to execute with proper authorization and business logic
+    const transformationService = require('../services/transformationService');
+    try {
+      const jobResult = await transformationService.executeTransformation(transformationId, req.user.id);
+      
+      // Update execution record with job ID
+      await pool.query(
+        `UPDATE visual_mapping_executions 
+         SET job_id = $1, status = 'running', transformation_id = $2
+         WHERE execution_id = $3`,
+        [jobResult.job_id, transformationId, executionId]
+      );
+      
+      // Schedule cleanup of temporary transformation mapping after job completes
+      // (This would be handled by a job completion webhook/callback)
+      
+      res.json({
+        message: 'Visual mapping execution started',
+        execution_id: executionId,
+        mapping_id: id,
+        job_id: jobResult.job_id,
+        transformation_id: transformationId
+      });
+    } catch (execError) {
+      // Update execution status to failed
+      await pool.query(
+        `UPDATE visual_mapping_executions 
+         SET status = 'failed', error_message = $1, completed_at = NOW()
+         WHERE execution_id = $2`,
+        [execError.message, executionId]
+      );
+      
+      // Clean up temporary transformation mapping on failure
+      await pool.query(
+        `DELETE FROM transformation_mappings WHERE id = $1 AND is_temporary = true`,
+        [transformationId]
+      );
+      
+      throw execError;
+    }
   } catch (error) {
     systemLogger.error('Failed to execute visual mapping', {
       error: error.message,
@@ -337,6 +451,56 @@ router.post('/:id/execute', async (req, res) => {
       userId: req.user.id
     });
     res.status(500).json({ error: 'Failed to execute visual mapping' });
+  }
+});
+
+/**
+ * POST /api/visual-mappings/:id/validate
+ * Validate a visual mapping without executing it
+ */
+router.post('/:id/validate', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Fetch the visual mapping
+    const result = await pool.query(
+      `SELECT * FROM visual_mapping_defs WHERE id = $1 AND is_active = true`,
+      [id]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Visual mapping not found' });
+    }
+    
+    const mapping = result.rows[0];
+    
+    // Parse JSON fields
+    if (typeof mapping.graph_data === 'string') {
+      mapping.graph_data = JSON.parse(mapping.graph_data);
+    }
+    
+    // Compile and validate
+    const compilationResult = visualMappingCompiler.compile(mapping);
+    
+    if (compilationResult.success) {
+      res.json({
+        valid: true,
+        message: 'Visual mapping is valid and ready for execution',
+        executionOrder: compilationResult.executionOrder
+      });
+    } else {
+      res.json({
+        valid: false,
+        errors: compilationResult.errors
+      });
+    }
+  } catch (error) {
+    systemLogger.error('Failed to validate visual mapping', {
+      error: error.message,
+      mappingId: req.params.id,
+      userId: req.user.id
+    });
+    res.status(500).json({ error: 'Failed to validate visual mapping' });
   }
 });
 
