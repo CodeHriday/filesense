@@ -722,7 +722,7 @@ const VisualMappingCanvasContent = () => {
                       ))}
                     </select>
                   </div>
-                  {projectId && subProjects.length > 0 && (
+                  {projectId && (
                     <div className="visual-mapping-form-group">
                       <label>Sub-Project (Optional)</label>
                       <select
