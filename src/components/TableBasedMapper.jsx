@@ -445,15 +445,26 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
     setAddingVariable(true);
   };
 
+  // Sanitize text to remove invisible Unicode characters that can cause cursor offset issues
+  const sanitizeText = (text) => {
+    return text
+      .replace(/[\u200B-\u200D\uFEFF]/g, '') // Remove zero-width spaces and BOM
+      .replace(/[\u00A0]/g, ' ')              // Replace non-breaking spaces with regular spaces
+      .replace(/[\u2028\u2029]/g, '\n')       // Normalize line separators
+      .normalize('NFC');                      // Normalize to canonical composition
+  };
+
   // Helper function to insert text at cursor position in textarea
   const insertAtCursor = (text, isEditMode = false) => {
+    // Sanitize the text before insertion to prevent invisible character issues
+    const sanitizedText = sanitizeText(text);
     const textarea = isEditMode ? editExpressionTextareaRef.current : expressionTextareaRef.current;
     if (!textarea) return;
 
     const start = textarea.selectionStart;
     const end = textarea.selectionEnd;
     const currentValue = isEditMode ? (editingVariable?.expression || '') : (newVariable.expression || '');
-    const newValue = currentValue.substring(0, start) + text + currentValue.substring(end);
+    const newValue = currentValue.substring(0, start) + sanitizedText + currentValue.substring(end);
     
     if (isEditMode) {
       setEditingVariable({ ...editingVariable, expression: newValue });
@@ -465,7 +476,8 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
     // This ensures the DOM has fully updated before we set cursor position
     requestAnimationFrame(() => {
       textarea.focus();
-      const newPos = start + text.length;
+      // Use sanitizedText.length to ensure consistent UTF-16 code unit counting
+      const newPos = start + sanitizedText.length;
       textarea.setSelectionRange(newPos, newPos);
     });
   };
