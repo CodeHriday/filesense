@@ -74,6 +74,18 @@ const FileBrowserModal = ({ isOpen, onClose, onSelect, connectionId, connectionN
     onClose();
   };
   
+  const handleSelectCurrentFolder = () => {
+    // Select the current folder as the file path
+    const folderPath = currentPath ? (currentPath.endsWith('/') ? currentPath : currentPath + '/') : '/';
+    
+    onSelect({
+      filePath: folderPath,
+      fileName: '', // Empty filename when selecting folder only
+      fullPath: folderPath
+    });
+    onClose();
+  };
+  
   const handleBreadcrumbClick = (index) => {
     if (index === -1) {
       // Root
@@ -200,6 +212,12 @@ const FileBrowserModal = ({ isOpen, onClose, onSelect, connectionId, connectionN
         <div className="vm-modal-footer">
           <button onClick={onClose} className="vm-btn vm-btn-secondary">
             Cancel
+          </button>
+          <button 
+            onClick={handleSelectCurrentFolder} 
+            className="vm-btn vm-btn-primary"
+          >
+            Select Current Folder
           </button>
         </div>
       </div>
