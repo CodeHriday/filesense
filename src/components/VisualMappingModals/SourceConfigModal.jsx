@@ -13,6 +13,8 @@ const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
   const [connections, setConnections] = useState([]);
   const [vendorAgreements, setVendorAgreements] = useState([]);
   const [datastewards, setDatastewards] = useState([]);
+  const [agreementFiles, setAgreementFiles] = useState([]);
+  const [selectedFileId, setSelectedFileId] = useState(initialConfig.agreementFileId || '');
   const [loading, setLoading] = useState(false);
   const [matchingFiles, setMatchingFiles] = useState([]);
   
@@ -23,6 +25,33 @@ const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
       fetchDatastewards();
     }
   }, [isOpen]);
+  
+  const fetchAgreementFiles = async (agreementId, existingFileId) => {
+    try {
+      const response = await axios.get(`/api/vendor-agreements/${agreementId}/files`);
+      const files = response.data.files || response.data || [];
+      setAgreementFiles(files);
+      
+      // Only auto-select first file if no existing selection
+      if (files.length > 0 && !existingFileId) {
+        const firstFile = files[0];
+        setSelectedFileId(String(firstFile.id));
+        // Auto-populate pattern from first file
+        if (firstFile.file_name) {
+          setFilePattern(firstFile.file_name);
+        }
+      } else if (existingFileId) {
+        // Preserve existing selection
+        const existingFile = files.find(f => String(f.id) === String(existingFileId));
+        if (existingFile && existingFile.file_name) {
+          setFilePattern(existingFile.file_name);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching agreement files:', error);
+      setAgreementFiles([]);
+    }
+  };
   
   // Auto-populate when vendor agreement is selected
   useEffect(() => {
@@ -56,31 +85,43 @@ const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
           setFilePath(agreement.drop_location_path);
         }
         
-        // Auto-populate file pattern (only if not empty)
-        if (agreement.file_name && agreement.file_name.trim()) {
-          setFilePattern(agreement.file_name);
-        }
-        
-        // Auto-populate file owner - inject into datastewards list if missing
-        if (agreement.file_owner_user_id) {
-          const ownerIdStr = String(agreement.file_owner_user_id);
-          console.log('Setting file owner to:', ownerIdStr);
-          setSourceFileOwnerId(ownerIdStr);
+        // Auto-populate file owner using primary_contact_name
+        if (agreement.primary_contact_name) {
+          // Create a synthetic ID based on the contact name
+          const syntheticId = `contact_${agreement.id}`;
+          setSourceFileOwnerId(syntheticId);
           
-          // Check if owner exists in list, if not add it
-          const ownerExists = datastewards.some(ds => String(ds.id) === ownerIdStr);
-          if (!ownerExists && agreement.owner_username) {
+          // Inject primary contact into datastewards list
+          const ownerExists = datastewards.some(ds => String(ds.id) === syntheticId);
+          if (!ownerExists) {
             setDatastewards(prev => [...prev, {
-              id: agreement.file_owner_user_id,
-              username: agreement.owner_username,
-              full_name: agreement.owner_username,
-              email: agreement.owner_email || ''
+              id: syntheticId,
+              username: agreement.primary_contact_name,
+              full_name: agreement.primary_contact_name,
+              email: agreement.primary_contact_email || ''
             }]);
           }
         }
+        
+        // Fetch agreement files (pass existing selection to preserve it)
+        fetchAgreementFiles(agreement.id, selectedFileId || initialConfig.agreementFileId);
+      }
+    } else {
+      // Clear agreement files when no vendor contract selected
+      setAgreementFiles([]);
+      setSelectedFileId('');
+    }
+  }, [vendorAgreementId, vendorAgreements]);
+  
+  // Update file pattern when selected file changes
+  useEffect(() => {
+    if (selectedFileId && agreementFiles.length > 0) {
+      const selectedFile = agreementFiles.find(f => String(f.id) === selectedFileId);
+      if (selectedFile && selectedFile.file_name) {
+        setFilePattern(selectedFile.file_name);
       }
     }
-  }, [vendorAgreementId, vendorAgreements, connections, datastewards]);
+  }, [selectedFileId, agreementFiles]);
   
   const fetchConnections = async () => {
     setLoading(true);
@@ -154,7 +195,8 @@ const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
   const handleSave = () => {
     const selectedConnection = connections.find(c => c.id === connectionId || c.connection_id === connectionId);
     const selectedAgreement = vendorAgreements.find(va => va.id === parseInt(vendorAgreementId));
-    const selectedOwner = datastewards.find(ds => ds.id === parseInt(sourceFileOwnerId));
+    const selectedOwner = datastewards.find(ds => String(ds.id) === String(sourceFileOwnerId));
+    const selectedFile = agreementFiles.find(f => String(f.id) === selectedFileId);
     
     const config = {
       connectionId,
@@ -167,13 +209,20 @@ const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
       sourceFileOwnerId,
       sourceFileOwnerName: selectedOwner?.full_name || selectedOwner?.username || '',
       schemaDriftHandling,
-      matchingFilesCount: matchingFiles.length
+      matchingFilesCount: matchingFiles.length,
+      // Include file metadata if from vendor agreement
+      agreementFileId: selectedFileId || null,
+      agreementFileName: selectedFile?.file_name || null,
+      agreementFileDescription: selectedFile?.file_description || null
     };
     onSave(config);
     onClose();
   };
   
   if (!isOpen) return null;
+  
+  // Determine if we should show file dropdown (vendor contract with files)
+  const showFileDropdown = vendorAgreementId && agreementFiles.length > 0;
   
   return (
     <div className="vm-modal-overlay" onClick={onClose}>
@@ -242,7 +291,7 @@ const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
             )}
           </div>
           
-          {/* Row 3: File Path, Name Pattern, and Browse (with individual labels) */}
+          {/* Row 3: File Path, File Selection/Pattern, and Browse */}
           <div className="vm-form-row-file-path">
             <div className="vm-form-group vm-form-group-no-margin">
               <label>File Path</label>
@@ -254,26 +303,44 @@ const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
                 className="vm-input"
               />
               <small className="vm-help-text">
-                Path to the directory containing source files
+                {vendorAgreementId ? 'Auto-populated from vendor contract' : 'Path to the directory containing source files'}
               </small>
             </div>
             
-            <div className="vm-form-group vm-form-group-no-margin">
-              <label>File Name Pattern</label>
-              <input
-                type="text"
-                value={filePattern}
-                onChange={(e) => setFilePattern(e.target.value)}
-                placeholder="*.csv"
-                className="vm-input"
-              />
-            </div>
+            {showFileDropdown ? (
+              <div className="vm-form-group vm-form-group-no-margin">
+                <label>Select File from Agreement</label>
+                <select
+                  value={selectedFileId}
+                  onChange={(e) => setSelectedFileId(e.target.value)}
+                  className="vm-select"
+                >
+                  <option value="">Select File</option>
+                  {agreementFiles.map(file => (
+                    <option key={file.id} value={file.id}>
+                      {file.file_name} {file.file_description ? `- ${file.file_description}` : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : (
+              <div className="vm-form-group vm-form-group-no-margin">
+                <label>File Name Pattern</label>
+                <input
+                  type="text"
+                  value={filePattern}
+                  onChange={(e) => setFilePattern(e.target.value)}
+                  placeholder="*.csv"
+                  className="vm-input"
+                />
+              </div>
+            )}
             
             <div className="vm-form-group vm-form-group-no-margin vm-form-group-browse">
               <label>&nbsp;</label>
               <button 
                 onClick={handleBrowse}
-                disabled={!connectionId || loading}
+                disabled={!connectionId || loading || !!vendorAgreementId}
                 className="vm-btn vm-btn-browse"
               >
                 Browse
@@ -327,7 +394,7 @@ const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
           </button>
           <button 
             onClick={handleSave} 
-            disabled={!connectionId || !filePath || !filePattern}
+            disabled={!connectionId || !filePath || (!filePattern && !selectedFileId)}
             className="vm-btn vm-btn-primary"
           >
             Save Configuration
