@@ -481,11 +481,14 @@ const VisualMappingCanvasContent = () => {
         // Map to output columns based on field mappings
         const outputSchema = config.fieldMappings.map(mapping => {
           const sourceCol = upstreamSchema.find(col => col.name === mapping.source_field);
+          // Check if this target field is marked as PII in config.piiColumns
+          const isPiiFromConfig = config.piiColumns && config.piiColumns.includes(mapping.target_field);
+          
           return {
             name: mapping.target_field,
             type: sourceCol?.type || 'unknown',
             description: sourceCol?.description || '',
-            contains_pii: sourceCol?.contains_pii || false
+            contains_pii: isPiiFromConfig || sourceCol?.contains_pii || false
           };
         });
         console.log(`getCumulativeSchema: Expression node ${nodeId} output schema:`, outputSchema.length, 'columns');
