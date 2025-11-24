@@ -143,6 +143,15 @@ export const APP_FEATURES = [
     route: '/quality-rules',
     showInSidebar: true
   },
+  { 
+    id: 'visual_mapping_orchestrator', 
+    name: 'Visual Mapping Orchestrator', 
+    category: 'Job Design',
+    supportsExecute: true,
+    icon: FiGrid,
+    route: '/visual-mappings/manage',
+    showInSidebar: true
+  },
   
   // Jobs and Monitoring
   { 
