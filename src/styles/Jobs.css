@@ -51,6 +51,7 @@
   font-family: 'Inter', sans-serif !important;
   font-weight: 700 !important;
   font-size: 12px !important;
+  text-transform: none !important;
   color: var(--heading-color, #333);
   border-bottom: 1px solid #e2e8f0;
 }
