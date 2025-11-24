@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { FiCheck, FiArrowRight, FiTrash2, FiEdit2, FiX, FiPlus, FiChevronDown, FiChevronUp, FiChevronRight, FiLock } from 'react-icons/fi';
-import Editor from 'react-simple-code-editor';
 import './TableBasedMapper.css';
 
 const TRANSFORMATION_OPTIONS = [
@@ -138,11 +137,9 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
   // Position cursor after React updates newVariable expression in DOM
   useEffect(() => {
     if (pendingCursorPos !== null && expressionTextareaRef.current) {
-      const textarea = expressionTextareaRef.current.querySelector('textarea');
-      if (textarea) {
-        textarea.focus();
-        textarea.setSelectionRange(pendingCursorPos, pendingCursorPos);
-      }
+      const textarea = expressionTextareaRef.current;
+      textarea.focus();
+      textarea.setSelectionRange(pendingCursorPos, pendingCursorPos);
       // Clear pending position after applying
       setPendingCursorPos(null);
     }
@@ -151,11 +148,9 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
   // Position cursor after React updates editingVariable expression in DOM
   useEffect(() => {
     if (pendingEditCursorPos !== null && editExpressionTextareaRef.current) {
-      const textarea = editExpressionTextareaRef.current.querySelector('textarea');
-      if (textarea) {
-        textarea.focus();
-        textarea.setSelectionRange(pendingEditCursorPos, pendingEditCursorPos);
-      }
+      const textarea = editExpressionTextareaRef.current;
+      textarea.focus();
+      textarea.setSelectionRange(pendingEditCursorPos, pendingEditCursorPos);
       // Clear pending position after applying
       setPendingEditCursorPos(null);
     }
@@ -497,9 +492,8 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
     // Sanitize the text before insertion to prevent invisible character issues
     const sanitizedText = sanitizeText(text);
     
-    // Get the textarea element from the Editor component ref
-    const editorRef = isEditMode ? editExpressionTextareaRef.current : expressionTextareaRef.current;
-    const textarea = editorRef?.querySelector('textarea');
+    // Get the textarea element directly from ref
+    const textarea = isEditMode ? editExpressionTextareaRef.current : expressionTextareaRef.current;
     
     if (!textarea) {
       // Fallback: append to end if no textarea ref available
