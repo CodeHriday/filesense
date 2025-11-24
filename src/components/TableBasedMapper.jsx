@@ -414,7 +414,7 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
                token.type === 'variable' ? '#8B5CF6' :     // purple for variables
                token.type === 'string' ? '#000000' :       // black
                '#374151',  // default dark gray
-        fontWeight: token.type === 'conditional' ? '600' : 'normal'
+        fontWeight: 'normal'  // Always use normal weight to maintain character width alignment with textarea
       };
       
       return <span key={idx} style={style}>{token.text}</span>;
