@@ -24,9 +24,8 @@ router.get('/:id/browse', async (req, res) => {
     const path = req.query.path || '';
     const delimiter = req.query.delimiter || '/';
     
-    // Fetch connection details
-    const connectionService = new ConnectionService();
-    const connection = await connectionService.getConnectionById(connectionId);
+    // Fetch connection details (ConnectionService is already an instance)
+    const connection = await ConnectionService.getConnectionById(connectionId);
     
     if (!connection) {
       return res.status(404).json({ error: 'Connection not found' });
@@ -38,7 +37,7 @@ router.get('/:id/browse', async (req, res) => {
       : connection.config;
     
     // Decrypt sensitive fields
-    const decryptedConfig = connectionService.decryptSensitiveFieldsIfNeeded(
+    const decryptedConfig = ConnectionService.decryptSensitiveFieldsIfNeeded(
       connection.type,
       config
     );
@@ -292,9 +291,8 @@ router.post('/infer-schema', async (req, res) => {
       });
     }
     
-    // Fetch connection details
-    const connectionService = new ConnectionService();
-    const connection = await connectionService.getConnectionById(connection_id);
+    // Fetch connection details (ConnectionService is already an instance)
+    const connection = await ConnectionService.getConnectionById(connection_id);
     
     if (!connection) {
       return res.status(404).json({ error: 'Connection not found' });
@@ -306,7 +304,7 @@ router.post('/infer-schema', async (req, res) => {
       : connection.config;
     
     // Decrypt sensitive fields
-    const decryptedConfig = connectionService.decryptSensitiveFieldsIfNeeded(
+    const decryptedConfig = ConnectionService.decryptSensitiveFieldsIfNeeded(
       connection.type,
       config
     );
