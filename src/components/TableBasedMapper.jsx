@@ -134,6 +134,28 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
     }
   }, [fieldMappings]);
   
+  // Position cursor after React updates newVariable expression in DOM
+  useEffect(() => {
+    if (pendingCursorPos !== null && expressionTextareaRef.current) {
+      const textarea = expressionTextareaRef.current;
+      textarea.focus();
+      textarea.setSelectionRange(pendingCursorPos, pendingCursorPos);
+      // Clear pending position after applying
+      setPendingCursorPos(null);
+    }
+  }, [newVariable.expression, pendingCursorPos]);
+  
+  // Position cursor after React updates editingVariable expression in DOM
+  useEffect(() => {
+    if (pendingEditCursorPos !== null && editExpressionTextareaRef.current) {
+      const textarea = editExpressionTextareaRef.current;
+      textarea.focus();
+      textarea.setSelectionRange(pendingEditCursorPos, pendingEditCursorPos);
+      // Clear pending position after applying
+      setPendingEditCursorPos(null);
+    }
+  }, [editingVariable?.expression, pendingEditCursorPos]);
+  
   // Toggle PII status for a field
   const togglePII = (targetField) => {
     const newPiiColumns = new Set(piiColumns);
