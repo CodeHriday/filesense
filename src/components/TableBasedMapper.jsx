@@ -469,7 +469,10 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
       return `${transformOption.value}(column)`;
     }
     
-    const paramPlaceholders = transformOption.params.map(p => p.placeholder || p.name).join(', ');
+    // Wrap parameter placeholders in single quotes to prevent space-based tokenization issues
+    const paramPlaceholders = transformOption.params
+      .map(p => `'${p.placeholder || p.name}'`)
+      .join(', ');
     return `${transformOption.value}(column, ${paramPlaceholders})`;
   };
 
