@@ -449,7 +449,7 @@ const VisualMappingCanvasContent = () => {
     };
     
     fetchMapping();
-  }, [mappingId, isEditMode, reactFlowInstance, handleNodeConfigure]);
+  }, [mappingId, isEditMode, reactFlowInstance]);
   
   const handleSaveNodeConfig = useCallback((config) => {
     setNodes((nds) =>
