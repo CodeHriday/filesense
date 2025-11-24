@@ -186,7 +186,7 @@ const WorkflowBuilderContent = () => {
       const response = await axios.get(`/api/projects/${pid}/sub-projects`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      const subProjectsData = Array.isArray(response.data) ? response.data : [];
+      const subProjectsData = response.data.subProjects || [];
       console.log('Loaded subprojects:', subProjectsData);
       setSubProjects(subProjectsData);
     } catch (err) {
@@ -217,7 +217,7 @@ const WorkflowBuilderContent = () => {
           const subProjectsResponse = await axios.get(`/api/projects/${workflowProjectId}/sub-projects`, {
             headers: { Authorization: `Bearer ${token}` }
           });
-          setSubProjects(Array.isArray(subProjectsResponse.data) ? subProjectsResponse.data : []);
+          setSubProjects(subProjectsResponse.data.subProjects || []);
         } catch (err) {
           console.error('Failed to load subprojects for workflow:', err);
           setSubProjects([]);
