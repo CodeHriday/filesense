@@ -385,3 +385,29 @@
 .vm-checkbox-label input[type="checkbox"] {
   cursor: pointer;
 }
+
+/* Four Column Row - For File Path + File Name + Browse + File Format */
+.vm-form-row-four-cols {
+  display: grid;
+  grid-template-columns: 2fr 2fr auto 1.5fr;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+/* Multi-select dropdown styling */
+.vm-select-multiple {
+  min-height: 120px;
+  padding: 4px;
+}
+
+.vm-select-multiple option {
+  padding: 6px 8px;
+  margin-bottom: 2px;
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.vm-select-multiple option:checked {
+  background: linear-gradient(0deg, #025043 0%, #025043 100%);
+  color: white;
+}

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import './MappingConfigModal.css';
 
-const TargetRulesModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
+const TargetRulesModal = ({ isOpen, onClose, onSave, initialConfig = {}, projectId }) => {
   const [connectionId, setConnectionId] = useState(initialConfig.connectionId || '');
   const [filePath, setFilePath] = useState(initialConfig.filePath || '');
   const [fileName, setFileName] = useState(initialConfig.fileName || '');
@@ -10,36 +10,73 @@ const TargetRulesModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
   const [violationHandling, setViolationHandling] = useState(initialConfig.violationHandling || 'log_continue');
   const [selectedQualityRules, setSelectedQualityRules] = useState(initialConfig.selectedQualityRules || []);
   const [anomalyDetection, setAnomalyDetection] = useState(initialConfig.anomalyDetection || false);
+  const [targetFileOwnerId, setTargetFileOwnerId] = useState(initialConfig.targetFileOwnerId || '');
   
   const [connections, setConnections] = useState([]);
   const [qualityRules, setQualityRules] = useState([]);
+  const [datastewards, setDatastewards] = useState([]);
   const [loading, setLoading] = useState(false);
   
   useEffect(() => {
     if (isOpen) {
       fetchConnections();
-      fetchQualityRules();
+      if (projectId) {
+        fetchQualityRules(projectId);
+        fetchProjectDatastewards(projectId);
+      }
     }
-  }, [isOpen]);
+  }, [isOpen, projectId]);
   
   const fetchConnections = async () => {
     try {
       const response = await axios.get('/api/connections');
-      setConnections(response.data.filter(c => 
-        ['s3', 'gcs', 'azure', 'local'].includes(c.connection_type?.toLowerCase())
-      ));
+      // Filter to only show target/destination connections
+      const targetConnections = (response.data || []).filter(
+        conn => !conn.connection_direction || conn.connection_direction === 'target'
+      );
+      setConnections(targetConnections);
     } catch (error) {
       console.error('Error fetching connections:', error);
     }
   };
   
-  const fetchQualityRules = async () => {
+  const fetchQualityRules = async (pid) => {
     try {
-      const response = await axios.get('/api/quality-rules');
+      const response = await axios.get(`/api/quality-rules?project_id=${pid}`);
       setQualityRules(response.data || []);
     } catch (error) {
       console.error('Error fetching quality rules:', error);
+      setQualityRules([]);
     }
+  };
+  
+  const fetchProjectDatastewards = async (pid) => {
+    try {
+      // Fetch users who are data stewards and assigned to this project
+      const response = await axios.get(`/api/projects/${pid}/members?role=data_steward`);
+      setDatastewards(response.data.members || []);
+    } catch (error) {
+      console.error('Error fetching project data stewards:', error);
+      // Fallback: fetch all data stewards
+      try {
+        const fallbackResponse = await axios.get('/api/users/data-stewards');
+        setDatastewards(fallbackResponse.data || []);
+      } catch (fallbackError) {
+        console.error('Error fetching all data stewards:', fallbackError);
+        setDatastewards([]);
+      }
+    }
+  };
+  
+  const handleBrowse = async () => {
+    if (!connectionId) {
+      alert('Please select a target connection first');
+      return;
+    }
+    
+    // Trigger file browser/navigation
+    // For now, this is a placeholder
+    alert('File browse functionality will open a file navigation dialog based on the selected connection');
   };
   
   const toggleQualityRule = (ruleId) => {
@@ -54,6 +91,7 @@ const TargetRulesModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
   
   const handleSave = () => {
     const selectedConnection = connections.find(c => c.id === parseInt(connectionId));
+    const selectedOwner = datastewards.find(ds => ds.id === parseInt(targetFileOwnerId));
     const config = {
       connectionId,
       connectionName: selectedConnection?.name || '',
@@ -64,7 +102,9 @@ const TargetRulesModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
       violationHandling,
       selectedQualityRules,
       qualityRulesCount: selectedQualityRules.length,
-      anomalyDetection
+      anomalyDetection,
+      targetFileOwnerId,
+      targetFileOwnerName: selectedOwner?.full_name || selectedOwner?.username || ''
     };
     onSave(config);
     onClose();
@@ -83,6 +123,7 @@ const TargetRulesModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
         <div className="vm-modal-body vm-modal-body-scroll">
           <h3 className="vm-section-title">Target Destination</h3>
           
+          {/* Target Connection - Full Width */}
           <div className="vm-form-group">
             <label>Target Connection *</label>
             <select
@@ -99,74 +140,121 @@ const TargetRulesModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
             </select>
           </div>
           
-          <div className="vm-form-group">
-            <label>File Path *</label>
-            <input
-              type="text"
-              value={filePath}
-              onChange={(e) => setFilePath(e.target.value)}
-              placeholder="e.g., /data/processed/"
-              className="vm-input"
-            />
+          {/* Row 1: File Path + File Name + Browse + File Format */}
+          <div className="vm-form-row-four-cols">
+            <div className="vm-form-group vm-form-group-no-margin">
+              <label>File Path *</label>
+              <input
+                type="text"
+                value={filePath}
+                onChange={(e) => setFilePath(e.target.value)}
+                placeholder="e.g., /data/processed/"
+                className="vm-input"
+              />
+            </div>
+            
+            <div className="vm-form-group vm-form-group-no-margin">
+              <label>File Name *</label>
+              <input
+                type="text"
+                value={fileName}
+                onChange={(e) => setFileName(e.target.value)}
+                placeholder="e.g., output.csv"
+                className="vm-input"
+              />
+            </div>
+            
+            <div className="vm-form-group vm-form-group-no-margin vm-form-group-browse">
+              <label>&nbsp;</label>
+              <button 
+                onClick={handleBrowse}
+                disabled={!connectionId || loading}
+                className="vm-btn vm-btn-browse"
+              >
+                Browse
+              </button>
+            </div>
+            
+            <div className="vm-form-group vm-form-group-no-margin">
+              <label>File Format</label>
+              <select
+                value={fileFormat}
+                onChange={(e) => setFileFormat(e.target.value)}
+                className="vm-select"
+              >
+                <option value="csv">CSV</option>
+                <option value="parquet">Parquet</option>
+                <option value="json">JSON</option>
+                <option value="xlsx">Excel (XLSX)</option>
+              </select>
+            </div>
           </div>
           
+          {/* Target File Owner - Full Width */}
           <div className="vm-form-group">
-            <label>File Name *</label>
-            <input
-              type="text"
-              value={fileName}
-              onChange={(e) => setFileName(e.target.value)}
-              placeholder="e.g., output.csv"
-              className="vm-input"
-            />
-          </div>
-          
-          <div className="vm-form-group">
-            <label>File Format</label>
+            <label>Target File Owner</label>
             <select
-              value={fileFormat}
-              onChange={(e) => setFileFormat(e.target.value)}
+              value={targetFileOwnerId}
+              onChange={(e) => setTargetFileOwnerId(e.target.value)}
               className="vm-select"
             >
-              <option value="csv">CSV</option>
-              <option value="parquet">Parquet</option>
-              <option value="json">JSON</option>
-              <option value="xlsx">Excel (XLSX)</option>
+              <option value="">Select File Owner (Optional)</option>
+              {datastewards.map(ds => (
+                <option key={ds.id} value={ds.id}>
+                  {ds.full_name || ds.username}
+                </option>
+              ))}
             </select>
+            <small className="vm-help-text">
+              Data stewards assigned to this project
+            </small>
           </div>
           
           <h3 className="vm-section-title">Quality Rules</h3>
           
-          <div className="vm-form-group">
-            <label>Violation Handling</label>
-            <select
-              value={violationHandling}
-              onChange={(e) => setViolationHandling(e.target.value)}
-              className="vm-select"
-            >
-              <option value="log_continue">Log and Continue</option>
-              <option value="log_abort">Log and Abort</option>
-            </select>
-          </div>
-          
-          {qualityRules.length > 0 && (
-            <div className="vm-quality-rules-list">
-              <label>Select Quality Rules to Apply:</label>
-              {qualityRules.map(rule => (
-                <div key={rule.id} className="vm-quality-rule-item">
-                  <input
-                    type="checkbox"
-                    id={`rule-${rule.id}`}
-                    checked={selectedQualityRules.includes(rule.id)}
-                    onChange={() => toggleQualityRule(rule.id)}
-                  />
-                  <label htmlFor={`rule-${rule.id}`}>
-                    <strong>{rule.rule_name}</strong> - {rule.rule_type}
-                  </label>
-                </div>
-              ))}
+          {/* Row 2: Quality Rules + Violation Handling */}
+          <div className="vm-form-row-two-cols">
+            <div className="vm-form-group">
+              <label>Quality Rules</label>
+              <select
+                multiple
+                value={selectedQualityRules.map(String)}
+                onChange={(e) => {
+                  const selected = Array.from(e.target.selectedOptions, option => parseInt(option.value));
+                  setSelectedQualityRules(selected);
+                }}
+                className="vm-select vm-select-multiple"
+                size="5"
+              >
+                {qualityRules.length === 0 && (
+                  <option disabled>No quality rules defined for this project</option>
+                )}
+                {qualityRules.map(rule => (
+                  <option key={rule.id} value={rule.id}>
+                    {rule.rule_name} - {rule.rule_type}
+                  </option>
+                ))}
+              </select>
+              <small className="vm-help-text">
+                Hold Ctrl/Cmd to select multiple rules
+              </small>
             </div>
-          )}
+            
+            <div className="vm-form-group">
+              <label>Violation Handling</label>
+              <select
+                value={violationHandling}
+                onChange={(e) => setViolationHandling(e.target.value)}
+                className="vm-select"
+              >
+                <option value="log_continue">Log and Continue</option>
+                <option value="log_abort">Log and Abort</option>
+              </select>
+              <small className="vm-help-text">
+                How to handle quality rule violations
+              </small>
+            </div>
+          </div>
           
           <h3 className="vm-section-title">Anomaly Detection</h3>
           

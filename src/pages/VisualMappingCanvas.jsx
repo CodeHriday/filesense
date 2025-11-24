@@ -877,6 +877,7 @@ const VisualMappingCanvasContent = () => {
           onClose={() => setConfigModalOpen(false)}
           onSave={handleSaveNodeConfig}
           initialConfig={getCurrentNodeConfig()}
+          projectId={projectId}
         />
       )}
     </div>
