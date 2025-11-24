@@ -708,6 +708,32 @@ router.get('/:id/changes', checkAgreementAccess, async (req, res) => {
 });
 
 /**
+ * GET /api/vendor-agreements/:id/files
+ * Get file schemas for a vendor agreement
+ */
+router.get('/:id/files', checkAgreementAccess, async (req, res) => {
+  try {
+    const agreementId = parseInt(req.params.id);
+    
+    const pool = require('../services/db');
+    const result = await pool.query(
+      `SELECT id, vendor_agreement_id, file_name_pattern as file_name, file_description, 
+              schema, contains_pii, data_classification, file_type, quality_rule_ids, created_at
+       FROM vendor_agreement_file_schemas 
+       WHERE vendor_agreement_id = $1
+       ORDER BY created_at ASC`,
+      [agreementId]
+    );
+    
+    res.json({ files: result.rows });
+    
+  } catch (error) {
+    systemLogger.error('Error in GET /api/vendor-agreements/:id/files', { error: error.message });
+    res.status(500).json({ error: 'Failed to fetch agreement files' });
+  }
+});
+
+/**
  * GET /api/vendor-agreements/vendor/:vendorId
  * Get all agreements for a vendor
  * For non-admin vendor users, only returns agreements where they are a contact
