@@ -181,11 +181,14 @@ const WorkflowBuilderContent = () => {
   
   const loadSubProjects = async (pid) => {
     try {
+      console.log('Loading subprojects for project:', pid);
       const token = localStorage.getItem('token');
       const response = await axios.get(`/api/projects/${pid}/sub-projects`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      setSubProjects(Array.isArray(response.data) ? response.data : []);
+      const subProjectsData = Array.isArray(response.data) ? response.data : [];
+      console.log('Loaded subprojects:', subProjectsData);
+      setSubProjects(subProjectsData);
     } catch (err) {
       console.error('Failed to load subprojects:', err);
       setSubProjects([]);
@@ -669,23 +672,27 @@ const WorkflowBuilderContent = () => {
                 </select>
               </div>
               
-              {projectId && subProjects.length > 0 && (
-                <div className="workflow-builder-form-group">
-                  <label>Sub-Project</label>
-                  <select
-                    value={subProjectId || ''}
-                    onChange={(e) => setSubProjectId(e.target.value ? parseInt(e.target.value) : null)}
-                    className="workflow-builder-input"
-                  >
-                    <option value="">None (use main project)</option>
-                    {subProjects.map(subProject => (
-                      <option key={subProject.id} value={subProject.id}>
-                        {subProject.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
+              <div className="workflow-builder-form-group">
+                <label>Subproject</label>
+                <select
+                  value={subProjectId || ''}
+                  onChange={(e) => setSubProjectId(e.target.value ? parseInt(e.target.value) : null)}
+                  className="workflow-builder-input"
+                  disabled={!projectId || subProjects.length === 0}
+                >
+                  <option value="">None (use main project)</option>
+                  {subProjects.map(subProject => (
+                    <option key={subProject.id} value={subProject.id}>
+                      {subProject.name}
+                    </option>
+                  ))}
+                </select>
+                {projectId && subProjects.length === 0 && (
+                  <small style={{ color: '#666', fontSize: '10px', marginTop: '4px', display: 'block' }}>
+                    No subprojects available for this project
+                  </small>
+                )}
+              </div>
               
               <div className="workflow-builder-form-group">
                 <label>Workflow Name *</label>
