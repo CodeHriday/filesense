@@ -51,6 +51,7 @@ function replacePlaceholders(fileName) {
  * @param {number} options.mappingGroupExecutionId - Mapping group execution ID if part of a group
  * @param {number} options.scheduleId - Schedule ID if triggered by a schedule
  * @param {number} options.workflowExecutionId - Workflow execution ID if part of a workflow
+ * @param {number} options.visualWorkflowExecutionId - Visual workflow execution ID if part of a visual workflow
  * @returns {Promise<Object>} - Created job record
  */
 async function createJob(pool, mappingId, userId, options = {}) {
@@ -72,8 +73,8 @@ async function createJob(pool, mappingId, userId, options = {}) {
     const result = await pool.query(`
       INSERT INTO transformation_jobs (
         job_id, mapping_id, mapping_name, executed_by, status, 
-        mapping_group_execution_id, schedule_id, workflow_execution_id, project_id, correlation_id
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+        mapping_group_execution_id, schedule_id, workflow_execution_id, visual_workflow_execution_id, project_id, correlation_id
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
       RETURNING *
     `, [
       jobId, 
@@ -84,6 +85,7 @@ async function createJob(pool, mappingId, userId, options = {}) {
       options.mappingGroupExecutionId || null,
       options.scheduleId || null,
       options.workflowExecutionId || null,
+      options.visualWorkflowExecutionId || null,
       mapping.project_id,
       correlationId
     ]);
@@ -95,7 +97,8 @@ async function createJob(pool, mappingId, userId, options = {}) {
       mappingId, 
       mappingGroupExecutionId: options.mappingGroupExecutionId,
       scheduleId: options.scheduleId,
-      workflowExecutionId: options.workflowExecutionId
+      workflowExecutionId: options.workflowExecutionId,
+      visualWorkflowExecutionId: options.visualWorkflowExecutionId
     });
     
     return result.rows[0];
@@ -296,7 +299,8 @@ async function executeTransformationJob(pool, mappingId, userId, options = {}) {
     existingJob = null,
     mappingGroupExecutionId = null,
     scheduleId = null,
-    workflowExecutionId = null
+    workflowExecutionId = null,
+    visualWorkflowExecutionId = null
   } = options;
   
   let job = existingJob;
@@ -307,7 +311,8 @@ async function executeTransformationJob(pool, mappingId, userId, options = {}) {
       job = await createJob(pool, mappingId, userId, {
         mappingGroupExecutionId,
         scheduleId,
-        workflowExecutionId
+        workflowExecutionId,
+        visualWorkflowExecutionId
       });
     }
     const jobId = job.job_id;
