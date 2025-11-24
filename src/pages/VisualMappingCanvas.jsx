@@ -501,8 +501,9 @@ const VisualMappingCanvasContent = () => {
   }, [nodes, edges, configNodeId]);
   
   const addNode = (type, label) => {
+    const nodeId = `${type}-${Date.now()}`;
     const newNode = {
-      id: `${type}-${Date.now()}`,
+      id: nodeId,
       type,
       position: { 
         x: Math.random() * 300 + 100, 
@@ -511,6 +512,7 @@ const VisualMappingCanvasContent = () => {
       data: { 
         label,
         config: {},
+        nodeId: nodeId,
         onConfigure: handleNodeConfigure
       }
     };
