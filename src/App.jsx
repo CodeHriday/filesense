@@ -86,6 +86,8 @@ import WorkflowCanvasStandalone from './pages/WorkflowCanvasStandalone';
 import WorkflowTest from './pages/WorkflowTest';
 import WorkflowBuilder from './pages/WorkflowBuilder';
 import WorkflowManager from './pages/WorkflowManager';
+import VisualMappingCanvas from './pages/VisualMappingCanvas';
+import VisualMappingManager from './pages/VisualMappingManager';
 import OnboardingWizard from './components/OnboardingWizard';
 import AccessibilityWidget from './components/AccessibilityWidget';
 import { AccessibilityProvider } from './context/AccessibilityContext';
@@ -324,6 +326,9 @@ function AppContent({ showOnboarding, setShowOnboarding }) {
                 <Route path="/workflows" element={<ProtectedRoute><NStepWorkflows /></ProtectedRoute>} />
                 <Route path="/workflow-builder" element={<ProtectedRoute><WorkflowBuilder /></ProtectedRoute>} />
                 <Route path="/workflow-manager" element={<ProtectedRoute><WorkflowManager /></ProtectedRoute>} />
+                <Route path="/visual-mappings/new" element={<ProtectedRoute><VisualMappingCanvas /></ProtectedRoute>} />
+                <Route path="/visual-mappings/:mappingId" element={<ProtectedRoute><VisualMappingCanvas /></ProtectedRoute>} />
+                <Route path="/visual-mappings/manage" element={<ProtectedRoute><VisualMappingManager /></ProtectedRoute>} />
                 <Route path="/etl-scheduler" element={<ProtectedRoute><ETLScheduler /></ProtectedRoute>} />
                 <Route path="/etl-scheduler/create" element={<ProtectedRoute><SchedulerForm /></ProtectedRoute>} />
                 <Route path="/etl-scheduler/:scheduleId/edit" element={<ProtectedRoute><SchedulerForm /></ProtectedRoute>} />

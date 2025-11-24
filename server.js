@@ -3770,6 +3770,15 @@ try {
   console.error('✗ Failed to register /api/visual-workflows:', error.message);
 }
 
+// Visual Mappings routes (new graph-based mapping orchestration)
+try {
+  const visualMappingsRoutes = require('./backend/routes/visualMappings');
+  app.use('/api/visual-mappings', authenticateToken, visualMappingsRoutes);
+  console.log('✓ Registered /api/visual-mappings route');
+} catch (error) {
+  console.error('✗ Failed to register /api/visual-mappings:', error.message);
+}
+
 // User Management routes
 try {
   const userManagementRoutes = require('./backend/routes/userManagement');
