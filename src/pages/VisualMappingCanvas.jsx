@@ -338,6 +338,23 @@ const VisualMappingCanvasContent = () => {
   // Use ref to avoid stale closure in node event handlers
   const nodesRef = useRef(nodes);
   
+  // Update nodes ref whenever nodes change
+  useEffect(() => {
+    nodesRef.current = nodes;
+  }, [nodes]);
+  
+  // Configure button handler (must be defined before mapping load useEffect)
+  const handleNodeConfigure = useCallback((nodeId) => {
+    const node = nodesRef.current.find(n => n.id === nodeId);
+    if (node) {
+      setConfigNodeId(nodeId);
+      setConfigNodeType(node.type);
+      setConfigModalOpen(true);
+    }
+  }, []);
+  
+  const onConnect = useCallback((params) => setEdges((eds) => addEdge(params, eds)), [setEdges]);
+  
   // Wait for canvas container to be ready
   useEffect(() => {
     if (!containerRef.current) return;
@@ -431,23 +448,7 @@ const VisualMappingCanvasContent = () => {
     };
     
     fetchMapping();
-  }, [mappingId, isEditMode, reactFlowInstance]);
-  
-  // Update nodes ref whenever nodes change
-  useEffect(() => {
-    nodesRef.current = nodes;
-  }, [nodes]);
-  
-  const onConnect = useCallback((params) => setEdges((eds) => addEdge(params, eds)), [setEdges]);
-  
-  const handleNodeConfigure = useCallback((nodeId) => {
-    const node = nodesRef.current.find(n => n.id === nodeId);
-    if (node) {
-      setConfigNodeId(nodeId);
-      setConfigNodeType(node.type);
-      setConfigModalOpen(true);
-    }
-  }, []);
+  }, [mappingId, isEditMode, reactFlowInstance, handleNodeConfigure]);
   
   const handleSaveNodeConfig = useCallback((config) => {
     setNodes((nds) =>
