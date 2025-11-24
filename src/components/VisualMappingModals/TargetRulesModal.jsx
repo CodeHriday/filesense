@@ -43,7 +43,7 @@ const TargetRulesModal = ({ isOpen, onClose, onSave, initialConfig = {}, project
   const fetchQualityRules = async (pid) => {
     try {
       const response = await axios.get(`/api/quality-rules?project_id=${pid}`);
-      setQualityRules(response.data || []);
+      setQualityRules(response.data?.rules || []);
     } catch (error) {
       console.error('Error fetching quality rules:', error);
       setQualityRules([]);
