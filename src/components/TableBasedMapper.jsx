@@ -106,6 +106,21 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
   useEffect(() => {
     setPiiColumns(new Set(initialPiiColumns || []));
   }, [initialPiiColumns]);
+  
+  // Auto-populate PII columns from schema on initial load
+  useEffect(() => {
+    if (schema && schema.length > 0 && initialPiiColumns.length === 0) {
+      const piiFieldsFromSchema = schema
+        .filter(col => col.contains_pii || col.is_pii || col.pii)
+        .map(col => col.name);
+      
+      if (piiFieldsFromSchema.length > 0) {
+        const newPiiSet = new Set(piiFieldsFromSchema);
+        setPiiColumns(newPiiSet);
+        onMappingsChange(mappings, variables, Array.from(newPiiSet));
+      }
+    }
+  }, [schema]);
 
   useEffect(() => {
     if (fieldMappings && fieldMappings.length > 0) {
