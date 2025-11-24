@@ -1074,10 +1074,10 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
               </div>
             </div>
             <div className="modal-footer">
-              <button className="btn btn-secondary" onClick={() => setAddingNewColumn(false)}>
+              <button className="btn btn-secondary btn-fixed-width" onClick={() => setAddingNewColumn(false)}>
                 Cancel
               </button>
-              <button className="btn btn-primary" onClick={handleSaveNewColumn}>
+              <button className="btn btn-primary btn-fixed-width" onClick={handleSaveNewColumn}>
                 Add Column
               </button>
             </div>
@@ -1253,10 +1253,10 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
               </div>
             </div>
             <div className="modal-footer">
-              <button className="btn btn-secondary" onClick={() => setAddingVariable(false)}>
+              <button className="btn btn-secondary btn-fixed-width" onClick={() => setAddingVariable(false)}>
                 Cancel
               </button>
-              <button className="btn btn-primary" onClick={handleSaveVariable}>
+              <button className="btn btn-primary btn-fixed-width" onClick={handleSaveVariable}>
                 Add Variable
               </button>
             </div>

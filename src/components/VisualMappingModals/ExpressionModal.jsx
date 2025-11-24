@@ -36,13 +36,6 @@ const ExpressionModal = ({ isOpen, onClose, onSave, initialConfig = {}, schema =
         </div>
         
         <div className="vm-modal-body vm-modal-body-scroll">
-          <div className="vm-info-box">
-            <p>
-              Configure field transformations, create calculated fields, and define variables.
-              Map source fields to target fields and apply transformations.
-            </p>
-          </div>
-          
           <TableBasedMapper
             schema={schema}
             fieldMappings={fieldMappings}
