@@ -426,6 +426,7 @@ const VisualMappingCanvasContent = () => {
             ...node,
             data: {
               ...node.data,
+              nodeId: node.id,
               onConfigure: handleNodeConfigure
             }
           }));
