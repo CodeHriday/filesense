@@ -1292,22 +1292,25 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
                       <div className="expression-builder-header">
                         <label>Expression *</label>
                       </div>
-                      <div className="expression-editor-container" ref={expressionTextareaRef}>
-                        <Editor
+                      <div className="expression-editor-container">
+                        <textarea
+                          ref={expressionTextareaRef}
+                          className="expression-code-input"
                           value={newVariable.expression}
-                          onValueChange={(code) => setNewVariable({ ...newVariable, expression: code })}
-                          highlight={highlightExpression}
-                          padding={8}
+                          onChange={(e) => setNewVariable({ ...newVariable, expression: e.target.value })}
                           placeholder="Click + buttons to insert columns and functions, or type directly..."
+                          spellCheck="false"
                           style={{
                             fontFamily: "'Consolas', 'Monaco', 'Courier New', monospace",
-                            fontSize: 10,
+                            fontSize: '10px',
                             minHeight: '200px',
+                            width: '100%',
+                            padding: '8px',
                             border: '1px solid #d1d5db',
                             borderRadius: '6px',
-                            backgroundColor: '#fff'
+                            backgroundColor: '#fff',
+                            resize: 'vertical'
                           }}
-                          textareaClassName="expression-code-input"
                         />
                       </div>
 
@@ -1471,22 +1474,25 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
                       <div className="expression-builder-header">
                         <label>Expression *</label>
                       </div>
-                      <div className="expression-editor-container" ref={editExpressionTextareaRef}>
-                        <Editor
+                      <div className="expression-editor-container">
+                        <textarea
+                          ref={editExpressionTextareaRef}
+                          className="expression-code-input"
                           value={editingVariable.expression || ''}
-                          onValueChange={(code) => setEditingVariable({ ...editingVariable, expression: code })}
-                          highlight={highlightExpression}
-                          padding={8}
+                          onChange={(e) => setEditingVariable({ ...editingVariable, expression: e.target.value })}
                           placeholder="Click + buttons to insert columns and functions, or type directly..."
+                          spellCheck="false"
                           style={{
                             fontFamily: "'Consolas', 'Monaco', 'Courier New', monospace",
-                            fontSize: 10,
+                            fontSize: '10px',
                             minHeight: '200px',
+                            width: '100%',
+                            padding: '8px',
                             border: '1px solid #d1d5db',
                             borderRadius: '6px',
-                            backgroundColor: '#fff'
+                            backgroundColor: '#fff',
+                            resize: 'vertical'
                           }}
-                          textareaClassName="expression-code-input"
                         />
                       </div>
 
