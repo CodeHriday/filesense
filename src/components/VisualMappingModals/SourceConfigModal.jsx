@@ -33,11 +33,17 @@ const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
     }
   }, [isOpen]);
   
-  const fetchAgreementFiles = async (agreementId, existingFileId) => {
+  const fetchAgreementFiles = async (agreementId, existingFileId, skipFilePatternUpdate = false) => {
     try {
       const response = await axios.get(`/api/vendor-agreements/${agreementId}/files`);
       const files = response.data.files || response.data || [];
       setAgreementFiles(files);
+      
+      // Only auto-populate if not reopening with saved data
+      if (skipFilePatternUpdate) {
+        // Just restore the selection, don't change filePattern
+        return;
+      }
       
       // Only auto-select first file if no existing selection
       if (files.length > 0 && !existingFileId) {
@@ -48,9 +54,10 @@ const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
           setFilePattern(firstFile.file_name);
         }
       } else if (existingFileId) {
-        // Preserve existing selection
+        // Preserve existing selection but DON'T overwrite saved filePattern
         const existingFile = files.find(f => String(f.id) === String(existingFileId));
-        if (existingFile && existingFile.file_name) {
+        if (existingFile && existingFile.file_name && !initialConfig.filePattern) {
+          // Only set pattern if no saved pattern exists
           setFilePattern(existingFile.file_name);
         }
       }
@@ -113,7 +120,9 @@ const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
         // Fetch agreement files (pass existing selection to preserve it)
         // Include isOpen to ensure this runs when modal reopens with initialConfig
         const fileIdToPreserve = selectedFileId || initialConfig.agreementFileId;
-        fetchAgreementFiles(agreement.id, fileIdToPreserve);
+        // Skip filePattern update when reopening with saved config
+        const hasExistingConfig = initialConfig.filePattern && initialConfig.filePattern !== '*.csv';
+        fetchAgreementFiles(agreement.id, fileIdToPreserve, hasExistingConfig);
       }
     } else {
       // Clear agreement files when no vendor contract selected
@@ -289,7 +298,16 @@ const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
       // Include file metadata if from vendor agreement
       agreementFileId: selectedFileId || null,
       agreementFileName: selectedFile?.file_name || null,
-      agreementFileDescription: selectedFile?.file_description || null
+      agreementFileDescription: selectedFile?.file_description || null,
+      // Include schema for downstream propagation
+      schema: schema?.columns || [],
+      schemaMetadata: schema ? {
+        contains_pii: schema.contains_pii,
+        data_classification: schema.data_classification,
+        file_type: schema.file_type,
+        column_metadata: schema.column_metadata || {},
+        source: schema.source
+      } : null
     };
     onSave(config);
     onClose();

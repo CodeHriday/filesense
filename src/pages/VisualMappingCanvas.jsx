@@ -453,7 +453,15 @@ const VisualMappingCanvasContent = () => {
     sourceNodeIds.forEach(sourceId => {
       const sourceNode = nodes.find(n => n.id === sourceId);
       if (sourceNode?.data?.config?.schema) {
-        schema = [...schema, ...sourceNode.data.config.schema];
+        // Transform schema format from {column_name, data_type} to {name, type}
+        // to match what TableBasedMapper expects
+        const transformedSchema = sourceNode.data.config.schema.map(col => ({
+          name: col.column_name || col.name,
+          type: col.data_type || col.type,
+          description: col.description,
+          contains_pii: col.contains_pii || col.is_pii || false
+        }));
+        schema = [...schema, ...transformedSchema];
       }
     });
     
