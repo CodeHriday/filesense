@@ -210,6 +210,16 @@ class FileProcessingWorker {
       fileSize
     });
 
+    // DEBUG: Log received agreementId value
+    this.logger.info('Worker received job data', {
+      fileId,
+      agreementId,
+      projectId,
+      subProjectId,
+      qualityRuleIds,
+      hasAgreementId: !!agreementId
+    });
+
     // Audit log: File processing started
     if (this.auditService) {
       await this.auditService.logExecutionStateChange({

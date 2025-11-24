@@ -392,11 +392,41 @@ router.get('/', async (req, res) => {
       };
     });
     
+    // Add debug logging to inspect what's being returned
+    if (transformedRows.length > 0) {
+      systemLogger.info('🔍 BACKEND DEBUG - First lineage record', {
+        source_owner: transformedRows[0].source_owner,
+        source_path: transformedRows[0].source_path,
+        target_owner: transformedRows[0].target_owner,
+        target_path: transformedRows[0].target_path,
+        field_mappings_present: !!transformedRows[0].field_mappings,
+        column_mappings_present: !!transformedRows[0].column_mappings,
+        variables_present: !!transformedRows[0].variables,
+        field_mappings_count: transformedRows[0].field_mappings?.length || 0,
+        column_mappings_count: transformedRows[0].column_mappings?.length || 0
+      });
+    }
+    
     // Clean up temporary fields
     transformedRows.forEach(row => {
       delete row.tm_source_owner;
       delete row.tm_target_owner;
     });
+    
+    // Debug log first record to verify transformation with connection-based metadata
+    if (transformedRows.length > 0) {
+      systemLogger.info('Lineage data sample with connection metadata', {
+        mapping_name: transformedRows[0].mapping_name,
+        source_owner: transformedRows[0].source_owner,
+        source_path: transformedRows[0].source_path,
+        source_file_type: transformedRows[0].source_file_type,
+        target_owner: transformedRows[0].target_owner,
+        target_path: transformedRows[0].target_path,
+        target_file_type: transformedRows[0].target_file_type,
+        agreement_name: transformedRows[0].agreement_name,
+        pii_column_count: transformedRows[0].pii_column_count
+      });
+    }
     
     // Prevent browser caching AND disable ETag to prevent 304 Not Modified responses
     res.set({

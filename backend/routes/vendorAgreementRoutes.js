@@ -247,6 +247,16 @@ router.get('/', async (req, res) => {
     // Regular vendor users with just read permission still get filtered by their contact emails
     const hasApprovePermission = hasPermission(req.user, 'vendor_agreements:approve');
     
+    // DEBUG: Log permission check for troubleshooting
+    systemLogger.info('Vendor agreements permission check', {
+      username: req.user.username,
+      userId: req.user.id,
+      roles: req.user.roles,
+      hasApprovePermission,
+      permissionsCount: req.user.permissions?.length || 0,
+      permissions: req.user.permissions?.map(p => typeof p === 'string' ? p : (p.name || `${p.resource}:${p.action}`))
+    });
+    
     const result = await vendorAgreementService.getAllAgreements({
       page,
       pageSize,
