@@ -19,12 +19,17 @@ const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
   const [loading, setLoading] = useState(false);
   const [matchingFiles, setMatchingFiles] = useState([]);
   const [fileBrowserOpen, setFileBrowserOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState('configuration');
+  const [schema, setSchema] = useState(null);
+  const [schemaLoading, setSchemaLoading] = useState(false);
   
   useEffect(() => {
     if (isOpen) {
       fetchConnections();
       fetchVendorAgreements();
       fetchDatastewards();
+      // Reset to configuration tab when modal opens
+      setActiveTab('configuration');
     }
   }, [isOpen]);
   
@@ -106,14 +111,17 @@ const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
         }
         
         // Fetch agreement files (pass existing selection to preserve it)
-        fetchAgreementFiles(agreement.id, selectedFileId || initialConfig.agreementFileId);
+        // Include isOpen to ensure this runs when modal reopens with initialConfig
+        const fileIdToPreserve = selectedFileId || initialConfig.agreementFileId;
+        fetchAgreementFiles(agreement.id, fileIdToPreserve);
       }
     } else {
       // Clear agreement files when no vendor contract selected
       setAgreementFiles([]);
       setSelectedFileId('');
+      setSchema(null);
     }
-  }, [vendorAgreementId, vendorAgreements]);
+  }, [vendorAgreementId, vendorAgreements, isOpen]);
   
   // Update file pattern when selected file changes
   useEffect(() => {
@@ -124,6 +132,63 @@ const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
       }
     }
   }, [selectedFileId, agreementFiles]);
+  
+  // Fetch schema when agreement file is selected
+  useEffect(() => {
+    if (selectedFileId && vendorAgreementId) {
+      fetchSchemaFromAgreement(selectedFileId);
+    } else if (filePattern && connectionId && !vendorAgreementId) {
+      // Infer schema from file when using direct connection
+      inferSchemaFromFile();
+    } else {
+      setSchema(null);
+    }
+  }, [selectedFileId, vendorAgreementId, filePattern, connectionId]);
+  
+  const fetchSchemaFromAgreement = async (fileId) => {
+    setSchemaLoading(true);
+    try {
+      const response = await axios.get(`/api/vendor-agreements/${vendorAgreementId}/file-schemas/${fileId}`);
+      if (response.data.success && response.data.fileSchema) {
+        setSchema({
+          columns: response.data.fileSchema.schema || [],
+          contains_pii: response.data.fileSchema.contains_pii,
+          data_classification: response.data.fileSchema.data_classification,
+          file_type: response.data.fileSchema.file_type,
+          source: 'agreement'
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching schema from agreement:', error);
+      setSchema(null);
+    } finally {
+      setSchemaLoading(false);
+    }
+  };
+  
+  const inferSchemaFromFile = async () => {
+    if (!connectionId || !filePath || !filePattern) return;
+    
+    setSchemaLoading(true);
+    try {
+      const response = await axios.post('/api/connections/infer-schema', {
+        connection_id: connectionId,
+        path: filePath,
+        pattern: filePattern
+      });
+      if (response.data.success && response.data.schema) {
+        setSchema({
+          columns: response.data.schema,
+          source: 'inferred'
+        });
+      }
+    } catch (error) {
+      console.error('Error inferring schema from file:', error);
+      setSchema(null);
+    } finally {
+      setSchemaLoading(false);
+    }
+  };
   
   const fetchConnections = async () => {
     setLoading(true);
@@ -229,6 +294,9 @@ const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
   // Determine if we should show file dropdown (vendor contract with files)
   const showFileDropdown = vendorAgreementId && agreementFiles.length > 0;
   
+  // Show schema tab if schema is available
+  const showSchemaTab = schema !== null;
+  
   return (
     <div className="vm-modal-overlay" onClick={onClose}>
       <div className="vm-modal vm-modal-large" onClick={(e) => e.stopPropagation()}>
@@ -237,7 +305,28 @@ const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
           <button onClick={onClose} className="vm-modal-close">×</button>
         </div>
         
+        {/* Tab Navigation */}
+        <div className="vm-tabs">
+          <button 
+            className={`vm-tab ${activeTab === 'configuration' ? 'vm-tab-active' : ''}`}
+            onClick={() => setActiveTab('configuration')}
+          >
+            Configuration
+          </button>
+          {showSchemaTab && (
+            <button 
+              className={`vm-tab ${activeTab === 'schema' ? 'vm-tab-active' : ''}`}
+              onClick={() => setActiveTab('schema')}
+            >
+              Schema
+            </button>
+          )}
+        </div>
+        
         <div className="vm-modal-body">
+          {/* Configuration Tab */}
+          {activeTab === 'configuration' && (
+            <>
           {/* Row 1: Vendor Contract and Source File Owner (side by side) */}
           <div className="vm-form-row-two-cols">
             <div className="vm-form-group">
@@ -389,6 +478,88 @@ const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
                   <li>... and {matchingFiles.length - 5} more</li>
                 )}
               </ul>
+            </div>
+          )}
+            </>
+          )}
+          
+          {/* Schema Tab */}
+          {activeTab === 'schema' && (
+            <div className="vm-schema-container">
+              {schemaLoading ? (
+                <div className="vm-loading">Loading schema...</div>
+              ) : schema ? (
+                <>
+                  <div className="vm-schema-meta">
+                    <div className="vm-schema-meta-row">
+                      <span className="vm-schema-label">Source:</span>
+                      <span className="vm-schema-value">
+                        {schema.source === 'agreement' ? 'Vendor Agreement File Schema' : 'Inferred from File'}
+                      </span>
+                    </div>
+                    {schema.file_type && (
+                      <div className="vm-schema-meta-row">
+                        <span className="vm-schema-label">File Type:</span>
+                        <span className="vm-schema-value">{schema.file_type.toUpperCase()}</span>
+                      </div>
+                    )}
+                    {schema.data_classification && (
+                      <div className="vm-schema-meta-row">
+                        <span className="vm-schema-label">Data Classification:</span>
+                        <span className="vm-schema-value">{schema.data_classification}</span>
+                      </div>
+                    )}
+                    {schema.contains_pii !== undefined && (
+                      <div className="vm-schema-meta-row">
+                        <span className="vm-schema-label">Contains PII:</span>
+                        <span className="vm-schema-value">
+                          {schema.contains_pii ? 'Yes' : 'No'}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                  
+                  <div className="vm-schema-table-container">
+                    <table className="vm-schema-table">
+                      <thead>
+                        <tr>
+                          <th>#</th>
+                          <th>Column Name</th>
+                          <th>Data Type</th>
+                          {schema.source === 'agreement' && <th>Description</th>}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {schema.columns && schema.columns.length > 0 ? (
+                          schema.columns.map((col, idx) => (
+                            <tr key={idx}>
+                              <td>{idx + 1}</td>
+                              <td className="vm-schema-col-name">{col.column_name || col.name}</td>
+                              <td className="vm-schema-col-type">{col.data_type || col.type}</td>
+                              {schema.source === 'agreement' && (
+                                <td className="vm-schema-col-desc">{col.description || '-'}</td>
+                              )}
+                            </tr>
+                          ))
+                        ) : (
+                          <tr>
+                            <td colSpan={schema.source === 'agreement' ? 4 : 3} className="vm-empty-state">
+                              No columns defined in schema
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                  
+                  <div className="vm-schema-note">
+                    <strong>Note:</strong> This schema is read-only. To modify the data structure, 
+                    use the Expressions or Target Rules nodes in your mapping flow.
+                  </div>
+                </>
+              ) : (
+                <div className="vm-empty-state">No schema available</div>
+              )}
             </div>
           )}
         </div>
