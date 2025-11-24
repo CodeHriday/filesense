@@ -439,19 +439,29 @@ const VisualMappingCanvasContent = () => {
   
   const getCumulativeSchema = useCallback(() => {
     // For RDM nodes, calculate cumulative schema from upstream nodes
-    if (!configNodeId) return [];
+    if (!configNodeId) {
+      console.log('getCumulativeSchema: No configNodeId');
+      return [];
+    }
     
     const node = nodes.find(n => n.id === configNodeId);
-    if (!node) return [];
+    if (!node) {
+      console.log('getCumulativeSchema: Node not found for configNodeId:', configNodeId);
+      return [];
+    }
     
     // Find all upstream nodes (this is a simplified version - full implementation would traverse the graph)
     const upstreamEdges = edges.filter(e => e.target === configNodeId);
     const sourceNodeIds = upstreamEdges.map(e => e.source);
     
+    console.log('getCumulativeSchema: Found upstream nodes:', sourceNodeIds);
+    
     // Collect schemas from source nodes
     let schema = [];
     sourceNodeIds.forEach(sourceId => {
       const sourceNode = nodes.find(n => n.id === sourceId);
+      console.log(`getCumulativeSchema: Source node ${sourceId} config:`, sourceNode?.data?.config);
+      
       if (sourceNode?.data?.config?.schema) {
         // Transform schema format from {column_name, data_type} to {name, type}
         // to match what TableBasedMapper expects
@@ -462,9 +472,11 @@ const VisualMappingCanvasContent = () => {
           contains_pii: col.contains_pii || col.is_pii || false
         }));
         schema = [...schema, ...transformedSchema];
+        console.log('getCumulativeSchema: Added schema columns:', transformedSchema.length);
       }
     });
     
+    console.log('getCumulativeSchema: Final schema:', schema);
     return schema;
   }, [nodes, edges, configNodeId]);
   

@@ -23,6 +23,9 @@ const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
   const [schema, setSchema] = useState(null);
   const [schemaLoading, setSchemaLoading] = useState(false);
   
+  // Track saved file pattern to prevent it from being overwritten
+  const [savedFilePattern, setSavedFilePattern] = useState(initialConfig.filePattern || '');
+  
   useEffect(() => {
     if (isOpen) {
       fetchConnections();
@@ -30,18 +33,20 @@ const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
       fetchDatastewards();
       // Reset to configuration tab when modal opens
       setActiveTab('configuration');
+      // Store the saved file pattern when modal opens
+      setSavedFilePattern(initialConfig.filePattern || '');
     }
   }, [isOpen]);
   
-  const fetchAgreementFiles = async (agreementId, existingFileId, skipFilePatternUpdate = false) => {
+  const fetchAgreementFiles = async (agreementId, existingFileId) => {
     try {
       const response = await axios.get(`/api/vendor-agreements/${agreementId}/files`);
       const files = response.data.files || response.data || [];
       setAgreementFiles(files);
       
-      // Only auto-populate if not reopening with saved data
-      if (skipFilePatternUpdate) {
-        // Just restore the selection, don't change filePattern
+      // NEVER auto-populate pattern if we have a saved pattern
+      if (savedFilePattern && savedFilePattern !== '*.csv') {
+        // We're reopening with saved data - don't touch filePattern
         return;
       }
       
@@ -49,16 +54,9 @@ const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
       if (files.length > 0 && !existingFileId) {
         const firstFile = files[0];
         setSelectedFileId(String(firstFile.id));
-        // Auto-populate pattern from first file
-        if (firstFile.file_name) {
+        // Auto-populate pattern from first file only if no saved pattern
+        if (firstFile.file_name && !savedFilePattern) {
           setFilePattern(firstFile.file_name);
-        }
-      } else if (existingFileId) {
-        // Preserve existing selection but DON'T overwrite saved filePattern
-        const existingFile = files.find(f => String(f.id) === String(existingFileId));
-        if (existingFile && existingFile.file_name && !initialConfig.filePattern) {
-          // Only set pattern if no saved pattern exists
-          setFilePattern(existingFile.file_name);
         }
       }
     } catch (error) {
@@ -118,11 +116,8 @@ const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
         }
         
         // Fetch agreement files (pass existing selection to preserve it)
-        // Include isOpen to ensure this runs when modal reopens with initialConfig
         const fileIdToPreserve = selectedFileId || initialConfig.agreementFileId;
-        // Skip filePattern update when reopening with saved config
-        const hasExistingConfig = initialConfig.filePattern && initialConfig.filePattern !== '*.csv';
-        fetchAgreementFiles(agreement.id, fileIdToPreserve, hasExistingConfig);
+        fetchAgreementFiles(agreement.id, fileIdToPreserve);
       }
     } else {
       // Clear agreement files when no vendor contract selected
@@ -130,22 +125,23 @@ const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
       setSelectedFileId('');
       setSchema(null);
     }
-  }, [vendorAgreementId, vendorAgreements, isOpen]);
+  }, [vendorAgreementId, vendorAgreements, connections, datastewards, savedFilePattern]);
   
   // Update file pattern when selected file changes
-  // BUT don't overwrite if we're reopening with saved data
+  // BUT NEVER overwrite if we have a saved pattern
   useEffect(() => {
+    // Skip if we have a saved pattern - user manually selected this
+    if (savedFilePattern && savedFilePattern !== '*.csv') {
+      return;
+    }
+    
     if (selectedFileId && agreementFiles.length > 0) {
       const selectedFile = agreementFiles.find(f => String(f.id) === selectedFileId);
       if (selectedFile && selectedFile.file_name) {
-        // Only update if we don't have a saved filePattern (i.e., not reopening modal)
-        // Check if current filePattern is the default or matches what we're about to set
-        if (!initialConfig.filePattern || initialConfig.filePattern === '*.csv' || filePattern === selectedFile.file_name) {
-          setFilePattern(selectedFile.file_name);
-        }
+        setFilePattern(selectedFile.file_name);
       }
     }
-  }, [selectedFileId, agreementFiles]);
+  }, [selectedFileId, agreementFiles, savedFilePattern]);
   
   // Fetch schema when agreement file is selected
   useEffect(() => {
@@ -309,6 +305,11 @@ const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
         source: schema.source
       } : null
     };
+    console.log('Saving Source Configuration with schema:', { 
+      schemaColumnsCount: schema?.columns?.length || 0, 
+      schema: schema?.columns,
+      config 
+    });
     onSave(config);
     onClose();
   };
