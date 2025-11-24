@@ -29,9 +29,11 @@ const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
     if (vendorAgreementId && vendorAgreements.length > 0) {
       const agreement = vendorAgreements.find(va => va.id === parseInt(vendorAgreementId));
       if (agreement) {
+        console.log('Auto-populating from vendor agreement:', agreement);
+        
         // Auto-populate connection, file path, file pattern, and file owner
         if (agreement.vendor_connection_id) {
-          setConnectionId(agreement.vendor_connection_id);
+          setConnectionId(String(agreement.vendor_connection_id));
         }
         if (agreement.drop_location_path) {
           setFilePath(agreement.drop_location_path);
@@ -40,7 +42,9 @@ const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
           setFilePattern(agreement.file_name);
         }
         if (agreement.file_owner_user_id) {
-          setSourceFileOwnerId(String(agreement.file_owner_user_id));
+          const ownerIdStr = String(agreement.file_owner_user_id);
+          console.log('Setting file owner to:', ownerIdStr);
+          setSourceFileOwnerId(ownerIdStr);
         }
       }
     }
@@ -190,6 +194,7 @@ const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
               value={connectionId}
               onChange={(e) => setConnectionId(e.target.value)}
               className="vm-select"
+              disabled={!!vendorAgreementId}
             >
               <option value="">Select Connection</option>
               {connections.map(c => (
@@ -198,6 +203,11 @@ const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
                 </option>
               ))}
             </select>
+            {vendorAgreementId && (
+              <small className="vm-help-text">
+                Auto-populated from vendor contract
+              </small>
+            )}
           </div>
           
           {/* Row 3: File Path, Name Pattern, and Browse (with individual labels) */}
@@ -217,7 +227,7 @@ const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
             </div>
             
             <div className="vm-form-group vm-form-group-no-margin">
-              <label>Name Pattern</label>
+              <label>File Name Pattern</label>
               <input
                 type="text"
                 value={filePattern}
