@@ -1215,7 +1215,7 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
                         <label>Expression *</label>
                       </div>
                       <div className="expression-editor-container">
-                        <div className="expression-highlight-layer">
+                        <div className="expression-highlight-layer expression-editor-surface">
                           {highlightExpression(newVariable.expression)}
                           {!newVariable.expression && (
                             <span className="expression-placeholder">
@@ -1225,7 +1225,7 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
                         </div>
                         <textarea
                           ref={expressionTextareaRef}
-                          className="expression-textarea expression-textarea-overlay"
+                          className="expression-textarea expression-textarea-overlay expression-editor-surface"
                           value={newVariable.expression}
                           onChange={(e) => setNewVariable({ ...newVariable, expression: e.target.value })}
                           spellCheck="false"
@@ -1393,7 +1393,7 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
                         <label>Expression *</label>
                       </div>
                       <div className="expression-editor-container">
-                        <div className="expression-highlight-layer">
+                        <div className="expression-highlight-layer expression-editor-surface">
                           {highlightExpression(editingVariable.expression || '')}
                           {!editingVariable.expression && (
                             <span className="expression-placeholder">
@@ -1403,7 +1403,7 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
                         </div>
                         <textarea
                           ref={editExpressionTextareaRef}
-                          className="expression-textarea expression-textarea-overlay"
+                          className="expression-textarea expression-textarea-overlay expression-editor-surface"
                           value={editingVariable.expression || ''}
                           onChange={(e) => setEditingVariable({ ...editingVariable, expression: e.target.value })}
                           spellCheck="false"

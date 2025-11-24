@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import './MappingConfigModal.css';
 
-const TargetRulesModal = ({ isOpen, onClose, onSave, initialConfig = {}, projectId }) => {
+const TargetRulesModal = ({ isOpen, onClose, onSave, initialConfig = {}, projectId, outputSchema = null }) => {
   const [connectionId, setConnectionId] = useState(initialConfig.connectionId || '');
   const [filePath, setFilePath] = useState(initialConfig.filePath || '');
   const [fileName, setFileName] = useState(initialConfig.fileName || '');
@@ -16,6 +16,8 @@ const TargetRulesModal = ({ isOpen, onClose, onSave, initialConfig = {}, project
   const [qualityRules, setQualityRules] = useState([]);
   const [datastewards, setDatastewards] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState('configuration');
+  const [schema, setSchema] = useState(null);
   
   useEffect(() => {
     if (isOpen) {
@@ -24,8 +26,20 @@ const TargetRulesModal = ({ isOpen, onClose, onSave, initialConfig = {}, project
         fetchQualityRules(projectId);
         fetchProjectDatastewards(projectId);
       }
+      // Reset to configuration tab when modal opens
+      setActiveTab('configuration');
+      
+      // Set output schema from upstream nodes
+      if (outputSchema && outputSchema.length > 0) {
+        setSchema({
+          source: 'upstream',
+          columns: outputSchema
+        });
+      } else {
+        setSchema(null);
+      }
     }
-  }, [isOpen, projectId]);
+  }, [isOpen, projectId, outputSchema]);
   
   const fetchConnections = async () => {
     try {
@@ -112,6 +126,9 @@ const TargetRulesModal = ({ isOpen, onClose, onSave, initialConfig = {}, project
   
   if (!isOpen) return null;
   
+  // Show schema tab if schema is available
+  const showSchemaTab = schema !== null;
+  
   return (
     <div className="vm-modal-overlay" onClick={onClose}>
       <div className="vm-modal vm-modal-large" onClick={(e) => e.stopPropagation()}>
@@ -120,7 +137,28 @@ const TargetRulesModal = ({ isOpen, onClose, onSave, initialConfig = {}, project
           <button onClick={onClose} className="vm-modal-close">×</button>
         </div>
         
-        <div className="vm-modal-body vm-modal-body-scroll">
+        {/* Tab Navigation */}
+        <div className="vm-tabs">
+          <button 
+            className={`vm-tab ${activeTab === 'configuration' ? 'vm-tab-active' : ''}`}
+            onClick={() => setActiveTab('configuration')}
+          >
+            Configuration
+          </button>
+          {showSchemaTab && (
+            <button 
+              className={`vm-tab ${activeTab === 'schema' ? 'vm-tab-active' : ''}`}
+              onClick={() => setActiveTab('schema')}
+            >
+              Output Schema
+            </button>
+          )}
+        </div>
+        
+        <div className="vm-modal-body">
+          {/* Configuration Tab */}
+          {activeTab === 'configuration' && (
+          <div className="vm-modal-body-scroll">
           <h3 className="vm-section-title">Target Destination</h3>
           
           {/* Target Connection - Full Width */}
@@ -268,6 +306,75 @@ const TargetRulesModal = ({ isOpen, onClose, onSave, initialConfig = {}, project
               Enable anomaly detection for numeric deviation, row count, and null spikes
             </label>
           </div>
+          </div>
+          )}
+          
+          {/* Schema Tab */}
+          {activeTab === 'schema' && (
+            <div className="vm-schema-container">
+              {schema ? (
+                <>
+                  <div className="vm-schema-meta">
+                    <div className="vm-schema-meta-row">
+                      <span className="vm-schema-label">Source:</span>
+                      <span className="vm-schema-value">Output from Upstream Nodes</span>
+                    </div>
+                    <div className="vm-schema-meta-row">
+                      <span className="vm-schema-label">Total Columns:</span>
+                      <span className="vm-schema-value">{schema.columns.length}</span>
+                    </div>
+                  </div>
+                  
+                  <div className="vm-schema-table-container">
+                    <table className="vm-schema-table">
+                      <thead>
+                        <tr>
+                          <th>#</th>
+                          <th>Column Name</th>
+                          <th>Data Type</th>
+                          <th>PII</th>
+                          <th>Description</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {schema.columns && schema.columns.length > 0 ? (
+                          schema.columns.map((col, idx) => {
+                            const isPII = col.contains_pii || col.pii || false;
+                            return (
+                              <tr key={idx}>
+                                <td>{idx + 1}</td>
+                                <td className="vm-schema-col-name">{col.name}</td>
+                                <td className="vm-schema-col-type">{col.type || 'unknown'}</td>
+                                <td className="vm-schema-col-pii">
+                                  <span className={`vm-pii-indicator ${isPII ? 'vm-pii-yes' : 'vm-pii-no'}`}>
+                                    {isPII ? 'Yes' : 'No'}
+                                  </span>
+                                </td>
+                                <td className="vm-schema-col-desc">{col.description || '—'}</td>
+                              </tr>
+                            );
+                          })
+                        ) : (
+                          <tr>
+                            <td colSpan="5" style={{ textAlign: 'center', color: '#9ca3af', fontStyle: 'italic' }}>
+                              No columns in schema
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                  
+                  <div className="vm-schema-note">
+                    <strong>Note:</strong> This schema represents the data structure that will be written to the target. 
+                    It is determined by transformations applied in upstream nodes (Source Configuration, Expressions, RDM Lookups).
+                  </div>
+                </>
+              ) : (
+                <div className="vm-empty-state">No schema available from upstream nodes</div>
+              )}
+            </div>
+          )}
         </div>
         
         <div className="vm-modal-footer">

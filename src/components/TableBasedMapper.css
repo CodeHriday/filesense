@@ -855,6 +855,17 @@
   width: 100%;
 }
 
+/* Reset all inherited styles for expression editor surface */
+.expression-editor-surface {
+  all: unset;
+  font: 400 10px/1.5 'Consolas', 'Monaco', 'Courier New', monospace;
+  letter-spacing: normal;
+  word-spacing: normal;
+  text-transform: none;
+  font-variant-ligatures: none;
+  box-sizing: border-box;
+}
+
 .expression-highlight-layer {
   position: absolute;
   top: 0;
@@ -865,11 +876,6 @@
   margin: 0;
   border: 1px solid #d1d5db;
   border-radius: 6px;
-  font-family: 'Consolas', 'Monaco', 'Courier New', monospace !important;
-  font-size: 10px !important;
-  line-height: 1.5 !important;
-  letter-spacing: 0 !important;
-  word-spacing: 0 !important;
   white-space: pre-wrap;
   word-wrap: break-word;
   pointer-events: none;
@@ -892,11 +898,6 @@
   margin: 0;
   border: 1px solid #d1d5db;
   border-radius: 6px;
-  font-family: 'Consolas', 'Monaco', 'Courier New', monospace !important;
-  font-size: 10px !important;
-  line-height: 1.5 !important;
-  letter-spacing: 0 !important;
-  word-spacing: 0 !important;
   resize: vertical;
   transition: border-color 0.15s;
   background: transparent;

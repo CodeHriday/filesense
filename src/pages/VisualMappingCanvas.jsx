@@ -898,6 +898,7 @@ const VisualMappingCanvasContent = () => {
           onSave={handleSaveNodeConfig}
           initialConfig={getCurrentNodeConfig()}
           projectId={projectId}
+          outputSchema={getCumulativeSchema()}
         />
       )}
     </div>
