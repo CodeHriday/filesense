@@ -206,10 +206,12 @@ class VisualWorkflowExecutor {
         case 'transformation_mapping':
         case 'mapping':
         case 'job':
+        case 'mapping_job': // Backward compatibility
           result = await this.executeMapping(assetId);
           break;
         
         case 'mapping_group':
+        case 'job_group': // Backward compatibility
           result = await this.executeMappingGroup(assetId);
           break;
         

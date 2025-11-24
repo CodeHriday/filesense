@@ -3,6 +3,7 @@ const { systemLogger } = require('../utils/logger');
 const { executeTransformationJob } = require('./jobExecutionEngine');
 const { executeMappingGroup } = require('./mappingGroupExecutionEngine');
 const { executeNStepWorkflow } = require('./nStepWorkflowExecutionEngine');
+const VisualWorkflowExecutor = require('./visualWorkflowExecutor');
 const parser = require('cron-parser');
 const alertAggregationWorker = require('./AlertAggregationWorker');
 
@@ -406,11 +407,27 @@ async function processDueSchedules() {
             { scheduleId: schedule.id }
           );
         } else if (schedule.entity_type === 'workflow') {
-          executionResult = await executeNStepWorkflow(
-            parseInt(schedule.entity_id),
-            userId,
-            { scheduleId: schedule.id }
+          // Check if it's a visual workflow or n-step workflow
+          const workflowIdInt = parseInt(schedule.entity_id);
+          
+          // Try to load as visual workflow first
+          const visualWorkflowCheck = await pool.query(
+            'SELECT id FROM visual_workflows WHERE id = $1 AND is_active = true',
+            [workflowIdInt]
           );
+          
+          if (visualWorkflowCheck.rows.length > 0) {
+            // Execute as visual workflow
+            const visualExecutor = new VisualWorkflowExecutor(workflowIdInt, userId);
+            executionResult = await visualExecutor.execute();
+          } else {
+            // Execute as n-step workflow
+            executionResult = await executeNStepWorkflow(
+              workflowIdInt,
+              userId,
+              { scheduleId: schedule.id }
+            );
+          }
         } else if (schedule.entity_type === 'bulk_profiling_job') {
           // Start the bulk profiling job
           executionResult = await bulkProfilingService.startJob(
