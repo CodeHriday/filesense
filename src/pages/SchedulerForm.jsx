@@ -134,20 +134,24 @@ const SchedulerForm = () => {
     try {
       const response = await axios.get(`/api/schedules/${scheduleId}`);
       
-      // Auto-populate project_id from the entity if not set
+      // Auto-populate project_id and sub_project_id from the entity if not set
       let projectId = response.data.project_id || '';
+      let subProjectId = response.data.sub_project_id || '';
       
       // If project_id is missing, derive it from the entity using the provided entityData
       if (!projectId && response.data.entity_id && response.data.entity_type && entityData) {
         if (response.data.entity_type === 'mapping') {
           const mapping = entityData.mappings.find(t => String(t.mapping_id) === String(response.data.entity_id));
           projectId = mapping?.project_id || '';
+          subProjectId = mapping?.sub_project_id || '';
         } else if (response.data.entity_type === 'mapping_group') {
           const group = entityData.groups.find(g => String(g.id) === String(response.data.entity_id));
           projectId = group?.project_id || '';
+          subProjectId = group?.sub_project_id || '';
         } else if (response.data.entity_type === 'workflow') {
           const workflow = entityData.workflows.find(w => String(w.id) === String(response.data.entity_id));
           projectId = workflow?.project_id || '';
+          subProjectId = workflow?.sub_project_id || '';
         }
       }
       
@@ -155,6 +159,7 @@ const SchedulerForm = () => {
         entity_type: response.data.entity_type,
         entity_id: response.data.entity_id,
         project_id: projectId,
+        sub_project_id: subProjectId,
         schedule_type: response.data.schedule_type,
         cron_expression: response.data.cron_expression || '0 0 * * *',
         interval_value: response.data.interval_value || 1,
@@ -321,22 +326,26 @@ const SchedulerForm = () => {
                     const value = e.target.value;
                     console.log('Entity selected:', { value, type: typeof value, entityOptions: getEntityOptions() });
                     
-                    // Auto-populate project_id based on selected entity
+                    // Auto-populate project_id and sub_project_id based on selected entity
                     let projectId = '';
+                    let subProjectId = '';
                     if (value) {
                       if (formData.entity_type === 'mapping') {
                         const mapping = transformations.find(t => String(t.mapping_id) === String(value));
                         projectId = mapping?.project_id || '';
+                        subProjectId = mapping?.sub_project_id || '';
                       } else if (formData.entity_type === 'mapping_group') {
                         const group = mappingGroups.find(g => String(g.id) === String(value));
                         projectId = group?.project_id || '';
+                        subProjectId = group?.sub_project_id || '';
                       } else if (formData.entity_type === 'workflow') {
                         const workflow = workflows.find(w => String(w.id) === String(value));
                         projectId = workflow?.project_id || '';
+                        subProjectId = workflow?.sub_project_id || '';
                       }
                     }
                     
-                    setFormData({ ...formData, entity_id: value, project_id: projectId });
+                    setFormData({ ...formData, entity_id: value, project_id: projectId, sub_project_id: subProjectId });
                   }}
                   required
                   className="form-select"
