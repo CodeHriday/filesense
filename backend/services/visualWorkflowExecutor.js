@@ -185,17 +185,25 @@ class VisualWorkflowExecutor {
 
     if (!assetId) {
       const error = `Node ${node.id} missing asset ID`;
-      systemLogger.error(error, { node });
+      systemLogger.error('Node validation failed', { 
+        workflowId: this.workflowId,
+        nodeId: node.id,
+        error,
+        nodeData: data,
+        nodeType: type
+      });
       this.executionErrors.set(node.id, error);
       return;
     }
 
     try {
-      systemLogger.info('Executing node', {
+      systemLogger.info('Starting node execution', {
+        workflowId: this.workflowId,
         nodeId: node.id,
         type,
         assetType,
-        assetId
+        assetId,
+        label: data?.label
       });
 
       let result;
@@ -208,41 +216,57 @@ class VisualWorkflowExecutor {
         case 'mapping':
         case 'job':
         case 'mapping_job': // Backward compatibility
+          systemLogger.debug('Executing mapping node', { nodeId: node.id, mappingId: assetId });
           result = await this.executeMapping(assetId);
           break;
         
         case 'mapping_group':
         case 'job_group': // Backward compatibility
+          systemLogger.debug('Executing mapping group node', { nodeId: node.id, groupId: assetId });
           result = await this.executeMappingGroup(assetId);
           break;
         
         case 'workflow':
+          systemLogger.debug('Executing workflow node', { nodeId: node.id, workflowId: assetId });
           result = await this.executeWorkflow(assetId);
           break;
         
         default:
-          throw new Error(`Unknown node type: ${nodeType}`);
+          throw new Error(`Unknown node type: ${nodeType}. Supported types: transformation_mapping, mapping, job, mapping_job, mapping_group, job_group, workflow`);
       }
 
       this.executionResults.set(node.id, result);
 
-      systemLogger.info('Node execution completed', {
+      systemLogger.info('Node execution completed successfully', {
+        workflowId: this.workflowId,
         nodeId: node.id,
         type,
         assetType,
         assetId,
-        success: result.success
+        label: data?.label,
+        success: result.success,
+        resultType: result.type
       });
 
     } catch (error) {
-      systemLogger.error('Node execution failed', {
+      systemLogger.error('Node execution failed with error', {
+        workflowId: this.workflowId,
         nodeId: node.id,
         type,
         assetType,
         assetId,
-        error: error.message
+        label: data?.label,
+        error: error.message,
+        errorStack: error.stack,
+        errorName: error.name
       });
-      this.executionErrors.set(node.id, error.message);
+      this.executionErrors.set(node.id, {
+        message: error.message,
+        stack: error.stack,
+        nodeId: node.id,
+        assetId,
+        assetType
+      });
     }
   }
 
