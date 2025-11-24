@@ -6,15 +6,21 @@ const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
   const [connectionId, setConnectionId] = useState(initialConfig.connectionId || '');
   const [filePath, setFilePath] = useState(initialConfig.filePath || '');
   const [filePattern, setFilePattern] = useState(initialConfig.filePattern || '*.csv');
+  const [vendorAgreementId, setVendorAgreementId] = useState(initialConfig.vendorAgreementId || '');
+  const [sourceFileOwnerId, setSourceFileOwnerId] = useState(initialConfig.sourceFileOwnerId || '');
   const [schemaDriftHandling, setSchemaDriftHandling] = useState(initialConfig.schemaDriftHandling || 'none');
   
   const [connections, setConnections] = useState([]);
+  const [vendorAgreements, setVendorAgreements] = useState([]);
+  const [datastewards, setDatastewards] = useState([]);
   const [loading, setLoading] = useState(false);
   const [matchingFiles, setMatchingFiles] = useState([]);
   
   useEffect(() => {
     if (isOpen) {
       fetchConnections();
+      fetchVendorAgreements();
+      fetchDatastewards();
     }
   }, [isOpen]);
   
@@ -22,14 +28,42 @@ const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
     setLoading(true);
     try {
       const response = await axios.get('/api/connections');
-      setConnections(response.data.filter(c => 
-        ['s3', 'gcs', 'azure', 'local'].includes(c.connection_type?.toLowerCase())
-      ));
+      // Show all connections, no filtering
+      setConnections(response.data || []);
     } catch (error) {
       console.error('Error fetching connections:', error);
     } finally {
       setLoading(false);
     }
+  };
+  
+  const fetchVendorAgreements = async () => {
+    try {
+      const response = await axios.get('/api/vendor-agreements?status=active');
+      setVendorAgreements(response.data || []);
+    } catch (error) {
+      console.error('Error fetching vendor agreements:', error);
+    }
+  };
+  
+  const fetchDatastewards = async () => {
+    try {
+      const response = await axios.get('/api/users/data-stewards');
+      setDatastewards(response.data || []);
+    } catch (error) {
+      console.error('Error fetching data stewards:', error);
+    }
+  };
+  
+  const handleBrowse = async () => {
+    if (!connectionId) {
+      alert('Please select a connection first');
+      return;
+    }
+    
+    // This would open a file browser dialog
+    // For now, we'll just trigger the validate files function
+    validateFiles();
   };
   
   const validateFiles = async () => {
@@ -53,12 +87,19 @@ const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
   
   const handleSave = () => {
     const selectedConnection = connections.find(c => c.id === parseInt(connectionId));
+    const selectedAgreement = vendorAgreements.find(va => va.id === parseInt(vendorAgreementId));
+    const selectedOwner = datastewards.find(ds => ds.id === parseInt(sourceFileOwnerId));
+    
     const config = {
       connectionId,
       connectionName: selectedConnection?.name || '',
       connectionType: selectedConnection?.connection_type || '',
       filePath,
       filePattern,
+      vendorAgreementId,
+      vendorAgreementName: selectedAgreement?.agreement_name || '',
+      sourceFileOwnerId,
+      sourceFileOwnerName: selectedOwner?.full_name || selectedOwner?.username || '',
       schemaDriftHandling,
       matchingFilesCount: matchingFiles.length
     };
@@ -94,30 +135,64 @@ const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
           </div>
           
           <div className="vm-form-group">
-            <label>File Path *</label>
-            <input
-              type="text"
-              value={filePath}
-              onChange={(e) => setFilePath(e.target.value)}
-              placeholder="e.g., /data/raw/"
-              className="vm-input"
-            />
-            <small className="vm-help-text">
-              Path to the directory containing source files
-            </small>
+            <label>Vendor Contract</label>
+            <select
+              value={vendorAgreementId}
+              onChange={(e) => setVendorAgreementId(e.target.value)}
+              className="vm-select"
+            >
+              <option value="">Select Vendor Agreement (Optional)</option>
+              {vendorAgreements.map(va => (
+                <option key={va.id} value={va.id}>
+                  {va.agreement_name} - {va.vendor_name}
+                </option>
+              ))}
+            </select>
           </div>
           
           <div className="vm-form-group">
-            <label>File Name Pattern *</label>
-            <input
-              type="text"
-              value={filePattern}
-              onChange={(e) => setFilePattern(e.target.value)}
-              placeholder="e.g., *.csv, sales_*.parquet"
-              className="vm-input"
-            />
+            <label>Source File Owner</label>
+            <select
+              value={sourceFileOwnerId}
+              onChange={(e) => setSourceFileOwnerId(e.target.value)}
+              className="vm-select"
+            >
+              <option value="">Select File Owner (Optional)</option>
+              {datastewards.map(ds => (
+                <option key={ds.id} value={ds.id}>
+                  {ds.full_name || ds.username}
+                </option>
+              ))}
+            </select>
+          </div>
+          
+          <div className="vm-form-group">
+            <label>File Path, Name Pattern and Browse</label>
+            <div className="vm-file-path-row">
+              <input
+                type="text"
+                value={filePath}
+                onChange={(e) => setFilePath(e.target.value)}
+                placeholder="e.g., /data/raw/"
+                className="vm-input vm-input-file-path"
+              />
+              <input
+                type="text"
+                value={filePattern}
+                onChange={(e) => setFilePattern(e.target.value)}
+                placeholder="*.csv"
+                className="vm-input vm-input-file-pattern"
+              />
+              <button 
+                onClick={handleBrowse}
+                disabled={!connectionId || loading}
+                className="vm-btn vm-btn-browse"
+              >
+                Browse
+              </button>
+            </div>
             <small className="vm-help-text">
-              Use wildcards (*) to match multiple files
+              Path to the directory containing source files
             </small>
           </div>
           
@@ -137,20 +212,13 @@ const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
             </small>
           </div>
           
-          <div className="vm-form-actions">
-            <button 
-              onClick={validateFiles} 
-              disabled={!connectionId || !filePath || !filePattern || loading}
-              className="vm-btn vm-btn-secondary"
-            >
-              {loading ? 'Validating...' : 'Validate Files'}
-            </button>
-            {matchingFiles.length > 0 && (
+          {matchingFiles.length > 0 && (
+            <div className="vm-form-actions">
               <span className="vm-validation-success">
                 ✓ Found {matchingFiles.length} matching file(s)
               </span>
-            )}
-          </div>
+            </div>
+          )}
           
           {matchingFiles.length > 0 && (
             <div className="vm-matching-files">
