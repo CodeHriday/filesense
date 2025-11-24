@@ -715,7 +715,7 @@ router.get('/:id/files', checkAgreementAccess, async (req, res) => {
   try {
     const agreementId = parseInt(req.params.id);
     
-    const pool = require('../services/db');
+    const pool = require('../db');
     const result = await pool.query(
       `SELECT id, vendor_agreement_id, file_name_pattern as file_name, file_description, 
               schema, contains_pii, data_classification, file_type, quality_rule_ids, created_at
