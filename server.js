@@ -3622,6 +3622,10 @@ app.get('/api/alerts/history', authenticateToken, async (req, res) => {
 const connectionRoutes = require('./backend/routes/connectionRoutes');
 app.use('/api/connections', authenticateToken, connectionRoutes);
 
+// Connection browse routes
+const connectionBrowseRoutes = require('./backend/routes/connectionBrowse');
+app.use('/api/connections', authenticateToken, connectionBrowseRoutes);
+
 // Cache routes
 const cacheRoutes = require('./backend/routes/cacheRoutes');
 app.use('/api/cache', cacheRoutes);

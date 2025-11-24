@@ -411,3 +411,145 @@
   background: linear-gradient(0deg, #025043 0%, #025043 100%);
   color: white;
 }
+
+/* File Browser Modal Styles */
+.vm-file-browser-modal {
+  max-width: 800px;
+}
+
+.vm-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px;
+  background: #f8f9fa;
+  border-radius: 4px;
+  margin-bottom: 12px;
+  font-family: 'Inter', sans-serif;
+  font-size: 10px;
+}
+
+.vm-breadcrumb-item {
+  background: none;
+  border: none;
+  color: #025043;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 3px;
+  font-family: 'Inter', sans-serif;
+  font-size: 10px;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.vm-breadcrumb-item:hover {
+  background: #e2e8f0;
+}
+
+.vm-breadcrumb-separator {
+  color: #94a3b8;
+}
+
+.vm-current-path {
+  font-family: 'Inter', sans-serif;
+  font-size: 10px;
+  color: #64748b;
+  margin-bottom: 16px;
+  padding: 8px;
+  background: #f1f5f9;
+  border-radius: 4px;
+}
+
+.vm-file-list {
+  max-height: 400px;
+  overflow-y: auto;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+}
+
+.vm-file-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: 'Inter', sans-serif;
+  font-size: 10px;
+}
+
+.vm-file-table thead {
+  position: sticky;
+  top: 0;
+  background: #f8f9fa;
+  z-index: 1;
+}
+
+.vm-file-table th {
+  text-align: left;
+  padding: 10px 12px;
+  font-weight: 700;
+  color: #025043;
+  border-bottom: 2px solid #e2e8f0;
+  text-transform: uppercase;
+  font-size: 9px;
+  letter-spacing: 0.5px;
+}
+
+.vm-file-row {
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.vm-file-row:hover {
+  background: #f8fafc;
+}
+
+.vm-file-row td {
+  padding: 10px 12px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.vm-folder-row {
+  font-weight: 600;
+}
+
+.vm-icon {
+  margin-right: 8px;
+  vertical-align: middle;
+}
+
+.vm-icon-folder {
+  color: #3b82f6;
+}
+
+.vm-icon-file {
+  color: #64748b;
+}
+
+.vm-file-name {
+  vertical-align: middle;
+}
+
+.vm-loading {
+  text-align: center;
+  padding: 40px;
+  font-family: 'Inter', sans-serif;
+  font-size: 10px;
+  color: #64748b;
+}
+
+.vm-empty-state {
+  text-align: center;
+  padding: 40px;
+  font-family: 'Inter', sans-serif;
+  font-size: 10px;
+  color: #94a3b8;
+}
+
+.vm-error-message {
+  background: #fef2f2;
+  border: 1px solid #fca5a5;
+  color: #dc2626;
+  padding: 12px;
+  border-radius: 4px;
+  margin-bottom: 16px;
+  font-family: 'Inter', sans-serif;
+  font-size: 10px;
+}

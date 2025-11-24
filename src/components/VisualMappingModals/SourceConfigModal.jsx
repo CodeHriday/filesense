@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import FileBrowserModal from './FileBrowserModal';
 import './MappingConfigModal.css';
 
 const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
@@ -17,6 +18,7 @@ const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
   const [selectedFileId, setSelectedFileId] = useState(initialConfig.agreementFileId || '');
   const [loading, setLoading] = useState(false);
   const [matchingFiles, setMatchingFiles] = useState([]);
+  const [fileBrowserOpen, setFileBrowserOpen] = useState(false);
   
   useEffect(() => {
     if (isOpen) {
@@ -162,15 +164,18 @@ const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
     }
   };
   
-  const handleBrowse = async () => {
+  const handleBrowse = () => {
     if (!connectionId) {
       alert('Please select a connection first');
       return;
     }
     
-    // This would open a file browser dialog
-    // For now, we'll just trigger the validate files function
-    validateFiles();
+    setFileBrowserOpen(true);
+  };
+  
+  const handleFileBrowserSelect = (selection) => {
+    setFilePath(selection.filePath);
+    setFilePattern(selection.fileName);
   };
   
   const validateFiles = async () => {
@@ -401,6 +406,17 @@ const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
           </button>
         </div>
       </div>
+      
+      {/* File Browser Modal */}
+      {fileBrowserOpen && (
+        <FileBrowserModal
+          isOpen={fileBrowserOpen}
+          onClose={() => setFileBrowserOpen(false)}
+          onSelect={handleFileBrowserSelect}
+          connectionId={connectionId}
+          connectionName={connections.find(c => (c.id || c.connection_id) === connectionId)?.name || 'Connection'}
+        />
+      )}
     </div>
   );
 };
