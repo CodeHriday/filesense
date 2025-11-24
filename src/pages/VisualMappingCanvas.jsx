@@ -66,7 +66,7 @@ const MappingConfigNode = ({ data }) => {
         <div className="visual-mapping-node-description">{data.description}</div>
       )}
       <button 
-        onClick={() => data.onConfigure && data.onConfigure(data.id)}
+        onClick={() => data.onConfigure && data.onConfigure(data.nodeId)}
         className="visual-mapping-node-button"
       >
         Configure
@@ -106,7 +106,7 @@ const SourceConfigNode = ({ data }) => {
         </div>
       )}
       <button 
-        onClick={() => data.onConfigure && data.onConfigure(data.id)}
+        onClick={() => data.onConfigure && data.onConfigure(data.nodeId)}
         className="visual-mapping-node-button"
       >
         Configure
@@ -147,7 +147,7 @@ const ExpressionNode = ({ data }) => {
         </div>
       )}
       <button 
-        onClick={() => data.onConfigure && data.onConfigure(data.id)}
+        onClick={() => data.onConfigure && data.onConfigure(data.nodeId)}
         className="visual-mapping-node-button"
       >
         Configure
@@ -188,7 +188,7 @@ const RdmDatasetNode = ({ data }) => {
         </div>
       )}
       <button 
-        onClick={() => data.onConfigure && data.onConfigure(data.id)}
+        onClick={() => data.onConfigure && data.onConfigure(data.nodeId)}
         className="visual-mapping-node-button"
       >
         Configure
@@ -223,7 +223,7 @@ const RdmCrosswalkNode = ({ data }) => {
         </div>
       )}
       <button 
-        onClick={() => data.onConfigure && data.onConfigure(data.id)}
+        onClick={() => data.onConfigure && data.onConfigure(data.nodeId)}
         className="visual-mapping-node-button"
       >
         Configure
@@ -263,7 +263,7 @@ const TargetRulesNode = ({ data }) => {
         </div>
       )}
       <button 
-        onClick={() => data.onConfigure && data.onConfigure(data.id)}
+        onClick={() => data.onConfigure && data.onConfigure(data.nodeId)}
         className="visual-mapping-node-button"
       >
         Configure
