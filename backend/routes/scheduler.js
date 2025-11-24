@@ -26,8 +26,12 @@ async function getEntityProjectId(entity_type, entity_id) {
       query = 'SELECT project_id FROM mapping_groups WHERE id = $1';
       break;
     case 'workflow':
-      table = 'n_step_workflows';
-      query = 'SELECT project_id FROM n_step_workflows WHERE id = $1';
+      // Check both n_step_workflows and visual_workflows
+      query = `
+        SELECT project_id FROM n_step_workflows WHERE id = $1
+        UNION ALL
+        SELECT project_id FROM visual_workflows WHERE id = $1
+      `;
       break;
     case 'vendor_agreement_expiration':
       return null;
@@ -257,13 +261,14 @@ router.get('/', async (req, res) => {
              CASE 
                WHEN s.entity_type = 'mapping' THEN tm.mapping_name
                WHEN s.entity_type = 'mapping_group' THEN mg.name
-               WHEN s.entity_type = 'workflow' THEN nw.name
+               WHEN s.entity_type = 'workflow' THEN COALESCE(nw.name, vw.name)
              END as entity_name,
              p.name as project_name
       FROM schedules s
       LEFT JOIN transformation_mappings tm ON s.entity_type = 'mapping' AND s.entity_id = tm.mapping_id
       LEFT JOIN mapping_groups mg ON s.entity_type = 'mapping_group' AND s.entity_id = CAST(mg.id AS TEXT)
       LEFT JOIN n_step_workflows nw ON s.entity_type = 'workflow' AND s.entity_id = CAST(nw.id AS TEXT)
+      LEFT JOIN visual_workflows vw ON s.entity_type = 'workflow' AND s.entity_id = CAST(vw.id AS TEXT)
       LEFT JOIN projects p ON s.project_id = p.id
     `;
     
@@ -404,12 +409,13 @@ router.get('/:id', async (req, res) => {
              CASE 
                WHEN s.entity_type = 'mapping' THEN tm.mapping_name
                WHEN s.entity_type = 'mapping_group' THEN mg.name
-               WHEN s.entity_type = 'workflow' THEN nw.name
+               WHEN s.entity_type = 'workflow' THEN COALESCE(nw.name, vw.name)
              END as entity_name
       FROM schedules s
       LEFT JOIN transformation_mappings tm ON s.entity_type = 'mapping' AND s.entity_id = tm.mapping_id
       LEFT JOIN mapping_groups mg ON s.entity_type = 'mapping_group' AND s.entity_id = CAST(mg.id AS TEXT)
       LEFT JOIN n_step_workflows nw ON s.entity_type = 'workflow' AND s.entity_id = CAST(nw.id AS TEXT)
+      LEFT JOIN visual_workflows vw ON s.entity_type = 'workflow' AND s.entity_id = CAST(vw.id AS TEXT)
       WHERE s.id = $1
     `, [id]);
     

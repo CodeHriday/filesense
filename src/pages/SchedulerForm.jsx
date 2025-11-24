@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams, useLocation } from 'react-router-dom';
 import { FiSave, FiX } from 'react-icons/fi';
 import PageHeader from '../components/PageHeader';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -8,6 +8,7 @@ import axios from 'axios';
 
 const SchedulerForm = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { scheduleId } = useParams();
   const [searchParams] = useSearchParams();
   const isEdit = !!scheduleId;
@@ -16,10 +17,14 @@ const SchedulerForm = () => {
   const preSelectedType = searchParams.get('type');
   const preSelectedId = searchParams.get('id');
 
+  // Get location state for pre-population from workflow builder
+  const workflowContext = location.state || {};
+
   const [formData, setFormData] = useState({
-    entity_type: preSelectedType || 'mapping',
-    entity_id: preSelectedId || '',
-    project_id: '',
+    entity_type: workflowContext.entityType || preSelectedType || 'mapping',
+    entity_id: workflowContext.entityId || preSelectedId || '',
+    project_id: workflowContext.projectId || '',
+    sub_project_id: workflowContext.subProjectId || '',
     schedule_type: 'cron',
     cron_expression: '0 0 * * *',
     interval_value: 1,
@@ -46,32 +51,47 @@ const SchedulerForm = () => {
 
   const fetchData = async () => {
     try {
-      const [transformationsData, groupsData, workflowsData, projectsData] = await Promise.all([
+      const [transformationsData, groupsData, workflowsData, visualWorkflowsData, projectsData] = await Promise.all([
         axios.get('/api/transformations'),
         axios.get('/api/mapping-groups'),
         axios.get('/api/n-step-workflows'),
+        axios.get('/api/visual-workflows'),
         axios.get('/api/projects')
       ]);
       
       const mappings = transformationsData.data.mappings || [];
       const groups = groupsData.data.groups || [];
-      const workflows = workflowsData.data.workflows || [];
+      const nStepWorkflows = workflowsData.data.workflows || [];
+      const visualWorkflows = visualWorkflowsData.data || [];
       const projects = projectsData.data || [];
+      
+      // Combine both types of workflows
+      const allWorkflows = [
+        ...nStepWorkflows,
+        ...visualWorkflows.map(vw => ({
+          id: vw.id,
+          name: vw.name,
+          project_id: vw.project_id,
+          sub_project_id: vw.sub_project_id,
+          isVisualWorkflow: true
+        }))
+      ];
       
       console.log('Scheduler Form - Data loaded:', {
         transformations: mappings.length,
         mappingGroups: groups.length,
-        workflows: workflows.length,
-        projects: projects.length,
-        workflowSample: workflows[0]
+        nStepWorkflows: nStepWorkflows.length,
+        visualWorkflows: visualWorkflows.length,
+        totalWorkflows: allWorkflows.length,
+        projects: projects.length
       });
       
       setTransformations(mappings);
       setMappingGroups(groups);
-      setWorkflows(workflows);
+      setWorkflows(allWorkflows);
       setProjects(projects);
       
-      if (mappings.length === 0 && groups.length === 0 && workflows.length === 0) {
+      if (mappings.length === 0 && groups.length === 0 && allWorkflows.length === 0) {
         setError('No entities available. Please create a transformation, mapping group, or workflow first.');
       }
       
@@ -79,7 +99,7 @@ const SchedulerForm = () => {
       return {
         mappings,
         groups,
-        workflows,
+        workflows: allWorkflows,
         projects
       };
     } catch (err) {

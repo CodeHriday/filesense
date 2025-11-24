@@ -773,7 +773,15 @@ const WorkflowBuilderContent = () => {
                     className="workflow-builder-btn workflow-builder-btn-primary"
                     onClick={() => {
                       setShowScheduleModal(false);
-                      navigate('/scheduler');
+                      navigate('/etl-scheduler/create', {
+                        state: {
+                          entityType: 'Workflow',
+                          entityId: workflowId,
+                          entityName: workflowName,
+                          projectId: projectId,
+                          subProjectId: subProjectId
+                        }
+                      });
                     }}
                   >
                     <FaClock style={{ marginRight: '6px' }} />
