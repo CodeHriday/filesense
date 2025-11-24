@@ -429,27 +429,20 @@ const VisualMappingCanvasContent = () => {
   
   const onConnect = useCallback((params) => setEdges((eds) => addEdge(params, eds)), [setEdges]);
   
+  // Use ref to avoid stale closure in node event handlers
+  const nodesRef = useRef(nodes);
+  useEffect(() => {
+    nodesRef.current = nodes;
+  }, [nodes]);
+  
   const handleNodeConfigure = useCallback((nodeId) => {
-    const node = nodes.find(n => n.id === nodeId);
+    const node = nodesRef.current.find(n => n.id === nodeId);
     if (node) {
       setConfigNodeId(nodeId);
       setConfigNodeType(node.type);
       setConfigModalOpen(true);
     }
-  }, [nodes]);
-  
-  // Update all nodes with the latest handleNodeConfigure reference
-  useEffect(() => {
-    setNodes((nds) =>
-      nds.map((node) => ({
-        ...node,
-        data: {
-          ...node.data,
-          onConfigure: handleNodeConfigure
-        }
-      }))
-    );
-  }, [handleNodeConfigure, setNodes]);
+  }, []);
   
   const handleSaveNodeConfig = useCallback((config) => {
     setNodes((nds) =>
