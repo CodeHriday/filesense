@@ -94,6 +94,10 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
   const expressionTextareaRef = useRef(null);
   const editExpressionTextareaRef = useRef(null);
   
+  // Cursor positioning state - tracks where cursor should be placed after React updates DOM
+  const [pendingCursorPos, setPendingCursorPos] = useState(null);
+  const [pendingEditCursorPos, setPendingEditCursorPos] = useState(null);
+  
   // PII tagging state
   const [piiColumns, setPiiColumns] = useState(new Set(initialPiiColumns || []));
 
