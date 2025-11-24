@@ -744,7 +744,7 @@ const VisualMappingCanvasContent = () => {
                         className="visual-mapping-select"
                       >
                         <option value="">None</option>
-                        {subProjects.map(sp => (
+                        {Array.isArray(subProjects) && subProjects.map(sp => (
                           <option key={sp.id} value={sp.id}>{sp.name}</option>
                         ))}
                       </select>
