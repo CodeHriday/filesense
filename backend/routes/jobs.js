@@ -90,7 +90,7 @@ router.get('/', async (req, res) => {
       SELECT 
         tj.*,
         mg.name as mapping_group_name,
-        nw.name as workflow_name,
+        COALESCE(nw.name, vw.name) as workflow_name,
         s.id as schedule_id,
         s.schedule_name,
         s.schedule_type,
@@ -106,6 +106,8 @@ router.get('/', async (req, res) => {
       LEFT JOIN mapping_groups mg ON mge.group_id = mg.id
       LEFT JOIN n_step_workflow_runs nwr ON tj.workflow_execution_id = nwr.id
       LEFT JOIN n_step_workflows nw ON nwr.workflow_id = nw.id
+      LEFT JOIN visual_workflow_executions vwe ON tj.visual_workflow_execution_id = vwe.id
+      LEFT JOIN visual_workflows vw ON vwe.workflow_id = vw.id
       LEFT JOIN schedules s ON tj.schedule_id = s.id
       WHERE 1=1
     `;
