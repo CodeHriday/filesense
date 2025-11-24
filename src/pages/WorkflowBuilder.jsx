@@ -289,12 +289,12 @@ const WorkflowBuilderContent = () => {
         nodeId = `job-${assetData.mapping_id}-${Date.now()}`;
         nodeLabel = assetData.mapping_name;
         assetId = assetData.mapping_id;
-        assetType = 'mapping_job';
+        assetType = 'job'; // Use 'job' for backend executor compatibility
       } else if (assetData.assetType === 'job_group') {
         nodeId = `group-${assetData.id}-${Date.now()}`;
         nodeLabel = assetData.name;
         assetId = assetData.id;
-        assetType = 'job_group';
+        assetType = 'mapping_group'; // Use 'mapping_group' for backend executor compatibility
       } else if (assetData.assetType === 'workflow') {
         nodeId = `workflow-${assetData.id}-${Date.now()}`;
         nodeLabel = assetData.name;
