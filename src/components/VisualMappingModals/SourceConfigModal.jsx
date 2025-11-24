@@ -24,14 +24,40 @@ const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
     }
   }, [isOpen]);
   
+  // Auto-populate when vendor agreement is selected
+  useEffect(() => {
+    if (vendorAgreementId && vendorAgreements.length > 0) {
+      const agreement = vendorAgreements.find(va => va.id === parseInt(vendorAgreementId));
+      if (agreement) {
+        // Auto-populate connection, file path, file pattern, and file owner
+        if (agreement.vendor_connection_id) {
+          setConnectionId(agreement.vendor_connection_id);
+        }
+        if (agreement.drop_location_path) {
+          setFilePath(agreement.drop_location_path);
+        }
+        if (agreement.file_name) {
+          setFilePattern(agreement.file_name);
+        }
+        if (agreement.file_owner_user_id) {
+          setSourceFileOwnerId(String(agreement.file_owner_user_id));
+        }
+      }
+    }
+  }, [vendorAgreementId, vendorAgreements]);
+  
   const fetchConnections = async () => {
     setLoading(true);
     try {
       const response = await axios.get('/api/connections');
-      // Show all connections, no filtering
-      setConnections(response.data || []);
+      // Filter to only show source connections
+      const sourceConnections = (response.data || []).filter(
+        conn => !conn.connection_direction || conn.connection_direction === 'source'
+      );
+      setConnections(sourceConnections);
     } catch (error) {
       console.error('Error fetching connections:', error);
+      setConnections([]);
     } finally {
       setLoading(false);
     }
@@ -90,18 +116,18 @@ const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
   };
   
   const handleSave = () => {
-    const selectedConnection = connections.find(c => c.id === parseInt(connectionId));
+    const selectedConnection = connections.find(c => c.id === connectionId || c.connection_id === connectionId);
     const selectedAgreement = vendorAgreements.find(va => va.id === parseInt(vendorAgreementId));
     const selectedOwner = datastewards.find(ds => ds.id === parseInt(sourceFileOwnerId));
     
     const config = {
       connectionId,
       connectionName: selectedConnection?.name || '',
-      connectionType: selectedConnection?.connection_type || '',
+      connectionType: selectedConnection?.connection_type || selectedConnection?.type || '',
       filePath,
       filePattern,
       vendorAgreementId,
-      vendorAgreementName: selectedAgreement?.agreement_name || '',
+      vendorAgreementName: selectedAgreement?.agreement_name || selectedAgreement?.agreement_code || '',
       sourceFileOwnerId,
       sourceFileOwnerName: selectedOwner?.full_name || selectedOwner?.username || '',
       schemaDriftHandling,
@@ -122,6 +148,42 @@ const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
         </div>
         
         <div className="vm-modal-body">
+          {/* Row 1: Vendor Contract and Source File Owner (side by side) */}
+          <div className="vm-form-row-two-cols">
+            <div className="vm-form-group">
+              <label>Vendor Contract</label>
+              <select
+                value={vendorAgreementId}
+                onChange={(e) => setVendorAgreementId(e.target.value)}
+                className="vm-select"
+              >
+                <option value="">Select Vendor Contract (Optional)</option>
+                {vendorAgreements.map(va => (
+                  <option key={va.id} value={va.id}>
+                    {va.vendor_name} - {va.agreement_code || va.agreement_name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            
+            <div className="vm-form-group">
+              <label>Source File Owner</label>
+              <select
+                value={sourceFileOwnerId}
+                onChange={(e) => setSourceFileOwnerId(e.target.value)}
+                className="vm-select"
+              >
+                <option value="">Select File Owner (Optional)</option>
+                {datastewards.map(ds => (
+                  <option key={ds.id} value={ds.id}>
+                    {ds.full_name || ds.username}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+          
+          {/* Row 2: Source Connection (full width) */}
           <div className="vm-form-group">
             <label>Source Connection *</label>
             <select
@@ -131,62 +193,42 @@ const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
             >
               <option value="">Select Connection</option>
               {connections.map(c => (
-                <option key={c.id} value={c.id}>
-                  {c.name} ({c.connection_type})
+                <option key={c.id || c.connection_id} value={c.id || c.connection_id}>
+                  {c.name} ({c.connection_type || c.type})
                 </option>
               ))}
             </select>
           </div>
           
-          <div className="vm-form-group">
-            <label>Vendor Contract</label>
-            <select
-              value={vendorAgreementId}
-              onChange={(e) => setVendorAgreementId(e.target.value)}
-              className="vm-select"
-            >
-              <option value="">Select Vendor Agreement (Optional)</option>
-              {vendorAgreements.map(va => (
-                <option key={va.id} value={va.id}>
-                  {va.agreement_name} - {va.vendor_name}
-                </option>
-              ))}
-            </select>
-          </div>
-          
-          <div className="vm-form-group">
-            <label>Source File Owner</label>
-            <select
-              value={sourceFileOwnerId}
-              onChange={(e) => setSourceFileOwnerId(e.target.value)}
-              className="vm-select"
-            >
-              <option value="">Select File Owner (Optional)</option>
-              {datastewards.map(ds => (
-                <option key={ds.id} value={ds.id}>
-                  {ds.full_name || ds.username}
-                </option>
-              ))}
-            </select>
-          </div>
-          
-          <div className="vm-form-group">
-            <label>File Path, Name Pattern and Browse</label>
-            <div className="vm-file-path-row">
+          {/* Row 3: File Path, Name Pattern, and Browse (with individual labels) */}
+          <div className="vm-form-row-file-path">
+            <div className="vm-form-group vm-form-group-no-margin">
+              <label>File Path</label>
               <input
                 type="text"
                 value={filePath}
                 onChange={(e) => setFilePath(e.target.value)}
                 placeholder="e.g., /data/raw/"
-                className="vm-input vm-input-file-path"
+                className="vm-input"
               />
+              <small className="vm-help-text">
+                Path to the directory containing source files
+              </small>
+            </div>
+            
+            <div className="vm-form-group vm-form-group-no-margin">
+              <label>Name Pattern</label>
               <input
                 type="text"
                 value={filePattern}
                 onChange={(e) => setFilePattern(e.target.value)}
                 placeholder="*.csv"
-                className="vm-input vm-input-file-pattern"
+                className="vm-input"
               />
+            </div>
+            
+            <div className="vm-form-group vm-form-group-no-margin vm-form-group-browse">
+              <label>&nbsp;</label>
               <button 
                 onClick={handleBrowse}
                 disabled={!connectionId || loading}
@@ -195,11 +237,9 @@ const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
                 Browse
               </button>
             </div>
-            <small className="vm-help-text">
-              Path to the directory containing source files
-            </small>
           </div>
           
+          {/* Row 4: Schema Drift Handling (full width) */}
           <div className="vm-form-group">
             <label>Schema Drift Handling</label>
             <select

@@ -219,19 +219,29 @@
   text-transform: none;
 }
 
-/* File Path Row - Compact layout for File Path, Pattern, and Browse button */
-.vm-file-path-row {
+/* Two Column Row Layout */
+.vm-form-row-two-cols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+/* File Path Row - Three columns with individual labels */
+.vm-form-row-file-path {
+  display: grid;
+  grid-template-columns: 2fr 1fr auto;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.vm-form-group-no-margin {
+  margin-bottom: 0;
+}
+
+.vm-form-group-browse {
   display: flex;
-  gap: 8px;
-  align-items: center;
-}
-
-.vm-input-file-path {
-  flex: 2;
-}
-
-.vm-input-file-pattern {
-  flex: 1;
+  flex-direction: column;
 }
 
 .vm-btn-browse {
@@ -247,6 +257,7 @@
   cursor: pointer;
   transition: all 0.2s;
   white-space: nowrap;
+  margin-top: auto;
 }
 
 .vm-btn-browse:hover:not(:disabled) {
