@@ -384,38 +384,38 @@ const Jobs = () => {
         ) : (
           <>
             <div className="jobs-table-container">
-              <table className="jobs-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <table className="jobs-table">
                 <thead>
                   <tr>
-                    <th style={{ fontFamily: 'Inter, sans-serif', fontSize: '12px', fontWeight: '700', padding: '8px', borderBottom: '1px solid #e2e8f0' }}>Job ID</th>
-                    <th style={{ fontFamily: 'Inter, sans-serif', fontSize: '12px', fontWeight: '700', padding: '8px', borderBottom: '1px solid #e2e8f0' }}>Project</th>
-                    <th style={{ fontFamily: 'Inter, sans-serif', fontSize: '12px', fontWeight: '700', padding: '8px', borderBottom: '1px solid #e2e8f0' }}>Mapping</th>
-                    <th style={{ fontFamily: 'Inter, sans-serif', fontSize: '12px', fontWeight: '700', padding: '8px', borderBottom: '1px solid #e2e8f0' }}>Mapping Group</th>
-                    <th style={{ fontFamily: 'Inter, sans-serif', fontSize: '12px', fontWeight: '700', padding: '8px', borderBottom: '1px solid #e2e8f0' }}>Workflow</th>
-                    <th style={{ fontFamily: 'Inter, sans-serif', fontSize: '12px', fontWeight: '700', padding: '8px', borderBottom: '1px solid #e2e8f0' }}>Schedule</th>
-                    <th style={{ fontFamily: 'Inter, sans-serif', fontSize: '12px', fontWeight: '700', padding: '8px', borderBottom: '1px solid #e2e8f0' }}>Status</th>
-                    <th style={{ fontFamily: 'Inter, sans-serif', fontSize: '12px', fontWeight: '700', padding: '8px', borderBottom: '1px solid #e2e8f0' }}>Schema Validation</th>
-                    <th style={{ textAlign: 'center', fontFamily: 'Inter, sans-serif', fontSize: '12px', fontWeight: '700', padding: '8px', borderBottom: '1px solid #e2e8f0' }}>Files Processed</th>
-                    <th style={{ fontFamily: 'Inter, sans-serif', fontSize: '12px', fontWeight: '700', padding: '8px', borderBottom: '1px solid #e2e8f0' }}>Rows</th>
-                    <th style={{ fontFamily: 'Inter, sans-serif', fontSize: '12px', fontWeight: '700', padding: '8px', borderBottom: '1px solid #e2e8f0' }}>Start Time</th>
-                    <th style={{ fontFamily: 'Inter, sans-serif', fontSize: '12px', fontWeight: '700', padding: '8px', borderBottom: '1px solid #e2e8f0' }}>End Time</th>
-                    <th style={{ fontFamily: 'Inter, sans-serif', fontSize: '12px', fontWeight: '700', padding: '8px', borderBottom: '1px solid #e2e8f0' }}>Duration</th>
-                    <th style={{ fontFamily: 'Inter, sans-serif', fontSize: '12px', fontWeight: '700', padding: '8px', borderBottom: '1px solid #e2e8f0' }}>Actions</th>
+                    <th>Job ID</th>
+                    <th>Project</th>
+                    <th>Mapping</th>
+                    <th>Mapping Group</th>
+                    <th>Workflow</th>
+                    <th>Schedule</th>
+                    <th>Status</th>
+                    <th>Schema Validation</th>
+                    <th style={{ textAlign: 'center' }}>Files Processed</th>
+                    <th>Rows</th>
+                    <th>Start Time</th>
+                    <th>End Time</th>
+                    <th>Duration</th>
+                    <th>Actions</th>
                   </tr>
                 </thead>
-                <tbody style={{ fontFamily: 'Inter, sans-serif', fontSize: '10px', fontWeight: '500' }}>
+                <tbody>
                   {currentJobs.map(job => (
                     <tr key={job.job_id}>
-                      <td className="job-id-cell" style={{ padding: '6px 8px', borderBottom: '1px solid #f1f5f9' }}>
-                        <code style={{ fontSize: '10px' }}>{job.job_id}</code>
+                      <td className="job-id-cell">
+                        <code>{job.job_id}</code>
                       </td>
-                      <td style={{ padding: '6px 8px', borderBottom: '1px solid #f1f5f9' }}>{job.project_name || 'Default Project'}</td>
-                      <td style={{ padding: '6px 8px', borderBottom: '1px solid #f1f5f9' }}>{job.mapping_name}</td>
-                      <td style={{ padding: '6px 8px', borderBottom: '1px solid #f1f5f9' }}>{job.mapping_group_name || '-'}</td>
-                      <td style={{ padding: '6px 8px', borderBottom: '1px solid #f1f5f9' }}>{job.workflow_name || '-'}</td>
-                      <td style={{ padding: '6px 8px', borderBottom: '1px solid #f1f5f9' }}>{formatScheduleInfo(job)}</td>
-                      <td style={{ padding: '6px 8px', borderBottom: '1px solid #f1f5f9' }}>{getStatusBadge(job.status)}</td>
-                      <td style={{ padding: '6px 8px', borderBottom: '1px solid #f1f5f9' }}>
+                      <td>{job.project_name || 'Default Project'}</td>
+                      <td>{job.mapping_name}</td>
+                      <td>{job.mapping_group_name || '-'}</td>
+                      <td>{job.workflow_name || '-'}</td>
+                      <td>{formatScheduleInfo(job)}</td>
+                      <td>{getStatusBadge(job.status)}</td>
+                      <td>
                         {job.schema_validation ? (
                           <span 
                             style={{ 
@@ -437,8 +437,8 @@ const Jobs = () => {
                           <span style={{ color: '#94a3b8', fontSize: '10px' }}>N/A</span>
                         )}
                       </td>
-                      <td style={{ textAlign: 'center', padding: '6px 8px', borderBottom: '1px solid #f1f5f9' }}>{job.files_processed || 0}</td>
-                      <td style={{ padding: '6px 8px', borderBottom: '1px solid #f1f5f9' }}>
+                      <td style={{ textAlign: 'center' }}>{job.files_processed || 0}</td>
+                      <td>
                         {job.rows_read ? (
                           <span>
                             {job.rows_read.toLocaleString()}
@@ -446,16 +446,16 @@ const Jobs = () => {
                           </span>
                         ) : '-'}
                       </td>
-                      <td style={{ fontSize: '10px', padding: '6px 8px', borderBottom: '1px solid #f1f5f9' }}>
+                      <td>
                         {job.start_time ? formatTimestampWithMicroseconds(job.start_time) : '-'}
                       </td>
-                      <td style={{ fontSize: '10px', padding: '6px 8px', borderBottom: '1px solid #f1f5f9' }}>
+                      <td>
                         {job.end_time ? formatTimestampWithMicroseconds(job.end_time) : '-'}
                       </td>
-                      <td style={{ padding: '6px 8px', borderBottom: '1px solid #f1f5f9' }}>
+                      <td>
                         {job.duration_ms ? `${(job.duration_ms / 1000).toFixed(2)}s` : '-'}
                       </td>
-                      <td style={{ padding: '6px 8px', borderBottom: '1px solid #f1f5f9' }}>
+                      <td>
                         <div className="table-actions">
                           <button
                             className="icon-btn"
