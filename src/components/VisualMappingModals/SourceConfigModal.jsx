@@ -124,11 +124,16 @@ const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
   }, [vendorAgreementId, vendorAgreements, isOpen]);
   
   // Update file pattern when selected file changes
+  // BUT don't overwrite if we're reopening with saved data
   useEffect(() => {
     if (selectedFileId && agreementFiles.length > 0) {
       const selectedFile = agreementFiles.find(f => String(f.id) === selectedFileId);
       if (selectedFile && selectedFile.file_name) {
-        setFilePattern(selectedFile.file_name);
+        // Only update if we don't have a saved filePattern (i.e., not reopening modal)
+        // Check if current filePattern is the default or matches what we're about to set
+        if (!initialConfig.filePattern || initialConfig.filePattern === '*.csv' || filePattern === selectedFile.file_name) {
+          setFilePattern(selectedFile.file_name);
+        }
       }
     }
   }, [selectedFileId, agreementFiles]);
@@ -155,6 +160,7 @@ const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
           contains_pii: response.data.fileSchema.contains_pii,
           data_classification: response.data.fileSchema.data_classification,
           file_type: response.data.fileSchema.file_type,
+          column_metadata: response.data.fileSchema.column_metadata || {},
           source: 'agreement'
         });
       }
@@ -526,24 +532,39 @@ const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
                           <th>#</th>
                           <th>Column Name</th>
                           <th>Data Type</th>
+                          <th>PII</th>
                           {schema.source === 'agreement' && <th>Description</th>}
                         </tr>
                       </thead>
                       <tbody>
                         {schema.columns && schema.columns.length > 0 ? (
-                          schema.columns.map((col, idx) => (
-                            <tr key={idx}>
-                              <td>{idx + 1}</td>
-                              <td className="vm-schema-col-name">{col.column_name || col.name}</td>
-                              <td className="vm-schema-col-type">{col.data_type || col.type}</td>
-                              {schema.source === 'agreement' && (
-                                <td className="vm-schema-col-desc">{col.description || '-'}</td>
-                              )}
-                            </tr>
-                          ))
+                          schema.columns.map((col, idx) => {
+                            // Check if column is marked as PII
+                            // PII can be in col.contains_pii, col.is_pii, or schema.column_metadata[col.column_name]?.contains_pii
+                            const isPii = col.contains_pii || col.is_pii || 
+                              (schema.column_metadata && schema.column_metadata[col.column_name || col.name]?.contains_pii);
+                            
+                            return (
+                              <tr key={idx}>
+                                <td>{idx + 1}</td>
+                                <td className="vm-schema-col-name">{col.column_name || col.name}</td>
+                                <td className="vm-schema-col-type">{col.data_type || col.type}</td>
+                                <td className="vm-schema-col-pii">
+                                  {isPii ? (
+                                    <span className="vm-pii-indicator vm-pii-yes">Yes</span>
+                                  ) : (
+                                    <span className="vm-pii-indicator vm-pii-no">No</span>
+                                  )}
+                                </td>
+                                {schema.source === 'agreement' && (
+                                  <td className="vm-schema-col-desc">{col.description || '-'}</td>
+                                )}
+                              </tr>
+                            );
+                          })
                         ) : (
                           <tr>
-                            <td colSpan={schema.source === 'agreement' ? 4 : 3} className="vm-empty-state">
+                            <td colSpan={schema.source === 'agreement' ? 5 : 4} className="vm-empty-state">
                               No columns defined in schema
                             </td>
                           </tr>
