@@ -396,6 +396,7 @@ const VisualMappingCanvasContent = () => {
       }
       try {
         const response = await axios.get(`/api/projects/${projectId}/sub-projects`);
+        console.log('Fetched subprojects for project', projectId, ':', response.data);
         setSubProjects(response.data);
       } catch (error) {
         console.error('Error fetching subprojects:', error);
