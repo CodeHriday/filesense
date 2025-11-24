@@ -1,7 +1,8 @@
 const pool = require('../db');
 const { systemLogger } = require('../utils/logger');
-const { executeJob } = require('./jobExecutionEngine');
+const { executeTransformationJob } = require('./jobExecutionEngine');
 const { executeMappingGroup } = require('./mappingGroupExecutionEngine');
+const { executeNStepWorkflow } = require('./nStepWorkflowExecutionEngine');
 
 class VisualWorkflowExecutor {
   constructor(workflowId, userId) {
@@ -257,14 +258,17 @@ class VisualWorkflowExecutor {
 
     const mapping = mappingResult.rows[0];
     
-    const jobResult = await executeJob(mapping, this.userId);
+    // Execute transformation job with proper parameters
+    const jobResult = await executeTransformationJob(pool, mappingId, this.userId, {
+      workflowExecutionId: null  // Visual workflows don't have execution IDs yet
+    });
     
     return {
       success: true,
       type: 'mapping',
       assetId: mappingId,
-      assetName: mapping.name,
-      jobId: jobResult.jobId
+      assetName: mapping.mapping_name,
+      jobId: jobResult.job_id
     };
   }
 
@@ -292,39 +296,61 @@ class VisualWorkflowExecutor {
   }
 
   async executeWorkflow(workflowId) {
-    const workflowResult = await pool.query(
-      'SELECT * FROM workflow_steps WHERE id = $1',
+    // First, try to find it as a visual workflow
+    const visualWorkflowResult = await pool.query(
+      'SELECT * FROM visual_workflows WHERE id = $1 AND is_active = true',
       [workflowId]
     );
 
-    if (workflowResult.rows.length === 0) {
-      throw new Error(`Workflow ${workflowId} not found`);
+    if (visualWorkflowResult.rows.length > 0) {
+      // It's a visual workflow - execute it recursively
+      const visualWorkflow = visualWorkflowResult.rows[0];
+      
+      systemLogger.info('Executing nested visual workflow', {
+        parentWorkflowId: this.workflowId,
+        nestedWorkflowId: workflowId,
+        nestedWorkflowName: visualWorkflow.name
+      });
+      
+      const nestedExecutor = new VisualWorkflowExecutor(workflowId, this.userId);
+      const result = await nestedExecutor.execute();
+      
+      return {
+        success: result.success,
+        type: 'visual_workflow',
+        assetId: workflowId,
+        assetName: visualWorkflow.name,
+        nestedResult: result
+      };
     }
 
-    const workflow = workflowResult.rows[0];
-    
-    const stepsResult = await pool.query(
-      'SELECT * FROM workflow_steps WHERE workflow_id = $1 ORDER BY step_order',
+    // If not a visual workflow, try n-step workflow
+    const nStepWorkflowResult = await pool.query(
+      'SELECT * FROM workflows WHERE id = $1',
       [workflowId]
     );
-    
-    const steps = stepsResult.rows || [];
 
-    for (const step of steps) {
-      if (step.asset_type === 'mapping' && step.asset_id) {
-        await this.executeMapping(step.asset_id);
-      } else if (step.asset_type === 'mapping_group' && step.asset_id) {
-        await this.executeMappingGroup(step.asset_id);
-      }
+    if (nStepWorkflowResult.rows.length > 0) {
+      const nStepWorkflow = nStepWorkflowResult.rows[0];
+      
+      systemLogger.info('Executing nested n-step workflow', {
+        parentWorkflowId: this.workflowId,
+        nestedWorkflowId: workflowId,
+        nestedWorkflowName: nStepWorkflow.name
+      });
+      
+      const result = await executeNStepWorkflow(workflowId, this.userId);
+      
+      return {
+        success: true,
+        type: 'n_step_workflow',
+        assetId: workflowId,
+        assetName: nStepWorkflow.name,
+        result
+      };
     }
 
-    return {
-      success: true,
-      type: 'workflow',
-      assetId: workflowId,
-      assetName: workflow.name,
-      stepsExecuted: steps.length
-    };
+    throw new Error(`Workflow ${workflowId} not found in visual_workflows or workflows table`);
   }
 
   generateExecutionSummary() {
