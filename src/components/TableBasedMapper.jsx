@@ -461,12 +461,13 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
       setNewVariable({ ...newVariable, expression: newValue });
     }
     
-    // Set cursor position after inserted text
-    setTimeout(() => {
+    // Set cursor position after inserted text using requestAnimationFrame
+    // This ensures the DOM has fully updated before we set cursor position
+    requestAnimationFrame(() => {
       textarea.focus();
       const newPos = start + text.length;
       textarea.setSelectionRange(newPos, newPos);
-    }, 0);
+    });
   };
 
   // Helper function to get function syntax template
