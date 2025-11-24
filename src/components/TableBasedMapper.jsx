@@ -470,20 +470,18 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
     const currentValue = isEditMode ? (editingVariable?.expression || '') : (newVariable.expression || '');
     const newValue = currentValue.substring(0, start) + sanitizedText + currentValue.substring(end);
     
+    // Calculate where cursor should be after insertion
+    const newPos = start + sanitizedText.length;
+    
     if (isEditMode) {
       setEditingVariable({ ...editingVariable, expression: newValue });
+      // Set pending cursor position - useEffect will apply it after React updates DOM
+      setPendingEditCursorPos(newPos);
     } else {
       setNewVariable({ ...newVariable, expression: newValue });
+      // Set pending cursor position - useEffect will apply it after React updates DOM
+      setPendingCursorPos(newPos);
     }
-    
-    // Set cursor position after inserted text using requestAnimationFrame
-    // This ensures the DOM has fully updated before we set cursor position
-    requestAnimationFrame(() => {
-      textarea.focus();
-      // Use sanitizedText.length to ensure consistent UTF-16 code unit counting
-      const newPos = start + sanitizedText.length;
-      textarea.setSelectionRange(newPos, newPos);
-    });
   };
 
   // Helper function to get function syntax template
