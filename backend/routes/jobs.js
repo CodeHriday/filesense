@@ -271,8 +271,8 @@ router.get('/:id/logs', async (req, res) => {
  */
 router.post('/:id/cancel', async (req, res) => {
   try {
-    // Check if user has job:execute permission
-    if (!req.user || !req.user.permissions || !req.user.permissions.includes('job:execute')) {
+    // Check if user has jobs:write permission
+    if (!req.user || !req.user.permissions || !req.user.permissions.includes('jobs:write')) {
       return res.status(403).json({ 
         error: 'Access denied',
         message: 'You do not have permission to cancel jobs. Contact your administrator.'
