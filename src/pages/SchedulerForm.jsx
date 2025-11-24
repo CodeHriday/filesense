@@ -36,6 +36,7 @@ const SchedulerForm = () => {
   const [mappingGroups, setMappingGroups] = useState([]);
   const [workflows, setWorkflows] = useState([]);
   const [projects, setProjects] = useState([]);
+  const [subProjects, setSubProjects] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -48,6 +49,26 @@ const SchedulerForm = () => {
     };
     loadData();
   }, [scheduleId]);
+
+  // Load subprojects when project changes
+  useEffect(() => {
+    if (formData.project_id) {
+      loadSubProjects(formData.project_id);
+    } else {
+      setSubProjects([]);
+      setFormData(prev => ({ ...prev, sub_project_id: '' }));
+    }
+  }, [formData.project_id]);
+
+  const loadSubProjects = async (projectId) => {
+    try {
+      const response = await axios.get(`/api/projects/${projectId}/sub-projects`);
+      setSubProjects(Array.isArray(response.data) ? response.data : []);
+    } catch (err) {
+      console.error('Failed to load subprojects:', err);
+      setSubProjects([]);
+    }
+  };
 
   const fetchData = async () => {
     try {
