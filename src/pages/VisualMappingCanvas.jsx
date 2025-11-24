@@ -273,6 +273,8 @@ const VisualMappingCanvasContent = () => {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
+  const [validationErrors, setValidationErrors] = useState([]);
+  const [showValidationErrors, setShowValidationErrors] = useState(false);
   
   // Execution tracking
   const [currentExecutionId, setCurrentExecutionId] = useState(null);
@@ -549,6 +551,124 @@ const VisualMappingCanvasContent = () => {
     setNodes((nds) => [...nds, newNode]);
   };
   
+  const validateMapping = () => {
+    const errors = [];
+    
+    // Check mapping name
+    if (!mappingName.trim()) {
+      errors.push('Mapping name is required');
+    }
+    
+    // Check project
+    if (!projectId) {
+      errors.push('Project must be selected');
+    }
+    
+    // Check for at least one source node
+    const sourceNodes = nodes.filter(n => n.type === 'sourceConfig');
+    if (sourceNodes.length === 0) {
+      errors.push('At least one Source Configuration node is required');
+    }
+    
+    // Check for at least one target node
+    const targetNodes = nodes.filter(n => n.type === 'targetRules');
+    if (targetNodes.length === 0) {
+      errors.push('At least one Target Rules node is required');
+    }
+    
+    // Check each source node is configured
+    sourceNodes.forEach(node => {
+      if (!node.data.config || !node.data.config.connectionId) {
+        errors.push(`Source node "${node.data.label}" is not configured - missing connection`);
+      }
+      if (!node.data.config || !node.data.config.filePattern) {
+        errors.push(`Source node "${node.data.label}" is not configured - missing file pattern`);
+      }
+      if (!node.data.config || !node.data.config.schema || node.data.config.schema.length === 0) {
+        errors.push(`Source node "${node.data.label}" is not configured - missing schema`);
+      }
+    });
+    
+    // Check each target node is configured
+    targetNodes.forEach(node => {
+      if (!node.data.config || !node.data.config.connectionId) {
+        errors.push(`Target node "${node.data.label}" is not configured - missing connection`);
+      }
+      if (!node.data.config || !node.data.config.filePath) {
+        errors.push(`Target node "${node.data.label}" is not configured - missing file path`);
+      }
+      if (!node.data.config || !node.data.config.fileName) {
+        errors.push(`Target node "${node.data.label}" is not configured - missing file name`);
+      }
+      
+      // Check if target node has upstream connections
+      const hasUpstream = edges.some(e => e.target === node.id);
+      if (!hasUpstream) {
+        errors.push(`Target node "${node.data.label}" has no upstream connections`);
+      }
+    });
+    
+    // Check expression nodes
+    const expressionNodes = nodes.filter(n => n.type === 'expressions');
+    expressionNodes.forEach(node => {
+      if (!node.data.config || !node.data.config.fieldMappings || node.data.config.fieldMappings.length === 0) {
+        errors.push(`Expression node "${node.data.label}" has no field mappings configured`);
+      }
+      
+      // Check if expression node has upstream connections
+      const hasUpstream = edges.some(e => e.target === node.id);
+      if (!hasUpstream) {
+        errors.push(`Expression node "${node.data.label}" has no upstream connections`);
+      }
+    });
+    
+    // Check RDM nodes
+    const rdmDatasetNodes = nodes.filter(n => n.type === 'rdmDataset');
+    rdmDatasetNodes.forEach(node => {
+      if (!node.data.config || !node.data.config.datasetId) {
+        errors.push(`RDM Dataset node "${node.data.label}" is not configured - missing dataset selection`);
+      }
+      
+      const hasUpstream = edges.some(e => e.target === node.id);
+      if (!hasUpstream) {
+        errors.push(`RDM Dataset node "${node.data.label}" has no upstream connections`);
+      }
+    });
+    
+    const rdmCrosswalkNodes = nodes.filter(n => n.type === 'rdmCrosswalk');
+    rdmCrosswalkNodes.forEach(node => {
+      if (!node.data.config || !node.data.config.crosswalkId) {
+        errors.push(`RDM Crosswalk node "${node.data.label}" is not configured - missing crosswalk selection`);
+      }
+      
+      const hasUpstream = edges.some(e => e.target === node.id);
+      if (!hasUpstream) {
+        errors.push(`RDM Crosswalk node "${node.data.label}" has no upstream connections`);
+      }
+    });
+    
+    // Check for disconnected nodes (except source nodes which can be entry points)
+    const nonSourceNodes = nodes.filter(n => n.type !== 'sourceConfig');
+    nonSourceNodes.forEach(node => {
+      const hasIncoming = edges.some(e => e.target === node.id);
+      if (!hasIncoming && node.type !== 'targetRules') {
+        errors.push(`Node "${node.data.label}" is disconnected - no incoming connections`);
+      }
+    });
+    
+    setValidationErrors(errors);
+    
+    if (errors.length > 0) {
+      setShowValidationErrors(true);
+      setError(`Validation failed: ${errors.length} issue(s) found`);
+      return false;
+    } else {
+      setShowValidationErrors(false);
+      setSuccess('Validation passed - no issues found');
+      return true;
+    }
+  };
+  
   const saveMapping = async () => {
     if (!mappingName.trim()) {
       setError('Please enter a mapping name');
@@ -641,6 +761,26 @@ const VisualMappingCanvasContent = () => {
     }
   }, [executionError]);
   
+  // Auto-dismiss success message after 5 seconds
+  useEffect(() => {
+    if (success) {
+      const timer = setTimeout(() => {
+        setSuccess(null);
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [success]);
+  
+  // Auto-dismiss error message after 5 seconds
+  useEffect(() => {
+    if (error) {
+      const timer = setTimeout(() => {
+        setError(null);
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [error]);
+  
   // Update node classes with execution status
   useEffect(() => {
     if (!isExecuting) return;
@@ -710,6 +850,9 @@ const VisualMappingCanvasContent = () => {
           <button onClick={saveMapping} disabled={saving} className="visual-mapping-toolbar-btn visual-mapping-toolbar-btn-primary">
             <FaSave /> {saving ? 'Saving...' : 'Save'}
           </button>
+          <button onClick={validateMapping} className="visual-mapping-toolbar-btn visual-mapping-toolbar-btn-info">
+            <FaCheckCircle /> Validate
+          </button>
           <button onClick={executeMapping} disabled={!isEditMode} className="visual-mapping-toolbar-btn visual-mapping-toolbar-btn-success">
             <FaPlay /> Run
           </button>
@@ -718,6 +861,27 @@ const VisualMappingCanvasContent = () => {
       
       {error && <div className="visual-mapping-error">{error}</div>}
       {success && <div className="visual-mapping-success">{success}</div>}
+      
+      {/* Validation Errors Panel */}
+      {showValidationErrors && validationErrors.length > 0 && (
+        <div className="visual-mapping-validation-panel">
+          <div className="visual-mapping-validation-header" onClick={() => setShowValidationErrors(!showValidationErrors)}>
+            <h3>Validation Issues ({validationErrors.length})</h3>
+            <button className="visual-mapping-validation-close" onClick={(e) => {
+              e.stopPropagation();
+              setShowValidationErrors(false);
+              setValidationErrors([]);
+            }}>×</button>
+          </div>
+          <div className="visual-mapping-validation-errors">
+            <ul>
+              {validationErrors.map((error, index) => (
+                <li key={index}>{error}</li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      )}
       
       <div className="visual-mapping-content">
         {/* Left Palette Panel */}

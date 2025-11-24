@@ -105,6 +105,16 @@
   background: #fff5f5;
 }
 
+.visual-mapping-toolbar-btn-info {
+  background: #3182ce;
+  color: white;
+  border-color: #3182ce;
+}
+
+.visual-mapping-toolbar-btn-info:hover {
+  background: #2c5aa0;
+}
+
 /* Error and Success Messages */
 .visual-mapping-error {
   background: #fed7d7;
@@ -124,6 +134,81 @@
   font-size: 10px;
   font-weight: 500;
   border-left: 3px solid #38a169;
+}
+
+/* Validation Errors Panel */
+.visual-mapping-validation-panel {
+  background: #fff5f5;
+  border: 1px solid #fc8181;
+  border-radius: 4px;
+  margin: 8px 16px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.visual-mapping-validation-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: #fed7d7;
+  border-bottom: 1px solid #fc8181;
+  cursor: pointer;
+}
+
+.visual-mapping-validation-header h3 {
+  font-family: 'Inter', sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+  color: #9b2c2c;
+  margin: 0;
+  text-transform: uppercase;
+}
+
+.visual-mapping-validation-close {
+  background: none;
+  border: none;
+  color: #9b2c2c;
+  font-size: 18px;
+  cursor: pointer;
+  padding: 0;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.visual-mapping-validation-close:hover {
+  color: #742a2a;
+}
+
+.visual-mapping-validation-errors {
+  padding: 12px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.visual-mapping-validation-errors ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.visual-mapping-validation-errors li {
+  font-family: 'Inter', sans-serif;
+  font-size: 10px;
+  color: #742a2a;
+  padding: 4px 0;
+  padding-left: 16px;
+  position: relative;
+}
+
+.visual-mapping-validation-errors li:before {
+  content: '•';
+  position: absolute;
+  left: 4px;
+  color: #e53e3e;
+  font-weight: bold;
 }
 
 /* Content Layout */
