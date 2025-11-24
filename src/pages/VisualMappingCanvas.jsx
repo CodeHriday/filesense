@@ -438,42 +438,92 @@ const VisualMappingCanvasContent = () => {
   }, [nodes, configNodeId]);
   
   const getCumulativeSchema = useCallback(() => {
-    // For RDM nodes, calculate cumulative schema from upstream nodes
+    // Recursively extract schema from upstream nodes based on node type
     if (!configNodeId) {
       console.log('getCumulativeSchema: No configNodeId');
       return [];
     }
     
-    const node = nodes.find(n => n.id === configNodeId);
-    if (!node) {
-      console.log('getCumulativeSchema: Node not found for configNodeId:', configNodeId);
-      return [];
-    }
+    const visited = new Set();
     
-    // Find all upstream nodes (this is a simplified version - full implementation would traverse the graph)
+    const getNodeOutputSchema = (nodeId) => {
+      if (visited.has(nodeId)) return [];
+      visited.add(nodeId);
+      
+      const node = nodes.find(n => n.id === nodeId);
+      if (!node) return [];
+      
+      const config = node.data?.config || {};
+      
+      // Source Config: has explicit schema
+      if (node.type === 'sourceConfig' && config.schema) {
+        const transformedSchema = config.schema.map(col => ({
+          name: col.column_name || col.name,
+          type: col.data_type || col.type,
+          description: col.description,
+          contains_pii: col.contains_pii || col.pii || false
+        }));
+        console.log(`getCumulativeSchema: Source Config node ${nodeId} output schema:`, transformedSchema.length, 'columns');
+        return transformedSchema;
+      }
+      
+      // Expression: output schema comes from fieldMappings
+      if (node.type === 'expression' && config.fieldMappings) {
+        // Get upstream schema first
+        const upstreamEdges = edges.filter(e => e.target === nodeId);
+        let upstreamSchema = [];
+        upstreamEdges.forEach(edge => {
+          upstreamSchema = [...upstreamSchema, ...getNodeOutputSchema(edge.source)];
+        });
+        
+        // Map to output columns based on field mappings
+        const outputSchema = config.fieldMappings.map(mapping => {
+          const sourceCol = upstreamSchema.find(col => col.name === mapping.source_field);
+          return {
+            name: mapping.target_field,
+            type: sourceCol?.type || 'unknown',
+            description: sourceCol?.description || '',
+            contains_pii: sourceCol?.contains_pii || false
+          };
+        });
+        console.log(`getCumulativeSchema: Expression node ${nodeId} output schema:`, outputSchema.length, 'columns');
+        return outputSchema;
+      }
+      
+      // RDM Dataset: recursively get upstream schema (pass through + potentially add columns)
+      if (node.type === 'rdmDataset') {
+        const upstreamEdges = edges.filter(e => e.target === nodeId);
+        let schema = [];
+        upstreamEdges.forEach(edge => {
+          schema = [...schema, ...getNodeOutputSchema(edge.source)];
+        });
+        console.log(`getCumulativeSchema: RDM Dataset node ${nodeId} output schema:`, schema.length, 'columns');
+        return schema;
+      }
+      
+      // RDM Crosswalk: recursively get upstream schema (pass through)
+      if (node.type === 'rdmCrosswalk') {
+        const upstreamEdges = edges.filter(e => e.target === nodeId);
+        let schema = [];
+        upstreamEdges.forEach(edge => {
+          schema = [...schema, ...getNodeOutputSchema(edge.source)];
+        });
+        console.log(`getCumulativeSchema: RDM Crosswalk node ${nodeId} output schema:`, schema.length, 'columns');
+        return schema;
+      }
+      
+      return [];
+    };
+    
+    // Get schema from immediate upstream nodes
     const upstreamEdges = edges.filter(e => e.target === configNodeId);
     const sourceNodeIds = upstreamEdges.map(e => e.source);
     
     console.log('getCumulativeSchema: Found upstream nodes:', sourceNodeIds);
     
-    // Collect schemas from source nodes
     let schema = [];
-    sourceNodeIds.forEach(sourceId => {
-      const sourceNode = nodes.find(n => n.id === sourceId);
-      console.log(`getCumulativeSchema: Source node ${sourceId} config:`, sourceNode?.data?.config);
-      
-      if (sourceNode?.data?.config?.schema) {
-        // Transform schema format from {column_name, data_type} to {name, type}
-        // to match what TableBasedMapper expects
-        const transformedSchema = sourceNode.data.config.schema.map(col => ({
-          name: col.column_name || col.name,
-          type: col.data_type || col.type,
-          description: col.description,
-          contains_pii: col.contains_pii || col.is_pii || false
-        }));
-        schema = [...schema, ...transformedSchema];
-        console.log('getCumulativeSchema: Added schema columns:', transformedSchema.length);
-      }
+    upstreamEdges.forEach(edge => {
+      schema = [...schema, ...getNodeOutputSchema(edge.source)];
     });
     
     console.log('getCumulativeSchema: Final schema:', schema);
