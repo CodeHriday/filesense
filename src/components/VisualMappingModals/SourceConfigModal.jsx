@@ -593,8 +593,8 @@ const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
                         {schema.columns && schema.columns.length > 0 ? (
                           schema.columns.map((col, idx) => {
                             // Check if column is marked as PII
-                            // PII can be in col.contains_pii, col.is_pii, or schema.column_metadata[col.column_name]?.contains_pii
-                            const isPii = col.contains_pii || col.is_pii || 
+                            // PII can be in col.contains_pii, col.is_pii, col.pii, or schema.column_metadata[col.column_name]?.contains_pii
+                            const isPii = col.contains_pii || col.is_pii || col.pii || 
                               (schema.column_metadata && schema.column_metadata[col.column_name || col.name]?.contains_pii);
                             
                             return (
