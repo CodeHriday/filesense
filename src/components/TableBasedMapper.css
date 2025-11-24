@@ -914,6 +914,17 @@
   box-sizing: border-box;
   overflow-y: auto;
   overflow-x: auto;
+  
+  /* Match exact font properties with .expression-editor-surface to prevent cursor drift */
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 10px;
+  font-weight: 400;
+  line-height: 1.5;
+  letter-spacing: normal;
+  word-spacing: normal;
+  font-variant-ligatures: none;
+  font-feature-settings: "liga" 0;
+  text-rendering: geometricPrecision;
 }
 
 .expression-textarea-overlay {
