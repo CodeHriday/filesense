@@ -855,12 +855,21 @@
   width: 100%;
 }
 
-/* Reset all inherited styles for expression editor surface */
+/* Reset inherited styles for expression editor surface */
 .expression-editor-surface {
-  all: unset;
+  /* Targeted resets instead of 'all: unset' to prevent text measurement issues */
+  display: block;
+  position: static;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
   font: 400 10px/1.5 'Consolas', 'Monaco', 'Courier New', monospace;
   letter-spacing: normal;
   word-spacing: normal;
+  text-align: left;
+  text-decoration: none;
   text-transform: none;
   font-variant-ligatures: none;
   box-sizing: border-box;
