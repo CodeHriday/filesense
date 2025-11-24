@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import FileBrowserModal from './FileBrowserModal';
 import './MappingConfigModal.css';
 
 const TargetRulesModal = ({ isOpen, onClose, onSave, initialConfig = {}, projectId, outputSchema = null }) => {
@@ -18,6 +19,7 @@ const TargetRulesModal = ({ isOpen, onClose, onSave, initialConfig = {}, project
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('configuration');
   const [schema, setSchema] = useState(null);
+  const [fileBrowserOpen, setFileBrowserOpen] = useState(false);
   
   useEffect(() => {
     if (isOpen) {
@@ -82,15 +84,18 @@ const TargetRulesModal = ({ isOpen, onClose, onSave, initialConfig = {}, project
     }
   };
   
-  const handleBrowse = async () => {
+  const handleBrowse = () => {
     if (!connectionId) {
       alert('Please select a target connection first');
       return;
     }
     
-    // Trigger file browser/navigation
-    // For now, this is a placeholder
-    alert('File browse functionality will open a file navigation dialog based on the selected connection');
+    setFileBrowserOpen(true);
+  };
+  
+  const handleFileBrowserSelect = (selection) => {
+    setFilePath(selection.filePath);
+    setFileName(selection.fileName);
   };
   
   const toggleQualityRule = (ruleId) => {
@@ -390,6 +395,17 @@ const TargetRulesModal = ({ isOpen, onClose, onSave, initialConfig = {}, project
           </button>
         </div>
       </div>
+      
+      {/* File Browser Modal */}
+      {fileBrowserOpen && (
+        <FileBrowserModal
+          isOpen={fileBrowserOpen}
+          onClose={() => setFileBrowserOpen(false)}
+          onSelect={handleFileBrowserSelect}
+          connectionId={connectionId}
+          connectionName={connections.find(c => (c.id || c.connection_id) === connectionId)?.name || 'Connection'}
+        />
+      )}
     </div>
   );
 };
