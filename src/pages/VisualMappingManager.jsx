@@ -325,6 +325,7 @@ const VisualMappingManager = () => {
                 <th>Name</th>
                 <th>Description</th>
                 <th>Project</th>
+                <th>Sub-Project</th>
                 <th>Nodes</th>
                 <th>Last Executed</th>
                 <th>Executions</th>
@@ -335,7 +336,7 @@ const VisualMappingManager = () => {
             <tbody>
               {filteredMappings.length === 0 ? (
                 <tr>
-                  <td colSpan="9" className="visual-mapping-manager-empty">
+                  <td colSpan="10" className="visual-mapping-manager-empty">
                     No visual mappings found. Create your first visual mapping to get started.
                   </td>
                 </tr>
@@ -359,6 +360,7 @@ const VisualMappingManager = () => {
                     </td>
                     <td>{mapping.description || '-'}</td>
                     <td>{mapping.project_name || '-'}</td>
+                    <td>{mapping.sub_project_name || '-'}</td>
                     <td>{mapping.graph_data?.nodes?.length || 0}</td>
                     <td>{formatDate(mapping.last_executed_at)}</td>
                     <td>{mapping.execution_count || 0}</td>
