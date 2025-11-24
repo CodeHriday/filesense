@@ -8,7 +8,6 @@ import ReactFlow, {
   useEdgesState,
   addEdge,
   ReactFlowProvider,
-  Panel,
   Handle,
   Position
 } from 'reactflow';
@@ -27,7 +26,9 @@ import {
   FaCode,
   FaExchangeAlt,
   FaRandom,
-  FaCheckCircle
+  FaCheckCircle,
+  FaChevronDown,
+  FaChevronUp
 } from 'react-icons/fa';
 import MappingConfigModal from '../components/VisualMappingModals/MappingConfigModal';
 import SourceConfigModal from '../components/VisualMappingModals/SourceConfigModal';
@@ -50,9 +51,9 @@ const MappingConfigNode = ({ data }) => {
         </div>
       )}
       <Handle 
-        type="source" 
-        position={Position.Bottom} 
-        id="output"
+        type="target" 
+        position={Position.Left} 
+        id="input"
         className="visual-mapping-node-handle"
       />
       <div className="visual-mapping-node-header">
@@ -68,6 +69,12 @@ const MappingConfigNode = ({ data }) => {
       >
         Configure
       </button>
+      <Handle 
+        type="source" 
+        position={Position.Right} 
+        id="output"
+        className="visual-mapping-node-handle"
+      />
     </div>
   );
 };
@@ -82,12 +89,6 @@ const SourceConfigNode = ({ data }) => {
           <span>{statusBadge.icon}</span>
         </div>
       )}
-      <Handle 
-        type="target" 
-        position={Position.Top} 
-        id="input"
-        className="visual-mapping-node-handle"
-      />
       <div className="visual-mapping-node-header">
         <FaDatabase className="visual-mapping-node-icon" />
         <span className="visual-mapping-node-title">{data.label}</span>
@@ -110,7 +111,7 @@ const SourceConfigNode = ({ data }) => {
       </button>
       <Handle 
         type="source" 
-        position={Position.Bottom} 
+        position={Position.Right} 
         id="output"
         className="visual-mapping-node-handle"
       />
@@ -130,7 +131,7 @@ const ExpressionNode = ({ data }) => {
       )}
       <Handle 
         type="target" 
-        position={Position.Top} 
+        position={Position.Left} 
         id="input"
         className="visual-mapping-node-handle"
       />
@@ -151,7 +152,7 @@ const ExpressionNode = ({ data }) => {
       </button>
       <Handle 
         type="source" 
-        position={Position.Bottom} 
+        position={Position.Right} 
         id="output"
         className="visual-mapping-node-handle"
       />
@@ -171,7 +172,7 @@ const RdmDatasetNode = ({ data }) => {
       )}
       <Handle 
         type="target" 
-        position={Position.Top} 
+        position={Position.Left} 
         id="input"
         className="visual-mapping-node-handle"
       />
@@ -190,12 +191,6 @@ const RdmDatasetNode = ({ data }) => {
       >
         Configure
       </button>
-      <Handle 
-        type="source" 
-        position={Position.Bottom} 
-        id="output"
-        className="visual-mapping-node-handle"
-      />
     </div>
   );
 };
@@ -212,7 +207,7 @@ const RdmCrosswalkNode = ({ data }) => {
       )}
       <Handle 
         type="target" 
-        position={Position.Top} 
+        position={Position.Left} 
         id="input"
         className="visual-mapping-node-handle"
       />
@@ -231,12 +226,6 @@ const RdmCrosswalkNode = ({ data }) => {
       >
         Configure
       </button>
-      <Handle 
-        type="source" 
-        position={Position.Bottom} 
-        id="output"
-        className="visual-mapping-node-handle"
-      />
     </div>
   );
 };
@@ -253,7 +242,7 @@ const TargetRulesNode = ({ data }) => {
       )}
       <Handle 
         type="target" 
-        position={Position.Top} 
+        position={Position.Left} 
         id="input"
         className="visual-mapping-node-handle"
       />
@@ -314,6 +303,8 @@ const VisualMappingCanvasContent = () => {
   // Palette panel visibility
   const [showPalette, setShowPalette] = useState(true);
   const [showConfig, setShowConfig] = useState(true);
+  const [showMappingDetails, setShowMappingDetails] = useState(true);
+  const [showComponents, setShowComponents] = useState(true);
   
   // UI states
   const [loading, setLoading] = useState(false);
@@ -687,87 +678,17 @@ const VisualMappingCanvasContent = () => {
         {/* Left Palette Panel */}
         {showPalette && (
           <div className="visual-mapping-palette">
-            <div className="visual-mapping-palette-header">
-              <h3>Mapping Components</h3>
-            </div>
-            
-            <div className="visual-mapping-palette-section">
-              <h4>Configuration</h4>
-              <button 
-                onClick={() => addNode('mappingConfig', 'Mapping Config')}
-                className="visual-mapping-palette-item"
+            {/* Mapping Details Section */}
+            <div className="visual-mapping-sidebar-section">
+              <div 
+                className="visual-mapping-sidebar-header" 
+                onClick={() => setShowMappingDetails(!showMappingDetails)}
               >
-                <FaCog /> Mapping Config
-              </button>
-            </div>
-            
-            <div className="visual-mapping-palette-section">
-              <h4>Data Source</h4>
-              <button 
-                onClick={() => addNode('sourceConfig', 'Source Config')}
-                className="visual-mapping-palette-item"
-              >
-                <FaDatabase /> Source Config
-              </button>
-            </div>
-            
-            <div className="visual-mapping-palette-section">
-              <h4>Transformations</h4>
-              <button 
-                onClick={() => addNode('expression', 'Expressions')}
-                className="visual-mapping-palette-item"
-              >
-                <FaCode /> Expressions
-              </button>
-            </div>
-            
-            <div className="visual-mapping-palette-section">
-              <h4>RDM Lookups</h4>
-              <button 
-                onClick={() => addNode('rdmDataset', 'RDM Dataset')}
-                className="visual-mapping-palette-item"
-              >
-                <FaExchangeAlt /> RDM Dataset
-              </button>
-              <button 
-                onClick={() => addNode('rdmCrosswalk', 'RDM Crosswalk')}
-                className="visual-mapping-palette-item"
-              >
-                <FaRandom /> RDM Crosswalk
-              </button>
-            </div>
-            
-            <div className="visual-mapping-palette-section">
-              <h4>Output</h4>
-              <button 
-                onClick={() => addNode('targetRules', 'Target Rules')}
-                className="visual-mapping-palette-item"
-              >
-                <FaCheckCircle /> Target Rules
-              </button>
-            </div>
-          </div>
-        )}
-        
-        {/* Canvas */}
-        <div className="visual-mapping-canvas-wrapper" ref={containerRef}>
-          {containerReady && (
-            <ReactFlow
-              nodes={nodes}
-              edges={edges}
-              onNodesChange={onNodesChange}
-              onEdgesChange={onEdgesChange}
-              onConnect={onConnect}
-              onInit={setReactFlowInstance}
-              nodeTypes={nodeTypes}
-              fitView
-              attributionPosition="bottom-right"
-            >
-              <MiniMap />
-              <Controls />
-              <Background />
-              <Panel position="top-left" className="visual-mapping-panel">
-                <div className="visual-mapping-config-panel">
+                <h3>Mapping Details</h3>
+                {showMappingDetails ? <FaChevronUp /> : <FaChevronDown />}
+              </div>
+              {showMappingDetails && (
+                <div className="visual-mapping-sidebar-content">
                   <div className="visual-mapping-form-group">
                     <label>Mapping Name</label>
                     <input 
@@ -803,13 +724,13 @@ const VisualMappingCanvasContent = () => {
                   </div>
                   {projectId && subProjects.length > 0 && (
                     <div className="visual-mapping-form-group">
-                      <label>Sub-Project</label>
+                      <label>Sub-Project (Optional)</label>
                       <select
                         value={subProjectId || ''}
                         onChange={(e) => setSubProjectId(parseInt(e.target.value) || null)}
                         className="visual-mapping-select"
                       >
-                        <option value="">Select Sub-Project (Optional)</option>
+                        <option value="">None</option>
                         {subProjects.map(sp => (
                           <option key={sp.id} value={sp.id}>{sp.name}</option>
                         ))}
@@ -817,7 +738,98 @@ const VisualMappingCanvasContent = () => {
                     </div>
                   )}
                 </div>
-              </Panel>
+              )}
+            </div>
+
+            {/* Mapping Components Section */}
+            <div className="visual-mapping-sidebar-section">
+              <div 
+                className="visual-mapping-sidebar-header" 
+                onClick={() => setShowComponents(!showComponents)}
+              >
+                <h3>Mapping Components</h3>
+                {showComponents ? <FaChevronUp /> : <FaChevronDown />}
+              </div>
+              {showComponents && (
+                <div className="visual-mapping-sidebar-content">
+                  <div className="visual-mapping-palette-section">
+                    <h4>Configuration</h4>
+                    <button 
+                      onClick={() => addNode('mappingConfig', 'Mapping Config')}
+                      className="visual-mapping-palette-item"
+                    >
+                      <FaCog /> Mapping Config
+                    </button>
+                  </div>
+                  
+                  <div className="visual-mapping-palette-section">
+                    <h4>Data Source</h4>
+                    <button 
+                      onClick={() => addNode('sourceConfig', 'Source Config')}
+                      className="visual-mapping-palette-item"
+                    >
+                      <FaDatabase /> Source Config
+                    </button>
+                  </div>
+                  
+                  <div className="visual-mapping-palette-section">
+                    <h4>Transformations</h4>
+                    <button 
+                      onClick={() => addNode('expression', 'Expressions')}
+                      className="visual-mapping-palette-item"
+                    >
+                      <FaCode /> Expressions
+                    </button>
+                  </div>
+                  
+                  <div className="visual-mapping-palette-section">
+                    <h4>RDM Lookups</h4>
+                    <button 
+                      onClick={() => addNode('rdmDataset', 'RDM Dataset')}
+                      className="visual-mapping-palette-item"
+                    >
+                      <FaExchangeAlt /> RDM Dataset
+                    </button>
+                    <button 
+                      onClick={() => addNode('rdmCrosswalk', 'RDM Crosswalk')}
+                      className="visual-mapping-palette-item"
+                    >
+                      <FaRandom /> RDM Crosswalk
+                    </button>
+                  </div>
+                  
+                  <div className="visual-mapping-palette-section">
+                    <h4>Output</h4>
+                    <button 
+                      onClick={() => addNode('targetRules', 'Target Rules')}
+                      className="visual-mapping-palette-item"
+                    >
+                      <FaCheckCircle /> Target Rules
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+        
+        {/* Canvas */}
+        <div className="visual-mapping-canvas-wrapper" ref={containerRef}>
+          {containerReady && (
+            <ReactFlow
+              nodes={nodes}
+              edges={edges}
+              onNodesChange={onNodesChange}
+              onEdgesChange={onEdgesChange}
+              onConnect={onConnect}
+              onInit={setReactFlowInstance}
+              nodeTypes={nodeTypes}
+              fitView
+              attributionPosition="bottom-right"
+            >
+              <MiniMap />
+              <Controls />
+              <Background />
             </ReactFlow>
           )}
         </div>
