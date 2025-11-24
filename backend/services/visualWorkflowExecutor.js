@@ -3,6 +3,7 @@ const { systemLogger } = require('../utils/logger');
 const { executeTransformationJob } = require('./jobExecutionEngine');
 const { executeMappingGroup } = require('./mappingGroupExecutionEngine');
 const { executeNStepWorkflow } = require('./nStepWorkflowExecutionEngine');
+const { v4: uuidv4 } = require('uuid');
 
 class VisualWorkflowExecutor {
   constructor(workflowId, userId) {
@@ -10,9 +11,13 @@ class VisualWorkflowExecutor {
     this.userId = userId;
     this.executionResults = new Map();
     this.executionErrors = new Map();
+    this.executionId = `VWFL-${Date.now()}-${uuidv4().substring(0, 8)}`;
+    this.executionDbId = null; // Will be set after creating execution record
   }
 
   async execute() {
+    const startTime = Date.now();
+    
     try {
       const workflow = await this.loadWorkflow();
       
@@ -20,24 +25,45 @@ class VisualWorkflowExecutor {
         throw new Error(`Visual workflow ${this.workflowId} not found`);
       }
 
-      systemLogger.info('Starting visual workflow execution', {
-        workflowId: this.workflowId,
-        name: workflow.name,
-        nodeCount: workflow.graph_data.nodes.length,
-        edgeCount: workflow.graph_data.edges.length
-      });
-
       const { nodes, edges } = workflow.graph_data;
       
+      // Create execution record
+      const executionRecord = await pool.query(`
+        INSERT INTO visual_workflow_executions 
+        (workflow_id, execution_id, status, total_nodes, triggered_by, project_id)
+        VALUES ($1, $2, $3, $4, $5, $6)
+        RETURNING id
+      `, [
+        this.workflowId,
+        this.executionId,
+        'running',
+        nodes.length,
+        this.userId,
+        workflow.project_id
+      ]);
+      
+      this.executionDbId = executionRecord.rows[0].id;
+
+      systemLogger.info('Starting visual workflow execution', {
+        workflowId: this.workflowId,
+        executionId: this.executionId,
+        executionDbId: this.executionDbId,
+        name: workflow.name,
+        nodeCount: nodes.length,
+        edgeCount: edges.length
+      });
+      
       if (nodes.length === 0) {
+        await this.updateExecutionRecord('completed', startTime, {});
         systemLogger.warn('Visual workflow has no nodes to execute', { workflowId: this.workflowId });
-        return { success: true, message: 'No nodes to execute', results: {} };
+        return { success: true, message: 'No nodes to execute', results: {}, executionId: this.executionId };
       }
 
       const executionOrder = this.topologicalSort(nodes, edges);
       
       systemLogger.info('Determined execution order', {
         workflowId: this.workflowId,
+        executionId: this.executionId,
         executionOrder: executionOrder.map(n => ({ id: n.id, type: n.type, assetId: n.data?.assetId }))
       });
 
@@ -46,26 +72,71 @@ class VisualWorkflowExecutor {
 
       const summary = this.generateExecutionSummary();
       
+      // Update execution record with final status
+      const finalStatus = summary.failedCount === 0 ? 'completed' : 'failed';
+      await this.updateExecutionRecord(finalStatus, startTime, summary);
+      
       systemLogger.info('Visual workflow execution completed', {
         workflowId: this.workflowId,
+        executionId: this.executionId,
         summary
       });
 
       return {
         success: summary.failedCount === 0,
+        executionId: this.executionId,
+        executionDbId: this.executionDbId,
         summary,
         results: Object.fromEntries(this.executionResults),
         errors: Object.fromEntries(this.executionErrors)
       };
 
     } catch (error) {
+      // Update execution record with error
+      try {
+        await this.updateExecutionRecord('failed', startTime, null, error.message);
+      } catch (updateError) {
+        systemLogger.error('Failed to update execution record on error', {
+          workflowId: this.workflowId,
+          executionId: this.executionId,
+          updateError: updateError.message
+        });
+      }
+      
       systemLogger.error('Visual workflow execution failed', {
         workflowId: this.workflowId,
+        executionId: this.executionId,
         error: error.message,
         stack: error.stack
       });
       throw error;
     }
+  }
+  
+  async updateExecutionRecord(status, startTime, summary = null, errorMessage = null) {
+    const endTime = Date.now();
+    const durationMs = endTime - startTime;
+    
+    await pool.query(`
+      UPDATE visual_workflow_executions
+      SET status = $1,
+          end_time = CURRENT_TIMESTAMP,
+          duration_ms = $2,
+          completed_nodes = $3,
+          failed_nodes = $4,
+          execution_summary = $5,
+          error_message = $6,
+          updated_at = CURRENT_TIMESTAMP
+      WHERE id = $7
+    `, [
+      status,
+      durationMs,
+      summary?.successCount || 0,
+      summary?.failedCount || 0,
+      summary ? JSON.stringify(summary) : null,
+      errorMessage,
+      this.executionDbId
+    ]);
   }
 
   async loadWorkflow() {
@@ -282,9 +353,9 @@ class VisualWorkflowExecutor {
 
     const mapping = mappingResult.rows[0];
     
-    // Execute transformation job with proper parameters
+    // Execute transformation job with visual workflow execution ID
     const jobResult = await executeTransformationJob(pool, mappingId, this.userId, {
-      workflowExecutionId: null  // Visual workflows don't have execution IDs yet
+      visualWorkflowExecutionId: this.executionDbId
     });
     
     return {

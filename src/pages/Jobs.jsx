@@ -266,16 +266,16 @@ const Jobs = () => {
         style={{ 
           display: 'inline-flex', 
           alignItems: 'center', 
-          gap: '0.35rem',
-          padding: '0.25rem 0.75rem',
-          borderRadius: '12px',
-          fontSize: '0.8rem',
+          gap: '0.25rem',
+          padding: '0.15rem 0.5rem',
+          borderRadius: '10px',
+          fontSize: '10px',
           fontWeight: '500',
           color: config.color,
           backgroundColor: config.bg
         }}
       >
-        <Icon size={12} />
+        <Icon size={10} />
         {config.text}
       </span>
     );
@@ -387,23 +387,23 @@ const Jobs = () => {
               <table className="jobs-table">
                 <thead>
                   <tr>
-                    <th style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>Job ID</th>
-                    <th style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>Project</th>
-                    <th style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>Mapping</th>
-                    <th style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>Mapping Group</th>
-                    <th style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>Workflow</th>
-                    <th style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>Schedule</th>
-                    <th style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>Status</th>
-                    <th style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>Schema Validation</th>
-                    <th style={{ textAlign: 'center', fontSize: '0.75rem', fontWeight: 'bold' }}>Files Processed</th>
-                    <th style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>Rows</th>
-                    <th style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>Start Time</th>
-                    <th style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>End Time</th>
-                    <th style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>Duration</th>
-                    <th style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>Actions</th>
+                    <th style={{ fontFamily: 'Inter, sans-serif', fontSize: '12px', fontWeight: '700' }}>Job ID</th>
+                    <th style={{ fontFamily: 'Inter, sans-serif', fontSize: '12px', fontWeight: '700' }}>Project</th>
+                    <th style={{ fontFamily: 'Inter, sans-serif', fontSize: '12px', fontWeight: '700' }}>Mapping</th>
+                    <th style={{ fontFamily: 'Inter, sans-serif', fontSize: '12px', fontWeight: '700' }}>Mapping Group</th>
+                    <th style={{ fontFamily: 'Inter, sans-serif', fontSize: '12px', fontWeight: '700' }}>Workflow</th>
+                    <th style={{ fontFamily: 'Inter, sans-serif', fontSize: '12px', fontWeight: '700' }}>Schedule</th>
+                    <th style={{ fontFamily: 'Inter, sans-serif', fontSize: '12px', fontWeight: '700' }}>Status</th>
+                    <th style={{ fontFamily: 'Inter, sans-serif', fontSize: '12px', fontWeight: '700' }}>Schema Validation</th>
+                    <th style={{ textAlign: 'center', fontFamily: 'Inter, sans-serif', fontSize: '12px', fontWeight: '700' }}>Files Processed</th>
+                    <th style={{ fontFamily: 'Inter, sans-serif', fontSize: '12px', fontWeight: '700' }}>Rows</th>
+                    <th style={{ fontFamily: 'Inter, sans-serif', fontSize: '12px', fontWeight: '700' }}>Start Time</th>
+                    <th style={{ fontFamily: 'Inter, sans-serif', fontSize: '12px', fontWeight: '700' }}>End Time</th>
+                    <th style={{ fontFamily: 'Inter, sans-serif', fontSize: '12px', fontWeight: '700' }}>Duration</th>
+                    <th style={{ fontFamily: 'Inter, sans-serif', fontSize: '12px', fontWeight: '700' }}>Actions</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody style={{ fontFamily: 'Inter, sans-serif', fontSize: '10px', fontWeight: '500' }}>
                   {currentJobs.map(job => (
                     <tr key={job.job_id}>
                       <td className="job-id-cell">
@@ -421,20 +421,20 @@ const Jobs = () => {
                             style={{ 
                               display: 'inline-flex', 
                               alignItems: 'center', 
-                              gap: '0.35rem',
-                              padding: '0.25rem 0.75rem',
-                              borderRadius: '12px',
-                              fontSize: '0.8rem',
+                              gap: '0.25rem',
+                              padding: '0.15rem 0.5rem',
+                              borderRadius: '10px',
+                              fontSize: '10px',
                               fontWeight: '500',
                               backgroundColor: job.schema_validation === 'Pass' ? '#d1fae5' : '#fee2e2',
                               color: job.schema_validation === 'Pass' ? '#10b981' : '#ef4444'
                             }}
                           >
-                            {job.schema_validation === 'Pass' ? <FiCheckCircle /> : <FiXCircle />}
+                            {job.schema_validation === 'Pass' ? <FiCheckCircle size={10} /> : <FiXCircle size={10} />}
                             {job.schema_validation}
                           </span>
                         ) : (
-                          <span style={{ color: '#94a3b8', fontSize: '0.85rem' }}>N/A</span>
+                          <span style={{ color: '#94a3b8', fontSize: '10px' }}>N/A</span>
                         )}
                       </td>
                       <td style={{ textAlign: 'center' }}>{job.files_processed || 0}</td>
