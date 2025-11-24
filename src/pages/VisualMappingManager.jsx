@@ -26,6 +26,7 @@ const VisualMappingManager = () => {
   const [selectedProject, setSelectedProject] = useState('');
   const [selectedSubProject, setSelectedSubProject] = useState('');
   const [projects, setProjects] = useState([]);
+  const [subProjects, setSubProjects] = useState([]);
   
   // Selected items for bulk actions
   const [selectedMappings, setSelectedMappings] = useState(new Set());
@@ -47,6 +48,24 @@ const VisualMappingManager = () => {
     };
     fetchProjects();
   }, []);
+  
+  // Load subprojects when project changes
+  useEffect(() => {
+    const fetchSubProjects = async () => {
+      if (!selectedProject) {
+        setSubProjects([]);
+        return;
+      }
+      try {
+        const response = await axios.get(`/api/projects/${selectedProject}/sub-projects`);
+        setSubProjects(response.data);
+      } catch (error) {
+        console.error('Error fetching subprojects:', error);
+        setSubProjects([]);
+      }
+    };
+    fetchSubProjects();
+  }, [selectedProject]);
   
   // Load mappings
   useEffect(() => {
@@ -256,6 +275,22 @@ const VisualMappingManager = () => {
             ))}
           </select>
         </div>
+        
+        {selectedProject && (
+          <div className="visual-mapping-manager-filter-group">
+            <FaFilter className="visual-mapping-manager-filter-icon" />
+            <select
+              value={selectedSubProject}
+              onChange={(e) => setSelectedSubProject(e.target.value)}
+              className="visual-mapping-manager-filter-select"
+            >
+              <option value="">All Sub-Projects</option>
+              {subProjects.map(sp => (
+                <option key={sp.id} value={sp.id}>{sp.name}</option>
+              ))}
+            </select>
+          </div>
+        )}
         
         {selectedMappings.size > 0 && (
           <div className="visual-mapping-manager-bulk-actions">
