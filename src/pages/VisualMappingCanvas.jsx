@@ -32,7 +32,6 @@ import {
   FaChevronLeft,
   FaChevronRight
 } from 'react-icons/fa';
-import MappingConfigModal from '../components/VisualMappingModals/MappingConfigModal';
 import SourceConfigModal from '../components/VisualMappingModals/SourceConfigModal';
 import ExpressionModal from '../components/VisualMappingModals/ExpressionModal';
 import RdmDatasetModal from '../components/VisualMappingModals/RdmDatasetModal';
@@ -42,45 +41,6 @@ import { useVisualMappingExecution } from '../hooks/useVisualMappingExecution';
 import { getNodeStatusClass, getNodeStatusBadge, formatRowCount } from '../components/VisualMappingNodes/nodeUtils';
 
 // Custom node components for different mapping node types
-const MappingConfigNode = ({ data }) => {
-  const statusBadge = data.statusBadge;
-  
-  return (
-    <div className="visual-mapping-node visual-mapping-node-config">
-      {statusBadge && (
-        <div className={`visual-mapping-node-status-badge status-${statusBadge.text.toLowerCase()}`}>
-          <span>{statusBadge.icon}</span>
-        </div>
-      )}
-      <Handle 
-        type="target" 
-        position={Position.Left} 
-        id="input"
-        className="visual-mapping-node-handle"
-      />
-      <div className="visual-mapping-node-header">
-        <FaCog className="visual-mapping-node-icon" />
-        <span className="visual-mapping-node-title">{data.label}</span>
-      </div>
-      {data.description && (
-        <div className="visual-mapping-node-description">{data.description}</div>
-      )}
-      <button 
-        onClick={() => data.onConfigure && data.onConfigure(data.nodeId)}
-        className="visual-mapping-node-button"
-      >
-        Configure
-      </button>
-      <Handle 
-        type="source" 
-        position={Position.Right} 
-        id="output"
-        className="visual-mapping-node-handle"
-      />
-    </div>
-  );
-};
-
 const SourceConfigNode = ({ data }) => {
   const statusBadge = data.statusBadge;
   
@@ -273,7 +233,6 @@ const TargetRulesNode = ({ data }) => {
 };
 
 const nodeTypes = {
-  mappingConfig: MappingConfigNode,
   sourceConfig: SourceConfigNode,
   expression: ExpressionNode,
   rdmDataset: RdmDatasetNode,
@@ -780,16 +739,6 @@ const VisualMappingCanvasContent = () => {
               {showComponents && (
                 <div className="visual-mapping-sidebar-content">
                   <div className="visual-mapping-palette-section">
-                    <h4>Configuration</h4>
-                    <button 
-                      onClick={() => addNode('mappingConfig', 'Mapping Config')}
-                      className="visual-mapping-palette-item"
-                    >
-                      <FaCog /> Mapping Config
-                    </button>
-                  </div>
-                  
-                  <div className="visual-mapping-palette-section">
                     <h4>Data Source</h4>
                     <button 
                       onClick={() => addNode('sourceConfig', 'Source Config')}
@@ -883,15 +832,6 @@ const VisualMappingCanvasContent = () => {
       )}
       
       {/* Configuration Modals */}
-      {configNodeType === 'mappingConfig' && (
-        <MappingConfigModal
-          isOpen={configModalOpen}
-          onClose={() => setConfigModalOpen(false)}
-          onSave={handleSaveNodeConfig}
-          initialConfig={getCurrentNodeConfig()}
-        />
-      )}
-      
       {configNodeType === 'sourceConfig' && (
         <SourceConfigModal
           isOpen={configModalOpen}
