@@ -35,11 +35,20 @@ import ExpressionModal from '../components/VisualMappingModals/ExpressionModal';
 import RdmDatasetModal from '../components/VisualMappingModals/RdmDatasetModal';
 import RdmCrosswalkModal from '../components/VisualMappingModals/RdmCrosswalkModal';
 import TargetRulesModal from '../components/VisualMappingModals/TargetRulesModal';
+import { useVisualMappingExecution } from '../hooks/useVisualMappingExecution';
+import { getNodeStatusClass, getNodeStatusBadge, formatRowCount } from '../components/VisualMappingNodes/nodeUtils';
 
 // Custom node components for different mapping node types
 const MappingConfigNode = ({ data }) => {
+  const statusBadge = data.statusBadge;
+  
   return (
     <div className="visual-mapping-node visual-mapping-node-config">
+      {statusBadge && (
+        <div className={`visual-mapping-node-status-badge status-${statusBadge.text.toLowerCase()}`}>
+          <span>{statusBadge.icon}</span>
+        </div>
+      )}
       <Handle 
         type="source" 
         position={Position.Bottom} 
@@ -64,8 +73,15 @@ const MappingConfigNode = ({ data }) => {
 };
 
 const SourceConfigNode = ({ data }) => {
+  const statusBadge = data.statusBadge;
+  
   return (
     <div className="visual-mapping-node visual-mapping-node-source">
+      {statusBadge && (
+        <div className={`visual-mapping-node-status-badge status-${statusBadge.text.toLowerCase()}`}>
+          <span>{statusBadge.icon}</span>
+        </div>
+      )}
       <Handle 
         type="target" 
         position={Position.Top} 
@@ -276,6 +292,21 @@ const VisualMappingCanvasContent = () => {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
+  
+  // Execution tracking
+  const [currentExecutionId, setCurrentExecutionId] = useState(null);
+  const [isExecuting, setIsExecuting] = useState(false);
+  
+  // WebSocket hook for real-time execution updates
+  const {
+    nodeStatuses,
+    edgeRowCounts,
+    executionProgress,
+    executionComplete,
+    executionError,
+    resetExecution,
+    isConnected
+  } = useVisualMappingExecution(currentExecutionId);
   
   // Configuration modal
   const [configModalOpen, setConfigModalOpen] = useState(false);
@@ -515,13 +546,80 @@ const VisualMappingCanvasContent = () => {
     }
     
     try {
+      resetExecution(); // Clear previous execution state
+      setIsExecuting(true);
+      setError(null);
+      
       const response = await axios.post(`/api/visual-mappings/${mappingId}/execute`);
-      setSuccess(`Execution started: ${response.data.execution_id}`);
+      setCurrentExecutionId(response.data.execution_id); // Enable WebSocket tracking
+      setSuccess(`Execution started - monitoring real-time progress`);
     } catch (error) {
       console.error('Error executing mapping:', error);
       setError(error.response?.data?.error || 'Failed to execute mapping');
+      setIsExecuting(false);
     }
   };
+  
+  // Handle execution completion or error
+  useEffect(() => {
+    if (executionComplete) {
+      setIsExecuting(false);
+      setSuccess('Execution completed successfully!');
+      setTimeout(() => setCurrentExecutionId(null), 5000); // Clear execution ID after 5 seconds
+    }
+  }, [executionComplete]);
+  
+  useEffect(() => {
+    if (executionError) {
+      setIsExecuting(false);
+      setError(`Execution failed: ${executionError.message}`);
+      setTimeout(() => setCurrentExecutionId(null), 5000);
+    }
+  }, [executionError]);
+  
+  // Update node classes with execution status
+  useEffect(() => {
+    if (!isExecuting) return;
+    
+    setNodes((nds) => 
+      nds.map((node) => {
+        const status = nodeStatuses[node.id];
+        const statusClass = status ? getNodeStatusClass(status.status) : '';
+        
+        return {
+          ...node,
+          className: `${node.className || ''} ${statusClass}`.trim(),
+          data: {
+            ...node.data,
+            executionStatus: status,
+            statusBadge: status ? getNodeStatusBadge(status.status) : null
+          }
+        };
+      })
+    );
+  }, [nodeStatuses, isExecuting]);
+  
+  // Update edges with row counts
+  useEffect(() => {
+    if (!isExecuting) return;
+    
+    setEdges((eds) => 
+      eds.map((edge) => {
+        const edgeKey = `${edge.source}-${edge.target}`;
+        const rowCount = edgeRowCounts[edgeKey];
+        
+        if (rowCount !== undefined) {
+          return {
+            ...edge,
+            label: formatRowCount(rowCount),
+            labelStyle: { fill: 'white', fontWeight: 600 },
+            labelBgStyle: { fill: '#025043' }
+          };
+        }
+        return edge;
+      })
+    );
+  }, [edgeRowCounts, isExecuting]);
   
   const deleteSelected = () => {
     setNodes((nds) => nds.filter(node => !node.selected));
@@ -696,6 +794,24 @@ const VisualMappingCanvasContent = () => {
           )}
         </div>
       </div>
+      
+      {/* Execution Progress Bar */}
+      {isExecuting && executionProgress !== null && (
+        <div className="visual-mapping-execution-progress">
+          <div 
+            className="visual-mapping-execution-progress-bar"
+            style={{ width: `${executionProgress}%` }}
+          />
+        </div>
+      )}
+      
+      {/* WebSocket Connection Status */}
+      {isExecuting && (
+        <div className={`visual-mapping-connection-status ${isConnected ? 'connected' : 'disconnected'}`}>
+          <div className="visual-mapping-connection-status-dot" />
+          <span>{isConnected ? 'Connected' : 'Connecting...'}</span>
+        </div>
+      )}
       
       {/* Configuration Modals */}
       {configNodeType === 'mappingConfig' && (

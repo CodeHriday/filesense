@@ -472,3 +472,163 @@
 .react-flow__minimap {
   border: 1px solid #e2e8f0;
 }
+
+/* Execution Status Indicators */
+.node-status-pending {
+  border: 2px solid #cbd5e0 !important;
+  opacity: 0.7;
+}
+
+.node-status-running {
+  border: 2px solid #025043 !important;
+  animation: pulse-border 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse-border {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(2, 80, 67, 0.4); }
+  50% { box-shadow: 0 0 0 8px rgba(2, 80, 67, 0); }
+}
+
+.node-status-completed {
+  border: 2px solid #0f9960 !important;
+}
+
+.node-status-failed {
+  border: 2px solid #d32f2f !important;
+}
+
+.node-status-skipped {
+  border: 2px solid #999 !important;
+  opacity: 0.5;
+}
+
+.visual-mapping-node-status-badge {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  font-family: 'Inter', sans-serif;
+  font-size: 9px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 10px;
+  background: white;
+  border: 1px solid currentColor;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  z-index: 10;
+}
+
+.visual-mapping-node-status-badge.status-running {
+  color: #025043;
+  animation: spin 2s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.visual-mapping-node-status-badge.status-completed {
+  color: #0f9960;
+}
+
+.visual-mapping-node-status-badge.status-failed {
+  color: #d32f2f;
+}
+
+.visual-mapping-node-status-badge.status-pending {
+  color: #666;
+}
+
+.visual-mapping-node-status-badge.status-skipped {
+  color: #999;
+}
+
+/* Edge Row Count Display */
+.react-flow__edge-label {
+  font-family: 'Inter', sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+  background: #025043;
+  color: white;
+  padding: 2px 8px;
+  border-radius: 10px;
+  animation: fade-in 0.3s ease-in;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; transform: scale(0.8); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.edge-row-count-updating .react-flow__edge-label {
+  animation: pulse-count 0.5s ease-in-out;
+}
+
+@keyframes pulse-count {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+}
+
+/* Execution Progress Bar */
+.visual-mapping-execution-progress {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: #e2e8f0;
+  z-index: 1000;
+}
+
+.visual-mapping-execution-progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #025043, #0f9960);
+  transition: width 0.3s ease-out;
+}
+
+/* WebSocket Connection Status */
+.visual-mapping-connection-status {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  font-family: 'Inter', sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  z-index: 1000;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+
+.visual-mapping-connection-status.connected {
+  background: #e8f5e9;
+  color: #0f9960;
+  border: 1px solid #0f9960;
+}
+
+.visual-mapping-connection-status.disconnected {
+  background: #ffebee;
+  color: #d32f2f;
+  border: 1px solid #d32f2f;
+}
+
+.visual-mapping-connection-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.visual-mapping-connection-status.connected .visual-mapping-connection-status-dot {
+  animation: pulse-dot 2s ease-in-out infinite;
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}

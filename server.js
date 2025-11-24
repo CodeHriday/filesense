@@ -1,4 +1,6 @@
 const express = require('express');
+const http = require('http');
+const { Server } = require('socket.io');
 const cors = require('cors');
 const multer = require('multer');
 const fs = require('fs');
@@ -9875,14 +9877,35 @@ async function startServer() {
       });
     }
     
+    // Create HTTP server for both Express and Socket.IO
+    const httpServer = http.createServer(app);
+    
+    // Initialize Socket.IO with CORS settings
+    const io = new Server(httpServer, {
+      cors: {
+        origin: process.env.NODE_ENV === 'production' 
+          ? [process.env.FRONTEND_URL || 'https://*.replit.app'] 
+          : ['http://localhost:5000', 'http://localhost:5173', 'http://127.0.0.1:5173'],
+        methods: ['GET', 'POST'],
+        credentials: true
+      }
+    });
+    
+    // Initialize visual mapping WebSocket service
+    const visualMappingWS = require('./backend/services/visualMappingWebSocket');
+    visualMappingWS.initialize(io);
+    logger.info('Visual mapping WebSocket service initialized');
+    
     // Start the HTTP server - bind to 0.0.0.0 for Replit
-    app.listen(port, '0.0.0.0', () => {
+    httpServer.listen(port, '0.0.0.0', () => {
       logger.info(`🚀 Server running on port ${port}`, {
         environment: process.env.NODE_ENV || 'development',
         port: port,
-        host: '0.0.0.0'
+        host: '0.0.0.0',
+        websocket: 'enabled'
       });
       console.log(`Server running on port ${port} (host: 0.0.0.0)`);
+      console.log(`WebSocket server enabled for real-time updates`);
     });
   } catch (err) {
     logger.error('Failed to start server', {

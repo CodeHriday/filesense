@@ -38,8 +38,17 @@ class VisualMappingCompiler {
         };
       }
       
-      // Step 3: Compile each node into transformation steps
-      const compiledSteps = this.compileNodes(executionOrder.nodes, nodes, edges);
+      // Step 3: Propagate schemas through the graph
+      const schemaPropagation = this.propagateSchemas(executionOrder.nodes, nodes, edges);
+      if (!schemaPropagation.success) {
+        return {
+          success: false,
+          errors: schemaPropagation.errors
+        };
+      }
+      
+      // Step 4: Compile each node into transformation steps
+      const compiledSteps = this.compileNodes(executionOrder.nodes, nodes, edges, schemaPropagation.schemas);
       if (!compiledSteps.success) {
         return {
           success: false,
@@ -138,6 +147,33 @@ class VisualMappingCompiler {
       errors.push(`Found ${orphanedNodes.length} unconnected node(s): ${orphanedNodes.map(n => n.data.label).join(', ')}`);
     }
     
+    // Validate edge rules: expression, rdmDataset, rdmCrosswalk, and targetRules nodes must have exactly one upstream
+    const nodeMap = {};
+    nodes.forEach(n => nodeMap[n.id] = n);
+    
+    const incomingEdgeCount = {};
+    edges.forEach(edge => {
+      incomingEdgeCount[edge.target] = (incomingEdgeCount[edge.target] || 0) + 1;
+    });
+    
+    nodes.forEach(node => {
+      const incomingCount = incomingEdgeCount[node.id] || 0;
+      
+      // Expression, RDM, and Target nodes need exactly one upstream
+      if (['expression', 'rdmDataset', 'rdmCrosswalk', 'targetRules'].includes(node.type)) {
+        if (incomingCount === 0) {
+          errors.push(`${this.getNodeTypeLabel(node.type)} "${node.data.label}" has no upstream connection`);
+        } else if (incomingCount > 1) {
+          errors.push(`${this.getNodeTypeLabel(node.type)} "${node.data.label}" has multiple upstream connections (${incomingCount}). Only one input is allowed.`);
+        }
+      }
+      
+      // Source nodes should have no incoming edges
+      if (node.type === 'sourceConfig' && incomingCount > 0) {
+        errors.push(`Source Config node "${node.data.label}" cannot have incoming connections`);
+      }
+    });
+    
     // Validate each node has required configuration
     nodes.forEach(node => {
       const nodeErrors = this.validateNodeConfig(node);
@@ -148,6 +184,21 @@ class VisualMappingCompiler {
       valid: errors.length === 0,
       errors
     };
+  }
+  
+  /**
+   * Helper to get human-readable node type label
+   */
+  getNodeTypeLabel(type) {
+    const labels = {
+      'mappingConfig': 'Mapping Config',
+      'sourceConfig': 'Source Config',
+      'expression': 'Expression',
+      'rdmDataset': 'RDM Dataset',
+      'rdmCrosswalk': 'RDM Crosswalk',
+      'targetRules': 'Target Rules'
+    };
+    return labels[type] || type;
   }
   
   /**
@@ -211,6 +262,149 @@ class VisualMappingCompiler {
     }
     
     return errors;
+  }
+  
+  /**
+   * Propagates schemas through the graph in execution order
+   */
+  propagateSchemas(orderedNodeIds, nodes, edges) {
+    const nodeMap = {};
+    nodes.forEach(n => nodeMap[n.id] = n);
+    
+    const nodeSchemas = {}; // Maps node ID to its output schema
+    const errors = [];
+    
+    try {
+      orderedNodeIds.forEach(nodeId => {
+        const node = nodeMap[nodeId];
+        const config = node.data?.config || {};
+        
+        switch (node.type) {
+          case 'sourceConfig':
+            // Source nodes define the initial schema
+            if (config.schema && Array.isArray(config.schema)) {
+              nodeSchemas[nodeId] = config.schema.map(field => ({
+                name: field.name,
+                type: field.type || 'string',
+                source: 'source'
+              }));
+            } else {
+              nodeSchemas[nodeId] = [];
+            }
+            break;
+            
+          case 'expression':
+            // Expression nodes transform the schema based on field mappings
+            const upstreamSchema = this.getUpstreamSchema(nodeId, edges, nodeSchemas);
+            const outputSchema = [];
+            
+            if (config.fieldMappings && Array.isArray(config.fieldMappings)) {
+              config.fieldMappings.forEach(mapping => {
+                if (mapping.targetField) {
+                  outputSchema.push({
+                    name: mapping.targetField,
+                    type: mapping.targetType || 'string',
+                    source: 'expression',
+                    transformation: mapping.transformation
+                  });
+                }
+              });
+            }
+            
+            // Include pass-through fields not explicitly mapped
+            upstreamSchema.forEach(field => {
+              if (!outputSchema.find(f => f.name === field.name)) {
+                outputSchema.push({ ...field });
+              }
+            });
+            
+            nodeSchemas[nodeId] = outputSchema;
+            break;
+            
+          case 'rdmDataset':
+            // RDM Dataset joins add new fields from the reference dataset
+            const datasetUpstream = this.getUpstreamSchema(nodeId, edges, nodeSchemas);
+            const datasetOutput = [...datasetUpstream];
+            
+            // Add fields from RDM dataset if specified
+            if (config.rdmConfig && config.rdmConfig.join_fields) {
+              config.rdmConfig.join_fields.forEach(field => {
+                if (!datasetOutput.find(f => f.name === field)) {
+                  datasetOutput.push({
+                    name: field,
+                    type: 'string',
+                    source: 'rdm_dataset'
+                  });
+                }
+              });
+            }
+            
+            nodeSchemas[nodeId] = datasetOutput;
+            break;
+            
+          case 'rdmCrosswalk':
+            // RDM Crosswalk transforms values but doesn't change schema structure
+            const crosswalkUpstream = this.getUpstreamSchema(nodeId, edges, nodeSchemas);
+            nodeSchemas[nodeId] = crosswalkUpstream.map(field => ({ ...field }));
+            break;
+            
+          case 'targetRules':
+            // Target nodes receive the final schema
+            const targetUpstream = this.getUpstreamSchema(nodeId, edges, nodeSchemas);
+            nodeSchemas[nodeId] = targetUpstream;
+            break;
+            
+          default:
+            // For mapping config or unknown types, pass through
+            const defaultUpstream = this.getUpstreamSchema(nodeId, edges, nodeSchemas);
+            nodeSchemas[nodeId] = defaultUpstream;
+        }
+      });
+      
+      return {
+        success: true,
+        schemas: nodeSchemas
+      };
+      
+    } catch (error) {
+      return {
+        success: false,
+        errors: [`Schema propagation error: ${error.message}`]
+      };
+    }
+  }
+  
+  /**
+   * Gets the combined schema from all upstream nodes
+   */
+  getUpstreamSchema(nodeId, edges, nodeSchemas) {
+    const incomingEdges = edges.filter(e => e.target === nodeId);
+    
+    if (incomingEdges.length === 0) {
+      return [];
+    }
+    
+    // For single upstream (most common case)
+    if (incomingEdges.length === 1) {
+      const upstreamNodeId = incomingEdges[0].source;
+      return nodeSchemas[upstreamNodeId] || [];
+    }
+    
+    // For multiple upstreams (should be prevented by validation, but handle gracefully)
+    const combinedSchema = [];
+    const seenFields = new Set();
+    
+    incomingEdges.forEach(edge => {
+      const upstreamSchema = nodeSchemas[edge.source] || [];
+      upstreamSchema.forEach(field => {
+        if (!seenFields.has(field.name)) {
+          combinedSchema.push({ ...field });
+          seenFields.add(field.name);
+        }
+      });
+    });
+    
+    return combinedSchema;
   }
   
   /**
@@ -282,7 +476,7 @@ class VisualMappingCompiler {
   /**
    * Compiles nodes into transformation configuration
    */
-  compileNodes(orderedNodeIds, nodes, edges) {
+  compileNodes(orderedNodeIds, nodes, edges, nodeSchemas) {
     const nodeMap = {};
     nodes.forEach(n => nodeMap[n.id] = n);
     

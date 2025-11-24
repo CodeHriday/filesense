@@ -1,0 +1,127 @@
+const systemLogger = require('../utils/logger');
+
+class VisualMappingWebSocketService {
+  constructor() {
+    this.io = null;
+  }
+
+  initialize(io) {
+    this.io = io;
+    
+    this.io.on('connection', (socket) => {
+      systemLogger.info('Client connected to visual mapping WebSocket', {
+        socketId: socket.id
+      });
+
+      socket.on('subscribe_execution', (executionId) => {
+        socket.join(`execution:${executionId}`);
+        systemLogger.info('Client subscribed to execution updates', {
+          socketId: socket.id,
+          executionId
+        });
+      });
+
+      socket.on('unsubscribe_execution', (executionId) => {
+        socket.leave(`execution:${executionId}`);
+        systemLogger.info('Client unsubscribed from execution updates', {
+          socketId: socket.id,
+          executionId
+        });
+      });
+
+      socket.on('disconnect', () => {
+        systemLogger.info('Client disconnected from visual mapping WebSocket', {
+          socketId: socket.id
+        });
+      });
+    });
+  }
+
+  emitNodeStatus(executionId, nodeId, status, metadata = {}) {
+    if (!this.io) return;
+    
+    this.io.to(`execution:${executionId}`).emit('node_status', {
+      executionId,
+      nodeId,
+      status,
+      timestamp: new Date().toISOString(),
+      ...metadata
+    });
+    
+    systemLogger.debug('Emitted node status', {
+      executionId,
+      nodeId,
+      status,
+      metadata
+    });
+  }
+
+  emitEdgeRowCount(executionId, edgeId, sourceNodeId, targetNodeId, rowCount) {
+    if (!this.io) return;
+    
+    this.io.to(`execution:${executionId}`).emit('edge_row_count', {
+      executionId,
+      edgeId,
+      sourceNodeId,
+      targetNodeId,
+      rowCount,
+      timestamp: new Date().toISOString()
+    });
+    
+    systemLogger.debug('Emitted edge row count', {
+      executionId,
+      edgeId,
+      rowCount
+    });
+  }
+
+  emitExecutionProgress(executionId, progress) {
+    if (!this.io) return;
+    
+    this.io.to(`execution:${executionId}`).emit('execution_progress', {
+      executionId,
+      progress,
+      timestamp: new Date().toISOString()
+    });
+    
+    systemLogger.debug('Emitted execution progress', {
+      executionId,
+      progress
+    });
+  }
+
+  emitExecutionComplete(executionId, result) {
+    if (!this.io) return;
+    
+    this.io.to(`execution:${executionId}`).emit('execution_complete', {
+      executionId,
+      result,
+      timestamp: new Date().toISOString()
+    });
+    
+    systemLogger.info('Emitted execution complete', {
+      executionId,
+      result
+    });
+  }
+
+  emitExecutionError(executionId, error) {
+    if (!this.io) return;
+    
+    this.io.to(`execution:${executionId}`).emit('execution_error', {
+      executionId,
+      error: {
+        message: error.message,
+        stack: error.stack
+      },
+      timestamp: new Date().toISOString()
+    });
+    
+    systemLogger.error('Emitted execution error', {
+      executionId,
+      error: error.message
+    });
+  }
+}
+
+module.exports = new VisualMappingWebSocketService();
