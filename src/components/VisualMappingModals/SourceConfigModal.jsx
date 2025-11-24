@@ -4,18 +4,21 @@ import FileBrowserModal from './FileBrowserModal';
 import './MappingConfigModal.css';
 
 const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
-  const [connectionId, setConnectionId] = useState(initialConfig.connectionId || '');
-  const [filePath, setFilePath] = useState(initialConfig.filePath || '');
-  const [filePattern, setFilePattern] = useState(initialConfig.filePattern || '*.csv');
-  const [vendorAgreementId, setVendorAgreementId] = useState(initialConfig.vendorAgreementId || '');
-  const [sourceFileOwnerId, setSourceFileOwnerId] = useState(initialConfig.sourceFileOwnerId || '');
-  const [schemaDriftHandling, setSchemaDriftHandling] = useState(initialConfig.schemaDriftHandling || 'none');
+  // Use ref to track if we have a saved file pattern - this won't trigger re-renders
+  const hasSavedFilePatternRef = useRef(false);
+  
+  const [connectionId, setConnectionId] = useState('');
+  const [filePath, setFilePath] = useState('');
+  const [filePattern, setFilePattern] = useState('*.csv');
+  const [vendorAgreementId, setVendorAgreementId] = useState('');
+  const [sourceFileOwnerId, setSourceFileOwnerId] = useState('');
+  const [schemaDriftHandling, setSchemaDriftHandling] = useState('none');
   
   const [connections, setConnections] = useState([]);
   const [vendorAgreements, setVendorAgreements] = useState([]);
   const [datastewards, setDatastewards] = useState([]);
   const [agreementFiles, setAgreementFiles] = useState([]);
-  const [selectedFileId, setSelectedFileId] = useState(initialConfig.agreementFileId || '');
+  const [selectedFileId, setSelectedFileId] = useState('');
   const [loading, setLoading] = useState(false);
   const [matchingFiles, setMatchingFiles] = useState([]);
   const [fileBrowserOpen, setFileBrowserOpen] = useState(false);
@@ -23,11 +26,18 @@ const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
   const [schema, setSchema] = useState(null);
   const [schemaLoading, setSchemaLoading] = useState(false);
   
-  // Use ref to track if we have a saved file pattern - this won't trigger re-renders
-  const hasSavedFilePatternRef = useRef(false);
-  
+  // Initialize state from initialConfig when modal opens
   useEffect(() => {
     if (isOpen) {
+      // Restore all state from initialConfig
+      setConnectionId(initialConfig.connectionId || '');
+      setFilePath(initialConfig.filePath || '');
+      setFilePattern(initialConfig.filePattern || '*.csv');
+      setVendorAgreementId(initialConfig.vendorAgreementId || '');
+      setSourceFileOwnerId(initialConfig.sourceFileOwnerId || '');
+      setSchemaDriftHandling(initialConfig.schemaDriftHandling || 'none');
+      setSelectedFileId(initialConfig.agreementFileId || '');
+      
       // Track if this is reopening with saved data
       hasSavedFilePatternRef.current = !!(initialConfig.filePattern && initialConfig.filePattern !== '*.csv');
       
@@ -49,14 +59,15 @@ const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
         });
       }
       
-      console.log('Modal opened with initialConfig:', {
+      console.log('Modal opened - restored state from initialConfig:', {
         hasFilePattern: hasSavedFilePatternRef.current,
         filePattern: initialConfig.filePattern,
+        selectedFileId: initialConfig.agreementFileId,
         hasSchema: !!initialConfig.schema,
         schemaLength: initialConfig.schema?.length
       });
     }
-  }, [isOpen, initialConfig.filePattern, initialConfig.schema]);
+  }, [isOpen]);
   
   const fetchAgreementFiles = async (agreementId, existingFileId) => {
     try {
@@ -460,7 +471,7 @@ const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
                   <option value="">Select File</option>
                   {agreementFiles.map(file => (
                     <option key={file.id} value={file.id}>
-                      {file.file_name} {file.file_description ? `- ${file.file_description}` : ''}
+                      {file.file_name}
                     </option>
                   ))}
                 </select>
