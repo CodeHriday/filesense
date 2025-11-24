@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import FileBrowserModal from './FileBrowserModal';
 import './MappingConfigModal.css';
@@ -23,20 +23,40 @@ const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
   const [schema, setSchema] = useState(null);
   const [schemaLoading, setSchemaLoading] = useState(false);
   
-  // Track saved file pattern to prevent it from being overwritten
-  const [savedFilePattern, setSavedFilePattern] = useState(initialConfig.filePattern || '');
+  // Use ref to track if we have a saved file pattern - this won't trigger re-renders
+  const hasSavedFilePatternRef = useRef(false);
   
   useEffect(() => {
     if (isOpen) {
+      // Track if this is reopening with saved data
+      hasSavedFilePatternRef.current = !!(initialConfig.filePattern && initialConfig.filePattern !== '*.csv');
+      
       fetchConnections();
       fetchVendorAgreements();
       fetchDatastewards();
       // Reset to configuration tab when modal opens
       setActiveTab('configuration');
-      // Store the saved file pattern when modal opens
-      setSavedFilePattern(initialConfig.filePattern || '');
+      
+      // Restore schema from saved config if available
+      if (initialConfig.schema && initialConfig.schemaMetadata) {
+        setSchema({
+          columns: initialConfig.schema,
+          ...initialConfig.schemaMetadata
+        });
+        console.log('Restored schema from saved config:', {
+          columns: initialConfig.schema.length,
+          source: initialConfig.schemaMetadata.source
+        });
+      }
+      
+      console.log('Modal opened with initialConfig:', {
+        hasFilePattern: hasSavedFilePatternRef.current,
+        filePattern: initialConfig.filePattern,
+        hasSchema: !!initialConfig.schema,
+        schemaLength: initialConfig.schema?.length
+      });
     }
-  }, [isOpen]);
+  }, [isOpen, initialConfig.filePattern, initialConfig.schema]);
   
   const fetchAgreementFiles = async (agreementId, existingFileId) => {
     try {
@@ -44,9 +64,9 @@ const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
       const files = response.data.files || response.data || [];
       setAgreementFiles(files);
       
-      // NEVER auto-populate pattern if we have a saved pattern
-      if (savedFilePattern && savedFilePattern !== '*.csv') {
-        // We're reopening with saved data - don't touch filePattern
+      // NEVER auto-populate pattern if we're reopening with saved data
+      if (hasSavedFilePatternRef.current) {
+        console.log('Skipping filePattern auto-populate - has saved pattern');
         return;
       }
       
@@ -54,8 +74,9 @@ const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
       if (files.length > 0 && !existingFileId) {
         const firstFile = files[0];
         setSelectedFileId(String(firstFile.id));
-        // Auto-populate pattern from first file only if no saved pattern
-        if (firstFile.file_name && !savedFilePattern) {
+        // Auto-populate pattern from first file
+        if (firstFile.file_name) {
+          console.log('Auto-populating filePattern from first file:', firstFile.file_name);
           setFilePattern(firstFile.file_name);
         }
       }
@@ -125,23 +146,25 @@ const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
       setSelectedFileId('');
       setSchema(null);
     }
-  }, [vendorAgreementId, vendorAgreements, connections, datastewards, savedFilePattern]);
+  }, [vendorAgreementId, vendorAgreements, connections, datastewards]);
   
   // Update file pattern when selected file changes
   // BUT NEVER overwrite if we have a saved pattern
   useEffect(() => {
-    // Skip if we have a saved pattern - user manually selected this
-    if (savedFilePattern && savedFilePattern !== '*.csv') {
+    // Skip if we're reopening with saved data
+    if (hasSavedFilePatternRef.current) {
+      console.log('Skipping filePattern update from selectedFileId - has saved pattern');
       return;
     }
     
     if (selectedFileId && agreementFiles.length > 0) {
       const selectedFile = agreementFiles.find(f => String(f.id) === selectedFileId);
       if (selectedFile && selectedFile.file_name) {
+        console.log('Updating filePattern from selectedFileId:', selectedFile.file_name);
         setFilePattern(selectedFile.file_name);
       }
     }
-  }, [selectedFileId, agreementFiles, savedFilePattern]);
+  }, [selectedFileId, agreementFiles]);
   
   // Fetch schema when agreement file is selected
   useEffect(() => {
