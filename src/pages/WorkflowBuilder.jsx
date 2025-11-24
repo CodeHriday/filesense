@@ -19,8 +19,16 @@ import { FaSave, FaPlay, FaClock, FaPlus, FaTrash, FaSearch } from 'react-icons/
 
 // Custom node component for ETL mapping jobs
 const JobNode = ({ data }) => {
+  // Determine node class based on execution status
+  let nodeClassName = "workflow-job-node";
+  if (data.executionStatus === 'completed') {
+    nodeClassName += " workflow-job-node-success";
+  } else if (data.executionStatus === 'failed') {
+    nodeClassName += " workflow-job-node-error";
+  }
+  
   return (
-    <div className="workflow-job-node">
+    <div className={nodeClassName}>
       <Handle 
         type="target" 
         position={Position.Left} 
@@ -29,9 +37,20 @@ const JobNode = ({ data }) => {
       />
       <div className="workflow-job-node-header">
         <span className="workflow-job-node-title">{data.label}</span>
+        {data.executionStatus === 'completed' && (
+          <span className="workflow-job-node-status-badge workflow-job-node-status-success">✓</span>
+        )}
+        {data.executionStatus === 'failed' && (
+          <span className="workflow-job-node-status-badge workflow-job-node-status-error" title={data.executionError}>✗</span>
+        )}
       </div>
       {data.description && (
         <div className="workflow-job-node-description">{data.description}</div>
+      )}
+      {data.executionError && (
+        <div className="workflow-job-node-error-message" title={data.executionError}>
+          Error: {data.executionError.substring(0, 50)}{data.executionError.length > 50 ? '...' : ''}
+        </div>
       )}
       <div className="workflow-job-node-footer">
         <span className="workflow-job-node-id">#{data.assetId}</span>
@@ -72,6 +91,8 @@ const WorkflowBuilderContent = () => {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
+  const [executionStatus, setExecutionStatus] = useState(null); // Stores node execution statuses
+  const [showExecutionResults, setShowExecutionResults] = useState(false);
   
   // Palette section collapse states
   const [showJobs, setShowJobs] = useState(true);
@@ -399,13 +420,47 @@ const WorkflowBuilderContent = () => {
     }
     
     try {
+      setError(null);
+      setSuccess('Workflow execution started...');
+      
       const token = localStorage.getItem('token');
       const response = await axios.post(`/api/visual-workflows/${workflowId}/execute`, {}, {
         headers: { Authorization: `Bearer ${token}` }
       });
       
-      setSuccess('Workflow execution started');
-      setTimeout(() => setSuccess(null), 3000);
+      const result = response.data;
+      
+      // Store execution status for visual feedback
+      setExecutionStatus(result.summary?.nodeStatuses || {});
+      setShowExecutionResults(true);
+      
+      // Update nodes with execution status styling
+      if (result.summary?.nodeStatuses) {
+        setNodes((nds) =>
+          nds.map((node) => {
+            const nodeStatus = result.summary.nodeStatuses[node.id];
+            if (nodeStatus) {
+              return {
+                ...node,
+                data: {
+                  ...node.data,
+                  executionStatus: nodeStatus.status,
+                  executionError: nodeStatus.error
+                }
+              };
+            }
+            return node;
+          })
+        );
+      }
+      
+      if (result.success) {
+        setSuccess(`Workflow executed successfully! ${result.summary.successCount}/${result.summary.totalNodes} nodes completed.`);
+      } else {
+        setError(`Workflow execution completed with errors: ${result.summary.failedCount}/${result.summary.totalNodes} nodes failed.`);
+      }
+      
+      setTimeout(() => setSuccess(null), 5000);
     } catch (err) {
       console.error('Failed to execute workflow:', err);
       setError(err.response?.data?.error || 'Failed to execute workflow');

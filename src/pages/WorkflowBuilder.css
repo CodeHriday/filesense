@@ -480,6 +480,47 @@
   font-family: 'Courier New', monospace;
 }
 
+/* Execution Status Styles */
+.workflow-job-node-success {
+  border-color: #28a745;
+  background: #f0fff4;
+}
+
+.workflow-job-node-error {
+  border-color: #dc3545;
+  background: #fff5f5;
+}
+
+.workflow-job-node-status-badge {
+  font-size: 14px;
+  font-weight: bold;
+  margin-left: auto;
+}
+
+.workflow-job-node-status-success {
+  color: #28a745;
+}
+
+.workflow-job-node-status-error {
+  color: #dc3545;
+  cursor: help;
+}
+
+.workflow-job-node-error-message {
+  font-size: 10px;
+  color: #dc3545;
+  background: #fff5f5;
+  padding: 6px;
+  border-radius: 3px;
+  margin-top: 6px;
+  margin-bottom: 6px;
+  border-left: 2px solid #dc3545;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: help;
+}
+
 /* React Flow scoped overrides - prevent selection outline */
 .workflow-builder .react-flow__node {
   outline: none !important;

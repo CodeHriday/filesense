@@ -382,11 +382,38 @@ class VisualWorkflowExecutor {
     const successCount = this.executionResults.size;
     const failedCount = this.executionErrors.size;
 
+    // Build detailed node status map
+    const nodeStatuses = {};
+    
+    // Add successful nodes
+    for (const [nodeId, result] of this.executionResults.entries()) {
+      nodeStatuses[nodeId] = {
+        status: 'completed',
+        success: result.success,
+        type: result.type,
+        assetId: result.assetId,
+        assetName: result.assetName,
+        jobId: result.jobId,
+        executedMappings: result.executedMappings
+      };
+    }
+    
+    // Add failed nodes
+    for (const [nodeId, error] of this.executionErrors.entries()) {
+      nodeStatuses[nodeId] = {
+        status: 'failed',
+        success: false,
+        error: typeof error === 'string' ? error : error.message,
+        errorDetails: typeof error === 'object' ? error : null
+      };
+    }
+
     return {
       totalNodes,
       successCount,
       failedCount,
-      successRate: totalNodes > 0 ? (successCount / totalNodes * 100).toFixed(2) : 0
+      successRate: totalNodes > 0 ? (successCount / totalNodes * 100).toFixed(2) : 0,
+      nodeStatuses  // Include detailed per-node execution status
     };
   }
 }
