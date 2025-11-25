@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { FiPlus, FiEdit2, FiTrash2, FiAlertTriangle, FiCheck } from 'react-icons/fi';
-import Card from '../components/Card';
+import { FiPlus, FiEdit2, FiTrash2, FiAlertTriangle, FiCheck, FiX } from 'react-icons/fi';
 import LoadingSpinner from '../components/LoadingSpinner';
 import Pagination from '../components/Pagination';
 import { getQualityRules, createQualityRule, updateQualityRule, deleteQualityRule, getViolationsSummary, getProjects } from '../api/qualityRulesService';
@@ -8,7 +7,6 @@ import { formatDate } from '../utils/formatters';
 import { useAuth } from '../context/AuthContext';
 import ConfirmModal from '../components/ConfirmModal';
 import '../styles/global-page-styles.css';
-import './QualityRules.css';
 
 function QualityRules() {
   const { hasWritePermission } = useAuth();
@@ -30,13 +28,11 @@ function QualityRules() {
     violations: 0
   });
 
-  // Filter state
   const [filterProjectId, setFilterProjectId] = useState('');
   const [filterSubProjectId, setFilterSubProjectId] = useState('');
   const [filterRuleType, setFilterRuleType] = useState('');
   const [filterEnabled, setFilterEnabled] = useState('');
 
-  // Form state
   const [formData, setFormData] = useState({
     rule_name: '',
     rule_type: 'completeness',
@@ -56,7 +52,6 @@ function QualityRules() {
     fetchData();
   }, [currentPage, filterProjectId, filterSubProjectId, filterRuleType, filterEnabled]);
 
-  // Get unique projects from the rules data for filtering
   const uniqueProjects = useMemo(() => {
     const projectSet = new Map();
     rules.forEach(rule => {
@@ -67,7 +62,6 @@ function QualityRules() {
     return Array.from(projectSet.entries()).map(([id, name]) => ({ id, name }));
   }, [rules]);
 
-  // Get unique subprojects based on selected project filter
   const uniqueSubProjects = useMemo(() => {
     const subProjectSet = new Map();
     rules.forEach(rule => {
@@ -80,7 +74,6 @@ function QualityRules() {
     return Array.from(subProjectSet.entries()).map(([id, name]) => ({ id, name }));
   }, [rules, filterProjectId]);
 
-  // Filter rules based on all filter criteria
   const filteredRules = useMemo(() => {
     return rules.filter(rule => {
       if (filterProjectId && rule.project_id !== parseInt(filterProjectId)) return false;
@@ -356,317 +349,6 @@ function QualityRules() {
     });
   };
 
-  const renderRuleTypeFields = () => {
-    const config = formData.rule_config;
-    
-    switch (formData.rule_type) {
-      case 'completeness':
-        return (
-          <div className="rule-type-fields">
-            <div className="form-group">
-              <label htmlFor="completeness-threshold">
-                Completeness Threshold (%)
-                <span className="field-hint">Minimum percentage of non-null values required</span>
-              </label>
-              <input
-                type="range"
-                id="completeness-threshold"
-                min="0"
-                max="100"
-                value={config.threshold || 95}
-                onChange={(e) => updateRuleConfig('threshold', parseInt(e.target.value))}
-                className="threshold-slider"
-              />
-              <div className="threshold-value">{config.threshold || 95}%</div>
-              {formErrors.threshold && <span className="error-text">{formErrors.threshold}</span>}
-            </div>
-            
-            <div className="form-group">
-              <label htmlFor="completeness-column">
-                Column Name
-                <span className="field-hint">The column to check for completeness</span>
-              </label>
-              <input
-                type="text"
-                id="completeness-column"
-                className="form-control"
-                value={formData.column_name}
-                onChange={(e) => setFormData({ ...formData, column_name: e.target.value })}
-                placeholder="e.g., email, customer_id"
-              />
-              {formErrors.column && <span className="error-text">{formErrors.column}</span>}
-            </div>
-          </div>
-        );
-        
-      case 'validity':
-        return (
-          <div className="rule-type-fields">
-            <div className="form-group">
-              <label htmlFor="validity-type">
-                Validation Type
-                <span className="field-hint">Type of data validation to perform</span>
-              </label>
-              <select
-                id="validity-type"
-                className="form-control"
-                value={config.validity_type || ''}
-                onChange={(e) => updateRuleConfig('validity_type', e.target.value)}
-              >
-                <option value="">Select type...</option>
-                <option value="pattern">Pattern Match (Regex)</option>
-                <option value="range">Numeric Range</option>
-                <option value="enum">Allowed Values List</option>
-                <option value="datatype">Data Type Check</option>
-              </select>
-              {formErrors.validity_type && <span className="error-text">{formErrors.validity_type}</span>}
-            </div>
-            
-            {config.validity_type === 'pattern' && (
-              <div className="form-group">
-                <label htmlFor="validity-pattern">
-                  Pattern (Regular Expression)
-                  <span className="field-hint">e.g., ^[A-Z0-9]+$ for alphanumeric uppercase</span>
-                </label>
-                <input
-                  type="text"
-                  id="validity-pattern"
-                  className="form-control"
-                  value={config.pattern || ''}
-                  onChange={(e) => updateRuleConfig('pattern', e.target.value)}
-                  placeholder="^[a-zA-Z0-9]+$"
-                />
-                {formErrors.pattern && <span className="error-text">{formErrors.pattern}</span>}
-              </div>
-            )}
-            
-            {config.validity_type === 'range' && (
-              <div className="form-row">
-                <div className="form-group">
-                  <label htmlFor="validity-min">Minimum Value</label>
-                  <input
-                    type="number"
-                    id="validity-min"
-                    className="form-control"
-                    value={config.min || ''}
-                    onChange={(e) => updateRuleConfig('min', parseFloat(e.target.value))}
-                  />
-                </div>
-                <div className="form-group">
-                  <label htmlFor="validity-max">Maximum Value</label>
-                  <input
-                    type="number"
-                    id="validity-max"
-                    className="form-control"
-                    value={config.max || ''}
-                    onChange={(e) => updateRuleConfig('max', parseFloat(e.target.value))}
-                  />
-                </div>
-                {formErrors.range && <span className="error-text">{formErrors.range}</span>}
-              </div>
-            )}
-            
-            {config.validity_type === 'enum' && (
-              <div className="form-group">
-                <label htmlFor="validity-allowed-values">
-                  Allowed Values
-                  <span className="field-hint">Comma-separated list of allowed values</span>
-                </label>
-                <textarea
-                  id="validity-allowed-values"
-                  className="form-control"
-                  rows="3"
-                  value={(config.allowed_values || []).join(', ')}
-                  onChange={(e) => updateRuleConfig('allowed_values', e.target.value.split(',').map(v => v.trim()).filter(v => v))}
-                  placeholder="Active, Pending, Closed"
-                />
-                {formErrors.allowed_values && <span className="error-text">{formErrors.allowed_values}</span>}
-              </div>
-            )}
-            
-            {config.validity_type === 'datatype' && (
-              <div className="form-group">
-                <label htmlFor="validity-datatype">Expected Data Type</label>
-                <select
-                  id="validity-datatype"
-                  className="form-control"
-                  value={config.datatype || ''}
-                  onChange={(e) => updateRuleConfig('datatype', e.target.value)}
-                >
-                  <option value="">Select data type...</option>
-                  <option value="string">Text</option>
-                  <option value="integer">Whole Number</option>
-                  <option value="float">Decimal Number</option>
-                  <option value="boolean">True/False</option>
-                  <option value="date">Date</option>
-                  <option value="datetime">Date & Time</option>
-                </select>
-                {formErrors.datatype && <span className="error-text">{formErrors.datatype}</span>}
-              </div>
-            )}
-            
-            <div className="form-group">
-              <label htmlFor="validity-column">Column Name</label>
-              <input
-                type="text"
-                id="validity-column"
-                className="form-control"
-                value={formData.column_name}
-                onChange={(e) => setFormData({ ...formData, column_name: e.target.value })}
-                placeholder="e.g., status, amount"
-              />
-            </div>
-          </div>
-        );
-        
-      case 'consistency':
-        return (
-          <div className="rule-type-fields">
-            <div className="form-group">
-              <label htmlFor="consistency-type">
-                Consistency Type
-                <span className="field-hint">Type of consistency check to perform</span>
-              </label>
-              <select
-                id="consistency-type"
-                className="form-control"
-                value={config.consistency_type || ''}
-                onChange={(e) => updateRuleConfig('consistency_type', e.target.value)}
-              >
-                <option value="">Select type...</option>
-                <option value="cross_field">Cross-Field Validation</option>
-                <option value="format_consistency">Format Consistency</option>
-              </select>
-              {formErrors.consistency_type && <span className="error-text">{formErrors.consistency_type}</span>}
-            </div>
-            
-            {config.consistency_type === 'cross_field' && (
-              <div className="form-group">
-                <label htmlFor="consistency-expression">
-                  Validation Expression
-                  <span className="field-hint">e.g., end_date &gt; start_date or total = subtotal + tax</span>
-                </label>
-                <textarea
-                  id="consistency-expression"
-                  className="form-control"
-                  rows="3"
-                  value={config.expression || ''}
-                  onChange={(e) => updateRuleConfig('expression', e.target.value)}
-                  placeholder="end_date > start_date"
-                />
-                {formErrors.expression && <span className="error-text">{formErrors.expression}</span>}
-              </div>
-            )}
-            
-            {config.consistency_type === 'format_consistency' && (
-              <div className="form-group">
-                <label htmlFor="consistency-format">
-                  Expected Format Pattern
-                  <span className="field-hint">Regex pattern for format validation</span>
-                </label>
-                <input
-                  type="text"
-                  id="consistency-format"
-                  className="form-control"
-                  value={config.format_pattern || ''}
-                  onChange={(e) => updateRuleConfig('format_pattern', e.target.value)}
-                  placeholder="^\d{3}-\d{2}-\d{4}$"
-                />
-              </div>
-            )}
-            
-            <div className="form-group">
-              <label htmlFor="consistency-column">Column Name (Optional)</label>
-              <input
-                type="text"
-                id="consistency-column"
-                className="form-control"
-                value={formData.column_name}
-                onChange={(e) => setFormData({ ...formData, column_name: e.target.value })}
-                placeholder="Leave blank for multi-column rules"
-              />
-            </div>
-          </div>
-        );
-        
-      case 'uniqueness':
-        return (
-          <div className="rule-type-fields">
-            <div className="form-group">
-              <label htmlFor="uniqueness-columns">
-                Columns to Check for Uniqueness
-                <span className="field-hint">Comma-separated list of columns that should form a unique key</span>
-              </label>
-              <textarea
-                id="uniqueness-columns"
-                className="form-control"
-                rows="2"
-                value={(config.columns || []).join(', ')}
-                onChange={(e) => updateRuleConfig('columns', e.target.value.split(',').map(v => v.trim()).filter(v => v))}
-                placeholder="customer_id, order_id"
-              />
-              {formErrors.columns && <span className="error-text">{formErrors.columns}</span>}
-              <span className="field-hint">For composite keys, list all columns that together should be unique</span>
-            </div>
-            
-            <div className="form-group">
-              <label>
-                <input
-                  type="checkbox"
-                  checked={config.case_sensitive || false}
-                  onChange={(e) => updateRuleConfig('case_sensitive', e.target.checked)}
-                />
-                {' '}Case-sensitive comparison
-              </label>
-            </div>
-          </div>
-        );
-        
-      case 'freshness':
-        return (
-          <div className="rule-type-fields">
-            <div className="form-group">
-              <label htmlFor="freshness-max-age">
-                Maximum Age (Hours)
-                <span className="field-hint">Data older than this will be flagged as stale</span>
-              </label>
-              <input
-                type="number"
-                id="freshness-max-age"
-                className="form-control"
-                min="1"
-                value={config.max_age_hours || 24}
-                onChange={(e) => updateRuleConfig('max_age_hours', parseInt(e.target.value))}
-              />
-              {formErrors.max_age_hours && <span className="error-text">{formErrors.max_age_hours}</span>}
-            </div>
-            
-            <div className="form-group">
-              <label htmlFor="freshness-timestamp-column">
-                Timestamp Column
-                <span className="field-hint">Column containing the data timestamp</span>
-              </label>
-              <input
-                type="text"
-                id="freshness-timestamp-column"
-                className="form-control"
-                value={config.timestamp_column || formData.column_name}
-                onChange={(e) => {
-                  updateRuleConfig('timestamp_column', e.target.value);
-                  setFormData({ ...formData, column_name: e.target.value });
-                }}
-                placeholder="e.g., created_at, updated_at"
-              />
-              {formErrors.timestamp_column && <span className="error-text">{formErrors.timestamp_column}</span>}
-            </div>
-          </div>
-        );
-        
-      default:
-        return null;
-    }
-  };
-
   const getRuleTypeDescription = (type) => {
     const descriptions = {
       completeness: 'Ensure data fields are filled in and not missing',
@@ -678,9 +360,270 @@ function QualityRules() {
     return descriptions[type] || '';
   };
 
+  const renderRuleTypeFields = () => {
+    const config = formData.rule_config;
+    
+    switch (formData.rule_type) {
+      case 'completeness':
+        return (
+          <div style={{ marginTop: '16px', padding: '16px', backgroundColor: '#f9fafb', borderRadius: '8px' }}>
+            <div className="gps-form-group">
+              <label className="gps-label">
+                Completeness Threshold (%)
+                <small className="gps-text-muted" style={{ display: 'block', fontWeight: 400, marginTop: '2px' }}>Minimum percentage of non-null values required</small>
+              </label>
+              <input
+                type="range"
+                min="0"
+                max="100"
+                value={config.threshold || 95}
+                onChange={(e) => updateRuleConfig('threshold', parseInt(e.target.value))}
+                style={{ width: '100%' }}
+              />
+              <div style={{ textAlign: 'center', fontWeight: 600, color: '#025043' }}>{config.threshold || 95}%</div>
+              {formErrors.threshold && <span style={{ color: '#e53e3e', fontSize: '10px' }}>{formErrors.threshold}</span>}
+            </div>
+            
+            <div className="gps-form-group">
+              <label className="gps-label">
+                Column Name
+                <small className="gps-text-muted" style={{ display: 'block', fontWeight: 400, marginTop: '2px' }}>The column to check for completeness</small>
+              </label>
+              <input
+                type="text"
+                className="gps-input"
+                value={formData.column_name}
+                onChange={(e) => setFormData({ ...formData, column_name: e.target.value })}
+                placeholder="e.g., email, customer_id"
+              />
+              {formErrors.column && <span style={{ color: '#e53e3e', fontSize: '10px' }}>{formErrors.column}</span>}
+            </div>
+          </div>
+        );
+        
+      case 'validity':
+        return (
+          <div style={{ marginTop: '16px', padding: '16px', backgroundColor: '#f9fafb', borderRadius: '8px' }}>
+            <div className="gps-form-group">
+              <label className="gps-label">Validation Type</label>
+              <select
+                className="gps-select"
+                value={config.validity_type || ''}
+                onChange={(e) => updateRuleConfig('validity_type', e.target.value)}
+              >
+                <option value="">Select type...</option>
+                <option value="pattern">Pattern Match (Regex)</option>
+                <option value="range">Numeric Range</option>
+                <option value="enum">Allowed Values List</option>
+                <option value="datatype">Data Type Check</option>
+              </select>
+              {formErrors.validity_type && <span style={{ color: '#e53e3e', fontSize: '10px' }}>{formErrors.validity_type}</span>}
+            </div>
+            
+            {config.validity_type === 'pattern' && (
+              <div className="gps-form-group">
+                <label className="gps-label">Pattern (Regular Expression)</label>
+                <input
+                  type="text"
+                  className="gps-input"
+                  value={config.pattern || ''}
+                  onChange={(e) => updateRuleConfig('pattern', e.target.value)}
+                  placeholder="^[a-zA-Z0-9]+$"
+                />
+                {formErrors.pattern && <span style={{ color: '#e53e3e', fontSize: '10px' }}>{formErrors.pattern}</span>}
+              </div>
+            )}
+            
+            {config.validity_type === 'range' && (
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div className="gps-form-group">
+                  <label className="gps-label">Minimum Value</label>
+                  <input
+                    type="number"
+                    className="gps-input"
+                    value={config.min || ''}
+                    onChange={(e) => updateRuleConfig('min', parseFloat(e.target.value))}
+                  />
+                </div>
+                <div className="gps-form-group">
+                  <label className="gps-label">Maximum Value</label>
+                  <input
+                    type="number"
+                    className="gps-input"
+                    value={config.max || ''}
+                    onChange={(e) => updateRuleConfig('max', parseFloat(e.target.value))}
+                  />
+                </div>
+                {formErrors.range && <span style={{ color: '#e53e3e', fontSize: '10px', gridColumn: '1 / -1' }}>{formErrors.range}</span>}
+              </div>
+            )}
+            
+            {config.validity_type === 'enum' && (
+              <div className="gps-form-group">
+                <label className="gps-label">Allowed Values (comma-separated)</label>
+                <textarea
+                  className="gps-textarea"
+                  rows="3"
+                  value={(config.allowed_values || []).join(', ')}
+                  onChange={(e) => updateRuleConfig('allowed_values', e.target.value.split(',').map(v => v.trim()).filter(v => v))}
+                  placeholder="Active, Pending, Closed"
+                />
+                {formErrors.allowed_values && <span style={{ color: '#e53e3e', fontSize: '10px' }}>{formErrors.allowed_values}</span>}
+              </div>
+            )}
+            
+            {config.validity_type === 'datatype' && (
+              <div className="gps-form-group">
+                <label className="gps-label">Expected Data Type</label>
+                <select
+                  className="gps-select"
+                  value={config.datatype || ''}
+                  onChange={(e) => updateRuleConfig('datatype', e.target.value)}
+                >
+                  <option value="">Select data type...</option>
+                  <option value="string">Text</option>
+                  <option value="integer">Whole Number</option>
+                  <option value="float">Decimal Number</option>
+                  <option value="boolean">True/False</option>
+                  <option value="date">Date</option>
+                  <option value="datetime">Date & Time</option>
+                </select>
+                {formErrors.datatype && <span style={{ color: '#e53e3e', fontSize: '10px' }}>{formErrors.datatype}</span>}
+              </div>
+            )}
+            
+            <div className="gps-form-group">
+              <label className="gps-label">Column Name</label>
+              <input
+                type="text"
+                className="gps-input"
+                value={formData.column_name}
+                onChange={(e) => setFormData({ ...formData, column_name: e.target.value })}
+                placeholder="e.g., status, amount"
+              />
+            </div>
+          </div>
+        );
+        
+      case 'consistency':
+        return (
+          <div style={{ marginTop: '16px', padding: '16px', backgroundColor: '#f9fafb', borderRadius: '8px' }}>
+            <div className="gps-form-group">
+              <label className="gps-label">Consistency Type</label>
+              <select
+                className="gps-select"
+                value={config.consistency_type || ''}
+                onChange={(e) => updateRuleConfig('consistency_type', e.target.value)}
+              >
+                <option value="">Select type...</option>
+                <option value="cross_field">Cross-Field Validation</option>
+                <option value="format_consistency">Format Consistency</option>
+              </select>
+              {formErrors.consistency_type && <span style={{ color: '#e53e3e', fontSize: '10px' }}>{formErrors.consistency_type}</span>}
+            </div>
+            
+            {config.consistency_type === 'cross_field' && (
+              <div className="gps-form-group">
+                <label className="gps-label">Validation Expression</label>
+                <textarea
+                  className="gps-textarea"
+                  rows="3"
+                  value={config.expression || ''}
+                  onChange={(e) => updateRuleConfig('expression', e.target.value)}
+                  placeholder="end_date > start_date"
+                />
+                {formErrors.expression && <span style={{ color: '#e53e3e', fontSize: '10px' }}>{formErrors.expression}</span>}
+              </div>
+            )}
+            
+            {config.consistency_type === 'format_consistency' && (
+              <div className="gps-form-group">
+                <label className="gps-label">Expected Format Pattern</label>
+                <input
+                  type="text"
+                  className="gps-input"
+                  value={config.format_pattern || ''}
+                  onChange={(e) => updateRuleConfig('format_pattern', e.target.value)}
+                  placeholder="^\d{3}-\d{2}-\d{4}$"
+                />
+              </div>
+            )}
+            
+            <div className="gps-form-group">
+              <label className="gps-label">Column Name (Optional)</label>
+              <input
+                type="text"
+                className="gps-input"
+                value={formData.column_name}
+                onChange={(e) => setFormData({ ...formData, column_name: e.target.value })}
+                placeholder="Leave blank for multi-column rules"
+              />
+            </div>
+          </div>
+        );
+        
+      case 'uniqueness':
+        return (
+          <div style={{ marginTop: '16px', padding: '16px', backgroundColor: '#f9fafb', borderRadius: '8px' }}>
+            <div className="gps-form-group">
+              <label className="gps-label">
+                Columns to Check for Uniqueness
+                <small className="gps-text-muted" style={{ display: 'block', fontWeight: 400, marginTop: '2px' }}>Comma-separated list of columns that should form a unique key</small>
+              </label>
+              <textarea
+                className="gps-textarea"
+                rows="2"
+                value={(config.columns || []).join(', ')}
+                onChange={(e) => updateRuleConfig('columns', e.target.value.split(',').map(v => v.trim()).filter(v => v))}
+                placeholder="customer_id, order_id"
+              />
+              {formErrors.columns && <span style={{ color: '#e53e3e', fontSize: '10px' }}>{formErrors.columns}</span>}
+            </div>
+          </div>
+        );
+        
+      case 'freshness':
+        return (
+          <div style={{ marginTop: '16px', padding: '16px', backgroundColor: '#f9fafb', borderRadius: '8px' }}>
+            <div className="gps-form-group">
+              <label className="gps-label">
+                Maximum Age (Hours)
+                <small className="gps-text-muted" style={{ display: 'block', fontWeight: 400, marginTop: '2px' }}>Data older than this will be flagged as stale</small>
+              </label>
+              <input
+                type="number"
+                className="gps-input"
+                min="1"
+                value={config.max_age_hours || 24}
+                onChange={(e) => updateRuleConfig('max_age_hours', parseInt(e.target.value))}
+              />
+              {formErrors.max_age_hours && <span style={{ color: '#e53e3e', fontSize: '10px' }}>{formErrors.max_age_hours}</span>}
+            </div>
+            
+            <div className="gps-form-group">
+              <label className="gps-label">Timestamp Column</label>
+              <input
+                type="text"
+                className="gps-input"
+                value={config.timestamp_column || formData.column_name}
+                onChange={(e) => {
+                  updateRuleConfig('timestamp_column', e.target.value);
+                  setFormData({ ...formData, column_name: e.target.value });
+                }}
+                placeholder="e.g., created_at, updated_at"
+              />
+              {formErrors.timestamp_column && <span style={{ color: '#e53e3e', fontSize: '10px' }}>{formErrors.timestamp_column}</span>}
+            </div>
+          </div>
+        );
+        
+      default:
+        return null;
+    }
+  };
+
   const totalPages = Math.ceil((pagination.total || 0) / itemsPerPage);
 
-  // Reset subproject filter when project filter changes
   useEffect(() => {
     setFilterSubProjectId('');
   }, [filterProjectId]);
@@ -692,38 +635,37 @@ function QualityRules() {
           <h1 className="gps-page-title">Data Quality Rules</h1>
           <p className="gps-page-subtitle">Define and manage rules to monitor data quality across your datasets</p>
         </div>
-        {hasWritePermission('quality_rules') && (
-          <button className="gps-btn-primary" onClick={handleAddRule}>
-            <FiPlus />
-            Create Rule
-          </button>
-        )}
+        <div className="gps-header-actions">
+          {hasWritePermission('quality_rules') && (
+            <button className="gps-btn gps-btn--primary" onClick={handleAddRule}>
+              <FiPlus /> Create Rule
+            </button>
+          )}
+        </div>
       </div>
 
-      {/* Summary Statistics */}
-      <div className="statistics-grid">
-        <Card className="stat-card">
-          <div className="stat-label">Total Rules</div>
-          <div className="stat-value">{statistics.total}</div>
-        </Card>
-        <Card className="stat-card stat-success">
-          <div className="stat-label">Enabled Rules</div>
-          <div className="stat-value">{statistics.enabled}</div>
-        </Card>
-        <Card className="stat-card stat-warning">
-          <div className="stat-label">Disabled Rules</div>
-          <div className="stat-value">{statistics.disabled}</div>
-        </Card>
-        <Card className="stat-card stat-error">
-          <div className="stat-label">Total Violations (30d)</div>
-          <div className="stat-value">{statistics.violations}</div>
-        </Card>
+      <div className="gps-card-grid" style={{ gridTemplateColumns: 'repeat(4, 1fr)', marginBottom: '24px' }}>
+        <div className="gps-stat-card">
+          <span className="gps-text-muted" style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Total Rules</span>
+          <span style={{ fontSize: '24px', fontWeight: 700, color: '#1f2937' }}>{statistics.total}</span>
+        </div>
+        <div className="gps-stat-card" style={{ borderLeft: '3px solid #16a34a' }}>
+          <span className="gps-text-muted" style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Enabled Rules</span>
+          <span style={{ fontSize: '24px', fontWeight: 700, color: '#16a34a' }}>{statistics.enabled}</span>
+        </div>
+        <div className="gps-stat-card" style={{ borderLeft: '3px solid #f59e0b' }}>
+          <span className="gps-text-muted" style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Disabled Rules</span>
+          <span style={{ fontSize: '24px', fontWeight: 700, color: '#f59e0b' }}>{statistics.disabled}</span>
+        </div>
+        <div className="gps-stat-card" style={{ borderLeft: '3px solid #e53e3e' }}>
+          <span className="gps-text-muted" style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Total Violations (30d)</span>
+          <span style={{ fontSize: '24px', fontWeight: 700, color: '#e53e3e' }}>{statistics.violations.toLocaleString()}</span>
+        </div>
       </div>
 
-      {/* Filters */}
       <div className="gps-filters">
         <select
-          className="gps-filter-select"
+          className="gps-select"
           value={filterProjectId}
           onChange={(e) => {
             setFilterProjectId(e.target.value);
@@ -739,7 +681,7 @@ function QualityRules() {
         </select>
         
         <select
-          className="gps-filter-select"
+          className="gps-select"
           value={filterSubProjectId}
           onChange={(e) => {
             setFilterSubProjectId(e.target.value);
@@ -755,7 +697,7 @@ function QualityRules() {
         </select>
         
         <select
-          className="gps-filter-select"
+          className="gps-select"
           value={filterRuleType}
           onChange={(e) => {
             setFilterRuleType(e.target.value);
@@ -771,7 +713,7 @@ function QualityRules() {
         </select>
         
         <select
-          className="gps-filter-select"
+          className="gps-select"
           value={filterEnabled}
           onChange={(e) => {
             setFilterEnabled(e.target.value);
@@ -787,154 +729,19 @@ function QualityRules() {
       {loading ? (
         <LoadingSpinner size="small" />
       ) : error ? (
-        <div className="gps-alert gps-alert-danger">
+        <div className="gps-alert gps-alert--error">
           <FiAlertTriangle />
           <span>{error}</span>
-          <button className="gps-btn-primary" onClick={fetchData}>
+          <button className="gps-btn gps-btn--primary" onClick={fetchData} style={{ marginLeft: 'auto' }}>
             Retry
           </button>
         </div>
       ) : (
         <>
-          {/* Rule Form */}
-          {showRuleForm && (
-            <Card className="rule-form-card">
-              <h2>{currentRule ? 'Edit Quality Rule' : 'Create New Quality Rule'}</h2>
-              <form onSubmit={handleSubmitRule}>
-                <div className="form-row">
-                  <div className="form-group">
-                    <label htmlFor="rule-name">
-                      Rule Name *
-                    </label>
-                    <input
-                      type="text"
-                      id="rule-name"
-                      className="form-control"
-                      value={formData.rule_name}
-                      onChange={(e) => setFormData({ ...formData, rule_name: e.target.value })}
-                      placeholder="e.g., Email Address Completeness"
-                      required
-                    />
-                    {formErrors.rule_name && <span className="error-text">{formErrors.rule_name}</span>}
-                  </div>
-                  
-                  <div className="form-group">
-                    <label htmlFor="rule-project">Project (Optional)</label>
-                    <select
-                      id="rule-project"
-                      className="form-control"
-                      value={formData.project_id}
-                      onChange={(e) => handleProjectChange(e.target.value)}
-                    >
-                      <option value="">All Projects</option>
-                      {projects.map(project => (
-                        <option key={project.id} value={project.id}>
-                          {project.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-                
-                {formData.project_id && (
-                  <div className="form-row">
-                    <div className="form-group">
-                      <label htmlFor="rule-sub-project">Sub-Project (Optional)</label>
-                      <select
-                        id="rule-sub-project"
-                        className="form-control"
-                        value={formData.sub_project_id}
-                        onChange={(e) => setFormData({ ...formData, sub_project_id: e.target.value })}
-                      >
-                        <option value="">None (Parent Project Level)</option>
-                        {subProjects.map(subProject => (
-                          <option key={subProject.id} value={subProject.id}>
-                            {subProject.name}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-                )}
-                
-                <div className="form-group">
-                  <label htmlFor="rule-description">Description</label>
-                  <textarea
-                    id="rule-description"
-                    className="form-control"
-                    rows="2"
-                    value={formData.description}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    placeholder="Describe what this rule checks..."
-                  />
-                </div>
-                
-                <div className="form-row">
-                  <div className="form-group">
-                    <label htmlFor="rule-type">
-                      Rule Type *
-                    </label>
-                    <select
-                      id="rule-type"
-                      className="form-control"
-                      value={formData.rule_type}
-                      onChange={(e) => handleRuleTypeChange(e.target.value)}
-                      required
-                    >
-                      <option value="completeness">Completeness</option>
-                      <option value="validity">Validity</option>
-                      <option value="consistency">Consistency</option>
-                      <option value="uniqueness">Uniqueness</option>
-                      <option value="freshness">Freshness</option>
-                    </select>
-                    <span className="field-hint">{getRuleTypeDescription(formData.rule_type)}</span>
-                  </div>
-                  
-                  <div className="form-group">
-                    <label htmlFor="rule-severity">Severity</label>
-                    <select
-                      id="rule-severity"
-                      className="form-control"
-                      value={formData.severity}
-                      onChange={(e) => setFormData({ ...formData, severity: e.target.value })}
-                    >
-                      <option value="warning">Warning</option>
-                      <option value="error">Error</option>
-                      <option value="critical">Critical</option>
-                    </select>
-                  </div>
-                </div>
-                
-                {renderRuleTypeFields()}
-                
-                <div className="form-group">
-                  <label>
-                    <input
-                      type="checkbox"
-                      checked={formData.enabled}
-                      onChange={(e) => setFormData({ ...formData, enabled: e.target.checked })}
-                    />
-                    {' '}Enable this rule immediately
-                  </label>
-                </div>
-                
-                <div className="form-actions">
-                  <button type="button" className="gps-btn-secondary" onClick={() => setShowRuleForm(false)}>
-                    Cancel
-                  </button>
-                  <button type="submit" className="gps-btn-primary">
-                    {currentRule ? 'Update Rule' : 'Create Rule'}
-                  </button>
-                </div>
-              </form>
-            </Card>
-          )}
-          
-          <div className="gps-results-info">
+          <div style={{ fontSize: '10px', color: '#666', marginBottom: '12px' }}>
             Showing {filteredRules.length} of {pagination.total || rules.length} quality rules
           </div>
           
-          {/* Rules Table */}
           {filteredRules.length === 0 ? (
             <div className="gps-empty-state">
               <p>
@@ -944,9 +751,8 @@ function QualityRules() {
                 }
               </p>
               {hasWritePermission('quality_rules') && !filterProjectId && !filterSubProjectId && !filterRuleType && !filterEnabled && (
-                <button className="gps-btn-primary" onClick={handleAddRule} style={{ marginTop: '12px' }}>
-                  <FiPlus />
-                  Create Your First Quality Rule
+                <button className="gps-btn gps-btn--primary" onClick={handleAddRule} style={{ marginTop: '12px' }}>
+                  <FiPlus /> Create Your First Quality Rule
                 </button>
               )}
             </div>
@@ -982,23 +788,23 @@ function QualityRules() {
                       <td>{rule.project_name || '-'}</td>
                       <td>{rule.sub_project_name || '-'}</td>
                       <td>
-                        <span className={`gps-badge gps-badge-${rule.rule_type === 'completeness' ? 'info' : rule.rule_type === 'validity' ? 'primary' : rule.rule_type === 'consistency' ? 'success' : rule.rule_type === 'uniqueness' ? 'warning' : 'secondary'}`}>
+                        <span className={`gps-badge gps-badge--${rule.rule_type === 'completeness' ? 'info' : rule.rule_type === 'validity' ? 'info' : rule.rule_type === 'consistency' ? 'success' : rule.rule_type === 'uniqueness' ? 'warning' : 'muted'}`}>
                           {rule.rule_type}
                         </span>
                       </td>
                       <td>{rule.column_name || '-'}</td>
                       <td>
-                        <span className={`gps-badge gps-badge-${rule.severity === 'critical' ? 'danger' : rule.severity === 'error' ? 'danger' : 'warning'}`}>
+                        <span className={`gps-badge gps-badge--${rule.severity === 'critical' ? 'danger' : rule.severity === 'error' ? 'danger' : 'warning'}`}>
                           {rule.severity}
                         </span>
                       </td>
                       <td>
                         {rule.enabled ? (
-                          <span className="gps-badge gps-badge-success">
+                          <span className="gps-badge gps-badge--success">
                             <FiCheck style={{ marginRight: '4px' }} /> Enabled
                           </span>
                         ) : (
-                          <span className="gps-badge gps-badge-secondary">Disabled</span>
+                          <span className="gps-badge gps-badge--muted">Disabled</span>
                         )}
                       </td>
                       <td>{formatDate(rule.created_at)}</td>
@@ -1006,14 +812,14 @@ function QualityRules() {
                         <td>
                           <div className="gps-action-buttons">
                             <button 
-                              className="gps-icon-btn gps-icon-btn-primary" 
+                              className="gps-icon-btn gps-icon-btn--edit" 
                               title="Edit Rule"
                               onClick={() => handleEditRule(rule)}
                             >
                               <FiEdit2 />
                             </button>
                             <button 
-                              className="gps-icon-btn gps-icon-btn-danger" 
+                              className="gps-icon-btn gps-icon-btn--delete" 
                               title="Delete Rule"
                               onClick={() => handleDeleteRule(rule.id)}
                             >
@@ -1039,6 +845,135 @@ function QualityRules() {
             />
           )}
         </>
+      )}
+
+      {showRuleForm && (
+        <div className="gps-modal-overlay">
+          <div className="gps-modal gps-modal--large">
+            <div className="gps-modal-header">
+              <h2 className="gps-modal-title">{currentRule ? 'Edit Quality Rule' : 'Create New Quality Rule'}</h2>
+              <button className="gps-modal-close" onClick={() => setShowRuleForm(false)}>
+                <FiX />
+              </button>
+            </div>
+            <form onSubmit={handleSubmitRule}>
+              <div className="gps-modal-body" style={{ maxHeight: '60vh', overflowY: 'auto' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                  <div className="gps-form-group">
+                    <label className="gps-label">Rule Name *</label>
+                    <input
+                      type="text"
+                      className="gps-input"
+                      value={formData.rule_name}
+                      onChange={(e) => setFormData({ ...formData, rule_name: e.target.value })}
+                      placeholder="e.g., Email Address Completeness"
+                      required
+                    />
+                    {formErrors.rule_name && <span style={{ color: '#e53e3e', fontSize: '10px' }}>{formErrors.rule_name}</span>}
+                  </div>
+                  
+                  <div className="gps-form-group">
+                    <label className="gps-label">Project (Optional)</label>
+                    <select
+                      className="gps-select"
+                      value={formData.project_id}
+                      onChange={(e) => handleProjectChange(e.target.value)}
+                    >
+                      <option value="">All Projects</option>
+                      {projects.map(project => (
+                        <option key={project.id} value={project.id}>
+                          {project.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                
+                {formData.project_id && (
+                  <div className="gps-form-group">
+                    <label className="gps-label">Sub-Project (Optional)</label>
+                    <select
+                      className="gps-select"
+                      value={formData.sub_project_id}
+                      onChange={(e) => setFormData({ ...formData, sub_project_id: e.target.value })}
+                    >
+                      <option value="">None (Parent Project Level)</option>
+                      {subProjects.map(subProject => (
+                        <option key={subProject.id} value={subProject.id}>
+                          {subProject.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+                
+                <div className="gps-form-group">
+                  <label className="gps-label">Description</label>
+                  <textarea
+                    className="gps-textarea"
+                    rows="2"
+                    value={formData.description}
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    placeholder="Describe what this rule checks..."
+                  />
+                </div>
+                
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                  <div className="gps-form-group">
+                    <label className="gps-label">Rule Type *</label>
+                    <select
+                      className="gps-select"
+                      value={formData.rule_type}
+                      onChange={(e) => handleRuleTypeChange(e.target.value)}
+                      required
+                    >
+                      <option value="completeness">Completeness</option>
+                      <option value="validity">Validity</option>
+                      <option value="consistency">Consistency</option>
+                      <option value="uniqueness">Uniqueness</option>
+                      <option value="freshness">Freshness</option>
+                    </select>
+                    <small className="gps-text-muted" style={{ fontSize: '9px', marginTop: '4px', display: 'block' }}>{getRuleTypeDescription(formData.rule_type)}</small>
+                  </div>
+                  
+                  <div className="gps-form-group">
+                    <label className="gps-label">Severity</label>
+                    <select
+                      className="gps-select"
+                      value={formData.severity}
+                      onChange={(e) => setFormData({ ...formData, severity: e.target.value })}
+                    >
+                      <option value="warning">Warning</option>
+                      <option value="error">Error</option>
+                      <option value="critical">Critical</option>
+                    </select>
+                  </div>
+                </div>
+                
+                {renderRuleTypeFields()}
+                
+                <div className="gps-form-group" style={{ marginTop: '16px' }}>
+                  <label className="gps-checkbox-label">
+                    <input
+                      type="checkbox"
+                      checked={formData.enabled}
+                      onChange={(e) => setFormData({ ...formData, enabled: e.target.checked })}
+                    />
+                    <span>Enable this rule immediately</span>
+                  </label>
+                </div>
+              </div>
+              <div className="gps-modal-footer">
+                <button type="button" className="gps-btn gps-btn--secondary" onClick={() => setShowRuleForm(false)}>
+                  Cancel
+                </button>
+                <button type="submit" className="gps-btn gps-btn--primary">
+                  {currentRule ? 'Update Rule' : 'Create Rule'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
       
       <ConfirmModal
