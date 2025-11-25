@@ -113,6 +113,44 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
     setColumnMappings(updated);
   };
 
+  const toggleAllLeftColumns = () => {
+    const leftMappings = columnMappings.filter(m => m.sourceSide === 'left');
+    const allIncluded = leftMappings.length > 0 && leftMappings.every(m => m.include);
+    
+    const updated = columnMappings.map(m => {
+      if (m.sourceSide === 'left') {
+        return { ...m, include: !allIncluded };
+      }
+      return m;
+    });
+    setColumnMappings(updated);
+  };
+
+  const toggleAllRightColumns = () => {
+    const rightMappings = columnMappings.filter(m => m.sourceSide === 'right');
+    const allIncluded = rightMappings.length > 0 && rightMappings.every(m => m.include);
+    
+    const updated = columnMappings.map(m => {
+      if (m.sourceSide === 'right') {
+        return { ...m, include: !allIncluded };
+      }
+      return m;
+    });
+    setColumnMappings(updated);
+  };
+
+  const getLeftIncludeState = () => {
+    const leftMappings = columnMappings.filter(m => m.sourceSide === 'left');
+    if (leftMappings.length === 0) return false;
+    return leftMappings.every(m => m.include);
+  };
+
+  const getRightIncludeState = () => {
+    const rightMappings = columnMappings.filter(m => m.sourceSide === 'right');
+    if (rightMappings.length === 0) return false;
+    return rightMappings.every(m => m.include);
+  };
+
   const validateConfig = () => {
     if (joinKeys.length === 0) {
       setValidationError('At least one join key is required');
@@ -347,6 +385,22 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
 
           {activeTab === 'mapping' && (
             <div>
+              <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
+                <button
+                  className={`vm-btn ${getLeftIncludeState() ? 'vm-btn-primary' : 'vm-btn-secondary'}`}
+                  onClick={toggleAllLeftColumns}
+                  style={{ padding: '4px 10px', fontSize: '10px' }}
+                >
+                  {getLeftIncludeState() ? 'Exclude' : 'Include'} All {leftNodeName || 'Left'}
+                </button>
+                <button
+                  className={`vm-btn ${getRightIncludeState() ? 'vm-btn-primary' : 'vm-btn-secondary'}`}
+                  onClick={toggleAllRightColumns}
+                  style={{ padding: '4px 10px', fontSize: '10px' }}
+                >
+                  {getRightIncludeState() ? 'Exclude' : 'Include'} All {rightNodeName || 'Right'}
+                </button>
+              </div>
               <div style={{ overflowX: 'auto' }}>
                 <table className="vm-schema-table" style={{ marginBottom: '16px' }}>
                   <thead>
