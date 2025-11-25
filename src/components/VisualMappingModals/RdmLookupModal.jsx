@@ -38,12 +38,28 @@ const RdmLookupModal = ({ isOpen, onClose, onSave, initialConfig = {}, cumulativ
       
       // Reset dataset state
       if (currentLookupType === 'dataset') {
-        setDatasetConfig(initialConfig);
+        // Convert camelCase properties to snake_case for internal state
+        const normalizedDatasetConfig = {
+          datasetId: initialConfig.datasetId,
+          datasetName: initialConfig.datasetName,
+          join_type: initialConfig.joinType || 'inner',
+          column_mappings: initialConfig.columnMappings || []
+        };
+        setDatasetConfig(normalizedDatasetConfig);
         setJoinConditions(initialConfig.joinKeys || [{ dataset_column: '', source_column: '' }]);
         setCrosswalkConfig({});
       } else {
-        // Reset crosswalk state
-        setCrosswalkConfig(initialConfig);
+        // Convert camelCase properties to snake_case for internal state
+        const normalizedCrosswalkConfig = {
+          crosswalkId: initialConfig.crosswalkId,
+          crosswalkName: initialConfig.crosswalkName,
+          source_column: initialConfig.sourceColumn || '',
+          crosswalk_source_field: initialConfig.crosswalkSourceField || '',
+          no_match_behavior: initialConfig.noMatchBehavior || 'keep_source',
+          default_value: initialConfig.defaultValue || '',
+          column_mappings: initialConfig.columnMappings || []
+        };
+        setCrosswalkConfig(normalizedCrosswalkConfig);
         setDatasetConfig({});
         setJoinConditions([{ dataset_column: '', source_column: '' }]);
       }
