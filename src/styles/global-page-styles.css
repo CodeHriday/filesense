@@ -360,6 +360,15 @@
   background: rgba(99, 102, 241, 0.1);
 }
 
+.gps-icon-btn--warning {
+  color: #f59e0b;
+}
+
+.gps-icon-btn--warning:hover {
+  color: #d97706;
+  background: rgba(245, 158, 11, 0.1);
+}
+
 .gps-icon-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
@@ -1710,4 +1719,59 @@
 .gps-badge--warning {
   background-color: #fef3c7;
   color: #92400e;
+}
+
+/* ============================================
+   PAGINATION STYLES
+   ============================================ */
+.gps-pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: var(--gps-spacing-md);
+  padding: var(--gps-spacing-lg);
+  border-top: 1px solid var(--gps-border-light);
+}
+
+.gps-pagination-numbers {
+  display: flex;
+  gap: var(--gps-spacing-xs);
+}
+
+.gps-pagination-number {
+  min-width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--gps-border-input);
+  border-radius: var(--gps-radius-sm);
+  background: var(--gps-bg-white);
+  color: var(--gps-text-dark);
+  font-family: var(--gps-font-family);
+  font-size: var(--gps-font-size-content);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.gps-pagination-number:hover {
+  background: var(--gps-bg-header);
+  border-color: var(--gps-primary-teal);
+}
+
+.gps-pagination-number.active {
+  background: var(--gps-primary-teal);
+  color: white;
+  border-color: var(--gps-primary-teal);
+}
+
+.gps-pagination-ellipsis {
+  min-width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--gps-text-muted);
+  font-family: var(--gps-font-family);
+  font-size: var(--gps-font-size-content);
 }

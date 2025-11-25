@@ -5,13 +5,13 @@ import { useQueryClient, useMutation } from '@tanstack/react-query';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ConfirmationModal from '../components/ConfirmationModal';
 import SimpleSuccessModal from '../components/SimpleSuccessModal';
-import PageHeader from '../components/PageHeader';
 import { useFileCatalog, useFileDelete } from '../hooks';
 import { QueryKeys } from '../lib/react-query';
 import { QualityTooltip } from '../components/QualityTooltip';
 import { DLQBadge } from '../components/DLQBadge';
 import { PasswordInputModal } from '../components/PasswordInputModal';
 import { bulkDeleteFiles, submitFilePassword } from '../api/fileService';
+import '../styles/global-page-styles.css';
 import './FileCatalog.css';
 
 export const FileCatalog = ({ onFileSelect }) => {
@@ -477,11 +477,11 @@ export const FileCatalog = ({ onFileSelect }) => {
             )}
           </div>
         </td>
-        <td className="actions-cell">
-          <div style={{ display: 'flex', gap: '0.5rem', whiteSpace: 'nowrap' }}>
+        <td>
+          <div className="gps-action-buttons">
             {file.failure_reason_code === 'password_missing' && (
               <button
-                className="action-icon-btn password-btn"
+                className="gps-icon-btn gps-icon-btn--warning"
                 onClick={(e) => {
                   e.stopPropagation();
                   handleProvidePassword(file);
@@ -492,14 +492,14 @@ export const FileCatalog = ({ onFileSelect }) => {
               </button>
             )}
             <button
-              className="action-icon-btn view-btn"
+              className="gps-icon-btn gps-icon-btn--view"
               onClick={() => handleViewDetails(file)}
               title="View Details"
             >
               <FiEye />
             </button>
             <button
-              className="action-icon-btn delete-btn"
+              className="gps-icon-btn gps-icon-btn--delete"
               onClick={(e) => {
                 e.stopPropagation();
                 handleDelete(file);
@@ -547,11 +547,12 @@ export const FileCatalog = ({ onFileSelect }) => {
   if (isLoading) {
     return (
       <div className="gps-page-container">
-        <PageHeader
-          title="File Catalog"
-          subtitle="All uploaded files with quality metrics and metadata"
-          hideHomeButton={true}
-        />
+        <div className="gps-page-header">
+          <div className="gps-page-header-left">
+            <h1 className="gps-page-title">File Catalog</h1>
+            <p className="gps-page-subtitle">All uploaded files with quality metrics and metadata</p>
+          </div>
+        </div>
         <LoadingSpinner />
       </div>
     );
@@ -560,17 +561,16 @@ export const FileCatalog = ({ onFileSelect }) => {
   if (error) {
     return (
       <div className="gps-page-container">
-        <PageHeader
-          title="File Catalog"
-          subtitle="All uploaded files with quality metrics and metadata"
-          hideHomeButton={true}
-        />
-        <div className="alert alert-error">
-          <p>Failed to fetch file catalog: {error.message}</p>
-          <button 
-            className="btn btn-primary" 
-            onClick={() => refetch()}
-          >
+        <div className="gps-page-header">
+          <div className="gps-page-header-left">
+            <h1 className="gps-page-title">File Catalog</h1>
+            <p className="gps-page-subtitle">All uploaded files with quality metrics and metadata</p>
+          </div>
+        </div>
+        <div className="gps-alert gps-alert--error">
+          <FiAlertTriangle />
+          <span>Failed to fetch file catalog: {error.message}</span>
+          <button className="gps-btn gps-btn--primary" onClick={() => refetch()}>
             Retry
           </button>
         </div>
@@ -580,122 +580,126 @@ export const FileCatalog = ({ onFileSelect }) => {
 
   return (
     <div className="gps-page-container">
-      <PageHeader
-        title="File Catalog"
-        subtitle="All uploaded files with quality metrics and metadata"
-        hideHomeButton={true}
-        actions={
-          <div className="catalog-file-count">
-            <strong>{files.length}</strong>
-            <span>Total Files</span>
-          </div>
-        }
-      />
-      
-      <div className="catalog-controls">
-        <div className="search-container">
-          <input
-            type="text"
-            placeholder="Search files..."
-            value={searchTerm}
-            onChange={handleSearchChange}
-            className="search-input"
-          />
+      <div className="gps-page-header">
+        <div className="gps-page-header-left">
+          <h1 className="gps-page-title">File Catalog</h1>
+          <p className="gps-page-subtitle">All uploaded files with quality metrics and metadata</p>
         </div>
-        
-        <div className="filter-container">
-          {selectedFiles.length > 0 && (
-            <button 
-              className="bulk-delete-button"
-              onClick={handleBulkDelete}
-              disabled={bulkDeleteMutation.isPending}
-            >
-              <FiTrash2 /> Delete Selected ({selectedFiles.length})
-            </button>
-          )}
-          
-          <select 
-            value={selectedProject}
-            onChange={(e) => setSelectedProject(e.target.value === 'all' ? 'all' : parseInt(e.target.value))}
-            className="filter-select"
-          >
-            <option value="all">All Projects</option>
-            {uniqueProjects.map(p => (
-              <option key={p.id} value={p.id}>{p.name}</option>
-            ))}
-          </select>
-          
-          <select 
-            value={selectedSubProject}
-            onChange={(e) => {
-              const value = e.target.value;
-              if (value === 'all' || value === 'none') {
-                setSelectedSubProject(value);
-              } else {
-                setSelectedSubProject(parseInt(value));
-              }
-            }}
-            className="filter-select"
-            disabled={selectedProject === 'all'}
-          >
-            <option value="none">Select a subproject</option>
-            <option value="all">All Sub-Projects</option>
-            {uniqueSubProjects.map(sp => (
-              <option key={sp.id} value={sp.id}>{sp.name}</option>
-            ))}
-          </select>
-          
-          <select 
-            value={selectedType}
-            onChange={handleTypeChange}
-            className="filter-select"
-          >
-            <option value="all">All Types</option>
-            <option value="csv">CSV</option>
-            <option value="json">JSON</option>
-            <option value="parquet">Parquet</option>
-          </select>
-          
-          <select 
-            value={sortBy}
-            onChange={handleSortChange}
-            className="sort-select"
-          >
-            <option value="date">Sort by Date</option>
-            <option value="name">Sort by Name</option>
-            <option value="size">Sort by Size</option>
-            <option value="rows">Sort by Rows</option>
-            <option value="quality">Sort by Quality</option>
-          </select>
-          
-          <button 
-            className="order-button"
-            onClick={handleOrderChange}
-            title={sortOrder === 'asc' ? 'Ascending' : 'Descending'}
-          >
-            {sortOrder === 'asc' ? '↑' : '↓'}
-          </button>
+        <div className="gps-header-actions">
+          <div className="gps-stat-card" style={{ padding: '8px 16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '18px', fontWeight: 700, color: '#025043' }}>{files.length}</span>
+            <span style={{ fontSize: '10px', color: '#666' }}>Total Files</span>
+          </div>
         </div>
       </div>
       
-      <div className="file-catalog-table-container">
+      <div className="gps-filters" style={{ marginBottom: '16px' }}>
+        <input
+          type="text"
+          placeholder="Search files..."
+          value={searchTerm}
+          onChange={handleSearchChange}
+          className="gps-form-input"
+          style={{ maxWidth: '280px' }}
+        />
+        
+        {selectedFiles.length > 0 && (
+          <button 
+            className="gps-btn gps-btn--danger"
+            onClick={handleBulkDelete}
+            disabled={bulkDeleteMutation.isPending}
+          >
+            <FiTrash2 /> Delete Selected ({selectedFiles.length})
+          </button>
+        )}
+        
+        <select 
+          value={selectedProject}
+          onChange={(e) => setSelectedProject(e.target.value === 'all' ? 'all' : parseInt(e.target.value))}
+          className="gps-form-select"
+          style={{ minWidth: '140px' }}
+        >
+          <option value="all">All Projects</option>
+          {uniqueProjects.map(p => (
+            <option key={p.id} value={p.id}>{p.name}</option>
+          ))}
+        </select>
+        
+        <select 
+          value={selectedSubProject}
+          onChange={(e) => {
+            const value = e.target.value;
+            if (value === 'all' || value === 'none') {
+              setSelectedSubProject(value);
+            } else {
+              setSelectedSubProject(parseInt(value));
+            }
+          }}
+          className="gps-form-select"
+          style={{ minWidth: '160px' }}
+          disabled={selectedProject === 'all'}
+        >
+          <option value="none">Select a subproject</option>
+          <option value="all">All Sub-Projects</option>
+          {uniqueSubProjects.map(sp => (
+            <option key={sp.id} value={sp.id}>{sp.name}</option>
+          ))}
+        </select>
+        
+        <select 
+          value={selectedType}
+          onChange={handleTypeChange}
+          className="gps-form-select"
+          style={{ minWidth: '100px' }}
+        >
+          <option value="all">All Types</option>
+          <option value="csv">CSV</option>
+          <option value="json">JSON</option>
+          <option value="parquet">Parquet</option>
+          <option value="zip">ZIP</option>
+        </select>
+        
+        <select 
+          value={sortBy}
+          onChange={handleSortChange}
+          className="gps-form-select"
+          style={{ minWidth: '120px' }}
+        >
+          <option value="date">Sort by Date</option>
+          <option value="name">Sort by Name</option>
+          <option value="size">Sort by Size</option>
+          <option value="rows">Sort by Rows</option>
+          <option value="quality">Sort by Quality</option>
+        </select>
+        
+        <button 
+          className="gps-btn gps-btn--secondary"
+          onClick={handleOrderChange}
+          title={sortOrder === 'asc' ? 'Ascending' : 'Descending'}
+          style={{ padding: '8px 12px', minWidth: '40px' }}
+        >
+          {sortOrder === 'asc' ? '↑' : '↓'}
+        </button>
+      </div>
+      
+      <div className="gps-table-container">
         {filteredAndSortedFiles.length === 0 ? (
-          <div className="no-results">
+          <div className="gps-empty-state">
             <p>No files found matching your criteria.</p>
           </div>
         ) : (
           <>
-            <div className="pagination-info">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', borderBottom: '1px solid #e2e8f0', fontSize: '10px', color: '#666' }}>
               <span>
                 Showing {startIndex + 1}-{Math.min(endIndex, totalItems)} of {totalItems} files
               </span>
-              <div className="items-per-page">
-                <label htmlFor="itemsPerPage">Items per page:</label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <label style={{ fontSize: '10px', color: '#666' }}>Items per page:</label>
                 <select 
-                  id="itemsPerPage"
                   value={itemsPerPage} 
                   onChange={handleItemsPerPageChange}
-                  className="items-per-page-select"
+                  className="gps-form-select"
+                  style={{ minWidth: '60px', padding: '4px 8px' }}
                 >
                   <option value="10">10</option>
                   <option value="25">25</option>
@@ -743,23 +747,23 @@ export const FileCatalog = ({ onFileSelect }) => {
             </div>
           
             {totalPages > 1 && (
-              <div className="pagination-controls">
+              <div className="gps-pagination">
                 <button
-                  className="pagination-button"
+                  className="gps-btn gps-btn--secondary gps-btn--sm"
                   onClick={() => handlePageChange(currentPage - 1)}
                   disabled={currentPage === 1}
                 >
                   Previous
                 </button>
                 
-                <div className="pagination-numbers">
+                <div className="gps-pagination-numbers">
                   {getPageNumbers().map((page, index) => (
                     page === '...' ? (
-                      <span key={`ellipsis-${index}`} className="pagination-ellipsis">...</span>
+                      <span key={`ellipsis-${index}`} className="gps-pagination-ellipsis">...</span>
                     ) : (
                       <button
                         key={page}
-                        className={`pagination-number ${currentPage === page ? 'active' : ''}`}
+                        className={`gps-pagination-number ${currentPage === page ? 'active' : ''}`}
                         onClick={() => handlePageChange(page)}
                       >
                         {page}
@@ -769,7 +773,7 @@ export const FileCatalog = ({ onFileSelect }) => {
                 </div>
                 
                 <button
-                  className="pagination-button"
+                  className="gps-btn gps-btn--secondary gps-btn--sm"
                   onClick={() => handlePageChange(currentPage + 1)}
                   disabled={currentPage === totalPages}
                 >
