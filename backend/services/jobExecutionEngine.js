@@ -337,7 +337,11 @@ async function executeTransformationJob(pool, mappingId, userId, options = {}) {
     workflowExecutionId = null,
     visualWorkflowExecutionId = null,
     visualMappingExecutionId = null,  // NEW: passed directly from visual mappings route
-    transformationExecutionId = null  // NEW: passed from TransformationService for execution tracking
+    transformationExecutionId = null,  // NEW: passed from TransformationService for execution tracking
+    visualMappingNodes = null,        // Visual mapping graph nodes for status tracking
+    visualMappingEdges = null,        // Visual mapping graph edges for row count tracking
+    nodeExecutionMap = null,          // Map of node ID to execution step
+    executionOrder = null             // Ordered array of node IDs
   } = options;
   
   let job = existingJob;
@@ -378,8 +382,46 @@ async function executeTransformationJob(pool, mappingId, userId, options = {}) {
       });
     }
     
+    // Build node map for visual mapping status updates
+    const nodeMap = {};
+    const nodesByType = { sourceConfig: [], expression: [], rdmLookup: [], targetRules: [], join: [] };
+    if (visualMappingNodes && Array.isArray(visualMappingNodes)) {
+      visualMappingNodes.forEach(node => {
+        nodeMap[node.id] = node;
+        if (nodesByType[node.type]) {
+          nodesByType[node.type].push(node.id);
+        }
+      });
+    }
+    
+    // Helper to emit node status for visual mapping
+    const emitNodeStatus = (nodeId, status, metadata = {}) => {
+      if (visualExecutionId && nodeId) {
+        visualMappingWS.emitNodeStatus(visualExecutionId, nodeId, status, metadata);
+      }
+    };
+    
+    // Helper to emit edge row count for visual mapping
+    const emitEdgeRowCount = (sourceNodeId, targetNodeId, rowCount) => {
+      if (visualExecutionId && sourceNodeId && targetNodeId && visualMappingEdges) {
+        const edge = visualMappingEdges.find(e => e.source === sourceNodeId && e.target === targetNodeId);
+        if (edge) {
+          visualMappingWS.emitEdgeRowCount(visualExecutionId, edge.id, sourceNodeId, targetNodeId, rowCount);
+        }
+      }
+    };
+    
+    // Mark all nodes as pending initially
+    if (executionOrder && Array.isArray(executionOrder)) {
+      executionOrder.forEach(nodeId => {
+        emitNodeStatus(nodeId, 'pending');
+      });
+    }
+    
     // Load RDM context once for this job (before processing any files)
     let rdmContext = {};
+    const hasRdmNodes = nodesByType.rdmLookup.length > 0;
+    
     try {
       // Parse RDM configs if they're stored as JSON strings
       let rdmDatasetConfig = mapping.rdm_dataset_config;
@@ -390,6 +432,13 @@ async function executeTransformationJob(pool, mappingId, userId, options = {}) {
       }
       if (typeof rdmCrosswalkConfig === 'string') {
         rdmCrosswalkConfig = JSON.parse(rdmCrosswalkConfig);
+      }
+      
+      // Emit running status for RDM lookup nodes
+      if (hasRdmNodes && (rdmDatasetConfig || rdmCrosswalkConfig)) {
+        nodesByType.rdmLookup.forEach(nodeId => {
+          emitNodeStatus(nodeId, 'running', { phase: 'loading_rdm_context' });
+        });
       }
       
       rdmContext = await loadRDMContext(
@@ -407,11 +456,18 @@ async function executeTransformationJob(pool, mappingId, userId, options = {}) {
           crosswalkCount: Object.keys(rdmContext.rdm.crosswalks).length,
           datasetCount: Object.keys(rdmContext.rdm.datasets).length
         });
+        
+        // RDM nodes stay running - they'll complete when lookups are performed during transformation
       }
     } catch (rdmError) {
       // Fatal error if RDM resources were required but failed to load
       await logJobExecution(pool, jobId, 'error', 'Failed to load required RDM resources', {
         error: rdmError.message
+      });
+      
+      // Emit failed status for RDM lookup nodes
+      nodesByType.rdmLookup.forEach(nodeId => {
+        emitNodeStatus(nodeId, 'failed', { error: rdmError.message });
       });
       
       await updateJob(pool, jobId, {
@@ -429,6 +485,11 @@ async function executeTransformationJob(pool, mappingId, userId, options = {}) {
     }
     
     // Step 1: Build full file path and find matching files from cloud storage
+    // Emit running status for source config nodes
+    nodesByType.sourceConfig.forEach(nodeId => {
+      emitNodeStatus(nodeId, 'running', { phase: 'file_matching' });
+    });
+    
     const filePath = mapping.file_path || '';
     const fileNamePattern = mapping.file_name_pattern || mapping.source_file_pattern;
     
@@ -464,6 +525,11 @@ async function executeTransformationJob(pool, mappingId, userId, options = {}) {
         ? `File not found: ${fullPattern}. Please verify the file path and name are correct.`
         : `No files matched the pattern '${fullPattern}' in cloud storage`;
       
+      // Emit failed status for source nodes
+      nodesByType.sourceConfig.forEach(nodeId => {
+        emitNodeStatus(nodeId, 'failed', { error: errorMessage });
+      });
+      
       await updateJob(pool, jobId, { 
         status: 'failed', 
         error_message: errorMessage,
@@ -491,6 +557,11 @@ async function executeTransformationJob(pool, mappingId, userId, options = {}) {
     }
     
     await logJobExecution(pool, jobId, 'info', `Found ${cloudFiles.length} matching files in cloud storage`);
+    
+    // Emit completed status for source nodes with file count
+    nodesByType.sourceConfig.forEach(nodeId => {
+      emitNodeStatus(nodeId, 'completed', { filesFound: cloudFiles.length });
+    });
     
     // Convert cloud file objects to format expected by processFile
     const matchingFiles = cloudFiles.map(file => ({
@@ -742,6 +813,19 @@ async function executeTransformationJob(pool, mappingId, userId, options = {}) {
     }
     
     // Step 3: Process each file
+    // Emit running status for expression and join nodes (transformation phase)
+    nodesByType.expression.forEach(nodeId => {
+      emitNodeStatus(nodeId, 'running', { phase: 'transforming' });
+    });
+    nodesByType.join.forEach(nodeId => {
+      emitNodeStatus(nodeId, 'running', { phase: 'joining' });
+    });
+    
+    // Emit running status for target nodes
+    nodesByType.targetRules.forEach(nodeId => {
+      emitNodeStatus(nodeId, 'running', { phase: 'writing_output' });
+    });
+    
     let totalRowsRead = 0;
     let totalRowsWritten = 0;
     let totalRowsFailed = 0;
@@ -839,8 +923,39 @@ async function executeTransformationJob(pool, mappingId, userId, options = {}) {
       rowsFailed: totalRowsFailed
     });
     
-    // Emit visual mapping execution complete event
+    // Emit completed status for all remaining nodes
     if (visualExecutionId) {
+      // Mark expression nodes as completed
+      nodesByType.expression.forEach(nodeId => {
+        emitNodeStatus(nodeId, 'completed', { rowsProcessed: totalRowsRead });
+      });
+      
+      // Mark join nodes as completed
+      nodesByType.join.forEach(nodeId => {
+        emitNodeStatus(nodeId, 'completed', { rowsProcessed: totalRowsRead });
+      });
+      
+      // Mark RDM lookup nodes as completed
+      nodesByType.rdmLookup.forEach(nodeId => {
+        emitNodeStatus(nodeId, 'completed', { rowsProcessed: totalRowsRead });
+      });
+      
+      // Mark target nodes as completed
+      nodesByType.targetRules.forEach(nodeId => {
+        emitNodeStatus(nodeId, 'completed', { rowsWritten: totalRowsWritten });
+      });
+      
+      // Emit edge row counts for visual feedback
+      // For each edge, emit the total rows that passed through
+      if (visualMappingEdges && Array.isArray(visualMappingEdges)) {
+        visualMappingEdges.forEach(edge => {
+          // For simplicity, use totalRowsWritten for all edges
+          // In a more complex implementation, we'd track rows at each node
+          visualMappingWS.emitEdgeRowCount(visualExecutionId, edge.id, edge.source, edge.target, totalRowsWritten);
+        });
+      }
+      
+      // Emit final progress and completion
       visualMappingWS.emitExecutionProgress(visualExecutionId, 100);
       visualMappingWS.emitExecutionComplete(visualExecutionId, {
         filesProcessed: matchingFiles.length,
@@ -848,9 +963,10 @@ async function executeTransformationJob(pool, mappingId, userId, options = {}) {
         rowsWritten: totalRowsWritten,
         rowsFailed: totalRowsFailed
       });
-      systemLogger.info('Visual mapping execution completed - WebSocket event emitted', {
+      systemLogger.info('Visual mapping execution completed - WebSocket events emitted', {
         visualExecutionId,
-        jobId
+        jobId,
+        nodesCompleted: Object.values(nodesByType).flat().length
       });
     }
     

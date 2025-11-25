@@ -409,9 +409,13 @@ router.post('/:id/execute', async (req, res) => {
     // Use jobExecutionEngine to execute with transformation_mappings table (uses mapping_id string, not numeric id)
     const { executeTransformationJob } = require('../services/jobExecutionEngine');
     try {
-      // Pass visualMappingExecutionId as an option so the job execution engine can emit WebSocket events
+      // Pass visualMappingExecutionId and graph node information for WebSocket status updates
       const jobResult = await executeTransformationJob(pool, tempMappingId, req.user.id, {
-        visualMappingExecutionId: executionId
+        visualMappingExecutionId: executionId,
+        visualMappingNodes: mapping.graph_data.nodes,
+        visualMappingEdges: mapping.graph_data.edges,
+        nodeExecutionMap: transformationMapping.node_execution_map,
+        executionOrder: compilationResult.executionOrder
       });
       
       // Update execution record with job ID
