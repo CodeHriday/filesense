@@ -334,86 +334,86 @@ function Monitor() {
                         {expandedRows.has(audit.id) && (
                           <tr className="gps-subrow">
                             <td colSpan="23">
-                              <div className="expanded-content-with-logs">
-                                <div className="expanded-section">
-                                  <h3>Additional Details</h3>
-                                  <div className="detail-grid">
-                                    <div className="detail-item">
-                                      <span className="detail-label">Audit ID:</span>
-                                      <span className="detail-value">{audit.id}</span>
+                              <div className="gps-expanded-content" style={{ gridTemplateColumns: '1fr 1fr 1fr' }}>
+                                <div className="gps-expanded-section">
+                                  <h3 className="gps-expanded-section-title">Additional Details</h3>
+                                  <div className="gps-detail-grid">
+                                    <div className="gps-detail-item">
+                                      <span className="gps-detail-label">Audit Id:</span>
+                                      <span className="gps-detail-value">{audit.id}</span>
                                     </div>
-                                    <div className="detail-item">
-                                      <span className="detail-label">File ID:</span>
-                                      <span className="detail-value">{audit.file_id || '-'}</span>
+                                    <div className="gps-detail-item">
+                                      <span className="gps-detail-label">File Id:</span>
+                                      <span className="gps-detail-value">{audit.file_id || '-'}</span>
                                     </div>
-                                    <div className="detail-item">
-                                      <span className="detail-label">File Hash:</span>
-                                      <span className="detail-value">{audit.file_hash || '-'}</span>
+                                    <div className="gps-detail-item">
+                                      <span className="gps-detail-label">File Hash:</span>
+                                      <span className="gps-detail-value">{audit.file_hash || '-'}</span>
                                     </div>
-                                    <div className="detail-item">
-                                      <span className="detail-label">File Pattern:</span>
-                                      <span className="detail-value">{audit.file_pattern || '-'}</span>
+                                    <div className="gps-detail-item">
+                                      <span className="gps-detail-label">File Pattern:</span>
+                                      <span className="gps-detail-value">{audit.file_pattern || '-'}</span>
                                     </div>
-                                    <div className="detail-item">
-                                      <span className="detail-label">Source Path:</span>
-                                      <span className="detail-value">{audit.source_path || '-'}</span>
+                                    <div className="gps-detail-item">
+                                      <span className="gps-detail-label">Source Path:</span>
+                                      <span className="gps-detail-value">{audit.source_path || '-'}</span>
                                     </div>
-                                    <div className="detail-item">
-                                      <span className="detail-label">File Delimiter:</span>
-                                      <span className="detail-value">{audit.file_delimiter || '-'}</span>
+                                    <div className="gps-detail-item">
+                                      <span className="gps-detail-label">File Delimiter:</span>
+                                      <span className="gps-detail-value">{audit.file_delimiter || '-'}</span>
                                     </div>
-                                    <div className="detail-item">
-                                      <span className="detail-label">User Email:</span>
-                                      <span className="detail-value">{audit.user_email || '-'}</span>
+                                    <div className="gps-detail-item">
+                                      <span className="gps-detail-label">User Email:</span>
+                                      <span className="gps-detail-value">{audit.user_email || '-'}</span>
                                     </div>
-                                    <div className="detail-item">
-                                      <span className="detail-label">IP Address:</span>
-                                      <span className="detail-value">{audit.ip_address || '-'}</span>
+                                    <div className="gps-detail-item">
+                                      <span className="gps-detail-label">Ip Address:</span>
+                                      <span className="gps-detail-value">{audit.ip_address || '-'}</span>
                                     </div>
-                                    <div className="detail-item">
-                                      <span className="detail-label">Session ID:</span>
-                                      <span className="detail-value">{audit.session_id || '-'}</span>
+                                    <div className="gps-detail-item">
+                                      <span className="gps-detail-label">Session Id:</span>
+                                      <span className="gps-detail-value">{audit.session_id || '-'}</span>
                                     </div>
-                                    <div className="detail-item">
-                                      <span className="detail-label">Parent Audit ID:</span>
-                                      <span className="detail-value">{audit.parent_audit_id || '-'}</span>
+                                    <div className="gps-detail-item">
+                                      <span className="gps-detail-label">Parent Audit Id:</span>
+                                      <span className="gps-detail-value">{audit.parent_audit_id || '-'}</span>
                                     </div>
-                                    <div className="detail-item">
-                                      <span className="detail-label">Error Type:</span>
-                                      <span className="detail-value">{audit.error_type || '-'}</span>
+                                    <div className="gps-detail-item">
+                                      <span className="gps-detail-label">Error Type:</span>
+                                      <span className="gps-detail-value">{audit.error_type || '-'}</span>
                                     </div>
-                                    <div className="detail-item">
-                                      <span className="detail-label">Created By:</span>
-                                      <span className="detail-value">{audit.created_by || '-'}</span>
+                                    <div className="gps-detail-item">
+                                      <span className="gps-detail-label">Created By:</span>
+                                      <span className="gps-detail-value">{audit.created_by || '-'}</span>
                                     </div>
                                   </div>
                                   
                                   {audit.load_step_1_path && (
-                                    <div className="load-steps">
-                                      <h4>Load Steps Details</h4>
-                                      <div className="detail-grid">
+                                    <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid #e5e7eb' }}>
+                                      <h4 className="gps-expanded-section-title" style={{ fontSize: '11px' }}>Load Steps Details</h4>
+                                      <div className="gps-detail-grid">
                                         {audit.load_step_1_path && (
-                                          <div className="detail-item">
-                                            <span className="detail-label">Step 1 Path:</span>
-                                            <span className="detail-value">{audit.load_step_1_path} ({audit.load_step_1_rec_cnt || 0} records)</span>
+                                          <div className="gps-detail-item">
+                                            <span className="gps-detail-label">Step 1 Path:</span>
+                                            <span className="gps-detail-value">{audit.load_step_1_path} ({audit.load_step_1_rec_cnt || 0} records)</span>
                                           </div>
                                         )}
                                         {audit.load_step_3_path && (
-                                          <div className="detail-item">
-                                            <span className="detail-label">Step 3 Path:</span>
-                                            <span className="detail-value">{audit.load_step_3_path} ({audit.load_step_3_rec_cnt || 0} records)</span>
+                                          <div className="gps-detail-item">
+                                            <span className="gps-detail-label">Step 3 Path:</span>
+                                            <span className="gps-detail-value">{audit.load_step_3_path} ({audit.load_step_3_rec_cnt || 0} records)</span>
                                           </div>
                                         )}
                                         {audit.load_step_4_path && (
-                                          <div className="detail-item">
-                                            <span className="detail-label">Step 4 Path:</span>
-                                            <span className="detail-value">{audit.load_step_4_path} ({audit.load_step_4_rec_cnt || 0} records)</span>
+                                          <div className="gps-detail-item">
+                                            <span className="gps-detail-label">Step 4 Path:</span>
+                                            <span className="gps-detail-value">{audit.load_step_4_path} ({audit.load_step_4_rec_cnt || 0} records)</span>
                                           </div>
                                         )}
                                         {audit.load_step_5_path && (
-                                          <div className="detail-item">
-                                            <span className="detail-label">Step 5 Path:</span>
-                                            <span className="detail-value">{audit.load_step_5_path} ({audit.load_step_5_rec_cnt || 0} records)</span>
+                                          <div className="gps-detail-item">
+                                            <span className="gps-detail-label">Step 5 Path:</span>
+                                            <span className="gps-detail-value">{audit.load_step_5_path} ({audit.load_step_5_rec_cnt || 0} records)</span>
                                           </div>
                                         )}
                                       </div>
@@ -421,20 +421,20 @@ function Monitor() {
                                   )}
                                   
                                   {audit.error_message && (
-                                    <div className="error-details">
-                                      <h4>Error Details</h4>
-                                      <pre>{audit.error_message}</pre>
+                                    <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid #e5e7eb' }}>
+                                      <h4 className="gps-expanded-section-title" style={{ fontSize: '11px' }}>Error Details</h4>
+                                      <pre style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '6px', padding: '12px', fontSize: '10px', color: '#991b1b', overflow: 'auto', whiteSpace: 'pre-wrap', fontFamily: 'Inter, monospace' }}>{audit.error_message}</pre>
                                     </div>
                                   )}
                                 </div>
                                 
-                                <div className="expanded-section">
-                                  <h3>Schema Information</h3>
+                                <div className="gps-expanded-section">
+                                  <h3 className="gps-expanded-section-title">Schema Information</h3>
                                   {renderSchemaDetails(audit)}
                                 </div>
                                 
-                                <div className="expanded-section logs-section">
-                                  <h3>Execution Logs</h3>
+                                <div className="gps-expanded-section logs-section">
+                                  <h3 className="gps-expanded-section-title">Execution Logs</h3>
                                   <div className="logs-container">
                                     {auditLogs[audit.id] && auditLogs[audit.id].length > 0 ? (
                                       <pre className="logs-display">

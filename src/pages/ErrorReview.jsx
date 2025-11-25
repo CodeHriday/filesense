@@ -441,27 +441,25 @@ const ErrorReview = () => {
         </div>
       </div>
 
-      <div className="gps-tabs" style={{ marginBottom: '16px' }}>
-        <div className="tabs">
-          <button 
-            className={`tab ${activeTab === 'file-upload' ? 'active' : ''}`}
-            onClick={() => setActiveTab('file-upload')}
-          >
-            File Upload Violations
-            {activeTab === 'file-upload' && (
-              <span className="tab-count">{pagination.total}</span>
-            )}
-          </button>
-          <button 
-            className={`tab ${activeTab === 'mapping-job' ? 'active' : ''}`}
-            onClick={() => setActiveTab('mapping-job')}
-          >
-            Mapping Job Violations
-            {activeTab === 'mapping-job' && (
-              <span className="tab-count">{pagination.total}</span>
-            )}
-          </button>
-        </div>
+      <div className="gps-tabs">
+        <button 
+          className={`gps-tab ${activeTab === 'file-upload' ? 'gps-tab--active' : ''}`}
+          onClick={() => setActiveTab('file-upload')}
+        >
+          File Upload Violations
+          {activeTab === 'file-upload' && (
+            <span className="gps-tab-count">{pagination.total}</span>
+          )}
+        </button>
+        <button 
+          className={`gps-tab ${activeTab === 'mapping-job' ? 'gps-tab--active' : ''}`}
+          onClick={() => setActiveTab('mapping-job')}
+        >
+          Mapping Job Violations
+          {activeTab === 'mapping-job' && (
+            <span className="gps-tab-count">{pagination.total}</span>
+          )}
+        </button>
       </div>
       
       {showFilters && (

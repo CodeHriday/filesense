@@ -528,6 +528,115 @@
 }
 
 /* ============================================
+   TABS
+   ============================================ */
+.gps-tabs {
+  display: flex;
+  gap: 0;
+  margin-bottom: var(--gps-spacing-xl);
+  border-bottom: 2px solid var(--gps-border-light);
+}
+
+.gps-tab {
+  font-family: var(--gps-font-family);
+  font-size: var(--gps-font-size-header);
+  font-weight: var(--gps-font-weight-medium);
+  padding: var(--gps-spacing-lg) var(--gps-spacing-xl);
+  background: none;
+  border: none;
+  border-bottom: 3px solid transparent;
+  color: var(--gps-text-muted);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-bottom: -2px;
+  display: flex;
+  align-items: center;
+  gap: var(--gps-spacing-sm);
+}
+
+.gps-tab:hover {
+  color: var(--gps-primary-teal);
+}
+
+.gps-tab--active {
+  color: var(--gps-primary-teal);
+  font-weight: var(--gps-font-weight-semibold);
+  border-bottom-color: var(--gps-primary-teal);
+}
+
+.gps-tab-count {
+  background: var(--gps-primary-teal);
+  color: white;
+  border-radius: 12px;
+  padding: 2px 8px;
+  font-size: 9px;
+  font-weight: var(--gps-font-weight-semibold);
+}
+
+/* ============================================
+   EXPANDED ROW / DETAIL PANEL
+   ============================================ */
+.gps-subrow {
+  background: var(--gps-bg-subrow);
+}
+
+.gps-subrow td {
+  padding: 0 !important;
+}
+
+.gps-expanded-content {
+  padding: var(--gps-spacing-xl);
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--gps-spacing-2xl);
+}
+
+.gps-expanded-section {
+  background: var(--gps-bg-white);
+  border-radius: var(--gps-radius-md);
+  padding: var(--gps-spacing-xl);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.gps-expanded-section-title {
+  font-family: var(--gps-font-family);
+  font-size: var(--gps-font-size-header);
+  font-weight: var(--gps-font-weight-bold);
+  color: var(--gps-text-dark);
+  margin: 0 0 var(--gps-spacing-lg) 0;
+  padding-bottom: var(--gps-spacing-md);
+  border-bottom: 2px solid var(--gps-border-light);
+}
+
+.gps-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--gps-spacing-lg);
+}
+
+.gps-detail-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.gps-detail-label {
+  font-family: var(--gps-font-family);
+  font-size: var(--gps-font-size-header);
+  font-weight: var(--gps-font-weight-bold);
+  color: var(--gps-text-muted);
+  text-transform: none;
+}
+
+.gps-detail-value {
+  font-family: var(--gps-font-family);
+  font-size: var(--gps-font-size-content);
+  font-weight: var(--gps-font-weight-medium);
+  color: var(--gps-text-dark);
+  word-break: break-word;
+}
+
+/* ============================================
    BADGES
    ============================================ */
 .gps-badge {
