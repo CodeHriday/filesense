@@ -57,6 +57,34 @@
 }
 
 /* ============================================
+   GLOBAL FOCUS RESET - Remove blue border on click
+   ============================================ */
+.gps-page-container button:focus,
+.gps-page-container select:focus,
+.gps-page-container input:focus,
+.gps-page-container [role="button"]:focus,
+.gps-page-container summary:focus {
+  outline: none;
+  box-shadow: none;
+}
+
+.gps-btn:focus,
+.gps-btn--primary:focus,
+.gps-btn--secondary:focus,
+.gps-btn--danger:focus {
+  outline: none;
+  box-shadow: none;
+}
+
+.gps-form-select:focus,
+.gps-form-input:focus,
+.gps-search-input:focus,
+.gps-filter-select:focus {
+  outline: none;
+  border-color: var(--gps-primary-teal);
+}
+
+/* ============================================
    PAGE CONTAINER
    ============================================ */
 .gps-page-container {
@@ -255,9 +283,9 @@
   width: 28px;
   height: 28px;
   padding: 0;
-  border: 1px solid var(--gps-border-input);
+  border: none;
   border-radius: var(--gps-radius-sm);
-  background: var(--gps-bg-white);
+  background: transparent;
   color: var(--gps-text-muted);
   cursor: pointer;
   display: inline-flex;
@@ -265,12 +293,17 @@
   justify-content: center;
   transition: all 0.2s ease;
   text-decoration: none;
+  outline: none;
 }
 
 .gps-icon-btn:hover {
-  border-color: var(--gps-primary-teal);
   color: var(--gps-primary-teal);
-  background: rgba(2, 80, 67, 0.05);
+  background: rgba(2, 80, 67, 0.08);
+}
+
+.gps-icon-btn:focus {
+  outline: none;
+  box-shadow: none;
 }
 
 .gps-icon-btn svg {
@@ -280,54 +313,51 @@
 
 .gps-icon-btn-primary {
   color: var(--gps-primary-teal);
-  border-color: var(--gps-primary-teal);
 }
 
 .gps-icon-btn-primary:hover {
-  background: var(--gps-primary-teal);
-  color: white;
+  color: var(--gps-primary-hover);
+  background: rgba(2, 80, 67, 0.1);
 }
 
+.gps-icon-btn--success,
 .gps-icon-btn-success {
   color: #16a34a;
-  border-color: #16a34a;
 }
 
+.gps-icon-btn--success:hover,
 .gps-icon-btn-success:hover {
-  background: #16a34a;
-  color: white;
+  color: #15803d;
+  background: rgba(22, 163, 74, 0.1);
 }
 
 .gps-icon-btn-danger,
 .gps-icon-btn--delete {
   color: var(--gps-danger-red);
-  border-color: var(--gps-danger-red);
 }
 
 .gps-icon-btn-danger:hover,
 .gps-icon-btn--delete:hover {
-  background: var(--gps-danger-red);
-  color: white;
+  color: var(--gps-danger-hover);
+  background: rgba(229, 62, 62, 0.1);
 }
 
 .gps-icon-btn--edit {
-  color: var(--gps-primary-teal);
-  border-color: var(--gps-primary-teal);
+  color: #3b82f6;
 }
 
 .gps-icon-btn--edit:hover {
-  background: var(--gps-primary-teal);
-  color: white;
+  color: #2563eb;
+  background: rgba(59, 130, 246, 0.1);
 }
 
 .gps-icon-btn--view {
   color: #6366f1;
-  border-color: #6366f1;
 }
 
 .gps-icon-btn--view:hover {
-  background: #6366f1;
-  color: white;
+  color: #4f46e5;
+  background: rgba(99, 102, 241, 0.1);
 }
 
 .gps-icon-btn:disabled {
@@ -336,9 +366,8 @@
 }
 
 .gps-icon-btn:disabled:hover {
-  background: var(--gps-bg-white);
+  background: transparent;
   color: var(--gps-text-muted);
-  border-color: var(--gps-border-input);
 }
 
 /* ============================================
