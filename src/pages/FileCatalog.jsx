@@ -391,37 +391,36 @@ export const FileCatalog = ({ onFileSelect }) => {
     
     return (
       <tr key={file.file_id}>
-        <td className="checkbox-cell">
+        <td style={{ width: '40px', textAlign: 'center' }}>
           <input
             type="checkbox"
             checked={selectedFiles.includes(file.file_id)}
             onChange={() => handleSelectFile(file.file_id)}
             onClick={(e) => e.stopPropagation()}
+            style={{ width: '14px', height: '14px', accentColor: '#025043' }}
           />
         </td>
-        <td className="file-name-cell">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', whiteSpace: 'nowrap' }}>
-            <span className="file-name">{file.filename}</span>
+        <td>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontWeight: 500, color: '#333', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '200px' }}>{file.filename}</span>
             {file.has_schema_changes && (
-              <span 
-                className="schema-changed-indicator" 
-                title="Schema has changed from previous upload"
-              >
-                <FiGitBranch /> Schema Changed
+              <span className="gps-badge gps-badge--warning" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '9px', padding: '2px 6px' }}>
+                <FiGitBranch style={{ width: '10px', height: '10px' }} /> Schema Changed
               </span>
             )}
             {file.processing_error && (
               <span 
-                className="file-error-indicator" 
+                className="gps-badge gps-badge--danger"
                 title={`Processing failed: ${file.processing_error}`}
+                style={{ fontSize: '9px', padding: '2px 6px' }}
               >
-                ⚠️
+                Error
               </span>
             )}
           </div>
         </td>
         <td>
-          <span className="file-type-badge">{file.file_type?.toUpperCase() || 'N/A'}</span>
+          <span className="gps-badge gps-badge--muted" style={{ fontSize: '9px', padding: '2px 8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{file.file_type?.toUpperCase() || 'N/A'}</span>
         </td>
         <td>{file.file_size ? formatBytes(parseInt(file.file_size)) : '-'}</td>
         <td>
@@ -450,7 +449,7 @@ export const FileCatalog = ({ onFileSelect }) => {
           {file.created_at ? getTimeSince(file.created_at) : '-'}
         </td>
         <td>
-          <div className="quality-cell">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <QualityTooltip 
               score={parseFloat(file.quality_score)}
               components={{
@@ -463,16 +462,21 @@ export const FileCatalog = ({ onFileSelect }) => {
               position="top"
               animated={true}
             >
-              <span className={`quality-score ${getQualityClass(parseFloat(file.quality_score))}`}>
+              <span style={{ 
+                fontWeight: 600, 
+                fontSize: '10px',
+                color: parseFloat(file.quality_score) >= 90 ? '#16a34a' : parseFloat(file.quality_score) >= 70 ? '#d97706' : '#dc2626'
+              }}>
                 {parseFloat(file.quality_score).toFixed(1)}%
               </span>
             </QualityTooltip>
             {headerInfo && (
               <span 
-                className={`header-validation-badge ${headerInfo.status === 'critical' ? 'critical' : 'warning'}`}
+                className={`gps-badge ${headerInfo.status === 'critical' ? 'gps-badge--danger' : 'gps-badge--warning'}`}
                 title={headerInfo.issues.map(issue => issue.message).join('; ')}
+                style={{ fontSize: '9px', padding: '2px 6px', display: 'inline-flex', alignItems: 'center', gap: '3px' }}
               >
-                <FiAlertTriangle /> {headerInfo.issuesCount}
+                <FiAlertTriangle style={{ width: '10px', height: '10px' }} /> {headerInfo.issuesCount}
               </span>
             )}
           </div>
@@ -593,14 +597,14 @@ export const FileCatalog = ({ onFileSelect }) => {
         </div>
       </div>
       
-      <div className="gps-filters" style={{ marginBottom: '16px' }}>
+      <div className="gps-filters" style={{ marginBottom: '16px', display: 'flex', flexWrap: 'nowrap', gap: '8px', alignItems: 'center' }}>
         <input
           type="text"
           placeholder="Search files..."
           value={searchTerm}
           onChange={handleSearchChange}
           className="gps-form-input"
-          style={{ maxWidth: '280px' }}
+          style={{ width: '200px', flex: '0 0 auto' }}
         />
         
         {selectedFiles.length > 0 && (
@@ -608,16 +612,17 @@ export const FileCatalog = ({ onFileSelect }) => {
             className="gps-btn gps-btn--danger"
             onClick={handleBulkDelete}
             disabled={bulkDeleteMutation.isPending}
+            style={{ flex: '0 0 auto' }}
           >
-            <FiTrash2 /> Delete Selected ({selectedFiles.length})
+            <FiTrash2 /> Delete ({selectedFiles.length})
           </button>
         )}
         
         <select 
           value={selectedProject}
           onChange={(e) => setSelectedProject(e.target.value === 'all' ? 'all' : parseInt(e.target.value))}
-          className="gps-form-select"
-          style={{ minWidth: '140px' }}
+          className="gps-filter-select"
+          style={{ flex: '0 0 auto' }}
         >
           <option value="all">All Projects</option>
           {uniqueProjects.map(p => (
@@ -635,8 +640,8 @@ export const FileCatalog = ({ onFileSelect }) => {
               setSelectedSubProject(parseInt(value));
             }
           }}
-          className="gps-form-select"
-          style={{ minWidth: '160px' }}
+          className="gps-filter-select"
+          style={{ flex: '0 0 auto' }}
           disabled={selectedProject === 'all'}
         >
           <option value="none">Select a subproject</option>
@@ -649,8 +654,8 @@ export const FileCatalog = ({ onFileSelect }) => {
         <select 
           value={selectedType}
           onChange={handleTypeChange}
-          className="gps-form-select"
-          style={{ minWidth: '100px' }}
+          className="gps-filter-select"
+          style={{ flex: '0 0 auto' }}
         >
           <option value="all">All Types</option>
           <option value="csv">CSV</option>
@@ -662,8 +667,8 @@ export const FileCatalog = ({ onFileSelect }) => {
         <select 
           value={sortBy}
           onChange={handleSortChange}
-          className="gps-form-select"
-          style={{ minWidth: '120px' }}
+          className="gps-filter-select"
+          style={{ flex: '0 0 auto' }}
         >
           <option value="date">Sort by Date</option>
           <option value="name">Sort by Name</option>
@@ -676,7 +681,7 @@ export const FileCatalog = ({ onFileSelect }) => {
           className="gps-btn gps-btn--secondary"
           onClick={handleOrderChange}
           title={sortOrder === 'asc' ? 'Ascending' : 'Descending'}
-          style={{ padding: '8px 12px', minWidth: '40px' }}
+          style={{ padding: '8px 12px', flex: '0 0 auto' }}
         >
           {sortOrder === 'asc' ? '↑' : '↓'}
         </button>
