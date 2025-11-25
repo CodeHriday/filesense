@@ -385,21 +385,85 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
 
           {activeTab === 'mapping' && (
             <div>
-              <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
-                <button
-                  className={`vm-btn ${getLeftIncludeState() ? 'vm-btn-primary' : 'vm-btn-secondary'}`}
-                  onClick={toggleAllLeftColumns}
-                  style={{ padding: '4px 10px', fontSize: '10px' }}
-                >
-                  {getLeftIncludeState() ? 'Exclude' : 'Include'} All {leftNodeName || 'Left'}
-                </button>
-                <button
-                  className={`vm-btn ${getRightIncludeState() ? 'vm-btn-primary' : 'vm-btn-secondary'}`}
-                  onClick={toggleAllRightColumns}
-                  style={{ padding: '4px 10px', fontSize: '10px' }}
-                >
-                  {getRightIncludeState() ? 'Exclude' : 'Include'} All {rightNodeName || 'Right'}
-                </button>
+              <div style={{ display: 'flex', gap: '16px', marginBottom: '12px', alignItems: 'center' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '10px', fontFamily: 'Inter, sans-serif', fontWeight: 500, color: '#333' }}>
+                    Include All {leftNodeName || 'Left'}
+                  </span>
+                  <label style={{ 
+                    position: 'relative', 
+                    display: 'inline-block', 
+                    width: '36px', 
+                    height: '20px',
+                    cursor: 'pointer'
+                  }}>
+                    <input
+                      type="checkbox"
+                      checked={getLeftIncludeState()}
+                      onChange={toggleAllLeftColumns}
+                      style={{ opacity: 0, width: 0, height: 0 }}
+                    />
+                    <span style={{
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      backgroundColor: getLeftIncludeState() ? '#025043' : '#ccc',
+                      borderRadius: '20px',
+                      transition: '0.3s'
+                    }} />
+                    <span style={{
+                      position: 'absolute',
+                      height: '14px',
+                      width: '14px',
+                      left: getLeftIncludeState() ? '19px' : '3px',
+                      bottom: '3px',
+                      backgroundColor: 'white',
+                      borderRadius: '50%',
+                      transition: '0.3s'
+                    }} />
+                  </label>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '10px', fontFamily: 'Inter, sans-serif', fontWeight: 500, color: '#333' }}>
+                    Include All {rightNodeName || 'Right'}
+                  </span>
+                  <label style={{ 
+                    position: 'relative', 
+                    display: 'inline-block', 
+                    width: '36px', 
+                    height: '20px',
+                    cursor: 'pointer'
+                  }}>
+                    <input
+                      type="checkbox"
+                      checked={getRightIncludeState()}
+                      onChange={toggleAllRightColumns}
+                      style={{ opacity: 0, width: 0, height: 0 }}
+                    />
+                    <span style={{
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      backgroundColor: getRightIncludeState() ? '#025043' : '#ccc',
+                      borderRadius: '20px',
+                      transition: '0.3s'
+                    }} />
+                    <span style={{
+                      position: 'absolute',
+                      height: '14px',
+                      width: '14px',
+                      left: getRightIncludeState() ? '19px' : '3px',
+                      bottom: '3px',
+                      backgroundColor: 'white',
+                      borderRadius: '50%',
+                      transition: '0.3s'
+                    }} />
+                  </label>
+                </div>
               </div>
               <div style={{ overflowX: 'auto' }}>
                 <table className="vm-schema-table" style={{ marginBottom: '16px' }}>

@@ -116,7 +116,14 @@ const RdmLookupModal = ({ isOpen, onClose, onSave, initialConfig = {}, cumulativ
       const token = localStorage.getItem('token');
       const headers = { Authorization: `Bearer ${token}` };
       const response = await axios.get(`${API_BASE_URL}/api/rdm/datasets/${datasetId}/schema`, { headers });
-      setDatasetSchema(response.data.data?.fields || []);
+      const fields = response.data.data?.fields || [];
+      console.log('RDM Dataset Schema API Response:', { 
+        datasetId, 
+        rawFields: fields,
+        sampleField: fields[0],
+        fieldKeys: fields[0] ? Object.keys(fields[0]) : []
+      });
+      setDatasetSchema(fields);
     } catch (err) {
       console.error('Failed to fetch dataset schema:', err);
       setDatasetSchema([]);
@@ -281,6 +288,14 @@ const RdmLookupModal = ({ isOpen, onClose, onSave, initialConfig = {}, cumulativ
     
     if (lookupType === 'dataset') {
       const selectedDataset = datasets.find(d => d.id === datasetConfig.datasetId);
+      const datasetCols = getDatasetColumnsOnly();
+      console.log('RDM Lookup handleSave - Dataset:', {
+        datasetSchema: datasetSchema,
+        datasetSchemaLength: datasetSchema.length,
+        sampleSchemaField: datasetSchema[0],
+        columnMappings: datasetConfig.column_mappings,
+        outputSchema: datasetCols
+      });
       config = {
         ...config,
         datasetId: datasetConfig.datasetId,
@@ -288,7 +303,7 @@ const RdmLookupModal = ({ isOpen, onClose, onSave, initialConfig = {}, cumulativ
         joinType: datasetConfig.join_type || 'inner',
         joinKeys: joinConditions,
         columnMappings: datasetConfig.column_mappings || [],
-        outputSchema: getDatasetColumnsOnly() // Save only dataset columns
+        outputSchema: datasetCols // Save only dataset columns
       };
     } else {
       const selectedCrosswalk = crosswalks.find(c => c.id === crosswalkConfig.crosswalkId);
