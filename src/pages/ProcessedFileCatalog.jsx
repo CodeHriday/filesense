@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiTrash2, FiSearch, FiEye, FiGitBranch } from 'react-icons/fi';
+import { FiTrash2, FiSearch, FiGitBranch, FiBarChart2 } from 'react-icons/fi';
 import axios from 'axios';
 import PageLayout from '../components/PageLayout';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -181,36 +181,32 @@ const ProcessedFileCatalog = () => {
         </div>
         
         <div className="gps-card-body">
-          <div style={{ display: 'flex', gap: '12px', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap' }}>
-            <div style={{ position: 'relative', flex: '1', minWidth: '200px' }}>
-              <FiSearch style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#666', pointerEvents: 'none' }} />
+          <div className="gps-filter-row">
+            <div style={{ position: 'relative', flex: '1', minWidth: '180px' }}>
+              <FiSearch style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#666', pointerEvents: 'none', zIndex: 1 }} />
               <input
                 type="text"
                 placeholder="Search by mapping or file name..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="gps-form-input"
-                style={{ paddingLeft: '36px', width: '100%' }}
+                style={{ paddingLeft: '36px' }}
               />
             </div>
-            
             <select
               value={selectedMapping}
               onChange={(e) => setSelectedMapping(e.target.value)}
               className="gps-form-select"
-              style={{ minWidth: '180px' }}
             >
               <option value="all">All Mappings</option>
               {uniqueMappings.map(mapping => (
                 <option key={mapping} value={mapping}>{mapping}</option>
               ))}
             </select>
-            
             <select
               value={selectedProject}
               onChange={(e) => setSelectedProject(e.target.value)}
               className="gps-form-select"
-              style={{ minWidth: '160px' }}
             >
               <option value="all">All Projects</option>
               {uniqueProjects.map(project => (
@@ -297,7 +293,7 @@ const ProcessedFileCatalog = () => {
                               disabled={!file.job_id}
                               title="Source File Profile"
                             >
-                              <FiEye size={14} />
+                              <FiBarChart2 size={14} />
                             </button>
                             <button 
                               className="gps-icon-btn gps-icon-btn--view"
@@ -305,7 +301,7 @@ const ProcessedFileCatalog = () => {
                               disabled={!file.file_id}
                               title="Target File Profile"
                             >
-                              <FiEye size={14} />
+                              <FiBarChart2 size={14} />
                             </button>
                             <button 
                               className="gps-icon-btn gps-icon-btn--delete"
