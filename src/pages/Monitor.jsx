@@ -145,7 +145,7 @@ function Monitor() {
   };
   
   const renderSchemaDetails = (audit) => {
-    if (!audit.file_schema) return <div className="no-schema">No schema information available</div>;
+    if (!audit.file_schema) return <div className="gps-empty-state" style={{ padding: '16px' }}>No schema information available</div>;
     
     try {
       const schema = typeof audit.file_schema === 'string' 
@@ -153,52 +153,56 @@ function Monitor() {
         : audit.file_schema;
       
       return (
-        <div className="schema-details">
-          <div className="schema-info">
-            <div className="schema-meta">
-              <span className="schema-label">Schema Hash:</span>
-              <span className="schema-value">{audit.schema_hash || 'N/A'}</span>
+        <div>
+          <div className="gps-detail-grid" style={{ marginBottom: '16px' }}>
+            <div className="gps-detail-item">
+              <span className="gps-detail-label">Schema Hash:</span>
+              <span className="gps-detail-value" style={{ wordBreak: 'break-all' }}>{audit.schema_hash || 'N/A'}</span>
             </div>
             {audit.schema_diff && (
-              <div className="schema-meta">
-                <span className="schema-label">Schema Changed:</span>
-                <span className="schema-value">{audit.schema_changed ? 'Yes' : 'No'}</span>
+              <div className="gps-detail-item">
+                <span className="gps-detail-label">Schema Changed:</span>
+                <span className="gps-detail-value">{audit.schema_changed ? 'Yes' : 'No'}</span>
               </div>
             )}
           </div>
           
           {schema.columns && schema.columns.length > 0 && (
-            <div className="schema-columns">
-              <h4>Column Schema ({schema.columns.length} columns)</h4>
-              <div className="schema-table">
-                <div className="schema-table-header">
-                  <div className="col">Column Name</div>
-                  <div className="col">Type</div>
-                  <div className="col">Nullable</div>
-                </div>
-                <div className="schema-table-body">
-                  {schema.columns.map((col, idx) => (
-                    <div className="schema-table-row" key={idx}>
-                      <div className="col">{col.name}</div>
-                      <div className="col">{col.type}</div>
-                      <div className="col">{col.nullable !== false ? 'Yes' : 'No'}</div>
-                    </div>
-                  ))}
-                </div>
+            <div style={{ marginTop: '16px' }}>
+              <h4 className="gps-expanded-section-title" style={{ fontSize: '11px', marginBottom: '12px' }}>Column Schema ({schema.columns.length} columns)</h4>
+              <div style={{ maxHeight: '300px', overflowY: 'auto', border: '1px solid #e2e8f0', borderRadius: '6px' }}>
+                <table className="gps-table" style={{ margin: 0 }}>
+                  <thead>
+                    <tr>
+                      <th>Column Name</th>
+                      <th>Type</th>
+                      <th>Nullable</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {schema.columns.map((col, idx) => (
+                      <tr key={idx}>
+                        <td>{col.name}</td>
+                        <td>{col.type}</td>
+                        <td>{col.nullable !== false ? 'Yes' : 'No'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </div>
           )}
           
           {audit.schema_diff && (
-            <div className="schema-diff">
-              <h4>Schema Changes</h4>
-              <pre>{JSON.stringify(JSON.parse(audit.schema_diff), null, 2)}</pre>
+            <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid #e5e7eb' }}>
+              <h4 className="gps-expanded-section-title" style={{ fontSize: '11px' }}>Schema Changes</h4>
+              <pre style={{ background: '#f8f9fa', border: '1px solid #e2e8f0', borderRadius: '6px', padding: '12px', fontSize: '10px', overflow: 'auto', whiteSpace: 'pre-wrap', fontFamily: 'Inter, monospace' }}>{JSON.stringify(JSON.parse(audit.schema_diff), null, 2)}</pre>
             </div>
           )}
         </div>
       );
     } catch (e) {
-      return <div className="schema-error">Error parsing schema: {e.message}</div>;
+      return <div className="gps-alert-danger" style={{ padding: '12px', margin: 0 }}>Error parsing schema: {e.message}</div>;
     }
   };
   
