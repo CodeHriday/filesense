@@ -82,6 +82,13 @@
   gap: 2px;
 }
 
+.gps-header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--gps-spacing-md);
+  flex-wrap: wrap;
+}
+
 .gps-page-title {
   font-family: var(--gps-font-family);
   font-size: var(--gps-font-size-title);
@@ -101,16 +108,13 @@
 }
 
 /* ============================================
-   PRIMARY BUTTON
+   BASE BUTTON STYLES
    ============================================ */
-.gps-btn-primary {
+.gps-btn {
   font-family: var(--gps-font-family);
   font-size: var(--gps-font-size-content);
   font-weight: var(--gps-font-weight-semibold);
   padding: var(--gps-spacing-md) 14px;
-  background: var(--gps-primary-teal);
-  color: white;
-  border: none;
   border-radius: var(--gps-radius-sm);
   cursor: pointer;
   display: inline-flex;
@@ -118,19 +122,38 @@
   gap: var(--gps-spacing-sm);
   transition: all 0.2s ease;
   white-space: nowrap;
+  text-decoration: none;
 }
 
-.gps-btn-primary:hover {
+.gps-btn--sm {
+  padding: var(--gps-spacing-xs) var(--gps-spacing-md);
+  font-size: 11px;
+}
+
+/* ============================================
+   PRIMARY BUTTON
+   ============================================ */
+.gps-btn-primary,
+.gps-btn.gps-btn--primary {
+  background: var(--gps-primary-teal);
+  color: white;
+  border: none;
+}
+
+.gps-btn-primary:hover,
+.gps-btn.gps-btn--primary:hover {
   background: var(--gps-primary-hover);
   transform: translateY(-1px);
   box-shadow: 0 2px 4px rgba(2, 80, 67, 0.2);
 }
 
-.gps-btn-primary:active {
+.gps-btn-primary:active,
+.gps-btn.gps-btn--primary:active {
   transform: translateY(0);
 }
 
-.gps-btn-primary:disabled {
+.gps-btn-primary:disabled,
+.gps-btn.gps-btn--primary:disabled {
   opacity: 0.6;
   cursor: not-allowed;
   transform: none;
@@ -140,47 +163,33 @@
 /* ============================================
    SECONDARY BUTTON
    ============================================ */
-.gps-btn-secondary {
-  font-family: var(--gps-font-family);
-  font-size: var(--gps-font-size-content);
+.gps-btn-secondary,
+.gps-btn.gps-btn--secondary {
   font-weight: var(--gps-font-weight-medium);
-  padding: var(--gps-spacing-md) 14px;
   background: var(--gps-bg-white);
   color: var(--gps-text-dark);
   border: 1px solid var(--gps-border-input);
-  border-radius: var(--gps-radius-sm);
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: var(--gps-spacing-sm);
-  transition: all 0.2s ease;
 }
 
-.gps-btn-secondary:hover {
+.gps-btn-secondary:hover,
+.gps-btn.gps-btn--secondary:hover {
   background: var(--gps-bg-header);
-  border-color: var(--gps-border-light);
+  border-color: var(--gps-primary-teal);
+  color: var(--gps-primary-teal);
 }
 
 /* ============================================
    DANGER BUTTON
    ============================================ */
-.gps-btn-danger {
-  font-family: var(--gps-font-family);
-  font-size: var(--gps-font-size-content);
-  font-weight: var(--gps-font-weight-semibold);
-  padding: var(--gps-spacing-md) 14px;
+.gps-btn-danger,
+.gps-btn.gps-btn--danger {
   background: var(--gps-danger-red);
   color: white;
   border: none;
-  border-radius: var(--gps-radius-sm);
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: var(--gps-spacing-sm);
-  transition: all 0.2s ease;
 }
 
-.gps-btn-danger:hover {
+.gps-btn-danger:hover,
+.gps-btn.gps-btn--danger:hover {
   background: var(--gps-danger-hover);
   transform: translateY(-1px);
   box-shadow: 0 2px 4px rgba(229, 62, 62, 0.2);
