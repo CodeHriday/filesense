@@ -159,12 +159,12 @@ const RdmLookupModal = ({ isOpen, onClose, onSave, initialConfig = {}, cumulativ
       // Add dataset columns (either from column mappings or full dataset schema)
       let datasetCols = [];
       if (datasetConfig.column_mappings && datasetConfig.column_mappings.length > 0) {
-        // Use mapped columns
+        // Use mapped columns - ColumnMapper uses sourceColumn/targetColumn properties
         datasetCols = datasetConfig.column_mappings.map(mapping => {
-          const sourceCol = datasetSchema.find(col => col.name === mapping.source);
+          const sourceCol = datasetSchema.find(col => col.name === (mapping.sourceColumn || mapping.source));
           return {
-            name: mapping.target || mapping.source,
-            type: sourceCol?.dataType || sourceCol?.type || 'unknown',
+            name: mapping.targetColumn || mapping.target || mapping.sourceColumn || mapping.source,
+            type: mapping.dataType || sourceCol?.dataType || sourceCol?.type || 'unknown',
             description: sourceCol?.description || '',
             contains_pii: sourceCol?.isPii || sourceCol?.contains_pii || false
           };
@@ -195,12 +195,12 @@ const RdmLookupModal = ({ isOpen, onClose, onSave, initialConfig = {}, cumulativ
     // Return only the dataset columns (not combined with input)
     let datasetCols = [];
     if (datasetConfig.column_mappings && datasetConfig.column_mappings.length > 0) {
-      // Use mapped columns
+      // Use mapped columns - ColumnMapper uses sourceColumn/targetColumn properties
       datasetCols = datasetConfig.column_mappings.map(mapping => {
-        const sourceCol = datasetSchema.find(col => col.name === mapping.source);
+        const sourceCol = datasetSchema.find(col => col.name === (mapping.sourceColumn || mapping.source));
         return {
-          name: mapping.target || mapping.source,
-          type: sourceCol?.dataType || sourceCol?.type || 'unknown',
+          name: mapping.targetColumn || mapping.target || mapping.sourceColumn || mapping.source,
+          type: mapping.dataType || sourceCol?.dataType || sourceCol?.type || 'unknown',
           description: sourceCol?.description || '',
           contains_pii: sourceCol?.isPii || sourceCol?.contains_pii || false
         };
