@@ -182,21 +182,22 @@ const ProcessedFileCatalog = () => {
         
         <div className="gps-card-body">
           <div className="gps-filter-row">
-            <div style={{ position: 'relative', flex: '1', minWidth: '180px' }}>
+            <div style={{ position: 'relative', flex: '1 1 200px', minWidth: '150px', maxWidth: '300px' }}>
               <FiSearch style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#666', pointerEvents: 'none', zIndex: 1 }} />
               <input
                 type="text"
-                placeholder="Search by mapping or file name..."
+                placeholder="Search..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="gps-form-input"
-                style={{ paddingLeft: '36px' }}
+                style={{ paddingLeft: '36px', width: '100%' }}
               />
             </div>
             <select
               value={selectedMapping}
               onChange={(e) => setSelectedMapping(e.target.value)}
               className="gps-form-select"
+              style={{ flex: '0 1 160px' }}
             >
               <option value="all">All Mappings</option>
               {uniqueMappings.map(mapping => (
@@ -207,6 +208,7 @@ const ProcessedFileCatalog = () => {
               value={selectedProject}
               onChange={(e) => setSelectedProject(e.target.value)}
               className="gps-form-select"
+              style={{ flex: '0 1 160px' }}
             >
               <option value="all">All Projects</option>
               {uniqueProjects.map(project => (

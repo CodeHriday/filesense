@@ -125,22 +125,13 @@
   gap: 12px;
   align-items: center;
   margin-bottom: 16px;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
 }
 
-.gps-filter-row > * {
-  flex-shrink: 0;
-}
-
-.gps-filter-row .gps-form-input,
 .gps-filter-row .gps-form-select {
-  min-width: 140px;
-}
-
-@media (max-width: 768px) {
-  .gps-filter-row {
-    flex-wrap: wrap;
-  }
+  flex: 0 0 auto;
+  min-width: 120px;
+  max-width: 180px;
 }
 
 .gps-page-title {
