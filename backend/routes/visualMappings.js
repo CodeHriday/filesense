@@ -366,9 +366,10 @@ router.post('/:id/execute', async (req, res) => {
     
     // Create a temporary transformation mapping for this execution
     // This will be cleaned up after execution completes
+    const tempMappingId = `vm-${id}-${Date.now()}`;
     const transformResult = await pool.query(
       `INSERT INTO transformation_mappings (
-        mapping_name, description, project_id, sub_project_id,
+        mapping_id, mapping_name, description, project_id, sub_project_id,
         source_connection_id, file_path, file_name_pattern,
         target_connection_id, target_file_path, target_file_name, target_file_format,
         field_mappings, variables, pii_columns,
@@ -376,9 +377,10 @@ router.post('/:id/execute', async (req, res) => {
         schema_drift_handling, violation_handling,
         created_by, is_visual_mapping, visual_mapping_id, is_temporary
       ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, true, $20, true
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, true, $21, true
       ) RETURNING id`,
       [
+        tempMappingId,
         `[VM] ${transformationMapping.name || mapping.name}`,
         transformationMapping.description || mapping.description,
         transformationMapping.project_id || mapping.project_id,
