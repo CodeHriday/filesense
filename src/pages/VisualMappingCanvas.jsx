@@ -1219,10 +1219,16 @@ const VisualMappingCanvasContent = () => {
                   inputSchema = [...inputSchema, ...getNodeOutputSchema(edge.source)];
                 });
                 if (config.lookupType === 'dataset' && config.outputSchema) {
-                  const outputCols = config.outputSchema.map(col => ({ name: col.name, type: col.type || 'STRING' }));
+                  const outputCols = config.outputSchema.map(col => ({ 
+                    name: col.name || col.columnName || col.field_name || col.fieldName || col.targetColumn || col.sourceColumn || '', 
+                    type: col.type || col.dataType || 'STRING' 
+                  }));
                   return [...inputSchema, ...outputCols];
                 } else if (config.lookupType === 'crosswalk' && config.outputSchema) {
-                  const outputCols = config.outputSchema.map(col => ({ name: col.name, type: col.type || 'STRING' }));
+                  const outputCols = config.outputSchema.map(col => ({ 
+                    name: col.name || col.columnName || col.field_name || col.fieldName || col.targetColumn || col.sourceColumn || '', 
+                    type: col.type || col.dataType || 'STRING' 
+                  }));
                   return [...inputSchema, ...outputCols];
                 }
                 return inputSchema;
@@ -1264,10 +1270,16 @@ const VisualMappingCanvasContent = () => {
                   inputSchema = [...inputSchema, ...getNodeOutputSchema(edge.source)];
                 });
                 if (config.lookupType === 'dataset' && config.outputSchema) {
-                  const outputCols = config.outputSchema.map(col => ({ name: col.name, type: col.type || 'STRING' }));
+                  const outputCols = config.outputSchema.map(col => ({ 
+                    name: col.name || col.columnName || col.field_name || col.fieldName || col.targetColumn || col.sourceColumn || '', 
+                    type: col.type || col.dataType || 'STRING' 
+                  }));
                   return [...inputSchema, ...outputCols];
                 } else if (config.lookupType === 'crosswalk' && config.outputSchema) {
-                  const outputCols = config.outputSchema.map(col => ({ name: col.name, type: col.type || 'STRING' }));
+                  const outputCols = config.outputSchema.map(col => ({ 
+                    name: col.name || col.columnName || col.field_name || col.fieldName || col.targetColumn || col.sourceColumn || '', 
+                    type: col.type || col.dataType || 'STRING' 
+                  }));
                   return [...inputSchema, ...outputCols];
                 }
                 return inputSchema;

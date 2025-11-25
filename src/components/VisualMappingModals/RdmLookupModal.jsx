@@ -207,9 +207,9 @@ const RdmLookupModal = ({ isOpen, onClose, onSave, initialConfig = {}, cumulativ
           };
         });
       } else if (datasetSchema.length > 0) {
-        // Use full dataset schema
+        // Use full dataset schema - check multiple property names for column name
         datasetCols = datasetSchema.map(col => ({
-          name: col.name,
+          name: col.name || col.columnName || col.field_name || col.fieldName || col.column || '',
           type: col.dataType || col.type || 'unknown',
           description: col.description || '',
           contains_pii: col.isPii || col.contains_pii || false
@@ -261,9 +261,9 @@ const RdmLookupModal = ({ isOpen, onClose, onSave, initialConfig = {}, cumulativ
         };
       });
     } else if (datasetSchema.length > 0) {
-      // Use full dataset schema
+      // Use full dataset schema - check multiple property names for column name
       datasetCols = datasetSchema.map(col => ({
-        name: col.name,
+        name: col.name || col.columnName || col.field_name || col.fieldName || col.column || '',
         type: col.dataType || col.type || 'unknown',
         description: col.description || '',
         contains_pii: col.isPii || col.contains_pii || false
