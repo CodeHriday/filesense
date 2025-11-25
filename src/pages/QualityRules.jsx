@@ -366,48 +366,44 @@ function QualityRules() {
     switch (formData.rule_type) {
       case 'completeness':
         return (
-          <div style={{ marginTop: '16px', padding: '16px', backgroundColor: '#f9fafb', borderRadius: '8px' }}>
+          <div className="gps-section" style={{ marginTop: '16px', padding: '16px', backgroundColor: '#f9fafb', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
             <div className="gps-form-group">
-              <label className="gps-label">
-                Completeness Threshold (%)
-                <small className="gps-text-muted" style={{ display: 'block', fontWeight: 400, marginTop: '2px' }}>Minimum percentage of non-null values required</small>
-              </label>
+              <label className="gps-form-label">Completeness Threshold (%)</label>
+              <span className="gps-form-hint" style={{ marginTop: 0, marginBottom: '8px' }}>Minimum percentage of non-null values required</span>
               <input
                 type="range"
                 min="0"
                 max="100"
                 value={config.threshold || 95}
                 onChange={(e) => updateRuleConfig('threshold', parseInt(e.target.value))}
-                style={{ width: '100%' }}
+                style={{ width: '100%', accentColor: '#025043' }}
               />
-              <div style={{ textAlign: 'center', fontWeight: 600, color: '#025043' }}>{config.threshold || 95}%</div>
-              {formErrors.threshold && <span style={{ color: '#e53e3e', fontSize: '10px' }}>{formErrors.threshold}</span>}
+              <div style={{ textAlign: 'center', fontFamily: 'Inter, sans-serif', fontSize: '12px', fontWeight: 700, color: '#025043' }}>{config.threshold || 95}%</div>
+              {formErrors.threshold && <span className="gps-form-hint" style={{ color: '#e53e3e' }}>{formErrors.threshold}</span>}
             </div>
             
-            <div className="gps-form-group">
-              <label className="gps-label">
-                Column Name
-                <small className="gps-text-muted" style={{ display: 'block', fontWeight: 400, marginTop: '2px' }}>The column to check for completeness</small>
-              </label>
+            <div className="gps-form-group" style={{ marginBottom: 0 }}>
+              <label className="gps-form-label">Column Name</label>
+              <span className="gps-form-hint" style={{ marginTop: 0, marginBottom: '8px' }}>The column to check for completeness</span>
               <input
                 type="text"
-                className="gps-input"
+                className="gps-form-input"
                 value={formData.column_name}
                 onChange={(e) => setFormData({ ...formData, column_name: e.target.value })}
                 placeholder="e.g., email, customer_id"
               />
-              {formErrors.column && <span style={{ color: '#e53e3e', fontSize: '10px' }}>{formErrors.column}</span>}
+              {formErrors.column && <span className="gps-form-hint" style={{ color: '#e53e3e' }}>{formErrors.column}</span>}
             </div>
           </div>
         );
         
       case 'validity':
         return (
-          <div style={{ marginTop: '16px', padding: '16px', backgroundColor: '#f9fafb', borderRadius: '8px' }}>
+          <div className="gps-section" style={{ marginTop: '16px', padding: '16px', backgroundColor: '#f9fafb', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
             <div className="gps-form-group">
-              <label className="gps-label">Validation Type</label>
+              <label className="gps-form-label">Validation Type</label>
               <select
-                className="gps-select"
+                className="gps-form-select"
                 value={config.validity_type || ''}
                 onChange={(e) => updateRuleConfig('validity_type', e.target.value)}
               >
@@ -417,66 +413,66 @@ function QualityRules() {
                 <option value="enum">Allowed Values List</option>
                 <option value="datatype">Data Type Check</option>
               </select>
-              {formErrors.validity_type && <span style={{ color: '#e53e3e', fontSize: '10px' }}>{formErrors.validity_type}</span>}
+              {formErrors.validity_type && <span className="gps-form-hint" style={{ color: '#e53e3e' }}>{formErrors.validity_type}</span>}
             </div>
             
             {config.validity_type === 'pattern' && (
               <div className="gps-form-group">
-                <label className="gps-label">Pattern (Regular Expression)</label>
+                <label className="gps-form-label">Pattern (Regular Expression)</label>
                 <input
                   type="text"
-                  className="gps-input"
+                  className="gps-form-input"
                   value={config.pattern || ''}
                   onChange={(e) => updateRuleConfig('pattern', e.target.value)}
                   placeholder="^[a-zA-Z0-9]+$"
                 />
-                {formErrors.pattern && <span style={{ color: '#e53e3e', fontSize: '10px' }}>{formErrors.pattern}</span>}
+                {formErrors.pattern && <span className="gps-form-hint" style={{ color: '#e53e3e' }}>{formErrors.pattern}</span>}
               </div>
             )}
             
             {config.validity_type === 'range' && (
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              <div className="gps-form-row">
                 <div className="gps-form-group">
-                  <label className="gps-label">Minimum Value</label>
+                  <label className="gps-form-label">Minimum Value</label>
                   <input
                     type="number"
-                    className="gps-input"
+                    className="gps-form-input"
                     value={config.min || ''}
                     onChange={(e) => updateRuleConfig('min', parseFloat(e.target.value))}
                   />
                 </div>
                 <div className="gps-form-group">
-                  <label className="gps-label">Maximum Value</label>
+                  <label className="gps-form-label">Maximum Value</label>
                   <input
                     type="number"
-                    className="gps-input"
+                    className="gps-form-input"
                     value={config.max || ''}
                     onChange={(e) => updateRuleConfig('max', parseFloat(e.target.value))}
                   />
                 </div>
-                {formErrors.range && <span style={{ color: '#e53e3e', fontSize: '10px', gridColumn: '1 / -1' }}>{formErrors.range}</span>}
+                {formErrors.range && <span className="gps-form-hint" style={{ color: '#e53e3e', gridColumn: '1 / -1' }}>{formErrors.range}</span>}
               </div>
             )}
             
             {config.validity_type === 'enum' && (
               <div className="gps-form-group">
-                <label className="gps-label">Allowed Values (comma-separated)</label>
+                <label className="gps-form-label">Allowed Values (comma-separated)</label>
                 <textarea
-                  className="gps-textarea"
+                  className="gps-form-textarea"
                   rows="3"
                   value={(config.allowed_values || []).join(', ')}
                   onChange={(e) => updateRuleConfig('allowed_values', e.target.value.split(',').map(v => v.trim()).filter(v => v))}
                   placeholder="Active, Pending, Closed"
                 />
-                {formErrors.allowed_values && <span style={{ color: '#e53e3e', fontSize: '10px' }}>{formErrors.allowed_values}</span>}
+                {formErrors.allowed_values && <span className="gps-form-hint" style={{ color: '#e53e3e' }}>{formErrors.allowed_values}</span>}
               </div>
             )}
             
             {config.validity_type === 'datatype' && (
               <div className="gps-form-group">
-                <label className="gps-label">Expected Data Type</label>
+                <label className="gps-form-label">Expected Data Type</label>
                 <select
-                  className="gps-select"
+                  className="gps-form-select"
                   value={config.datatype || ''}
                   onChange={(e) => updateRuleConfig('datatype', e.target.value)}
                 >
@@ -488,15 +484,15 @@ function QualityRules() {
                   <option value="date">Date</option>
                   <option value="datetime">Date & Time</option>
                 </select>
-                {formErrors.datatype && <span style={{ color: '#e53e3e', fontSize: '10px' }}>{formErrors.datatype}</span>}
+                {formErrors.datatype && <span className="gps-form-hint" style={{ color: '#e53e3e' }}>{formErrors.datatype}</span>}
               </div>
             )}
             
-            <div className="gps-form-group">
-              <label className="gps-label">Column Name</label>
+            <div className="gps-form-group" style={{ marginBottom: 0 }}>
+              <label className="gps-form-label">Column Name</label>
               <input
                 type="text"
-                className="gps-input"
+                className="gps-form-input"
                 value={formData.column_name}
                 onChange={(e) => setFormData({ ...formData, column_name: e.target.value })}
                 placeholder="e.g., status, amount"
@@ -507,11 +503,11 @@ function QualityRules() {
         
       case 'consistency':
         return (
-          <div style={{ marginTop: '16px', padding: '16px', backgroundColor: '#f9fafb', borderRadius: '8px' }}>
+          <div className="gps-section" style={{ marginTop: '16px', padding: '16px', backgroundColor: '#f9fafb', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
             <div className="gps-form-group">
-              <label className="gps-label">Consistency Type</label>
+              <label className="gps-form-label">Consistency Type</label>
               <select
-                className="gps-select"
+                className="gps-form-select"
                 value={config.consistency_type || ''}
                 onChange={(e) => updateRuleConfig('consistency_type', e.target.value)}
               >
@@ -519,29 +515,29 @@ function QualityRules() {
                 <option value="cross_field">Cross-Field Validation</option>
                 <option value="format_consistency">Format Consistency</option>
               </select>
-              {formErrors.consistency_type && <span style={{ color: '#e53e3e', fontSize: '10px' }}>{formErrors.consistency_type}</span>}
+              {formErrors.consistency_type && <span className="gps-form-hint" style={{ color: '#e53e3e' }}>{formErrors.consistency_type}</span>}
             </div>
             
             {config.consistency_type === 'cross_field' && (
               <div className="gps-form-group">
-                <label className="gps-label">Validation Expression</label>
+                <label className="gps-form-label">Validation Expression</label>
                 <textarea
-                  className="gps-textarea"
+                  className="gps-form-textarea"
                   rows="3"
                   value={config.expression || ''}
                   onChange={(e) => updateRuleConfig('expression', e.target.value)}
                   placeholder="end_date > start_date"
                 />
-                {formErrors.expression && <span style={{ color: '#e53e3e', fontSize: '10px' }}>{formErrors.expression}</span>}
+                {formErrors.expression && <span className="gps-form-hint" style={{ color: '#e53e3e' }}>{formErrors.expression}</span>}
               </div>
             )}
             
             {config.consistency_type === 'format_consistency' && (
               <div className="gps-form-group">
-                <label className="gps-label">Expected Format Pattern</label>
+                <label className="gps-form-label">Expected Format Pattern</label>
                 <input
                   type="text"
-                  className="gps-input"
+                  className="gps-form-input"
                   value={config.format_pattern || ''}
                   onChange={(e) => updateRuleConfig('format_pattern', e.target.value)}
                   placeholder="^\d{3}-\d{2}-\d{4}$"
@@ -549,11 +545,11 @@ function QualityRules() {
               </div>
             )}
             
-            <div className="gps-form-group">
-              <label className="gps-label">Column Name (Optional)</label>
+            <div className="gps-form-group" style={{ marginBottom: 0 }}>
+              <label className="gps-form-label">Column Name (Optional)</label>
               <input
                 type="text"
-                className="gps-input"
+                className="gps-form-input"
                 value={formData.column_name}
                 onChange={(e) => setFormData({ ...formData, column_name: e.target.value })}
                 placeholder="Leave blank for multi-column rules"
@@ -564,47 +560,43 @@ function QualityRules() {
         
       case 'uniqueness':
         return (
-          <div style={{ marginTop: '16px', padding: '16px', backgroundColor: '#f9fafb', borderRadius: '8px' }}>
-            <div className="gps-form-group">
-              <label className="gps-label">
-                Columns to Check for Uniqueness
-                <small className="gps-text-muted" style={{ display: 'block', fontWeight: 400, marginTop: '2px' }}>Comma-separated list of columns that should form a unique key</small>
-              </label>
+          <div className="gps-section" style={{ marginTop: '16px', padding: '16px', backgroundColor: '#f9fafb', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+            <div className="gps-form-group" style={{ marginBottom: 0 }}>
+              <label className="gps-form-label">Columns to Check for Uniqueness</label>
+              <span className="gps-form-hint" style={{ marginTop: 0, marginBottom: '8px' }}>Comma-separated list of columns that should form a unique key</span>
               <textarea
-                className="gps-textarea"
+                className="gps-form-textarea"
                 rows="2"
                 value={(config.columns || []).join(', ')}
                 onChange={(e) => updateRuleConfig('columns', e.target.value.split(',').map(v => v.trim()).filter(v => v))}
                 placeholder="customer_id, order_id"
               />
-              {formErrors.columns && <span style={{ color: '#e53e3e', fontSize: '10px' }}>{formErrors.columns}</span>}
+              {formErrors.columns && <span className="gps-form-hint" style={{ color: '#e53e3e' }}>{formErrors.columns}</span>}
             </div>
           </div>
         );
         
       case 'freshness':
         return (
-          <div style={{ marginTop: '16px', padding: '16px', backgroundColor: '#f9fafb', borderRadius: '8px' }}>
+          <div className="gps-section" style={{ marginTop: '16px', padding: '16px', backgroundColor: '#f9fafb', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
             <div className="gps-form-group">
-              <label className="gps-label">
-                Maximum Age (Hours)
-                <small className="gps-text-muted" style={{ display: 'block', fontWeight: 400, marginTop: '2px' }}>Data older than this will be flagged as stale</small>
-              </label>
+              <label className="gps-form-label">Maximum Age (Hours)</label>
+              <span className="gps-form-hint" style={{ marginTop: 0, marginBottom: '8px' }}>Data older than this will be flagged as stale</span>
               <input
                 type="number"
-                className="gps-input"
+                className="gps-form-input"
                 min="1"
                 value={config.max_age_hours || 24}
                 onChange={(e) => updateRuleConfig('max_age_hours', parseInt(e.target.value))}
               />
-              {formErrors.max_age_hours && <span style={{ color: '#e53e3e', fontSize: '10px' }}>{formErrors.max_age_hours}</span>}
+              {formErrors.max_age_hours && <span className="gps-form-hint" style={{ color: '#e53e3e' }}>{formErrors.max_age_hours}</span>}
             </div>
             
-            <div className="gps-form-group">
-              <label className="gps-label">Timestamp Column</label>
+            <div className="gps-form-group" style={{ marginBottom: 0 }}>
+              <label className="gps-form-label">Timestamp Column</label>
               <input
                 type="text"
-                className="gps-input"
+                className="gps-form-input"
                 value={config.timestamp_column || formData.column_name}
                 onChange={(e) => {
                   updateRuleConfig('timestamp_column', e.target.value);
@@ -612,7 +604,7 @@ function QualityRules() {
                 }}
                 placeholder="e.g., created_at, updated_at"
               />
-              {formErrors.timestamp_column && <span style={{ color: '#e53e3e', fontSize: '10px' }}>{formErrors.timestamp_column}</span>}
+              {formErrors.timestamp_column && <span className="gps-form-hint" style={{ color: '#e53e3e' }}>{formErrors.timestamp_column}</span>}
             </div>
           </div>
         );
@@ -858,24 +850,24 @@ function QualityRules() {
             </div>
             <form onSubmit={handleSubmitRule}>
               <div className="gps-modal-body" style={{ maxHeight: '60vh', overflowY: 'auto' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                <div className="gps-form-row">
                   <div className="gps-form-group">
-                    <label className="gps-label">Rule Name *</label>
+                    <label className="gps-form-label">Rule Name *</label>
                     <input
                       type="text"
-                      className="gps-input"
+                      className="gps-form-input"
                       value={formData.rule_name}
                       onChange={(e) => setFormData({ ...formData, rule_name: e.target.value })}
                       placeholder="e.g., Email Address Completeness"
                       required
                     />
-                    {formErrors.rule_name && <span style={{ color: '#e53e3e', fontSize: '10px' }}>{formErrors.rule_name}</span>}
+                    {formErrors.rule_name && <span className="gps-form-hint" style={{ color: '#e53e3e' }}>{formErrors.rule_name}</span>}
                   </div>
                   
                   <div className="gps-form-group">
-                    <label className="gps-label">Project (Optional)</label>
+                    <label className="gps-form-label">Project (Optional)</label>
                     <select
-                      className="gps-select"
+                      className="gps-form-select"
                       value={formData.project_id}
                       onChange={(e) => handleProjectChange(e.target.value)}
                     >
@@ -891,9 +883,9 @@ function QualityRules() {
                 
                 {formData.project_id && (
                   <div className="gps-form-group">
-                    <label className="gps-label">Sub-Project (Optional)</label>
+                    <label className="gps-form-label">Sub-Project (Optional)</label>
                     <select
-                      className="gps-select"
+                      className="gps-form-select"
                       value={formData.sub_project_id}
                       onChange={(e) => setFormData({ ...formData, sub_project_id: e.target.value })}
                     >
@@ -908,9 +900,9 @@ function QualityRules() {
                 )}
                 
                 <div className="gps-form-group">
-                  <label className="gps-label">Description</label>
+                  <label className="gps-form-label">Description</label>
                   <textarea
-                    className="gps-textarea"
+                    className="gps-form-textarea"
                     rows="2"
                     value={formData.description}
                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
@@ -918,11 +910,11 @@ function QualityRules() {
                   />
                 </div>
                 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                <div className="gps-form-row">
                   <div className="gps-form-group">
-                    <label className="gps-label">Rule Type *</label>
+                    <label className="gps-form-label">Rule Type *</label>
                     <select
-                      className="gps-select"
+                      className="gps-form-select"
                       value={formData.rule_type}
                       onChange={(e) => handleRuleTypeChange(e.target.value)}
                       required
@@ -933,13 +925,13 @@ function QualityRules() {
                       <option value="uniqueness">Uniqueness</option>
                       <option value="freshness">Freshness</option>
                     </select>
-                    <small className="gps-text-muted" style={{ fontSize: '9px', marginTop: '4px', display: 'block' }}>{getRuleTypeDescription(formData.rule_type)}</small>
+                    <span className="gps-form-hint">{getRuleTypeDescription(formData.rule_type)}</span>
                   </div>
                   
                   <div className="gps-form-group">
-                    <label className="gps-label">Severity</label>
+                    <label className="gps-form-label">Severity</label>
                     <select
-                      className="gps-select"
+                      className="gps-form-select"
                       value={formData.severity}
                       onChange={(e) => setFormData({ ...formData, severity: e.target.value })}
                     >
