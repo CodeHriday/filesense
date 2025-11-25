@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { FiPlus, FiEdit2, FiTrash2, FiAlertTriangle, FiCheck, FiFilter, FiChevronDown, FiChevronRight, FiAlertCircle } from 'react-icons/fi';
+import { FiPlus, FiEdit2, FiTrash2, FiAlertTriangle, FiCheck } from 'react-icons/fi';
 import Card from '../components/Card';
 import LoadingSpinner from '../components/LoadingSpinner';
 import Pagination from '../components/Pagination';
@@ -7,8 +7,8 @@ import { getQualityRules, createQualityRule, updateQualityRule, deleteQualityRul
 import { formatDate } from '../utils/formatters';
 import { useAuth } from '../context/AuthContext';
 import ConfirmModal from '../components/ConfirmModal';
+import '../styles/global-page-styles.css';
 import './QualityRules.css';
-import { groupQualityRulesByProject, initializeExpansionState, autoExpandMatchingSections } from '../utils/qualityRulesGrouping';
 
 function QualityRules() {
   const { hasWritePermission } = useAuth();
@@ -32,6 +32,7 @@ function QualityRules() {
 
   // Filter state
   const [filterProjectId, setFilterProjectId] = useState('');
+  const [filterSubProjectId, setFilterSubProjectId] = useState('');
   const [filterRuleType, setFilterRuleType] = useState('');
   const [filterEnabled, setFilterEnabled] = useState('');
 
@@ -51,27 +52,47 @@ function QualityRules() {
   const [formErrors, setFormErrors] = useState({});
   const [confirmModal, setConfirmModal] = useState({ isOpen: false, action: null, message: '', title: '' });
 
-  // Hierarchical state
-  const [expansionState, setExpansionState] = useState({});
-  const [initialized, setInitialized] = useState(false);
-
   useEffect(() => {
     fetchData();
-  }, [currentPage, filterProjectId, filterRuleType, filterEnabled]);
+  }, [currentPage, filterProjectId, filterSubProjectId, filterRuleType, filterEnabled]);
 
-  // Group quality rules by project and subproject hierarchy
-  const groupedProjects = useMemo(() => {
-    return groupQualityRulesByProject(rules);
+  // Get unique projects from the rules data for filtering
+  const uniqueProjects = useMemo(() => {
+    const projectSet = new Map();
+    rules.forEach(rule => {
+      if (rule.project_id && rule.project_name) {
+        projectSet.set(rule.project_id, rule.project_name);
+      }
+    });
+    return Array.from(projectSet.entries()).map(([id, name]) => ({ id, name }));
   }, [rules]);
 
-  // Initialize expansion state when grouped data changes
-  useEffect(() => {
-    if (groupedProjects.length > 0 && !initialized) {
-      // Initialize with all sections collapsed by default (first load)
-      setExpansionState(initializeExpansionState(groupedProjects, false));
-      setInitialized(true);
-    }
-  }, [groupedProjects, initialized]);
+  // Get unique subprojects based on selected project filter
+  const uniqueSubProjects = useMemo(() => {
+    const subProjectSet = new Map();
+    rules.forEach(rule => {
+      if (rule.sub_project_id && rule.sub_project_name) {
+        if (!filterProjectId || rule.project_id === parseInt(filterProjectId)) {
+          subProjectSet.set(rule.sub_project_id, rule.sub_project_name);
+        }
+      }
+    });
+    return Array.from(subProjectSet.entries()).map(([id, name]) => ({ id, name }));
+  }, [rules, filterProjectId]);
+
+  // Filter rules based on all filter criteria
+  const filteredRules = useMemo(() => {
+    return rules.filter(rule => {
+      if (filterProjectId && rule.project_id !== parseInt(filterProjectId)) return false;
+      if (filterSubProjectId && rule.sub_project_id !== parseInt(filterSubProjectId)) return false;
+      if (filterRuleType && rule.rule_type !== filterRuleType) return false;
+      if (filterEnabled !== '') {
+        const enabledValue = filterEnabled === 'true';
+        if (rule.enabled !== enabledValue) return false;
+      }
+      return true;
+    });
+  }, [rules, filterProjectId, filterSubProjectId, filterRuleType, filterEnabled]);
 
   const fetchData = async () => {
     try {
@@ -83,6 +104,7 @@ function QualityRules() {
       };
       
       if (filterProjectId) filters.project_id = filterProjectId;
+      if (filterSubProjectId) filters.sub_project_id = filterSubProjectId;
       if (filterRuleType) filters.rule_type = filterRuleType;
       if (filterEnabled !== '') filters.enabled = filterEnabled;
 
@@ -163,10 +185,8 @@ function QualityRules() {
   const handleEditRule = async (rule) => {
     setCurrentRule(rule);
     
-    // Parse rule config
     let ruleConfig = typeof rule.rule_config === 'string' ? JSON.parse(rule.rule_config) : (rule.rule_config || {});
     
-    // Convert completeness threshold from decimal (0.0-1.0) to percentage (0-100) for UI display
     if (rule.rule_type === 'completeness' && ruleConfig.threshold !== undefined) {
       ruleConfig.threshold = Math.round(ruleConfig.threshold * 100);
     }
@@ -286,10 +306,8 @@ function QualityRules() {
     }
     
     try {
-      // Prepare rule config - convert percentages to decimals for completeness threshold
       let ruleConfig = { ...formData.rule_config };
       if (formData.rule_type === 'completeness' && ruleConfig.threshold !== undefined) {
-        // Convert percentage (0-100) to decimal (0.0-1.0)
         ruleConfig.threshold = ruleConfig.threshold / 100;
       }
       
@@ -662,24 +680,21 @@ function QualityRules() {
 
   const totalPages = Math.ceil((pagination.total || 0) / itemsPerPage);
 
-  // Toggle expansion for a project or subproject
-  const toggleExpansion = (key) => {
-    setExpansionState(prev => ({
-      ...prev,
-      [key]: !prev[key]
-    }));
-  };
+  // Reset subproject filter when project filter changes
+  useEffect(() => {
+    setFilterSubProjectId('');
+  }, [filterProjectId]);
 
   return (
-    <div className="quality-rules-container">
-      <div className="page-header">
-        <div>
-          <h1>Data Quality Rules</h1>
-          <p className="page-description">Define and manage rules to monitor data quality across your datasets</p>
+    <div className="gps-page-container">
+      <div className="gps-page-header">
+        <div className="gps-page-header-left">
+          <h1 className="gps-page-title">Data Quality Rules</h1>
+          <p className="gps-page-subtitle">Define and manage rules to monitor data quality across your datasets</p>
         </div>
         {hasWritePermission('quality_rules') && (
-          <button className="btn btn-primary header-action-btn" onClick={handleAddRule} style={{ paddingLeft: '10px', paddingRight: '10px', width: 'auto', flex: 'none' }}>
-            <FiPlus className="btn-icon" />
+          <button className="gps-btn-primary" onClick={handleAddRule}>
+            <FiPlus />
             Create Rule
           </button>
         )}
@@ -706,78 +721,76 @@ function QualityRules() {
       </div>
 
       {/* Filters */}
-      <Card className="filters-card">
-        <div className="filters-header">
-          <FiFilter />
-          <h3>Filters</h3>
-        </div>
-        <div className="filters-grid">
-          <div className="form-group">
-            <label htmlFor="filter-project">Project</label>
-            <select
-              id="filter-project"
-              className="form-control"
-              value={filterProjectId}
-              onChange={(e) => {
-                setFilterProjectId(e.target.value);
-                setCurrentPage(1);
-              }}
-            >
-              <option value="">All Projects</option>
-              {projects.map(project => (
-                <option key={project.id} value={project.id}>
-                  {project.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          
-          <div className="form-group">
-            <label htmlFor="filter-type">Rule Type</label>
-            <select
-              id="filter-type"
-              className="form-control"
-              value={filterRuleType}
-              onChange={(e) => {
-                setFilterRuleType(e.target.value);
-                setCurrentPage(1);
-              }}
-            >
-              <option value="">All Types</option>
-              <option value="completeness">Completeness</option>
-              <option value="validity">Validity</option>
-              <option value="consistency">Consistency</option>
-              <option value="uniqueness">Uniqueness</option>
-              <option value="freshness">Freshness</option>
-            </select>
-          </div>
-          
-          <div className="form-group">
-            <label htmlFor="filter-enabled">Status</label>
-            <select
-              id="filter-enabled"
-              className="form-control"
-              value={filterEnabled}
-              onChange={(e) => {
-                setFilterEnabled(e.target.value);
-                setCurrentPage(1);
-              }}
-            >
-              <option value="">All</option>
-              <option value="true">Enabled Only</option>
-              <option value="false">Disabled Only</option>
-            </select>
-          </div>
-        </div>
-      </Card>
+      <div className="gps-filters">
+        <select
+          className="gps-filter-select"
+          value={filterProjectId}
+          onChange={(e) => {
+            setFilterProjectId(e.target.value);
+            setCurrentPage(1);
+          }}
+        >
+          <option value="">All Projects</option>
+          {(uniqueProjects.length > 0 ? uniqueProjects : projects).map(project => (
+            <option key={project.id} value={project.id}>
+              {project.name}
+            </option>
+          ))}
+        </select>
+        
+        <select
+          className="gps-filter-select"
+          value={filterSubProjectId}
+          onChange={(e) => {
+            setFilterSubProjectId(e.target.value);
+            setCurrentPage(1);
+          }}
+        >
+          <option value="">All Subprojects</option>
+          {uniqueSubProjects.map(subProject => (
+            <option key={subProject.id} value={subProject.id}>
+              {subProject.name}
+            </option>
+          ))}
+        </select>
+        
+        <select
+          className="gps-filter-select"
+          value={filterRuleType}
+          onChange={(e) => {
+            setFilterRuleType(e.target.value);
+            setCurrentPage(1);
+          }}
+        >
+          <option value="">All Types</option>
+          <option value="completeness">Completeness</option>
+          <option value="validity">Validity</option>
+          <option value="consistency">Consistency</option>
+          <option value="uniqueness">Uniqueness</option>
+          <option value="freshness">Freshness</option>
+        </select>
+        
+        <select
+          className="gps-filter-select"
+          value={filterEnabled}
+          onChange={(e) => {
+            setFilterEnabled(e.target.value);
+            setCurrentPage(1);
+          }}
+        >
+          <option value="">All Status</option>
+          <option value="true">Enabled Only</option>
+          <option value="false">Disabled Only</option>
+        </select>
+      </div>
 
       {loading ? (
         <LoadingSpinner size="small" />
       ) : error ? (
-        <div className="error-message">
+        <div className="gps-alert gps-alert-danger">
           <FiAlertTriangle />
-          <p>{error}</p>
-          <button className="btn btn-primary" onClick={fetchData}>
+          <span>{error}</span>
+          <button className="gps-btn-primary" onClick={fetchData}>
             Retry
           </button>
         </div>
@@ -906,10 +919,10 @@ function QualityRules() {
                 </div>
                 
                 <div className="form-actions">
-                  <button type="button" className="btn btn-secondary" onClick={() => setShowRuleForm(false)}>
+                  <button type="button" className="gps-btn-secondary" onClick={() => setShowRuleForm(false)}>
                     Cancel
                   </button>
-                  <button type="submit" className="btn btn-primary">
+                  <button type="submit" className="gps-btn-primary">
                     {currentRule ? 'Update Rule' : 'Create Rule'}
                   </button>
                 </div>
@@ -917,325 +930,113 @@ function QualityRules() {
             </Card>
           )}
           
-          {/* Rules Hierarchical View */}
-          {groupedProjects.length === 0 ? (
-            <Card>
-              <div className="empty-state">
-                <FiAlertTriangle className="empty-icon" />
-                <h2>No Quality Rules Found</h2>
-                <p>
-                  {filterProjectId || filterRuleType || filterEnabled
-                    ? 'No rules match your current filters. Try adjusting your filter criteria.'
-                    : 'Create quality rules to automatically monitor your data for issues like missing values, invalid formats, or duplicates.'
-                  }
-                </p>
-                {hasWritePermission('quality_rules') && !filterProjectId && !filterRuleType && !filterEnabled && (
-                  <button className="btn btn-primary" onClick={handleAddRule}>
-                    <FiPlus className="btn-icon" />
-                    Create Your First Quality Rule
-                  </button>
-                )}
-              </div>
-            </Card>
-          ) : (
-            <>
-              <div>
-                {groupedProjects.map(project => {
-                  const projectKey = `project-${project.projectId}`;
-                  const isProjectExpanded = expansionState[projectKey];
-
-                  return (
-                    <div key={project.projectId} style={{ marginBottom: '1.25rem' }}>
-                      {/* Project Header */}
-                      <div
-                        onClick={() => toggleExpansion(projectKey)}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '0.5rem',
-                          padding: '0.5rem 0.75rem',
-                          background: 'white',
-                          color: '#6b7280',
-                          cursor: 'pointer',
-                          userSelect: 'none',
-                          fontWeight: '500',
-                          fontSize: '0.8125rem',
-                          transition: 'all 0.2s ease'
-                        }}
-                      >
-                        {isProjectExpanded ? (
-                          <FiChevronDown size={14} style={{ color: '#6b7280' }} />
-                        ) : (
-                          <FiChevronRight size={14} style={{ color: '#6b7280' }} />
-                        )}
-                        <span style={{ flex: 1 }}>Project : {project.projectName}</span>
-                        <span
-                          style={{
-                            color: '#9ca3af',
-                            fontSize: '0.75rem',
-                            fontWeight: '400'
-                          }}
-                        >
-                          {project.rulesCount} {project.rulesCount === 1 ? 'rule' : 'rules'}
-                        </span>
-                      </div>
-
-                      {/* Project Content - Subprojects */}
-                      {isProjectExpanded && (
-                        <div style={{ marginTop: '0.75rem', paddingLeft: '0.5rem' }}>
-                          {/* Subprojects */}
-                          {project.subprojects.map(subproject => {
-                            const subprojectKey = `subproject-${project.projectId}-${subproject.subProjectId}`;
-                            const isSubprojectExpanded = expansionState[subprojectKey];
-
-                            return (
-                              <div key={subproject.subProjectId} style={{ marginBottom: '0.75rem' }}>
-                                {/* Subproject Header */}
-                                <div
-                                  onClick={() => toggleExpansion(subprojectKey)}
-                                  style={{
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '0.5rem',
-                                    padding: '0.4rem 0.75rem',
-                                    background: 'white',
-                                    cursor: 'pointer',
-                                    userSelect: 'none',
-                                    marginLeft: '1.5rem',
-                                    fontWeight: '400',
-                                    fontSize: '0.75rem',
-                                    transition: 'all 0.2s ease'
-                                  }}
-                                >
-                                  {isSubprojectExpanded ? (
-                                    <FiChevronDown size={12} style={{ color: '#9ca3af' }} />
-                                  ) : (
-                                    <FiChevronRight size={12} style={{ color: '#9ca3af' }} />
-                                  )}
-                                  <span style={{ flex: 1, color: '#9ca3af' }}>{subproject.subProjectName}</span>
-                                  <span
-                                    style={{
-                                      color: '#d1d5db',
-                                      fontSize: '0.6875rem',
-                                      fontWeight: '400'
-                                    }}
-                                  >
-                                    {subproject.rulesCount}
-                                  </span>
-                                </div>
-
-                                {/* Subproject Rules Table */}
-                                {isSubprojectExpanded && subproject.items.length > 0 && (
-                                  <div style={{ marginLeft: '1.5rem', marginTop: '0.5rem', overflow: 'auto' }}>
-                                    <table className="data-table">
-                                      <thead>
-                                        <tr>
-                                          <th>Rule Name</th>
-                                          <th>Type</th>
-                                          <th>Column</th>
-                                          <th>Severity</th>
-                                          <th>Status</th>
-                                          <th>Created</th>
-                                          {hasWritePermission('quality_rules') && <th>Actions</th>}
-                                        </tr>
-                                      </thead>
-                                      <tbody>
-                                        {subproject.items.map(rule => (
-                                          <tr key={rule.id}>
-                                            <td>
-                                              <div className="rule-name-cell">
-                                                <strong>{rule.rule_name}</strong>
-                                                {rule.description && (
-                                                  <div className="rule-description-preview">{rule.description}</div>
-                                                )}
-                                              </div>
-                                            </td>
-                                            <td>
-                                              <span className={`badge badge-type badge-${rule.rule_type}`}>
-                                                {rule.rule_type}
-                                              </span>
-                                            </td>
-                                            <td>{rule.column_name || '-'}</td>
-                                            <td>
-                                              <span className={`badge badge-${rule.severity}`}>
-                                                {rule.severity}
-                                              </span>
-                                            </td>
-                                            <td>
-                                              {rule.enabled ? (
-                                                <span className="badge badge-success">
-                                                  <FiCheck /> Enabled
-                                                </span>
-                                              ) : (
-                                                <span className="badge badge-secondary">Disabled</span>
-                                              )}
-                                            </td>
-                                            <td>{formatDate(rule.created_at)}</td>
-                                            {hasWritePermission('quality_rules') && (
-                                              <td>
-                                                <div className="action-icons">
-                                                  <button 
-                                                    className="icon-btn icon-btn-primary" 
-                                                    title="Edit Rule"
-                                                    onClick={() => handleEditRule(rule)}
-                                                  >
-                                                    <FiEdit2 />
-                                                  </button>
-                                                  <button 
-                                                    className="icon-btn icon-btn-danger" 
-                                                    title="Delete Rule"
-                                                    onClick={() => handleDeleteRule(rule.id)}
-                                                  >
-                                                    <FiTrash2 />
-                                                  </button>
-                                                </div>
-                                              </td>
-                                            )}
-                                          </tr>
-                                        ))}
-                                      </tbody>
-                                    </table>
-                                  </div>
-                                )}
-                              </div>
-                            );
-                          })}
-
-                          {/* Unassigned Rules (no subproject) */}
-                          {project.unassignedRules.length > 0 && (() => {
-                            const unassignedKey = `subproject-${project.projectId}-unassigned`;
-                            const isUnassignedExpanded = expansionState[unassignedKey];
-
-                            return (
-                              <>
-                                {/* Unassigned Header */}
-                                <div
-                                  onClick={() => toggleExpansion(unassignedKey)}
-                                  style={{
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '0.5rem',
-                                    padding: '0.4rem 0.75rem',
-                                    background: 'white',
-                                    cursor: 'pointer',
-                                    userSelect: 'none',
-                                    marginLeft: '1.5rem',
-                                    fontWeight: '400',
-                                    fontSize: '0.75rem',
-                                    transition: 'all 0.2s ease'
-                                  }}
-                                >
-                                  {isUnassignedExpanded ? (
-                                    <FiChevronDown size={12} style={{ color: '#9ca3af' }} />
-                                  ) : (
-                                    <FiChevronRight size={12} style={{ color: '#9ca3af' }} />
-                                  )}
-                                  <FiAlertCircle size={12} style={{ color: '#d1d5db' }} />
-                                  <span style={{ flex: 1, color: '#9ca3af' }}>No Subproject</span>
-                                  <span
-                                    style={{
-                                      color: '#d1d5db',
-                                      fontSize: '0.6875rem',
-                                      fontWeight: '400'
-                                    }}
-                                  >
-                                    {project.unassignedRules.length}
-                                  </span>
-                                </div>
-
-                                {/* Unassigned Rules Table */}
-                                {isUnassignedExpanded && (
-                                  <div style={{ marginLeft: '1.5rem', marginTop: '0.5rem', overflow: 'auto' }}>
-                                    <table className="data-table">
-                                      <thead>
-                                        <tr>
-                                          <th>Rule Name</th>
-                                          <th>Type</th>
-                                          <th>Column</th>
-                                          <th>Severity</th>
-                                          <th>Status</th>
-                                          <th>Created</th>
-                                          {hasWritePermission('quality_rules') && <th>Actions</th>}
-                                        </tr>
-                                      </thead>
-                                      <tbody>
-                                        {project.unassignedRules.map(rule => (
-                                          <tr key={rule.id}>
-                                            <td>
-                                              <div className="rule-name-cell">
-                                                <strong>{rule.rule_name}</strong>
-                                                {rule.description && (
-                                                  <div className="rule-description-preview">{rule.description}</div>
-                                                )}
-                                              </div>
-                                            </td>
-                                            <td>
-                                              <span className={`badge badge-type badge-${rule.rule_type}`}>
-                                                {rule.rule_type}
-                                              </span>
-                                            </td>
-                                            <td>{rule.column_name || '-'}</td>
-                                            <td>
-                                              <span className={`badge badge-${rule.severity}`}>
-                                                {rule.severity}
-                                              </span>
-                                            </td>
-                                            <td>
-                                              {rule.enabled ? (
-                                                <span className="badge badge-success">
-                                                  <FiCheck /> Enabled
-                                                </span>
-                                              ) : (
-                                                <span className="badge badge-secondary">Disabled</span>
-                                              )}
-                                            </td>
-                                            <td>{formatDate(rule.created_at)}</td>
-                                            {hasWritePermission('quality_rules') && (
-                                              <td>
-                                                <div className="action-icons">
-                                                  <button 
-                                                    className="icon-btn icon-btn-primary" 
-                                                    title="Edit Rule"
-                                                    onClick={() => handleEditRule(rule)}
-                                                  >
-                                                    <FiEdit2 />
-                                                  </button>
-                                                  <button 
-                                                    className="icon-btn icon-btn-danger" 
-                                                    title="Delete Rule"
-                                                    onClick={() => handleDeleteRule(rule.id)}
-                                                  >
-                                                    <FiTrash2 />
-                                                  </button>
-                                                </div>
-                                              </td>
-                                            )}
-                                          </tr>
-                                        ))}
-                                      </tbody>
-                                    </table>
-                                  </div>
-                                )}
-                              </>
-                            );
-                          })()}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-              
-              {pagination.total > itemsPerPage && (
-                <Pagination
-                  currentPage={currentPage}
-                  totalPages={totalPages}
-                  onPageChange={setCurrentPage}
-                  itemsPerPage={itemsPerPage}
-                  totalItems={pagination.total}
-                />
+          <div className="gps-results-info">
+            Showing {filteredRules.length} of {pagination.total || rules.length} quality rules
+          </div>
+          
+          {/* Rules Table */}
+          {filteredRules.length === 0 ? (
+            <div className="gps-empty-state">
+              <p>
+                {filterProjectId || filterSubProjectId || filterRuleType || filterEnabled
+                  ? 'No rules match your current filters. Try adjusting your filter criteria.'
+                  : 'No quality rules found. Create one to get started!'
+                }
+              </p>
+              {hasWritePermission('quality_rules') && !filterProjectId && !filterSubProjectId && !filterRuleType && !filterEnabled && (
+                <button className="gps-btn-primary" onClick={handleAddRule} style={{ marginTop: '12px' }}>
+                  <FiPlus />
+                  Create Your First Quality Rule
+                </button>
               )}
-            </>
+            </div>
+          ) : (
+            <div className="gps-table-container">
+              <table className="gps-table">
+                <thead>
+                  <tr>
+                    <th>Rule Name</th>
+                    <th>Project</th>
+                    <th>Subproject</th>
+                    <th>Type</th>
+                    <th>Column</th>
+                    <th>Severity</th>
+                    <th>Status</th>
+                    <th>Created</th>
+                    {hasWritePermission('quality_rules') && <th>Actions</th>}
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredRules.map(rule => (
+                    <tr key={rule.id}>
+                      <td>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                          <span style={{ fontWeight: '500' }}>{rule.rule_name}</span>
+                          {rule.description && (
+                            <span style={{ fontSize: '10px', color: '#666', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {rule.description}
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td>{rule.project_name || '-'}</td>
+                      <td>{rule.sub_project_name || '-'}</td>
+                      <td>
+                        <span className={`gps-badge gps-badge-${rule.rule_type === 'completeness' ? 'info' : rule.rule_type === 'validity' ? 'primary' : rule.rule_type === 'consistency' ? 'success' : rule.rule_type === 'uniqueness' ? 'warning' : 'secondary'}`}>
+                          {rule.rule_type}
+                        </span>
+                      </td>
+                      <td>{rule.column_name || '-'}</td>
+                      <td>
+                        <span className={`gps-badge gps-badge-${rule.severity === 'critical' ? 'danger' : rule.severity === 'error' ? 'danger' : 'warning'}`}>
+                          {rule.severity}
+                        </span>
+                      </td>
+                      <td>
+                        {rule.enabled ? (
+                          <span className="gps-badge gps-badge-success">
+                            <FiCheck style={{ marginRight: '4px' }} /> Enabled
+                          </span>
+                        ) : (
+                          <span className="gps-badge gps-badge-secondary">Disabled</span>
+                        )}
+                      </td>
+                      <td>{formatDate(rule.created_at)}</td>
+                      {hasWritePermission('quality_rules') && (
+                        <td>
+                          <div className="gps-action-buttons">
+                            <button 
+                              className="gps-icon-btn gps-icon-btn-primary" 
+                              title="Edit Rule"
+                              onClick={() => handleEditRule(rule)}
+                            >
+                              <FiEdit2 />
+                            </button>
+                            <button 
+                              className="gps-icon-btn gps-icon-btn-danger" 
+                              title="Delete Rule"
+                              onClick={() => handleDeleteRule(rule.id)}
+                            >
+                              <FiTrash2 />
+                            </button>
+                          </div>
+                        </td>
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          
+          {pagination.total > itemsPerPage && (
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+              itemsPerPage={itemsPerPage}
+              totalItems={pagination.total}
+            />
           )}
         </>
       )}

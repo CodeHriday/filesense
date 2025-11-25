@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { FiAlertTriangle, FiFilter, FiX, FiChevronDown, FiChevronUp, FiDownload, FiChevronRight, FiTrash2 } from 'react-icons/fi';
+import { FiAlertTriangle, FiFilter, FiX, FiChevronDown, FiChevronUp, FiDownload, FiChevronRight, FiTrash2, FiSearch } from 'react-icons/fi';
 import { getProjects } from '../api/qualityRulesService';
 import { bulkDeleteViolations } from '../api/errorReviewService';
-import PageLayout from '../components/PageLayout';
+import '../styles/global-page-styles.css';
 import '../styles/ErrorReview.css';
 
 const API_BASE = '/api/error-review';
@@ -43,7 +43,7 @@ const ErrorReview = () => {
 
   useEffect(() => {
     fetchViolations();
-    setSelectedIds([]); // Reset selection when tab changes
+    setSelectedIds([]);
   }, [activeTab, filters]);
 
   const fetchProjects = async () => {
@@ -171,7 +171,6 @@ const ErrorReview = () => {
     });
   };
 
-  // Handle checkbox selection
   const handleSelectAll = (e) => {
     if (e.target.checked) {
       const allIds = violations.map(v => v.id);
@@ -190,7 +189,6 @@ const ErrorReview = () => {
     }
   };
 
-  // Handle bulk delete
   const handleBulkDelete = async () => {
     if (selectedIds.length === 0) return;
     
@@ -201,12 +199,9 @@ const ErrorReview = () => {
     try {
       const result = await bulkDeleteViolations(selectedIds);
       
-      // Show success message
       if (result.success) {
         alert(`Successfully deleted ${result.deleted} violation record(s)`);
         setSelectedIds([]);
-        
-        // Refresh data
         fetchViolations();
       }
     } catch (error) {
@@ -225,17 +220,32 @@ const ErrorReview = () => {
   };
 
   const getSeverityBadge = (severity) => {
-    const severityColors = {
-      critical: 'bg-red-100 text-red-800 border-red-300',
-      high: 'bg-orange-100 text-orange-800 border-orange-300',
-      error: 'bg-orange-100 text-orange-800 border-orange-300',
-      warning: 'bg-yellow-100 text-yellow-800 border-yellow-300',
-      low: 'bg-blue-100 text-blue-800 border-blue-300'
+    const severityClasses = {
+      critical: 'gps-badge gps-badge-danger',
+      high: 'gps-badge gps-badge-warning',
+      error: 'gps-badge gps-badge-warning',
+      warning: 'gps-badge gps-badge-info',
+      low: 'gps-badge gps-badge-secondary'
     };
     
     return (
-      <span className={`px-2 py-1 rounded text-xs font-medium border ${severityColors[severity] || 'bg-gray-100 text-gray-800 border-gray-300'}`}>
+      <span className={severityClasses[severity] || 'gps-badge gps-badge-secondary'}>
         {severity?.toUpperCase() || 'UNKNOWN'}
+      </span>
+    );
+  };
+
+  const getStatusBadge = (status) => {
+    const statusClasses = {
+      new: 'gps-badge gps-badge-info',
+      reviewed: 'gps-badge gps-badge-primary',
+      acknowledged: 'gps-badge gps-badge-warning',
+      resolved: 'gps-badge gps-badge-success'
+    };
+    
+    return (
+      <span className={statusClasses[status] || 'gps-badge gps-badge-secondary'}>
+        {status || 'new'}
       </span>
     );
   };
@@ -254,7 +264,7 @@ const ErrorReview = () => {
 
   const renderFullRecord = (recordSnapshot) => {
     if (!recordSnapshot || typeof recordSnapshot !== 'object') {
-      return <div className="text-gray-500 italic">No record data available</div>;
+      return <div className="gps-text-muted" style={{ fontStyle: 'italic' }}>No record data available</div>;
     }
 
     return (
@@ -274,15 +284,15 @@ const ErrorReview = () => {
 
   const renderViolationsTable = () => {
     if (loading) {
-      return <div className="loading-message">Loading violations...</div>;
+      return <div className="gps-empty-state">Loading violations...</div>;
     }
 
     if (error) {
-      return <div className="error-message">{error}</div>;
+      return <div className="gps-alert gps-alert-danger">{error}</div>;
     }
 
     if (violations.length === 0) {
-      return <div className="empty-state">No violations found</div>;
+      return <div className="gps-empty-state"><p>No violations found</p></div>;
     }
 
     const projectNames = Object.keys(groupedViolations).sort();
@@ -293,7 +303,7 @@ const ErrorReview = () => {
           <div className="quality-violations-bulk-actions-bar">
             <span className="quality-violations-selected-count">{selectedIds.length} violation(s) selected</span>
             <button
-              className="quality-violations-bulk-delete-btn"
+              className="gps-btn-danger"
               onClick={handleBulkDelete}
               disabled={isDeleting}
             >
@@ -310,97 +320,93 @@ const ErrorReview = () => {
           return (
             <div key={projectName} className="quality-violations-project-group">
               <div className="quality-violations-project-header" onClick={() => toggleProjectExpansion(projectName)}>
-                <button className="project-expand-button">
+                <button className="gps-icon-btn" style={{ border: 'none', background: 'none' }}>
                   {isExpanded ? <FiChevronDown /> : <FiChevronRight />}
                 </button>
                 <h3 className="project-name">{projectName}</h3>
-                <span className="project-count">{projectViolations.length} violations</span>
+                <span className="gps-badge gps-badge-info">{projectViolations.length} violations</span>
               </div>
               
               {isExpanded && (
-                <PageLayout.TableWrapper>
-                  <table className="violations-table page-layout-table violations-details-table">
-                  <thead>
-                    <tr>
-                      <th style={{ width: '40px' }}>
-                        <input
-                          type="checkbox"
-                          onChange={handleSelectAll}
-                          checked={violations.length > 0 && selectedIds.length === violations.length}
-                          title="Select all"
-                        />
-                      </th>
-                      <th style={{ width: '40px' }}></th>
-                      <th>Sub-Project</th>
-                      <th>Filename</th>
-                      <th>Rule</th>
-                      <th>Column</th>
-                      <th>Row #</th>
-                      <th>Expected</th>
-                      <th>Actual</th>
-                      <th>Severity</th>
-                      <th>Created Date</th>
-                      {activeTab === 'mapping-job' && <th>Executed By</th>}
-                      <th>Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {projectViolations.map((violation) => (
-                      <React.Fragment key={violation.id}>
-                        <tr className={`violation-row ${selectedIds.includes(violation.id) ? 'selected-row' : ''}`}>
-                          <td>
-                            <input
-                              type="checkbox"
-                              checked={selectedIds.includes(violation.id)}
-                              onChange={(e) => handleSelectRow(violation.id, e)}
-                              onClick={(e) => e.stopPropagation()}
-                            />
-                          </td>
-                          <td>
-                            <button 
-                              className="expand-button"
-                              onClick={() => toggleRowExpansion(violation.id)}
-                              title="View full record"
-                            >
-                              {expandedRows.has(violation.id) ? <FiChevronUp /> : <FiChevronDown />}
-                            </button>
-                          </td>
-                          <td>{violation.sub_project_name || '-'}</td>
-                          <td className="filename-cell">{violation.filename || '-'}</td>
-                          <td>{violation.rule_name || '-'}</td>
-                          <td>{violation.column_name || '-'}</td>
-                          <td>{violation.row_number || '-'}</td>
-                          <td>{violation.expected_value || '-'}</td>
-                          <td>{violation.actual_value || '-'}</td>
-                          <td>{getSeverityBadge(violation.severity)}</td>
-                          <td>{formatDate(violation.created_at)}</td>
-                          {activeTab === 'mapping-job' && (
-                            <td>{violation.executed_by_fullname || violation.executed_by_username || '-'}</td>
-                          )}
-                          <td>
-                            <span className={`quality-violations-status-badge quality-violations-status-${violation.status || 'new'}`}>
-                              {violation.status || 'new'}
-                            </span>
-                          </td>
-                        </tr>
-                        {expandedRows.has(violation.id) && (
-                          <tr className="expanded-row">
-                            <td></td>
-                            <td colSpan={activeTab === 'mapping-job' ? 11 : 10}>
-                              {renderFullRecord(violation.record_snapshot)}
-                              {activeTab === 'mapping-job' && violation.mapping_name && (
-                                <div className="quality-violations-mapping-info">
-                                  <strong>Mapping:</strong> {violation.mapping_name}
-                                </div>
-                              )}
+                <div className="gps-table-container">
+                  <table className="gps-table">
+                    <thead>
+                      <tr>
+                        <th style={{ width: '40px' }}>
+                          <input
+                            type="checkbox"
+                            onChange={handleSelectAll}
+                            checked={violations.length > 0 && selectedIds.length === violations.length}
+                            title="Select all"
+                          />
+                        </th>
+                        <th style={{ width: '40px' }}></th>
+                        <th>Sub-Project</th>
+                        <th>Filename</th>
+                        <th>Rule</th>
+                        <th>Column</th>
+                        <th>Row #</th>
+                        <th>Expected</th>
+                        <th>Actual</th>
+                        <th>Severity</th>
+                        <th>Created Date</th>
+                        {activeTab === 'mapping-job' && <th>Executed By</th>}
+                        <th>Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {projectViolations.map((violation) => (
+                        <React.Fragment key={violation.id}>
+                          <tr className={selectedIds.includes(violation.id) ? 'selected-row' : ''}>
+                            <td>
+                              <input
+                                type="checkbox"
+                                checked={selectedIds.includes(violation.id)}
+                                onChange={(e) => handleSelectRow(violation.id, e)}
+                                onClick={(e) => e.stopPropagation()}
+                              />
                             </td>
+                            <td>
+                              <button 
+                                className="gps-icon-btn"
+                                onClick={() => toggleRowExpansion(violation.id)}
+                                title="View full record"
+                              >
+                                {expandedRows.has(violation.id) ? <FiChevronUp /> : <FiChevronDown />}
+                              </button>
+                            </td>
+                            <td>{violation.sub_project_name || '-'}</td>
+                            <td className="filename-cell">{violation.filename || '-'}</td>
+                            <td>{violation.rule_name || '-'}</td>
+                            <td>{violation.column_name || '-'}</td>
+                            <td>{violation.row_number || '-'}</td>
+                            <td>{violation.expected_value || '-'}</td>
+                            <td>{violation.actual_value || '-'}</td>
+                            <td>{getSeverityBadge(violation.severity)}</td>
+                            <td>{formatDate(violation.created_at)}</td>
+                            {activeTab === 'mapping-job' && (
+                              <td>{violation.executed_by_fullname || violation.executed_by_username || '-'}</td>
+                            )}
+                            <td>{getStatusBadge(violation.status)}</td>
                           </tr>
-                        )}
-                      </React.Fragment>
-                    ))}
-                  </tbody>
-                </table>
-                </PageLayout.TableWrapper>
+                          {expandedRows.has(violation.id) && (
+                            <tr className="expanded-row">
+                              <td></td>
+                              <td colSpan={activeTab === 'mapping-job' ? 12 : 11}>
+                                {renderFullRecord(violation.record_snapshot)}
+                                {activeTab === 'mapping-job' && violation.mapping_name && (
+                                  <div className="quality-violations-mapping-info">
+                                    <strong>Mapping:</strong> {violation.mapping_name}
+                                  </div>
+                                )}
+                              </td>
+                            </tr>
+                          )}
+                        </React.Fragment>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               )}
             </div>
           );
@@ -410,12 +416,15 @@ const ErrorReview = () => {
   };
 
   return (
-    <PageLayout
-      title="Quality Violations"
-      headerActions={
-        <>
+    <div className="gps-page-container">
+      <div className="gps-page-header">
+        <div className="gps-page-header-left">
+          <h1 className="gps-page-title">Quality Violations</h1>
+          <p className="gps-page-subtitle">Review and manage data quality rule violations</p>
+        </div>
+        <div className="gps-page-header-right" style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
           <div className="download-dropdown">
-            <button className="download-button">
+            <button className="gps-btn-primary">
               <FiDownload /> Download
             </button>
             <div className="download-menu">
@@ -424,157 +433,151 @@ const ErrorReview = () => {
             </div>
           </div>
           <button 
-            className={`btn-secondary ${showFilters ? 'active' : ''}`}
+            className={`gps-btn-secondary ${showFilters ? 'active' : ''}`}
             onClick={() => setShowFilters(!showFilters)}
           >
             <FiFilter /> {showFilters ? 'Hide Filters' : 'Show Filters'}
           </button>
-        </>
-      }
-      filters={
-        <PageLayout.Filters>
-          <div className="tabs-container">
-            <div className="tabs">
-              <button 
-                className={`tab ${activeTab === 'file-upload' ? 'active' : ''}`}
-                onClick={() => setActiveTab('file-upload')}
-              >
-                File Upload Violations
-                {activeTab === 'file-upload' && (
-                  <span className="tab-count">{pagination.total}</span>
-                )}
-              </button>
-              <button 
-                className={`tab ${activeTab === 'mapping-job' ? 'active' : ''}`}
-                onClick={() => setActiveTab('mapping-job')}
-              >
-                Mapping Job Violations
-                {activeTab === 'mapping-job' && (
-                  <span className="tab-count">{pagination.total}</span>
-                )}
-              </button>
-            </div>
+        </div>
+      </div>
+
+      <div className="gps-tabs" style={{ marginBottom: '16px' }}>
+        <div className="tabs">
+          <button 
+            className={`tab ${activeTab === 'file-upload' ? 'active' : ''}`}
+            onClick={() => setActiveTab('file-upload')}
+          >
+            File Upload Violations
+            {activeTab === 'file-upload' && (
+              <span className="tab-count">{pagination.total}</span>
+            )}
+          </button>
+          <button 
+            className={`tab ${activeTab === 'mapping-job' ? 'active' : ''}`}
+            onClick={() => setActiveTab('mapping-job')}
+          >
+            Mapping Job Violations
+            {activeTab === 'mapping-job' && (
+              <span className="tab-count">{pagination.total}</span>
+            )}
+          </button>
+        </div>
+      </div>
+      
+      {showFilters && (
+        <div className="gps-filters">
+          <select 
+            className="gps-filter-select"
+            value={filters.project_id} 
+            onChange={(e) => handleFilterChange('project_id', e.target.value)}
+          >
+            <option value="">All Projects</option>
+            {projects.map(project => (
+              <option key={project.id} value={project.id}>
+                {project.name}
+              </option>
+            ))}
+          </select>
+
+          <select 
+            className="gps-filter-select"
+            value={filters.rule_type} 
+            onChange={(e) => handleFilterChange('rule_type', e.target.value)}
+          >
+            <option value="all">All Rule Types</option>
+            <option value="completeness">Completeness</option>
+            <option value="validity">Validity</option>
+            <option value="consistency">Consistency</option>
+            <option value="uniqueness">Uniqueness</option>
+            <option value="freshness">Freshness</option>
+          </select>
+
+          <select 
+            className="gps-filter-select"
+            value={filters.severity} 
+            onChange={(e) => handleFilterChange('severity', e.target.value)}
+          >
+            <option value="all">All Severities</option>
+            <option value="critical">Critical</option>
+            <option value="high">High</option>
+            <option value="error">Error</option>
+            <option value="warning">Warning</option>
+            <option value="low">Low</option>
+          </select>
+
+          <select 
+            className="gps-filter-select"
+            value={filters.status} 
+            onChange={(e) => handleFilterChange('status', e.target.value)}
+          >
+            <option value="all">All Statuses</option>
+            <option value="new">New</option>
+            <option value="reviewed">Reviewed</option>
+            <option value="acknowledged">Acknowledged</option>
+            <option value="resolved">Resolved</option>
+          </select>
+
+          <div className="gps-search-container">
+            <FiSearch className="gps-search-icon" />
+            <input
+              type="text"
+              className="gps-search-input"
+              placeholder="Search violations..."
+              value={filters.search}
+              onChange={(e) => handleFilterChange('search', e.target.value)}
+            />
           </div>
-          
-          {showFilters && (
-            <>
-              <div className="filter-group">
-                <label>Project</label>
-                <select 
-                  value={filters.project_id} 
-                  onChange={(e) => handleFilterChange('project_id', e.target.value)}
-                >
-                  <option value="">All Projects</option>
-                  {projects.map(project => (
-                    <option key={project.id} value={project.id}>
-                      {project.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
 
-              <div className="filter-group">
-                <label>Rule Type</label>
-                <select 
-                  value={filters.rule_type} 
-                  onChange={(e) => handleFilterChange('rule_type', e.target.value)}
-                >
-                  <option value="all">All Types</option>
-                  <option value="completeness">Completeness</option>
-                  <option value="validity">Validity</option>
-                  <option value="consistency">Consistency</option>
-                  <option value="uniqueness">Uniqueness</option>
-                  <option value="freshness">Freshness</option>
-                </select>
-              </div>
+          <button 
+            className="gps-btn-danger"
+            onClick={() => setFilters({
+              project_id: '',
+              rule_type: 'all',
+              severity: 'all',
+              status: 'all',
+              search: '',
+              page: 1,
+              limit: 10
+            })}
+          >
+            <FiX /> Clear Filters
+          </button>
+        </div>
+      )}
 
-              <div className="filter-group">
-                <label>Severity</label>
-                <select 
-                  value={filters.severity} 
-                  onChange={(e) => handleFilterChange('severity', e.target.value)}
-                >
-                  <option value="all">All Severities</option>
-                  <option value="critical">Critical</option>
-                  <option value="high">High</option>
-                  <option value="error">Error</option>
-                  <option value="warning">Warning</option>
-                  <option value="low">Low</option>
-                </select>
-              </div>
+      <div className="gps-results-info">
+        Showing {violations.length} violations (Page {pagination.page} of {pagination.totalPages || 1}, {pagination.total} total)
+      </div>
 
-              <div className="filter-group">
-                <label>Status</label>
-                <select 
-                  value={filters.status} 
-                  onChange={(e) => handleFilterChange('status', e.target.value)}
-                >
-                  <option value="all">All Statuses</option>
-                  <option value="new">New</option>
-                  <option value="reviewed">Reviewed</option>
-                  <option value="acknowledged">Acknowledged</option>
-                  <option value="resolved">Resolved</option>
-                </select>
-              </div>
-
-              <div className="filter-group filter-search">
-                <label>Search</label>
-                <input
-                  type="text"
-                  placeholder="Search violations..."
-                  value={filters.search}
-                  onChange={(e) => handleFilterChange('search', e.target.value)}
-                />
-              </div>
-
-              <button 
-                className="clear-filters-button"
-                onClick={() => setFilters({
-                  project_id: '',
-                  rule_type: 'all',
-                  severity: 'all',
-                  status: 'all',
-                  search: '',
-                  page: 1,
-                  limit: 10
-                })}
-              >
-                <FiX /> Clear Filters
-              </button>
-            </>
-          )}
-        </PageLayout.Filters>
-      }
-    >
       {renderViolationsTable()}
 
       {violations.length > 0 && (
-        <div className="pagination">
-          <div className="pagination-controls">
+        <div className="gps-pagination">
+          <div className="gps-pagination-controls">
             <button 
               onClick={() => handlePageChange(filters.page - 1)}
               disabled={filters.page <= 1}
-              className="pagination-button"
+              className="gps-btn-secondary"
             >
               Previous
             </button>
-            <span className="pagination-info">
+            <span className="gps-pagination-info">
               Page {pagination.page} of {pagination.totalPages} ({pagination.total} total)
             </span>
             <button 
               onClick={() => handlePageChange(filters.page + 1)}
               disabled={filters.page >= pagination.totalPages}
-              className="pagination-button"
+              className="gps-btn-secondary"
             >
               Next
             </button>
           </div>
-          <div className="pagination-size-selector">
+          <div className="gps-pagination-size">
             <label>Rows per page:</label>
             <select 
               value={filters.limit} 
               onChange={(e) => handleFilterChange('limit', parseInt(e.target.value))}
-              className="pagination-size-select"
+              className="gps-filter-select"
             >
               <option value="10">10</option>
               <option value="25">25</option>
@@ -585,7 +588,7 @@ const ErrorReview = () => {
           </div>
         </div>
       )}
-    </PageLayout>
+    </div>
   );
 };
 

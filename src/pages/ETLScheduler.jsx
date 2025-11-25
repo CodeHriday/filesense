@@ -1,14 +1,12 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { FiClock, FiEdit2, FiTrash2, FiPlusCircle, FiPower, FiChevronDown, FiChevronRight, FiAlertCircle } from 'react-icons/fi';
-import PageHeader from '../components/PageHeader';
+import { FiEdit2, FiTrash2, FiPlusCircle, FiPower } from 'react-icons/fi';
 import LoadingSpinner from '../components/LoadingSpinner';
 import Pagination from '../components/Pagination';
 import { PageTransition } from '../components/MicroAnimations';
 import Modal from '../components/Modal';
 import { useNotification } from '../contexts/NotificationContext';
-import { groupSchedulesByProject, initializeExpansionState } from '../utils/schedulerGrouping';
-import './ETLScheduler.css';
+import '../styles/global-page-styles.css';
 import axios from 'axios';
 
 const ETLScheduler = () => {
@@ -16,13 +14,13 @@ const ETLScheduler = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(10);
+  const [itemsPerPage] = useState(25);
   const [deleteModal, setDeleteModal] = useState({ show: false, scheduleId: null });
   const { showSuccess, showError } = useNotification();
 
-  // Hierarchical state
-  const [expansionState, setExpansionState] = useState({});
-  const [initialized, setInitialized] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedProject, setSelectedProject] = useState('all');
+  const [selectedSubProject, setSelectedSubProject] = useState('all');
 
   useEffect(() => {
     fetchSchedules();
@@ -83,31 +81,57 @@ const ETLScheduler = () => {
     }
   };
 
-  // Group schedules by project and subproject hierarchy
-  const groupedProjects = useMemo(() => {
-    return groupSchedulesByProject(schedules);
+  const uniqueProjects = useMemo(() => {
+    const projects = schedules
+      .filter(s => s.project_id)
+      .map(s => ({ id: s.project_id, name: s.project_name }))
+      .filter((p, index, self) => self.findIndex(s => s.id === p.id) === index);
+    return projects;
   }, [schedules]);
 
-  // Initialize expansion state when grouped data changes
-  useEffect(() => {
-    if (groupedProjects.length > 0 && !initialized) {
-      setExpansionState(initializeExpansionState(groupedProjects, false));
-      setInitialized(true);
+  const uniqueSubProjects = useMemo(() => {
+    if (selectedProject === 'all') {
+      const subProjects = schedules
+        .filter(s => s.sub_project_id)
+        .map(s => ({ id: s.sub_project_id, name: s.sub_project_name }))
+        .filter((sp, index, self) => self.findIndex(s => s.id === sp.id) === index);
+      return subProjects;
     }
-  }, [groupedProjects, initialized]);
+    
+    const subProjects = schedules
+      .filter(s => s.project_id === selectedProject && s.sub_project_id)
+      .map(s => ({ id: s.sub_project_id, name: s.sub_project_name }))
+      .filter((sp, index, self) => self.findIndex(s => s.id === sp.id) === index);
+    return subProjects;
+  }, [schedules, selectedProject]);
 
-  // Toggle expansion state for project or subproject
-  const toggleExpansion = (key) => {
-    setExpansionState(prev => ({
-      ...prev,
-      [key]: !prev[key]
-    }));
-  };
+  const filteredSchedules = useMemo(() => {
+    return schedules.filter(schedule => {
+      const searchLower = searchTerm.toLowerCase();
+      const matchesSearch = 
+        (schedule.entity_name || '').toLowerCase().includes(searchLower) ||
+        (schedule.entity_type || '').toLowerCase().includes(searchLower) ||
+        (schedule.project_name || '').toLowerCase().includes(searchLower) ||
+        (schedule.sub_project_name || '').toLowerCase().includes(searchLower);
+      
+      const matchesProject = selectedProject === 'all' || schedule.project_id === selectedProject;
+      const matchesSubProject = selectedSubProject === 'all' || schedule.sub_project_id === selectedSubProject;
+      
+      return matchesSearch && matchesProject && matchesSubProject;
+    });
+  }, [schedules, searchTerm, selectedProject, selectedSubProject]);
 
-  const indexOfLastItem = currentPage * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentSchedules = schedules.slice(indexOfFirstItem, indexOfLastItem);
-  const totalPages = Math.ceil(schedules.length / itemsPerPage);
+  const paginatedSchedules = useMemo(() => {
+    const indexOfLastItem = currentPage * itemsPerPage;
+    const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+    return filteredSchedules.slice(indexOfFirstItem, indexOfLastItem);
+  }, [filteredSchedules, currentPage, itemsPerPage]);
+
+  const totalPages = Math.ceil(filteredSchedules.length / itemsPerPage);
+
+  useEffect(() => {
+    setSelectedSubProject('all');
+  }, [selectedProject]);
 
   if (loading) {
     return <LoadingSpinner message="Loading schedules..." />;
@@ -115,313 +139,151 @@ const ETLScheduler = () => {
 
   return (
     <PageTransition>
-      <div className="etl-scheduler-page">
-        <PageHeader
-          title="Job Schedules"
-          subtitle="Schedule transformations, mapping groups, and workflows"
-          hideHomeButton={true}
-        />
+      <div className="gps-page-container">
+        <div className="gps-page-header">
+          <div className="gps-page-header-left">
+            <h1 className="gps-page-title">Job Schedules</h1>
+            <p className="gps-page-subtitle">Schedule transformations, mapping groups, and workflows</p>
+          </div>
+          <div className="gps-page-header-right">
+            <Link to="/etl-scheduler/create" className="gps-btn-primary">
+              <FiPlusCircle /> Create Schedule
+            </Link>
+          </div>
+        </div>
 
-        <div style={{ marginBottom: '1.5rem' }}>
-          <Link to="/etl-scheduler/create" className="btn btn-primary">
-            <FiPlusCircle /> Create Schedule
-          </Link>
+        <div className="gps-filters">
+          <input
+            type="text"
+            placeholder="Search schedules..."
+            value={searchTerm}
+            onChange={(e) => {
+              setSearchTerm(e.target.value);
+              setCurrentPage(1);
+            }}
+            className="gps-search-input"
+          />
+          
+          <select 
+            value={selectedProject}
+            onChange={(e) => {
+              setSelectedProject(e.target.value === 'all' ? 'all' : parseInt(e.target.value));
+              setCurrentPage(1);
+            }}
+            className="gps-filter-select"
+          >
+            <option value="all">All Projects</option>
+            {uniqueProjects.map(p => (
+              <option key={p.id} value={p.id}>{p.name}</option>
+            ))}
+          </select>
+          
+          <select 
+            value={selectedSubProject}
+            onChange={(e) => {
+              setSelectedSubProject(e.target.value === 'all' ? 'all' : parseInt(e.target.value));
+              setCurrentPage(1);
+            }}
+            className="gps-filter-select"
+          >
+            <option value="all">All Subprojects</option>
+            {uniqueSubProjects.map(sp => (
+              <option key={sp.id} value={sp.id}>{sp.name}</option>
+            ))}
+          </select>
         </div>
 
         {error && (
-          <div className="alert alert-danger">{error}</div>
+          <div className="gps-alert-danger">{error}</div>
         )}
 
-        {schedules.length === 0 ? (
-          <div className="empty-state">
+        <div className="gps-results-info">
+          Showing {paginatedSchedules.length} of {filteredSchedules.length} schedules
+        </div>
+
+        {filteredSchedules.length === 0 ? (
+          <div className="gps-empty-state">
             <p>No schedules found. Create one to get started!</p>
           </div>
         ) : (
-          <>
-            <div className="table-container">
-              <div>
-                {groupedProjects.map(project => {
-                  const projectKey = `project-${project.projectId}`;
-                  const isProjectExpanded = expansionState[projectKey];
-
-                  return (
-                    <div key={project.projectId} style={{ marginBottom: '1.25rem' }}>
-                      {/* Project Header */}
-                      <div
-                        onClick={() => toggleExpansion(projectKey)}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '0.5rem',
-                          padding: '0.5rem 0.75rem',
-                          background: 'white',
-                          color: '#6b7280',
-                          cursor: 'pointer',
-                          userSelect: 'none',
-                          fontWeight: '500',
-                          fontSize: '0.8125rem',
-                          transition: 'all 0.2s ease'
-                        }}
-                      >
-                        {isProjectExpanded ? (
-                          <FiChevronDown size={14} style={{ color: '#6b7280' }} />
-                        ) : (
-                          <FiChevronRight size={14} style={{ color: '#6b7280' }} />
-                        )}
-                        <span style={{ flex: 1 }}>Project : {project.projectName}</span>
-                        <span
-                          style={{
-                            color: '#9ca3af',
-                            fontSize: '0.75rem',
-                            fontWeight: '400'
-                          }}
+          <div className="gps-table-container">
+            <table className="gps-table">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Project</th>
+                  <th>Subproject</th>
+                  <th>Type</th>
+                  <th>Schedule</th>
+                  <th>Status</th>
+                  <th>Next Run</th>
+                  <th>Last Run</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {paginatedSchedules.map(schedule => (
+                  <tr key={schedule.schedule_id}>
+                    <td style={{ fontWeight: '500' }}>{schedule.entity_name || schedule.entity_id}</td>
+                    <td>{schedule.project_name || '-'}</td>
+                    <td>{schedule.sub_project_name || '-'}</td>
+                    <td>
+                      <span className="gps-badge gps-badge--info">{schedule.entity_type}</span>
+                    </td>
+                    <td>{formatSchedule(schedule)}</td>
+                    <td>
+                      <span className={`gps-badge ${schedule.enabled ? 'gps-badge--active' : 'gps-badge--pending'}`}>
+                        {schedule.enabled ? 'Active' : 'Disabled'}
+                      </span>
+                    </td>
+                    <td>
+                      {schedule.next_run ? new Date(schedule.next_run).toLocaleString() : '-'}
+                    </td>
+                    <td>
+                      {schedule.last_run ? new Date(schedule.last_run).toLocaleString() : '-'}
+                    </td>
+                    <td>
+                      <div className="gps-action-buttons">
+                        <button
+                          onClick={() => handleToggle(schedule.schedule_id, schedule.enabled)}
+                          className={`gps-icon-btn ${schedule.enabled ? 'gps-icon-btn-danger' : 'gps-icon-btn-success'}`}
+                          title={schedule.enabled ? 'Disable' : 'Enable'}
                         >
-                          {project.schedulesCount} {project.schedulesCount === 1 ? 'schedule' : 'schedules'}
-                        </span>
+                          <FiPower />
+                        </button>
+                        <Link 
+                          to={`/etl-scheduler/${schedule.schedule_id}/edit`} 
+                          className="gps-icon-btn gps-icon-btn-primary"
+                          title="Edit"
+                        >
+                          <FiEdit2 />
+                        </Link>
+                        <button 
+                          onClick={() => handleDeleteClick(schedule.schedule_id)} 
+                          className="gps-icon-btn gps-icon-btn-danger"
+                          title="Delete"
+                        >
+                          <FiTrash2 />
+                        </button>
                       </div>
-
-                      {/* Project Content - Subprojects */}
-                      {isProjectExpanded && (
-                        <div style={{ marginTop: '0.75rem', paddingLeft: '0.5rem' }}>
-                          {/* Subprojects */}
-                          {project.subprojects.map(subproject => {
-                            const subprojectKey = `subproject-${project.projectId}-${subproject.subProjectId}`;
-                            const isSubprojectExpanded = expansionState[subprojectKey];
-
-                            return (
-                              <div key={subproject.subProjectId} style={{ marginBottom: '0.75rem' }}>
-                                {/* Subproject Header */}
-                                <div
-                                  onClick={() => toggleExpansion(subprojectKey)}
-                                  style={{
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '0.5rem',
-                                    padding: '0.4rem 0.75rem',
-                                    background: 'white',
-                                    cursor: 'pointer',
-                                    userSelect: 'none',
-                                    marginLeft: '1.5rem',
-                                    fontWeight: '400',
-                                    fontSize: '0.75rem',
-                                    transition: 'all 0.2s ease'
-                                  }}
-                                >
-                                  {isSubprojectExpanded ? (
-                                    <FiChevronDown size={12} style={{ color: '#9ca3af' }} />
-                                  ) : (
-                                    <FiChevronRight size={12} style={{ color: '#9ca3af' }} />
-                                  )}
-                                  <span style={{ flex: 1, color: '#9ca3af' }}>{subproject.subProjectName}</span>
-                                  <span
-                                    style={{
-                                      color: '#d1d5db',
-                                      fontSize: '0.6875rem',
-                                      fontWeight: '400'
-                                    }}
-                                  >
-                                    {subproject.schedulesCount}
-                                  </span>
-                                </div>
-
-                                {/* Subproject Schedules Table */}
-                                {isSubprojectExpanded && subproject.items.length > 0 && (
-                                  <div style={{ marginLeft: '1.5rem', marginTop: '0.5rem', overflow: 'auto' }}>
-                                    <table className="data-table">
-                                      <thead>
-                                        <tr>
-                                          <th>Name</th>
-                                          <th>Type</th>
-                                          <th>Schedule</th>
-                                          <th>Status</th>
-                                          <th>Next Run</th>
-                                          <th>Last Run</th>
-                                          <th>Actions</th>
-                                        </tr>
-                                      </thead>
-                                      <tbody>
-                                        {subproject.items.map(schedule => (
-                                          <tr key={schedule.schedule_id} className={!schedule.enabled ? 'disabled-row' : ''}>
-                                            <td>{schedule.entity_name || schedule.entity_id}</td>
-                                            <td>
-                                              <span className="entity-type-badge">{schedule.entity_type}</span>
-                                            </td>
-                                            <td>{formatSchedule(schedule)}</td>
-                                            <td>
-                                              <span className={`status-badge ${schedule.enabled ? 'active' : 'inactive'}`}>
-                                                {schedule.enabled ? 'Active' : 'Disabled'}
-                                              </span>
-                                            </td>
-                                            <td>
-                                              {schedule.next_run ? new Date(schedule.next_run).toLocaleString() : '-'}
-                                            </td>
-                                            <td>
-                                              {schedule.last_run ? new Date(schedule.last_run).toLocaleString() : '-'}
-                                            </td>
-                                            <td>
-                                              <div className="table-actions">
-                                                <button
-                                                  onClick={() => handleToggle(schedule.schedule_id, schedule.enabled)}
-                                                  className={`action-icon-btn ${schedule.enabled ? 'toggle-btn-warning' : 'toggle-btn-success'}`}
-                                                  title={schedule.enabled ? 'Disable' : 'Enable'}
-                                                >
-                                                  <FiPower />
-                                                </button>
-                                                <Link 
-                                                  to={`/etl-scheduler/${schedule.schedule_id}/edit`} 
-                                                  className="action-icon-btn edit-btn"
-                                                  title="Edit"
-                                                >
-                                                  <FiEdit2 />
-                                                </Link>
-                                                <button 
-                                                  onClick={() => handleDeleteClick(schedule.schedule_id)} 
-                                                  className="action-icon-btn delete-btn"
-                                                  title="Delete"
-                                                >
-                                                  <FiTrash2 />
-                                                </button>
-                                              </div>
-                                            </td>
-                                          </tr>
-                                        ))}
-                                      </tbody>
-                                    </table>
-                                  </div>
-                                )}
-                              </div>
-                            );
-                          })}
-
-                          {/* Unassigned Schedules (no subproject) */}
-                          {project.unassignedSchedules.length > 0 && (() => {
-                            const unassignedKey = `subproject-${project.projectId}-unassigned`;
-                            const isUnassignedExpanded = expansionState[unassignedKey];
-
-                            return (
-                              <>
-                                {/* Unassigned Header */}
-                                <div
-                                  onClick={() => toggleExpansion(unassignedKey)}
-                                  style={{
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '0.5rem',
-                                    padding: '0.4rem 0.75rem',
-                                    background: 'white',
-                                    cursor: 'pointer',
-                                    userSelect: 'none',
-                                    marginLeft: '1.5rem',
-                                    fontWeight: '400',
-                                    fontSize: '0.75rem',
-                                    transition: 'all 0.2s ease'
-                                  }}
-                                >
-                                  {isUnassignedExpanded ? (
-                                    <FiChevronDown size={12} style={{ color: '#9ca3af' }} />
-                                  ) : (
-                                    <FiChevronRight size={12} style={{ color: '#9ca3af' }} />
-                                  )}
-                                  <FiAlertCircle size={12} style={{ color: '#d1d5db' }} />
-                                  <span style={{ flex: 1, color: '#9ca3af' }}>No Subproject</span>
-                                  <span
-                                    style={{
-                                      color: '#d1d5db',
-                                      fontSize: '0.6875rem',
-                                      fontWeight: '400'
-                                    }}
-                                  >
-                                    {project.unassignedSchedules.length}
-                                  </span>
-                                </div>
-
-                                {/* Unassigned Schedules Table */}
-                                {isUnassignedExpanded && (
-                                  <div style={{ marginLeft: '1.5rem', marginTop: '0.5rem', overflow: 'auto' }}>
-                                    <table className="data-table">
-                                      <thead>
-                                        <tr>
-                                          <th>Name</th>
-                                          <th>Type</th>
-                                          <th>Schedule</th>
-                                          <th>Status</th>
-                                          <th>Next Run</th>
-                                          <th>Last Run</th>
-                                          <th>Actions</th>
-                                        </tr>
-                                      </thead>
-                                      <tbody>
-                                        {project.unassignedSchedules.map(schedule => (
-                                          <tr key={schedule.schedule_id} className={!schedule.enabled ? 'disabled-row' : ''}>
-                                            <td>{schedule.entity_name || schedule.entity_id}</td>
-                                            <td>
-                                              <span className="entity-type-badge">{schedule.entity_type}</span>
-                                            </td>
-                                            <td>{formatSchedule(schedule)}</td>
-                                            <td>
-                                              <span className={`status-badge ${schedule.enabled ? 'active' : 'inactive'}`}>
-                                                {schedule.enabled ? 'Active' : 'Disabled'}
-                                              </span>
-                                            </td>
-                                            <td>
-                                              {schedule.next_run ? new Date(schedule.next_run).toLocaleString() : '-'}
-                                            </td>
-                                            <td>
-                                              {schedule.last_run ? new Date(schedule.last_run).toLocaleString() : '-'}
-                                            </td>
-                                            <td>
-                                              <div className="table-actions">
-                                                <button
-                                                  onClick={() => handleToggle(schedule.schedule_id, schedule.enabled)}
-                                                  className={`action-icon-btn ${schedule.enabled ? 'toggle-btn-warning' : 'toggle-btn-success'}`}
-                                                  title={schedule.enabled ? 'Disable' : 'Enable'}
-                                                >
-                                                  <FiPower />
-                                                </button>
-                                                <Link 
-                                                  to={`/etl-scheduler/${schedule.schedule_id}/edit`} 
-                                                  className="action-icon-btn edit-btn"
-                                                  title="Edit"
-                                                >
-                                                  <FiEdit2 />
-                                                </Link>
-                                                <button 
-                                                  onClick={() => handleDeleteClick(schedule.schedule_id)} 
-                                                  className="action-icon-btn delete-btn"
-                                                  title="Delete"
-                                                >
-                                                  <FiTrash2 />
-                                                </button>
-                                              </div>
-                                            </td>
-                                          </tr>
-                                        ))}
-                                      </tbody>
-                                    </table>
-                                  </div>
-                                )}
-                              </>
-                            );
-                          })()}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-            
-            <Pagination
-              currentPage={currentPage}
-              totalPages={totalPages}
-              onPageChange={setCurrentPage}
-              itemsPerPage={itemsPerPage}
-              totalItems={schedules.length}
-            />
-          </>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
 
-        {/* Delete Confirmation Modal */}
+        {filteredSchedules.length > 0 && totalPages > 1 && (
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+            itemsPerPage={itemsPerPage}
+            totalItems={filteredSchedules.length}
+          />
+        )}
+
         <Modal
           isOpen={deleteModal.show}
           onClose={() => setDeleteModal({ show: false, scheduleId: null })}
@@ -431,13 +293,13 @@ const ETLScheduler = () => {
             <>
               <button 
                 onClick={() => setDeleteModal({ show: false, scheduleId: null })} 
-                className="btn btn-secondary"
+                className="gps-btn-secondary"
               >
                 Cancel
               </button>
               <button 
                 onClick={handleDeleteConfirm} 
-                className="btn btn-danger"
+                className="gps-btn-danger"
               >
                 Delete
               </button>
@@ -446,7 +308,6 @@ const ETLScheduler = () => {
         >
           <p style={{ margin: '0' }}>Are you sure you want to delete this schedule?</p>
         </Modal>
-
       </div>
     </PageTransition>
   );

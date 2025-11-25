@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { FiChevronDown, FiChevronRight, FiDownload } from 'react-icons/fi';
-import Card from '../components/Card';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { formatBytes, formatDate } from '../utils/formatters';
 import axios from 'axios';
+import '../styles/global-page-styles.css';
 import './Monitor.css';
 
 function Monitor() {
@@ -15,12 +15,10 @@ function Monitor() {
   const [expandedRows, setExpandedRows] = useState(new Set());
   const [auditLogs, setAuditLogs] = useState({});
   
-  // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [totalRecords, setTotalRecords] = useState(0);
   
-  // Fetch audit data on mount and when pagination/tab changes
   useEffect(() => {
     if (activeTab === 'file-audit') {
       fetchAuditData();
@@ -119,13 +117,13 @@ function Monitor() {
   const handlePageChange = (newPage) => {
     if (newPage >= 1 && newPage <= totalPages) {
       setCurrentPage(newPage);
-      setExpandedRows(new Set()); // Collapse all rows when changing pages
+      setExpandedRows(new Set());
     }
   };
   
   const handlePageSizeChange = (e) => {
     setPageSize(parseInt(e.target.value));
-    setCurrentPage(1); // Reset to first page
+    setCurrentPage(1);
     setExpandedRows(new Set());
   };
   
@@ -135,15 +133,15 @@ function Monitor() {
     return `${(ms / 1000).toFixed(2)}s`;
   };
   
-  const getStatusClass = (status, skippedFiles = 0) => {
-    if (!status) return 'status-unknown';
+  const getStatusBadgeClass = (status, skippedFiles = 0) => {
+    if (!status) return 'gps-badge gps-badge--pending';
     const statusLower = status.toLowerCase();
     if (statusLower === 'success' || statusLower === 'completed') {
-      return skippedFiles > 0 ? 'status-warning' : 'status-success';
+      return skippedFiles > 0 ? 'gps-badge gps-badge--warning' : 'gps-badge gps-badge--success';
     }
-    if (statusLower === 'failed' || statusLower === 'error') return 'status-error';
-    if (statusLower === 'processing' || statusLower === 'in_progress') return 'status-processing';
-    return 'status-unknown';
+    if (statusLower === 'failed' || statusLower === 'error') return 'gps-badge gps-badge--danger';
+    if (statusLower === 'processing' || statusLower === 'in_progress') return 'gps-badge gps-badge--info';
+    return 'gps-badge gps-badge--pending';
   };
   
   const renderSchemaDetails = (audit) => {
@@ -205,53 +203,27 @@ function Monitor() {
   };
   
   return (
-    <div className="monitor-container">
-      <div className="monitor-header">
-        <div>
-          <h1>Data Observatory Monitor</h1>
-          <p style={{ color: '#037c6e', fontSize: '0.9rem', margin: '0.5rem 0 0 0' }}>Monitor file audit logs and bulk profiling jobs</p>
+    <div className="gps-page-container">
+      <div className="gps-page-header">
+        <div className="gps-page-header-left">
+          <h1 className="gps-page-title">Data Observatory Monitor</h1>
+          <p className="gps-page-subtitle">Monitor file audit logs and bulk profiling jobs</p>
         </div>
-        <div className="monitor-actions">
-          <span className="total-records">{totalRecords} total records</span>
+        <div className="gps-results-info">
+          {totalRecords} total records
         </div>
       </div>
       
-      {/* Tabs */}
-      <div style={{
-        display: 'flex',
-        gap: '1rem',
-        marginBottom: '1.5rem',
-        borderBottom: '2px solid #e5e7eb'
-      }}>
+      <div className="gps-tabs">
         <button
           onClick={() => handleTabChange('file-audit')}
-          style={{
-            padding: '0.75rem 1.5rem',
-            background: 'none',
-            border: 'none',
-            borderBottom: activeTab === 'file-audit' ? '3px solid #3b82f6' : '3px solid transparent',
-            color: activeTab === 'file-audit' ? '#3b82f6' : '#6b7280',
-            fontWeight: activeTab === 'file-audit' ? 'bold' : 'normal',
-            cursor: 'pointer',
-            fontSize: '1rem',
-            transition: 'all 0.2s'
-          }}
+          className={`gps-tab ${activeTab === 'file-audit' ? 'gps-tab--active' : ''}`}
         >
           File Audit Logs
         </button>
         <button
           onClick={() => handleTabChange('bulk-profiling')}
-          style={{
-            padding: '0.75rem 1.5rem',
-            background: 'none',
-            border: 'none',
-            borderBottom: activeTab === 'bulk-profiling' ? '3px solid #3b82f6' : '3px solid transparent',
-            color: activeTab === 'bulk-profiling' ? '#3b82f6' : '#6b7280',
-            fontWeight: activeTab === 'bulk-profiling' ? 'bold' : 'normal',
-            cursor: 'pointer',
-            fontSize: '1rem',
-            transition: 'all 0.2s'
-          }}
+          className={`gps-tab ${activeTab === 'bulk-profiling' ? 'gps-tab--active' : ''}`}
         >
           Bulk Profiling Jobs
         </button>
@@ -260,16 +232,16 @@ function Monitor() {
       {loading ? (
         <LoadingSpinner />
       ) : error ? (
-        <div className="error">{error}</div>
+        <div className="gps-alert-danger">{error}</div>
       ) : (
         <>
           {activeTab === 'file-audit' && (
-          <Card className="audit-trail-card">
-            <div className="audit-table-container">
-              <table className="audit-table">
+          <div className="gps-table-container">
+            <div style={{ overflowX: 'auto' }}>
+              <table className="gps-table">
                 <thead>
                   <tr>
-                    <th className="expand-col"></th>
+                    <th style={{ width: '40px' }}></th>
                     <th>Project</th>
                     <th>Date</th>
                     <th>File Name</th>
@@ -297,15 +269,19 @@ function Monitor() {
                 <tbody>
                   {audits.length === 0 ? (
                     <tr>
-                      <td colSpan="23" className="no-data">No audit records found</td>
+                      <td colSpan="23">
+                        <div className="gps-empty-state">
+                          <p>No audit records found</p>
+                        </div>
+                      </td>
                     </tr>
                   ) : (
                     audits.map((audit) => (
                       <React.Fragment key={audit.id}>
-                        <tr className="audit-row">
-                          <td className="expand-col">
+                        <tr>
+                          <td>
                             <button 
-                              className="expand-btn"
+                              className="gps-icon-btn"
                               onClick={() => toggleRowExpansion(audit.id)}
                               title="View schema details"
                             >
@@ -313,8 +289,8 @@ function Monitor() {
                             </button>
                           </td>
                           <td>{audit.project_name || 'Default Project'}</td>
-                          <td className="date-col">{formatDate(audit.created_dt)}</td>
-                          <td className="file-name-col" title={audit.file_name}>{audit.file_name || '-'}</td>
+                          <td style={{ whiteSpace: 'nowrap' }}>{formatDate(audit.created_dt)}</td>
+                          <td style={{ maxWidth: '150px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={audit.file_name}>{audit.file_name || '-'}</td>
                           <td>{audit.source || '-'}</td>
                           <td>{audit.load_type || '-'}</td>
                           <td>{audit.schedule_name || '-'}</td>
@@ -322,41 +298,41 @@ function Monitor() {
                           <td>{audit.workflow_name || '-'}</td>
                           <td>{audit.mapping_name || '-'}</td>
                           <td>{audit.file_type ? audit.file_type.toUpperCase() : '-'}</td>
-                          <td className="number-col">{(audit.no_of_records_in_source || 0).toLocaleString()}</td>
+                          <td style={{ textAlign: 'right' }}>{(audit.no_of_records_in_source || 0).toLocaleString()}</td>
                           <td>
-                            <span className={`status-badge ${getStatusClass(audit.status)}`}>
+                            <span className={getStatusBadgeClass(audit.status)}>
                               {audit.status || 'unknown'}
                             </span>
                           </td>
                           <td>{formatDuration(audit.processing_duration_ms)}</td>
                           <td>{audit.file_size_bytes ? formatBytes(audit.file_size_bytes) : '-'}</td>
-                          <td className="number-col">{audit.number_of_columns || '-'}</td>
+                          <td style={{ textAlign: 'right' }}>{audit.number_of_columns || '-'}</td>
                           <td>{audit.encoding || '-'}</td>
-                          <td className="number-col">{audit.user_id || '-'}</td>
-                          <td className="correlation-col" title={audit.correlation_id}>
+                          <td style={{ textAlign: 'right' }}>{audit.user_id || '-'}</td>
+                          <td style={{ maxWidth: '100px', overflow: 'hidden', textOverflow: 'ellipsis' }} title={audit.correlation_id}>
                             {audit.correlation_id ? audit.correlation_id.substring(0, 8) + '...' : '-'}
                           </td>
                           <td title={audit.load_step_1_path}>{audit.load_step_1_path || '-'}</td>
-                          <td className="number-col">{(audit.load_step_1_rec_cnt || 0).toLocaleString()}</td>
+                          <td style={{ textAlign: 'right' }}>{(audit.load_step_1_rec_cnt || 0).toLocaleString()}</td>
                           <td>
                             {audit.schema_validation ? (
-                              <span className={`status-badge ${
-                                audit.schema_validation === 'Pass' ? 'status-success' : 
-                                audit.schema_validation === 'Fail' ? 'status-error' : 
-                                'status-unknown'
+                              <span className={`gps-badge ${
+                                audit.schema_validation === 'Pass' ? 'gps-badge--success' : 
+                                audit.schema_validation === 'Fail' ? 'gps-badge--danger' : 
+                                'gps-badge--pending'
                               }`}>
                                 {audit.schema_validation}
                               </span>
                             ) : (
-                              <span className="status-badge status-unknown">N/A</span>
+                              <span className="gps-badge gps-badge--pending">N/A</span>
                             )}
                           </td>
-                          <td className="error-col" title={audit.error_message}>
+                          <td style={{ maxWidth: '150px', overflow: 'hidden', textOverflow: 'ellipsis' }} title={audit.error_message}>
                             {audit.error_message ? audit.error_message.substring(0, 30) + '...' : '-'}
                           </td>
                         </tr>
                         {expandedRows.has(audit.id) && (
-                          <tr className="expanded-row">
+                          <tr className="gps-subrow">
                             <td colSpan="23">
                               <div className="expanded-content-with-logs">
                                 <div className="expanded-section">
@@ -485,16 +461,16 @@ function Monitor() {
                 </tbody>
               </table>
             </div>
-          </Card>
+          </div>
           )}
           
           {activeTab === 'bulk-profiling' && (
-          <Card className="bulk-jobs-card">
-            <div className="audit-table-container">
-              <table className="audit-table">
+          <div className="gps-table-container">
+            <div style={{ overflowX: 'auto' }}>
+              <table className="gps-table">
                 <thead>
                   <tr>
-                    <th className="expand-col"></th>
+                    <th style={{ width: '40px' }}></th>
                     <th>Job Name</th>
                     <th>Project</th>
                     <th>Connection</th>
@@ -514,15 +490,19 @@ function Monitor() {
                 <tbody>
                   {bulkJobs.length === 0 ? (
                     <tr>
-                      <td colSpan="15" className="no-data">No bulk profiling jobs found</td>
+                      <td colSpan="15">
+                        <div className="gps-empty-state">
+                          <p>No bulk profiling jobs found</p>
+                        </div>
+                      </td>
                     </tr>
                   ) : (
                     bulkJobs.map((job) => (
                       <React.Fragment key={job.id}>
-                        <tr className="audit-row">
-                          <td className="expand-col">
+                        <tr>
+                          <td>
                             <button 
-                              className="expand-btn"
+                              className="gps-icon-btn"
                               onClick={() => toggleRowExpansion(job.id)}
                               title="View job details"
                             >
@@ -534,7 +514,7 @@ function Monitor() {
                           <td>{job.connection_name || 'N/A'}</td>
                           <td title={job.s3_path}>{job.s3_path}</td>
                           <td>
-                            <span className={`status-badge ${getStatusClass(job.status, job.skipped_files || 0)}`}>
+                            <span className={getStatusBadgeClass(job.status, job.skipped_files || 0)}>
                               {job.status}
                             </span>
                           </td>
@@ -544,16 +524,16 @@ function Monitor() {
                               `${Math.round((job.processed_files / job.total_files) * 100)}%` : 
                               '0%'}
                           </td>
-                          <td className="number-col">{job.total_files}</td>
-                          <td className="number-col">{job.successful_files}</td>
-                          <td className="number-col">{job.failed_files}</td>
-                          <td className="number-col">{job.skipped_files || 0}</td>
-                          <td className="date-col">{formatDate(job.created_at)}</td>
-                          <td className="date-col">{job.started_at ? formatDate(job.started_at) : '-'}</td>
-                          <td className="date-col">{job.completed_at ? formatDate(job.completed_at) : '-'}</td>
+                          <td style={{ textAlign: 'right' }}>{job.total_files}</td>
+                          <td style={{ textAlign: 'right' }}>{job.successful_files}</td>
+                          <td style={{ textAlign: 'right' }}>{job.failed_files}</td>
+                          <td style={{ textAlign: 'right' }}>{job.skipped_files || 0}</td>
+                          <td style={{ whiteSpace: 'nowrap' }}>{formatDate(job.created_at)}</td>
+                          <td style={{ whiteSpace: 'nowrap' }}>{job.started_at ? formatDate(job.started_at) : '-'}</td>
+                          <td style={{ whiteSpace: 'nowrap' }}>{job.completed_at ? formatDate(job.completed_at) : '-'}</td>
                         </tr>
                         {expandedRows.has(job.id) && (
-                          <tr className="expanded-row">
+                          <tr className="gps-subrow">
                             <td colSpan="15">
                               <div className="expanded-content">
                                 <div className="expanded-section">
@@ -598,18 +578,18 @@ function Monitor() {
                 </tbody>
               </table>
             </div>
-          </Card>
+          </div>
           )}
           
-          <div className="pagination-container">
-            <div className="pagination-info">
+          <div className="gps-pagination-container">
+            <div className="gps-results-info">
               Showing {(activeTab === 'file-audit' ? audits.length : bulkJobs.length) > 0 ? ((currentPage - 1) * pageSize) + 1 : 0} to {Math.min(currentPage * pageSize, totalRecords)} of {totalRecords} records
             </div>
             
-            <div className="pagination-controls">
-              <div className="page-size-selector">
+            <div className="gps-pagination-controls">
+              <div className="gps-page-size-selector">
                 <label>Rows per page:</label>
-                <select value={pageSize} onChange={handlePageSizeChange}>
+                <select value={pageSize} onChange={handlePageSizeChange} className="gps-filter-select">
                   <option key="10" value="10">10</option>
                   <option key="25" value="25">25</option>
                   <option key="50" value="50">50</option>
@@ -617,37 +597,37 @@ function Monitor() {
                 </select>
               </div>
               
-              <div className="page-buttons">
+              <div className="gps-page-buttons">
                 <button 
                   onClick={() => handlePageChange(1)}
                   disabled={currentPage === 1}
-                  className="pagination-btn"
+                  className="gps-btn-secondary"
                 >
                   First
                 </button>
                 <button 
                   onClick={() => handlePageChange(currentPage - 1)}
                   disabled={currentPage === 1}
-                  className="pagination-btn"
+                  className="gps-btn-secondary"
                 >
                   Previous
                 </button>
                 
-                <span className="page-indicator">
+                <span className="gps-page-indicator">
                   Page {currentPage} of {totalPages || 1}
                 </span>
                 
                 <button 
                   onClick={() => handlePageChange(currentPage + 1)}
                   disabled={currentPage >= totalPages}
-                  className="pagination-btn"
+                  className="gps-btn-secondary"
                 >
                   Next
                 </button>
                 <button 
                   onClick={() => handlePageChange(totalPages)}
                   disabled={currentPage >= totalPages}
-                  className="pagination-btn"
+                  className="gps-btn-secondary"
                 >
                   Last
                 </button>
