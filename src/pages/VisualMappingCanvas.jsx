@@ -1179,6 +1179,18 @@ const VisualMappingCanvasContent = () => {
           onClose={() => setConfigModalOpen(false)}
           onSave={handleSaveNodeConfig}
           initialConfig={getCurrentNodeConfig()}
+          leftNodeName={(() => {
+            const leftEdges = edges.filter(e => e.target === configNodeId && e.targetHandle === 'leftInput');
+            if (leftEdges.length === 0) return '';
+            const leftNode = nodes.find(n => n.id === leftEdges[0].source);
+            return leftNode?.data?.config?.name || leftNode?.data?.label || '';
+          })()}
+          rightNodeName={(() => {
+            const rightEdges = edges.filter(e => e.target === configNodeId && e.targetHandle === 'rightInput');
+            if (rightEdges.length === 0) return '';
+            const rightNode = nodes.find(n => n.id === rightEdges[0].source);
+            return rightNode?.data?.config?.name || rightNode?.data?.label || '';
+          })()}
           leftSchema={(() => {
             const leftEdges = edges.filter(e => e.target === configNodeId && e.targetHandle === 'leftInput');
             if (leftEdges.length === 0) return [];
@@ -1207,9 +1219,11 @@ const VisualMappingCanvasContent = () => {
                   inputSchema = [...inputSchema, ...getNodeOutputSchema(edge.source)];
                 });
                 if (config.lookupType === 'dataset' && config.outputSchema) {
-                  return [...inputSchema, ...config.outputSchema];
+                  const outputCols = config.outputSchema.map(col => ({ name: col.name, type: col.type || 'STRING' }));
+                  return [...inputSchema, ...outputCols];
                 } else if (config.lookupType === 'crosswalk' && config.outputSchema) {
-                  return [...inputSchema, ...config.outputSchema];
+                  const outputCols = config.outputSchema.map(col => ({ name: col.name, type: col.type || 'STRING' }));
+                  return [...inputSchema, ...outputCols];
                 }
                 return inputSchema;
               }
@@ -1250,9 +1264,11 @@ const VisualMappingCanvasContent = () => {
                   inputSchema = [...inputSchema, ...getNodeOutputSchema(edge.source)];
                 });
                 if (config.lookupType === 'dataset' && config.outputSchema) {
-                  return [...inputSchema, ...config.outputSchema];
+                  const outputCols = config.outputSchema.map(col => ({ name: col.name, type: col.type || 'STRING' }));
+                  return [...inputSchema, ...outputCols];
                 } else if (config.lookupType === 'crosswalk' && config.outputSchema) {
-                  return [...inputSchema, ...config.outputSchema];
+                  const outputCols = config.outputSchema.map(col => ({ name: col.name, type: col.type || 'STRING' }));
+                  return [...inputSchema, ...outputCols];
                 }
                 return inputSchema;
               }

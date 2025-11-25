@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { FaPlus, FaTrash } from 'react-icons/fa';
 import './MappingConfigModal.css';
 
-const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [], rightSchema = [] }) => {
+const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [], rightSchema = [], leftNodeName = '', rightNodeName = '' }) => {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [activeTab, setActiveTab] = useState('configuration');
@@ -272,9 +272,9 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
                   <table className="vm-schema-table" style={{ marginBottom: '16px' }}>
                     <thead>
                       <tr>
-                        <th>Left Column</th>
+                        <th>Left Column {leftNodeName && `(${leftNodeName})`}</th>
                         <th>Operator</th>
-                        <th>Right Column</th>
+                        <th>Right Column {rightNodeName && `(${rightNodeName})`}</th>
                         <th style={{ width: '80px' }}>Actions</th>
                       </tr>
                     </thead>
