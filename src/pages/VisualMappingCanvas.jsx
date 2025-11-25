@@ -37,6 +37,7 @@ import ExpressionModal from '../components/VisualMappingModals/ExpressionModal';
 import RdmDatasetModal from '../components/VisualMappingModals/RdmDatasetModal';
 import RdmCrosswalkModal from '../components/VisualMappingModals/RdmCrosswalkModal';
 import TargetRulesModal from '../components/VisualMappingModals/TargetRulesModal';
+import JoinModal from '../components/VisualMappingModals/JoinModal';
 import { useVisualMappingExecution } from '../hooks/useVisualMappingExecution';
 import { getNodeStatusClass, getNodeStatusBadge, formatRowCount } from '../components/VisualMappingNodes/nodeUtils';
 
@@ -232,12 +233,67 @@ const TargetRulesNode = ({ data }) => {
   );
 };
 
+const JoinNode = ({ data }) => {
+  const statusBadge = data.statusBadge;
+  
+  return (
+    <div className="visual-mapping-node visual-mapping-node-join">
+      {statusBadge && (
+        <div className={`visual-mapping-node-status-badge status-${statusBadge.text.toLowerCase()}`}>
+          <span>{statusBadge.icon}</span>
+        </div>
+      )}
+      <Handle 
+        type="target" 
+        position={Position.Left} 
+        id="leftInput"
+        style={{ top: '30%' }}
+        className="visual-mapping-node-handle"
+      />
+      <Handle 
+        type="target" 
+        position={Position.Left} 
+        id="rightInput"
+        style={{ top: '70%' }}
+        className="visual-mapping-node-handle"
+      />
+      <div className="visual-mapping-node-header">
+        <FaRandom className="visual-mapping-node-icon" />
+        <span className="visual-mapping-node-title">{data.label}</span>
+      </div>
+      {data.config?.joinType && (
+        <div className="visual-mapping-node-detail">
+          <strong>Type:</strong> {data.config.joinType}
+        </div>
+      )}
+      {data.config?.joinKeys && (
+        <div className="visual-mapping-node-detail">
+          <strong>Keys:</strong> {data.config.joinKeys.length}
+        </div>
+      )}
+      <button 
+        onClick={() => data.onConfigure && data.onConfigure(data.nodeId)}
+        className="visual-mapping-node-button"
+      >
+        Configure
+      </button>
+      <Handle 
+        type="source" 
+        position={Position.Right} 
+        id="output"
+        className="visual-mapping-node-handle"
+      />
+    </div>
+  );
+};
+
 const nodeTypes = {
   sourceConfig: SourceConfigNode,
   expression: ExpressionNode,
   rdmDataset: RdmDatasetNode,
   rdmCrosswalk: RdmCrosswalkNode,
-  targetRules: TargetRulesNode
+  targetRules: TargetRulesNode,
+  join: JoinNode
 };
 
 const VisualMappingCanvasContent = () => {
@@ -515,6 +571,12 @@ const VisualMappingCanvasContent = () => {
         });
         console.log(`getCumulativeSchema: RDM Crosswalk node ${nodeId} output schema:`, schema.length, 'columns');
         return schema;
+      }
+      
+      // Join: output schema comes from outputSchema config
+      if (node.type === 'join' && config.outputSchema) {
+        console.log(`getCumulativeSchema: Join node ${nodeId} output schema:`, config.outputSchema.length, 'columns');
+        return config.outputSchema;
       }
       
       return [];
@@ -993,6 +1055,12 @@ const VisualMappingCanvasContent = () => {
                     >
                       <FaCode /> Expressions
                     </button>
+                    <button 
+                      onClick={() => addNode('join', 'Join')}
+                      className="visual-mapping-palette-item"
+                    >
+                      <FaRandom /> Join
+                    </button>
                   </div>
                   
                   <div className="visual-mapping-palette-section">
@@ -1116,6 +1184,75 @@ const VisualMappingCanvasContent = () => {
           initialConfig={getCurrentNodeConfig()}
           projectId={projectId}
           outputSchema={getCumulativeSchema()}
+        />
+      )}
+      
+      {configNodeType === 'join' && (
+        <JoinModal
+          isOpen={configModalOpen}
+          onClose={() => setConfigModalOpen(false)}
+          onSave={handleSaveNodeConfig}
+          initialConfig={getCurrentNodeConfig()}
+          leftSchema={(() => {
+            const leftEdges = edges.filter(e => e.target === configNodeId && e.targetHandle === 'leftInput');
+            if (leftEdges.length === 0) return [];
+            const leftNode = nodes.find(n => n.id === leftEdges[0].source);
+            if (!leftNode) return [];
+            const visited = new Set();
+            const getNodeOutputSchema = (nodeId) => {
+              if (visited.has(nodeId)) return [];
+              visited.add(nodeId);
+              const node = nodes.find(n => n.id === nodeId);
+              if (!node) return [];
+              const config = node.data?.config || {};
+              if (node.type === 'sourceConfig' && config.schema) {
+                return config.schema.map(col => ({ name: col.name || col, type: col.type || 'STRING' }));
+              }
+              if (node.type === 'expression' && config.fieldMappings) {
+                return config.fieldMappings.map(m => ({ name: m.targetField, type: 'STRING' }));
+              }
+              if (node.type === 'join' && config.outputSchema) {
+                return config.outputSchema;
+              }
+              const upstreamEdges = edges.filter(e => e.target === nodeId);
+              let schema = [];
+              upstreamEdges.forEach(edge => {
+                schema = [...schema, ...getNodeOutputSchema(edge.source)];
+              });
+              return schema;
+            };
+            return getNodeOutputSchema(leftEdges[0].source);
+          })()}
+          rightSchema={(() => {
+            const rightEdges = edges.filter(e => e.target === configNodeId && e.targetHandle === 'rightInput');
+            if (rightEdges.length === 0) return [];
+            const rightNode = nodes.find(n => n.id === rightEdges[0].source);
+            if (!rightNode) return [];
+            const visited = new Set();
+            const getNodeOutputSchema = (nodeId) => {
+              if (visited.has(nodeId)) return [];
+              visited.add(nodeId);
+              const node = nodes.find(n => n.id === nodeId);
+              if (!node) return [];
+              const config = node.data?.config || {};
+              if (node.type === 'sourceConfig' && config.schema) {
+                return config.schema.map(col => ({ name: col.name || col, type: col.type || 'STRING' }));
+              }
+              if (node.type === 'expression' && config.fieldMappings) {
+                return config.fieldMappings.map(m => ({ name: m.targetField, type: 'STRING' }));
+              }
+              if (node.type === 'join' && config.outputSchema) {
+                return config.outputSchema;
+              }
+              const upstreamEdges = edges.filter(e => e.target === nodeId);
+              let schema = [];
+              upstreamEdges.forEach(edge => {
+                schema = [...schema, ...getNodeOutputSchema(edge.source)];
+              });
+              return schema;
+            };
+            return getNodeOutputSchema(rightEdges[0].source);
+          })()}
         />
       )}
     </div>
