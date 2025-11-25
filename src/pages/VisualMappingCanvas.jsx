@@ -1200,6 +1200,19 @@ const VisualMappingCanvasContent = () => {
               if (node.type === 'join' && config.outputSchema) {
                 return config.outputSchema;
               }
+              if (node.type === 'rdmLookup') {
+                const upstreamEdges = edges.filter(e => e.target === nodeId);
+                let inputSchema = [];
+                upstreamEdges.forEach(edge => {
+                  inputSchema = [...inputSchema, ...getNodeOutputSchema(edge.source)];
+                });
+                if (config.lookupType === 'dataset' && config.outputSchema) {
+                  return [...inputSchema, ...config.outputSchema];
+                } else if (config.lookupType === 'crosswalk' && config.outputSchema) {
+                  return [...inputSchema, ...config.outputSchema];
+                }
+                return inputSchema;
+              }
               const upstreamEdges = edges.filter(e => e.target === nodeId);
               let schema = [];
               upstreamEdges.forEach(edge => {
@@ -1229,6 +1242,19 @@ const VisualMappingCanvasContent = () => {
               }
               if (node.type === 'join' && config.outputSchema) {
                 return config.outputSchema;
+              }
+              if (node.type === 'rdmLookup') {
+                const upstreamEdges = edges.filter(e => e.target === nodeId);
+                let inputSchema = [];
+                upstreamEdges.forEach(edge => {
+                  inputSchema = [...inputSchema, ...getNodeOutputSchema(edge.source)];
+                });
+                if (config.lookupType === 'dataset' && config.outputSchema) {
+                  return [...inputSchema, ...config.outputSchema];
+                } else if (config.lookupType === 'crosswalk' && config.outputSchema) {
+                  return [...inputSchema, ...config.outputSchema];
+                }
+                return inputSchema;
               }
               const upstreamEdges = edges.filter(e => e.target === nodeId);
               let schema = [];
