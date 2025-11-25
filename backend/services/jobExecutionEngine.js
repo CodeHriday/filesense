@@ -345,6 +345,12 @@ async function executeTransformationJob(pool, mappingId, userId, options = {}) {
   } = options;
   
   let job = existingJob;
+  let mapping = null;
+  let visualExecutionId = null;
+  
+  // Hoist node structures outside try block so they can be accessed in catch
+  const nodeMap = {};
+  const nodesByType = { sourceConfig: [], expression: [], rdmLookup: [], targetRules: [], join: [] };
   
   try {
     // Create job only if not provided
@@ -362,11 +368,10 @@ async function executeTransformationJob(pool, mappingId, userId, options = {}) {
     await logJobExecution(pool, jobId, 'info', 'Job execution started', { mappingId, userId });
     
     // Get mapping configuration
-    const mapping = await getMappingConfig(pool, mappingId);
+    mapping = await getMappingConfig(pool, mappingId);
     
     // Track if this is a visual mapping execution
     const isVisualMapping = mapping.is_visual_mapping && mapping.visual_mapping_id;
-    let visualExecutionId = null;
     
     // Use visualMappingExecutionId from options if provided (avoids query)
     if (isVisualMapping && visualMappingExecutionId) {
@@ -383,8 +388,6 @@ async function executeTransformationJob(pool, mappingId, userId, options = {}) {
     }
     
     // Build node map for visual mapping status updates
-    const nodeMap = {};
-    const nodesByType = { sourceConfig: [], expression: [], rdmLookup: [], targetRules: [], join: [] };
     if (visualMappingNodes && Array.isArray(visualMappingNodes)) {
       visualMappingNodes.forEach(node => {
         nodeMap[node.id] = node;
@@ -702,6 +705,14 @@ async function executeTransformationJob(pool, mappingId, userId, options = {}) {
             }
             
             if (mapping.schema_drift_handling === 'abort') {
+              // Emit failed status for all nodes on schema drift abort
+              if (visualExecutionId) {
+                [...nodesByType.sourceConfig, ...nodesByType.expression, ...nodesByType.join, 
+                 ...nodesByType.rdmLookup, ...nodesByType.targetRules].forEach(nodeId => {
+                  emitNodeStatus(nodeId, 'failed', { error: 'Schema drift detected - execution aborted' });
+                });
+              }
+              
               // Abort job execution
               await updateJob(pool, jobId, { 
                 status: 'failed', 
@@ -785,6 +796,14 @@ async function executeTransformationJob(pool, mappingId, userId, options = {}) {
           if (mismatches.length > 0) {
             const errorMessage = `Schema mismatch detected across ${mismatches.length} file(s). All files matching a pattern must have identical schemas.`;
             
+            // Emit failed status for all nodes on schema validation failure
+            if (visualExecutionId) {
+              [...nodesByType.sourceConfig, ...nodesByType.expression, ...nodesByType.join, 
+               ...nodesByType.rdmLookup, ...nodesByType.targetRules].forEach(nodeId => {
+                emitNodeStatus(nodeId, 'failed', { error: 'Schema validation failed' });
+              });
+            }
+            
             await updateJob(pool, jobId, { 
               status: 'failed', 
               error_message: errorMessage,
@@ -865,6 +884,13 @@ async function executeTransformationJob(pool, mappingId, userId, options = {}) {
           progressMessage: `Completed ${filesProcessedSoFar} of ${matchingFiles.length} files`
         });
         
+        // Emit edge row counts for real-time visualization (incremental updates)
+        if (visualExecutionId && visualMappingEdges && Array.isArray(visualMappingEdges)) {
+          visualMappingEdges.forEach(edge => {
+            visualMappingWS.emitEdgeRowCount(visualExecutionId, edge.id, edge.source, edge.target, totalRowsWritten);
+          });
+        }
+        
         // Step 4: Run profiling and anomaly detection (if enabled)
         // Note: Skipped for cloud files without DB record, can be added in future
         if (runProfilingChecks && !dryRun && file.file_id) {
@@ -889,6 +915,22 @@ async function executeTransformationJob(pool, mappingId, userId, options = {}) {
         
       } catch (fileError) {
         totalRowsFailed += file.row_count || 0;
+        
+        // Emit failed status for all processing nodes when file processing fails
+        if (visualExecutionId) {
+          nodesByType.expression.forEach(nodeId => {
+            emitNodeStatus(nodeId, 'failed', { error: fileError.message });
+          });
+          nodesByType.join.forEach(nodeId => {
+            emitNodeStatus(nodeId, 'failed', { error: fileError.message });
+          });
+          nodesByType.rdmLookup.forEach(nodeId => {
+            emitNodeStatus(nodeId, 'failed', { error: fileError.message });
+          });
+          nodesByType.targetRules.forEach(nodeId => {
+            emitNodeStatus(nodeId, 'failed', { error: fileError.message });
+          });
+        }
         
         await logJobExecution(pool, jobId, 'error', `File processing failed: ${file.filename}`, {
           fileId: file.file_id,
@@ -1033,11 +1075,24 @@ async function executeTransformationJob(pool, mappingId, userId, options = {}) {
       
       // Emit visual mapping execution error event
       if (visualExecutionId) {
+        // Emit failed status for all nodes (call WebSocket directly - helpers are scoped to try block)
+        const allNodeIds = [...(nodesByType.sourceConfig || []), ...(nodesByType.expression || []), 
+           ...(nodesByType.join || []), ...(nodesByType.rdmLookup || []), 
+           ...(nodesByType.targetRules || [])];
+        allNodeIds.forEach(nodeId => {
+          try {
+            visualMappingWS.emitNodeStatus(visualExecutionId, nodeId, 'failed', { error: error.message });
+          } catch (wsErr) {
+            systemLogger.warn('Failed to emit node status in catch block', { nodeId, error: wsErr.message });
+          }
+        });
+        
         visualMappingWS.emitExecutionError(visualExecutionId, error);
-        systemLogger.info('Visual mapping execution failed - WebSocket event emitted', {
+        systemLogger.info('Visual mapping execution failed - WebSocket events emitted', {
           visualExecutionId,
           jobId: job.job_id,
-          error: error.message
+          error: error.message,
+          nodesNotified: allNodeIds.length
         });
       }
       
