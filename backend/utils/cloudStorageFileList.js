@@ -189,17 +189,56 @@ async function listFilesFromConnection(pool, connectionId) {
  */
 async function listAndFilterFiles(pool, connectionId, pattern) {
   try {
+    // Get connection to check bucket name
+    let connection = null;
+    
+    // Try transform_connections first (regular connections with integer IDs)
+    const transformResult = await pool.query(
+      'SELECT * FROM transform_connections WHERE id::text = $1',
+      [String(connectionId)]
+    );
+
+    if (transformResult.rows.length > 0) {
+      connection = transformResult.rows[0];
+    } else {
+      // Try storage_connections (vendor connections with UUID IDs)
+      const storageResult = await pool.query(
+        'SELECT * FROM storage_connections WHERE connection_id = $1',
+        [connectionId]
+      );
+      
+      if (storageResult.rows.length > 0) {
+        connection = storageResult.rows[0];
+      }
+    }
+    
     // Get all files from connection
     const allFiles = await listFilesFromConnection(pool, connectionId);
 
+    // Normalize pattern - strip bucket name prefix if present (S3 object keys don't include bucket name)
+    let normalizedPattern = pattern;
+    if (connection && connection.config) {
+      const config = typeof connection.config === 'string' 
+        ? JSON.parse(connection.config) 
+        : connection.config;
+      
+      const bucketName = config.bucket_name || config.container_name;
+      if (bucketName && normalizedPattern.startsWith(bucketName + '/')) {
+        normalizedPattern = normalizedPattern.substring(bucketName.length + 1);
+        console.log(`Stripped bucket name from pattern: "${pattern}" -> "${normalizedPattern}"`);
+      }
+    }
+
     // Use safe regex conversion to prevent ReDoS
     const { globToRegex } = require('./regexValidator');
-    const patternRegex = globToRegex(pattern);
+    const patternRegex = globToRegex(normalizedPattern);
 
     // Filter files by pattern
     const matchedFiles = allFiles.filter(file => 
       patternRegex.test(file.filename)
     );
+    
+    console.log(`listAndFilterFiles: pattern="${normalizedPattern}", matched ${matchedFiles.length} of ${allFiles.length} files`);
 
     return matchedFiles;
   } catch (error) {
