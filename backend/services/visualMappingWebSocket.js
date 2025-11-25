@@ -1,4 +1,4 @@
-const systemLogger = require('../utils/logger');
+const { systemLogger } = require('../utils/logger');
 
 class VisualMappingWebSocketService {
   constructor() {
