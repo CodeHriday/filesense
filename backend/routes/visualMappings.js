@@ -330,6 +330,9 @@ router.post('/:id/execute', async (req, res) => {
       });
     }
     
+    // Extract the compiled transformation mapping
+    const transformationMapping = compilationResult.transformationMapping;
+    
     // Create execution record
     const executionId = uuidv4();
     await pool.query(
