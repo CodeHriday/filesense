@@ -676,12 +676,8 @@ const VisualMappingCanvasContent = () => {
     });
     
     // Check expression nodes
-    const expressionNodes = nodes.filter(n => n.type === 'expressions');
+    const expressionNodes = nodes.filter(n => n.type === 'expression');
     expressionNodes.forEach(node => {
-      if (!node.data.config || !node.data.config.fieldMappings || node.data.config.fieldMappings.length === 0) {
-        errors.push(`Expression node "${node.data.label}" has no field mappings configured`);
-      }
-      
       // Check if expression node has upstream connections
       const hasUpstream = edges.some(e => e.target === node.id);
       if (!hasUpstream) {
@@ -689,28 +685,45 @@ const VisualMappingCanvasContent = () => {
       }
     });
     
-    // Check RDM nodes
-    const rdmDatasetNodes = nodes.filter(n => n.type === 'rdmDataset');
-    rdmDatasetNodes.forEach(node => {
-      if (!node.data.config || !node.data.config.datasetId) {
-        errors.push(`RDM Dataset node "${node.data.label}" is not configured - missing dataset selection`);
+    // Check join nodes
+    const joinNodes = nodes.filter(n => n.type === 'join');
+    joinNodes.forEach(node => {
+      if (!node.data.config || !node.data.config.joinType) {
+        errors.push(`Join node "${node.data.label}" is not configured - missing join type`);
+      }
+      if (!node.data.config || !node.data.config.joinConditions || node.data.config.joinConditions.length === 0) {
+        errors.push(`Join node "${node.data.label}" is not configured - missing join conditions`);
       }
       
-      const hasUpstream = edges.some(e => e.target === node.id);
-      if (!hasUpstream) {
-        errors.push(`RDM Dataset node "${node.data.label}" has no upstream connections`);
+      // Join nodes need exactly two upstream connections
+      const upstreamEdges = edges.filter(e => e.target === node.id);
+      if (upstreamEdges.length === 0) {
+        errors.push(`Join node "${node.data.label}" has no upstream connections`);
+      } else if (upstreamEdges.length === 1) {
+        errors.push(`Join node "${node.data.label}" needs two upstream connections for left and right inputs`);
+      } else if (upstreamEdges.length > 2) {
+        errors.push(`Join node "${node.data.label}" has too many upstream connections (only two allowed)`);
       }
     });
     
-    const rdmCrosswalkNodes = nodes.filter(n => n.type === 'rdmCrosswalk');
-    rdmCrosswalkNodes.forEach(node => {
-      if (!node.data.config || !node.data.config.crosswalkId) {
-        errors.push(`RDM Crosswalk node "${node.data.label}" is not configured - missing crosswalk selection`);
+    // Check RDM Lookup nodes (unified type)
+    const rdmLookupNodes = nodes.filter(n => n.type === 'rdmLookup');
+    rdmLookupNodes.forEach(node => {
+      if (!node.data.config || !node.data.config.lookupType) {
+        errors.push(`RDM Lookup node "${node.data.label}" is not configured - missing lookup type`);
+      } else {
+        const lookupType = node.data.config.lookupType;
+        if (lookupType === 'dataset' && !node.data.config.datasetId) {
+          errors.push(`RDM Lookup node "${node.data.label}" is not configured - missing dataset selection`);
+        }
+        if (lookupType === 'crosswalk' && !node.data.config.crosswalkId) {
+          errors.push(`RDM Lookup node "${node.data.label}" is not configured - missing crosswalk selection`);
+        }
       }
       
       const hasUpstream = edges.some(e => e.target === node.id);
       if (!hasUpstream) {
-        errors.push(`RDM Crosswalk node "${node.data.label}" has no upstream connections`);
+        errors.push(`RDM Lookup node "${node.data.label}" has no upstream connections`);
       }
     });
     
