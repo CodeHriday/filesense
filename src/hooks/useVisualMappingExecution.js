@@ -1,8 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { io } from 'socket.io-client';
 
-const SOCKET_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
-
 export const useVisualMappingExecution = (executionId) => {
   const [socket, setSocket] = useState(null);
   const [nodeStatuses, setNodeStatuses] = useState({});
@@ -14,8 +12,9 @@ export const useVisualMappingExecution = (executionId) => {
   useEffect(() => {
     if (!executionId) return;
 
-    // Initialize Socket.IO connection
-    const socketInstance = io(SOCKET_URL, {
+    // Initialize Socket.IO connection - use current origin so it goes through Vite proxy
+    const socketInstance = io(window.location.origin, {
+      path: '/socket.io',
       transports: ['websocket', 'polling'],
       reconnection: true,
       reconnectionDelay: 1000,
