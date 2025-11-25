@@ -159,7 +159,7 @@ export const APP_FEATURES = [
   { 
     id: 'workflow', 
     name: 'Workflows', 
-    category: 'Jobs and Monitoring', 
+    category: 'Archived', 
     supportsExecute: true,
     icon: FiGitBranch,
     route: '/workflows',
