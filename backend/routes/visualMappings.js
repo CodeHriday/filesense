@@ -370,7 +370,7 @@ router.post('/:id/execute', async (req, res) => {
     const transformResult = await pool.query(
       `INSERT INTO transformation_mappings (
         mapping_id, mapping_name, description, project_id, sub_project_id,
-        source_connection_id, file_path, file_name_pattern,
+        source_connection_id, file_path, source_file_pattern,
         target_connection_id, target_file_path, target_file_name, target_file_format,
         field_mappings, variables, pii_columns,
         rdm_dataset_config, rdm_crosswalk_config,
@@ -387,7 +387,7 @@ router.post('/:id/execute', async (req, res) => {
         transformationMapping.sub_project_id || mapping.sub_project_id,
         transformationMapping.source_connection_id,
         transformationMapping.source_file_path,
-        transformationMapping.source_file_pattern,
+        transformationMapping.source_file_pattern || '*',
         transformationMapping.target_connection_id,
         transformationMapping.target_file_path,
         transformationMapping.target_file_name,
