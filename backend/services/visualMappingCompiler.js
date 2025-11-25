@@ -111,15 +111,6 @@ class VisualMappingCompiler {
   validateGraphStructure(nodes, edges) {
     const errors = [];
     
-    // Must have at least one mapping config node
-    const mappingConfigNodes = nodes.filter(n => n.type === 'mappingConfig');
-    if (mappingConfigNodes.length === 0) {
-      errors.push('Graph must contain at least one Mapping Config node');
-    }
-    if (mappingConfigNodes.length > 1) {
-      errors.push('Graph can only contain one Mapping Config node');
-    }
-    
     // Must have at least one source node
     const sourceNodes = nodes.filter(n => n.type === 'sourceConfig');
     if (sourceNodes.length === 0) {
@@ -140,14 +131,14 @@ class VisualMappingCompiler {
     });
     
     const orphanedNodes = nodes.filter(n => 
-      !connectedNodeIds.has(n.id) && n.type !== 'mappingConfig'
+      !connectedNodeIds.has(n.id) && n.type !== 'sourceConfig'
     );
     
     if (orphanedNodes.length > 0) {
       errors.push(`Found ${orphanedNodes.length} unconnected node(s): ${orphanedNodes.map(n => n.data.label).join(', ')}`);
     }
     
-    // Validate edge rules: expression, rdmDataset, rdmCrosswalk, and targetRules nodes must have exactly one upstream
+    // Validate edge rules
     const nodeMap = {};
     nodes.forEach(n => nodeMap[n.id] = n);
     
@@ -159,12 +150,23 @@ class VisualMappingCompiler {
     nodes.forEach(node => {
       const incomingCount = incomingEdgeCount[node.id] || 0;
       
-      // Expression, RDM, and Target nodes need exactly one upstream
-      if (['expression', 'rdmDataset', 'rdmCrosswalk', 'targetRules'].includes(node.type)) {
+      // Expression, RDM Lookup, and Target nodes need exactly one upstream
+      if (['expression', 'rdmLookup', 'rdmDataset', 'rdmCrosswalk', 'targetRules'].includes(node.type)) {
         if (incomingCount === 0) {
           errors.push(`${this.getNodeTypeLabel(node.type)} "${node.data.label}" has no upstream connection`);
         } else if (incomingCount > 1) {
           errors.push(`${this.getNodeTypeLabel(node.type)} "${node.data.label}" has multiple upstream connections (${incomingCount}). Only one input is allowed.`);
+        }
+      }
+      
+      // Join nodes need exactly two upstream connections
+      if (node.type === 'join') {
+        if (incomingCount === 0) {
+          errors.push(`Join node "${node.data.label}" has no upstream connections`);
+        } else if (incomingCount === 1) {
+          errors.push(`Join node "${node.data.label}" needs two upstream connections for left and right inputs`);
+        } else if (incomingCount > 2) {
+          errors.push(`Join node "${node.data.label}" has too many upstream connections (${incomingCount}). Only two inputs are allowed.`);
         }
       }
       
@@ -191,9 +193,10 @@ class VisualMappingCompiler {
    */
   getNodeTypeLabel(type) {
     const labels = {
-      'mappingConfig': 'Mapping Config',
       'sourceConfig': 'Source Config',
       'expression': 'Expression',
+      'join': 'Join',
+      'rdmLookup': 'RDM Lookup',
       'rdmDataset': 'RDM Dataset',
       'rdmCrosswalk': 'RDM Crosswalk',
       'targetRules': 'Target Rules'
@@ -209,15 +212,6 @@ class VisualMappingCompiler {
     const config = node.data?.config || {};
     
     switch (node.type) {
-      case 'mappingConfig':
-        if (!config.name) {
-          errors.push(`Mapping Config node "${node.data.label}" is missing a name`);
-        }
-        if (!config.projectId) {
-          errors.push(`Mapping Config node "${node.data.label}" is missing project selection`);
-        }
-        break;
-        
       case 'sourceConfig':
         if (!config.connectionId) {
           errors.push(`Source Config node "${node.data.label}" is missing connection`);
@@ -231,8 +225,27 @@ class VisualMappingCompiler {
         break;
         
       case 'expression':
-        if (!config.fieldMappings || config.fieldMappings.length === 0) {
-          errors.push(`Expression node "${node.data.label}" has no field mappings configured`);
+        // Expression nodes can have empty fieldMappings if just passing through
+        break;
+        
+      case 'join':
+        if (!config.joinType) {
+          errors.push(`Join node "${node.data.label}" is missing join type`);
+        }
+        if (!config.joinConditions || config.joinConditions.length === 0) {
+          errors.push(`Join node "${node.data.label}" is missing join conditions`);
+        }
+        break;
+        
+      case 'rdmLookup':
+        if (!config.lookupType) {
+          errors.push(`RDM Lookup node "${node.data.label}" is missing lookup type`);
+        }
+        if (config.lookupType === 'dataset' && !config.datasetId) {
+          errors.push(`RDM Lookup node "${node.data.label}" is missing dataset selection`);
+        }
+        if (config.lookupType === 'crosswalk' && !config.crosswalkId) {
+          errors.push(`RDM Lookup node "${node.data.label}" is missing crosswalk selection`);
         }
         break;
         
