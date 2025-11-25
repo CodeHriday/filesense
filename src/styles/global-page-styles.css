@@ -366,6 +366,7 @@
   text-align: left;
   padding: 10px 12px;
   white-space: nowrap;
+  text-transform: none;
 }
 
 /* Table Body */
