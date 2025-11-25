@@ -155,12 +155,14 @@ const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
         const fileIdToPreserve = selectedFileId || initialConfig.agreementFileId;
         fetchAgreementFiles(agreement.id, fileIdToPreserve);
       }
-    } else {
-      // Clear agreement files when no vendor contract selected
+    } else if (!vendorAgreementId) {
+      // ONLY clear when vendorAgreementId is explicitly empty (user deselected)
+      // Do NOT clear when vendorAgreements is still loading (empty array but vendorAgreementId is set)
       setAgreementFiles([]);
       setSelectedFileId('');
       setSchema(null);
     }
+    // When vendorAgreementId is set but vendorAgreements hasn't loaded yet, do nothing - wait for it to load
   }, [vendorAgreementId, vendorAgreements, connections, datastewards]);
   
   // Update file pattern when selected file changes
