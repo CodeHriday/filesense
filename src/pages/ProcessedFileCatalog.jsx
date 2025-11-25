@@ -1,46 +1,37 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { FiArrowRight, FiTrash2, FiChevronDown, FiChevronRight, FiGitBranch, FiSearch, FiEye } from 'react-icons/fi';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { FiTrash2, FiSearch, FiEye, FiGitBranch } from 'react-icons/fi';
 import axios from 'axios';
-import PageHeader from '../components/PageHeader';
+import PageLayout from '../components/PageLayout';
 import LoadingSpinner from '../components/LoadingSpinner';
 import TransformationProfilingModal from '../components/TransformationProfilingModal';
-import TransformationDetailsPanel from '../components/TransformationDetailsPanel';
-import { PageTransition } from '../components/MicroAnimations';
-import { formatBytes, formatDate } from '../utils/formatters';
-import { getLineages } from '../api/lineageService';
+import { formatDate } from '../utils/formatters';
 import ConfirmModal from '../components/ConfirmModal';
-import './ProcessedFileCatalog.css';
+import '../styles/global-page-styles.css';
 
 const ProcessedFileCatalog = () => {
   const navigate = useNavigate();
   const [files, setFiles] = useState([]);
-  const [groupedFiles, setGroupedFiles] = useState({});
-  const [expandedMappings, setExpandedMappings] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedJobId, setSelectedJobId] = useState(null);
   const [showProfilingModal, setShowProfilingModal] = useState(false);
-  const [selectedLineage, setSelectedLineage] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedMapping, setSelectedMapping] = useState('all');
+  const [selectedProject, setSelectedProject] = useState('all');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(25);
   const [confirmModal, setConfirmModal] = useState({ isOpen: false, action: null, message: '', title: '' });
 
   const fetchTransformationFiles = useCallback(async () => {
     try {
       setLoading(true);
-      // Fetch file audit records for transformation-generated files
       const params = {
         load_type: 'etl_transformation',
         file_role: 'target'
       };
 
-      // Add search parameter if present
-      if (searchTerm && searchTerm.trim()) {
-        params.search = searchTerm.trim();
-      }
-
       const response = await axios.get('/api/file-audit', { params });
-      
       setFiles(response.data.audits || []);
       setError(null);
     } catch (err) {
@@ -49,13 +40,12 @@ const ProcessedFileCatalog = () => {
     } finally {
       setLoading(false);
     }
-  }, [searchTerm]);
+  }, []);
 
   useEffect(() => {
     fetchTransformationFiles();
   }, [fetchTransformationFiles]);
 
-  // Listen for vendor file uploads from other components/tabs
   useEffect(() => {
     const handleFileUploaded = (event) => {
       console.log('Vendor file uploaded, refreshing processed catalog...', event.detail);
@@ -63,46 +53,62 @@ const ProcessedFileCatalog = () => {
     };
 
     window.addEventListener('vendorFileUploaded', handleFileUploaded);
-
     return () => {
       window.removeEventListener('vendorFileUploaded', handleFileUploaded);
     };
   }, [fetchTransformationFiles]);
 
-  useEffect(() => {
-    // Debounce search: wait 300ms after user stops typing
-    const timeoutId = setTimeout(() => {
-      fetchTransformationFiles();
-    }, 300);
-
-    return () => clearTimeout(timeoutId);
-  }, [searchTerm, fetchTransformationFiles]);
-
-  useEffect(() => {
-    // Group files by mapping_name when files change
-    const grouped = files.reduce((acc, file) => {
-      const mappingName = file.mapping_name || 'Unknown Mapping';
-      if (!acc[mappingName]) {
-        acc[mappingName] = [];
-      }
-      acc[mappingName].push(file);
-      return acc;
-    }, {});
-
-    // Sort files within each group by created_dt (newest first)
-    Object.keys(grouped).forEach(key => {
-      grouped[key].sort((a, b) => new Date(b.created_dt) - new Date(a.created_dt));
-    });
-
-    setGroupedFiles(grouped);
-
-    // Start all mappings collapsed
-    const initialExpanded = {};
-    Object.keys(grouped).forEach(key => {
-      initialExpanded[key] = false;
-    });
-    setExpandedMappings(initialExpanded);
+  const uniqueMappings = useMemo(() => {
+    const mappings = files
+      .filter(f => f.mapping_name)
+      .map(f => f.mapping_name)
+      .filter((name, index, self) => self.indexOf(name) === index)
+      .sort();
+    return mappings;
   }, [files]);
+
+  const uniqueProjects = useMemo(() => {
+    const projects = files
+      .filter(f => f.project_name)
+      .map(f => ({ id: f.project_id, name: f.project_name }))
+      .filter((p, index, self) => self.findIndex(s => s.id === p.id) === index);
+    return projects;
+  }, [files]);
+
+  const filteredFiles = useMemo(() => {
+    let result = files;
+
+    if (searchTerm.trim()) {
+      const term = searchTerm.toLowerCase();
+      result = result.filter(f => 
+        f.file_name?.toLowerCase().includes(term) ||
+        f.source_path?.toLowerCase().includes(term) ||
+        f.mapping_name?.toLowerCase().includes(term)
+      );
+    }
+
+    if (selectedMapping !== 'all') {
+      result = result.filter(f => f.mapping_name === selectedMapping);
+    }
+
+    if (selectedProject !== 'all') {
+      result = result.filter(f => f.project_id === selectedProject);
+    }
+
+    result.sort((a, b) => new Date(b.created_dt) - new Date(a.created_dt));
+
+    return result;
+  }, [files, searchTerm, selectedMapping, selectedProject]);
+
+  const totalItems = filteredFiles.length;
+  const totalPages = Math.ceil(totalItems / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedFiles = filteredFiles.slice(startIndex, endIndex);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, selectedMapping, selectedProject, itemsPerPage]);
 
   const handleDeleteProfiling = async (correlationId, fileName) => {
     setConfirmModal({
@@ -112,7 +118,6 @@ const ProcessedFileCatalog = () => {
       action: async () => {
         try {
           await axios.delete(`/api/file-audit/correlation/${correlationId}`);
-          // Refresh the file list after deletion
           await fetchTransformationFiles();
         } catch (err) {
           console.error('Error deleting profiling results:', err);
@@ -122,271 +127,268 @@ const ProcessedFileCatalog = () => {
     });
   };
 
-  const toggleMapping = (mappingName) => {
-    setExpandedMappings(prev => ({
-      ...prev,
-      [mappingName]: !prev[mappingName]
-    }));
-  };
-
-  const getTotalFiles = () => {
-    return Object.values(groupedFiles).reduce((sum, files) => sum + files.length, 0);
-  };
-
-  const handleViewLineage = async (mappingName) => {
-    try {
-      // Fetch all lineage data
-      const lineageData = await getLineages();
-      
-      // Find the transformation lineage for this specific mapping
-      const transformationLineage = lineageData.transformation_lineage || [];
-      const mappingLineage = transformationLineage.find(
-        lineage => lineage.mapping_name === mappingName
-      );
-
-      if (mappingLineage) {
-        // Add type property for TransformationDetailsPanel
-        setSelectedLineage({ ...mappingLineage, type: 'transformation' });
-      } else {
-        alert(`No lineage found for mapping "${mappingName}"`);
-      }
-    } catch (err) {
-      console.error('Error fetching lineage:', err);
-      alert('Failed to load lineage data. Please try again.');
+  const handlePageChange = (page) => {
+    if (page >= 1 && page <= totalPages) {
+      setCurrentPage(page);
     }
+  };
+
+  const getPageNumbers = () => {
+    const pages = [];
+    const maxVisible = 5;
+    
+    if (totalPages <= maxVisible) {
+      for (let i = 1; i <= totalPages; i++) pages.push(i);
+    } else {
+      if (currentPage <= 3) {
+        for (let i = 1; i <= 4; i++) pages.push(i);
+        pages.push('...');
+        pages.push(totalPages);
+      } else if (currentPage >= totalPages - 2) {
+        pages.push(1);
+        pages.push('...');
+        for (let i = totalPages - 3; i <= totalPages; i++) pages.push(i);
+      } else {
+        pages.push(1);
+        pages.push('...');
+        for (let i = currentPage - 1; i <= currentPage + 1; i++) pages.push(i);
+        pages.push('...');
+        pages.push(totalPages);
+      }
+    }
+    return pages;
   };
 
   if (loading) {
     return (
-      <PageTransition>
-        <div className="gps-page-container">
-          <PageHeader
-            title="Processed File Catalog"
-            subtitle="Files created by ETL transformations"
-            hideHomeButton={true}
-          />
-          <LoadingSpinner />
-        </div>
-      </PageTransition>
+      <PageLayout 
+        title="Processed File Catalog"
+        subtitle="Files created by ETL transformations with profiling history"
+      >
+        <LoadingSpinner />
+      </PageLayout>
     );
   }
 
-  const mappingKeys = Object.keys(groupedFiles).sort();
-
   return (
-    <PageTransition>
-      <div className="gps-page-container">
-        <PageHeader
-          title="Processed File Catalog"
-          subtitle="Files created by ETL transformations with profiling history"
-          hideHomeButton={true}
-          actions={
-            <div className="catalog-file-count">
-              <strong>{getTotalFiles()}</strong>
-              <span>Total Files</span>
-            </div>
-          }
-        />
-
-        <div className="search-input-container">
-          <FiSearch className="search-icon" />
-          <input
-            type="text"
-            placeholder="Search by mapping or file name..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="search-input"
-          />
+    <PageLayout 
+      title="Processed File Catalog"
+      subtitle="Files created by ETL transformations with profiling history"
+    >
+      <div className="gps-card">
+        <div className="gps-card-header">
+          <h3 className="gps-card-title">Transformation Files</h3>
+          <span className="gps-badge gps-badge--info">{totalItems} Files</span>
         </div>
-
-        {error && (
-          <div className="alert alert-danger">{error}</div>
-        )}
-
-        {mappingKeys.length === 0 ? (
-          <div className="empty-state-card">
-            <p>No transformation files found. Transform data using ETL Mappings to see files here.</p>
+        
+        <div className="gps-card-body">
+          <div className="gps-filter-row">
+            <div className="gps-search-box" style={{ flex: 2 }}>
+              <FiSearch className="gps-search-icon" />
+              <input
+                type="text"
+                placeholder="Search by mapping or file name..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="gps-form-input"
+                style={{ paddingLeft: '36px' }}
+              />
+            </div>
+            
+            <select
+              value={selectedMapping}
+              onChange={(e) => setSelectedMapping(e.target.value)}
+              className="gps-form-select"
+              style={{ minWidth: '200px' }}
+            >
+              <option value="all">All Mappings</option>
+              {uniqueMappings.map(mapping => (
+                <option key={mapping} value={mapping}>{mapping}</option>
+              ))}
+            </select>
+            
+            <select
+              value={selectedProject}
+              onChange={(e) => setSelectedProject(e.target.value)}
+              className="gps-form-select"
+              style={{ minWidth: '180px' }}
+            >
+              <option value="all">All Projects</option>
+              {uniqueProjects.map(project => (
+                <option key={project.id} value={project.id}>{project.name}</option>
+              ))}
+            </select>
           </div>
-        ) : (
-          <div className="mapping-groups-container">
-            {mappingKeys.map((mappingName) => {
-              const filesInGroup = groupedFiles[mappingName];
-              const isExpanded = expandedMappings[mappingName];
 
-              return (
-                <div key={mappingName} className="mapping-group">
-                  <div 
-                    className="mapping-group-header"
-                    onClick={() => toggleMapping(mappingName)}
+          {error && (
+            <div className="gps-alert gps-alert--danger" style={{ marginBottom: '16px' }}>{error}</div>
+          )}
+
+          {paginatedFiles.length === 0 ? (
+            <div className="gps-empty-state">
+              <p>No transformation files found. Transform data using ETL Mappings to see files here.</p>
+            </div>
+          ) : (
+            <>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0', borderBottom: '1px solid #e2e8f0', fontSize: '10px', color: '#666' }}>
+                <span>
+                  Showing {startIndex + 1}-{Math.min(endIndex, totalItems)} of {totalItems} files
+                </span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <label style={{ fontSize: '10px', color: '#666' }}>Items per page:</label>
+                  <select 
+                    value={itemsPerPage} 
+                    onChange={(e) => setItemsPerPage(Number(e.target.value))}
+                    className="gps-form-select"
+                    style={{ minWidth: '60px', padding: '4px 8px' }}
                   >
-                    <div className="mapping-header-left">
-                      {isExpanded ? <FiChevronDown size={20} /> : <FiChevronRight size={20} />}
-                      <span className="mapping-name-title">
-                        {mappingName}
-                      </span>
-                      <Link 
-                        to={`/mappings`} 
-                        className="view-mapping-link"
-                        onClick={(e) => e.stopPropagation()}
-                        title="View mapping"
-                      >
-                        <FiArrowRight size={16} />
-                        View Mapping
-                      </Link>
-                      <button
-                        className="view-lineage-link"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleViewLineage(mappingName);
-                        }}
-                        title="View lineage for this mapping"
-                      >
-                        <FiGitBranch size={16} />
-                        View Lineage
-                      </button>
-                    </div>
-                    <div className="mapping-header-right">
-                      <span className="file-count-badge">
-                        {filesInGroup.length} {filesInGroup.length === 1 ? 'file' : 'files'}
-                      </span>
-                    </div>
-                  </div>
-
-                  {isExpanded && (
-                    <div className="mapping-group-body">
-                      <div style={{ overflowX: 'auto', width: '100%' }}>
-                        <table className="gps-table">
-                        <thead>
-                          <tr>
-                            <th>Source File</th>
-                            <th>Target File</th>
-                            <th>Created</th>
-                            <th>Project</th>
-                            <th>Actions</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {filesInGroup.map((file) => (
-                            <tr key={file.id}>
-                              <td className="source-file">
-                                <span className="file-name">
-                                  {file.source_path || '-'}
-                                  {file.has_schema_changes && (
-                                    <span 
-                                      className="schema-changed-badge" 
-                                      title="Schema has changed from previous upload"
-                                      style={{
-                                        marginLeft: '8px',
-                                        padding: '2px 8px',
-                                        backgroundColor: '#ff9800',
-                                        color: 'white',
-                                        borderRadius: '4px',
-                                        fontSize: '0.75rem',
-                                        fontWeight: '500',
-                                        display: 'inline-flex',
-                                        alignItems: 'center',
-                                        gap: '4px'
-                                      }}
-                                    >
-                                      <FiGitBranch size={12} /> Schema Changed
-                                    </span>
-                                  )}
-                                </span>
-                              </td>
-                              <td>{file.file_name}</td>
-                              <td className="created-date">
-                                {formatDate(file.created_dt)}
-                              </td>
-                              <td className="project-name">{file.project_name || 'Default Project'}</td>
-                              <td>
-                                <div className="action-buttons">
-                                  <button 
-                                    className="btn-view-profiling"
-                                    onClick={() => {
-                                      setSelectedJobId(file.job_id);
-                                      setShowProfilingModal(true);
-                                    }}
-                                    disabled={!file.job_id}
-                                    title="View source file profiling results"
-                                  >
-                                    Source File Profile
-                                  </button>
-                                  <button 
-                                    className="btn-view-profile"
-                                    onClick={() => navigate(`/profile/${encodeURIComponent(file.file_id)}`)}
-                                    disabled={!file.file_id}
-                                    title="View target file profile and schema history"
-                                    style={{
-                                      padding: '6px 12px',
-                                      backgroundColor: '#3b82f6',
-                                      color: 'white',
-                                      border: 'none',
-                                      borderRadius: '4px',
-                                      cursor: file.file_id ? 'pointer' : 'not-allowed',
-                                      display: 'inline-flex',
-                                      alignItems: 'center',
-                                      gap: '4px',
-                                      fontSize: '0.875rem',
-                                      marginLeft: '8px'
-                                    }}
-                                  >
-                                    <FiEye size={16} /> Target File Profile
-                                  </button>
-                                  <button 
-                                    className="btn-delete-profiling"
-                                    onClick={() => handleDeleteProfiling(file.correlation_id, file.file_name)}
-                                    disabled={!file.correlation_id}
-                                    title="Delete profiling results"
-                                  >
-                                    <FiTrash2 size={16} />
-                                  </button>
-                                </div>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                      </div>
-                    </div>
-                  )}
+                    <option value="10">10</option>
+                    <option value="25">25</option>
+                    <option value="50">50</option>
+                    <option value="100">100</option>
+                  </select>
                 </div>
-              );
-            })}
-          </div>
-        )}
-
-        {/* Profiling Modal */}
-        {showProfilingModal && selectedJobId && (
-          <TransformationProfilingModal
-            jobId={selectedJobId}
-            onClose={() => {
-              setShowProfilingModal(false);
-              setSelectedJobId(null);
-            }}
-          />
-        )}
-
-        {/* Lineage Details Modal */}
-        {selectedLineage && (
-          <TransformationDetailsPanel
-            transformationData={selectedLineage}
-            onClose={() => setSelectedLineage(null)}
-          />
-        )}
-
-        <ConfirmModal
-          isOpen={confirmModal.isOpen}
-          onClose={() => setConfirmModal({ ...confirmModal, isOpen: false })}
-          onConfirm={() => {
-            confirmModal.action?.();
-            setConfirmModal({ ...confirmModal, isOpen: false });
-          }}
-          title={confirmModal.title}
-          message={confirmModal.message}
-          variant="danger"
-        />
+              </div>
+              
+              <div style={{ overflowX: 'auto' }}>
+                <table className="gps-table">
+                  <thead>
+                    <tr>
+                      <th>Mapping</th>
+                      <th>Source File</th>
+                      <th>Target File</th>
+                      <th>Created</th>
+                      <th>Project</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {paginatedFiles.map((file) => (
+                      <tr key={file.id}>
+                        <td>
+                          <span className="gps-badge gps-badge--muted" style={{ fontSize: '9px', padding: '2px 8px' }}>
+                            {file.mapping_name || 'Unknown'}
+                          </span>
+                        </td>
+                        <td>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span>{file.source_path || '-'}</span>
+                            {file.has_schema_changes && (
+                              <span 
+                                className="gps-badge gps-badge--warning"
+                                style={{ fontSize: '9px', padding: '2px 6px', display: 'inline-flex', alignItems: 'center', gap: '3px' }}
+                                title="Schema has changed from previous upload"
+                              >
+                                <FiGitBranch size={10} /> Schema Changed
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td>{file.file_name}</td>
+                        <td style={{ whiteSpace: 'nowrap' }}>
+                          {file.created_dt ? formatDate(file.created_dt) : '-'}
+                        </td>
+                        <td>{file.project_name || 'Default Project'}</td>
+                        <td>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <button 
+                              className="gps-btn gps-btn--success gps-btn--sm"
+                              onClick={() => {
+                                setSelectedJobId(file.job_id);
+                                setShowProfilingModal(true);
+                              }}
+                              disabled={!file.job_id}
+                              title="View source file profiling results"
+                            >
+                              Source File Profile
+                            </button>
+                            <button 
+                              className="gps-btn gps-btn--primary gps-btn--sm"
+                              onClick={() => navigate(`/profile/${encodeURIComponent(file.file_id)}`)}
+                              disabled={!file.file_id}
+                              title="View target file profile and schema history"
+                              style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                            >
+                              <FiEye size={14} /> Target File Profile
+                            </button>
+                            <button 
+                              className="gps-icon-btn gps-icon-btn--delete"
+                              onClick={() => handleDeleteProfiling(file.correlation_id, file.file_name)}
+                              disabled={!file.correlation_id}
+                              title="Delete profiling results"
+                            >
+                              <FiTrash2 size={14} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            
+              {totalPages > 1 && (
+                <div className="gps-pagination">
+                  <button
+                    className="gps-btn gps-btn--secondary gps-btn--sm"
+                    onClick={() => handlePageChange(currentPage - 1)}
+                    disabled={currentPage === 1}
+                  >
+                    Previous
+                  </button>
+                  
+                  <div className="gps-pagination-numbers">
+                    {getPageNumbers().map((page, index) => (
+                      page === '...' ? (
+                        <span key={`ellipsis-${index}`} className="gps-pagination-ellipsis">...</span>
+                      ) : (
+                        <button
+                          key={page}
+                          className={`gps-pagination-number ${currentPage === page ? 'active' : ''}`}
+                          onClick={() => handlePageChange(page)}
+                        >
+                          {page}
+                        </button>
+                      )
+                    ))}
+                  </div>
+                  
+                  <button
+                    className="gps-btn gps-btn--secondary gps-btn--sm"
+                    onClick={() => handlePageChange(currentPage + 1)}
+                    disabled={currentPage === totalPages}
+                  >
+                    Next
+                  </button>
+                </div>
+              )}
+            </>
+          )}
+        </div>
       </div>
-    </PageTransition>
+
+      {showProfilingModal && selectedJobId && (
+        <TransformationProfilingModal
+          jobId={selectedJobId}
+          onClose={() => {
+            setShowProfilingModal(false);
+            setSelectedJobId(null);
+          }}
+        />
+      )}
+
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        onClose={() => setConfirmModal({ ...confirmModal, isOpen: false })}
+        onConfirm={() => {
+          confirmModal.action?.();
+          setConfirmModal({ ...confirmModal, isOpen: false });
+        }}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        variant="danger"
+      />
+    </PageLayout>
   );
 };
 
