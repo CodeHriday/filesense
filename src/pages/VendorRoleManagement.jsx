@@ -2,11 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
-import { FaEdit } from 'react-icons/fa';
-import { FiSearch } from 'react-icons/fi';
+import { FiEdit2, FiSearch } from 'react-icons/fi';
 import LoadingSpinner from '../components/LoadingSpinner';
 import Pagination from '../components/Pagination';
-import '../styles/RoleManagement.css';
+import '../styles/global-page-styles.css';
 
 const VendorRoleManagement = () => {
   const [roles, setRoles] = useState([]);
@@ -20,7 +19,6 @@ const VendorRoleManagement = () => {
   const { currentUser, hasPermission } = useAuth();
   const navigate = useNavigate();
   
-  // Check if user has vendor_roles:read permission
   const canAccessVendorRoles = hasPermission && hasPermission('vendor_roles:read');
   
   useEffect(() => {
@@ -43,7 +41,6 @@ const VendorRoleManagement = () => {
     
     try {
       const response = await axios.get('/api/users/roles');
-      // Filter to show vendor-related roles
       const vendorRoles = response.data.filter(role => 
         role.name.toLowerCase().includes('vendor') || role.name === 'Vendor'
       );
@@ -73,7 +70,6 @@ const VendorRoleManagement = () => {
   const endIndex = startIndex + pageSize;
   const currentRoles = filteredRoles.slice(startIndex, endIndex);
 
-  // Clamp currentPage when filtered results shrink
   useEffect(() => {
     if (totalPages > 0 && currentPage > totalPages) {
       setCurrentPage(totalPages);
@@ -87,45 +83,43 @@ const VendorRoleManagement = () => {
   }
   
   return (
-    <div className="role-management-container">
-      <div className="role-management-header">
-        <h1>Vendor Role Management</h1>
-        <div style={{ position: 'relative', minWidth: '300px' }}>
-          <FiSearch style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#64748b', pointerEvents: 'none' }} />
-          <input
-            type="text"
-            placeholder="Search vendor roles..."
-            value={searchTerm}
-            onChange={(e) => {
-              setSearchTerm(e.target.value);
-              setCurrentPage(1);
-            }}
-            style={{
-              width: '100%',
-              padding: '0.5rem 0.75rem 0.5rem 2.5rem',
-              border: '1px solid #cbd5e1',
-              borderRadius: '6px',
-              fontSize: '0.9rem',
-              outline: 'none'
-            }}
-          />
+    <div className="gps-page-container">
+      <div className="gps-page-header">
+        <div className="gps-page-header-left">
+          <h1 className="gps-page-title">Vendor Role Management</h1>
+          <p className="gps-page-subtitle">Manage vendor-specific roles and permissions</p>
+        </div>
+        <div className="gps-header-actions">
+          <div className="gps-search-wrapper">
+            <FiSearch className="gps-search-icon" />
+            <input
+              type="text"
+              className="gps-search-input"
+              placeholder="Search vendor roles..."
+              value={searchTerm}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setCurrentPage(1);
+              }}
+            />
+          </div>
         </div>
       </div>
       
       {error && (
-        <div className="error-message" role="alert">
+        <div className="gps-alert gps-alert--error" role="alert">
           {error}
         </div>
       )}
       
       {successMessage && (
-        <div className="success-message" role="alert">
+        <div className="gps-alert gps-alert--success" role="alert">
           {successMessage}
         </div>
       )}
       
-      <div className="roles-table-container">
-        <table className="roles-table">
+      <div className="gps-table-container">
+        <table className="gps-table">
           <thead>
             <tr>
               <th>Role Name</th>
@@ -136,7 +130,7 @@ const VendorRoleManagement = () => {
           <tbody>
             {filteredRoles.length === 0 ? (
               <tr>
-                <td colSpan="3" className="no-roles-message">
+                <td colSpan="3" className="gps-table-empty">
                   {searchTerm ? 'No vendor roles found matching your search' : 'No vendor roles found'}
                 </td>
               </tr>
@@ -146,13 +140,15 @@ const VendorRoleManagement = () => {
                   <td>{role.name}</td>
                   <td>{role.description || '-'}</td>
                   <td>
-                    <button
-                      className="icon-button edit-button"
-                      onClick={() => handleEditRole(role.id)}
-                      title="Edit role"
-                    >
-                      <FaEdit />
-                    </button>
+                    <div className="gps-action-buttons">
+                      <button
+                        className="gps-icon-btn gps-icon-btn--edit"
+                        onClick={() => handleEditRole(role.id)}
+                        title="Edit role"
+                      >
+                        <FiEdit2 />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))
@@ -171,7 +167,7 @@ const VendorRoleManagement = () => {
         />
       )}
       
-      <div className="role-info" style={{ marginTop: '2rem', padding: '1rem', backgroundColor: '#f8f9fa', borderRadius: '6px' }}>
+      <div className="gps-info-box">
         <p><strong>Note:</strong> Vendor roles define permissions for vendor users accessing the system. Contact system administrators to modify role permissions.</p>
       </div>
     </div>

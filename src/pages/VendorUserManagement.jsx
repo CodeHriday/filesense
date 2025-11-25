@@ -2,11 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
-import { FiEdit2, FiSearch } from 'react-icons/fi';
-import { FaUserPlus } from 'react-icons/fa';
+import { FiEdit2, FiSearch, FiUserPlus } from 'react-icons/fi';
 import LoadingSpinner from '../components/LoadingSpinner';
 import Pagination from '../components/Pagination';
-import '../styles/UserManagement.css';
+import '../styles/global-page-styles.css';
 
 const VendorUserManagement = () => {
   const [vendorUsers, setVendorUsers] = useState([]);
@@ -20,7 +19,6 @@ const VendorUserManagement = () => {
   const { currentUser, hasPermission } = useAuth();
   const navigate = useNavigate();
   
-  // Check if user has vendor_users:read permission
   const canAccessVendorUsers = hasPermission && hasPermission('vendor_users:read');
   
   useEffect(() => {
@@ -77,7 +75,6 @@ const VendorUserManagement = () => {
   const endIndex = startIndex + pageSize;
   const currentVendorUsers = filteredVendorUsers.slice(startIndex, endIndex);
 
-  // Clamp currentPage when filtered results shrink
   useEffect(() => {
     if (totalPages > 0 && currentPage > totalPages) {
       setCurrentPage(totalPages);
@@ -91,54 +88,50 @@ const VendorUserManagement = () => {
   }
   
   return (
-    <div className="user-management-container">
-      <div className="user-management-header">
-        <h1>Vendor User Management</h1>
-        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-          <div style={{ position: 'relative', minWidth: '300px' }}>
-            <FiSearch style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#64748b', pointerEvents: 'none' }} />
+    <div className="gps-page-container">
+      <div className="gps-page-header">
+        <div className="gps-page-header-left">
+          <h1 className="gps-page-title">Vendor User Management</h1>
+          <p className="gps-page-subtitle">Manage vendor user accounts and access</p>
+        </div>
+        <div className="gps-header-actions">
+          <div className="gps-search-wrapper">
+            <FiSearch className="gps-search-icon" />
             <input
               type="text"
+              className="gps-search-input"
               placeholder="Search vendor users..."
               value={searchTerm}
               onChange={(e) => {
                 setSearchTerm(e.target.value);
                 setCurrentPage(1);
               }}
-              style={{
-                width: '100%',
-                padding: '0.5rem 0.75rem 0.5rem 2.5rem',
-                border: '1px solid #cbd5e1',
-                borderRadius: '6px',
-                fontSize: '0.9rem',
-                outline: 'none'
-              }}
             />
           </div>
           <button 
-            className="btn-primary"
+            className="gps-btn gps-btn--primary"
             onClick={handleCreateVendorUser}
             title="Create new vendor user"
           >
-            <FaUserPlus /> Create Vendor User
+            <FiUserPlus /> Create Vendor User
           </button>
         </div>
       </div>
       
       {error && (
-        <div className="error-message" role="alert">
+        <div className="gps-alert gps-alert--error" role="alert">
           {error}
         </div>
       )}
       
       {successMessage && (
-        <div className="success-message" role="alert">
+        <div className="gps-alert gps-alert--success" role="alert">
           {successMessage}
         </div>
       )}
       
-      <div className="users-table-container">
-        <table className="users-table">
+      <div className="gps-table-container">
+        <table className="gps-table">
           <thead>
             <tr>
               <th>Username</th>
@@ -152,7 +145,7 @@ const VendorUserManagement = () => {
           <tbody>
             {filteredVendorUsers.length === 0 ? (
               <tr>
-                <td colSpan="6" className="no-users-message">
+                <td colSpan="6" className="gps-table-empty">
                   {searchTerm ? 'No vendor users found matching your search' : 'No vendor users found'}
                 </td>
               </tr>
@@ -164,16 +157,18 @@ const VendorUserManagement = () => {
                   <td>{user.email}</td>
                   <td>{user.phone_number || '-'}</td>
                   <td>
-                    <span className="status-badge status-active">Active</span>
+                    <span className="gps-badge gps-badge--success">Active</span>
                   </td>
                   <td>
-                    <button
-                      className="icon-button edit-button"
-                      onClick={() => handleEditUser(user.id)}
-                      title="Edit user"
-                    >
-                      <FiEdit2 />
-                    </button>
+                    <div className="gps-action-buttons">
+                      <button
+                        className="gps-icon-btn gps-icon-btn--edit"
+                        onClick={() => handleEditUser(user.id)}
+                        title="Edit user"
+                      >
+                        <FiEdit2 />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))
