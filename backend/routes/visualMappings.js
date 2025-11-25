@@ -404,14 +404,13 @@ router.post('/:id/execute', async (req, res) => {
       ]
     );
     
-    const transformationId = transformResult.rows[0].id;
+    const transformationDbId = transformResult.rows[0].id;
     
-    // Use TransformationService to execute with proper authorization and business logic
-    const TransformationService = require('../services/TransformationService');
-    const transformationService = new TransformationService();
+    // Use jobExecutionEngine to execute with transformation_mappings table (uses mapping_id string, not numeric id)
+    const { executeTransformationJob } = require('../services/jobExecutionEngine');
     try {
       // Pass visualMappingExecutionId as an option so the job execution engine can emit WebSocket events
-      const jobResult = await transformationService.executeTransformation(transformationId, req.user.id, {
+      const jobResult = await executeTransformationJob(pool, tempMappingId, req.user.id, {
         visualMappingExecutionId: executionId
       });
       
@@ -420,7 +419,7 @@ router.post('/:id/execute', async (req, res) => {
         `UPDATE visual_mapping_executions 
          SET job_id = $1, status = 'running', transformation_id = $2
          WHERE execution_id = $3`,
-        [jobResult.job_id, transformationId, executionId]
+        [jobResult.job_id, transformationDbId, executionId]
       );
       
       // Schedule cleanup of temporary transformation mapping after job completes
@@ -431,7 +430,7 @@ router.post('/:id/execute', async (req, res) => {
         execution_id: executionId,
         mapping_id: id,
         job_id: jobResult.job_id,
-        transformation_id: transformationId
+        transformation_id: transformationDbId
       });
     } catch (execError) {
       // Update execution status to failed
@@ -444,8 +443,8 @@ router.post('/:id/execute', async (req, res) => {
       
       // Clean up temporary transformation mapping on failure
       await pool.query(
-        `DELETE FROM transformation_mappings WHERE id = $1 AND is_temporary = true`,
-        [transformationId]
+        `DELETE FROM transformation_mappings WHERE mapping_id = $1 AND is_temporary = true`,
+        [tempMappingId]
       );
       
       throw execError;
