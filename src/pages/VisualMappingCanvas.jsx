@@ -321,8 +321,10 @@ const VisualMappingCanvasContent = () => {
     executionComplete,
     executionError,
     resetExecution,
-    isConnected
-  } = useVisualMappingExecution(currentExecutionId);
+    isConnected,
+    subscribeToExecution,
+    generateExecutionId
+  } = useVisualMappingExecution();
   
   // Configuration modal
   const [configModalOpen, setConfigModalOpen] = useState(false);
@@ -814,8 +816,20 @@ const VisualMappingCanvasContent = () => {
       setIsExecuting(true);
       setError(null);
       
-      const response = await axios.post(`/api/visual-mappings/${mappingId}/execute`);
-      setCurrentExecutionId(response.data.execution_id); // Enable WebSocket tracking
+      // Generate execution ID and subscribe to WebSocket BEFORE starting execution
+      const executionId = generateExecutionId();
+      console.log('Generated execution ID:', executionId);
+      
+      // Subscribe to WebSocket updates first
+      await subscribeToExecution(executionId);
+      console.log('Subscribed to execution updates');
+      setCurrentExecutionId(executionId);
+      
+      // Now start the execution with the pre-generated execution ID
+      const response = await axios.post(`/api/visual-mappings/${mappingId}/execute`, {
+        execution_id: executionId
+      });
+      
       setSuccess(`Execution started - monitoring real-time progress`);
     } catch (error) {
       console.error('Error executing mapping:', error);

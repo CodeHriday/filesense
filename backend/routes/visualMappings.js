@@ -298,6 +298,7 @@ router.delete('/:id', async (req, res) => {
 router.post('/:id/execute', async (req, res) => {
   try {
     const { id } = req.params;
+    const { execution_id: clientExecutionId } = req.body;
     
     // Get the mapping
     const mappingResult = await pool.query(
@@ -333,8 +334,9 @@ router.post('/:id/execute', async (req, res) => {
     // Extract the compiled transformation mapping
     const transformationMapping = compilationResult.transformationMapping;
     
-    // Create execution record
-    const executionId = uuidv4();
+    // Use client-provided execution ID if available (for real-time WebSocket tracking)
+    // This allows the client to subscribe to updates BEFORE execution starts
+    const executionId = clientExecutionId || uuidv4();
     await pool.query(
       `INSERT INTO visual_mapping_executions (execution_id, mapping_id, status, triggered_by)
        VALUES ($1, $2, 'running', $3)`,
