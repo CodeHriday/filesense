@@ -29,11 +29,28 @@ const RdmLookupModal = ({ isOpen, onClose, onSave, initialConfig = {}, cumulativ
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   
+  // Reset all state when modal opens or initialConfig changes
   useEffect(() => {
     if (isOpen) {
+      const currentLookupType = initialConfig.lookupType || 'dataset';
+      setLookupType(currentLookupType);
+      setActiveTab('config');
+      
+      // Reset dataset state
+      if (currentLookupType === 'dataset') {
+        setDatasetConfig(initialConfig);
+        setJoinConditions(initialConfig.joinKeys || [{ dataset_column: '', source_column: '' }]);
+        setCrosswalkConfig({});
+      } else {
+        // Reset crosswalk state
+        setCrosswalkConfig(initialConfig);
+        setDatasetConfig({});
+        setJoinConditions([{ dataset_column: '', source_column: '' }]);
+      }
+      
       fetchRdmResources();
     }
-  }, [isOpen]);
+  }, [isOpen, initialConfig]);
   
   useEffect(() => {
     if (datasetConfig?.datasetId) {
