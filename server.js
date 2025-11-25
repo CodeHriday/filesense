@@ -884,11 +884,28 @@ app.get('/api/files', authenticateToken, attachVendorProfile, cacheMiddleware(30
     
     // Use the FileService from the DI container
     const fileService = diContainer.get('fileService');
-    let files = await fileService.getAllFiles({
+    
+    // Build filter options from query parameters
+    const filterOptions = {
       sortBy: 'created_at',
       sortOrder: 'DESC',
       projectIds: projectIds  // Pass user's accessible project IDs
-    });
+    };
+    
+    // Add project and sub-project filters from query params if provided
+    if (req.query.project_id) {
+      const requestedProjectId = parseInt(req.query.project_id);
+      // Only filter by requested project if user has access
+      if (isAdmin || (projectIds && projectIds.includes(requestedProjectId))) {
+        filterOptions.projectIds = [requestedProjectId];
+      }
+    }
+    
+    if (req.query.sub_project_id) {
+      filterOptions.subProjectId = parseInt(req.query.sub_project_id);
+    }
+    
+    let files = await fileService.getAllFiles(filterOptions);
     
     // Apply vendor-specific filtering if user is a vendor
     if (req.isVendor && req.vendorProfile) {
@@ -989,6 +1006,59 @@ app.get('/api/vendor-files', authenticateToken, attachVendorProfile, cacheMiddle
     res.status(500).json({ error: 'Failed to fetch vendor files' });
   }
 });
+
+app.get('/api/files/:fileId/schema', 
+  authenticateToken,
+  cacheMiddleware(600),
+  requireProjectAccess({
+    resourceType: 'file'
+  }),
+  async (req, res) => {
+    try {
+      const { fileId } = req.params;
+      
+      // Get file metadata
+      const fileResult = await dbPool.query(
+        'SELECT file_id, file_name, file_type, schema_metadata FROM files WHERE file_id = $1',
+        [fileId]
+      );
+      
+      if (fileResult.rows.length === 0) {
+        return res.status(404).json({ error: 'File not found' });
+      }
+      
+      const file = fileResult.rows[0];
+      
+      // Get schema from file_columns table
+      const schemaResult = await dbPool.query(
+        `SELECT column_name, data_type, description, contains_pii, column_order
+         FROM file_columns
+         WHERE file_id = $1
+         ORDER BY column_order ASC`,
+        [fileId]
+      );
+      
+      const schema = schemaResult.rows.map(col => ({
+        name: col.column_name,
+        type: col.data_type,
+        description: col.description,
+        contains_pii: col.contains_pii || false
+      }));
+      
+      res.json({
+        fileId: file.file_id,
+        fileName: file.file_name,
+        fileFormat: file.file_type,
+        schema,
+        columnCount: schema.length,
+        schemaMetadata: file.schema_metadata || {}
+      });
+    } catch (err) {
+      logger.error('Error fetching file schema', { error: err.message, fileId: req.params.fileId });
+      res.status(500).json({ error: 'Failed to fetch file schema' });
+    }
+  }
+);
 
 app.get('/api/files/:fileId', 
   authenticateToken,
