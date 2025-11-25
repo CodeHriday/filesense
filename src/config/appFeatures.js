@@ -221,7 +221,7 @@ export const APP_FEATURES = [
   { 
     id: 'lineage', 
     name: 'File Lineage', 
-    category: 'Governance',
+    category: 'Archived',
     icon: FiGitBranch,
     route: '/lineage',
     showInSidebar: true
