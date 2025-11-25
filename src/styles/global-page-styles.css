@@ -1051,3 +1051,353 @@
 .gps-gap-2 {
   gap: var(--gps-spacing-lg);
 }
+
+/* ============================================
+   MODAL STYLES
+   ============================================ */
+.gps-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.gps-modal {
+  background: var(--gps-bg-white);
+  border-radius: var(--gps-radius-md);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.2);
+  max-width: 500px;
+  width: 90%;
+  max-height: 90vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.gps-modal--large {
+  max-width: 800px;
+}
+
+.gps-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--gps-spacing-lg) var(--gps-spacing-xl);
+  border-bottom: 1px solid var(--gps-border-light);
+  background: var(--gps-bg-header);
+}
+
+.gps-modal-title {
+  font-family: var(--gps-font-family);
+  font-size: var(--gps-font-size-title);
+  font-weight: var(--gps-font-weight-bold);
+  color: var(--gps-primary-teal);
+  margin: 0;
+}
+
+.gps-modal-close {
+  background: none;
+  border: none;
+  font-size: 24px;
+  color: var(--gps-text-muted);
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+}
+
+.gps-modal-close:hover {
+  color: var(--gps-text-dark);
+}
+
+.gps-modal-body {
+  padding: var(--gps-spacing-xl);
+  overflow-y: auto;
+  flex: 1;
+}
+
+.gps-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--gps-spacing-md);
+  padding: var(--gps-spacing-lg) var(--gps-spacing-xl);
+  border-top: 1px solid var(--gps-border-light);
+  background: var(--gps-bg-header);
+}
+
+.gps-modal-sections {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gps-spacing-xl);
+}
+
+/* ============================================
+   FORM STYLES
+   ============================================ */
+.gps-form-group {
+  margin-bottom: var(--gps-spacing-lg);
+}
+
+.gps-form-label {
+  display: block;
+  font-family: var(--gps-font-family);
+  font-size: var(--gps-font-size-header);
+  font-weight: var(--gps-font-weight-bold);
+  color: var(--gps-text-dark);
+  margin-bottom: var(--gps-spacing-sm);
+}
+
+.gps-form-input,
+.gps-form-textarea,
+.gps-form-select {
+  font-family: var(--gps-font-family);
+  font-size: var(--gps-font-size-content);
+  font-weight: var(--gps-font-weight-medium);
+  width: 100%;
+  padding: var(--gps-spacing-md);
+  border: 1px solid var(--gps-border-input);
+  border-radius: var(--gps-radius-sm);
+  background: var(--gps-bg-white);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.gps-form-input:focus,
+.gps-form-textarea:focus,
+.gps-form-select:focus {
+  outline: none;
+  border-color: var(--gps-primary-teal);
+  box-shadow: 0 0 0 3px rgba(2, 80, 67, 0.1);
+}
+
+.gps-form-textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+.gps-form-hint {
+  display: block;
+  font-family: var(--gps-font-family);
+  font-size: 11px;
+  color: var(--gps-text-muted);
+  margin-top: var(--gps-spacing-xs);
+}
+
+.gps-form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--gps-spacing-lg);
+}
+
+.gps-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: var(--gps-spacing-sm);
+  font-family: var(--gps-font-family);
+  font-size: var(--gps-font-size-content);
+  font-weight: var(--gps-font-weight-medium);
+  color: var(--gps-text-dark);
+  cursor: pointer;
+}
+
+.gps-checkbox-label input[type="checkbox"] {
+  width: 14px;
+  height: 14px;
+  accent-color: var(--gps-primary-teal);
+  cursor: pointer;
+}
+
+.gps-inline-form {
+  margin-bottom: var(--gps-spacing-lg);
+}
+
+.gps-inline-form .gps-form-row {
+  display: flex;
+  gap: var(--gps-spacing-md);
+  align-items: flex-end;
+}
+
+/* ============================================
+   SECTION STYLES
+   ============================================ */
+.gps-section {
+  margin-bottom: var(--gps-spacing-xl);
+}
+
+.gps-section-header {
+  font-family: var(--gps-font-family);
+  font-size: var(--gps-font-size-header);
+  font-weight: var(--gps-font-weight-bold);
+  color: var(--gps-primary-teal);
+  margin: 0 0 var(--gps-spacing-lg) 0;
+  padding-bottom: var(--gps-spacing-sm);
+  border-bottom: 2px solid var(--gps-border-light);
+}
+
+.gps-divider {
+  border: none;
+  border-top: 1px solid var(--gps-border-light);
+  margin: var(--gps-spacing-xl) 0;
+}
+
+/* ============================================
+   SCROLLABLE LIST
+   ============================================ */
+.gps-scrollable-list {
+  max-height: 250px;
+  overflow-y: auto;
+  border: 1px solid var(--gps-border-light);
+  border-radius: var(--gps-radius-sm);
+}
+
+/* ============================================
+   COMPACT TABLE
+   ============================================ */
+.gps-table--compact th,
+.gps-table--compact td {
+  padding: var(--gps-spacing-sm) var(--gps-spacing-md);
+  font-size: var(--gps-font-size-content);
+}
+
+/* ============================================
+   EMPTY MESSAGE
+   ============================================ */
+.gps-empty-message {
+  text-align: center;
+  color: var(--gps-text-muted);
+  font-style: italic;
+  padding: var(--gps-spacing-lg) !important;
+}
+
+/* ============================================
+   CELL STYLES
+   ============================================ */
+.gps-cell-primary {
+  font-weight: var(--gps-font-weight-semibold);
+  color: var(--gps-text-dark);
+}
+
+.gps-cell-secondary {
+  color: var(--gps-text-muted);
+}
+
+/* ============================================
+   CARD STYLES
+   ============================================ */
+.gps-card {
+  background: var(--gps-bg-white);
+  border: 1px solid var(--gps-border-light);
+  border-radius: var(--gps-radius-md);
+  padding: var(--gps-spacing-xl);
+  margin-bottom: var(--gps-spacing-xl);
+}
+
+.gps-table-header-section {
+  padding: var(--gps-spacing-lg);
+  border-bottom: 1px solid var(--gps-border-light);
+}
+
+.gps-table-header-section .gps-section-header {
+  margin: 0;
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+/* ============================================
+   CHECKBOX CARD STYLES
+   ============================================ */
+.gps-scope-checkboxes {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gps-spacing-md);
+}
+
+.gps-checkbox-card {
+  border: 1px solid var(--gps-border-input);
+  border-radius: var(--gps-radius-sm);
+  transition: all 0.2s ease;
+}
+
+.gps-checkbox-card:hover {
+  background: var(--gps-bg-header);
+}
+
+.gps-checkbox-card-label {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--gps-spacing-md);
+  padding: var(--gps-spacing-md);
+  cursor: pointer;
+}
+
+.gps-checkbox-card-label input[type="checkbox"] {
+  margin-top: 3px;
+  width: 14px;
+  height: 14px;
+  accent-color: var(--gps-primary-teal);
+}
+
+.gps-checkbox-card-content {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.gps-checkbox-card-title {
+  font-family: var(--gps-font-family);
+  font-size: var(--gps-font-size-content);
+  font-weight: var(--gps-font-weight-semibold);
+  color: var(--gps-text-dark);
+}
+
+.gps-checkbox-card-desc {
+  font-family: var(--gps-font-family);
+  font-size: 11px;
+  color: var(--gps-text-muted);
+}
+
+/* ============================================
+   TOKEN DISPLAY STYLES
+   ============================================ */
+.gps-token-display {
+  display: flex;
+  align-items: center;
+  gap: var(--gps-spacing-md);
+  background: var(--gps-bg-header);
+  padding: var(--gps-spacing-md);
+  border-radius: var(--gps-radius-sm);
+  margin-bottom: var(--gps-spacing-lg);
+}
+
+.gps-token-value {
+  flex: 1;
+  font-family: monospace;
+  font-size: var(--gps-font-size-content);
+  word-break: break-all;
+  background: var(--gps-bg-white);
+  padding: var(--gps-spacing-md);
+  border-radius: var(--gps-radius-sm);
+  border: 1px solid var(--gps-border-light);
+}
+
+.gps-token-details {
+  font-family: var(--gps-font-family);
+  font-size: var(--gps-font-size-content);
+}
+
+.gps-token-details p {
+  margin: var(--gps-spacing-sm) 0;
+}
+
+.gps-code {
+  font-family: monospace;
+  font-size: 11px;
+  background: var(--gps-bg-header);
+  padding: 2px 6px;
+  border-radius: var(--gps-radius-sm);
+  color: var(--gps-primary-teal);
+}

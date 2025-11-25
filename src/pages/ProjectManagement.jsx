@@ -7,6 +7,7 @@ import SubProjectManagement from '../components/SubProjectManagement';
 import EditSubProjectModal from '../components/EditSubProjectModal';
 import PageLayout from '../components/PageLayout';
 import './ProjectManagement.css';
+import '../styles/global-page-styles.css';
 
 const API_BASE_URL = '/api';
 
@@ -450,16 +451,15 @@ function ProjectManagement() {
       headerActions={
         <>
           <button 
-            className="btn-secondary" 
+            className="gps-btn gps-btn--secondary" 
             onClick={fetchProjects}
             disabled={loading}
             title="Refresh project list"
-            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
           >
             <FiRefreshCw size={16} className={loading ? 'spinning' : ''} />
             Refresh
           </button>
-          <button className="btn-primary btn-create-project" onClick={() => setShowCreateModal(true)}>
+          <button className="gps-btn gps-btn--primary" onClick={() => setShowCreateModal(true)}>
             + Create Project
           </button>
         </>
@@ -869,12 +869,12 @@ function ProjectManagement() {
               </form>
             </div>
             <div className="modal-actions">
-              <button type="button" className="btn-secondary" onClick={handleCloseCreateModal} disabled={isCreating}>
+              <button type="button" className="gps-btn gps-btn--secondary" onClick={handleCloseCreateModal} disabled={isCreating}>
                 Cancel
               </button>
               <button 
                 type="submit" 
-                className="btn-primary" 
+                className="gps-btn gps-btn--primary" 
                 onClick={handleCreate}
                 disabled={isCreating}
               >
@@ -1078,7 +1078,7 @@ function ProjectManagement() {
               </div>
             </div>
             <div className="modal-actions">
-              <button type="button" className="btn-secondary" onClick={handleCloseEditModal}>
+              <button type="button" className="gps-btn gps-btn--secondary" onClick={handleCloseEditModal}>
                 Close
               </button>
             </div>

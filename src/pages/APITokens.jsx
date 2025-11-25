@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import PageLayout from '../components/PageLayout';
+import { FiSearch } from 'react-icons/fi';
+import '../styles/global-page-styles.css';
 
 const APITokens = () => {
   const [tokens, setTokens] = useState([]);
@@ -161,356 +162,213 @@ const APITokens = () => {
   };
 
   return (
-    <PageLayout title="API Token Management">
-      <div className="api-tokens-container">
-        <div className="page-header">
-          <div>
-            <h1>API Tokens</h1>
-            <p>Manage API tokens for programmatic file uploads</p>
-          </div>
+    <div className="gps-page-container">
+      <div className="gps-page-header">
+        <div className="gps-page-header-left">
+          <h1 className="gps-page-title">API Tokens</h1>
+          <p className="gps-page-subtitle">Manage API tokens for programmatic file uploads</p>
+        </div>
+        <div className="gps-header-actions">
           <button
-            className="btn btn-primary header-action-btn"
+            className={`gps-btn ${showCreateForm ? 'gps-btn--secondary' : 'gps-btn--primary'}`}
             onClick={() => setShowCreateForm(!showCreateForm)}
-            style={{ paddingLeft: '10px', paddingRight: '10px', width: 'auto', flex: 'none' }}
           >
             {showCreateForm ? 'Cancel' : 'Create New Token'}
           </button>
         </div>
+      </div>
 
-        {showCreateForm && (
-          <div className="card" style={{ marginBottom: '24px' }}>
-            <h3>Create New API Token</h3>
-            <form onSubmit={handleCreateToken}>
-              <div className="form-group">
-                <label>Token Name *</label>
-                <input
-                  type="text"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="e.g., Production Upload Service"
-                  required
-                />
-              </div>
+      {showCreateForm && (
+        <div className="gps-card" style={{ marginBottom: '24px' }}>
+          <h3 className="gps-section-header">Create New API Token</h3>
+          <form onSubmit={handleCreateToken}>
+            <div className="gps-form-group">
+              <label className="gps-form-label">Token Name *</label>
+              <input
+                type="text"
+                className="gps-form-input"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                placeholder="e.g., Production Upload Service"
+                required
+              />
+            </div>
 
-              <div className="form-group">
-                <label>Project (Optional)</label>
-                <select
-                  value={formData.projectId}
-                  onChange={(e) => setFormData({ ...formData, projectId: e.target.value })}
-                >
-                  <option value="">All Projects (Wildcard)</option>
-                  {projects.map(project => (
-                    <option key={project.id} value={project.id}>
-                      {project.name}
-                    </option>
+            <div className="gps-form-group">
+              <label className="gps-form-label">Project (Optional)</label>
+              <select
+                className="gps-form-select"
+                value={formData.projectId}
+                onChange={(e) => setFormData({ ...formData, projectId: e.target.value })}
+              >
+                <option value="">All Projects (Wildcard)</option>
+                {projects.map(project => (
+                  <option key={project.id} value={project.id}>
+                    {project.name}
+                  </option>
                   ))}
                 </select>
-                <small>Leave empty for wildcard access, or select a specific project to restrict token scope</small>
-              </div>
+              <small className="gps-form-hint">Leave empty for wildcard access, or select a specific project to restrict token scope</small>
+            </div>
 
-              <div className="form-group">
-                <label>Scopes *</label>
-                <div className="scope-checkboxes">
-                  {availableScopes.map(scope => (
-                    <div key={scope.value} className="checkbox-item">
-                      <label>
-                        <input
-                          type="checkbox"
-                          checked={formData.scopes.includes(scope.value)}
-                          onChange={() => handleScopeToggle(scope.value)}
-                        />
-                        <div>
-                          <strong>{scope.label}</strong>
-                          <p>{scope.description}</p>
-                        </div>
-                      </label>
-                    </div>
-                  ))}
-                </div>
+            <div className="gps-form-group">
+              <label className="gps-form-label">Scopes *</label>
+              <div className="gps-scope-checkboxes">
+                {availableScopes.map(scope => (
+                  <div key={scope.value} className="gps-checkbox-card">
+                    <label className="gps-checkbox-card-label">
+                      <input
+                        type="checkbox"
+                        checked={formData.scopes.includes(scope.value)}
+                        onChange={() => handleScopeToggle(scope.value)}
+                      />
+                      <div className="gps-checkbox-card-content">
+                        <span className="gps-checkbox-card-title">{scope.label}</span>
+                        <span className="gps-checkbox-card-desc">{scope.description}</span>
+                      </div>
+                    </label>
+                  </div>
+                ))}
               </div>
+            </div>
 
-              <div className="form-row">
-                <div className="form-group">
-                  <label>Rate Limit (requests)</label>
-                  <input
-                    type="number"
-                    value={formData.rateLimit}
-                    onChange={(e) => setFormData({ ...formData, rateLimit: e.target.value })}
-                    min="1"
-                    max="10000"
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Rate Window (hours)</label>
-                  <input
-                    type="number"
-                    value={formData.rateWindowHours}
-                    onChange={(e) => setFormData({ ...formData, rateWindowHours: e.target.value })}
-                    min="1"
-                    max="24"
-                  />
-                </div>
-              </div>
-
-              <div className="form-group">
-                <label>Expiration Date (Optional)</label>
+            <div className="gps-form-row">
+              <div className="gps-form-group">
+                <label className="gps-form-label">Rate Limit (requests)</label>
                 <input
-                  type="datetime-local"
-                  value={formData.expiresAt}
-                  onChange={(e) => setFormData({ ...formData, expiresAt: e.target.value })}
+                  type="number"
+                  className="gps-form-input"
+                  value={formData.rateLimit}
+                  onChange={(e) => setFormData({ ...formData, rateLimit: e.target.value })}
+                  min="1"
+                  max="10000"
                 />
-                <small>Leave empty for tokens that never expire</small>
               </div>
-
-              <button type="submit" className="btn btn-primary">
-                Generate Token
-              </button>
-            </form>
-          </div>
-        )}
-
-        {showTokenModal && generatedToken && (
-          <div className="modal-overlay" onClick={() => setShowTokenModal(false)}>
-            <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-              <h3>Token Created Successfully</h3>
-              <div className="token-display">
-                <p className="warning-text">⚠️ Save this token now - it will not be shown again!</p>
-                <div className="token-value">
-                  <code>{generatedToken.token}</code>
-                  <button
-                    className="btn btn-sm btn-secondary"
-                    onClick={() => copyToClipboard(generatedToken.token)}
-                  >
-                    Copy
-                  </button>
-                </div>
-                <div className="token-details">
-                  <p><strong>Token Prefix:</strong> {generatedToken.tokenPrefix}</p>
-                  <p><strong>Token ID:</strong> {generatedToken.tokenId}</p>
-                </div>
+              <div className="gps-form-group">
+                <label className="gps-form-label">Rate Window (hours)</label>
+                <input
+                  type="number"
+                  className="gps-form-input"
+                  value={formData.rateWindowHours}
+                  onChange={(e) => setFormData({ ...formData, rateWindowHours: e.target.value })}
+                  min="1"
+                  max="24"
+                />
               </div>
+            </div>
+
+            <div className="gps-form-group">
+              <label className="gps-form-label">Expiration Date (Optional)</label>
+              <input
+                type="datetime-local"
+                className="gps-form-input"
+                value={formData.expiresAt}
+                onChange={(e) => setFormData({ ...formData, expiresAt: e.target.value })}
+              />
+              <small className="gps-form-hint">Leave empty for tokens that never expire</small>
+            </div>
+
+            <button type="submit" className="gps-btn gps-btn--primary">
+              Generate Token
+            </button>
+          </form>
+        </div>
+      )}
+
+      {showTokenModal && generatedToken && (
+        <div className="gps-modal-overlay" onClick={() => setShowTokenModal(false)}>
+          <div className="gps-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="gps-modal-header">
+              <h2 className="gps-modal-title">Token Created Successfully</h2>
+              <button className="gps-modal-close" onClick={() => setShowTokenModal(false)}>×</button>
+            </div>
+            <div className="gps-modal-body">
+              <div className="gps-alert gps-alert--warning">
+                Save this token now - it will not be shown again!
+              </div>
+              <div className="gps-token-display">
+                <code className="gps-token-value">{generatedToken.token}</code>
+                <button
+                  className="gps-btn gps-btn--secondary gps-btn--sm"
+                  onClick={() => copyToClipboard(generatedToken.token)}
+                >
+                  Copy
+                </button>
+              </div>
+              <div className="gps-token-details">
+                <p><strong>Token Prefix:</strong> {generatedToken.tokenPrefix}</p>
+                <p><strong>Token ID:</strong> {generatedToken.tokenId}</p>
+              </div>
+            </div>
+            <div className="gps-modal-footer">
               <button
-                className="btn btn-primary"
+                className="gps-btn gps-btn--primary"
                 onClick={() => setShowTokenModal(false)}
               >
                 I've Saved the Token
               </button>
             </div>
           </div>
-        )}
-
-        <div className="card">
-          <h3>Active Tokens</h3>
-          {loading ? (
-            <p>Loading tokens...</p>
-          ) : tokens.length === 0 ? (
-            <p>No API tokens created yet. Click "Create New Token" to get started.</p>
-          ) : (
-            <div className="table-container">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Name</th>
-                    <th>Prefix</th>
-                    <th>Scopes</th>
-                    <th>Project</th>
-                    <th>Rate Limit</th>
-                    <th>Last Used</th>
-                    <th>Created</th>
-                    <th>Status</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {tokens.map(token => (
-                    <tr key={token.id}>
-                      <td>{token.name}</td>
-                      <td><code>{token.token_prefix}</code></td>
-                      <td>{formatScopes(token.scopes)}</td>
-                      <td>{token.project_id || 'All Projects'}</td>
-                      <td>{token.rate_limit}/{token.rate_window_hours}h</td>
-                      <td>{formatDate(token.last_used_at)}</td>
-                      <td>{formatDate(token.created_at)}</td>
-                      <td>
-                        <span className={`status-badge ${token.is_active ? 'active' : 'revoked'}`}>
-                          {token.is_active ? 'Active' : 'Revoked'}
-                        </span>
-                      </td>
-                      <td>
-                        {token.is_active && (
-                          <button
-                            className="btn btn-sm btn-danger"
-                            onClick={() => handleRevokeToken(token.id)}
-                          >
-                            Revoke
-                          </button>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
         </div>
+      )}
+
+      <div className="gps-table-container">
+        <div className="gps-table-header-section">
+          <h3 className="gps-section-header">Active Tokens</h3>
+        </div>
+        {loading ? (
+          <div className="gps-loading">Loading tokens...</div>
+        ) : tokens.length === 0 ? (
+          <div className="gps-empty-state">
+            <p>No API tokens created yet. Click "Create New Token" to get started.</p>
+          </div>
+        ) : (
+          <table className="gps-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Prefix</th>
+                <th>Scopes</th>
+                <th>Project</th>
+                <th>Rate Limit</th>
+                <th>Last Used</th>
+                <th>Created</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {tokens.map(token => (
+                <tr key={token.id}>
+                  <td><span className="gps-cell-primary">{token.name}</span></td>
+                  <td><code className="gps-code">{token.token_prefix}</code></td>
+                  <td className="gps-cell-secondary">{formatScopes(token.scopes)}</td>
+                  <td className="gps-cell-secondary">{token.project_id || 'All Projects'}</td>
+                  <td className="gps-cell-secondary">{token.rate_limit}/{token.rate_window_hours}h</td>
+                  <td className="gps-cell-secondary">{formatDate(token.last_used_at)}</td>
+                  <td className="gps-cell-secondary">{formatDate(token.created_at)}</td>
+                  <td>
+                    <span className={`gps-badge ${token.is_active ? 'gps-badge--success' : 'gps-badge--danger'}`}>
+                      {token.is_active ? 'Active' : 'Revoked'}
+                    </span>
+                  </td>
+                  <td>
+                    {token.is_active && (
+                      <button
+                        className="gps-btn gps-btn--danger gps-btn--sm"
+                        onClick={() => handleRevokeToken(token.id)}
+                      >
+                        Revoke
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </div>
-
-      <style jsx>{`
-        .api-tokens-container {
-          max-width: 1400px;
-        }
-
-        .page-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: flex-start;
-          margin-bottom: 24px;
-        }
-
-        .page-header h1 {
-          margin: 0 0 8px 0;
-        }
-
-        .page-header p {
-          margin: 0;
-          color: #666;
-        }
-
-        .form-row {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 16px;
-        }
-
-        .scope-checkboxes {
-          display: flex;
-          flex-direction: column;
-          gap: 12px;
-        }
-
-        .checkbox-item label {
-          display: flex;
-          align-items: flex-start;
-          gap: 12px;
-          padding: 12px;
-          border: 1px solid #ddd;
-          border-radius: 4px;
-          cursor: pointer;
-        }
-
-        .checkbox-item label:hover {
-          background: #f5f5f5;
-        }
-
-        .checkbox-item input[type="checkbox"] {
-          margin-top: 4px;
-        }
-
-        .checkbox-item strong {
-          display: block;
-          margin-bottom: 4px;
-        }
-
-        .checkbox-item p {
-          margin: 0;
-          font-size: 0.9em;
-          color: #666;
-        }
-
-        .modal-overlay {
-          position: fixed;
-          top: 0;
-          left: 0;
-          right: 0;
-          bottom: 0;
-          background: rgba(0, 0, 0, 0.5);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          z-index: 1000;
-        }
-
-        .modal-content {
-          background: white;
-          padding: 32px;
-          border-radius: 8px;
-          max-width: 600px;
-          width: 90%;
-        }
-
-        .modal-content h3 {
-          margin-top: 0;
-        }
-
-        .token-display {
-          background: #f5f5f5;
-          padding: 20px;
-          border-radius: 4px;
-          margin: 20px 0;
-        }
-
-        .warning-text {
-          color: #d97706;
-          font-weight: 600;
-          margin-bottom: 16px;
-        }
-
-        .token-value {
-          display: flex;
-          gap: 12px;
-          align-items: center;
-          background: white;
-          padding: 12px;
-          border-radius: 4px;
-          margin-bottom: 16px;
-        }
-
-        .token-value code {
-          flex: 1;
-          font-family: monospace;
-          font-size: 14px;
-          word-break: break-all;
-        }
-
-        .token-details p {
-          margin: 8px 0;
-        }
-
-        .status-badge {
-          display: inline-block;
-          padding: 4px 12px;
-          border-radius: 12px;
-          font-size: 0.85em;
-          font-weight: 500;
-        }
-
-        .status-badge.active {
-          background: #dcfce7;
-          color: #15803d;
-        }
-
-        .status-badge.revoked {
-          background: #fee2e2;
-          color: #991b1b;
-        }
-
-        .btn-danger {
-          background: #dc2626;
-          color: white;
-        }
-
-        .btn-danger:hover {
-          background: #b91c1c;
-        }
-
-        small {
-          display: block;
-          margin-top: 4px;
-          color: #666;
-          font-size: 0.9em;
-        }
-      `}</style>
-    </PageLayout>
+    </div>
   );
 };
 

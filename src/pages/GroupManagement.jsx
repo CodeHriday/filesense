@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { FiEdit2, FiTrash2 } from 'react-icons/fi';
+import { FiEdit2, FiTrash2, FiSearch } from 'react-icons/fi';
 import ConfirmModal from '../components/ConfirmModal';
-import './GroupManagement.css';
+import '../styles/global-page-styles.css';
 
 const API_BASE_URL = '/api';
 
@@ -267,28 +267,36 @@ function GroupManagement() {
   };
 
   return (
-    <div className="group-management">
-      <div className="page-header">
-        <h1>Group Management</h1>
-        <button className="btn-primary header-action-btn" onClick={() => setShowCreateModal(true)} style={{ paddingLeft: '10px', paddingRight: '10px', width: 'auto', flex: 'none' }}>
-          + Create Group
-        </button>
+    <div className="gps-page-container">
+      <div className="gps-page-header">
+        <div className="gps-page-header-left">
+          <h1 className="gps-page-title">Group Management</h1>
+          <p className="gps-page-subtitle">Manage access groups and their members</p>
+        </div>
+        <div className="gps-header-actions">
+          <button className="gps-btn gps-btn--primary" onClick={() => setShowCreateModal(true)}>
+            + Create Group
+          </button>
+        </div>
       </div>
 
-      {error && <div className="alert alert-error">{error}</div>}
+      {error && <div className="gps-alert gps-alert--error">{error}</div>}
 
-      <div className="filters">
-        <input
-          type="text"
-          placeholder="Search groups..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="search-input"
-        />
+      <div className="gps-filters">
+        <div className="gps-search-container">
+          <FiSearch className="gps-search-icon" />
+          <input
+            type="text"
+            placeholder="Search groups..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="gps-search-input"
+          />
+        </div>
         <select
           value={groupTypeFilter}
           onChange={(e) => setGroupTypeFilter(e.target.value)}
-          className="filter-select"
+          className="gps-filter-select"
         >
           <option value="">All Types</option>
           <option value="MANUAL">Manual</option>
@@ -298,10 +306,10 @@ function GroupManagement() {
       </div>
 
       {loading ? (
-        <div className="loading">Loading groups...</div>
+        <div className="gps-loading">Loading groups...</div>
       ) : (
-        <div className="table-container">
-          <table className="groups-table">
+        <div className="gps-table-container">
+          <table className="gps-table">
             <thead>
               <tr>
                 <th>Group Name</th>
@@ -317,38 +325,38 @@ function GroupManagement() {
               {groups.map((group) => (
                 <tr key={group.id}>
                   <td>
-                    <strong>{group.name}</strong>
+                    <span className="gps-cell-primary">{group.name}</span>
                   </td>
                   <td>{group.description || '-'}</td>
                   <td>
-                    <span className={`badge badge-${group.group_type.toLowerCase()}`}>
+                    <span className={`gps-badge gps-badge--${group.group_type === 'MANUAL' ? 'info' : group.group_type === 'STANDARD' ? 'success' : 'warning'}`}>
                       {group.group_type}
                     </span>
                   </td>
                   <td>
                     {group.sync_enabled ? (
-                      <span className="sync-badge">Enabled</span>
+                      <span className="gps-badge gps-badge--success">Enabled</span>
                     ) : (
-                      <span style={{ color: 'var(--text-secondary)' }}>Disabled</span>
+                      <span className="gps-badge gps-badge--secondary">Disabled</span>
                     )}
                   </td>
                   <td>
-                    <span className="count-badge">
+                    <span className="gps-cell-secondary">
                       {group.member_count !== undefined ? `${group.member_count} member${group.member_count !== 1 ? 's' : ''}` : '-'}
                     </span>
                   </td>
-                  <td>{new Date(group.created_at).toLocaleDateString()}</td>
+                  <td className="gps-cell-secondary">{new Date(group.created_at).toLocaleDateString()}</td>
                   <td>
-                    <div className="action-buttons">
+                    <div className="gps-action-buttons">
                       <button 
-                        className="action-icon-btn edit-btn" 
+                        className="gps-icon-btn gps-icon-btn--edit" 
                         onClick={() => openEditModal(group)}
                         title="Edit group"
                       >
                         <FiEdit2 />
                       </button>
                       <button 
-                        className="action-icon-btn delete-btn" 
+                        className="gps-icon-btn gps-icon-btn--delete" 
                         onClick={() => handleDelete(group.id)}
                         title="Delete group"
                       >
@@ -365,34 +373,37 @@ function GroupManagement() {
 
       {/* Create Modal */}
       {showCreateModal && (
-        <div className="modal-overlay" onClick={() => setShowCreateModal(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>Create New Group</h2>
-              <button className="close-btn" onClick={() => setShowCreateModal(false)}>×</button>
+        <div className="gps-modal-overlay" onClick={() => setShowCreateModal(false)}>
+          <div className="gps-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="gps-modal-header">
+              <h2 className="gps-modal-title">Create New Group</h2>
+              <button className="gps-modal-close" onClick={() => setShowCreateModal(false)}>×</button>
             </div>
-            <div className="modal-body">
-              <form onSubmit={handleCreate} style={{ padding: '1.5rem' }}>
-                <div className="form-group">
-                  <label>Group Name *</label>
+            <div className="gps-modal-body">
+              <form onSubmit={handleCreate}>
+                <div className="gps-form-group">
+                  <label className="gps-form-label">Group Name *</label>
                   <input
                     type="text"
+                    className="gps-form-input"
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     required
                   />
                 </div>
-                <div className="form-group">
-                  <label>Description</label>
+                <div className="gps-form-group">
+                  <label className="gps-form-label">Description</label>
                   <textarea
+                    className="gps-form-textarea"
                     value={formData.description}
                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                     rows="3"
                   />
                 </div>
-                <div className="form-group">
-                  <label>Group Type</label>
+                <div className="gps-form-group">
+                  <label className="gps-form-label">Group Type</label>
                   <select
+                    className="gps-form-select"
                     value={formData.group_type}
                     onChange={(e) => setFormData({ ...formData, group_type: e.target.value })}
                   >
@@ -401,8 +412,8 @@ function GroupManagement() {
                     <option value="DYNAMIC">Dynamic</option>
                   </select>
                 </div>
-                <div className="form-group">
-                  <label className="checkbox-label">
+                <div className="gps-form-group">
+                  <label className="gps-checkbox-label">
                     <input
                       type="checkbox"
                       checked={formData.idp_sync_enabled}
@@ -411,11 +422,12 @@ function GroupManagement() {
                     Enable IdP Sync
                   </label>
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                  <div className="form-group">
-                    <label>Add Members</label>
+                <div className="gps-form-row">
+                  <div className="gps-form-group">
+                    <label className="gps-form-label">Add Members</label>
                     <select
                       multiple
+                      className="gps-form-select"
                       value={formData.member_ids}
                       onChange={(e) => {
                         const selected = Array.from(e.target.selectedOptions, option => parseInt(option.value));
@@ -429,12 +441,13 @@ function GroupManagement() {
                         </option>
                       ))}
                     </select>
-                    <small style={{ color: '#666', fontSize: '0.85rem' }}>Hold Ctrl/Cmd to select multiple users</small>
+                    <small className="gps-form-hint">Hold Ctrl/Cmd to select multiple users</small>
                   </div>
-                  <div className="form-group">
-                    <label>Assign Roles</label>
+                  <div className="gps-form-group">
+                    <label className="gps-form-label">Assign Roles</label>
                     <select
                       multiple
+                      className="gps-form-select"
                       value={formData.role_ids}
                       onChange={(e) => {
                         const selected = Array.from(e.target.selectedOptions, option => parseInt(option.value));
@@ -448,16 +461,16 @@ function GroupManagement() {
                         </option>
                       ))}
                     </select>
-                    <small style={{ color: '#666', fontSize: '0.85rem' }}>Hold Ctrl/Cmd to select multiple roles</small>
+                    <small className="gps-form-hint">Hold Ctrl/Cmd to select multiple roles</small>
                   </div>
                 </div>
               </form>
             </div>
-            <div className="modal-actions">
-              <button type="button" className="btn-secondary" onClick={() => setShowCreateModal(false)}>
+            <div className="gps-modal-footer">
+              <button type="button" className="gps-btn gps-btn--secondary" onClick={() => setShowCreateModal(false)}>
                 Cancel
               </button>
-              <button type="submit" className="btn-primary" onClick={handleCreate}>Create Group</button>
+              <button type="submit" className="gps-btn gps-btn--primary" onClick={handleCreate}>Create Group</button>
             </div>
           </div>
         </div>
@@ -465,35 +478,37 @@ function GroupManagement() {
 
       {/* Edit Modal */}
       {showEditModal && selectedGroup && (
-        <div className="modal-overlay" onClick={() => setShowEditModal(false)}>
-          <div className="modal modal-large" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>Edit Group - {selectedGroup.name}</h2>
-              <button className="close-btn" onClick={() => setShowEditModal(false)}>×</button>
+        <div className="gps-modal-overlay" onClick={() => setShowEditModal(false)}>
+          <div className="gps-modal gps-modal--large" onClick={(e) => e.stopPropagation()}>
+            <div className="gps-modal-header">
+              <h2 className="gps-modal-title">Edit Group - {selectedGroup.name}</h2>
+              <button className="gps-modal-close" onClick={() => setShowEditModal(false)}>×</button>
             </div>
-            <div className="modal-body">
-              <div className="modal-content-sections">
+            <div className="gps-modal-body">
+              <div className="gps-modal-sections">
                 <form onSubmit={handleUpdate}>
-                  <h3>Group Details</h3>
-                  <div className="form-group">
-                    <label>Group Name *</label>
+                  <h3 className="gps-section-header">Group Details</h3>
+                  <div className="gps-form-group">
+                    <label className="gps-form-label">Group Name *</label>
                     <input
                       type="text"
+                      className="gps-form-input"
                       value={formData.name}
                       onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                       required
                     />
                   </div>
-                  <div className="form-group">
-                    <label>Description</label>
+                  <div className="gps-form-group">
+                    <label className="gps-form-label">Description</label>
                     <textarea
+                      className="gps-form-textarea"
                       value={formData.description}
                       onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                       rows="3"
                     />
                   </div>
-                  <div className="form-group">
-                    <label className="checkbox-label">
+                  <div className="gps-form-group">
+                    <label className="gps-checkbox-label">
                       <input
                         type="checkbox"
                         checked={formData.idp_sync_enabled}
@@ -503,17 +518,18 @@ function GroupManagement() {
                     </label>
                   </div>
                   <div style={{ marginTop: '1rem' }}>
-                    <button type="submit" className="btn-primary">Update Details</button>
+                    <button type="submit" className="gps-btn gps-btn--primary">Update Details</button>
                   </div>
                 </form>
 
-              <hr style={{ margin: '1.5rem 0', border: '1px solid #ddd' }} />
+              <hr className="gps-divider" />
 
-              <div className="members-section">
-                <h3>Members</h3>
-                <form onSubmit={handleAddMember} className="add-member-form">
-                  <div className="form-row">
+              <div className="gps-section">
+                <h3 className="gps-section-header">Members</h3>
+                <form onSubmit={handleAddMember} className="gps-inline-form">
+                  <div className="gps-form-row">
                     <select
+                      className="gps-form-select"
                       value={memberFormData.user_id}
                       onChange={(e) => setMemberFormData({ ...memberFormData, user_id: e.target.value })}
                       required
@@ -526,12 +542,12 @@ function GroupManagement() {
                         </option>
                       ))}
                     </select>
-                    <button type="submit" className="btn-primary btn-small">Add Member</button>
+                    <button type="submit" className="gps-btn gps-btn--primary gps-btn--sm">Add Member</button>
                   </div>
                 </form>
 
-                <div className="scrollable-list">
-                  <table className="compact-table">
+                <div className="gps-scrollable-list">
+                  <table className="gps-table gps-table--compact">
                     <thead>
                       <tr>
                         <th>User</th>
@@ -543,10 +559,10 @@ function GroupManagement() {
                       {selectedGroup.members?.map((member) => (
                         <tr key={member.user_id}>
                           <td>{member.full_name || member.username}</td>
-                          <td><span className="badge badge-source">{member.source}</span></td>
+                          <td><span className="gps-badge gps-badge--info">{member.source}</span></td>
                           <td>
                             <button
-                              className="btn-small btn-danger"
+                              className="gps-btn gps-btn--danger gps-btn--sm"
                               onClick={() => handleRemoveMember(member.user_id)}
                             >
                               Remove
@@ -555,7 +571,7 @@ function GroupManagement() {
                         </tr>
                       ))}
                       {(!selectedGroup.members || selectedGroup.members.length === 0) && (
-                        <tr><td colSpan="3" style={{ textAlign: 'center', color: '#999' }}>No members yet</td></tr>
+                        <tr><td colSpan="3" className="gps-empty-message">No members yet</td></tr>
                       )}
                     </tbody>
                   </table>
@@ -563,8 +579,8 @@ function GroupManagement() {
               </div>
               </div>
             </div>
-            <div className="modal-actions">
-              <button type="button" className="btn-secondary" onClick={() => setShowEditModal(false)}>
+            <div className="gps-modal-footer">
+              <button type="button" className="gps-btn gps-btn--secondary" onClick={() => setShowEditModal(false)}>
                 Close
               </button>
             </div>
