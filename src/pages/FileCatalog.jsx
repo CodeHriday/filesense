@@ -126,19 +126,14 @@ export const FileCatalog = ({ onFileSelect }) => {
     return subProjects;
   }, [files, selectedProject]);
   
-  // Auto-select first project and subproject on initial load
-  useEffect(() => {
-    if (uniqueProjects.length > 0 && selectedProject === 'all') {
-      setSelectedProject(uniqueProjects[0].id);
-    }
-  }, [uniqueProjects]);
-  
-  // Auto-select "Select a subproject" when project changes
+  // Reset subproject filter when project changes
   useEffect(() => {
     if (selectedProject !== 'all') {
       setSelectedSubProject('none');
+    } else {
+      setSelectedSubProject('all');
     }
-  }, [selectedProject, uniqueSubProjects]);
+  }, [selectedProject]);
 
   const handleViewDetails = (file) => {
     navigate(`/profile/${encodeURIComponent(file.file_id)}`);
@@ -445,6 +440,9 @@ export const FileCatalog = ({ onFileSelect }) => {
             file.column_count || '-'
           )}
         </td>
+        <td style={{ whiteSpace: 'nowrap' }}>
+          {file.created_at ? new Date(file.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '-'}
+        </td>
         <td title={file.created_at ? formatDate(file.created_at) : ''}>
           {file.created_at ? getTimeSince(file.created_at) : '-'}
         </td>
@@ -740,6 +738,7 @@ export const FileCatalog = ({ onFileSelect }) => {
                     <th>Size</th>
                     <th>Rows</th>
                     <th>Columns</th>
+                    <th>Created</th>
                     <th>Uploaded</th>
                     <th>Quality</th>
                     <th>Actions</th>
