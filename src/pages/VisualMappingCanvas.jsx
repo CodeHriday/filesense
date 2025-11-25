@@ -38,7 +38,6 @@ import RdmDatasetModal from '../components/VisualMappingModals/RdmDatasetModal';
 import RdmCrosswalkModal from '../components/VisualMappingModals/RdmCrosswalkModal';
 import TargetRulesModal from '../components/VisualMappingModals/TargetRulesModal';
 import JoinModal from '../components/VisualMappingModals/JoinModal';
-import FileModal from '../components/VisualMappingModals/FileModal';
 import { useVisualMappingExecution } from '../hooks/useVisualMappingExecution';
 import { getNodeStatusClass, getNodeStatusBadge, formatRowCount } from '../components/VisualMappingNodes/nodeUtils';
 
@@ -288,59 +287,13 @@ const JoinNode = ({ data }) => {
   );
 };
 
-const FileNode = ({ data }) => {
-  const statusBadge = data.statusBadge;
-  
-  return (
-    <div className="visual-mapping-node visual-mapping-node-file">
-      {statusBadge && (
-        <div className={`visual-mapping-node-status-badge status-${statusBadge.text.toLowerCase()}`}>
-          <span>{statusBadge.icon}</span>
-        </div>
-      )}
-      <div className="visual-mapping-node-header">
-        <FaDatabase className="visual-mapping-node-icon" />
-        <span className="visual-mapping-node-title">{data.label}</span>
-      </div>
-      {data.config?.projectName && (
-        <div className="visual-mapping-node-detail">
-          <strong>Project:</strong> {data.config.projectName}
-        </div>
-      )}
-      {data.config?.subProjectName && (
-        <div className="visual-mapping-node-detail">
-          <strong>Sub-Project:</strong> {data.config.subProjectName}
-        </div>
-      )}
-      {data.config?.fileName && (
-        <div className="visual-mapping-node-detail">
-          <strong>File:</strong> {data.config.fileName}
-        </div>
-      )}
-      <button 
-        onClick={() => data.onConfigure && data.onConfigure(data.nodeId)}
-        className="visual-mapping-node-button"
-      >
-        Configure
-      </button>
-      <Handle 
-        type="source" 
-        position={Position.Right} 
-        id="output"
-        className="visual-mapping-node-handle"
-      />
-    </div>
-  );
-};
-
 const nodeTypes = {
   sourceConfig: SourceConfigNode,
   expression: ExpressionNode,
   rdmDataset: RdmDatasetNode,
   rdmCrosswalk: RdmCrosswalkNode,
   targetRules: TargetRulesNode,
-  join: JoinNode,
-  file: FileNode
+  join: JoinNode
 };
 
 const VisualMappingCanvasContent = () => {
@@ -569,18 +522,6 @@ const VisualMappingCanvasContent = () => {
           contains_pii: col.contains_pii || col.pii || false
         }));
         console.log(`getCumulativeSchema: Source Config node ${nodeId} output schema:`, transformedSchema.length, 'columns');
-        return transformedSchema;
-      }
-      
-      // File: has explicit schema from selected file
-      if (node.type === 'file' && config.schema) {
-        const transformedSchema = config.schema.map(col => ({
-          name: col.column_name || col.name,
-          type: col.data_type || col.type,
-          description: col.description,
-          contains_pii: col.contains_pii || col.pii || false
-        }));
-        console.log(`getCumulativeSchema: File node ${nodeId} output schema:`, transformedSchema.length, 'columns');
         return transformedSchema;
       }
       
@@ -1104,12 +1045,6 @@ const VisualMappingCanvasContent = () => {
                     >
                       <FaDatabase /> Source Config
                     </button>
-                    <button 
-                      onClick={() => addNode('file', 'File')}
-                      className="visual-mapping-palette-item"
-                    >
-                      <FaDatabase /> File
-                    </button>
                   </div>
                   
                   <div className="visual-mapping-palette-section">
@@ -1318,15 +1253,6 @@ const VisualMappingCanvasContent = () => {
             };
             return getNodeOutputSchema(rightEdges[0].source);
           })()}
-        />
-      )}
-      
-      {configNodeType === 'file' && (
-        <FileModal
-          isOpen={configModalOpen}
-          onClose={() => setConfigModalOpen(false)}
-          onSave={handleSaveNodeConfig}
-          initialConfig={getCurrentNodeConfig()}
         />
       )}
     </div>

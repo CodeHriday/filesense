@@ -145,7 +145,7 @@ export const APP_FEATURES = [
   },
   { 
     id: 'visual_mapping_orchestrator', 
-    name: 'Visual Mapping Orchestrator', 
+    name: 'Visual Mapping Designer', 
     category: 'Job Design',
     supportsExecute: true,
     icon: FiGrid,
