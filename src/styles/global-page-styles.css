@@ -240,6 +240,107 @@
 }
 
 /* ============================================
+   ICON BUTTONS (Small circular/square action icons)
+   ============================================ */
+.gps-icon-btn {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--gps-border-input);
+  border-radius: var(--gps-radius-sm);
+  background: var(--gps-bg-white);
+  color: var(--gps-text-muted);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  text-decoration: none;
+}
+
+.gps-icon-btn:hover {
+  border-color: var(--gps-primary-teal);
+  color: var(--gps-primary-teal);
+  background: rgba(2, 80, 67, 0.05);
+}
+
+.gps-icon-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
+.gps-icon-btn-primary {
+  color: var(--gps-primary-teal);
+  border-color: var(--gps-primary-teal);
+}
+
+.gps-icon-btn-primary:hover {
+  background: var(--gps-primary-teal);
+  color: white;
+}
+
+.gps-icon-btn-success {
+  color: #16a34a;
+  border-color: #16a34a;
+}
+
+.gps-icon-btn-success:hover {
+  background: #16a34a;
+  color: white;
+}
+
+.gps-icon-btn-danger {
+  color: var(--gps-danger-red);
+  border-color: var(--gps-danger-red);
+}
+
+.gps-icon-btn-danger:hover {
+  background: var(--gps-danger-red);
+  color: white;
+}
+
+.gps-icon-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.gps-icon-btn:disabled:hover {
+  background: var(--gps-bg-white);
+  color: var(--gps-text-muted);
+  border-color: var(--gps-border-input);
+}
+
+/* ============================================
+   RESULTS INFO / COUNT DISPLAY
+   ============================================ */
+.gps-results-info {
+  font-family: var(--gps-font-family);
+  font-size: var(--gps-font-size-content);
+  font-weight: var(--gps-font-weight-medium);
+  color: var(--gps-text-muted);
+  padding: var(--gps-spacing-md) 0;
+  margin-bottom: var(--gps-spacing-md);
+}
+
+/* ============================================
+   EMPTY STATE
+   ============================================ */
+.gps-empty-state {
+  text-align: center;
+  padding: var(--gps-spacing-2xl);
+  background: var(--gps-bg-white);
+  border: 1px solid var(--gps-border-light);
+  border-radius: var(--gps-radius-md);
+  color: var(--gps-text-muted);
+  font-family: var(--gps-font-family);
+  font-size: var(--gps-font-size-content);
+}
+
+.gps-empty-state p {
+  margin: 0;
+}
+
+/* ============================================
    FILTERS SECTION
    ============================================ */
 .gps-filters {
@@ -486,6 +587,16 @@
   color: #4b5563;
 }
 
+.gps-badge-secondary {
+  background: #e5e7eb;
+  color: #4b5563;
+}
+
+.gps-badge-success {
+  background: #dcfce7;
+  color: #166534;
+}
+
 /* ============================================
    MODALS
    ============================================ */
@@ -654,6 +765,31 @@
   background: #eff6ff;
   color: #1e40af;
   border: 1px solid #bfdbfe;
+}
+
+/* Alert aliases for convenience */
+.gps-alert-danger {
+  font-family: var(--gps-font-family);
+  font-size: var(--gps-font-size-content);
+  font-weight: var(--gps-font-weight-medium);
+  padding: var(--gps-spacing-lg);
+  border-radius: var(--gps-radius-md);
+  margin-bottom: var(--gps-spacing-xl);
+  background: #fef2f2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+}
+
+.gps-alert-success {
+  font-family: var(--gps-font-family);
+  font-size: var(--gps-font-size-content);
+  font-weight: var(--gps-font-weight-medium);
+  padding: var(--gps-spacing-lg);
+  border-radius: var(--gps-radius-md);
+  margin-bottom: var(--gps-spacing-xl);
+  background: #f0fdf4;
+  color: #166534;
+  border: 1px solid #bbf7d0;
 }
 
 /* ============================================
