@@ -546,67 +546,64 @@ const RoleManagement = () => {
 
   if (loading) {
     return (
-      <div className="role-management-loading">
+      <div className="gps-page-container">
         <LoadingSpinner />
-        <span>Loading role management...</span>
       </div>
     );
   }
 
   return (
-    <div className="role-management-container">
-      <div className="role-management-header">
-        <h1>Role Management</h1>
-        <div className="header-actions">
-          <div style={{ position: 'relative', minWidth: '300px' }}>
-            <FiSearch style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#64748b', pointerEvents: 'none' }} />
-            <input
-              type="text"
-              placeholder="Search roles..."
-              value={searchTerm}
-              onChange={(e) => {
-                setSearchTerm(e.target.value);
-                setCurrentPage(1);
-              }}
-              style={{
-                width: '100%',
-                padding: '0.5rem 0.75rem 0.5rem 2.5rem',
-                border: '1px solid #cbd5e1',
-                borderRadius: '6px',
-                fontSize: '0.9rem',
-                outline: 'none'
-              }}
-            />
-          </div>
-          <Link to="/users" className="user-management-link" style={{ paddingLeft: '10px', paddingRight: '10px', width: 'auto', flex: 'none' }}>
+    <div className="gps-page-container">
+      <div className="gps-page-header">
+        <div className="gps-page-header-left">
+          <h1 className="gps-page-title">Role Management</h1>
+          <p className="gps-page-subtitle">Manage roles and permissions</p>
+        </div>
+        <div className="gps-header-actions">
+          <Link to="/users" className="gps-btn gps-btn--secondary">
             User Management
           </Link>
           {selectedRoleIds.length > 0 && (
             <button 
-              className="bulk-delete-btn"
+              className="gps-btn gps-btn--danger"
               onClick={openBulkDeleteModal}
             >
               Delete Selected ({selectedRoleIds.length})
             </button>
           )}
           <button 
-            className="create-role-btn header-action-btn"
+            className="gps-btn gps-btn--primary"
             onClick={openCreateModal}
-            style={{ paddingLeft: '10px', paddingRight: '10px', width: 'auto', flex: 'none' }}
           >
             Add New Role
           </button>
         </div>
       </div>
       
+      <div className="gps-filters">
+        <div className="gps-search-container">
+          <FiSearch className="gps-search-icon" />
+          <input
+            type="text"
+            className="gps-search-input"
+            placeholder="Search roles..."
+            value={searchTerm}
+            onChange={(e) => {
+              setSearchTerm(e.target.value);
+              setCurrentPage(1);
+            }}
+          />
+        </div>
+      </div>
+      
       {error && (
-        <div className="error-message" role="alert">
+        <div className="gps-alert gps-alert--error" role="alert">
           {error}
         </div>
       )}
       
-      <div className="roles-table-container">
-        <table className="roles-table">
+      <div className="gps-table-container">
+        <table className="gps-table">
           <thead>
             <tr>
               <th style={{ width: '50px' }}>
@@ -672,19 +669,18 @@ const RoleManagement = () => {
                     </td>
                     <td>{role.user_count || 0}</td>
                     <td>
-                      <div className="role-actions">
+                      <div className="gps-action-buttons">
                         <button 
-                          className="action-icon-btn edit-btn" 
+                          className="gps-icon-btn gps-icon-btn--edit" 
                           onClick={() => openEditModal(role)}
                           title="Edit role"
                         >
                           <FiEdit2 />
                         </button>
                         
-                        {/* Don't allow deleting the Admin role */}
                         {role.name.toLowerCase() !== 'admin' && (
                           <button 
-                            className="action-icon-btn delete-btn" 
+                            className="gps-icon-btn gps-icon-btn--delete" 
                             onClick={() => openDeleteModal(role)}
                             title="Delete role"
                           >

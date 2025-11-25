@@ -617,58 +617,41 @@ const UserManagement = () => {
   }, [filteredUsers.length, currentPage]);
 
   return (
-    <div className="user-management-container">
+    <div className="gps-page-container">
       {loading ? (
         <LoadingSpinner />
       ) : (
         <>
-          <div className="user-management-header">
-            <h1>User Management</h1>
-            <div className="header-actions">
-              <div style={{ position: 'relative', minWidth: '300px' }}>
-                <FiSearch style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#64748b', pointerEvents: 'none' }} />
-                <input
-                  type="text"
-                  placeholder="Search users..."
-                  value={searchTerm}
-                  onChange={(e) => {
-                    setSearchTerm(e.target.value);
-                    setCurrentPage(1);
-                  }}
-                  style={{
-                    width: '100%',
-                    padding: '0.5rem 0.75rem 0.5rem 2.5rem',
-                    border: '1px solid #cbd5e1',
-                    borderRadius: '6px',
-                    fontSize: '0.9rem',
-                    outline: 'none'
-                  }}
-                />
-              </div>
-              <Link to="/roles" className="role-management-link">
+          <div className="gps-page-header">
+            <div className="gps-page-header-left">
+              <h1 className="gps-page-title">User Management</h1>
+              <p className="gps-page-subtitle">Manage users and their roles</p>
+            </div>
+            <div className="gps-header-actions">
+              <Link to="/roles" className="gps-btn gps-btn--secondary">
                 Role Management
               </Link>
               {hasRole && hasRole('Admin') && (
                 <button
                   onClick={handleOpenResetRequestsModal}
-                  className="reset-requests-btn"
+                  className="gps-btn gps-btn--secondary"
                 >
                   Password Reset Requests
                   {pendingResetCount > 0 && (
-                    <span className="badge-count">{pendingResetCount}</span>
+                    <span className="gps-tab-count" style={{ marginLeft: '8px' }}>{pendingResetCount}</span>
                   )}
                 </button>
               )}
               {selectedUserIds.length > 0 && (
                 <button 
-                  className="bulk-delete-btn"
+                  className="gps-btn gps-btn--danger"
                   onClick={openBulkDeleteModal}
                 >
                   Delete Selected ({selectedUserIds.length})
                 </button>
               )}
               <button 
-                className="create-user-btn"
+                className="gps-btn gps-btn--primary"
                 onClick={openCreateModal}
               >
                 Add New User
@@ -676,15 +659,30 @@ const UserManagement = () => {
             </div>
           </div>
           
+          <div className="gps-filters">
+            <div className="gps-search-container">
+              <FiSearch className="gps-search-icon" />
+              <input
+                type="text"
+                className="gps-search-input"
+                placeholder="Search users..."
+                value={searchTerm}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  setCurrentPage(1);
+                }}
+              />
+            </div>
+          </div>
+          
           {error && (
-            <div className="error-message" role="alert">
+            <div className="gps-alert gps-alert--error" role="alert">
               {error}
             </div>
           )}
       
-      
-      <div className="users-table-container">
-        <table className="users-table">
+      <div className="gps-table-container">
+        <table className="gps-table">
           <thead>
             <tr>
               <th style={{ width: '50px' }}>
@@ -692,7 +690,6 @@ const UserManagement = () => {
                   type="checkbox"
                   onChange={handleSelectAll}
                   checked={selectedUserIds.length > 0 && selectedUserIds.length === filteredUsers.filter(u => u.id !== currentUser?.id).length}
-                  indeterminate={selectedUserIds.length > 0 && selectedUserIds.length < filteredUsers.filter(u => u.id !== currentUser?.id).length}
                 />
               </th>
               <th>Username</th>
@@ -763,10 +760,10 @@ const UserManagement = () => {
                     </td>
                     <td>{user.last_login ? new Date(user.last_login).toLocaleString() : 'Never'}</td>
                     <td>
-                      <div className="user-actions">
+                      <div className="gps-action-buttons">
                         {isLocked && hasRole && hasRole('Admin') && (
                           <button 
-                            className="unlock-user-btn" 
+                            className="gps-btn gps-btn--secondary gps-btn--sm" 
                             onClick={() => handleUnlockUser(user.id)}
                             title="Unlock this account"
                           >
@@ -774,7 +771,7 @@ const UserManagement = () => {
                           </button>
                         )}
                         <button 
-                          className="action-icon-btn edit-btn" 
+                          className="gps-icon-btn gps-icon-btn--edit" 
                           onClick={() => openEditModal(user)}
                           title="Edit user"
                         >
@@ -783,7 +780,7 @@ const UserManagement = () => {
                         
                         {user.id !== currentUser?.id && (
                           <button 
-                            className="action-icon-btn delete-btn" 
+                            className="gps-icon-btn gps-icon-btn--delete" 
                             onClick={() => openDeleteModal(user)}
                             title="Delete user"
                           >

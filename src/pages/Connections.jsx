@@ -1496,57 +1496,50 @@ const Connections = () => {
   }, [activeTab, searchTerm]);
 
   return (
-    <div className="connections-container">
-      <div className="connections-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h1>Cloud Storage Connections</h1>
+    <div className="gps-page-container">
+      <div className="gps-page-header">
+        <div className="gps-page-header-left">
+          <h1 className="gps-page-title">Cloud Storage Connections</h1>
+          <p className="gps-page-subtitle">Manage source and target cloud storage connections</p>
+        </div>
         {!showForm && hasWritePermission('connections') && (
-          <button className="btn btn-primary header-action-btn" onClick={handleAddNew} style={{ paddingLeft: '10px', paddingRight: '10px', width: 'auto', flex: 'none' }}>
-            <FiPlus /> Add Connection
+          <button className="gps-btn gps-btn--primary" onClick={handleAddNew}>
+            <FiPlus style={{ marginRight: '6px' }} /> Add Connection
           </button>
         )}
       </div>
       
-      {/* All connections now unified - no separate vendor/drop sections */}
-      
-      {/* Search Bar */}
       {!showForm && (
-        <div className="search-bar" style={{ marginBottom: '1rem' }}>
-          <div style={{ position: 'relative', maxWidth: '400px' }}>
-            <FiSearch style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#9ca3af' }} />
+        <div className="gps-filters">
+          <div className="gps-search-container">
+            <FiSearch className="gps-search-icon" />
             <input
               type="text"
+              className="gps-search-input"
               placeholder="Search connections..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              style={{ 
-                width: '100%', 
-                padding: '0.5rem 0.5rem 0.5rem 2.5rem', 
-                border: '1px solid #ddd', 
-                borderRadius: '4px',
-                fontSize: '0.875rem'
-              }}
             />
           </div>
         </div>
       )}
       
-      {/* Connection Tabs - Source and Target */}
-      <div className="connections-tabs">
+      <div className="gps-tabs">
         <button 
-          className={`tab-button ${activeTab === 'source' ? 'active' : ''}`}
+          className={`gps-tab ${activeTab === 'source' ? 'gps-tab--active' : ''}`}
           onClick={() => setActiveTab('source')}
         >
           Source Connections
         </button>
         <button 
-          className={`tab-button ${activeTab === 'target' ? 'active' : ''}`}
+          className={`gps-tab ${activeTab === 'target' ? 'gps-tab--active' : ''}`}
           onClick={() => setActiveTab('target')}
         >
           Target Connections
         </button>
       </div>
       
-      {error && <div className="alert alert-error">{error}</div>}
+      {error && <div className="gps-alert gps-alert--error">{error}</div>}
       
       {loading ? (
         <div className="loading-container">
@@ -1814,18 +1807,18 @@ const Connections = () => {
                 </>
               ) : (
                 <>
-                  <div className="connections-table-container">
-                    <table className="connections-table">
+                  <div className="gps-table-container">
+                    <table className="gps-table">
                     <thead>
                       <tr>
-                        <th className="col-id">Connection ID</th>
-                        <th className="col-name">Connection Name</th>
-                        <th className="col-user">User</th>
-                        <th className="col-auth">Auth Method</th>
-                        <th className="col-type">Provider</th>
-                        <th className="col-details">Details</th>
-                        <th className="col-last-used">Last Used</th>
-                        <th className="col-actions">Actions</th>
+                        <th>Connection Id</th>
+                        <th>Connection Name</th>
+                        <th>User</th>
+                        <th>Auth Method</th>
+                        <th>Provider</th>
+                        <th>Details</th>
+                        <th>Last Used</th>
+                        <th>Actions</th>
                       </tr>
                     </thead>
                     <tbody>
