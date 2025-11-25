@@ -3,6 +3,8 @@ import { FaPlus, FaTrash } from 'react-icons/fa';
 import './MappingConfigModal.css';
 
 const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [], rightSchema = [] }) => {
+  const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
   const [activeTab, setActiveTab] = useState('configuration');
   const [joinType, setJoinType] = useState('INNER');
   const [joinKeys, setJoinKeys] = useState([]);
@@ -11,6 +13,8 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
 
   useEffect(() => {
     if (isOpen) {
+      setName(initialConfig.name || '');
+      setDescription(initialConfig.description || '');
       setJoinType(initialConfig.joinType || 'INNER');
       setJoinKeys(initialConfig.joinKeys || []);
       
@@ -158,6 +162,8 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
     }
 
     const config = {
+      name,
+      description,
       joinType,
       joinKeys,
       columnMappings: columnMappings.filter(m => m.include),
@@ -215,6 +221,29 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
 
           {activeTab === 'configuration' && (
             <div>
+              <div className="vm-form-group">
+                <label>Name *</label>
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Enter a name for this join configuration"
+                  className="vm-input"
+                  required
+                />
+              </div>
+              
+              <div className="vm-form-group">
+                <label>Description</label>
+                <textarea
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Optional description"
+                  className="vm-input"
+                  rows="2"
+                />
+              </div>
+              
               <div className="vm-form-group">
                 <label>Join Type</label>
                 <select 

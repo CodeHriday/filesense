@@ -7,6 +7,8 @@ import { API_BASE_URL } from '../../config';
 import './MappingConfigModal.css';
 
 const RdmLookupModal = ({ isOpen, onClose, onSave, initialConfig = {}, cumulativeSchema = [] }) => {
+  const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
   const [activeTab, setActiveTab] = useState('config');
   const [lookupType, setLookupType] = useState(initialConfig.lookupType || 'dataset');
   
@@ -32,6 +34,8 @@ const RdmLookupModal = ({ isOpen, onClose, onSave, initialConfig = {}, cumulativ
   // Reset all state when modal opens or initialConfig changes
   useEffect(() => {
     if (isOpen) {
+      setName(initialConfig.name || '');
+      setDescription(initialConfig.description || '');
       const currentLookupType = initialConfig.lookupType || 'dataset';
       setLookupType(currentLookupType);
       setActiveTab('config');
@@ -269,7 +273,11 @@ const RdmLookupModal = ({ isOpen, onClose, onSave, initialConfig = {}, cumulativ
   };
   
   const handleSave = () => {
-    let config = { lookupType };
+    let config = { 
+      name,
+      description,
+      lookupType 
+    };
     
     if (lookupType === 'dataset') {
       const selectedDataset = datasets.find(d => d.id === datasetConfig.datasetId);
@@ -356,6 +364,29 @@ const RdmLookupModal = ({ isOpen, onClose, onSave, initialConfig = {}, cumulativ
         <div className="vm-modal-body vm-modal-body-scroll">
           {activeTab === 'config' && (
             <>
+              <div className="vm-form-group">
+                <label>Name *</label>
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Enter a name for this RDM lookup configuration"
+                  className="vm-input"
+                  required
+                />
+              </div>
+              
+              <div className="vm-form-group">
+                <label>Description</label>
+                <textarea
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Optional description"
+                  className="vm-input"
+                  rows="2"
+                />
+              </div>
+              
               <div className="vm-form-group">
                 <label>Lookup Type</label>
                 <select 

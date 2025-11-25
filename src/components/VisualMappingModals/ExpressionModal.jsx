@@ -3,12 +3,16 @@ import TableBasedMapper from '../TableBasedMapper';
 import './MappingConfigModal.css';
 
 const ExpressionModal = ({ isOpen, onClose, onSave, initialConfig = {}, schema = [] }) => {
+  const [name, setName] = useState(initialConfig.name || '');
+  const [description, setDescription] = useState(initialConfig.description || '');
   const [fieldMappings, setFieldMappings] = useState(initialConfig.fieldMappings || []);
   const [variables, setVariables] = useState(initialConfig.variables || []);
   const [piiColumns, setPiiColumns] = useState(initialConfig.piiColumns || []);
   
   const handleSave = () => {
     const config = {
+      name,
+      description,
       fieldMappings,
       variables,
       piiColumns,
@@ -36,6 +40,29 @@ const ExpressionModal = ({ isOpen, onClose, onSave, initialConfig = {}, schema =
         </div>
         
         <div className="vm-modal-body vm-modal-body-scroll">
+          <div className="vm-form-group">
+            <label>Name *</label>
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Enter a name for this expression configuration"
+              className="vm-input"
+              required
+            />
+          </div>
+          
+          <div className="vm-form-group">
+            <label>Description</label>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Optional description"
+              className="vm-input"
+              rows="2"
+            />
+          </div>
+          
           <TableBasedMapper
             schema={schema}
             fieldMappings={fieldMappings}

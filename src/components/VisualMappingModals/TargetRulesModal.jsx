@@ -4,6 +4,8 @@ import FileBrowserModal from './FileBrowserModal';
 import './MappingConfigModal.css';
 
 const TargetRulesModal = ({ isOpen, onClose, onSave, initialConfig = {}, projectId, outputSchema = null }) => {
+  const [name, setName] = useState(initialConfig.name || '');
+  const [description, setDescription] = useState(initialConfig.description || '');
   const [connectionId, setConnectionId] = useState(initialConfig.connectionId || '');
   const [filePath, setFilePath] = useState(initialConfig.filePath || '');
   const [fileName, setFileName] = useState(initialConfig.fileName || '');
@@ -112,6 +114,8 @@ const TargetRulesModal = ({ isOpen, onClose, onSave, initialConfig = {}, project
     const selectedConnection = connections.find(c => c.id === parseInt(connectionId));
     const selectedOwner = datastewards.find(ds => ds.id === parseInt(targetFileOwnerId));
     const config = {
+      name,
+      description,
       connectionId,
       connectionName: selectedConnection?.name || '',
       connectionType: selectedConnection?.connection_type || '',
@@ -164,6 +168,29 @@ const TargetRulesModal = ({ isOpen, onClose, onSave, initialConfig = {}, project
           {/* Configuration Tab */}
           {activeTab === 'configuration' && (
           <div className="vm-modal-body-scroll">
+          <div className="vm-form-group">
+            <label>Name *</label>
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Enter a name for this target rules configuration"
+              className="vm-input"
+              required
+            />
+          </div>
+          
+          <div className="vm-form-group">
+            <label>Description</label>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Optional description"
+              className="vm-input"
+              rows="2"
+            />
+          </div>
+          
           <h3 className="vm-section-title">Target Destination</h3>
           
           {/* Target Connection - Full Width */}

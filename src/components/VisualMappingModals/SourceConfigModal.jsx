@@ -7,6 +7,8 @@ const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
   // Use ref to track if we have a saved file pattern - this won't trigger re-renders
   const hasSavedFilePatternRef = useRef(false);
   
+  const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
   const [connectionId, setConnectionId] = useState('');
   const [filePath, setFilePath] = useState('');
   const [filePattern, setFilePattern] = useState('*.csv');
@@ -30,6 +32,8 @@ const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
   useEffect(() => {
     if (isOpen) {
       // Restore all state from initialConfig
+      setName(initialConfig.name || '');
+      setDescription(initialConfig.description || '');
       setConnectionId(initialConfig.connectionId || '');
       setFilePath(initialConfig.filePath || '');
       setFilePattern(initialConfig.filePattern || '*.csv');
@@ -314,6 +318,8 @@ const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
     const selectedFile = agreementFiles.find(f => String(f.id) === selectedFileId);
     
     const config = {
+      name,
+      description,
       connectionId,
       connectionName: selectedConnection?.name || '',
       connectionType: selectedConnection?.connection_type || selectedConnection?.type || '',
@@ -386,6 +392,30 @@ const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
           {/* Configuration Tab */}
           {activeTab === 'configuration' && (
             <>
+          {/* Name and Description Fields */}
+          <div className="vm-form-group">
+            <label>Name *</label>
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Enter a name for this source configuration"
+              className="vm-input"
+              required
+            />
+          </div>
+          
+          <div className="vm-form-group">
+            <label>Description</label>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Optional description"
+              className="vm-input"
+              rows="2"
+            />
+          </div>
+          
           {/* Row 1: Vendor Contract and Source File Owner (side by side) */}
           <div className="vm-form-row-two-cols">
             <div className="vm-form-group">
