@@ -48,7 +48,7 @@ class VisualMappingWebSocketService {
       ...metadata
     });
     
-    systemLogger.debug('Emitted node status', {
+    systemLogger.info('Emitted node status', {
       executionId,
       nodeId,
       status,
@@ -68,7 +68,7 @@ class VisualMappingWebSocketService {
       timestamp: new Date().toISOString()
     });
     
-    systemLogger.debug('Emitted edge row count', {
+    systemLogger.info('Emitted edge row count', {
       executionId,
       edgeId,
       rowCount
@@ -84,7 +84,7 @@ class VisualMappingWebSocketService {
       timestamp: new Date().toISOString()
     });
     
-    systemLogger.debug('Emitted execution progress', {
+    systemLogger.info('Emitted execution progress', {
       executionId,
       progress
     });

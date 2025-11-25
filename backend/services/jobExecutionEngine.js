@@ -305,7 +305,7 @@ async function updateTransformationExecution(pool, executionId, status, result =
       [status, JSON.stringify(result), executionId]
     );
     
-    systemLogger.debug('Updated transformation_executions record', {
+    systemLogger.info('Updated transformation_executions record', {
       executionId,
       status
     });
