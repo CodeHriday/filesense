@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiEdit2, FiTrash2, FiFolderPlus, FiSearch } from 'react-icons/fi';
+import { FiEdit2, FiTrash2, FiFolder, FiSearch, FiPlus } from 'react-icons/fi';
 import LoadingSpinner from '../components/LoadingSpinner';
 import Pagination from '../components/Pagination';
 import ThreeSectionModal from '../components/ThreeSectionModal';
 import ConfirmationModal from '../components/ConfirmationModal';
 import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
-import '../styles/VendorManagement.css';
+import '../styles/global-page-styles.css';
 
 const VendorManagement = () => {
   const [vendors, setVendors] = useState([]);
@@ -364,13 +364,13 @@ const VendorManagement = () => {
   const getStatusBadgeClass = (status) => {
     switch (status) {
       case 'active':
-        return 'status-badge status-active';
+        return 'gps-badge gps-badge--success';
       case 'inactive':
-        return 'status-badge status-inactive';
+        return 'gps-badge gps-badge--muted';
       case 'suspended':
-        return 'status-badge status-suspended';
+        return 'gps-badge gps-badge--danger';
       default:
-        return 'status-badge';
+        return 'gps-badge';
     }
   };
 
@@ -406,53 +406,50 @@ const VendorManagement = () => {
   }, [totalPagesFiltered, currentPage]);
   
   return (
-    <div className="vendor-management-container">
+    <div className="gps-page-container">
       {loading ? (
         <LoadingSpinner />
       ) : (
         <>
-          <div className="vendor-management-header">
-            <h1>Vendor Management</h1>
-            <div className="header-actions">
-              <div style={{ position: 'relative', marginRight: '1rem' }}>
-                <FiSearch style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#9ca3af' }} />
+          <div className="gps-page-header">
+            <div className="gps-page-header-left">
+              <h1 className="gps-page-title">Vendor Management</h1>
+              <p className="gps-page-subtitle">Manage vendor organizations and contacts</p>
+            </div>
+            <div className="gps-header-actions">
+              <div className="gps-search-wrapper">
+                <FiSearch className="gps-search-icon" />
                 <input
                   type="text"
+                  className="gps-search-input"
                   placeholder="Search vendors..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  style={{ 
-                    padding: '0.5rem 0.5rem 0.5rem 2.5rem', 
-                    border: '1px solid #ddd', 
-                    borderRadius: '4px',
-                    fontSize: '0.875rem',
-                    width: '300px'
-                  }}
                 />
               </div>
               <button 
-                className="create-vendor-btn"
+                className="gps-btn gps-btn--primary"
                 onClick={openCreateModal}
               >
-                Add New Vendor
+                <FiPlus /> Add New Vendor
               </button>
             </div>
           </div>
           
           {error && (
-            <div className="error-message" role="alert">
+            <div className="gps-alert gps-alert--error" role="alert">
               {error}
             </div>
           )}
           
           {successMessage && (
-            <div className="success-message" role="alert">
+            <div className="gps-alert gps-alert--success" role="alert">
               {successMessage}
             </div>
           )}
       
-      <div className="vendors-table-container">
-        <table className="vendors-table">
+      <div className="gps-table-container">
+        <table className="gps-table">
           <thead>
             <tr>
               <th>Vendor Code</th>
@@ -467,7 +464,7 @@ const VendorManagement = () => {
           <tbody>
             {paginatedVendors.length === 0 ? (
               <tr>
-                <td colSpan="7" className="no-vendors-message">No vendors found</td>
+                <td colSpan="7" className="gps-table-empty">No vendors found</td>
               </tr>
             ) : (
               paginatedVendors.map(vendor => (
@@ -483,23 +480,23 @@ const VendorManagement = () => {
                   </td>
                   <td>{vendor.created_at ? new Date(vendor.created_at).toLocaleString() : '-'}</td>
                   <td>
-                    <div className="vendor-actions">
+                    <div className="gps-action-buttons">
                       <button 
-                        className="icon-btn edit-icon-btn" 
+                        className="gps-icon-btn gps-icon-btn--edit" 
                         onClick={() => openEditModal(vendor)}
                         title="Edit Vendor"
                       >
                         <FiEdit2 />
                       </button>
                       <button 
-                        className="icon-btn project-icon-btn" 
+                        className="gps-icon-btn gps-icon-btn--success" 
                         onClick={() => navigate('/projects')}
                         title="Go to Projects"
                       >
-                        <FiFolderPlus />
+                        <FiFolder />
                       </button>
                       <button 
-                        className="icon-btn delete-icon-btn" 
+                        className="gps-icon-btn gps-icon-btn--delete" 
                         onClick={() => openDeleteConfirmation(vendor.id, vendor.vendor_name)}
                         title="Delete Vendor"
                       >
@@ -514,7 +511,6 @@ const VendorManagement = () => {
         </table>
       </div>
       
-      {/* Pagination Controls */}
       {totalPagesFiltered > 1 && (
         <Pagination
           currentPage={currentPage}
