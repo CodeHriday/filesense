@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { FiFilePlus, FiSearch, FiChevronRight, FiChevronDown } from 'react-icons/fi';
 import Pagination from '../components/Pagination';
+import './ProjectManagement.css';
 
 const API_BASE_URL = '/api';
 
@@ -78,47 +79,44 @@ function Projects() {
   };
 
   return (
-    <div className="page-container">
+    <div className="project-management-container">
       <div className="page-header">
-        <div className="page-header-left">
-          <h1 className="page-title">Projects</h1>
-          <p className="page-subtitle">View projects and upload files</p>
-        </div>
+        <h1>Projects</h1>
+        <p>View projects and upload files</p>
       </div>
 
       {error && (
-        <div className="page-alert page-alert-error" role="alert">
-          {error}
-          <button className="page-alert-close" onClick={() => setError(null)}>&times;</button>
-        </div>
+        <div className="error-message" role="alert">{error}</div>
       )}
 
-      <div className="page-filters">
-        <div className="page-filter-group">
-          <FiSearch className="page-filter-icon" />
+      <div className="filters-section" style={{ marginBottom: '1.5rem' }}>
+        <div className="search-bar" style={{ position: 'relative', width: '300px' }}>
+          <FiSearch style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: '#666', pointerEvents: 'none' }} />
           <input
             type="text"
-            className="page-filter-input"
             placeholder="Search projects..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
+            style={{ width: '100%', padding: '0.5rem 0.5rem 0.5rem 2.5rem', border: '1px solid #ddd', borderRadius: '4px' }}
           />
         </div>
-        <label className="page-filter-checkbox">
-          <input
-            type="checkbox"
-            checked={showArchived}
-            onChange={(e) => setShowArchived(e.target.checked)}
-          />
-          Show Archived
-        </label>
+        <div className="filter-options">
+          <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <input
+              type="checkbox"
+              checked={showArchived}
+              onChange={(e) => setShowArchived(e.target.checked)}
+            />
+            Show Archived
+          </label>
+        </div>
       </div>
 
       {loading ? (
-        <div className="page-loading">Loading projects...</div>
+        <div className="loading">Loading projects...</div>
       ) : (
-        <div className="page-table-container">
-          <table className="page-table">
+        <div className="table-container">
+          <table className="data-table">
             <thead>
               <tr>
                 <th style={{ width: '60px' }}></th>
@@ -134,7 +132,7 @@ function Projects() {
             <tbody>
               {paginatedProjects.length === 0 ? (
                 <tr>
-                  <td colSpan="8" className="page-table-empty">
+                  <td colSpan="8" style={{ textAlign: 'center', padding: '2rem' }}>
                     No projects found
                   </td>
                 </tr>
@@ -145,8 +143,16 @@ function Projects() {
                       <td>
                         {project.sub_projects && project.sub_projects.length > 0 && (
                           <button
-                            className="expand-toggle"
                             onClick={() => toggleProjectExpansion(project.id)}
+                            style={{
+                              background: 'none',
+                              border: 'none',
+                              cursor: 'pointer',
+                              padding: '0.25rem',
+                              display: 'flex',
+                              alignItems: 'center',
+                              color: '#666'
+                            }}
                             title={expandedProjects.has(project.id) ? 'Collapse sub-projects' : 'Expand sub-projects'}
                             aria-label={expandedProjects.has(project.id) ? 'Collapse sub-projects' : 'Expand sub-projects'}
                           >
@@ -162,7 +168,7 @@ function Projects() {
                       <td>{project.name}</td>
                       <td>{project.description || '-'}</td>
                       <td>
-                        <span className={`badge ${project.project_type === 'internal' ? 'badge-internal' : 'badge-external'}`}>
+                        <span className={`badge badge-${project.project_type === 'internal' ? 'success' : 'info'}`}>
                           {project.project_type === 'internal' ? 'Internal' : 'External'}
                         </span>
                       </td>
@@ -177,12 +183,13 @@ function Projects() {
                       <td>
                         <div className="action-buttons">
                           <button 
-                            className="action-btn action-btn-success" 
+                            className="btn-icon" 
                             onClick={() => navigate(`/upload?project_id=${project.id}`)}
                             title="Add File to Project"
                             aria-label={`Add file to project ${project.name}`}
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0.5rem', color: '#28a745' }}
                           >
-                            <FiFilePlus size={14} aria-hidden="true" />
+                            <FiFilePlus size={16} aria-hidden="true" />
                           </button>
                         </div>
                       </td>
@@ -191,19 +198,19 @@ function Projects() {
                       project.sub_projects.map((subProject) => (
                         <tr 
                           key={`sub-${subProject.id}`}
-                          className="page-table-subrow"
+                          style={{ backgroundColor: '#f9fafb' }}
                         >
                           <td></td>
                           <td>{subProject.id}</td>
-                          <td className="page-table-subrow">
-                            <div className="flex-center gap-8">
-                              <span className="text-muted">→</span>
+                          <td style={{ paddingLeft: '2rem' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                              <span style={{ color: '#9ca3af' }}>→</span>
                               {subProject.name}
                             </div>
                           </td>
                           <td>{subProject.description || '-'}</td>
                           <td>
-                            <span className={`badge ${subProject.project_type === 'internal' ? 'badge-internal' : 'badge-external'}`}>
+                            <span className={`badge badge-${subProject.project_type === 'internal' ? 'success' : 'info'}`}>
                               {subProject.project_type === 'internal' ? 'Internal' : 'External'}
                             </span>
                           </td>
@@ -218,12 +225,13 @@ function Projects() {
                           <td>
                             <div className="action-buttons">
                               <button 
-                                className="action-btn action-btn-success" 
+                                className="btn-icon" 
                                 onClick={() => navigate(`/upload?project_id=${project.id}&sub_project_id=${subProject.id}`)}
                                 title="Add File to Sub-Project"
                                 aria-label={`Add file to sub-project ${subProject.name}`}
+                                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0.5rem', color: '#28a745' }}
                               >
-                                <FiFilePlus size={14} aria-hidden="true" />
+                                <FiFilePlus size={16} aria-hidden="true" />
                               </button>
                             </div>
                           </td>

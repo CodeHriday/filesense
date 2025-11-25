@@ -101,7 +101,6 @@ import ToastContainer from './components/ToastContainer';
 import { isVendorUser } from './utils/userHelpers';
 import './App.css';
 import './styles/accessibility.css';
-import './styles/global-page-styles.css';
 import './styles/Login.css';
 import './styles/UserManagement.css';
 import './styles/RoleManagement.css';
