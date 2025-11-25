@@ -1401,3 +1401,139 @@
   border-radius: var(--gps-radius-sm);
   color: var(--gps-primary-teal);
 }
+
+/* ============================================
+   PAGINATION STYLES
+   ============================================ */
+.gps-pagination {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--gps-spacing-lg);
+  margin-top: var(--gps-spacing-lg);
+  border-top: 1px solid var(--gps-border-light);
+}
+
+.gps-pagination-info {
+  font-family: var(--gps-font-family);
+  font-size: var(--gps-font-size-content);
+  color: var(--gps-text-muted);
+}
+
+/* ============================================
+   LINK STYLES
+   ============================================ */
+.gps-link {
+  color: var(--gps-primary-teal);
+  text-decoration: none;
+  font-family: var(--gps-font-family);
+  font-size: var(--gps-font-size-content);
+  font-weight: var(--gps-font-weight-medium);
+  transition: color 0.2s ease;
+}
+
+.gps-link:hover {
+  color: var(--gps-primary-hover);
+  text-decoration: underline;
+}
+
+/* ============================================
+   DIVIDER STYLES
+   ============================================ */
+.gps-divider {
+  margin: var(--gps-spacing-lg) 0;
+  border: none;
+  border-top: 1px solid var(--gps-border-light);
+}
+
+/* ============================================
+   SECTION STYLES
+   ============================================ */
+.gps-section {
+  margin-bottom: var(--gps-spacing-lg);
+}
+
+.gps-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--gps-spacing-md);
+}
+
+.gps-section-title {
+  font-family: var(--gps-font-family);
+  font-size: var(--gps-font-size-header);
+  font-weight: var(--gps-font-weight-bold);
+  color: var(--gps-text-dark);
+  margin: 0 0 var(--gps-spacing-md) 0;
+}
+
+/* ============================================
+   FORM GRID STYLES
+   ============================================ */
+.gps-form-grid--3col {
+  display: grid;
+  grid-template-columns: 1fr 2fr auto;
+  gap: var(--gps-spacing-md);
+  align-items: center;
+}
+
+.gps-form-row {
+  display: flex;
+  gap: var(--gps-spacing-md);
+  align-items: center;
+  margin-bottom: var(--gps-spacing-md);
+}
+
+/* ============================================
+   COMPACT TABLE STYLES
+   ============================================ */
+.gps-table--compact {
+  font-size: 11px;
+}
+
+.gps-table--compact th,
+.gps-table--compact td {
+  padding: var(--gps-spacing-sm) var(--gps-spacing-md);
+}
+
+/* ============================================
+   SCROLLABLE LIST STYLES
+   ============================================ */
+.gps-scrollable-list {
+  max-height: 200px;
+  overflow-y: auto;
+  border: 1px solid var(--gps-border-light);
+  border-radius: var(--gps-radius-sm);
+  margin-top: var(--gps-spacing-md);
+}
+
+.gps-scrollable-list .gps-table {
+  margin-bottom: 0;
+}
+
+/* ============================================
+   EMPTY STATE STYLES
+   ============================================ */
+.gps-empty-message {
+  text-align: center;
+  color: var(--gps-text-light);
+  font-family: var(--gps-font-family);
+  font-size: var(--gps-font-size-content);
+  padding: var(--gps-spacing-lg);
+  margin: 0;
+}
+
+.gps-empty-cell {
+  text-align: center;
+  color: var(--gps-text-light);
+}
+
+/* ============================================
+   MODAL SECTION STYLES
+   ============================================ */
+.gps-modal-sections {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gps-spacing-md);
+}
