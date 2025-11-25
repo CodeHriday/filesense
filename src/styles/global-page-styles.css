@@ -1566,3 +1566,68 @@
   flex-direction: column;
   gap: var(--gps-spacing-md);
 }
+
+/* ============================================
+   STAT CARD STYLES (Dashboard)
+   ============================================ */
+.gps-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--gps-spacing-lg);
+}
+
+.gps-stat-card {
+  display: flex;
+  align-items: center;
+  gap: var(--gps-spacing-md);
+  padding: var(--gps-spacing-lg);
+  background: var(--gps-bg-white);
+  border: 1px solid var(--gps-border-light);
+  border-radius: var(--gps-radius-md);
+}
+
+.gps-stat-icon {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--gps-radius-sm);
+  font-size: 18px;
+}
+
+.gps-stat-content {
+  display: flex;
+  flex-direction: column;
+}
+
+.gps-stat-value {
+  font-family: var(--gps-font-family);
+  font-size: 20px;
+  font-weight: var(--gps-font-weight-bold);
+  color: var(--gps-text-dark);
+  line-height: 1.2;
+}
+
+.gps-stat-label {
+  font-family: var(--gps-font-family);
+  font-size: var(--gps-font-size-content);
+  font-weight: var(--gps-font-weight-medium);
+  color: var(--gps-text-muted);
+}
+
+/* ============================================
+   FILTER WRAPPER STYLES
+   ============================================ */
+.gps-filter-wrapper {
+  display: flex;
+  align-items: center;
+  gap: var(--gps-spacing-xs);
+}
+
+/* ============================================
+   MUTED TEXT STYLE
+   ============================================ */
+.gps-text-muted {
+  color: var(--gps-text-muted);
+}
