@@ -116,16 +116,18 @@ export const APP_FEATURES = [
     showInSidebar: false // Accessed via file catalog
   },
   
-  // Job Design
+  // Archived
   { 
     id: 'transformation', 
     name: 'Mapping Jobs', 
-    category: 'Job Design', 
+    category: 'Archived', 
     supportsExecute: true,
     icon: FiLink,
     route: '/mappings',
     showInSidebar: true
   },
+  
+  // Job Design
   { 
     id: 'mapping_group', 
     name: 'Mapping Job Groups', 
@@ -525,7 +527,8 @@ export const FEATURE_CATEGORIES_ORDER = [
   'Jobs and Monitoring',
   'Governance',
   'Vendor Management',
-  'Insights'
+  'Insights',
+  'Archived'
 ];
 
 // Group features by category (used by RoleManagement)
@@ -547,7 +550,8 @@ export const getSidebarCategoryName = (category) => {
     'Governance': 'Data Governance',
     'Administration': 'Administration',
     'Vendor Management': 'Vendor Management',
-    'Insights': 'Insights'
+    'Insights': 'Insights',
+    'Archived': 'Archived'
   };
   return mapping[category] || category;
 };
