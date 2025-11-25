@@ -10,6 +10,7 @@ export const useVisualMappingExecution = () => {
   const [executionError, setExecutionError] = useState(null);
   const [isConnected, setIsConnected] = useState(false);
   const [currentExecutionId, setCurrentExecutionId] = useState(null);
+  const [executionLogs, setExecutionLogs] = useState([]);
   const socketRef = useRef(null);
 
   // Initialize socket connection on mount
@@ -70,6 +71,17 @@ export const useVisualMappingExecution = () => {
     socketInstance.on('execution_error', (data) => {
       console.error('Execution error:', data);
       setExecutionError(data.error);
+    });
+
+    // Listen for execution logs
+    socketInstance.on('execution_log', (data) => {
+      console.log('Execution log:', data);
+      setExecutionLogs(prev => [...prev, {
+        timestamp: data.timestamp || new Date().toISOString(),
+        level: data.level || 'INFO',
+        message: data.message,
+        details: data.details
+      }]);
     });
 
     socketRef.current = socketInstance;
@@ -135,8 +147,14 @@ export const useVisualMappingExecution = () => {
     setExecutionProgress(null);
     setExecutionComplete(false);
     setExecutionError(null);
+    setExecutionLogs([]);
     unsubscribeFromExecution();
   }, [unsubscribeFromExecution]);
+
+  // Clear logs separately
+  const clearLogs = useCallback(() => {
+    setExecutionLogs([]);
+  }, []);
 
   // Generate a UUID for execution ID
   const generateExecutionId = useCallback(() => {
@@ -153,7 +171,9 @@ export const useVisualMappingExecution = () => {
     executionProgress,
     executionComplete,
     executionError,
+    executionLogs,
     resetExecution,
+    clearLogs,
     isConnected,
     subscribeToExecution,
     unsubscribeFromExecution,

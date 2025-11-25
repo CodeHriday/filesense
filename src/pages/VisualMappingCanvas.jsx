@@ -30,7 +30,9 @@ import {
   FaChevronDown,
   FaChevronUp,
   FaChevronLeft,
-  FaChevronRight
+  FaChevronRight,
+  FaRedo,
+  FaTerminal
 } from 'react-icons/fa';
 import SourceConfigModal from '../components/VisualMappingModals/SourceConfigModal';
 import ExpressionModal from '../components/VisualMappingModals/ExpressionModal';
@@ -313,6 +315,10 @@ const VisualMappingCanvasContent = () => {
   const [currentExecutionId, setCurrentExecutionId] = useState(null);
   const [isExecuting, setIsExecuting] = useState(false);
   
+  // Console panel state
+  const [showConsole, setShowConsole] = useState(false);
+  const consoleRef = useRef(null);
+  
   // WebSocket hook for real-time execution updates
   const {
     nodeStatuses,
@@ -320,7 +326,9 @@ const VisualMappingCanvasContent = () => {
     executionProgress,
     executionComplete,
     executionError,
+    executionLogs,
     resetExecution,
+    clearLogs,
     isConnected,
     subscribeToExecution,
     generateExecutionId
@@ -924,6 +932,58 @@ const VisualMappingCanvasContent = () => {
     setEdges((eds) => eds.filter(edge => !edge.selected));
   };
   
+  // Reset execution status from nodes and edges
+  const handleResetExecution = useCallback(() => {
+    // Clear WebSocket state
+    resetExecution();
+    clearLogs();
+    setIsExecuting(false);
+    
+    // Remove status classes and badges from nodes
+    setNodes((nds) => 
+      nds.map((node) => ({
+        ...node,
+        className: (node.className || '').replace(/\s*status-\w+/g, '').trim(),
+        data: {
+          ...node.data,
+          executionStatus: null,
+          statusBadge: null
+        }
+      }))
+    );
+    
+    // Remove row count labels from edges
+    setEdges((eds) => 
+      eds.map((edge) => ({
+        ...edge,
+        label: undefined,
+        labelStyle: undefined,
+        labelBgStyle: undefined
+      }))
+    );
+    
+    setSuccess('Execution status cleared');
+    setTimeout(() => setSuccess(null), 2000);
+  }, [resetExecution, clearLogs, setNodes, setEdges]);
+  
+  // Auto-scroll console to bottom when new logs arrive or console opens
+  useEffect(() => {
+    if (consoleRef.current && showConsole) {
+      requestAnimationFrame(() => {
+        if (consoleRef.current) {
+          consoleRef.current.scrollTop = consoleRef.current.scrollHeight;
+        }
+      });
+    }
+  }, [executionLogs, showConsole]);
+  
+  // Open console when execution starts
+  useEffect(() => {
+    if (isExecuting) {
+      setShowConsole(true);
+    }
+  }, [isExecuting]);
+  
   return (
     <div className="visual-mapping-canvas-container">
       {/* Top Toolbar */}
@@ -947,8 +1007,22 @@ const VisualMappingCanvasContent = () => {
           <button onClick={validateMapping} className="visual-mapping-toolbar-btn visual-mapping-toolbar-btn-info">
             <FaCheckCircle /> Validate
           </button>
-          <button onClick={executeMapping} disabled={!isEditMode} className="visual-mapping-toolbar-btn visual-mapping-toolbar-btn-success">
-            <FaPlay /> Run
+          <button 
+            onClick={handleResetExecution} 
+            className="visual-mapping-toolbar-btn visual-mapping-toolbar-btn-secondary"
+            title="Reset execution status and clear row counts"
+          >
+            <FaRedo /> Reset
+          </button>
+          <button 
+            onClick={() => setShowConsole(!showConsole)} 
+            className={`visual-mapping-toolbar-btn ${showConsole ? 'visual-mapping-toolbar-btn-active' : ''}`}
+            title="Toggle console panel"
+          >
+            <FaTerminal /> Console
+          </button>
+          <button onClick={executeMapping} disabled={!isEditMode || isExecuting} className="visual-mapping-toolbar-btn visual-mapping-toolbar-btn-success">
+            <FaPlay /> {isExecuting ? 'Running...' : 'Run'}
           </button>
         </div>
       </div>
@@ -1309,6 +1383,62 @@ const VisualMappingCanvasContent = () => {
             return getNodeOutputSchema(rightEdges[0].source);
           })()}
         />
+      )}
+      
+      {/* Console Panel */}
+      {showConsole && (
+        <div className="visual-mapping-console-panel">
+          <div className="visual-mapping-console-header">
+            <div className="visual-mapping-console-title">
+              <FaTerminal className="visual-mapping-console-icon" />
+              <span>Execution Logs</span>
+              {executionLogs.length > 0 && (
+                <span className="visual-mapping-console-count">({executionLogs.length})</span>
+              )}
+            </div>
+            <div className="visual-mapping-console-actions">
+              <button 
+                className="visual-mapping-console-btn"
+                onClick={clearLogs}
+                title="Clear logs"
+              >
+                Clear
+              </button>
+              <button 
+                className="visual-mapping-console-btn visual-mapping-console-close"
+                onClick={() => setShowConsole(false)}
+                title="Close console"
+              >
+                ×
+              </button>
+            </div>
+          </div>
+          <div className="visual-mapping-console-body" ref={consoleRef}>
+            {executionLogs.length === 0 ? (
+              <div className="visual-mapping-console-empty">
+                No execution logs yet. Run the mapping to see logs here.
+              </div>
+            ) : (
+              executionLogs.map((log, index) => {
+                const timestamp = new Date(log.timestamp).toLocaleTimeString('en-US', {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                  second: '2-digit',
+                  hour12: true
+                });
+                return (
+                  <div key={index} className={`visual-mapping-console-log log-${log.level.toLowerCase()}`}>
+                    <span className="visual-mapping-console-timestamp">[{timestamp}]</span>
+                    <span className={`visual-mapping-console-level level-${log.level.toLowerCase()}`}>
+                      [{log.level}]
+                    </span>
+                    <span className="visual-mapping-console-message">{log.message}</span>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
       )}
     </div>
   );

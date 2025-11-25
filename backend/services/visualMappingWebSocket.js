@@ -122,6 +122,20 @@ class VisualMappingWebSocketService {
       error: error.message
     });
   }
+
+  emitExecutionLog(executionId, level, message, metadata = {}) {
+    if (!this.io) return;
+    
+    const logEntry = {
+      executionId,
+      level: level.toUpperCase(),
+      message,
+      timestamp: new Date().toISOString(),
+      ...metadata
+    };
+    
+    this.io.to(`execution:${executionId}`).emit('execution_log', logEntry);
+  }
 }
 
 module.exports = new VisualMappingWebSocketService();

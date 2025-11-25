@@ -781,3 +781,170 @@
   0%, 100% { opacity: 1; }
   50% { opacity: 0.4; }
 }
+
+/* Toolbar Button Secondary (Reset) */
+.visual-mapping-toolbar-btn-secondary {
+  background: #f7fafc;
+  color: #4a5568;
+  border-color: #a0aec0;
+}
+
+.visual-mapping-toolbar-btn-secondary:hover {
+  background: #edf2f7;
+  color: #2d3748;
+  border-color: #718096;
+}
+
+/* Toolbar Button Active (Console toggle) */
+.visual-mapping-toolbar-btn-active {
+  background: #025043;
+  color: white;
+  border-color: #025043;
+}
+
+/* Console Panel */
+.visual-mapping-console-panel {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 200px;
+  background: #1a202c;
+  border-top: 2px solid #025043;
+  display: flex;
+  flex-direction: column;
+  z-index: 1001;
+  font-family: 'Inter', monospace;
+}
+
+.visual-mapping-console-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 16px;
+  background: #2d3748;
+  border-bottom: 1px solid #4a5568;
+  min-height: 36px;
+}
+
+.visual-mapping-console-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  color: #e2e8f0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.visual-mapping-console-icon {
+  color: #025043;
+  font-size: 14px;
+}
+
+.visual-mapping-console-count {
+  font-size: 10px;
+  font-weight: 600;
+  color: #a0aec0;
+}
+
+.visual-mapping-console-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.visual-mapping-console-btn {
+  font-family: 'Inter', sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 4px 10px;
+  background: transparent;
+  color: #a0aec0;
+  border: 1px solid #4a5568;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.visual-mapping-console-btn:hover {
+  background: #4a5568;
+  color: #e2e8f0;
+}
+
+.visual-mapping-console-close {
+  font-size: 16px;
+  font-weight: 700;
+  padding: 2px 8px;
+  line-height: 1;
+}
+
+.visual-mapping-console-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 16px;
+  font-size: 10px;
+  line-height: 1.6;
+}
+
+.visual-mapping-console-empty {
+  color: #718096;
+  font-style: italic;
+  text-align: center;
+  padding: 40px 20px;
+}
+
+.visual-mapping-console-log {
+  display: flex;
+  gap: 8px;
+  padding: 2px 0;
+  color: #e2e8f0;
+}
+
+.visual-mapping-console-timestamp {
+  color: #718096;
+  flex-shrink: 0;
+}
+
+.visual-mapping-console-level {
+  flex-shrink: 0;
+  font-weight: 600;
+}
+
+.visual-mapping-console-level.level-info {
+  color: #63b3ed;
+}
+
+.visual-mapping-console-level.level-warn,
+.visual-mapping-console-level.level-warning {
+  color: #fbd38d;
+}
+
+.visual-mapping-console-level.level-error {
+  color: #fc8181;
+}
+
+.visual-mapping-console-level.level-debug {
+  color: #b794f4;
+}
+
+.visual-mapping-console-message {
+  color: #e2e8f0;
+  word-break: break-word;
+}
+
+.visual-mapping-console-log.log-error {
+  background: rgba(252, 129, 129, 0.1);
+}
+
+.visual-mapping-console-log.log-warn,
+.visual-mapping-console-log.log-warning {
+  background: rgba(251, 211, 141, 0.1);
+}
+
+/* Adjust content area when console is visible */
+.visual-mapping-content.console-visible {
+  height: calc(100% - 248px);
+}

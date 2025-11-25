@@ -117,14 +117,20 @@ async function createJob(pool, mappingId, userId, options = {}) {
  * @param {string} level - Log level (info, warn, error)
  * @param {string} message - Log message
  * @param {Object} details - Additional details
+ * @param {string} visualExecutionId - Optional visual mapping execution ID for WebSocket logs
  */
-async function logJobExecution(pool, jobId, level, message, details = {}) {
+async function logJobExecution(pool, jobId, level, message, details = {}, visualExecutionId = null) {
   try {
     await pool.query(`
       INSERT INTO transformation_logs (
         job_id, log_level, message, log_details
       ) VALUES ($1, $2, $3, $4)
     `, [jobId, level, message, JSON.stringify(details)]);
+    
+    // Emit log via WebSocket for visual mapping executions
+    if (visualExecutionId) {
+      visualMappingWS.emitExecutionLog(visualExecutionId, level, message, details);
+    }
     
   } catch (error) {
     systemLogger.error('Error logging job execution:', error);
@@ -379,6 +385,7 @@ async function executeTransformationJob(pool, mappingId, userId, options = {}) {
       
       // Emit execution start event
       visualMappingWS.emitExecutionProgress(visualExecutionId, 0);
+      visualMappingWS.emitExecutionLog(visualExecutionId, 'info', `Execution started for job ${jobId}`);
       systemLogger.info('Visual mapping execution started - WebSocket tracking enabled', {
         visualExecutionId,
         visualMappingId: mapping.visual_mapping_id,
@@ -411,6 +418,13 @@ async function executeTransformationJob(pool, mappingId, userId, options = {}) {
         if (edge) {
           visualMappingWS.emitEdgeRowCount(visualExecutionId, edge.id, sourceNodeId, targetNodeId, rowCount);
         }
+      }
+    };
+    
+    // Helper to emit execution logs via WebSocket (for visual mapping console panel)
+    const emitLog = (level, message, details = {}) => {
+      if (visualExecutionId) {
+        visualMappingWS.emitExecutionLog(visualExecutionId, level, message, details);
       }
     };
     
@@ -560,6 +574,7 @@ async function executeTransformationJob(pool, mappingId, userId, options = {}) {
     }
     
     await logJobExecution(pool, jobId, 'info', `Found ${cloudFiles.length} matching files in cloud storage`);
+    emitLog('info', `Found ${cloudFiles.length} matching file(s) in source`);
     
     // Emit completed status for source nodes with file count
     nodesByType.sourceConfig.forEach(nodeId => {
@@ -854,6 +869,7 @@ async function executeTransformationJob(pool, mappingId, userId, options = {}) {
       await logJobExecution(pool, jobId, 'info', `Processing file: ${file.filename}`, {
         fileId: file.file_id
       });
+      emitLog('info', `Processing file: ${file.filename.split('/').pop()}`);
       
       try {
         // Create callback for real-time progress updates (called after transformation, before profiling)
@@ -918,6 +934,7 @@ async function executeTransformationJob(pool, mappingId, userId, options = {}) {
           rowsFailed: fileResult.rowsFailed,
           progressMessage: `Completed ${filesProcessedSoFar} of ${matchingFiles.length} files`
         });
+        emitLog('info', `Processed ${fileResult.rowsRead} rows, wrote ${fileResult.rowsWritten} rows (${filesProcessedSoFar}/${matchingFiles.length} files)`);
         
         // Edge row counts already emitted by onTransformComplete callback (before profiling)
         // This secondary emission serves as a final confirmation after all processing completes
@@ -973,6 +990,7 @@ async function executeTransformationJob(pool, mappingId, userId, options = {}) {
           error: fileError.message,
           stack: fileError.stack
         });
+        emitLog('error', `Failed processing file: ${fileError.message}`);
       }
     }
     
@@ -1000,6 +1018,7 @@ async function executeTransformationJob(pool, mappingId, userId, options = {}) {
       rowsWritten: totalRowsWritten,
       rowsFailed: totalRowsFailed
     });
+    emitLog('info', `Execution completed: ${matchingFiles.length} file(s), ${totalRowsRead} rows read, ${totalRowsWritten} rows written`);
     
     // Final status emissions - these are redundant confirmations after profiling completes
     // Primary real-time updates were already sent via onTransformComplete callback (before profiling)
