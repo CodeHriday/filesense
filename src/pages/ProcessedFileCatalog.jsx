@@ -178,20 +178,19 @@ const ProcessedFileCatalog = () => {
       <div className="gps-card">
         <div className="gps-card-header">
           <h3 className="gps-card-title">Transformation Files</h3>
-          <span className="gps-badge gps-badge--info">{totalItems} Files</span>
         </div>
         
         <div className="gps-card-body">
-          <div className="gps-filter-row">
-            <div className="gps-search-box" style={{ flex: 2 }}>
-              <FiSearch className="gps-search-icon" />
+          <div style={{ display: 'flex', gap: '12px', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap' }}>
+            <div style={{ position: 'relative', flex: '1', minWidth: '200px' }}>
+              <FiSearch style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#666', pointerEvents: 'none' }} />
               <input
                 type="text"
                 placeholder="Search by mapping or file name..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="gps-form-input"
-                style={{ paddingLeft: '36px' }}
+                style={{ paddingLeft: '36px', width: '100%' }}
               />
             </div>
             
@@ -199,7 +198,7 @@ const ProcessedFileCatalog = () => {
               value={selectedMapping}
               onChange={(e) => setSelectedMapping(e.target.value)}
               className="gps-form-select"
-              style={{ minWidth: '200px' }}
+              style={{ minWidth: '180px' }}
             >
               <option value="all">All Mappings</option>
               {uniqueMappings.map(mapping => (
@@ -211,7 +210,7 @@ const ProcessedFileCatalog = () => {
               value={selectedProject}
               onChange={(e) => setSelectedProject(e.target.value)}
               className="gps-form-select"
-              style={{ minWidth: '180px' }}
+              style={{ minWidth: '160px' }}
             >
               <option value="all">All Projects</option>
               {uniqueProjects.map(project => (
@@ -230,10 +229,8 @@ const ProcessedFileCatalog = () => {
             </div>
           ) : (
             <>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0', borderBottom: '1px solid #e2e8f0', fontSize: '10px', color: '#666' }}>
-                <span>
-                  Showing {startIndex + 1}-{Math.min(endIndex, totalItems)} of {totalItems} files
-                </span>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', marginBottom: '8px', fontSize: '10px', color: '#666' }}>
+                <span>Showing {startIndex + 1}-{Math.min(endIndex, totalItems)} of {totalItems} files</span>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <label style={{ fontSize: '10px', color: '#666' }}>Items per page:</label>
                   <select 
@@ -292,24 +289,23 @@ const ProcessedFileCatalog = () => {
                         <td>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                             <button 
-                              className="gps-btn gps-btn--success gps-btn--sm"
+                              className="gps-icon-btn gps-icon-btn--success"
                               onClick={() => {
                                 setSelectedJobId(file.job_id);
                                 setShowProfilingModal(true);
                               }}
                               disabled={!file.job_id}
-                              title="View source file profiling results"
+                              title="Source File Profile"
                             >
-                              Source File Profile
+                              <FiEye size={14} />
                             </button>
                             <button 
-                              className="gps-btn gps-btn--primary gps-btn--sm"
+                              className="gps-icon-btn gps-icon-btn--view"
                               onClick={() => navigate(`/profile/${encodeURIComponent(file.file_id)}`)}
                               disabled={!file.file_id}
-                              title="View target file profile and schema history"
-                              style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                              title="Target File Profile"
                             >
-                              <FiEye size={14} /> Target File Profile
+                              <FiEye size={14} />
                             </button>
                             <button 
                               className="gps-icon-btn gps-icon-btn--delete"
