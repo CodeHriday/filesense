@@ -407,7 +407,8 @@ router.post('/:id/execute', async (req, res) => {
     const transformationId = transformResult.rows[0].id;
     
     // Use TransformationService to execute with proper authorization and business logic
-    const transformationService = require('../services/TransformationService');
+    const TransformationService = require('../services/TransformationService');
+    const transformationService = new TransformationService();
     try {
       // Pass visualMappingExecutionId as an option so the job execution engine can emit WebSocket events
       const jobResult = await transformationService.executeTransformation(transformationId, req.user.id, {
