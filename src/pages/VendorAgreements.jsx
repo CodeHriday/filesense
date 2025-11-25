@@ -15,7 +15,7 @@ import FileConfigurationsSection from '../components/FileConfigurationsSection';
 import { useAuth } from '../context/AuthContext';
 import { isVendorUser } from '../utils/userHelpers';
 import axios from 'axios';
-import '../styles/VendorAgreements.css';
+import '../styles/global-page-styles.css';
 
 const VendorAgreements = () => {
   const [agreements, setAgreements] = useState([]);
@@ -1434,81 +1434,78 @@ const VendorAgreements = () => {
   }, [totalPagesFiltered, currentPage]);
   
   return (
-    <div className="vendor-agreements-container">
+    <div className="gps-page-container">
       {loading ? (
         <LoadingSpinner />
       ) : (
         <>
-          <div className="vendor-agreements-header">
-            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-              <h1>Vendor Contracts</h1>
-              <div style={{ position: 'relative', flex: 1, maxWidth: '400px' }}>
-                <FiSearch style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#9ca3af' }} />
+          <div className="gps-page-header">
+            <div className="gps-page-header-left">
+              <h1 className="gps-page-title">Vendor Contracts</h1>
+              <p className="gps-page-subtitle">Manage vendor file delivery agreements and contracts</p>
+            </div>
+            <div className="gps-header-actions">
+              <div className="gps-search-wrapper">
+                <FiSearch className="gps-search-icon" />
                 <input
                   type="text"
+                  className="gps-search-input"
                   placeholder="Search contracts..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  style={{ 
-                    width: '100%',
-                    padding: '0.5rem 0.5rem 0.5rem 2.5rem', 
-                    border: '1px solid #ddd', 
-                    borderRadius: '4px',
-                    fontSize: '0.875rem'
-                  }}
                 />
               </div>
+              {(isAdmin || (hasPermission && hasPermission('vendor_agreements:write'))) && !isVendor && (
+                <>
+                  {isAdmin && (
+                    <>
+                      <button 
+                        className="gps-btn gps-btn--secondary"
+                        onClick={handleDownloadTemplate}
+                        title="Download Excel template for bulk agreement creation"
+                      >
+                        Download Template
+                      </button>
+                      <label 
+                        className="gps-btn gps-btn--secondary" 
+                        style={{ cursor: 'pointer' }}
+                        title="Upload filled Excel template to create multiple agreements"
+                      >
+                        Upload Template
+                        <input
+                          type="file"
+                          accept=".xlsx,.xls"
+                          onChange={handleTemplateUpload}
+                          style={{ display: 'none' }}
+                        />
+                      </label>
+                    </>
+                  )}
+                  <button 
+                    className="gps-btn gps-btn--primary"
+                    onClick={openCreateModal}
+                  >
+                    Create Vendor Contract
+                  </button>
+                </>
+              )}
             </div>
-            {(isAdmin || (hasPermission && hasPermission('vendor_agreements:write'))) && !isVendor && (
-              <div className="header-actions" style={{ display: 'flex', gap: '1rem' }}>
-                {isAdmin && (
-                  <>
-                    <button 
-                      className="btn-secondary"
-                      onClick={handleDownloadTemplate}
-                      title="Download Excel template for bulk agreement creation"
-                    >
-                      Download Template
-                    </button>
-                    <label 
-                      className="btn-secondary" 
-                      style={{ cursor: 'pointer', display: 'inline-block' }}
-                      title="Upload filled Excel template to create multiple agreements"
-                    >
-                      Upload Template
-                      <input
-                        type="file"
-                        accept=".xlsx,.xls"
-                        onChange={handleTemplateUpload}
-                        style={{ display: 'none' }}
-                      />
-                    </label>
-                  </>
-                )}
-                <button 
-                  className="create-agreement-btn"
-                  onClick={openCreateModal}
-                >
-                  Create Vendor Contract
-                </button>
-              </div>
-            )}
           </div>
           
           {error && (
-            <div className="error-message" role="alert">
+            <div className="gps-alert gps-alert--error" role="alert">
               {error}
             </div>
           )}
           
           {successMessage && (
-            <div className="success-message" role="alert">
+            <div className="gps-alert gps-alert--success" role="alert">
               {successMessage}
             </div>
           )}
       
-          <div className="agreements-table-container">
-            <table className="agreements-table">
+          <div className="gps-table-container">
+            <table className="gps-table">
               <thead>
                 <tr>
                   <th>Agreement Code</th>
@@ -1525,7 +1522,7 @@ const VendorAgreements = () => {
               <tbody>
                 {paginatedAgreements.length === 0 ? (
                   <tr>
-                    <td colSpan="9" className="no-agreements-message">No contracts found</td>
+                    <td colSpan="9" className="gps-table-empty">No contracts found</td>
                   </tr>
                 ) : (
                   paginatedAgreements.map(agreement => (
@@ -1538,7 +1535,7 @@ const VendorAgreements = () => {
                           const legacyFileName = agreement.file_name;
                           
                           if (fileSchemas.length === 0 && !legacyFileName) {
-                            return <span style={{ color: '#9ca3af', fontStyle: 'italic' }}>No files configured</span>;
+                            return <span className="gps-text-muted" style={{ fontStyle: 'italic' }}>No files configured</span>;
                           } else if (fileSchemas.length === 0 && legacyFileName) {
                             return legacyFileName;
                           } else if (fileSchemas.length === 1) {
@@ -1550,12 +1547,7 @@ const VendorAgreements = () => {
                                   setMultipleFilesData(fileSchemas);
                                   setMultipleFilesModalOpen(true);
                                 }}
-                                style={{
-                                  color: '#3b82f6',
-                                  cursor: 'pointer',
-                                  textDecoration: 'underline',
-                                  fontWeight: 500
-                                }}
+                                className="gps-link"
                                 title="Click to view all files"
                               >
                                 Multiple Files ({fileSchemas.length})
@@ -1567,16 +1559,16 @@ const VendorAgreements = () => {
                       <td>{agreement.vendor_name || agreement.vendor_code || '-'}</td>
                       <td>{agreement.frequency}</td>
                       <td>
-                        <span className={`status-badge status-${agreement.status || 'active'}`}>
+                        <span className={`gps-badge gps-badge--${agreement.status === 'active' ? 'success' : agreement.status === 'disabled' ? 'muted' : 'info'}`}>
                           {agreement.status || 'Active'}
                         </span>
                       </td>
                       <td>{getApprovalStatusBadge(agreement)}</td>
                       <td>{agreement.created_at ? new Date(agreement.created_at).toLocaleString() : '-'}</td>
                       <td>
-                        <div className="agreement-actions">
+                        <div className="gps-action-buttons">
                           <button 
-                            className="action-icon-btn view-btn" 
+                            className="gps-icon-btn gps-icon-btn--view" 
                             onClick={() => openDetailModal(agreement)}
                             title="View details"
                           >
@@ -1584,7 +1576,7 @@ const VendorAgreements = () => {
                           </button>
                           {(isAdmin || (isVendor && currentUser.vendor_id === agreement.vendor_id && hasPermission && hasPermission('vendor_agreements:write'))) && (
                             <button 
-                              className="action-icon-btn edit-btn" 
+                              className="gps-icon-btn gps-icon-btn--edit" 
                               onClick={() => openEditModal(agreement)}
                               title="Edit contract"
                             >
@@ -1593,7 +1585,7 @@ const VendorAgreements = () => {
                           )}
                           {isAdmin && agreement.status !== 'disabled' && (
                             <button 
-                              className="action-icon-btn disable-btn" 
+                              className="gps-icon-btn" 
                               onClick={() => handleDisableAgreement(agreement.id, agreement.file_name)}
                               title="Disable contract"
                               style={{ color: '#f59e0b' }}
@@ -1603,7 +1595,7 @@ const VendorAgreements = () => {
                           )}
                           {isAdmin && (
                             <button 
-                              className="action-icon-btn delete-btn" 
+                              className="gps-icon-btn gps-icon-btn--delete" 
                               onClick={() => handleDeleteAgreement(agreement.id, agreement.file_name)}
                               title="Delete contract"
                             >
