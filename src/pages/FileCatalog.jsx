@@ -546,7 +546,7 @@ export const FileCatalog = ({ onFileSelect }) => {
 
   if (isLoading) {
     return (
-      <div className="file-catalog-container">
+      <div className="gps-page-container">
         <PageHeader
           title="File Catalog"
           subtitle="All uploaded files with quality metrics and metadata"
@@ -559,7 +559,7 @@ export const FileCatalog = ({ onFileSelect }) => {
 
   if (error) {
     return (
-      <div className="file-catalog-container">
+      <div className="gps-page-container">
         <PageHeader
           title="File Catalog"
           subtitle="All uploaded files with quality metrics and metadata"
@@ -579,7 +579,7 @@ export const FileCatalog = ({ onFileSelect }) => {
   }
 
   return (
-    <div className="file-catalog-container">
+    <div className="gps-page-container">
       <PageHeader
         title="File Catalog"
         subtitle="All uploaded files with quality metrics and metadata"
@@ -707,7 +707,7 @@ export const FileCatalog = ({ onFileSelect }) => {
             </div>
             
             <div className="file-table-wrapper">
-              <table className="file-catalog-table">
+              <table className="gps-table">
                 <thead>
                   <tr>
                     <th className="checkbox-cell">

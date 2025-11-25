@@ -226,10 +226,12 @@ function VendorFileUpload() {
   };
 
   return (
-    <div className="vendor-file-upload-container">
-      <div className="page-header">
-        <h1>Vendor File Upload</h1>
-        <p className="subtitle">Upload files directly to S3 storage without profiling or analysis. Quick uploads for raw file storage.</p>
+    <div className="gps-page-container">
+      <div className="gps-page-header">
+        <div className="gps-page-header-left">
+          <h1 className="gps-page-title">Vendor File Upload</h1>
+          <p className="gps-page-subtitle">Upload files directly to S3 storage without profiling or analysis. Quick uploads for raw file storage.</p>
+        </div>
       </div>
 
       {/* Success Notification */}

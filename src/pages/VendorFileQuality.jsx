@@ -122,25 +122,25 @@ function VendorFileQuality() {
 
   if (loading) {
     return (
-      <div className="vendor-file-catalog-container">
+      <div className="gps-page-container">
         <LoadingSpinner />
       </div>
     );
   }
 
   return (
-    <div className="vendor-file-catalog-container">
-      <div className="catalog-header">
-        <div className="header-content">
-          <h1>Vendor File Catalog</h1>
-          <p className="subtitle">View and analyze your uploaded vendor files with full profiling details</p>
+    <div className="gps-page-container">
+      <div className="gps-page-header">
+        <div className="gps-page-header-left">
+          <h1 className="gps-page-title">Vendor File Catalog</h1>
+          <p className="gps-page-subtitle">View and analyze your uploaded vendor files with full profiling details</p>
         </div>
       </div>
 
       {error && <div className="error-message">{error}</div>}
 
       {/* Filters */}
-      <div className="filters-container">
+      <div className="gps-filters">
         <div className="search-box">
           <input
             type="text"
@@ -191,7 +191,7 @@ function VendorFileQuality() {
       {!loading && !error && fileGroups.length > 0 && (
         <div className="file-table-container">
           <div style={{ overflowX: 'auto', width: '100%' }}>
-            <table className="file-table">
+            <table className="gps-table">
             <thead>
               <tr>
                 <th>File Name</th>

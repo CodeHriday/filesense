@@ -159,7 +159,7 @@ const ProcessedFileCatalog = () => {
   if (loading) {
     return (
       <PageTransition>
-        <div className="processed-catalog-page">
+        <div className="gps-page-container">
           <PageHeader
             title="Processed File Catalog"
             subtitle="Files created by ETL transformations"
@@ -175,7 +175,7 @@ const ProcessedFileCatalog = () => {
 
   return (
     <PageTransition>
-      <div className="processed-catalog-page">
+      <div className="gps-page-container">
         <PageHeader
           title="Processed File Catalog"
           subtitle="Files created by ETL transformations with profiling history"
@@ -255,7 +255,7 @@ const ProcessedFileCatalog = () => {
                   {isExpanded && (
                     <div className="mapping-group-body">
                       <div style={{ overflowX: 'auto', width: '100%' }}>
-                        <table className="files-table">
+                        <table className="gps-table">
                         <thead>
                           <tr>
                             <th>Source File</th>
