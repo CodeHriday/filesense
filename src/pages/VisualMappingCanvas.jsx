@@ -691,8 +691,8 @@ const VisualMappingCanvasContent = () => {
       if (!node.data.config || !node.data.config.joinType) {
         errors.push(`Join node "${node.data.label}" is not configured - missing join type`);
       }
-      if (!node.data.config || !node.data.config.joinConditions || node.data.config.joinConditions.length === 0) {
-        errors.push(`Join node "${node.data.label}" is not configured - missing join conditions`);
+      if (!node.data.config || !node.data.config.joinKeys || node.data.config.joinKeys.length === 0) {
+        errors.push(`Join node "${node.data.label}" is not configured - missing join keys`);
       }
       
       // Join nodes need exactly two upstream connections

@@ -232,8 +232,8 @@ class VisualMappingCompiler {
         if (!config.joinType) {
           errors.push(`Join node "${node.data.label}" is missing join type`);
         }
-        if (!config.joinConditions || config.joinConditions.length === 0) {
-          errors.push(`Join node "${node.data.label}" is missing join conditions`);
+        if (!config.joinKeys || config.joinKeys.length === 0) {
+          errors.push(`Join node "${node.data.label}" is missing join keys`);
         }
         break;
         
