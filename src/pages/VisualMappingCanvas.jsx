@@ -550,10 +550,24 @@ const VisualMappingCanvasContent = () => {
           return combinedSchema;
         }
         
-        // For crosswalk: pass through input schema (crosswalk transforms values, not schema)
+        // For crosswalk: combine input schema with crosswalk target columns from outputSchema
         if (config.lookupType === 'crosswalk') {
-          console.log(`getCumulativeSchema: RDM Lookup (crosswalk) node ${nodeId} output schema:`, inputSchema.length, 'columns (pass-through)');
-          return inputSchema;
+          if (config.outputSchema && config.outputSchema.length > 0) {
+            // outputSchema contains the crosswalk target columns
+            const crosswalkCols = config.outputSchema.map(col => ({
+              name: col.name,
+              type: col.type || col.dataType || 'unknown',
+              description: col.description || '',
+              contains_pii: col.contains_pii || col.isPii || false
+            }));
+            const combinedSchema = [...inputSchema, ...crosswalkCols];
+            console.log(`getCumulativeSchema: RDM Lookup (crosswalk) node ${nodeId} output schema:`, combinedSchema.length, 'columns (', inputSchema.length, 'input +', crosswalkCols.length, 'crosswalk)');
+            return combinedSchema;
+          } else {
+            // No crosswalk columns mapped, pass through input schema
+            console.log(`getCumulativeSchema: RDM Lookup (crosswalk) node ${nodeId} output schema:`, inputSchema.length, 'columns (pass-through)');
+            return inputSchema;
+          }
         }
         
         // If not configured yet, return input schema

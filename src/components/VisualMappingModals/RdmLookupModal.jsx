@@ -181,13 +181,31 @@ const RdmLookupModal = ({ isOpen, onClose, onSave, initialConfig = {}, cumulativ
       
       return [...inputCols, ...datasetCols];
     } else {
-      // For crosswalk, output is the input schema (crosswalk transforms values, not schema)
-      return cumulativeSchema.map(col => ({
+      // For crosswalk, combine input schema + crosswalk target columns (if mapped)
+      const inputCols = cumulativeSchema.map(col => ({
         name: col.name,
         type: col.type || col.dataType || 'unknown',
         description: col.description || '',
         contains_pii: col.contains_pii || col.isPii || false
       }));
+      
+      // Add crosswalk target columns from column mappings
+      let crosswalkCols = [];
+      if (crosswalkConfig.column_mappings && crosswalkConfig.column_mappings.length > 0) {
+        // Use mapped columns - ColumnMapper uses sourceColumn/targetColumn properties
+        const crosswalkFields = crosswalkSchema?.targetSystem?.fields || [];
+        crosswalkCols = crosswalkConfig.column_mappings.map(mapping => {
+          const sourceCol = crosswalkFields.find(col => col.name === (mapping.sourceColumn || mapping.source));
+          return {
+            name: mapping.targetColumn || mapping.target || mapping.sourceColumn || mapping.source,
+            type: mapping.dataType || sourceCol?.dataType || sourceCol?.type || 'unknown',
+            description: sourceCol?.description || '',
+            contains_pii: sourceCol?.isPii || sourceCol?.contains_pii || false
+          };
+        });
+      }
+      
+      return [...inputCols, ...crosswalkCols];
     }
   };
   
@@ -233,6 +251,22 @@ const RdmLookupModal = ({ isOpen, onClose, onSave, initialConfig = {}, cumulativ
       };
     } else {
       const selectedCrosswalk = crosswalks.find(c => c.id === crosswalkConfig.crosswalkId);
+      
+      // Get crosswalk columns only (not combined with input)
+      let crosswalkCols = [];
+      if (crosswalkConfig.column_mappings && crosswalkConfig.column_mappings.length > 0) {
+        const crosswalkFields = crosswalkSchema?.targetSystem?.fields || [];
+        crosswalkCols = crosswalkConfig.column_mappings.map(mapping => {
+          const sourceCol = crosswalkFields.find(col => col.name === (mapping.sourceColumn || mapping.source));
+          return {
+            name: mapping.targetColumn || mapping.target || mapping.sourceColumn || mapping.source,
+            type: mapping.dataType || sourceCol?.dataType || sourceCol?.type || 'unknown',
+            description: sourceCol?.description || '',
+            contains_pii: sourceCol?.isPii || sourceCol?.contains_pii || false
+          };
+        });
+      }
+      
       config = {
         ...config,
         crosswalkId: crosswalkConfig.crosswalkId,
@@ -241,8 +275,8 @@ const RdmLookupModal = ({ isOpen, onClose, onSave, initialConfig = {}, cumulativ
         crosswalkSourceField: crosswalkConfig.crosswalk_source_field || '',
         noMatchBehavior: crosswalkConfig.no_match_behavior || 'keep_source',
         defaultValue: crosswalkConfig.default_value || '',
-        columnMappings: crosswalkConfig.column_mappings || []
-        // No outputSchema for crosswalk since it's pass-through
+        columnMappings: crosswalkConfig.column_mappings || [],
+        outputSchema: crosswalkCols // Save crosswalk columns for schema propagation
       };
     }
     
