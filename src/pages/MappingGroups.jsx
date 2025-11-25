@@ -1,15 +1,12 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { FiPlayCircle, FiEdit2, FiTrash2, FiPlusCircle, FiSearch, FiChevronDown, FiChevronRight, FiAlertCircle } from 'react-icons/fi';
-import PageHeader from '../components/PageHeader';
+import { FiPlayCircle, FiEdit2, FiTrash2, FiPlusCircle } from 'react-icons/fi';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ConfirmModal from '../components/ConfirmModal';
 import ExecuteModal from '../components/ExecuteModal';
 import { PageTransition } from '../components/MicroAnimations';
 import Pagination from '../components/Pagination';
-import '../components/styles/PageActions.css';
 import axios from 'axios';
-import { groupMappingGroupsByProject, initializeExpansionState, autoExpandMatchingSections } from '../utils/mappingGroupGrouping';
 
 const MappingGroups = () => {
   const [groups, setGroups] = useState([]);
@@ -21,12 +18,10 @@ const MappingGroups = () => {
   const [isExecuteModalOpen, setIsExecuteModalOpen] = useState(false);
   const [executeResult, setExecuteResult] = useState({ success: false, message: '', groupName: '' });
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(10);
+  const [itemsPerPage] = useState(25);
   const [searchTerm, setSearchTerm] = useState('');
-  
-  // Hierarchical state
-  const [expansionState, setExpansionState] = useState({});
-  const [initialized, setInitialized] = useState(false);
+  const [selectedProject, setSelectedProject] = useState('all');
+  const [selectedSubProject, setSelectedSubProject] = useState('all');
 
   useEffect(() => {
     fetchMappingGroups();
@@ -83,7 +78,6 @@ const MappingGroups = () => {
       await axios.delete(`/api/mapping-groups/${selectedGroupForDelete.id}`);
       setIsDeleteModalOpen(false);
       setSelectedGroupForDelete(null);
-      // Auto-refresh the list after successful delete
       fetchMappingGroups();
     } catch (err) {
       console.error('Error deleting mapping group:', err);
@@ -91,21 +85,47 @@ const MappingGroups = () => {
     }
   };
 
-  // Filter groups based on search term
+  const uniqueProjects = useMemo(() => {
+    const projects = groups
+      .filter(g => g.project_id)
+      .map(g => ({ id: g.project_id, name: g.project_name }))
+      .filter((p, index, self) => self.findIndex(s => s.id === p.id) === index);
+    return projects;
+  }, [groups]);
+
+  const uniqueSubProjects = useMemo(() => {
+    if (selectedProject === 'all') {
+      const subProjects = groups
+        .filter(g => g.sub_project_id)
+        .map(g => ({ id: g.sub_project_id, name: g.sub_project_name }))
+        .filter((sp, index, self) => self.findIndex(s => s.id === sp.id) === index);
+      return subProjects;
+    }
+    
+    const subProjects = groups
+      .filter(g => g.project_id === selectedProject && g.sub_project_id)
+      .map(g => ({ id: g.sub_project_id, name: g.sub_project_name }))
+      .filter((sp, index, self) => self.findIndex(s => s.id === sp.id) === index);
+    return subProjects;
+  }, [groups, selectedProject]);
+
   const filteredGroups = useMemo(() => {
     return groups.filter(group => {
       const searchLower = searchTerm.toLowerCase();
-      return (
+      const matchesSearch = 
         (group.name || '').toLowerCase().includes(searchLower) ||
         (group.description || '').toLowerCase().includes(searchLower) ||
         (group.project_name || '').toLowerCase().includes(searchLower) ||
-        (group.created_by_name || '').toLowerCase().includes(searchLower)
-      );
+        (group.sub_project_name || '').toLowerCase().includes(searchLower);
+      
+      const matchesProject = selectedProject === 'all' || group.project_id === selectedProject;
+      const matchesSubProject = selectedSubProject === 'all' || group.sub_project_id === selectedSubProject;
+      
+      return matchesSearch && matchesProject && matchesSubProject;
     });
-  }, [groups, searchTerm]);
+  }, [groups, searchTerm, selectedProject, selectedSubProject]);
 
-  // Pagination logic
-  const currentGroups = useMemo(() => {
+  const paginatedGroups = useMemo(() => {
     const indexOfLastItem = currentPage * itemsPerPage;
     const indexOfFirstItem = indexOfLastItem - itemsPerPage;
     return filteredGroups.slice(indexOfFirstItem, indexOfLastItem);
@@ -113,350 +133,155 @@ const MappingGroups = () => {
   
   const totalPages = Math.ceil(filteredGroups.length / itemsPerPage);
 
-  // Group mapping groups by project and subproject hierarchy
-  const groupedProjects = useMemo(() => {
-    return groupMappingGroupsByProject(currentGroups);
-  }, [currentGroups]);
-
-  // Initialize expansion state when grouped data changes or search term changes
   useEffect(() => {
-    if (groupedProjects.length > 0) {
-      if (searchTerm) {
-        // Auto-expand sections with search matches
-        setExpansionState(prev => autoExpandMatchingSections(groupedProjects, prev));
-      } else if (!initialized) {
-        // Initialize with all sections collapsed by default (first load)
-        setExpansionState(initializeExpansionState(groupedProjects, false));
-        setInitialized(true);
-      }
-    }
-  }, [groupedProjects, searchTerm, initialized]);
+    setSelectedSubProject('all');
+  }, [selectedProject]);
 
   if (loading) {
     return <LoadingSpinner message="Loading mapping groups..." />;
   }
 
-  // Toggle expansion for a project or subproject
-  const toggleExpansion = (key) => {
-    setExpansionState(prev => ({
-      ...prev,
-      [key]: !prev[key]
-    }));
-  };
-
   return (
     <PageTransition>
       <div className="gps-page-container">
-        <PageHeader
-          title="Mapping Job Groups"
-          subtitle="Batch execution of transformations with concurrency control"
-          hideHomeButton={true}
-        />
-        
-        <div className="page-actions" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div style={{ position: 'relative', minWidth: '300px' }}>
-            <FiSearch style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#64748b', pointerEvents: 'none' }} />
-            <input
-              type="text"
-              placeholder="Search groups..."
-              value={searchTerm}
-              onChange={(e) => {
-                setSearchTerm(e.target.value);
-                setCurrentPage(1);
-              }}
-              style={{
-                width: '100%',
-                padding: '0.5rem 0.5rem 0.5rem 2.5rem',
-                border: '1px solid #ddd',
-                borderRadius: '6px',
-                fontSize: '0.9rem',
-                outline: 'none'
-              }}
-            />
+        <div className="gps-page-header">
+          <div className="gps-page-header-left">
+            <h1 className="gps-page-title">Mapping Job Groups</h1>
+            <p className="gps-page-subtitle">Batch execution of transformations with concurrency control</p>
           </div>
-          <Link to="/mapping-groups/create" className="btn btn-primary">
-            <FiPlusCircle /> Create Mapping Group
-          </Link>
+          <div className="gps-page-header-right">
+            <Link to="/mapping-groups/create" className="gps-btn-primary">
+              <FiPlusCircle /> Create Mapping Group
+            </Link>
+          </div>
+        </div>
+        
+        <div className="gps-filters">
+          <input
+            type="text"
+            placeholder="Search groups..."
+            value={searchTerm}
+            onChange={(e) => {
+              setSearchTerm(e.target.value);
+              setCurrentPage(1);
+            }}
+            className="gps-search-input"
+          />
+          
+          <select 
+            value={selectedProject}
+            onChange={(e) => {
+              setSelectedProject(e.target.value === 'all' ? 'all' : parseInt(e.target.value));
+              setCurrentPage(1);
+            }}
+            className="gps-filter-select"
+          >
+            <option value="all">All Projects</option>
+            {uniqueProjects.map(p => (
+              <option key={p.id} value={p.id}>{p.name}</option>
+            ))}
+          </select>
+          
+          <select 
+            value={selectedSubProject}
+            onChange={(e) => {
+              setSelectedSubProject(e.target.value === 'all' ? 'all' : parseInt(e.target.value));
+              setCurrentPage(1);
+            }}
+            className="gps-filter-select"
+          >
+            <option value="all">All Subprojects</option>
+            {uniqueSubProjects.map(sp => (
+              <option key={sp.id} value={sp.id}>{sp.name}</option>
+            ))}
+          </select>
         </div>
 
         {error && (
-          <div className="alert alert-danger">{error}</div>
+          <div className="gps-alert gps-alert-danger">{error}</div>
         )}
 
-        {groupedProjects.length === 0 ? (
-          <div className="empty-state">
+        <div className="gps-results-info">
+          Showing {paginatedGroups.length} of {filteredGroups.length} mapping groups
+        </div>
+
+        {filteredGroups.length === 0 ? (
+          <div className="gps-empty-state">
             <p>No mapping groups found. Create one to get started!</p>
           </div>
         ) : (
-          <div>
-            {groupedProjects.map(project => {
-              const projectKey = `project-${project.projectId}`;
-              const isProjectExpanded = expansionState[projectKey];
-
-              return (
-                <div key={project.projectId} style={{ marginBottom: '1.25rem' }}>
-                  {/* Project Header */}
-                  <div
-                    onClick={() => toggleExpansion(projectKey)}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.5rem',
-                      padding: '0.5rem 0.75rem',
-                      background: 'white',
-                      color: '#6b7280',
-                      cursor: 'pointer',
-                      userSelect: 'none',
-                      fontWeight: '500',
-                      fontSize: '0.8125rem',
-                      transition: 'all 0.2s ease'
-                    }}
-                  >
-                    {isProjectExpanded ? (
-                      <FiChevronDown size={14} style={{ color: '#6b7280' }} />
-                    ) : (
-                      <FiChevronRight size={14} style={{ color: '#6b7280' }} />
-                    )}
-                    <span style={{ flex: 1 }}>Project : {project.projectName}</span>
-                    <span
-                      style={{
-                        color: '#9ca3af',
-                        fontSize: '0.75rem',
-                        fontWeight: '400'
-                      }}
-                    >
-                      {project.groupsCount} {project.groupsCount === 1 ? 'group' : 'groups'}
-                    </span>
-                  </div>
-
-                  {/* Project Content - Subprojects */}
-                  {isProjectExpanded && (
-                    <div style={{ marginTop: '0.75rem', paddingLeft: '0.5rem' }}>
-                      {/* Subprojects */}
-                      {project.subprojects.map(subproject => {
-                        const subprojectKey = `subproject-${project.projectId}-${subproject.subProjectId}`;
-                        const isSubprojectExpanded = expansionState[subprojectKey];
-
-                        return (
-                          <div key={subproject.subProjectId} style={{ marginBottom: '0.75rem' }}>
-                            {/* Subproject Header */}
-                            <div
-                              onClick={() => toggleExpansion(subprojectKey)}
-                              style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '0.5rem',
-                                padding: '0.4rem 0.75rem',
-                                background: 'white',
-                                cursor: 'pointer',
-                                userSelect: 'none',
-                                marginLeft: '1.5rem',
-                                fontWeight: '400',
-                                fontSize: '0.75rem',
-                                transition: 'all 0.2s ease'
-                              }}
-                            >
-                              {isSubprojectExpanded ? (
-                                <FiChevronDown size={12} style={{ color: '#9ca3af' }} />
-                              ) : (
-                                <FiChevronRight size={12} style={{ color: '#9ca3af' }} />
-                              )}
-                              <span style={{ flex: 1, color: '#9ca3af' }}>{subproject.subProjectName}</span>
-                              <span
-                                style={{
-                                  color: '#d1d5db',
-                                  fontSize: '0.6875rem',
-                                  fontWeight: '400'
-                                }}
-                              >
-                                {subproject.groupsCount}
-                              </span>
-                            </div>
-
-                            {/* Subproject Groups Table */}
-                            {isSubprojectExpanded && subproject.items.length > 0 && (
-                              <div style={{ marginLeft: '1.5rem', marginTop: '0.5rem', overflow: 'auto' }}>
-                                <table className="gps-table">
-                                  <thead>
-                                    <tr>
-                                      <th>Name</th>
-                                      <th>Description</th>
-                                      <th>Members</th>
-                                      <th>Concurrency</th>
-                                      <th>Status</th>
-                                      <th>Created</th>
-                                      <th>Actions</th>
-                                    </tr>
-                                  </thead>
-                                  <tbody>
-                                    {subproject.items.map(group => (
-                                      <tr key={group.id || group.group_id}>
-                                        <td className="font-weight-bold">{group.name || group.group_name}</td>
-                                        <td className="description-cell">{group.description || '-'}</td>
-                                        <td className="text-center">{group.mapping_count || group.member_count || 0}</td>
-                                        <td className="text-center">{group.max_concurrency || group.concurrency_limit}</td>
-                                        <td>
-                                          <span className={`status-badge status-${group.status || 'active'}`}>
-                                            {group.status || 'active'}
-                                          </span>
-                                        </td>
-                                        <td>{new Date(group.created_at).toLocaleDateString()}</td>
-                                        <td>
-                                          <div className="action-icons">
-                                            <button
-                                              onClick={() => handleExecute(group.id || group.group_id, group.name || group.group_name)}
-                                              disabled={executing === (group.id || group.group_id)}
-                                              className="icon-btn icon-btn-success"
-                                              title="Execute"
-                                            >
-                                              <FiPlayCircle />
-                                            </button>
-                                            <Link 
-                                              to={`/mapping-groups/${group.id || group.group_id}/edit`} 
-                                              className="icon-btn icon-btn-primary"
-                                              title="Edit"
-                                            >
-                                              <FiEdit2 />
-                                            </Link>
-                                            <button
-                                              onClick={() => handleDelete(group.id || group.group_id, group.name || group.group_name)}
-                                              className="icon-btn icon-btn-danger"
-                                              title="Delete"
-                                            >
-                                              <FiTrash2 />
-                                            </button>
-                                          </div>
-                                        </td>
-                                      </tr>
-                                    ))}
-                                  </tbody>
-                                </table>
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-
-                      {/* Unassigned Groups (no subproject) */}
-                      {project.unassignedGroups.length > 0 && (() => {
-                        const unassignedKey = `subproject-${project.projectId}-unassigned`;
-                        const isUnassignedExpanded = expansionState[unassignedKey];
-
-                        return (
-                          <>
-                            {/* Unassigned Header */}
-                            <div
-                              onClick={() => toggleExpansion(unassignedKey)}
-                              style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '0.5rem',
-                                padding: '0.4rem 0.75rem',
-                                background: 'white',
-                                cursor: 'pointer',
-                                userSelect: 'none',
-                                marginLeft: '1.5rem',
-                                fontWeight: '400',
-                                fontSize: '0.75rem',
-                                transition: 'all 0.2s ease'
-                              }}
-                            >
-                              {isUnassignedExpanded ? (
-                                <FiChevronDown size={12} style={{ color: '#9ca3af' }} />
-                              ) : (
-                                <FiChevronRight size={12} style={{ color: '#9ca3af' }} />
-                              )}
-                              <FiAlertCircle size={12} style={{ color: '#d1d5db' }} />
-                              <span style={{ flex: 1, color: '#9ca3af' }}>No Subproject</span>
-                              <span
-                                style={{
-                                  color: '#d1d5db',
-                                  fontSize: '0.6875rem',
-                                  fontWeight: '400'
-                                }}
-                              >
-                                {project.unassignedGroups.length}
-                              </span>
-                            </div>
-
-                            {/* Unassigned Groups Table */}
-                            {isUnassignedExpanded && (
-                              <div style={{ marginLeft: '1.5rem', marginTop: '0.5rem', overflow: 'auto' }}>
-                                <table className="gps-table">
-                                  <thead>
-                                    <tr>
-                                      <th>Name</th>
-                                      <th>Description</th>
-                                      <th>Members</th>
-                                      <th>Concurrency</th>
-                                      <th>Status</th>
-                                      <th>Created</th>
-                                      <th>Actions</th>
-                                    </tr>
-                                  </thead>
-                                  <tbody>
-                                    {project.unassignedGroups.map(group => (
-                                      <tr key={group.id || group.group_id}>
-                                        <td className="font-weight-bold">{group.name || group.group_name}</td>
-                                        <td className="description-cell">{group.description || '-'}</td>
-                                        <td className="text-center">{group.mapping_count || group.member_count || 0}</td>
-                                        <td className="text-center">{group.max_concurrency || group.concurrency_limit}</td>
-                                        <td>
-                                          <span className={`status-badge status-${group.status || 'active'}`}>
-                                            {group.status || 'active'}
-                                          </span>
-                                        </td>
-                                        <td>{new Date(group.created_at).toLocaleDateString()}</td>
-                                        <td>
-                                          <div className="action-icons">
-                                            <button
-                                              onClick={() => handleExecute(group.id || group.group_id, group.name || group.group_name)}
-                                              disabled={executing === (group.id || group.group_id)}
-                                              className="icon-btn icon-btn-success"
-                                              title="Execute"
-                                            >
-                                              <FiPlayCircle />
-                                            </button>
-                                            <Link 
-                                              to={`/mapping-groups/${group.id || group.group_id}/edit`} 
-                                              className="icon-btn icon-btn-primary"
-                                              title="Edit"
-                                            >
-                                              <FiEdit2 />
-                                            </Link>
-                                            <button
-                                              onClick={() => handleDelete(group.id || group.group_id, group.name || group.group_name)}
-                                              className="icon-btn icon-btn-danger"
-                                              title="Delete"
-                                            >
-                                              <FiTrash2 />
-                                            </button>
-                                          </div>
-                                        </td>
-                                      </tr>
-                                    ))}
-                                  </tbody>
-                                </table>
-                              </div>
-                            )}
-                          </>
-                        );
-                      })()}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+          <div className="gps-table-container">
+            <table className="gps-table">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Project</th>
+                  <th>Subproject</th>
+                  <th>Description</th>
+                  <th>Members</th>
+                  <th>Concurrency</th>
+                  <th>Status</th>
+                  <th>Created</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {paginatedGroups.map(group => (
+                  <tr key={group.id || group.group_id}>
+                    <td style={{ fontWeight: '500' }}>{group.name || group.group_name}</td>
+                    <td>{group.project_name || '-'}</td>
+                    <td>{group.sub_project_name || '-'}</td>
+                    <td style={{ maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {group.description || '-'}
+                    </td>
+                    <td style={{ textAlign: 'center' }}>{group.mapping_count || group.member_count || 0}</td>
+                    <td style={{ textAlign: 'center' }}>{group.max_concurrency || group.concurrency_limit}</td>
+                    <td>
+                      <span className={`gps-badge gps-badge-${group.status === 'active' ? 'success' : 'secondary'}`}>
+                        {group.status || 'active'}
+                      </span>
+                    </td>
+                    <td>{new Date(group.created_at).toLocaleDateString()}</td>
+                    <td>
+                      <div className="gps-action-buttons">
+                        <button
+                          onClick={() => handleExecute(group.id || group.group_id, group.name || group.group_name)}
+                          disabled={executing === (group.id || group.group_id)}
+                          className="gps-icon-btn gps-icon-btn-success"
+                          title="Execute"
+                        >
+                          <FiPlayCircle />
+                        </button>
+                        <Link 
+                          to={`/mapping-groups/${group.id || group.group_id}/edit`} 
+                          className="gps-icon-btn gps-icon-btn-primary"
+                          title="Edit"
+                        >
+                          <FiEdit2 />
+                        </Link>
+                        <button
+                          onClick={() => handleDelete(group.id || group.group_id, group.name || group.group_name)}
+                          className="gps-icon-btn gps-icon-btn-danger"
+                          title="Delete"
+                        >
+                          <FiTrash2 />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
         
-        {groups.length > 0 && (
+        {filteredGroups.length > 0 && totalPages > 1 && (
           <Pagination
             currentPage={currentPage}
             totalPages={totalPages}
             onPageChange={setCurrentPage}
             itemsPerPage={itemsPerPage}
-            totalItems={groups.length}
+            totalItems={filteredGroups.length}
           />
         )}
 

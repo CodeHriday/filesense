@@ -129,15 +129,6 @@ export const APP_FEATURES = [
   
   // Job Design
   { 
-    id: 'mapping_group', 
-    name: 'Mapping Job Groups', 
-    category: 'Job Design', 
-    supportsExecute: true,
-    icon: FiLayers,
-    route: '/mapping-groups',
-    showInSidebar: true
-  },
-  { 
     id: 'quality_rules', 
     name: 'Quality Rules', 
     category: 'Job Design',
@@ -152,6 +143,15 @@ export const APP_FEATURES = [
     supportsExecute: true,
     icon: FiGrid,
     route: '/visual-mappings/manage',
+    showInSidebar: true
+  },
+  { 
+    id: 'mapping_group', 
+    name: 'Mapping Job Groups', 
+    category: 'Job Design', 
+    supportsExecute: true,
+    icon: FiLayers,
+    route: '/mapping-groups',
     showInSidebar: true
   },
   
