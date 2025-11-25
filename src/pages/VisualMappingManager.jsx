@@ -1,13 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import './VisualMappingManager.css';
 import { 
   FaPlus, 
   FaEdit, 
   FaTrash, 
   FaPlay, 
-  FaClock, 
   FaSearch,
   FaFilter,
   FaHistory
@@ -21,22 +19,18 @@ const VisualMappingManager = () => {
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
   
-  // Filters
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedProject, setSelectedProject] = useState('');
   const [selectedSubProject, setSelectedSubProject] = useState('');
   const [projects, setProjects] = useState([]);
   const [subProjects, setSubProjects] = useState([]);
   
-  // Selected items for bulk actions
   const [selectedMappings, setSelectedMappings] = useState(new Set());
   
-  // Execution history modal
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [historyMappingId, setHistoryMappingId] = useState(null);
   const [executionHistory, setExecutionHistory] = useState([]);
   
-  // Load projects
   useEffect(() => {
     const fetchProjects = async () => {
       try {
@@ -49,7 +43,6 @@ const VisualMappingManager = () => {
     fetchProjects();
   }, []);
   
-  // Load subprojects when project changes
   useEffect(() => {
     const fetchSubProjects = async () => {
       if (!selectedProject) {
@@ -67,7 +60,6 @@ const VisualMappingManager = () => {
     fetchSubProjects();
   }, [selectedProject]);
   
-  // Load mappings
   useEffect(() => {
     fetchMappings();
   }, [selectedProject, selectedSubProject]);
@@ -206,68 +198,65 @@ const VisualMappingManager = () => {
   };
   
   const getStatusBadge = (status) => {
-    const statusColors = {
+    const statusClasses = {
       pending: 'badge-pending',
       running: 'badge-running',
       completed: 'badge-completed',
       failed: 'badge-failed',
       cancelled: 'badge-cancelled'
     };
-    return statusColors[status] || 'badge-default';
+    return statusClasses[status] || 'badge-default';
   };
   
   return (
-    <div className="visual-mapping-manager">
-      <div className="visual-mapping-manager-header">
-        <div className="visual-mapping-manager-header-left">
-          <h1 className="visual-mapping-manager-title">Visual Mappings</h1>
-          <p className="visual-mapping-manager-subtitle">
-            Manage visual ETL mapping configurations
-          </p>
+    <div className="page-container">
+      <div className="page-header">
+        <div className="page-header-left">
+          <h1 className="page-title">Visual Mappings</h1>
+          <p className="page-subtitle">Manage visual ETL mapping configurations</p>
         </div>
-        <div className="visual-mapping-manager-header-right">
-          <button onClick={handleCreate} className="visual-mapping-manager-btn-primary">
+        <div className="page-header-right">
+          <button onClick={handleCreate} className="btn-primary">
             <FaPlus /> Create Visual Mapping
           </button>
         </div>
       </div>
       
       {error && (
-        <div className="visual-mapping-manager-alert visual-mapping-manager-alert-error">
+        <div className="page-alert page-alert-error">
           {error}
-          <button onClick={() => setError(null)} className="visual-mapping-manager-alert-close">×</button>
+          <button onClick={() => setError(null)} className="page-alert-close">&times;</button>
         </div>
       )}
       
       {success && (
-        <div className="visual-mapping-manager-alert visual-mapping-manager-alert-success">
+        <div className="page-alert page-alert-success">
           {success}
-          <button onClick={() => setSuccess(null)} className="visual-mapping-manager-alert-close">×</button>
+          <button onClick={() => setSuccess(null)} className="page-alert-close">&times;</button>
         </div>
       )}
       
-      {/* Filters */}
-      <div className="visual-mapping-manager-filters">
-        <div className="visual-mapping-manager-filter-group">
-          <FaSearch className="visual-mapping-manager-filter-icon" />
+      <div className="page-filters">
+        <div className="page-filter-group">
+          <FaSearch className="page-filter-icon" />
           <input
             type="text"
             placeholder="Search mappings..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="visual-mapping-manager-search-input"
+            className="page-filter-input"
           />
         </div>
         
-        <div className="visual-mapping-manager-filter-group">
-          <FaFilter className="visual-mapping-manager-filter-icon" />
+        <div className="page-filter-group">
+          <FaFilter className="page-filter-icon" />
           <select
             value={selectedProject}
             onChange={(e) => {
               setSelectedProject(e.target.value);
               setSelectedSubProject('');
             }}
-            className="visual-mapping-manager-filter-select"
+            className="page-filter-select"
           >
             <option value="">All Projects</option>
             {projects.map(p => (
@@ -277,12 +266,12 @@ const VisualMappingManager = () => {
         </div>
         
         {selectedProject && (
-          <div className="visual-mapping-manager-filter-group">
-            <FaFilter className="visual-mapping-manager-filter-icon" />
+          <div className="page-filter-group">
+            <FaFilter className="page-filter-icon" />
             <select
               value={selectedSubProject}
               onChange={(e) => setSelectedSubProject(e.target.value)}
-              className="visual-mapping-manager-filter-select"
+              className="page-filter-select"
             >
               <option value="">All Sub-Projects</option>
               {Array.isArray(subProjects) && subProjects.map(sp => (
@@ -293,29 +282,26 @@ const VisualMappingManager = () => {
         )}
         
         {selectedMappings.size > 0 && (
-          <div className="visual-mapping-manager-bulk-actions">
-            <span className="visual-mapping-manager-bulk-count">
-              {selectedMappings.size} selected
-            </span>
-            <button onClick={handleBulkExecute} className="visual-mapping-manager-bulk-btn">
+          <div className="page-bulk-actions">
+            <span className="page-bulk-count">{selectedMappings.size} selected</span>
+            <button onClick={handleBulkExecute} className="btn-primary btn-sm">
               <FaPlay /> Run Selected
             </button>
-            <button onClick={handleBulkDelete} className="visual-mapping-manager-bulk-btn visual-mapping-manager-bulk-btn-danger">
+            <button onClick={handleBulkDelete} className="btn-danger btn-sm">
               <FaTrash /> Delete Selected
             </button>
           </div>
         )}
       </div>
       
-      {/* Mappings Table */}
       {loading ? (
-        <div className="visual-mapping-manager-loading">Loading visual mappings...</div>
+        <div className="page-loading">Loading visual mappings...</div>
       ) : (
-        <div className="visual-mapping-manager-table-container">
-          <table className="visual-mapping-manager-table">
+        <div className="page-table-container">
+          <table className="page-table">
             <thead>
               <tr>
-                <th>
+                <th style={{ width: '40px' }}>
                   <input
                     type="checkbox"
                     checked={selectedMappings.size === filteredMappings.length && filteredMappings.length > 0}
@@ -336,7 +322,7 @@ const VisualMappingManager = () => {
             <tbody>
               {filteredMappings.length === 0 ? (
                 <tr>
-                  <td colSpan="10" className="visual-mapping-manager-empty">
+                  <td colSpan="10" className="page-table-empty">
                     No visual mappings found. Create your first visual mapping to get started.
                   </td>
                 </tr>
@@ -350,10 +336,10 @@ const VisualMappingManager = () => {
                         onChange={() => toggleSelectMapping(mapping.id)}
                       />
                     </td>
-                    <td className="visual-mapping-manager-name-cell">
+                    <td>
                       <button
                         onClick={() => handleEdit(mapping.id)}
-                        className="visual-mapping-manager-link"
+                        className="page-table-link"
                       >
                         {mapping.name}
                       </button>
@@ -365,35 +351,37 @@ const VisualMappingManager = () => {
                     <td>{formatDate(mapping.last_executed_at)}</td>
                     <td>{mapping.execution_count || 0}</td>
                     <td>{formatDate(mapping.created_at)}</td>
-                    <td className="visual-mapping-manager-actions">
-                      <button
-                        onClick={() => handleEdit(mapping.id)}
-                        className="visual-mapping-manager-action-btn"
-                        title="Edit"
-                      >
-                        <FaEdit />
-                      </button>
-                      <button
-                        onClick={() => handleExecute(mapping.id)}
-                        className="visual-mapping-manager-action-btn"
-                        title="Run"
-                      >
-                        <FaPlay />
-                      </button>
-                      <button
-                        onClick={() => handleShowHistory(mapping.id)}
-                        className="visual-mapping-manager-action-btn"
-                        title="Execution History"
-                      >
-                        <FaHistory />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(mapping.id, mapping.name)}
-                        className="visual-mapping-manager-action-btn visual-mapping-manager-action-btn-danger"
-                        title="Delete"
-                      >
-                        <FaTrash />
-                      </button>
+                    <td>
+                      <div className="action-buttons">
+                        <button
+                          onClick={() => handleEdit(mapping.id)}
+                          className="action-btn"
+                          title="Edit"
+                        >
+                          <FaEdit />
+                        </button>
+                        <button
+                          onClick={() => handleExecute(mapping.id)}
+                          className="action-btn action-btn-success"
+                          title="Run"
+                        >
+                          <FaPlay />
+                        </button>
+                        <button
+                          onClick={() => handleShowHistory(mapping.id)}
+                          className="action-btn"
+                          title="Execution History"
+                        >
+                          <FaHistory />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(mapping.id, mapping.name)}
+                          className="action-btn action-btn-danger"
+                          title="Delete"
+                        >
+                          <FaTrash />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -403,21 +391,18 @@ const VisualMappingManager = () => {
         </div>
       )}
       
-      {/* Execution History Modal */}
       {showHistoryModal && (
-        <div className="visual-mapping-manager-modal-overlay" onClick={() => setShowHistoryModal(false)}>
-          <div className="visual-mapping-manager-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="visual-mapping-manager-modal-header">
+        <div className="modal-overlay" onClick={() => setShowHistoryModal(false)}>
+          <div className="modal modal-lg" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
               <h2>Execution History</h2>
-              <button onClick={() => setShowHistoryModal(false)} className="visual-mapping-manager-modal-close">
-                ×
-              </button>
+              <button onClick={() => setShowHistoryModal(false)} className="modal-close">&times;</button>
             </div>
-            <div className="visual-mapping-manager-modal-body">
+            <div className="modal-body">
               {executionHistory.length === 0 ? (
-                <p>No execution history found.</p>
+                <p className="text-muted">No execution history found.</p>
               ) : (
-                <table className="visual-mapping-manager-history-table">
+                <table className="page-table">
                   <thead>
                     <tr>
                       <th>Execution ID</th>
@@ -431,9 +416,9 @@ const VisualMappingManager = () => {
                   <tbody>
                     {executionHistory.map(exec => (
                       <tr key={exec.id}>
-                        <td className="visual-mapping-manager-exec-id">{exec.execution_id}</td>
+                        <td style={{ fontFamily: 'monospace', fontSize: '9px' }}>{exec.execution_id}</td>
                         <td>
-                          <span className={`visual-mapping-manager-badge ${getStatusBadge(exec.status)}`}>
+                          <span className={`badge ${getStatusBadge(exec.status)}`}>
                             {exec.status}
                           </span>
                         </td>
