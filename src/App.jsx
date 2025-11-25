@@ -112,6 +112,7 @@ import './styles/Jobs.css';
 // ProcessManagementWizard styles removed
 import './styles/Transformations.css';
 import './styles/ETLOrchestration.css';
+import './styles/global-page-styles.css';
 
 // Protected route component
 const ProtectedRoute = ({ children }) => {
