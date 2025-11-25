@@ -368,38 +368,35 @@ router.post('/:id/execute', async (req, res) => {
     // This will be cleaned up after execution completes
     const transformResult = await pool.query(
       `INSERT INTO transformation_mappings (
-        name, description, project_id, sub_project_id,
-        source_connection_id, source_file_path, source_file_pattern,
+        mapping_name, description, project_id, sub_project_id,
+        source_connection_id, file_path, file_name_pattern,
         target_connection_id, target_file_path, target_file_name, target_file_format,
         field_mappings, variables, pii_columns,
         rdm_dataset_config, rdm_crosswalk_config,
         schema_drift_handling, violation_handling,
-        quality_rule_ids, enable_anomaly_detection,
         created_by, is_visual_mapping, visual_mapping_id, is_temporary
       ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, true, $22, true
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, true, $20, true
       ) RETURNING id`,
       [
-        `[VM] ${transformationMapping.name}`,
-        transformationMapping.description,
-        transformationMapping.project_id,
-        transformationMapping.sub_project_id,
+        `[VM] ${transformationMapping.name || mapping.name}`,
+        transformationMapping.description || mapping.description,
+        transformationMapping.project_id || mapping.project_id,
+        transformationMapping.sub_project_id || mapping.sub_project_id,
         transformationMapping.source_connection_id,
         transformationMapping.source_file_path,
         transformationMapping.source_file_pattern,
         transformationMapping.target_connection_id,
         transformationMapping.target_file_path,
         transformationMapping.target_file_name,
-        transformationMapping.target_file_format,
-        JSON.stringify(transformationMapping.field_mappings),
-        JSON.stringify(transformationMapping.variables),
-        JSON.stringify(transformationMapping.pii_columns),
+        transformationMapping.target_file_format || 'csv',
+        JSON.stringify(transformationMapping.field_mappings || []),
+        JSON.stringify(transformationMapping.variables || {}),
+        JSON.stringify(transformationMapping.pii_columns || []),
         transformationMapping.rdm_dataset_config ? JSON.stringify(transformationMapping.rdm_dataset_config) : null,
         transformationMapping.rdm_crosswalk_config ? JSON.stringify(transformationMapping.rdm_crosswalk_config) : null,
-        transformationMapping.schema_drift_handling,
-        transformationMapping.violation_handling,
-        transformationMapping.quality_rule_ids,
-        transformationMapping.enable_anomaly_detection,
+        transformationMapping.schema_drift_handling || 'warn',
+        transformationMapping.violation_handling || 'continue',
         req.user.id,
         id
       ]
