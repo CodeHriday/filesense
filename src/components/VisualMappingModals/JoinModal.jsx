@@ -347,13 +347,6 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
 
           {activeTab === 'mapping' && (
             <div>
-              <div className="vm-info-box">
-                <p>
-                  Configure how columns from the left and right inputs are mapped to the output schema.
-                  By default, all left columns and non-duplicate right columns are included.
-                </p>
-              </div>
-
               <div style={{ overflowX: 'auto' }}>
                 <table className="vm-schema-table" style={{ marginBottom: '16px' }}>
                   <thead>
@@ -374,8 +367,8 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
                             value={mapping.sourceSide}
                             onChange={(e) => updateColumnMapping(index, 'sourceSide', e.target.value)}
                           >
-                            <option value="left">Left Input</option>
-                            <option value="right">Right Input</option>
+                            <option value="left">{leftNodeName || 'Left Input'}</option>
+                            <option value="right">{rightNodeName || 'Right Input'}</option>
                           </select>
                         </td>
                         <td>
