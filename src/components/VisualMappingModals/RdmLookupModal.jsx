@@ -148,25 +148,73 @@ const RdmLookupModal = ({ isOpen, onClose, onSave, initialConfig = {}, cumulativ
   
   const getOutputSchema = () => {
     if (lookupType === 'dataset') {
-      // For dataset join, show the full dataset schema
-      return datasetSchema.map(col => ({
+      // For dataset join, combine input schema + dataset columns (from column mappings or full schema)
+      const inputCols = cumulativeSchema.map(col => ({
+        name: col.name,
+        type: col.type || col.dataType || 'unknown',
+        description: col.description || '',
+        contains_pii: col.contains_pii || col.isPii || false
+      }));
+      
+      // Add dataset columns (either from column mappings or full dataset schema)
+      let datasetCols = [];
+      if (datasetConfig.column_mappings && datasetConfig.column_mappings.length > 0) {
+        // Use mapped columns
+        datasetCols = datasetConfig.column_mappings.map(mapping => {
+          const sourceCol = datasetSchema.find(col => col.name === mapping.source);
+          return {
+            name: mapping.target || mapping.source,
+            type: sourceCol?.dataType || sourceCol?.type || 'unknown',
+            description: sourceCol?.description || '',
+            contains_pii: sourceCol?.isPii || sourceCol?.contains_pii || false
+          };
+        });
+      } else if (datasetSchema.length > 0) {
+        // Use full dataset schema
+        datasetCols = datasetSchema.map(col => ({
+          name: col.name,
+          type: col.dataType || col.type || 'unknown',
+          description: col.description || '',
+          contains_pii: col.isPii || col.contains_pii || false
+        }));
+      }
+      
+      return [...inputCols, ...datasetCols];
+    } else {
+      // For crosswalk, output is the input schema (crosswalk transforms values, not schema)
+      return cumulativeSchema.map(col => ({
+        name: col.name,
+        type: col.type || col.dataType || 'unknown',
+        description: col.description || '',
+        contains_pii: col.contains_pii || col.isPii || false
+      }));
+    }
+  };
+  
+  const getDatasetColumnsOnly = () => {
+    // Return only the dataset columns (not combined with input)
+    let datasetCols = [];
+    if (datasetConfig.column_mappings && datasetConfig.column_mappings.length > 0) {
+      // Use mapped columns
+      datasetCols = datasetConfig.column_mappings.map(mapping => {
+        const sourceCol = datasetSchema.find(col => col.name === mapping.source);
+        return {
+          name: mapping.target || mapping.source,
+          type: sourceCol?.dataType || sourceCol?.type || 'unknown',
+          description: sourceCol?.description || '',
+          contains_pii: sourceCol?.isPii || sourceCol?.contains_pii || false
+        };
+      });
+    } else if (datasetSchema.length > 0) {
+      // Use full dataset schema
+      datasetCols = datasetSchema.map(col => ({
         name: col.name,
         type: col.dataType || col.type || 'unknown',
         description: col.description || '',
         contains_pii: col.isPii || col.contains_pii || false
       }));
-    } else {
-      // For crosswalk, show the crosswalk schema fields
-      if (crosswalkSchema && crosswalkSchema.fields) {
-        return crosswalkSchema.fields.map(field => ({
-          name: field.name,
-          type: field.dataType || field.type || 'unknown',
-          description: field.description || '',
-          contains_pii: field.isPii || field.contains_pii || false
-        }));
-      }
-      return [];
     }
+    return datasetCols;
   };
   
   const handleSave = () => {
@@ -181,7 +229,7 @@ const RdmLookupModal = ({ isOpen, onClose, onSave, initialConfig = {}, cumulativ
         joinType: datasetConfig.join_type || 'inner',
         joinKeys: joinConditions,
         columnMappings: datasetConfig.column_mappings || [],
-        outputSchema: getOutputSchema()
+        outputSchema: getDatasetColumnsOnly() // Save only dataset columns
       };
     } else {
       const selectedCrosswalk = crosswalks.find(c => c.id === crosswalkConfig.crosswalkId);
@@ -193,8 +241,8 @@ const RdmLookupModal = ({ isOpen, onClose, onSave, initialConfig = {}, cumulativ
         crosswalkSourceField: crosswalkConfig.crosswalk_source_field || '',
         noMatchBehavior: crosswalkConfig.no_match_behavior || 'keep_source',
         defaultValue: crosswalkConfig.default_value || '',
-        columnMappings: crosswalkConfig.column_mappings || [],
-        outputSchema: getOutputSchema()
+        columnMappings: crosswalkConfig.column_mappings || []
+        // No outputSchema for crosswalk since it's pass-through
       };
     }
     

@@ -135,6 +135,12 @@ const RdmLookupNode = ({ data }) => {
           <span>{statusBadge.icon}</span>
         </div>
       )}
+      <Handle 
+        type="target" 
+        position={Position.Left} 
+        id="input"
+        className="visual-mapping-node-handle"
+      />
       <div className="visual-mapping-node-header">
         <FaExchangeAlt className="visual-mapping-node-icon" />
         <span className="visual-mapping-node-title">{data.label}</span>
@@ -525,24 +531,34 @@ const VisualMappingCanvasContent = () => {
       // RDM Lookup: handles both dataset joins and crosswalk lookups
       if (node.type === 'rdmLookup') {
         const upstreamEdges = edges.filter(e => e.target === nodeId);
-        let schema = [];
+        let inputSchema = [];
         upstreamEdges.forEach(edge => {
-          schema = [...schema, ...getNodeOutputSchema(edge.source)];
+          inputSchema = [...inputSchema, ...getNodeOutputSchema(edge.source)];
         });
         
-        // If it's a dataset join with column mappings, add the mapped columns
-        if (config.lookupType === 'dataset' && config.columnMappings) {
-          const datasetCols = config.columnMappings.map(mapping => ({
-            name: mapping.target || mapping.source,
-            type: mapping.type || 'unknown',
-            description: mapping.description || '',
-            contains_pii: mapping.contains_pii || false
+        // For dataset join: combine input schema with dataset columns from outputSchema
+        if (config.lookupType === 'dataset' && config.outputSchema) {
+          // outputSchema contains the dataset columns
+          const datasetCols = config.outputSchema.map(col => ({
+            name: col.name,
+            type: col.type || col.dataType || 'unknown',
+            description: col.description || '',
+            contains_pii: col.contains_pii || col.isPii || false
           }));
-          schema = [...schema, ...datasetCols];
+          const combinedSchema = [...inputSchema, ...datasetCols];
+          console.log(`getCumulativeSchema: RDM Lookup (dataset) node ${nodeId} output schema:`, combinedSchema.length, 'columns (', inputSchema.length, 'input +', datasetCols.length, 'dataset)');
+          return combinedSchema;
         }
         
-        console.log(`getCumulativeSchema: RDM Lookup (${config.lookupType}) node ${nodeId} output schema:`, schema.length, 'columns');
-        return schema;
+        // For crosswalk: pass through input schema (crosswalk transforms values, not schema)
+        if (config.lookupType === 'crosswalk') {
+          console.log(`getCumulativeSchema: RDM Lookup (crosswalk) node ${nodeId} output schema:`, inputSchema.length, 'columns (pass-through)');
+          return inputSchema;
+        }
+        
+        // If not configured yet, return input schema
+        console.log(`getCumulativeSchema: RDM Lookup (not configured) node ${nodeId} output schema:`, inputSchema.length, 'columns');
+        return inputSchema;
       }
       
       // Join: output schema comes from outputSchema config
