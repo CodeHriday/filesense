@@ -1218,18 +1218,30 @@ const VisualMappingCanvasContent = () => {
                 upstreamEdges.forEach(edge => {
                   inputSchema = [...inputSchema, ...getNodeOutputSchema(edge.source)];
                 });
+                console.log('RDM Lookup schema extraction (left):', {
+                  nodeId,
+                  lookupType: config.lookupType,
+                  upstreamEdgesCount: upstreamEdges.length,
+                  inputSchemaCount: inputSchema.length,
+                  outputSchemaExists: !!config.outputSchema,
+                  outputSchemaLength: config.outputSchema?.length
+                });
                 if (config.lookupType === 'dataset' && config.outputSchema) {
                   const outputCols = config.outputSchema.map(col => ({ 
-                    name: col.name || col.columnName || col.field_name || col.fieldName || col.targetColumn || col.sourceColumn || '', 
+                    name: col.name || col.columnName || col.field_name || col.fieldName || col.targetColumn || col.sourceColumn || col.displayName || col.systemName || col.label || col.field_label || '', 
                     type: col.type || col.dataType || 'STRING' 
                   }));
-                  return [...inputSchema, ...outputCols];
+                  const combined = [...inputSchema, ...outputCols];
+                  console.log('RDM Dataset Lookup combined schema (left):', { inputCount: inputSchema.length, outputCount: outputCols.length, totalCount: combined.length });
+                  return combined;
                 } else if (config.lookupType === 'crosswalk' && config.outputSchema) {
                   const outputCols = config.outputSchema.map(col => ({ 
-                    name: col.name || col.columnName || col.field_name || col.fieldName || col.targetColumn || col.sourceColumn || '', 
+                    name: col.name || col.columnName || col.field_name || col.fieldName || col.targetColumn || col.sourceColumn || col.displayName || col.systemName || col.label || col.field_label || '', 
                     type: col.type || col.dataType || 'STRING' 
                   }));
-                  return [...inputSchema, ...outputCols];
+                  const combined = [...inputSchema, ...outputCols];
+                  console.log('RDM Crosswalk Lookup combined schema (left):', { inputCount: inputSchema.length, outputCount: outputCols.length, totalCount: combined.length });
+                  return combined;
                 }
                 return inputSchema;
               }
@@ -1269,18 +1281,30 @@ const VisualMappingCanvasContent = () => {
                 upstreamEdges.forEach(edge => {
                   inputSchema = [...inputSchema, ...getNodeOutputSchema(edge.source)];
                 });
+                console.log('RDM Lookup schema extraction (right):', {
+                  nodeId,
+                  lookupType: config.lookupType,
+                  upstreamEdgesCount: upstreamEdges.length,
+                  inputSchemaCount: inputSchema.length,
+                  outputSchemaExists: !!config.outputSchema,
+                  outputSchemaLength: config.outputSchema?.length
+                });
                 if (config.lookupType === 'dataset' && config.outputSchema) {
                   const outputCols = config.outputSchema.map(col => ({ 
-                    name: col.name || col.columnName || col.field_name || col.fieldName || col.targetColumn || col.sourceColumn || '', 
+                    name: col.name || col.columnName || col.field_name || col.fieldName || col.targetColumn || col.sourceColumn || col.displayName || col.systemName || col.label || col.field_label || '', 
                     type: col.type || col.dataType || 'STRING' 
                   }));
-                  return [...inputSchema, ...outputCols];
+                  const combined = [...inputSchema, ...outputCols];
+                  console.log('RDM Dataset Lookup combined schema (right):', { inputCount: inputSchema.length, outputCount: outputCols.length, totalCount: combined.length });
+                  return combined;
                 } else if (config.lookupType === 'crosswalk' && config.outputSchema) {
                   const outputCols = config.outputSchema.map(col => ({ 
-                    name: col.name || col.columnName || col.field_name || col.fieldName || col.targetColumn || col.sourceColumn || '', 
+                    name: col.name || col.columnName || col.field_name || col.fieldName || col.targetColumn || col.sourceColumn || col.displayName || col.systemName || col.label || col.field_label || '', 
                     type: col.type || col.dataType || 'STRING' 
                   }));
-                  return [...inputSchema, ...outputCols];
+                  const combined = [...inputSchema, ...outputCols];
+                  console.log('RDM Crosswalk Lookup combined schema (right):', { inputCount: inputSchema.length, outputCount: outputCols.length, totalCount: combined.length });
+                  return combined;
                 }
                 return inputSchema;
               }
