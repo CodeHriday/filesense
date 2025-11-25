@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { FiPlus, FiEdit2, FiTrash2, FiShield, FiAlertCircle, FiCheckCircle, FiX } from 'react-icons/fi';
-import Card from '../components/Card';
 import LoadingSpinner from '../components/LoadingSpinner';
 import axios from 'axios';
-import './PolicyManagement.css';
+import '../styles/global-page-styles.css';
 
 function Toast({ message, onClose }) {
   useEffect(() => {
@@ -14,10 +13,10 @@ function Toast({ message, onClose }) {
   }, [onClose]);
 
   return (
-    <div className="toast-container">
-      <div className="toast toast-success">
-        <FiCheckCircle className="toast-icon" />
-        <span className="toast-message">{message}</span>
+    <div style={{ position: 'fixed', top: '20px', right: '20px', zIndex: 9999 }}>
+      <div className="gps-alert gps-alert--success" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <FiCheckCircle />
+        <span>{message}</span>
       </div>
     </div>
   );
@@ -25,20 +24,22 @@ function Toast({ message, onClose }) {
 
 function NotificationModal({ message, onClose }) {
   return (
-    <div className="policy-modal-overlay" onClick={onClose}>
-      <div className="policy-modal-content policy-error-modal" onClick={(e) => e.stopPropagation()}>
-        <div className="policy-error-header">
-          <FiAlertCircle className="policy-error-icon" />
-          <h3>Error</h3>
-          <button className="policy-close-btn" onClick={onClose}>
+    <div className="gps-modal-overlay" onClick={onClose}>
+      <div className="gps-modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '400px' }}>
+        <div className="gps-modal-header" style={{ borderBottom: '1px solid #fee2e2', backgroundColor: '#fef2f2' }}>
+          <h2 className="gps-modal-title" style={{ color: '#e53e3e', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <FiAlertCircle />
+            Error
+          </h2>
+          <button className="gps-modal-close" onClick={onClose}>
             <FiX />
           </button>
         </div>
-        <div className="policy-error-body">
-          <p>{message}</p>
+        <div className="gps-modal-body">
+          <p style={{ margin: 0 }}>{message}</p>
         </div>
-        <div className="policy-error-actions">
-          <button className="btn btn-primary" onClick={onClose}>
+        <div className="gps-modal-footer">
+          <button className="gps-btn gps-btn--primary" onClick={onClose}>
             OK
           </button>
         </div>
@@ -49,23 +50,25 @@ function NotificationModal({ message, onClose }) {
 
 function ConfirmModal({ message, onConfirm, onCancel }) {
   return (
-    <div className="policy-modal-overlay" onClick={onCancel}>
-      <div className="policy-modal-content policy-confirm-modal" onClick={(e) => e.stopPropagation()}>
-        <div className="policy-confirm-header">
-          <FiAlertCircle />
-          <h3>Confirm Action</h3>
-          <button className="policy-close-btn" onClick={onCancel}>
+    <div className="gps-modal-overlay" onClick={onCancel}>
+      <div className="gps-modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '400px' }}>
+        <div className="gps-modal-header">
+          <h2 className="gps-modal-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <FiAlertCircle style={{ color: '#f59e0b' }} />
+            Confirm Action
+          </h2>
+          <button className="gps-modal-close" onClick={onCancel}>
             <FiX />
           </button>
         </div>
-        <div className="policy-confirm-body">
-          <p>{message}</p>
+        <div className="gps-modal-body">
+          <p style={{ margin: 0 }}>{message}</p>
         </div>
-        <div className="policy-confirm-actions">
-          <button className="btn btn-secondary" onClick={onCancel}>
+        <div className="gps-modal-footer">
+          <button className="gps-btn gps-btn--secondary" onClick={onCancel}>
             Cancel
           </button>
-          <button className="btn btn-danger" onClick={onConfirm}>
+          <button className="gps-btn gps-btn--danger" onClick={onConfirm}>
             Delete
           </button>
         </div>
@@ -121,77 +124,88 @@ function PolicyManagement() {
   }
 
   return (
-    <div className="policy-management-container">
-      <div className="page-header">
-        <div>
-          <h1><FiShield className="header-icon" /> Data Governance Policies</h1>
-          <p className="page-description">
+    <div className="gps-page-container">
+      <div className="gps-page-header">
+        <div className="gps-page-header-left">
+          <h1 className="gps-page-title">
+            <FiShield style={{ marginRight: '8px', color: '#025043' }} />
+            Data Governance Policies
+          </h1>
+          <p className="gps-page-subtitle">
             Manage retention, access control, and encryption policies for your data files.
           </p>
         </div>
-        <button
-          className="btn btn-primary"
-          onClick={() => {
-            setSelectedPolicy(null);
-            setShowModal(true);
-          }}
-        >
-          <FiPlus className="btn-icon" /> Create Policy
-        </button>
+        <div className="gps-header-actions">
+          <button
+            className="gps-btn gps-btn--primary"
+            onClick={() => {
+              setSelectedPolicy(null);
+              setShowModal(true);
+            }}
+          >
+            <FiPlus /> Create Policy
+          </button>
+        </div>
       </div>
 
-      <Card>
-        {policies.length === 0 ? (
-          <div className="empty-state">
-            <FiShield style={{ fontSize: '48px', color: 'var(--text-tertiary)' }} />
-            <h3>No policies defined</h3>
-            <p>Create your first data governance policy to manage data retention, access control, and encryption.</p>
-            <button
-              className="btn btn-primary"
-              onClick={() => {
-                setSelectedPolicy(null);
-                setShowModal(true);
-              }}
-            >
-              <FiPlus className="btn-icon" /> Create First Policy
-            </button>
-          </div>
-        ) : (
-          <div className="policies-table-container">
-            <table className="policies-table">
-              <thead>
-                <tr>
-                  <th>Policy ID</th>
-                  <th>Policy Name</th>
-                  <th>Description</th>
-                  <th>Rules</th>
-                  <th>Created</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {policies.map((policy) => (
-                  <tr key={policy.policy_id}>
-                    <td className="policy-id-cell">{policy.policy_id}</td>
-                    <td className="policy-name-cell">{policy.policy_name}</td>
-                    <td className="policy-description-cell" title={policy.description || ''}>
-                      <div className="policy-description-truncate">{policy.description || '-'}</div>
-                    </td>
-                    <td className="policy-rules-cell">
-                      {policy.rules && typeof policy.rules === 'string' ? (
-                        <pre className="rules-json">{JSON.stringify(JSON.parse(policy.rules), null, 2)}</pre>
-                      ) : policy.rules ? (
-                        <pre className="rules-json">{JSON.stringify(policy.rules, null, 2)}</pre>
-                      ) : (
-                        <span className="no-rules">No rules</span>
-                      )}
-                    </td>
-                    <td className="policy-date-cell">
-                      {new Date(policy.created_at).toLocaleDateString()}
-                    </td>
-                    <td className="policy-actions-cell">
+      {policies.length === 0 ? (
+        <div className="gps-empty-state">
+          <FiShield style={{ fontSize: '48px', color: '#9ca3af', marginBottom: '16px' }} />
+          <h3>No policies defined</h3>
+          <p>Create your first data governance policy to manage data retention, access control, and encryption.</p>
+          <button
+            className="gps-btn gps-btn--primary"
+            onClick={() => {
+              setSelectedPolicy(null);
+              setShowModal(true);
+            }}
+          >
+            <FiPlus /> Create First Policy
+          </button>
+        </div>
+      ) : (
+        <div className="gps-table-container">
+          <table className="gps-table">
+            <thead>
+              <tr>
+                <th>Policy Id</th>
+                <th>Policy Name</th>
+                <th>Description</th>
+                <th>Rules</th>
+                <th>Created</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {policies.map((policy) => (
+                <tr key={policy.policy_id}>
+                  <td>{policy.policy_id}</td>
+                  <td style={{ fontWeight: 500 }}>{policy.policy_name}</td>
+                  <td>
+                    <div style={{ maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={policy.description || ''}>
+                      {policy.description || '-'}
+                    </div>
+                  </td>
+                  <td>
+                    {policy.rules && typeof policy.rules === 'string' ? (
+                      <pre style={{ fontSize: '9px', backgroundColor: '#f3f4f6', padding: '4px 8px', borderRadius: '4px', margin: 0, maxWidth: '200px', overflow: 'auto' }}>
+                        {JSON.stringify(JSON.parse(policy.rules), null, 2)}
+                      </pre>
+                    ) : policy.rules ? (
+                      <pre style={{ fontSize: '9px', backgroundColor: '#f3f4f6', padding: '4px 8px', borderRadius: '4px', margin: 0, maxWidth: '200px', overflow: 'auto' }}>
+                        {JSON.stringify(policy.rules, null, 2)}
+                      </pre>
+                    ) : (
+                      <span className="gps-text-muted">No rules</span>
+                    )}
+                  </td>
+                  <td>
+                    {new Date(policy.created_at).toLocaleDateString()}
+                  </td>
+                  <td>
+                    <div className="gps-action-buttons">
                       <button
-                        className="action-icon-btn edit-btn"
+                        className="gps-icon-btn gps-icon-btn--edit"
                         onClick={() => {
                           setSelectedPolicy(policy);
                           setShowModal(true);
@@ -201,20 +215,20 @@ function PolicyManagement() {
                         <FiEdit2 />
                       </button>
                       <button
-                        className="action-icon-btn delete-btn"
+                        className="gps-icon-btn gps-icon-btn--delete"
                         onClick={() => handleDelete(policy.policy_id)}
                         title="Delete policy"
                       >
                         <FiTrash2 />
                       </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </Card>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       {showModal && (
         <PolicyModal
@@ -306,73 +320,82 @@ function PolicyModal({ policy, onClose, onSave, onError }) {
   };
 
   return (
-    <div className="modal-overlay">
-      <div className="modal-content policy-modal">
-        <h2>{policy ? 'Edit Policy' : 'Create New Policy'}</h2>
-
-        <div className="form-group">
-          <label>Policy Name</label>
-          <input
-            type="text"
-            value={policyName}
-            onChange={(e) => setPolicyName(e.target.value)}
-            placeholder="e.g., PII Data Retention Policy"
-          />
+    <div className="gps-modal-overlay">
+      <div className="gps-modal" style={{ maxWidth: '500px' }}>
+        <div className="gps-modal-header">
+          <h2 className="gps-modal-title">{policy ? 'Edit Policy' : 'Create New Policy'}</h2>
+          <button className="gps-modal-close" onClick={onClose}>
+            <FiX />
+          </button>
         </div>
-
-        <div className="form-group">
-          <label>Description</label>
-          <textarea
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="Describe the purpose of this policy"
-            rows="3"
-          />
-        </div>
-
-        <div className="form-section">
-          <h3>Policy Rules</h3>
-
-          <div className="form-group">
-            <label>Retention Period (days)</label>
+        <div className="gps-modal-body">
+          <div className="gps-form-group">
+            <label className="gps-label">Policy Name</label>
             <input
-              type="number"
-              value={retentionDays}
-              onChange={(e) => setRetentionDays(e.target.value)}
-              placeholder="e.g., 90 (leave blank for no retention policy)"
+              type="text"
+              className="gps-input"
+              value={policyName}
+              onChange={(e) => setPolicyName(e.target.value)}
+              placeholder="e.g., PII Data Retention Policy"
             />
           </div>
 
-          <div className="form-group">
-            <label>Access Control</label>
-            <select
-              value={accessControl}
-              onChange={(e) => setAccessControl(e.target.value)}
-            >
-              <option value="public">Public</option>
-              <option value="internal">Internal</option>
-              <option value="confidential">Confidential</option>
-              <option value="restricted">Restricted</option>
-            </select>
+          <div className="gps-form-group">
+            <label className="gps-label">Description</label>
+            <textarea
+              className="gps-textarea"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Describe the purpose of this policy"
+              rows="3"
+            />
           </div>
 
-          <div className="form-group checkbox-group">
-            <label>
+          <div className="gps-section" style={{ marginTop: '16px' }}>
+            <h3 className="gps-section-title">Policy Rules</h3>
+
+            <div className="gps-form-group">
+              <label className="gps-label">Retention Period (days)</label>
               <input
-                type="checkbox"
-                checked={encryptionRequired}
-                onChange={(e) => setEncryptionRequired(e.target.checked)}
+                type="number"
+                className="gps-input"
+                value={retentionDays}
+                onChange={(e) => setRetentionDays(e.target.value)}
+                placeholder="e.g., 90 (leave blank for no retention policy)"
               />
-              <span>Require Encryption</span>
-            </label>
+            </div>
+
+            <div className="gps-form-group">
+              <label className="gps-label">Access Control</label>
+              <select
+                className="gps-select"
+                value={accessControl}
+                onChange={(e) => setAccessControl(e.target.value)}
+              >
+                <option value="public">Public</option>
+                <option value="internal">Internal</option>
+                <option value="confidential">Confidential</option>
+                <option value="restricted">Restricted</option>
+              </select>
+            </div>
+
+            <div className="gps-form-group">
+              <label className="gps-checkbox-label">
+                <input
+                  type="checkbox"
+                  checked={encryptionRequired}
+                  onChange={(e) => setEncryptionRequired(e.target.checked)}
+                />
+                <span>Require Encryption</span>
+              </label>
+            </div>
           </div>
         </div>
-
-        <div className="modal-actions">
-          <button className="btn btn-secondary" onClick={onClose} disabled={saving}>
+        <div className="gps-modal-footer">
+          <button className="gps-btn gps-btn--secondary" onClick={onClose} disabled={saving}>
             Cancel
           </button>
-          <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
+          <button className="gps-btn gps-btn--primary" onClick={handleSave} disabled={saving}>
             {saving ? 'Saving...' : 'Save Policy'}
           </button>
         </div>

@@ -1631,3 +1631,83 @@
 .gps-text-muted {
   color: var(--gps-text-muted);
 }
+
+/* ============================================
+   SPINNER STYLES
+   ============================================ */
+.gps-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid #e2e8f0;
+  border-top-color: var(--gps-primary-teal);
+  border-radius: 50%;
+  animation: gps-spin 0.8s linear infinite;
+}
+
+@keyframes gps-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ============================================
+   TEXTAREA STYLES
+   ============================================ */
+.gps-textarea {
+  width: 100%;
+  padding: var(--gps-spacing-sm) var(--gps-spacing-md);
+  border: 1px solid var(--gps-border-light);
+  border-radius: var(--gps-radius-sm);
+  font-family: var(--gps-font-family);
+  font-size: var(--gps-font-size-content);
+  color: var(--gps-text-dark);
+  resize: vertical;
+  min-height: 80px;
+  transition: border-color 0.2s ease;
+}
+
+.gps-textarea:focus {
+  outline: none;
+  border-color: var(--gps-primary-teal);
+}
+
+.gps-textarea::placeholder {
+  color: var(--gps-text-muted);
+}
+
+/* ============================================
+   WARNING ALERT STYLE
+   ============================================ */
+.gps-alert--warning {
+  background-color: #fffbeb;
+  border-color: #fbbf24;
+  color: #92400e;
+}
+
+/* ============================================
+   DANGER BUTTON STYLE
+   ============================================ */
+.gps-btn--danger {
+  background-color: #e53e3e;
+  color: white;
+  border: 1px solid #e53e3e;
+}
+
+.gps-btn--danger:hover {
+  background-color: #c53030;
+  border-color: #c53030;
+}
+
+.gps-btn--danger:disabled {
+  background-color: #feb2b2;
+  border-color: #feb2b2;
+  cursor: not-allowed;
+}
+
+/* ============================================
+   WARNING BADGE STYLE
+   ============================================ */
+.gps-badge--warning {
+  background-color: #fef3c7;
+  color: #92400e;
+}

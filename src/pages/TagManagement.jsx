@@ -1,30 +1,31 @@
 import React, { useState, useEffect } from 'react';
 import { FiTag, FiPlus, FiEdit2, FiTrash2, FiAlertCircle, FiX } from 'react-icons/fi';
-import Card from '../components/Card';
 import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
-import './TagManagement.css';
+import '../styles/global-page-styles.css';
 
 function ConfirmDeleteModal({ tagName, onConfirm, onCancel }) {
   return (
-    <div className="modal-overlay" onClick={onCancel}>
-      <div className="modal-content confirm-delete-modal" onClick={(e) => e.stopPropagation()}>
-        <div className="confirm-header">
-          <FiAlertCircle className="warning-icon" />
-          <h3>Confirm Delete</h3>
-          <button className="close-btn" onClick={onCancel}>
+    <div className="gps-modal-overlay" onClick={onCancel}>
+      <div className="gps-modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '400px' }}>
+        <div className="gps-modal-header">
+          <h2 className="gps-modal-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <FiAlertCircle style={{ color: '#f59e0b' }} />
+            Confirm Delete
+          </h2>
+          <button className="gps-modal-close" onClick={onCancel}>
             <FiX />
           </button>
         </div>
-        <div className="confirm-body">
+        <div className="gps-modal-body">
           <p>Are you sure you want to delete the tag <strong>"{tagName}"</strong>?</p>
-          <p className="warning-text">This action cannot be undone.</p>
+          <p className="gps-text-muted" style={{ fontSize: '10px' }}>This action cannot be undone.</p>
         </div>
-        <div className="confirm-actions">
-          <button className="btn btn-secondary" onClick={onCancel}>
+        <div className="gps-modal-footer">
+          <button className="gps-btn gps-btn--secondary" onClick={onCancel}>
             Cancel
           </button>
-          <button className="btn btn-danger" onClick={onConfirm}>
+          <button className="gps-btn gps-btn--danger" onClick={onConfirm}>
             Delete
           </button>
         </div>
@@ -151,188 +152,210 @@ function TagManagement() {
 
   if (!isAdmin) {
     return (
-      <div className="tag-management-container">
-        <h1>Access Denied</h1>
-        <p>You do not have permission to manage governance tags.</p>
+      <div className="gps-page-container">
+        <div className="gps-empty-state">
+          <h1>Access Denied</h1>
+          <p>You do not have permission to manage governance tags.</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="tag-management-container">
-      <div className="page-header">
-        <div>
-          <h1>Data Governance Tags</h1>
-          <p className="page-description">
+    <div className="gps-page-container">
+      <div className="gps-page-header">
+        <div className="gps-page-header-left">
+          <h1 className="gps-page-title">
+            <FiTag style={{ marginRight: '8px', color: '#025043' }} />
+            Data Governance Tags
+          </h1>
+          <p className="gps-page-subtitle">
             Define and manage tags for classifying and organizing your data files.
           </p>
         </div>
-        <button className="btn btn-primary" onClick={() => handleOpenModal('create')}>
-          <FiPlus /> Create Tag
-        </button>
+        <div className="gps-header-actions">
+          <button className="gps-btn gps-btn--primary" onClick={() => handleOpenModal('create')}>
+            <FiPlus /> Create Tag
+          </button>
+        </div>
       </div>
 
-      <Card>
-        {tags.length === 0 ? (
-          <div className="empty-state">
-            <FiTag size={48} />
-            <h3>No tags defined yet</h3>
-            <p>Create your first tag to start organizing your data files.</p>
-            <button className="btn btn-primary" onClick={() => handleOpenModal('create')}>
-              <FiPlus /> Create Tag
-            </button>
-          </div>
-        ) : (
-          <div className="tags-table-container">
-            <table className="tags-table">
-              <thead>
-                <tr>
-                  <th>Tag Name</th>
-                  <th>Description</th>
-                  <th>Preview</th>
-                  <th>Permission Level</th>
-                  <th>Sensitivity</th>
-                  <th>Created</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {tags.map((tag) => (
-                  <tr key={tag.tag_id}>
-                    <td className="tag-name-cell">{tag.tag_name}</td>
-                    <td className="tag-description-cell">{tag.description || '-'}</td>
-                    <td className="tag-preview-cell">
-                      <span 
-                        className="tag-badge" 
-                        style={{ backgroundColor: tag.color }}
-                      >
-                        {tag.tag_name}
-                      </span>
-                    </td>
-                    <td className="tag-permission-cell">
-                      <span className={`permission-badge permission-${(tag.permission_level || 'Public').toLowerCase()}`}>
-                        {tag.permission_level || 'Public'}
-                      </span>
-                    </td>
-                    <td className="tag-sensitivity-cell">
-                      <span className={`sensitivity-badge sensitivity-${(tag.sensitivity_level || 'Low').toLowerCase()}`}>
-                        {tag.sensitivity_level || 'Low'}
-                      </span>
-                    </td>
-                    <td className="tag-date-cell">
-                      {new Date(tag.created_at).toLocaleDateString()}
-                    </td>
-                    <td className="tag-actions-cell">
+      {tags.length === 0 ? (
+        <div className="gps-empty-state">
+          <FiTag style={{ fontSize: '48px', color: '#9ca3af', marginBottom: '16px' }} />
+          <h3>No tags defined yet</h3>
+          <p>Create your first tag to start organizing your data files.</p>
+          <button className="gps-btn gps-btn--primary" onClick={() => handleOpenModal('create')}>
+            <FiPlus /> Create Tag
+          </button>
+        </div>
+      ) : (
+        <div className="gps-table-container">
+          <table className="gps-table">
+            <thead>
+              <tr>
+                <th>Tag Name</th>
+                <th>Description</th>
+                <th>Preview</th>
+                <th>Permission Level</th>
+                <th>Sensitivity</th>
+                <th>Created</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {tags.map((tag) => (
+                <tr key={tag.tag_id}>
+                  <td style={{ fontWeight: 500 }}>{tag.tag_name}</td>
+                  <td>{tag.description || '-'}</td>
+                  <td>
+                    <span 
+                      className="gps-badge" 
+                      style={{ backgroundColor: tag.color, color: '#fff' }}
+                    >
+                      {tag.tag_name}
+                    </span>
+                  </td>
+                  <td>
+                    <span className={`gps-badge ${
+                      tag.permission_level === 'Private' ? 'gps-badge--danger' :
+                      tag.permission_level === 'Restricted' ? 'gps-badge--warning' :
+                      'gps-badge--success'
+                    }`}>
+                      {tag.permission_level || 'Public'}
+                    </span>
+                  </td>
+                  <td>
+                    <span className={`gps-badge ${
+                      tag.sensitivity_level === 'Critical' ? 'gps-badge--danger' :
+                      tag.sensitivity_level === 'High' ? 'gps-badge--warning' :
+                      tag.sensitivity_level === 'Medium' ? 'gps-badge--info' :
+                      'gps-badge--muted'
+                    }`}>
+                      {tag.sensitivity_level || 'Low'}
+                    </span>
+                  </td>
+                  <td>
+                    {new Date(tag.created_at).toLocaleDateString()}
+                  </td>
+                  <td>
+                    <div className="gps-action-buttons">
                       <button
-                        className="action-icon-btn edit-btn"
+                        className="gps-icon-btn gps-icon-btn--edit"
                         onClick={() => handleOpenModal('edit', tag)}
                         title="Edit tag"
                       >
                         <FiEdit2 />
                       </button>
                       <button
-                        className="action-icon-btn delete-btn"
+                        className="gps-icon-btn gps-icon-btn--delete"
                         onClick={() => handleDelete(tag)}
                         title="Delete tag"
                       >
                         <FiTrash2 />
                       </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </Card>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       {showModal && (
-        <div className="modal-overlay">
-          <div className="modal-content tag-modal">
-            <h2>{modalMode === 'create' ? 'Create New Tag' : 'Edit Tag'}</h2>
+        <div className="gps-modal-overlay">
+          <div className="gps-modal" style={{ maxWidth: '500px' }}>
+            <div className="gps-modal-header">
+              <h2 className="gps-modal-title">{modalMode === 'create' ? 'Create New Tag' : 'Edit Tag'}</h2>
+              <button className="gps-modal-close" onClick={handleCloseModal}>
+                <FiX />
+              </button>
+            </div>
             <form onSubmit={handleSubmit}>
-              <div className="form-group">
-                <label htmlFor="tag_name">Tag Name *</label>
-                <input
-                  id="tag_name"
-                  type="text"
-                  value={formData.tag_name}
-                  onChange={(e) => setFormData({ ...formData, tag_name: e.target.value })}
-                  required
-                  placeholder="e.g., PII, Financial, Sensitive"
-                />
-              </div>
-
-              <div className="form-group">
-                <label htmlFor="description">Description</label>
-                <textarea
-                  id="description"
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  placeholder="Describe what this tag represents..."
-                  rows="3"
-                />
-              </div>
-
-              <div className="form-group">
-                <label htmlFor="color">Badge Color</label>
-                <div className="color-picker-group">
+              <div className="gps-modal-body">
+                <div className="gps-form-group">
+                  <label className="gps-label">Tag Name *</label>
                   <input
-                    id="color"
-                    type="color"
-                    value={formData.color}
-                    onChange={(e) => setFormData({ ...formData, color: e.target.value })}
+                    type="text"
+                    className="gps-input"
+                    value={formData.tag_name}
+                    onChange={(e) => setFormData({ ...formData, tag_name: e.target.value })}
+                    required
+                    placeholder="e.g., PII, Financial, Sensitive"
                   />
-                  <span 
-                    className="color-preview" 
-                    style={{ backgroundColor: formData.color }}
+                </div>
+
+                <div className="gps-form-group">
+                  <label className="gps-label">Description</label>
+                  <textarea
+                    className="gps-textarea"
+                    value={formData.description}
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    placeholder="Describe what this tag represents..."
+                    rows="3"
+                  />
+                </div>
+
+                <div className="gps-form-group">
+                  <label className="gps-label">Badge Color</label>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <input
+                      type="color"
+                      value={formData.color}
+                      onChange={(e) => setFormData({ ...formData, color: e.target.value })}
+                      style={{ width: '40px', height: '32px', padding: 0, border: '1px solid #e2e8f0', borderRadius: '4px', cursor: 'pointer' }}
+                    />
+                    <span 
+                      className="gps-badge" 
+                      style={{ backgroundColor: formData.color, color: '#fff' }}
+                    >
+                      {formData.tag_name || 'Preview'}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="gps-form-group">
+                  <label className="gps-label">Permission Level *</label>
+                  <select
+                    className="gps-select"
+                    value={formData.permission_level}
+                    onChange={(e) => setFormData({ ...formData, permission_level: e.target.value })}
+                    required
                   >
-                    {formData.tag_name || 'Preview'}
-                  </span>
+                    <option value="Public">Public - Everyone can view</option>
+                    <option value="Restricted">Restricted - Requires specific permissions</option>
+                    <option value="Private">Private - Admin only</option>
+                  </select>
+                  <small className="gps-text-muted" style={{ fontSize: '9px', marginTop: '4px', display: 'block' }}>
+                    Controls who can access columns tagged with this tag
+                  </small>
+                </div>
+
+                <div className="gps-form-group">
+                  <label className="gps-label">Sensitivity Level *</label>
+                  <select
+                    className="gps-select"
+                    value={formData.sensitivity_level}
+                    onChange={(e) => setFormData({ ...formData, sensitivity_level: e.target.value })}
+                    required
+                  >
+                    <option value="Low">Low - General information</option>
+                    <option value="Medium">Medium - Internal use</option>
+                    <option value="High">High - Confidential</option>
+                    <option value="Critical">Critical - Highly sensitive (PII, Financial)</option>
+                  </select>
+                  <small className="gps-text-muted" style={{ fontSize: '9px', marginTop: '4px', display: 'block' }}>
+                    Classification level for data governance and compliance
+                  </small>
                 </div>
               </div>
-
-              <div className="form-group">
-                <label htmlFor="permission_level">Permission Level *</label>
-                <select
-                  id="permission_level"
-                  value={formData.permission_level}
-                  onChange={(e) => setFormData({ ...formData, permission_level: e.target.value })}
-                  required
-                >
-                  <option value="Public">Public - Everyone can view</option>
-                  <option value="Restricted">Restricted - Requires specific permissions</option>
-                  <option value="Private">Private - Admin only</option>
-                </select>
-                <small className="field-help">
-                  Controls who can access columns tagged with this tag
-                </small>
-              </div>
-
-              <div className="form-group">
-                <label htmlFor="sensitivity_level">Sensitivity Level *</label>
-                <select
-                  id="sensitivity_level"
-                  value={formData.sensitivity_level}
-                  onChange={(e) => setFormData({ ...formData, sensitivity_level: e.target.value })}
-                  required
-                >
-                  <option value="Low">Low - General information</option>
-                  <option value="Medium">Medium - Internal use</option>
-                  <option value="High">High - Confidential</option>
-                  <option value="Critical">Critical - Highly sensitive (PII, Financial)</option>
-                </select>
-                <small className="field-help">
-                  Classification level for data governance and compliance
-                </small>
-              </div>
-
-              <div className="modal-actions">
-                <button type="submit" className="btn btn-primary">
-                  {modalMode === 'create' ? 'Create' : 'Update'} Tag
-                </button>
-                <button type="button" className="btn btn-secondary" onClick={handleCloseModal}>
+              <div className="gps-modal-footer">
+                <button type="button" className="gps-btn gps-btn--secondary" onClick={handleCloseModal}>
                   Cancel
+                </button>
+                <button type="submit" className="gps-btn gps-btn--primary">
+                  {modalMode === 'create' ? 'Create' : 'Update'} Tag
                 </button>
               </div>
             </form>

@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { FaTrash, FaExclamationTriangle, FaCheckCircle } from 'react-icons/fa';
 import SystemSettings from '../components/SystemSettings';
-import '../styles/SystemCleanup.css';
+import '../styles/global-page-styles.css';
 
 const SystemCleanup = () => {
   const [counts, setCounts] = useState(null);
   const [loading, setLoading] = useState(true);
   const [selectedCategories, setSelectedCategories] = useState([]);
-  const [step, setStep] = useState(1); // 1=selection, 2=confirmation, 3=final-confirm, 4=executing, 5=complete
+  const [step, setStep] = useState(1);
   const [confirmationCode, setConfirmationCode] = useState('');
   const [deletedCounts, setDeletedCounts] = useState(null);
   const [error, setError] = useState(null);
@@ -174,7 +174,6 @@ const SystemCleanup = () => {
       setDeletedCounts(data.deletedCounts);
       setStep(5);
       
-      // Refresh counts after cleanup
       await fetchCounts();
     } catch (error) {
       console.error('Error executing cleanup:', error);
@@ -193,9 +192,9 @@ const SystemCleanup = () => {
 
   if (loading) {
     return (
-      <div className="system-cleanup-container">
-        <div className="cleanup-loading">
-          <div className="spinner"></div>
+      <div className="gps-page-container">
+        <div className="gps-empty-state">
+          <div className="gps-spinner"></div>
           <p>Loading cleanup data...</p>
         </div>
       </div>
@@ -203,21 +202,23 @@ const SystemCleanup = () => {
   }
 
   return (
-    <div className="system-cleanup-container">
-      {/* System Settings Section */}
+    <div className="gps-page-container">
       <SystemSettings />
 
-      {/* Separator */}
-      <div style={{ height: '2rem', borderBottom: '3px solid #e2e8f0', marginBottom: '2rem' }} />
+      <div className="gps-divider" style={{ marginBottom: '24px' }}></div>
 
-      <div className="cleanup-header">
-        <FaTrash className="cleanup-icon" />
-        <h1>System Cleanup</h1>
-        <p className="cleanup-subtitle">Permanently delete data from selected categories</p>
+      <div className="gps-page-header">
+        <div className="gps-page-header-left">
+          <h1 className="gps-page-title">
+            <FaTrash style={{ marginRight: '8px', color: '#e53e3e' }} />
+            System Cleanup
+          </h1>
+          <p className="gps-page-subtitle">Permanently delete data from selected categories</p>
+        </div>
       </div>
 
-      <div className="cleanup-warning-banner">
-        <FaExclamationTriangle />
+      <div className="gps-alert gps-alert--warning" style={{ marginBottom: '24px' }}>
+        <FaExclamationTriangle style={{ marginRight: '8px' }} />
         <div>
           <strong>Warning:</strong> This operation is irreversible. All data in selected categories will be permanently deleted.
           User accounts, roles, and permissions are preserved.
@@ -225,18 +226,18 @@ const SystemCleanup = () => {
       </div>
 
       {error && (
-        <div className="cleanup-error-banner">
-          <FaExclamationTriangle />
+        <div className="gps-alert gps-alert--error" style={{ marginBottom: '24px' }}>
+          <FaExclamationTriangle style={{ marginRight: '8px' }} />
           <span>{error}</span>
         </div>
       )}
 
       {step === 1 && (
-        <div className="cleanup-step">
-          <h2>Step 1: Select Categories to Clean Up</h2>
-          <p className="step-description">Choose which data categories you want to delete</p>
+        <div className="gps-section">
+          <h2 className="gps-section-title">Step 1: Select Categories to Clean Up</h2>
+          <p className="gps-page-subtitle" style={{ marginBottom: '16px' }}>Choose which data categories you want to delete</p>
 
-          <div className="cleanup-categories">
+          <div className="gps-card-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', marginBottom: '24px' }}>
             {Object.entries(categoryDescriptions).map(([key, category]) => {
               const totalRecords = getTotalRecords(key);
               const isSelected = selectedCategories.includes(key);
@@ -244,28 +245,37 @@ const SystemCleanup = () => {
               return (
                 <div 
                   key={key} 
-                  className={`cleanup-category-card ${isSelected ? 'selected' : ''} ${totalRecords === 0 ? 'empty' : ''}`}
+                  className="gps-stat-card"
+                  style={{ 
+                    cursor: totalRecords > 0 ? 'pointer' : 'not-allowed',
+                    opacity: totalRecords === 0 ? 0.5 : 1,
+                    border: isSelected ? '2px solid #025043' : '1px solid #e2e8f0',
+                    flexDirection: 'column',
+                    alignItems: 'flex-start'
+                  }}
                   onClick={() => totalRecords > 0 && handleCategoryToggle(key)}
                 >
-                  <div className="category-header">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', marginBottom: '8px' }}>
                     <input
                       type="checkbox"
                       checked={isSelected}
                       onChange={() => {}}
                       disabled={totalRecords === 0}
+                      style={{ width: '16px', height: '16px' }}
                     />
-                    <h3>{category.name}</h3>
-                    <span className="record-count">{totalRecords.toLocaleString()} records</span>
+                    <span style={{ fontWeight: 600, fontSize: '12px', flex: 1 }}>{category.name}</span>
+                    <span className={`gps-badge ${totalRecords > 0 ? 'gps-badge--info' : 'gps-badge--muted'}`}>
+                      {totalRecords.toLocaleString()} records
+                    </span>
                   </div>
-                  <p className="category-description">{category.description}</p>
+                  <p style={{ fontSize: '10px', color: '#666', margin: '0 0 8px 0' }}>{category.description}</p>
                   {counts[key] && (
-                    <div className="category-tables">
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
                       {Object.entries(counts[key]).map(([table, count]) => (
                         count > 0 && (
-                          <div key={table} className="table-count">
-                            <span className="table-name">{table}</span>
-                            <span className="count-badge">{count.toLocaleString()}</span>
-                          </div>
+                          <span key={table} className="gps-badge gps-badge--muted" style={{ fontSize: '9px' }}>
+                            {table}: {count.toLocaleString()}
+                          </span>
                         )
                       ))}
                     </div>
@@ -275,20 +285,20 @@ const SystemCleanup = () => {
             })}
           </div>
 
-          <div className="cleanup-actions">
-            <div className="selected-summary">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px', backgroundColor: '#f9fafb', borderRadius: '8px' }}>
+            <div>
               {selectedCategories.length > 0 ? (
                 <>
                   <strong>{selectedCategories.length}</strong> categories selected
-                  <span className="separator">•</span>
+                  <span style={{ margin: '0 8px' }}>•</span>
                   <strong>{getTotalSelectedRecords().toLocaleString()}</strong> total records to delete
                 </>
               ) : (
-                <span className="no-selection">No categories selected</span>
+                <span className="gps-text-muted">No categories selected</span>
               )}
             </div>
             <button 
-              className="btn-primary"
+              className="gps-btn gps-btn--primary"
               onClick={handleNext}
               disabled={selectedCategories.length === 0}
             >
@@ -299,52 +309,60 @@ const SystemCleanup = () => {
       )}
 
       {step === 2 && (
-        <div className="cleanup-step">
-          <h2>Step 2: Review Your Selection</h2>
-          <p className="step-description">Confirm the categories you want to delete</p>
+        <div className="gps-section">
+          <h2 className="gps-section-title">Step 2: Review Your Selection</h2>
+          <p className="gps-page-subtitle" style={{ marginBottom: '16px' }}>Confirm the categories you want to delete</p>
 
-          <div className="review-summary">
-            <div className="summary-header">
-              <FaExclamationTriangle className="warning-icon" />
-              <div>
-                <h3>You are about to delete:</h3>
-                <p>{getTotalSelectedRecords().toLocaleString()} total records across {selectedCategories.length} categories</p>
-              </div>
-            </div>
-
-            <div className="review-categories">
-              {selectedCategories.map(key => {
-                const category = categoryDescriptions[key];
-                const totalRecords = getTotalRecords(key);
-
-                return (
-                  <div key={key} className="review-category">
-                    <div className="review-category-header">
-                      <h4>{category.name}</h4>
-                      <span className="total-badge">{totalRecords.toLocaleString()} records</span>
-                    </div>
-                    <p>{category.description}</p>
-                    <div className="review-tables">
-                      {counts[key] && Object.entries(counts[key]).map(([table, count]) => (
-                        count > 0 && (
-                          <div key={table} className="review-table">
-                            <span>{table}</span>
-                            <span>{count.toLocaleString()}</span>
-                          </div>
-                        )
-                      ))}
-                    </div>
-                  </div>
-                );
-              })}
+          <div className="gps-alert gps-alert--warning" style={{ marginBottom: '24px' }}>
+            <FaExclamationTriangle style={{ marginRight: '12px', fontSize: '24px' }} />
+            <div>
+              <h3 style={{ margin: 0, fontSize: '14px' }}>You are about to delete:</h3>
+              <p style={{ margin: '4px 0 0 0', fontSize: '12px' }}>{getTotalSelectedRecords().toLocaleString()} total records across {selectedCategories.length} categories</p>
             </div>
           </div>
 
-          <div className="cleanup-actions">
-            <button className="btn-secondary" onClick={handleBack}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '24px' }}>
+            {selectedCategories.map(key => {
+              const category = categoryDescriptions[key];
+              const totalRecords = getTotalRecords(key);
+
+              return (
+                <div key={key} style={{ padding: '16px', border: '1px solid #e2e8f0', borderRadius: '8px', backgroundColor: '#fff' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                    <h4 style={{ margin: 0, fontSize: '12px', fontWeight: 600 }}>{category.name}</h4>
+                    <span className="gps-badge gps-badge--danger">{totalRecords.toLocaleString()} records</span>
+                  </div>
+                  <p style={{ fontSize: '10px', color: '#666', margin: '0 0 8px 0' }}>{category.description}</p>
+                  <div className="gps-table-container">
+                    <table className="gps-table gps-table--compact">
+                      <thead>
+                        <tr>
+                          <th>Table</th>
+                          <th>Count</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {counts[key] && Object.entries(counts[key]).map(([table, count]) => (
+                          count > 0 && (
+                            <tr key={table}>
+                              <td>{table}</td>
+                              <td>{count.toLocaleString()}</td>
+                            </tr>
+                          )
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+            <button className="gps-btn gps-btn--secondary" onClick={handleBack}>
               Back to Selection
             </button>
-            <button className="btn-danger" onClick={handleNext}>
+            <button className="gps-btn gps-btn--danger" onClick={handleNext}>
               Proceed to Final Confirmation
             </button>
           </div>
@@ -352,52 +370,49 @@ const SystemCleanup = () => {
       )}
 
       {step === 3 && (
-        <div className="cleanup-step">
-          <h2>Step 3: Final Confirmation</h2>
-          <p className="step-description">Type the confirmation code to proceed with deletion</p>
+        <div className="gps-section">
+          <h2 className="gps-section-title">Step 3: Final Confirmation</h2>
+          <p className="gps-page-subtitle" style={{ marginBottom: '16px' }}>Type the confirmation code to proceed with deletion</p>
 
-          <div className="final-confirmation">
-            <div className="confirmation-warning">
-              <FaExclamationTriangle size={48} />
-              <h3>This action cannot be undone!</h3>
-              <p>
-                You are about to permanently delete <strong>{getTotalSelectedRecords().toLocaleString()} records</strong> from the database.
-              </p>
-              <p>
-                Type <code>DELETE ALL DATA</code> to confirm
-              </p>
-            </div>
-
-            <div className="confirmation-input-group">
-              <label htmlFor="confirmationCode">Confirmation Code:</label>
-              <input
-                type="text"
-                id="confirmationCode"
-                value={confirmationCode}
-                onChange={(e) => setConfirmationCode(e.target.value)}
-                placeholder="Type: DELETE ALL DATA"
-                className="confirmation-input"
-                autoFocus
-              />
-            </div>
-
-            <div className="confirmation-checklist">
-              <p><strong>Before proceeding, confirm that:</strong></p>
-              <ul>
-                <li>✓ You have reviewed the selected categories</li>
-                <li>✓ You understand this operation is irreversible</li>
-                <li>✓ You have backed up any data you need to preserve</li>
-                <li>✓ You are authorized to perform this operation</li>
-              </ul>
-            </div>
+          <div style={{ textAlign: 'center', padding: '32px', backgroundColor: '#fef2f2', borderRadius: '8px', marginBottom: '24px' }}>
+            <FaExclamationTriangle style={{ fontSize: '48px', color: '#e53e3e', marginBottom: '16px' }} />
+            <h3 style={{ margin: '0 0 8px 0', color: '#e53e3e' }}>This action cannot be undone!</h3>
+            <p style={{ margin: '0 0 16px 0', fontSize: '12px' }}>
+              You are about to permanently delete <strong>{getTotalSelectedRecords().toLocaleString()} records</strong> from the database.
+            </p>
+            <p style={{ margin: 0, fontSize: '12px' }}>
+              Type <code style={{ padding: '4px 8px', backgroundColor: '#fee2e2', borderRadius: '4px', fontWeight: 600 }}>DELETE ALL DATA</code> to confirm
+            </p>
           </div>
 
-          <div className="cleanup-actions">
-            <button className="btn-secondary" onClick={handleBack}>
+          <div className="gps-form-group" style={{ maxWidth: '400px', margin: '0 auto 24px' }}>
+            <label className="gps-label">Confirmation Code:</label>
+            <input
+              type="text"
+              className="gps-input"
+              value={confirmationCode}
+              onChange={(e) => setConfirmationCode(e.target.value)}
+              placeholder="Type: DELETE ALL DATA"
+              autoFocus
+            />
+          </div>
+
+          <div style={{ padding: '16px', backgroundColor: '#f9fafb', borderRadius: '8px', marginBottom: '24px' }}>
+            <p style={{ fontWeight: 600, marginBottom: '8px', fontSize: '12px' }}>Before proceeding, confirm that:</p>
+            <ul style={{ margin: 0, paddingLeft: '20px', fontSize: '10px', color: '#666' }}>
+              <li>You have reviewed the selected categories</li>
+              <li>You understand this operation is irreversible</li>
+              <li>You have backed up any data you need to preserve</li>
+              <li>You are authorized to perform this operation</li>
+            </ul>
+          </div>
+
+          <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+            <button className="gps-btn gps-btn--secondary" onClick={handleBack}>
               Back to Review
             </button>
             <button 
-              className="btn-danger"
+              className="gps-btn gps-btn--danger"
               onClick={handleExecuteCleanup}
               disabled={confirmationCode !== 'DELETE ALL DATA'}
             >
@@ -408,9 +423,9 @@ const SystemCleanup = () => {
       )}
 
       {step === 4 && (
-        <div className="cleanup-step">
-          <div className="cleanup-executing">
-            <div className="spinner-large"></div>
+        <div className="gps-section">
+          <div className="gps-empty-state">
+            <div className="gps-spinner"></div>
             <h2>Executing Cleanup...</h2>
             <p>Please wait while we delete the selected data</p>
           </div>
@@ -418,29 +433,28 @@ const SystemCleanup = () => {
       )}
 
       {step === 5 && (
-        <div className="cleanup-step">
-          <div className="cleanup-complete">
-            <FaCheckCircle size={64} className="success-icon" />
-            <h2>Cleanup Complete</h2>
-            <p>The selected data has been permanently deleted</p>
+        <div className="gps-section">
+          <div style={{ textAlign: 'center', padding: '32px' }}>
+            <FaCheckCircle style={{ fontSize: '64px', color: '#16a34a', marginBottom: '16px' }} />
+            <h2 style={{ margin: '0 0 8px 0', color: '#16a34a' }}>Cleanup Complete</h2>
+            <p style={{ margin: '0 0 24px 0', color: '#666' }}>The selected data has been permanently deleted</p>
 
             {deletedCounts && (
-              <div className="deletion-summary">
-                <h3>Deletion Summary:</h3>
+              <div style={{ textAlign: 'left', maxWidth: '600px', margin: '0 auto 24px' }}>
+                <h3 style={{ fontSize: '14px', marginBottom: '16px' }}>Deletion Summary:</h3>
                 {Object.entries(deletedCounts).map(([category, tables]) => {
                   const totalDeleted = Object.values(tables).reduce((sum, count) => sum + count, 0);
                   if (totalDeleted === 0) return null;
 
                   return (
-                    <div key={category} className="deleted-category">
-                      <h4>{categoryDescriptions[category].name}</h4>
-                      <div className="deleted-tables">
+                    <div key={category} style={{ marginBottom: '16px', padding: '12px', backgroundColor: '#f0fdf4', borderRadius: '8px' }}>
+                      <h4 style={{ margin: '0 0 8px 0', fontSize: '12px' }}>{categoryDescriptions[category].name}</h4>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
                         {Object.entries(tables).map(([table, count]) => (
                           count > 0 && (
-                            <div key={table} className="deleted-table">
-                              <span>{table}</span>
-                              <span className="deleted-count">{count.toLocaleString()} deleted</span>
-                            </div>
+                            <span key={table} className="gps-badge gps-badge--success" style={{ fontSize: '9px' }}>
+                              {table}: {count.toLocaleString()} deleted
+                            </span>
                           )
                         ))}
                       </div>
@@ -450,11 +464,9 @@ const SystemCleanup = () => {
               </div>
             )}
 
-            <div className="cleanup-actions">
-              <button className="btn-primary" onClick={handleStartOver}>
-                Perform Another Cleanup
-              </button>
-            </div>
+            <button className="gps-btn gps-btn--primary" onClick={handleStartOver}>
+              Perform Another Cleanup
+            </button>
           </div>
         </div>
       )}
