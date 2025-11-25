@@ -289,7 +289,9 @@ const RdmLookupModal = ({ isOpen, onClose, onSave, initialConfig = {}, cumulativ
       return datasetConfig.datasetId && joinConditions.length > 0 && 
              joinConditions.every(jc => jc.dataset_column && jc.source_column);
     } else {
-      return crosswalkConfig.crosswalkId && crosswalkConfig.source_column;
+      return crosswalkConfig.crosswalkId && 
+             crosswalkConfig.source_column && 
+             crosswalkConfig.crosswalk_source_field;
     }
   };
   
