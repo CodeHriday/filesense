@@ -556,38 +556,21 @@
   background: #c05621;
 }
 
-.visual-mapping-node-rdm-dataset {
+.visual-mapping-node-rdm-lookup {
   border-color: #38a169;
 }
 
-.visual-mapping-node-rdm-dataset .visual-mapping-node-icon,
-.visual-mapping-node-rdm-dataset .visual-mapping-node-title {
+.visual-mapping-node-rdm-lookup .visual-mapping-node-icon,
+.visual-mapping-node-rdm-lookup .visual-mapping-node-title {
   color: #38a169;
 }
 
-.visual-mapping-node-rdm-dataset .visual-mapping-node-button {
+.visual-mapping-node-rdm-lookup .visual-mapping-node-button {
   background: #38a169;
 }
 
-.visual-mapping-node-rdm-dataset .visual-mapping-node-button:hover {
+.visual-mapping-node-rdm-lookup .visual-mapping-node-button:hover {
   background: #2f855a;
-}
-
-.visual-mapping-node-rdm-crosswalk {
-  border-color: #d69e2e;
-}
-
-.visual-mapping-node-rdm-crosswalk .visual-mapping-node-icon,
-.visual-mapping-node-rdm-crosswalk .visual-mapping-node-title {
-  color: #d69e2e;
-}
-
-.visual-mapping-node-rdm-crosswalk .visual-mapping-node-button {
-  background: #d69e2e;
-}
-
-.visual-mapping-node-rdm-crosswalk .visual-mapping-node-button:hover {
-  background: #b7791f;
 }
 
 .visual-mapping-node-target {

@@ -34,8 +34,7 @@ import {
 } from 'react-icons/fa';
 import SourceConfigModal from '../components/VisualMappingModals/SourceConfigModal';
 import ExpressionModal from '../components/VisualMappingModals/ExpressionModal';
-import RdmDatasetModal from '../components/VisualMappingModals/RdmDatasetModal';
-import RdmCrosswalkModal from '../components/VisualMappingModals/RdmCrosswalkModal';
+import RdmLookupModal from '../components/VisualMappingModals/RdmLookupModal';
 import TargetRulesModal from '../components/VisualMappingModals/TargetRulesModal';
 import JoinModal from '../components/VisualMappingModals/JoinModal';
 import { useVisualMappingExecution } from '../hooks/useVisualMappingExecution';
@@ -123,11 +122,14 @@ const ExpressionNode = ({ data }) => {
   );
 };
 
-const RdmDatasetNode = ({ data }) => {
+const RdmLookupNode = ({ data }) => {
   const statusBadge = data.statusBadge;
+  const lookupType = data.config?.lookupType;
+  const resourceName = lookupType === 'dataset' ? data.config?.datasetName : data.config?.crosswalkName;
+  const lookupTypeLabel = lookupType === 'dataset' ? 'Dataset Join' : 'Crosswalk';
   
   return (
-    <div className="visual-mapping-node visual-mapping-node-rdm-dataset">
+    <div className="visual-mapping-node visual-mapping-node-rdm-lookup">
       {statusBadge && (
         <div className={`visual-mapping-node-status-badge status-${statusBadge.text.toLowerCase()}`}>
           <span>{statusBadge.icon}</span>
@@ -143,9 +145,14 @@ const RdmDatasetNode = ({ data }) => {
         <FaExchangeAlt className="visual-mapping-node-icon" />
         <span className="visual-mapping-node-title">{data.label}</span>
       </div>
-      {data.config?.datasetName && (
+      {lookupType && (
         <div className="visual-mapping-node-detail">
-          <strong>Dataset:</strong> {data.config.datasetName}
+          <strong>Type:</strong> {lookupTypeLabel}
+        </div>
+      )}
+      {resourceName && (
+        <div className="visual-mapping-node-detail">
+          <strong>Resource:</strong> {resourceName}
         </div>
       )}
       <button 
@@ -154,41 +161,12 @@ const RdmDatasetNode = ({ data }) => {
       >
         Configure
       </button>
-    </div>
-  );
-};
-
-const RdmCrosswalkNode = ({ data }) => {
-  const statusBadge = data.statusBadge;
-  
-  return (
-    <div className="visual-mapping-node visual-mapping-node-rdm-crosswalk">
-      {statusBadge && (
-        <div className={`visual-mapping-node-status-badge status-${statusBadge.text.toLowerCase()}`}>
-          <span>{statusBadge.icon}</span>
-        </div>
-      )}
       <Handle 
-        type="target" 
-        position={Position.Left} 
-        id="input"
+        type="source" 
+        position={Position.Right} 
+        id="output"
         className="visual-mapping-node-handle"
       />
-      <div className="visual-mapping-node-header">
-        <FaRandom className="visual-mapping-node-icon" />
-        <span className="visual-mapping-node-title">{data.label}</span>
-      </div>
-      {data.config?.crosswalkName && (
-        <div className="visual-mapping-node-detail">
-          <strong>Crosswalk:</strong> {data.config.crosswalkName}
-        </div>
-      )}
-      <button 
-        onClick={() => data.onConfigure && data.onConfigure(data.nodeId)}
-        className="visual-mapping-node-button"
-      >
-        Configure
-      </button>
     </div>
   );
 };
@@ -290,8 +268,7 @@ const JoinNode = ({ data }) => {
 const nodeTypes = {
   sourceConfig: SourceConfigNode,
   expression: ExpressionNode,
-  rdmDataset: RdmDatasetNode,
-  rdmCrosswalk: RdmCrosswalkNode,
+  rdmLookup: RdmLookupNode,
   targetRules: TargetRulesNode,
   join: JoinNode
 };
@@ -551,25 +528,26 @@ const VisualMappingCanvasContent = () => {
         return outputSchema;
       }
       
-      // RDM Dataset: recursively get upstream schema (pass through + potentially add columns)
-      if (node.type === 'rdmDataset') {
+      // RDM Lookup: handles both dataset joins and crosswalk lookups
+      if (node.type === 'rdmLookup') {
         const upstreamEdges = edges.filter(e => e.target === nodeId);
         let schema = [];
         upstreamEdges.forEach(edge => {
           schema = [...schema, ...getNodeOutputSchema(edge.source)];
         });
-        console.log(`getCumulativeSchema: RDM Dataset node ${nodeId} output schema:`, schema.length, 'columns');
-        return schema;
-      }
-      
-      // RDM Crosswalk: recursively get upstream schema (pass through)
-      if (node.type === 'rdmCrosswalk') {
-        const upstreamEdges = edges.filter(e => e.target === nodeId);
-        let schema = [];
-        upstreamEdges.forEach(edge => {
-          schema = [...schema, ...getNodeOutputSchema(edge.source)];
-        });
-        console.log(`getCumulativeSchema: RDM Crosswalk node ${nodeId} output schema:`, schema.length, 'columns');
+        
+        // If it's a dataset join with column mappings, add the mapped columns
+        if (config.lookupType === 'dataset' && config.columnMappings) {
+          const datasetCols = config.columnMappings.map(mapping => ({
+            name: mapping.target || mapping.source,
+            type: mapping.type || 'unknown',
+            description: mapping.description || '',
+            contains_pii: mapping.contains_pii || false
+          }));
+          schema = [...schema, ...datasetCols];
+        }
+        
+        console.log(`getCumulativeSchema: RDM Lookup (${config.lookupType}) node ${nodeId} output schema:`, schema.length, 'columns');
         return schema;
       }
       
@@ -1066,16 +1044,10 @@ const VisualMappingCanvasContent = () => {
                   <div className="visual-mapping-palette-section">
                     <h4>RDM Lookups</h4>
                     <button 
-                      onClick={() => addNode('rdmDataset', 'RDM Dataset')}
+                      onClick={() => addNode('rdmLookup', 'RDM Lookup')}
                       className="visual-mapping-palette-item"
                     >
-                      <FaExchangeAlt /> RDM Dataset
-                    </button>
-                    <button 
-                      onClick={() => addNode('rdmCrosswalk', 'RDM Crosswalk')}
-                      className="visual-mapping-palette-item"
-                    >
-                      <FaRandom /> RDM Crosswalk
+                      <FaExchangeAlt /> RDM Lookup
                     </button>
                   </div>
                   
@@ -1156,18 +1128,8 @@ const VisualMappingCanvasContent = () => {
         />
       )}
       
-      {configNodeType === 'rdmDataset' && (
-        <RdmDatasetModal
-          isOpen={configModalOpen}
-          onClose={() => setConfigModalOpen(false)}
-          onSave={handleSaveNodeConfig}
-          initialConfig={getCurrentNodeConfig()}
-          cumulativeSchema={getCumulativeSchema()}
-        />
-      )}
-      
-      {configNodeType === 'rdmCrosswalk' && (
-        <RdmCrosswalkModal
+      {configNodeType === 'rdmLookup' && (
+        <RdmLookupModal
           isOpen={configModalOpen}
           onClose={() => setConfigModalOpen(false)}
           onSave={handleSaveNodeConfig}
