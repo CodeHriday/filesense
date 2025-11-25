@@ -1851,8 +1851,8 @@ const Connections = () => {
                               </div>
                             )}
                           </td>
-                          <td className="col-user">
-                            <span className={`badge badge-${connection.connection_user === 'External' ? 'warning' : 'info'}`}>
+                          <td>
+                            <span className={`gps-badge ${connection.connection_user === 'External' ? 'gps-badge--warning' : 'gps-badge--info'}`}>
                               {connection.connection_user || 'Internal'}
                             </span>
                           </td>
@@ -1893,11 +1893,11 @@ const Connections = () => {
                               new Date(connection.last_used_at).toLocaleDateString() : 
                               'Never'}
                           </td>
-                          <td className="col-actions">
-                            <div className="table-actions">
+                          <td>
+                            <div className="gps-action-buttons">
                               {hasExecutePermission('connection') && (
                                 <button 
-                                  className="action-icon-btn test-btn" 
+                                  className="gps-icon-btn gps-icon-btn-success" 
                                   onClick={() => handleTestConnection(connection)}
                                   disabled={testingConnection === connection.id}
                                   title="Test connection"
@@ -1908,14 +1908,14 @@ const Connections = () => {
                               {hasWritePermission('connections') && (
                                 <>
                                   <button 
-                                    className="action-icon-btn edit-btn" 
+                                    className="gps-icon-btn gps-icon-btn--edit" 
                                     onClick={() => handleEdit(connection)}
                                     title="Edit connection"
                                   >
                                     <FiEdit2 />
                                   </button>
                                   <button 
-                                    className="action-icon-btn delete-btn" 
+                                    className="gps-icon-btn gps-icon-btn--delete" 
                                     onClick={() => handleDelete(connection.id)}
                                     title="Delete connection"
                                   >

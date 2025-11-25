@@ -729,15 +729,15 @@ const UserManagement = () => {
                     <td>{user.full_name || '-'}</td>
                     <td>{user.email || '-'}</td>
                     <td>
-                      <span className={`auth-provider-badge ${user.auth_provider || 'local'}`}>
+                      <span className={`gps-badge ${user.auth_provider === 'okta' ? 'gps-badge--info' : 'gps-badge--secondary'}`}>
                         {user.auth_provider === 'okta' ? 'Okta SSO' : 'Local'}
                       </span>
                     </td>
                     <td>
-                      <div className="user-roles">
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
                         {user.roles && user.roles.length > 0 ? 
                           user.roles.map(role => (
-                            <span key={role} className="role-badge">
+                            <span key={role} className="gps-badge gps-badge--info">
                               {role}
                             </span>
                           )) : 
@@ -747,15 +747,15 @@ const UserManagement = () => {
                     </td>
                     <td>
                       {isLocked ? (
-                        <span className="account-status locked" title={`Locked until ${new Date(user.locked_until).toLocaleString()}`}>
-                          🔒 Locked ({failedAttempts} failed attempts)
+                        <span className="gps-badge gps-badge--danger" title={`Locked until ${new Date(user.locked_until).toLocaleString()}`}>
+                          Locked
                         </span>
                       ) : failedAttempts > 0 ? (
-                        <span className="account-status warning" title={`${failedAttempts} failed login attempts`}>
-                          ⚠️ {failedAttempts} failed attempt{failedAttempts !== 1 ? 's' : ''}
+                        <span className="gps-badge gps-badge--warning" title={`${failedAttempts} failed login attempts`}>
+                          {failedAttempts} Failed
                         </span>
                       ) : (
-                        <span className="account-status active">✓ Active</span>
+                        <span className="gps-badge gps-badge--success">Active</span>
                       )}
                     </td>
                     <td>{user.last_login ? new Date(user.last_login).toLocaleString() : 'Never'}</td>

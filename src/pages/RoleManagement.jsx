@@ -647,23 +647,23 @@ const RoleManagement = () => {
                     <td>{role.name}</td>
                     <td>{role.description || '-'}</td>
                     <td>
-                      <div className="permission-tags">
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
                         {permissions.length > 0 ? 
                           displayedPermissions.map(perm => (
-                            <div key={perm.id} className="permission-tag">
+                            <span key={perm.id} className={`gps-badge ${perm.write ? 'gps-badge--success' : 'gps-badge--info'}`}>
                               {perm.name} {perm.write ? '(Edit)' : '(View)'}
-                            </div>
+                            </span>
                           )) : 
                           '-'
                         }
                         {permissions.length > 3 && (
-                          <div 
-                            className="permission-tag permission-tag-more" 
+                          <span 
+                            className="gps-badge gps-badge--secondary"
                             onClick={() => togglePermissionsExpand(role.id)}
                             style={{ cursor: 'pointer' }}
                           >
                             {isExpanded ? 'Show less' : `+${permissions.length - 3} more`}
-                          </div>
+                          </span>
                         )}
                       </div>
                     </td>

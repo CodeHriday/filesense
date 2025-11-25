@@ -289,13 +289,35 @@
   color: white;
 }
 
-.gps-icon-btn-danger {
+.gps-icon-btn-danger,
+.gps-icon-btn--delete {
   color: var(--gps-danger-red);
   border-color: var(--gps-danger-red);
 }
 
-.gps-icon-btn-danger:hover {
+.gps-icon-btn-danger:hover,
+.gps-icon-btn--delete:hover {
   background: var(--gps-danger-red);
+  color: white;
+}
+
+.gps-icon-btn--edit {
+  color: var(--gps-primary-teal);
+  border-color: var(--gps-primary-teal);
+}
+
+.gps-icon-btn--edit:hover {
+  background: var(--gps-primary-teal);
+  color: white;
+}
+
+.gps-icon-btn--view {
+  color: #6366f1;
+  border-color: #6366f1;
+}
+
+.gps-icon-btn--view:hover {
+  background: #6366f1;
   color: white;
 }
 
@@ -696,7 +718,8 @@
   color: #4b5563;
 }
 
-.gps-badge-secondary {
+.gps-badge-secondary,
+.gps-badge--secondary {
   background: #e5e7eb;
   color: #4b5563;
 }
