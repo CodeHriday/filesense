@@ -288,13 +288,14 @@ const RdmLookupModal = ({ isOpen, onClose, onSave, initialConfig = {}, cumulativ
     
     if (lookupType === 'dataset') {
       const selectedDataset = datasets.find(d => d.id === datasetConfig.datasetId);
-      const datasetCols = getDatasetColumnsOnly();
+      const combinedSchema = getOutputSchema();
       console.log('RDM Lookup handleSave - Dataset:', {
         datasetSchema: datasetSchema,
         datasetSchemaLength: datasetSchema.length,
         sampleSchemaField: datasetSchema[0],
         columnMappings: datasetConfig.column_mappings,
-        outputSchema: datasetCols
+        outputSchema: combinedSchema,
+        outputSchemaLength: combinedSchema.length
       });
       config = {
         ...config,
@@ -303,25 +304,16 @@ const RdmLookupModal = ({ isOpen, onClose, onSave, initialConfig = {}, cumulativ
         joinType: datasetConfig.join_type || 'inner',
         joinKeys: joinConditions,
         columnMappings: datasetConfig.column_mappings || [],
-        outputSchema: datasetCols // Save only dataset columns
+        outputSchema: combinedSchema // Save combined schema (upstream + dataset columns)
       };
     } else {
       const selectedCrosswalk = crosswalks.find(c => c.id === crosswalkConfig.crosswalkId);
-      
-      // Get crosswalk columns only (not combined with input)
-      let crosswalkCols = [];
-      if (crosswalkConfig.column_mappings && crosswalkConfig.column_mappings.length > 0) {
-        const crosswalkFields = crosswalkSchema?.targetSystem?.fields || [];
-        crosswalkCols = crosswalkConfig.column_mappings.map(mapping => {
-          const sourceCol = crosswalkFields.find(col => col.name === (mapping.sourceColumn || mapping.source));
-          return {
-            name: mapping.targetColumn || mapping.target || mapping.sourceColumn || mapping.source,
-            type: mapping.dataType || sourceCol?.dataType || sourceCol?.type || 'unknown',
-            description: sourceCol?.description || '',
-            contains_pii: sourceCol?.isPii || sourceCol?.contains_pii || false
-          };
-        });
-      }
+      const combinedSchema = getOutputSchema();
+      console.log('RDM Lookup handleSave - Crosswalk:', {
+        columnMappings: crosswalkConfig.column_mappings,
+        outputSchema: combinedSchema,
+        outputSchemaLength: combinedSchema.length
+      });
       
       config = {
         ...config,
@@ -332,7 +324,7 @@ const RdmLookupModal = ({ isOpen, onClose, onSave, initialConfig = {}, cumulativ
         noMatchBehavior: crosswalkConfig.no_match_behavior || 'keep_source',
         defaultValue: crosswalkConfig.default_value || '',
         columnMappings: crosswalkConfig.column_mappings || [],
-        outputSchema: crosswalkCols // Save crosswalk columns for schema propagation
+        outputSchema: combinedSchema // Save combined schema (upstream + crosswalk columns)
       };
     }
     
