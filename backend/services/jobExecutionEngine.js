@@ -856,11 +856,46 @@ async function executeTransformationJob(pool, mappingId, userId, options = {}) {
       });
       
       try {
+        // Create callback for real-time progress updates (called after transformation, before profiling)
+        const onTransformComplete = visualExecutionId ? async (progressData) => {
+          const currentRowsWritten = totalRowsWritten + progressData.rowsWritten;
+          const currentRowsRead = totalRowsRead + progressData.rowsRead;
+          
+          // Emit edge row counts immediately after transformation completes
+          if (visualMappingEdges && Array.isArray(visualMappingEdges)) {
+            visualMappingEdges.forEach(edge => {
+              visualMappingWS.emitEdgeRowCount(visualExecutionId, edge.id, edge.source, edge.target, currentRowsWritten);
+            });
+          }
+          
+          // Emit node completion status for expression, join, rdm nodes
+          nodesByType.expression.forEach(nodeId => {
+            emitNodeStatus(nodeId, 'completed', { rowsProcessed: currentRowsRead });
+          });
+          nodesByType.join.forEach(nodeId => {
+            emitNodeStatus(nodeId, 'completed', { rowsProcessed: currentRowsRead });
+          });
+          nodesByType.rdmLookup.forEach(nodeId => {
+            emitNodeStatus(nodeId, 'completed', { rowsProcessed: currentRowsRead });
+          });
+          nodesByType.targetRules.forEach(nodeId => {
+            emitNodeStatus(nodeId, 'completed', { rowsWritten: currentRowsWritten });
+          });
+          
+          systemLogger.info('Real-time progress callback executed - edge counts and node status emitted before profiling', {
+            visualExecutionId,
+            rowsWritten: currentRowsWritten,
+            rowsRead: currentRowsRead,
+            filename: progressData.filename
+          });
+        } : null;
+        
         const fileResult = await processFile(pool, file, mapping, jobId, { 
           dryRun, 
           transformationJobDbId, 
           userId,
-          rdmContext
+          rdmContext,
+          onTransformComplete
         });
         
         totalRowsRead += fileResult.rowsRead;
@@ -884,7 +919,8 @@ async function executeTransformationJob(pool, mappingId, userId, options = {}) {
           progressMessage: `Completed ${filesProcessedSoFar} of ${matchingFiles.length} files`
         });
         
-        // Emit edge row counts for real-time visualization (incremental updates)
+        // Edge row counts already emitted by onTransformComplete callback (before profiling)
+        // This secondary emission serves as a final confirmation after all processing completes
         if (visualExecutionId && visualMappingEdges && Array.isArray(visualMappingEdges)) {
           visualMappingEdges.forEach(edge => {
             visualMappingWS.emitEdgeRowCount(visualExecutionId, edge.id, edge.source, edge.target, totalRowsWritten);
@@ -965,34 +1001,15 @@ async function executeTransformationJob(pool, mappingId, userId, options = {}) {
       rowsFailed: totalRowsFailed
     });
     
-    // Emit completed status for all remaining nodes
+    // Final status emissions - these are redundant confirmations after profiling completes
+    // Primary real-time updates were already sent via onTransformComplete callback (before profiling)
     if (visualExecutionId) {
-      // Mark expression nodes as completed
-      nodesByType.expression.forEach(nodeId => {
-        emitNodeStatus(nodeId, 'completed', { rowsProcessed: totalRowsRead });
-      });
+      // Yield event loop to ensure all previous events are flushed
+      await new Promise(resolve => setImmediate(resolve));
       
-      // Mark join nodes as completed
-      nodesByType.join.forEach(nodeId => {
-        emitNodeStatus(nodeId, 'completed', { rowsProcessed: totalRowsRead });
-      });
-      
-      // Mark RDM lookup nodes as completed
-      nodesByType.rdmLookup.forEach(nodeId => {
-        emitNodeStatus(nodeId, 'completed', { rowsProcessed: totalRowsRead });
-      });
-      
-      // Mark target nodes as completed
-      nodesByType.targetRules.forEach(nodeId => {
-        emitNodeStatus(nodeId, 'completed', { rowsWritten: totalRowsWritten });
-      });
-      
-      // Emit edge row counts for visual feedback
-      // For each edge, emit the total rows that passed through
+      // Final edge row count confirmation (already sent by callback, this is just a redundant final update)
       if (visualMappingEdges && Array.isArray(visualMappingEdges)) {
         visualMappingEdges.forEach(edge => {
-          // For simplicity, use totalRowsWritten for all edges
-          // In a more complex implementation, we'd track rows at each node
           visualMappingWS.emitEdgeRowCount(visualExecutionId, edge.id, edge.source, edge.target, totalRowsWritten);
         });
       }
@@ -1498,7 +1515,7 @@ function calculateColumnStatistics(rows, schema) {
  * @returns {Promise<Object>} - Processing result
  */
 async function processFile(pool, file, mapping, jobId, options = {}) {
-  const { dryRun = false, transformationJobDbId = null, userId = null, rdmContext = {} } = options;
+  const { dryRun = false, transformationJobDbId = null, userId = null, rdmContext = {}, onTransformComplete = null } = options;
   
   let rowsRead = 0;
   let rowsWritten = 0;
@@ -1745,6 +1762,20 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
     
     // Create execution timestamp for profiling correlation (used for both source and target)
     const executionTimestamp = new Date();
+    
+    // IMPORTANT: Emit progress callback BEFORE heavy profiling operations
+    // This allows WebSocket events to be sent immediately after transformation
+    if (onTransformComplete) {
+      await onTransformComplete({
+        rowsRead,
+        rowsWritten,
+        rowsFailed,
+        transformedRows: transformedRows.length,
+        filename: file.filename
+      });
+      // Yield event loop to ensure WebSocket events are flushed before blocking profiling
+      await new Promise(resolve => setImmediate(resolve));
+    }
     
     // Step 3.5: Profile SOURCE file using Python profilers (same as file upload)
     // This downloads and profiles the actual S3 file instead of in-memory data
