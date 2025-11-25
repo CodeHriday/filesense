@@ -45,7 +45,7 @@ const SourceConfigNode = ({ data }) => {
   const statusBadge = data.statusBadge;
   
   return (
-    <div className="visual-mapping-node visual-mapping-node-source">
+    <div className="visual-mapping-node visual-mapping-node-source" title={data.config?.description || ''}>
       {statusBadge && (
         <div className={`visual-mapping-node-status-badge status-${statusBadge.text.toLowerCase()}`}>
           <span>{statusBadge.icon}</span>
@@ -85,7 +85,7 @@ const ExpressionNode = ({ data }) => {
   const statusBadge = data.statusBadge;
   
   return (
-    <div className="visual-mapping-node visual-mapping-node-expression">
+    <div className="visual-mapping-node visual-mapping-node-expression" title={data.config?.description || ''}>
       {statusBadge && (
         <div className={`visual-mapping-node-status-badge status-${statusBadge.text.toLowerCase()}`}>
           <span>{statusBadge.icon}</span>
@@ -129,7 +129,7 @@ const RdmLookupNode = ({ data }) => {
   const lookupTypeLabel = lookupType === 'dataset' ? 'Dataset Join' : 'Crosswalk';
   
   return (
-    <div className="visual-mapping-node visual-mapping-node-rdm-lookup">
+    <div className="visual-mapping-node visual-mapping-node-rdm-lookup" title={data.config?.description || ''}>
       {statusBadge && (
         <div className={`visual-mapping-node-status-badge status-${statusBadge.text.toLowerCase()}`}>
           <span>{statusBadge.icon}</span>
@@ -175,7 +175,7 @@ const TargetRulesNode = ({ data }) => {
   const statusBadge = data.statusBadge;
   
   return (
-    <div className="visual-mapping-node visual-mapping-node-target">
+    <div className="visual-mapping-node visual-mapping-node-target" title={data.config?.description || ''}>
       {statusBadge && (
         <div className={`visual-mapping-node-status-badge status-${statusBadge.text.toLowerCase()}`}>
           <span>{statusBadge.icon}</span>
@@ -215,7 +215,7 @@ const JoinNode = ({ data }) => {
   const statusBadge = data.statusBadge;
   
   return (
-    <div className="visual-mapping-node visual-mapping-node-join">
+    <div className="visual-mapping-node visual-mapping-node-join" title={data.config?.description || ''}>
       {statusBadge && (
         <div className={`visual-mapping-node-status-badge status-${statusBadge.text.toLowerCase()}`}>
           <span>{statusBadge.icon}</span>
