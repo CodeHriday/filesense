@@ -146,7 +146,7 @@ const MappingGroups = () => {
 
   return (
     <PageTransition>
-      <div className="mapping-groups-page">
+      <div className="gps-page-container">
         <PageHeader
           title="Mapping Job Groups"
           subtitle="Batch execution of transformations with concurrency control"
@@ -276,7 +276,7 @@ const MappingGroups = () => {
                             {/* Subproject Groups Table */}
                             {isSubprojectExpanded && subproject.items.length > 0 && (
                               <div style={{ marginLeft: '1.5rem', marginTop: '0.5rem', overflow: 'auto' }}>
-                                <table className="data-table">
+                                <table className="gps-table">
                                   <thead>
                                     <tr>
                                       <th>Name</th>
@@ -382,7 +382,7 @@ const MappingGroups = () => {
                             {/* Unassigned Groups Table */}
                             {isUnassignedExpanded && (
                               <div style={{ marginLeft: '1.5rem', marginTop: '0.5rem', overflow: 'auto' }}>
-                                <table className="data-table">
+                                <table className="gps-table">
                                   <thead>
                                     <tr>
                                       <th>Name</th>
