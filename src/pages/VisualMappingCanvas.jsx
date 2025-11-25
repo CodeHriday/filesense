@@ -135,12 +135,6 @@ const RdmLookupNode = ({ data }) => {
           <span>{statusBadge.icon}</span>
         </div>
       )}
-      <Handle 
-        type="target" 
-        position={Position.Left} 
-        id="input"
-        className="visual-mapping-node-handle"
-      />
       <div className="visual-mapping-node-header">
         <FaExchangeAlt className="visual-mapping-node-icon" />
         <span className="visual-mapping-node-title">{data.label}</span>

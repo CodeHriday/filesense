@@ -148,21 +148,24 @@ const RdmLookupModal = ({ isOpen, onClose, onSave, initialConfig = {}, cumulativ
   
   const getOutputSchema = () => {
     if (lookupType === 'dataset') {
-      // For dataset join, output is cumulative schema + selected dataset columns
-      const selectedDatasetColumns = datasetConfig.column_mappings || [];
-      const datasetCols = selectedDatasetColumns.map(mapping => {
-        const sourceCol = datasetSchema.find(col => col.name === mapping.source);
-        return {
-          name: mapping.target || mapping.source,
-          type: sourceCol?.dataType || 'unknown',
-          description: sourceCol?.description || '',
-          contains_pii: sourceCol?.isPii || false
-        };
-      });
-      return [...cumulativeSchema, ...datasetCols];
+      // For dataset join, show the full dataset schema
+      return datasetSchema.map(col => ({
+        name: col.name,
+        type: col.dataType || col.type || 'unknown',
+        description: col.description || '',
+        contains_pii: col.isPii || col.contains_pii || false
+      }));
     } else {
-      // For crosswalk, output is cumulative schema (potentially with transformed column)
-      return cumulativeSchema;
+      // For crosswalk, show the crosswalk schema fields
+      if (crosswalkSchema && crosswalkSchema.fields) {
+        return crosswalkSchema.fields.map(field => ({
+          name: field.name,
+          type: field.dataType || field.type || 'unknown',
+          description: field.description || '',
+          contains_pii: field.isPii || field.contains_pii || false
+        }));
+      }
+      return [];
     }
   };
   
@@ -236,12 +239,6 @@ const RdmLookupModal = ({ isOpen, onClose, onSave, initialConfig = {}, cumulativ
         <div className="vm-modal-body vm-modal-body-scroll">
           {activeTab === 'config' && (
             <>
-              <div className="vm-info-box">
-                <p>
-                  Configure RDM lookups to enrich your data using reference datasets (joins) or crosswalk tables (value mappings).
-                </p>
-              </div>
-              
               <div className="vm-form-group">
                 <label>Lookup Type</label>
                 <select 
