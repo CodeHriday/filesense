@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
-import { FiUpload, FiEye, FiEyeOff } from 'react-icons/fi';
+import { FiUpload, FiEye, FiEyeOff, FiFolder } from 'react-icons/fi';
 import Card from '../components/Card';
 import FileDropzone from '../components/FileDropzone';
 import DuplicateFileModal from '../components/DuplicateFileModal';
@@ -2561,16 +2561,9 @@ function FileUpload() {
                 externalStatus={uploadStatus}
               />
             ) : (
-              <div style={{
-                padding: '3rem',
-                border: '2px dashed #ccc',
-                borderRadius: '8px',
-                textAlign: 'center',
-                color: '#999',
-                background: '#f9f9f9'
-              }}>
-                <FiUpload size={48} style={{ marginBottom: '1rem', opacity: 0.5 }} />
-                <p style={{ fontSize: '1.1rem', margin: 0 }}>Please select a project above to upload files</p>
+              <div className="dropzone-placeholder">
+                <FiUpload size={48} className="dropzone-placeholder-icon" />
+                <p className="dropzone-placeholder-text">Please select a project above to upload files</p>
               </div>
             )
           ) : (
@@ -2675,17 +2668,17 @@ function FileUpload() {
 
                   {/* Connection Details and Folder Browser */}
                   {selectedConnection && (
-                    <div style={{ background: 'white', padding: '0.75rem', borderRadius: '4px', border: '1px solid #e0e0e0' }}>
+                    <div className="connection-details-box">
                       {(() => {
                         const conn = vendorConnections.find(c => (c.id || c.connection_id) === selectedConnection);
                         if (!conn) return null;
                         return (
                           <>
-                            <div style={{ fontSize: '0.9rem', color: '#666', marginBottom: '0.5rem' }}>
+                            <div className="connection-path-info">
                               <strong>Upload Path:</strong> {conn.path || conn.drop_location_path || 'root'}
                             </div>
                             <button 
-                              className="btn btn-sm btn-secondary"
+                              className="gps-btn gps-btn--secondary gps-btn--sm"
                               onClick={() => {
                                 setShowFolderBrowser(!showFolderBrowser);
                                 if (!showFolderBrowser && browseFolders.length === 0) {
@@ -2701,11 +2694,11 @@ function FileUpload() {
 
                       {/* Folder Browser */}
                       {showFolderBrowser && (
-                        <div style={{ marginTop: '1rem', maxHeight: '200px', overflowY: 'auto', border: '1px solid #ddd', borderRadius: '4px', padding: '0.5rem' }}>
+                        <div className="folder-browser">
                           {browsePrefix && (
-                            <div style={{ marginBottom: '0.5rem' }}>
+                            <div className="folder-breadcrumb">
                               <button 
-                                className="btn btn-sm btn-secondary"
+                                className="gps-btn gps-btn--secondary gps-btn--sm"
                                 onClick={() => {
                                   const parts = browsePrefix.split('/').filter(p => p);
                                   parts.pop();
@@ -2715,31 +2708,24 @@ function FileUpload() {
                               >
                                 ← Back
                               </button>
-                              <span style={{ marginLeft: '0.5rem', fontSize: '0.9rem', color: '#666' }}>
-                                Current: /{browsePrefix}
+                              <span className="folder-path-info">
+                                Current: <span className="folder-path-value">/{browsePrefix}</span>
                               </span>
                             </div>
                           )}
                           {browseFolders.length === 0 ? (
-                            <div style={{ padding: '1rem', textAlign: 'center', color: '#999' }}>
+                            <div className="folder-empty-state">
                               No items found
                             </div>
                           ) : (
-                            <div>
+                            <div className="folder-list">
                               {browseFolders.filter(item => item.type === 'folder').map((folder, idx) => (
                                 <div 
                                   key={idx}
-                                  style={{ 
-                                    padding: '0.5rem', 
-                                    cursor: 'pointer',
-                                    borderBottom: '1px solid #f0f0f0',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '0.5rem'
-                                  }}
+                                  className="folder-item"
                                   onClick={() => browseFoldersInConnection(selectedConnection, folder.path)}
                                 >
-                                  <span style={{ fontSize: '1.2rem' }}>📁</span>
+                                  <FiFolder />
                                   <span>{folder.name}</span>
                                 </div>
                               ))}
@@ -2752,15 +2738,16 @@ function FileUpload() {
 
                   {/* Quality Rules Selection */}
                   {selectedVendorProject && (
-                    <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid #e0e0e0' }}>
-                      <label htmlFor="quality-rules-select-drop" style={{ fontWeight: 'bold', display: 'block', marginBottom: '0.5rem' }}>
+                    <div className="upload-subsection">
+                      <label htmlFor="quality-rules-select-drop" className="upload-form-label">
                         Quality Rules (Optional):
                       </label>
-                      <p style={{ fontSize: '0.875rem', color: '#666', marginBottom: '0.75rem' }}>
+                      <p className="upload-field-desc">
                         Select quality rules to validate this data. Rules will run during processing.
                       </p>
                       <select 
                         id="quality-rules-select-drop"
+                        className="gps-form-select quality-rules-multiselect"
                         multiple
                         value={selectedQualityRules.map(String)}
                         onChange={(e) => {
@@ -2768,14 +2755,6 @@ function FileUpload() {
                           setSelectedQualityRules(selected);
                         }}
                         disabled={loadingQualityRules}
-                        style={{
-                          width: '100%',
-                          padding: '0.5rem',
-                          borderRadius: '4px',
-                          border: '1px solid #ccc',
-                          minHeight: '100px',
-                          cursor: 'pointer'
-                        }}
                       >
                         {loadingQualityRules ? (
                           <option disabled>Loading quality rules...</option>
@@ -2789,7 +2768,7 @@ function FileUpload() {
                           ))
                         )}
                       </select>
-                      <div style={{ fontSize: '0.75rem', color: '#666', marginTop: '0.5rem' }}>
+                      <div className="upload-field-hint">
                         {selectedQualityRules.length > 0 
                           ? `${selectedQualityRules.length} rule(s) selected` 
                           : 'No rules selected (hold Ctrl/Cmd to select multiple)'}

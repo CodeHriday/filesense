@@ -534,6 +534,20 @@
   margin: 0;
 }
 
+/* Folder Empty State */
+.folder-empty-state {
+  padding: 16px;
+  text-align: center;
+  color: #999;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 10px;
+}
+
+/* Quality Rules Multi-select */
+.quality-rules-multiselect {
+  min-height: 100px;
+}
+
 .access-denied-message {
   background-color: var(--bg-surface);
   border: 1px dashed var(--border-medium);
