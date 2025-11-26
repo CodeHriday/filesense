@@ -50,7 +50,6 @@
   font-size: 10px;
   font-weight: 500;
   color: #64748b;
-  text-transform: uppercase;
 }
 
 .provider-dropdown-container {
@@ -202,7 +201,6 @@
   font-size: 10px;
   font-weight: 500;
   color: #64748b;
-  text-transform: uppercase;
 }
 
 .toggle-button {
@@ -286,44 +284,47 @@
 }
 
 .generate-btn {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 8px 14px;
+  border-radius: 4px;
+  cursor: pointer;
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 10px 20px;
+  gap: 6px;
+  transition: all 0.2s ease;
+  white-space: nowrap;
   background: #025043;
   color: white;
   border: none;
-  border-radius: 6px;
-  font-size: 11px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-  min-width: 180px;
-  height: 40px;
-  text-transform: none;
-  letter-spacing: 0;
 }
 
 .generate-btn:hover:not(:disabled) {
   background: #033830;
   transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(2, 80, 67, 0.3);
+  box-shadow: 0 2px 4px rgba(2, 80, 67, 0.2);
+}
+
+.generate-btn:active:not(:disabled) {
+  transform: translateY(0);
 }
 
 .generate-btn:disabled {
-  opacity: 0.7;
+  opacity: 0.6;
   cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
 }
 
 .generate-btn .loading-spinner {
-  width: 14px;
-  height: 14px;
+  width: 12px;
+  height: 12px;
 }
 
 .generate-btn svg {
-  width: 16px;
-  height: 16px;
+  width: 14px;
+  height: 14px;
 }
 
 .bulk-actions {

@@ -49,11 +49,11 @@ class OpenAIProvider(AIProvider):
     def get_provider_info(self) -> Dict[str, Any]:
         return {
             "name": self.PROVIDER_NAME,
-            "display_name": "OpenAI (Replit AI)",
+            "display_name": "OpenAI",
             "available": self.is_available(),
             "requires_external_call": True,
             "privacy_level": "cloud",
-            "description": "Uses OpenAI GPT models via Replit AI Integration"
+            "description": "Uses OpenAI GPT models"
         }
     
     def generate_dq_suggestions(

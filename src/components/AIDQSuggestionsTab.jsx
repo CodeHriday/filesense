@@ -349,7 +349,7 @@ const AIDQSuggestionsTab = ({ fileId, filename, columns, projectId }) => {
         </div>
         <div className="ai-header-right">
           <div className="provider-selector">
-            <span className="provider-label">Provider:</span>
+            <span className="provider-label">Provider</span>
             <div className="provider-dropdown-container">
               <button 
                 className="provider-dropdown-trigger"
