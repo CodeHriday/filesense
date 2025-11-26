@@ -1,4 +1,4 @@
-/* Three Section Modal Styles */
+/* Three Section Modal Styles - Standardized with Global Page Styles */
 
 .three-section-modal-overlay {
   position: fixed;
@@ -6,7 +6,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(0, 0, 0, 0.6);
+  background-color: rgba(0, 0, 0, 0.5);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -24,14 +24,15 @@
 }
 
 .three-section-modal {
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.25);
+  background: var(--gps-bg-white, #ffffff);
+  border-radius: var(--gps-radius-md, 6px);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.2);
   display: flex;
   flex-direction: column;
-  max-height: 80vh;
+  max-height: 85vh;
   height: auto;
   animation: slideUp 0.3s ease-out;
+  font-family: var(--gps-font-family, 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
 }
 
 @keyframes slideUp {
@@ -64,115 +65,241 @@
 /* Fixed Header */
 .three-section-modal-header {
   flex: 0 0 auto;
-  padding: 1.25rem 1.75rem;
-  border-bottom: 1px solid #e5e7eb;
+  padding: var(--gps-spacing-lg, 12px) var(--gps-spacing-xl, 16px);
+  border-bottom: 1px solid var(--gps-border-light, #e2e8f0);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: #f9fafb;
-  border-radius: 8px 8px 0 0;
+  background: var(--gps-bg-header, #f8f9fa);
+  border-radius: var(--gps-radius-md, 6px) var(--gps-radius-md, 6px) 0 0;
 }
 
 .three-section-modal-header h2 {
   margin: 0;
-  font-size: 1.5rem;
-  font-weight: 600;
-  color: #1f2937;
+  font-family: var(--gps-font-family, 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
+  font-size: var(--gps-font-size-title, 14px);
+  font-weight: var(--gps-font-weight-bold, 700);
+  color: var(--gps-primary-teal, #025043);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
 }
 
 .three-section-modal-close {
   background: none;
   border: none;
-  font-size: 2rem;
+  font-size: 24px;
   cursor: pointer;
-  color: #6b7280;
-  width: 36px;
-  height: 36px;
+  color: var(--gps-text-muted, #666666);
+  width: 32px;
+  height: 32px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 4px;
+  border-radius: var(--gps-radius-sm, 4px);
   transition: all 0.2s;
   padding: 0;
   line-height: 1;
 }
 
 .three-section-modal-close:hover {
-  background-color: #f3f4f6;
-  color: #374151;
+  background-color: var(--gps-bg-row-hover, #f7fafc);
+  color: var(--gps-text-dark, #333333);
+}
+
+.three-section-modal-close:focus {
+  outline: none;
 }
 
 /* Scrollable Center */
 .three-section-modal-content {
   flex: 1 1 auto;
   overflow-y: auto;
-  padding: 1.5rem 1.75rem;
-  background: white;
+  padding: var(--gps-spacing-xl, 16px);
+  background: var(--gps-bg-white, #ffffff);
   min-height: 0;
 }
 
 .three-section-modal-content::-webkit-scrollbar {
-  width: 8px;
+  width: 6px;
 }
 
 .three-section-modal-content::-webkit-scrollbar-track {
-  background: #f1f1f1;
-  border-radius: 4px;
+  background: var(--gps-bg-page, #f7fafc);
+  border-radius: 3px;
 }
 
 .three-section-modal-content::-webkit-scrollbar-thumb {
-  background: #cbd5e0;
-  border-radius: 4px;
+  background: var(--gps-border-input, #cbd5e0);
+  border-radius: 3px;
 }
 
 .three-section-modal-content::-webkit-scrollbar-thumb:hover {
-  background: #a0aec0;
+  background: var(--gps-text-muted, #666666);
 }
 
 /* Fixed Footer */
 .three-section-modal-footer {
   flex: 0 0 auto;
-  padding: 1rem 1.75rem;
-  border-top: 1px solid #e5e7eb;
+  padding: var(--gps-spacing-lg, 12px) var(--gps-spacing-xl, 16px);
+  border-top: 1px solid var(--gps-border-light, #e2e8f0);
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 1rem;
-  background: #f9fafb;
-  border-radius: 0 0 8px 8px;
+  gap: var(--gps-spacing-md, 8px);
+  background: var(--gps-bg-header, #f8f9fa);
+  border-radius: 0 0 var(--gps-radius-md, 6px) var(--gps-radius-md, 6px);
 }
 
 .three-section-modal-footer button {
-  padding: 0.625rem 1.5rem;
-  border-radius: 6px;
-  font-size: 0.875rem;
-  font-weight: 500;
+  font-family: var(--gps-font-family, 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
+  font-size: var(--gps-font-size-content, 10px);
+  font-weight: var(--gps-font-weight-semibold, 600);
+  padding: var(--gps-spacing-md, 8px) var(--gps-spacing-xl, 16px);
+  border-radius: var(--gps-radius-sm, 4px);
   cursor: pointer;
   transition: all 0.2s;
   border: none;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
 }
 
+.three-section-modal-footer button:focus {
+  outline: none;
+  box-shadow: none;
+}
+
+/* Cancel button (first button) */
 .three-section-modal-footer button:first-child {
-  background: #f3f4f6;
-  color: #374151;
+  background: var(--gps-bg-white, #ffffff);
+  color: var(--gps-text-dark, #333333);
+  border: 1px solid var(--gps-border-input, #cbd5e0);
 }
 
 .three-section-modal-footer button:first-child:hover {
-  background: #e5e7eb;
+  background: var(--gps-bg-row-hover, #f7fafc);
+  border-color: var(--gps-text-muted, #666666);
 }
 
+/* Secondary button (middle button - e.g., Save Draft) */
+.three-section-modal-footer button.btn-secondary,
+.three-section-modal-footer button:nth-child(2):not(:last-child) {
+  background: var(--gps-text-muted, #666666);
+  color: white;
+  border: none;
+}
+
+.three-section-modal-footer button.btn-secondary:hover,
+.three-section-modal-footer button:nth-child(2):not(:last-child):hover {
+  background: #555555;
+}
+
+/* Primary button (last button) */
 .three-section-modal-footer button:last-child {
-  background: #2563eb;
+  background: var(--gps-primary-teal, #025043);
   color: white;
 }
 
 .three-section-modal-footer button:last-child:hover {
-  background: #1d4ed8;
+  background: var(--gps-primary-hover, #033830);
 }
 
 .three-section-modal-footer button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+/* Form section styles within modal */
+.three-section-modal-content .form-section {
+  margin-bottom: var(--gps-spacing-xl, 16px);
+}
+
+.three-section-modal-content .section-title {
+  font-family: var(--gps-font-family, 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
+  font-size: var(--gps-font-size-header, 12px);
+  font-weight: var(--gps-font-weight-bold, 700);
+  color: var(--gps-primary-teal, #025043);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  margin: 0 0 var(--gps-spacing-lg, 12px) 0;
+  padding-bottom: var(--gps-spacing-sm, 6px);
+  border-bottom: 1px solid var(--gps-border-light, #e2e8f0);
+}
+
+.three-section-modal-content .form-group {
+  margin-bottom: var(--gps-spacing-lg, 12px);
+}
+
+.three-section-modal-content .form-group label {
+  display: block;
+  font-family: var(--gps-font-family, 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
+  font-size: var(--gps-font-size-content, 10px);
+  font-weight: var(--gps-font-weight-semibold, 600);
+  color: var(--gps-text-dark, #333333);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  margin-bottom: var(--gps-spacing-sm, 6px);
+}
+
+.three-section-modal-content .form-group label .required-field {
+  color: var(--gps-danger-red, #e53e3e);
+  margin-left: 2px;
+}
+
+.three-section-modal-content .form-group input,
+.three-section-modal-content .form-group select,
+.three-section-modal-content .form-group textarea {
+  font-family: var(--gps-font-family, 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
+  font-size: var(--gps-font-size-content, 10px);
+  font-weight: var(--gps-font-weight-medium, 500);
+  width: 100%;
+  padding: var(--gps-spacing-md, 8px);
+  border: 1px solid var(--gps-border-input, #cbd5e0);
+  border-radius: var(--gps-radius-sm, 4px);
+  background: var(--gps-bg-white, #ffffff);
+  color: var(--gps-text-dark, #333333);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.three-section-modal-content .form-group input:focus,
+.three-section-modal-content .form-group select:focus,
+.three-section-modal-content .form-group textarea:focus {
+  outline: none;
+  border-color: var(--gps-primary-teal, #025043);
+  box-shadow: 0 0 0 3px rgba(2, 80, 67, 0.1);
+}
+
+.three-section-modal-content .form-group input:disabled,
+.three-section-modal-content .form-group select:disabled,
+.three-section-modal-content .form-group textarea:disabled {
+  background: var(--gps-bg-page, #f7fafc);
+  cursor: not-allowed;
+  color: var(--gps-text-muted, #666666);
+}
+
+.three-section-modal-content .form-group input::placeholder,
+.three-section-modal-content .form-group textarea::placeholder {
+  color: var(--gps-text-light, #9ca3af);
+}
+
+.three-section-modal-content .form-group small {
+  display: block;
+  font-family: var(--gps-font-family, 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
+  font-size: 9px;
+  color: var(--gps-text-muted, #666666);
+  margin-top: var(--gps-spacing-xs, 4px);
+}
+
+.three-section-modal-content .form-row-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--gps-spacing-lg, 12px);
+  margin-bottom: var(--gps-spacing-lg, 12px);
+}
+
+@media (max-width: 640px) {
+  .three-section-modal-content .form-row-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* Responsive design */
@@ -183,14 +310,14 @@
   }
   
   .three-section-modal-header {
-    padding: 1rem 1.5rem;
+    padding: var(--gps-spacing-md, 8px) var(--gps-spacing-lg, 12px);
   }
   
   .three-section-modal-content {
-    padding: 1.5rem;
+    padding: var(--gps-spacing-lg, 12px);
   }
   
   .three-section-modal-footer {
-    padding: 0.75rem 1.5rem;
+    padding: var(--gps-spacing-md, 8px) var(--gps-spacing-lg, 12px);
   }
 }
