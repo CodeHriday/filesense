@@ -283,7 +283,7 @@
   flex-wrap: wrap;
 }
 
-.generate-btn {
+.ai-dq-generate-btn {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   font-size: 10px;
   font-weight: 600;
@@ -300,29 +300,29 @@
   border: none;
 }
 
-.generate-btn:hover:not(:disabled) {
+.ai-dq-generate-btn:hover:not(:disabled) {
   background: #033830;
   transform: translateY(-1px);
   box-shadow: 0 2px 4px rgba(2, 80, 67, 0.2);
 }
 
-.generate-btn:active:not(:disabled) {
+.ai-dq-generate-btn:active:not(:disabled) {
   transform: translateY(0);
 }
 
-.generate-btn:disabled {
+.ai-dq-generate-btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
   transform: none;
   box-shadow: none;
 }
 
-.generate-btn .loading-spinner {
+.ai-dq-generate-btn .loading-spinner {
   width: 12px;
   height: 12px;
 }
 
-.generate-btn svg {
+.ai-dq-generate-btn svg {
   width: 14px;
   height: 14px;
 }

@@ -421,7 +421,7 @@ const AIDQSuggestionsTab = ({ fileId, filename, columns, projectId }) => {
         <>
           <div className="ai-actions">
             <button 
-              className={`generate-btn ${suggestions.length > 0 ? 'regenerate' : ''}`}
+              className="ai-dq-generate-btn"
               onClick={generateSuggestions}
               disabled={loading}
             >

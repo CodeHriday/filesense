@@ -2723,7 +2723,7 @@ function DataProfile() {
               className={`gps-tab ${activeTab === 'ai-suggestions' ? 'gps-tab--active' : ''}`}
               onClick={() => setActiveTab('ai-suggestions')}
             >
-              <FiZap style={{ marginRight: '6px' }} /> AI Suggestions
+              <FiZap style={{ marginRight: '6px' }} /> DQ Suggestions
             </button>
           </div>
           
