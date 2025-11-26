@@ -9,6 +9,7 @@ import SchemaHistoryTab from '../components/SchemaHistoryTab';
 import { getFileDetails, getFileProfile, getFilePreview } from '../api/fileService';
 import { formatBytes, formatDate, getTimeSince, formatNumber, formatDecimal } from '../utils/formatters';
 import { useAuth } from '../context/AuthContext';
+import '../styles/global-page-styles.css';
 import './DataProfile.css';
 import axios from 'axios';
 import * as XLSX from 'xlsx';
@@ -2145,79 +2146,75 @@ function DataProfile() {
   };
 
   return (
-    <div className="data-profile-container">
+    <div className="gps-page-container data-profile-container">
       {loading ? (
         <div style={{ padding: '40px', textAlign: 'center' }}>
           <LoadingSpinner />
         </div>
       ) : error ? (
-        <div className="error-message">
+        <div className="gps-empty-state">
           <p>{error}</p>
-          <div className="error-actions">
-            <Link to="/file-catalog" className="btn btn-secondary">
-              <FiFileText className="btn-icon" /> Go to File Catalog
+          <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', marginTop: '16px' }}>
+            <Link to="/file-catalog" className="gps-btn gps-btn--secondary">
+              <FiFileText style={{ marginRight: '6px' }} /> Go to File Catalog
             </Link>
-            <button className="btn btn-primary" onClick={() => window.location.reload()}>
+            <button className="gps-btn gps-btn--primary" onClick={() => window.location.reload()}>
               Retry
             </button>
           </div>
         </div>
       ) : file ? (
         <>
-          <div className="profile-header-two-line">
-            <div className="header-line-1">
-              <div className="header-left">
-                <span className="file-icon">{file.file_type.toUpperCase()}</span>
-                <h1>{file.filename}</h1>
+          <div className="gps-card" style={{ marginBottom: '16px' }}>
+            <div className="gps-card-body" style={{ padding: '16px 20px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <span className="gps-badge gps-badge--primary" style={{ fontSize: '11px', padding: '6px 12px', fontWeight: '600' }}>
+                    {file.file_type?.toUpperCase() || 'FILE'}
+                  </span>
+                  <h1 className="gps-page-title" style={{ margin: 0, fontSize: '16px' }}>{file.filename}</h1>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '16px', fontSize: '10px', color: '#666' }}>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <FiUser size={12} />
+                    <strong>Creator:</strong> {ownership?.creator_name || ownership?.creator_email || 'Unknown'}
+                  </span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <FiUser size={12} />
+                    <strong>Owner:</strong> {ownership?.owner_name || ownership?.owner_email || 'Unassigned'}
+                    <button 
+                      className="gps-icon-btn gps-icon-btn--edit"
+                      style={{ width: '22px', height: '22px' }}
+                      onClick={() => setShowOwnershipModal(true)}
+                      disabled={!currentUser?.roles?.includes('Admin')}
+                      title={currentUser?.roles?.includes('Admin') ? "Edit ownership" : "Only Admin can edit file ownership"}
+                    >
+                      <FiEdit2 size={12} />
+                    </button>
+                  </span>
+                </div>
               </div>
-              <div className="header-right">
-                <span className="header-property">
-                  <FiUser className="icon-inline" />
-                  <strong>Creator:</strong> {ownership?.creator_name || ownership?.creator_email || 'Unknown'}
-                </span>
-                <span className="header-property">
-                  <FiUser className="icon-inline" />
-                  <strong>Owner:</strong> {ownership?.owner_name || ownership?.owner_email || 'Unassigned'}
-                  <button 
-                    className="btn-icon-small" 
-                    onClick={() => setShowOwnershipModal(true)}
-                    disabled={!currentUser?.roles?.includes('Admin')}
-                    title={currentUser?.roles?.includes('Admin') ? "Edit ownership" : "Only Admin can edit file ownership"}
-                  >
-                    <FiEdit2 />
-                  </button>
-                </span>
-              </div>
-            </div>
-            <div className="header-line-2">
-              <div className="header-line-2-left">
-                <span className="header-property">
-                  <strong>Size:</strong> {file.file_size ? formatBytes(file.file_size) : 'Unknown'}
-                </span>
-                <span className="header-property">
-                  <strong>Uploaded:</strong> {getTimeSince(file.created_at)}
-                </span>
-                <span className="header-property">
-                  <strong>Encoding:</strong> {file.encoding || profile?.basic_info?.encoding || 'UTF-8'}
-                </span>
-                <span className="header-property">
-                  <strong>Format:</strong> {file.file_type || 'Unknown'}
-                </span>
-              </div>
-              <div className="header-line-2-right">
-                <span className="header-property sensitivity-select-wrapper">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '10px', color: '#666', borderTop: '1px solid #e2e8f0', paddingTop: '12px' }}>
+                <div style={{ display: 'flex', gap: '20px' }}>
+                  <span><strong>Size:</strong> {file.file_size ? formatBytes(file.file_size) : 'Unknown'}</span>
+                  <span><strong>Uploaded:</strong> {getTimeSince(file.created_at)}</span>
+                  <span><strong>Encoding:</strong> {file.encoding || profile?.basic_info?.encoding || 'UTF-8'}</span>
+                  <span><strong>Format:</strong> {file.file_type || 'Unknown'}</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <strong>Sensitivity:</strong>
                   <select 
                     value={fileSensitivity}
                     onChange={handleSensitivityChange}
-                    className="sensitivity-select"
+                    className="gps-form-select"
+                    style={{ minWidth: '100px', padding: '4px 8px' }}
                   >
                     <option value="Public">Public</option>
                     <option value="Internal">Internal</option>
                     <option value="Confidential">Confidential</option>
                     <option value="Restricted">Restricted</option>
                   </select>
-                </span>
+                </div>
               </div>
             </div>
           </div>
