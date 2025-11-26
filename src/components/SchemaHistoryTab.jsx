@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { getFileSchemaHistory } from '../api/fileService';
 import { formatDate } from '../utils/formatters';
 import LoadingSpinner from './LoadingSpinner';
+import '../styles/global-page-styles.css';
 import './SchemaHistoryTab.css';
 
 function SchemaHistoryTab({ fileId }) {

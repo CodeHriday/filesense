@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { FiRefreshCw, FiAlertTriangle, FiTrash2, FiLock, FiEyeOff } from 'react-icons/fi';
 import LoadingSpinner from './LoadingSpinner';
 import axios from 'axios';
+import '../styles/global-page-styles.css';
 import './FilePreview.css';
 
 const FilePreview = ({ fileId, maxRows = 100, columnQualityData = [] }) => {

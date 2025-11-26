@@ -1,7 +1,9 @@
 .schema-history-container {
-  padding: 20px;
+  padding: 16px;
   background: white;
   border-radius: 8px;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 10px;
 }
 
 .schema-history-loading,
@@ -50,32 +52,32 @@
 }
 
 .upload-count {
-  padding: 6px 12px;
-  background: #eff6ff;
-  border: 1px solid #bfdbfe;
+  padding: 4px 10px;
+  background: #e0f2f1;
+  border: 1px solid #b2dfdb;
   border-radius: 4px;
-  font-size: 0.9rem;
-  color: #1e40af;
+  font-size: 10px;
+  color: #025043;
   font-weight: 500;
 }
 
 .snapshot-count {
-  padding: 6px 12px;
-  background: #f0f0f0;
+  padding: 4px 10px;
+  background: #f1f5f9;
   border-radius: 4px;
-  font-size: 0.9rem;
-  color: #666;
+  font-size: 10px;
+  color: #64748b;
 }
 
 .schema-changed-badge {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
+  gap: 4px;
+  padding: 4px 10px;
   background: #fef9c3;
   border: 1px solid #fde68a;
   border-radius: 4px;
-  font-size: 0.85rem;
+  font-size: 10px;
   font-weight: 600;
   color: #ca8a04;
 }
@@ -83,10 +85,10 @@
 .drift-action-badge {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
+  gap: 4px;
+  padding: 4px 10px;
   border-radius: 4px;
-  font-size: 0.85rem;
+  font-size: 10px;
   font-weight: 500;
 }
 
@@ -111,13 +113,13 @@
 .job-link {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
-  background: #037c6e;
+  gap: 4px;
+  padding: 4px 10px;
+  background: #025043;
   color: white;
   text-decoration: none;
   border-radius: 4px;
-  font-size: 0.85rem;
+  font-size: 10px;
   transition: background 0.2s;
 }
 
@@ -163,7 +165,8 @@
 
 .schema-section h3 {
   margin: 0 0 12px 0;
-  font-size: 1.1rem;
+  font-size: 12px;
+  font-weight: 600;
   color: #025043;
   display: flex;
   flex-direction: column;
@@ -171,7 +174,7 @@
 }
 
 .schema-subtitle {
-  font-size: 0.75rem;
+  font-size: 10px;
   color: #6b7280;
   font-weight: normal;
   font-family: 'Monaco', 'Courier New', monospace;
@@ -190,15 +193,15 @@
 .capture-date {
   display: flex;
   align-items: center;
-  gap: 6px;
-  margin: 0 0 6px 0;
-  font-size: 0.85rem;
+  gap: 4px;
+  margin: 0 0 4px 0;
+  font-size: 10px;
   color: #6b7280;
 }
 
 .schema-stats {
   margin: 0;
-  font-size: 0.85rem;
+  font-size: 10px;
   color: #6b7280;
 }
 
@@ -209,27 +212,29 @@
 .schema-table table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.85rem;
+  font-size: 10px;
 }
 
 .schema-table th {
-  background: #025043;
-  color: white;
-  padding: 8px;
+  background: #f8fafc;
+  color: #334155;
+  padding: 10px 12px;
   text-align: left;
   font-weight: 600;
   white-space: nowrap;
-  font-size: 0.8rem;
+  font-size: 10px;
+  text-transform: capitalize;
+  border-bottom: 2px solid #e2e8f0;
 }
 
 .schema-table th:first-child {
-  width: 50px;
+  width: 40px;
 }
 
 .schema-table td {
-  padding: 8px;
+  padding: 10px 12px;
   border-bottom: 1px solid #e5e7eb;
-  font-size: 0.85rem;
+  font-size: 10px;
 }
 
 .schema-table tr:last-child td {
@@ -244,10 +249,10 @@
 .type-badge {
   display: inline-block;
   padding: 2px 6px;
-  background: #e0e7ff;
-  color: #4338ca;
-  border-radius: 3px;
-  font-size: 0.75rem;
+  background: #f1f5f9;
+  color: #64748b;
+  border-radius: 4px;
+  font-size: 9px;
   font-family: 'Monaco', 'Courier New', monospace;
 }
 
@@ -257,10 +262,10 @@
 .diff-badge-modified,
 .diff-badge-reordered {
   display: inline-block;
-  margin-left: 8px;
-  padding: 2px 8px;
-  border-radius: 3px;
-  font-size: 0.75rem;
+  margin-left: 6px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 9px;
   font-weight: 600;
 }
 
