@@ -3,6 +3,7 @@ import axios from 'axios';
 import { FiFolder, FiSearch, FiPlay, FiClock, FiCheck, FiX, FiDownload, FiRefreshCw } from 'react-icons/fi';
 import S3FolderBrowser from './S3FolderBrowser';
 import ErrorModal from './ErrorModal';
+import './BulkProfilingTab.css';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 
@@ -633,36 +634,24 @@ function BulkProfilingTab({ selectedProject: initialProject }) {
   }
 
   return (
-    <div style={{ padding: '2rem' }}>
+    <div className="gps-bulk-container">
       <ErrorModal 
         message={error}
         onClose={() => setError(null)}
       />
       
-      <h2 style={{ marginBottom: '1.5rem' }}>Bulk Profiling from S3</h2>
-      <p style={{ color: '#666', marginBottom: '1.5rem' }}>
-        Discover and profile multiple files from an S3 location automatically
-      </p>
+      <div className="gps-bulk-header">
+        <h2 className="gps-bulk-title">Bulk Profiling from S3</h2>
+        <p className="gps-bulk-subtitle">
+          Discover and profile multiple files from an S3 location automatically
+        </p>
+      </div>
 
       {/* View Mode Toggle */}
-      <div style={{ 
-        display: 'flex', 
-        gap: '1rem', 
-        marginBottom: '2rem',
-        borderBottom: '2px solid #e5e7eb'
-      }}>
+      <div className="gps-bulk-tabs">
         <button
           onClick={() => setViewMode('create')}
-          style={{
-            padding: '0.75rem 1.5rem',
-            background: 'none',
-            border: 'none',
-            borderBottom: viewMode === 'create' ? '3px solid #3b82f6' : '3px solid transparent',
-            color: viewMode === 'create' ? '#3b82f6' : '#6b7280',
-            fontWeight: viewMode === 'create' ? 'bold' : 'normal',
-            cursor: 'pointer',
-            fontSize: '1rem'
-          }}
+          className={`gps-bulk-tab ${viewMode === 'create' ? 'gps-bulk-tab--active' : ''}`}
         >
           Create New Job
         </button>
@@ -671,16 +660,7 @@ function BulkProfilingTab({ selectedProject: initialProject }) {
             setViewMode('scheduled');
             fetchScheduledJobs();
           }}
-          style={{
-            padding: '0.75rem 1.5rem',
-            background: 'none',
-            border: 'none',
-            borderBottom: viewMode === 'scheduled' ? '3px solid #3b82f6' : '3px solid transparent',
-            color: viewMode === 'scheduled' ? '#3b82f6' : '#6b7280',
-            fontWeight: viewMode === 'scheduled' ? 'bold' : 'normal',
-            cursor: 'pointer',
-            fontSize: '1rem'
-          }}
+          className={`gps-bulk-tab ${viewMode === 'scheduled' ? 'gps-bulk-tab--active' : ''}`}
         >
           Scheduled Jobs
         </button>
@@ -689,72 +669,55 @@ function BulkProfilingTab({ selectedProject: initialProject }) {
       {/* Scheduled Jobs View */}
       {viewMode === 'scheduled' && (
         <div>
-          <h3 style={{ marginBottom: '1rem' }}>Scheduled Bulk Profiling Jobs</h3>
+          <h3 className="gps-bulk-title">Scheduled Bulk Profiling Jobs</h3>
           {isLoadingScheduled ? (
-            <p>Loading...</p>
+            <div className="gps-bulk-loading">Loading...</div>
           ) : scheduledJobs.length === 0 ? (
-            <p style={{ color: '#666', padding: '2rem', textAlign: 'center', background: '#f9fafb', borderRadius: '8px' }}>
-              No scheduled jobs found. Create a new job with scheduling enabled to see it here.
-            </p>
+            <div className="gps-bulk-empty">
+              <p className="gps-bulk-empty-text">
+                No scheduled jobs found. Create a new job with scheduling enabled to see it here.
+              </p>
+            </div>
           ) : (
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', background: 'white', borderRadius: '8px', overflow: 'hidden' }}>
+            <div className="gps-bulk-table-container" style={{ maxHeight: 'none' }}>
+              <table className="gps-bulk-table">
                 <thead>
-                  <tr style={{ background: '#f3f4f6', borderBottom: '2px solid #e5e7eb' }}>
-                    <th style={{ padding: '1rem', textAlign: 'left' }}>Job Name</th>
-                    <th style={{ padding: '1rem', textAlign: 'left' }}>Frequency</th>
-                    <th style={{ padding: '1rem', textAlign: 'left' }}>Cron Expression</th>
-                    <th style={{ padding: '1rem', textAlign: 'left' }}>Status</th>
-                    <th style={{ padding: '1rem', textAlign: 'left' }}>Next Run</th>
-                    <th style={{ padding: '1rem', textAlign: 'left' }}>Last Run</th>
-                    <th style={{ padding: '1rem', textAlign: 'center' }}>Actions</th>
+                  <tr>
+                    <th>Job Name</th>
+                    <th>Frequency</th>
+                    <th>Cron Expression</th>
+                    <th>Status</th>
+                    <th>Next Run</th>
+                    <th>Last Run</th>
+                    <th className="gps-bulk-table th--center">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {scheduledJobs.map((schedule) => (
-                    <tr key={schedule.id} style={{ borderBottom: '1px solid #e5e7eb' }}>
-                      <td style={{ padding: '1rem' }}>{schedule.job_name}</td>
-                      <td style={{ padding: '1rem' }}>{schedule.frequency}</td>
-                      <td style={{ padding: '1rem' }}>
-                        <code style={{ background: '#f3f4f6', padding: '0.25rem 0.5rem', borderRadius: '4px' }}>
-                          {schedule.cron_expression}
-                        </code>
+                    <tr key={schedule.id}>
+                      <td>{schedule.job_name}</td>
+                      <td>{schedule.frequency}</td>
+                      <td>
+                        <code className="gps-bulk-code">{schedule.cron_expression}</code>
                       </td>
-                      <td style={{ padding: '1rem' }}>
-                        <span style={{
-                          padding: '0.25rem 0.75rem',
-                          borderRadius: '9999px',
-                          fontSize: '0.875rem',
-                          background: schedule.is_active ? '#d1fae5' : '#fee2e2',
-                          color: schedule.is_active ? '#065f46' : '#991b1b'
-                        }}>
+                      <td>
+                        <span className={`gps-bulk-status ${schedule.is_active ? 'gps-bulk-status--completed' : 'gps-bulk-status--failed'}`}>
                           {schedule.is_active ? 'Active' : 'Inactive'}
                         </span>
                       </td>
-                      <td style={{ padding: '1rem', fontSize: '0.875rem' }}>
-                        {schedule.next_run ? new Date(schedule.next_run).toLocaleString() : '-'}
-                      </td>
-                      <td style={{ padding: '1rem', fontSize: '0.875rem' }}>
-                        {schedule.last_run ? new Date(schedule.last_run).toLocaleString() : '-'}
-                      </td>
-                      <td style={{ padding: '1rem', textAlign: 'center' }}>
-                        <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
+                      <td>{schedule.next_run ? new Date(schedule.next_run).toLocaleString() : '-'}</td>
+                      <td>{schedule.last_run ? new Date(schedule.last_run).toLocaleString() : '-'}</td>
+                      <td className="gps-bulk-table td--center">
+                        <div className="gps-bulk-table-actions">
                           <button
-                            className="btn btn-secondary"
+                            className="gps-bulk-table-btn gps-bulk-table-btn--edit"
                             onClick={() => setEditingSchedule(schedule)}
-                            style={{ padding: '0.375rem 0.75rem', fontSize: '0.875rem' }}
                           >
                             Edit
                           </button>
                           <button
-                            className="btn"
+                            className="gps-bulk-table-btn gps-bulk-table-btn--cancel"
                             onClick={() => handleCancelSchedule(schedule.id)}
-                            style={{ 
-                              padding: '0.375rem 0.75rem', 
-                              fontSize: '0.875rem',
-                              background: '#ef4444',
-                              color: 'white'
-                            }}
                           >
                             Cancel
                           </button>
@@ -773,20 +736,17 @@ function BulkProfilingTab({ selectedProject: initialProject }) {
       {viewMode === 'create' && (
         <>
       {/* Configuration Section with 2-Column Grid Layout */}
-      <div style={{ marginBottom: '2rem' }}>
+      <div>
         {/* 2-Column Grid for Form Fields */}
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-          gap: '1.5rem',
-          marginBottom: '1.5rem'
-        }}>
+        <div className="gps-bulk-form-grid">
           {/* Row 1: Project | Sub-Project */}
-          <div className="form-group" style={{ margin: 0 }}>
-            <label htmlFor="project">Project *</label>
+          <div className="gps-bulk-field">
+            <label className="gps-bulk-label" htmlFor="project">
+              Project <span className="required">*</span>
+            </label>
             <select
               id="project"
-              className="form-control"
+              className="gps-bulk-select"
               value={selectedProject || ''}
               onChange={(e) => {
                 setSelectedProject(e.target.value);
@@ -800,16 +760,16 @@ function BulkProfilingTab({ selectedProject: initialProject }) {
                 </option>
               ))}
             </select>
-            <small style={{ color: '#666' }}>
+            <span className="gps-bulk-helper">
               Files will be organized under this project
-            </small>
+            </span>
           </div>
 
-          <div className="form-group" style={{ margin: 0 }}>
-            <label htmlFor="subProject">Sub-Project</label>
+          <div className="gps-bulk-field">
+            <label className="gps-bulk-label" htmlFor="subProject">Sub-Project</label>
             <select
               id="subProject"
-              className="form-control"
+              className="gps-bulk-select"
               value={selectedSubProject}
               onChange={(e) => setSelectedSubProject(e.target.value)}
               disabled={!selectedProject || subProjects.length === 0}
@@ -821,22 +781,24 @@ function BulkProfilingTab({ selectedProject: initialProject }) {
                 </option>
               ))}
             </select>
-            <small style={{ color: '#666' }}>
+            <span className="gps-bulk-helper">
               {!selectedProject 
                 ? 'Select a project first'
                 : subProjects.length === 0 
                   ? 'No sub-projects available'
                   : 'Optional: Organize files under a sub-project'
               }
-            </small>
+            </span>
           </div>
 
           {/* Row 2: S3 Connection | File Pattern */}
-          <div className="form-group" style={{ margin: 0 }}>
-            <label htmlFor="connection">S3 Connection *</label>
+          <div className="gps-bulk-field">
+            <label className="gps-bulk-label" htmlFor="connection">
+              S3 Connection <span className="required">*</span>
+            </label>
             <select
               id="connection"
-              className="form-control"
+              className="gps-bulk-select"
               value={selectedConnection}
               onChange={(e) => setSelectedConnection(e.target.value)}
             >
@@ -847,32 +809,32 @@ function BulkProfilingTab({ selectedProject: initialProject }) {
                 </option>
               ))}
             </select>
-            <small style={{ color: '#666' }}>
+            <span className="gps-bulk-helper">
               S3 connection to discover files from
-            </small>
+            </span>
           </div>
 
-          <div className="form-group" style={{ margin: 0 }}>
-            <label htmlFor="pattern">File Pattern</label>
+          <div className="gps-bulk-field">
+            <label className="gps-bulk-label" htmlFor="pattern">File Pattern</label>
             <input
               id="pattern"
               type="text"
-              className="form-control"
-              placeholder="* for all compatible files"
+              className="gps-bulk-input"
+              placeholder="*"
               value={filePattern}
               onChange={(e) => setFilePattern(e.target.value)}
             />
-            <small style={{ color: '#666' }}>
+            <span className="gps-bulk-helper">
               Use * for all files, or patterns like sales_*.csv
-            </small>
+            </span>
           </div>
 
           {/* Row 4: Duplicate Handling | Recursive Checkbox */}
-          <div className="form-group" style={{ margin: 0 }}>
-            <label htmlFor="duplicate">Duplicate Handling</label>
+          <div className="gps-bulk-field">
+            <label className="gps-bulk-label" htmlFor="duplicate">Duplicate Handling</label>
             <select
               id="duplicate"
-              className="form-control"
+              className="gps-bulk-select"
               value={duplicateHandling}
               onChange={(e) => setDuplicateHandling(e.target.value)}
             >
@@ -880,58 +842,59 @@ function BulkProfilingTab({ selectedProject: initialProject }) {
               <option value="reprefilit">Re-profile (create new version)</option>
               <option value="ask">Ask me for each duplicate</option>
             </select>
-            <small style={{ color: '#666' }}>
+            <span className="gps-bulk-helper">
               How to handle files already profiled
-            </small>
+            </span>
           </div>
 
-          <div className="form-group" style={{ margin: 0, display: 'flex', alignItems: 'flex-end' }}>
-            <label style={{ marginBottom: 0 }}>
-              <input
-                type="checkbox"
-                checked={recursive}
-                onChange={(e) => setRecursive(e.target.checked)}
-                style={{ marginRight: '0.5rem' }}
-              />
+          <div className="gps-bulk-checkbox-wrapper">
+            <input
+              type="checkbox"
+              id="recursive"
+              className="gps-bulk-checkbox"
+              checked={recursive}
+              onChange={(e) => setRecursive(e.target.checked)}
+            />
+            <label htmlFor="recursive" className="gps-bulk-checkbox-label">
               Scan subdirectories recursively
             </label>
           </div>
         </div>
 
         {/* Row 3: S3 Path (Full Width) */}
-        <div className="form-group">
-          <label htmlFor="s3path">S3 Path *</label>
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
+        <div className="gps-bulk-field gps-bulk-field--full">
+          <label className="gps-bulk-label" htmlFor="s3path">
+            S3 Path <span className="required">*</span>
+          </label>
+          <div className="gps-bulk-input-group">
             <input
               id="s3path"
               type="text"
-              className="form-control"
+              className="gps-bulk-input"
               placeholder="s3://bucket-name/path/to/files/ or /path/to/files/"
               value={s3Path}
               onChange={(e) => setS3Path(e.target.value)}
-              style={{ flex: 1 }}
             />
             <button
               type="button"
-              className="btn btn-secondary"
+              className="gps-bulk-btn gps-bulk-btn--secondary"
               onClick={() => setShowBrowser(!showBrowser)}
               disabled={!selectedConnection}
-              style={{ whiteSpace: 'nowrap' }}
             >
-              <FiFolder style={{ marginRight: '0.5rem' }} />
+              <FiFolder />
               Browse
             </button>
           </div>
-          <small style={{ color: '#666' }}>
+          <span className="gps-bulk-helper">
             {selectedConnection 
               ? 'Enter the S3 path or click Browse to navigate folders'
               : 'Select a connection first to enable browsing'
             }
-          </small>
+          </span>
         </div>
 
         {showBrowser && selectedConnection && (
-          <div className="form-group">
+          <div className="gps-bulk-field">
             <S3FolderBrowser
               connectionId={selectedConnection}
               initialPath={s3Path || '/'}
@@ -944,35 +907,31 @@ function BulkProfilingTab({ selectedProject: initialProject }) {
         )}
 
         {/* Row 5: Execution Type (Full Width) */}
-        <div className="form-group" style={{ marginTop: '1.5rem', paddingTop: '1.5rem', borderTop: '1px solid #e5e7eb' }}>
-          <label htmlFor="executionType">
-            <FiClock style={{ marginRight: '0.5rem' }} />
-            Execution Type
-          </label>
-          <select
-            id="executionType"
-            className="form-control"
-            value={executionType}
-            onChange={(e) => setExecutionType(e.target.value)}
-          >
-            <option value="manual">Run Now (Manual)</option>
-            <option value="scheduled">Schedule for Later</option>
-          </select>
+        <div className="gps-bulk-section">
+          <div className="gps-bulk-field">
+            <label className="gps-bulk-label" htmlFor="executionType">
+              <FiClock /> Execution Type
+            </label>
+            <select
+              id="executionType"
+              className="gps-bulk-select"
+              value={executionType}
+              onChange={(e) => setExecutionType(e.target.value)}
+            >
+              <option value="manual">Run Now (Manual)</option>
+              <option value="scheduled">Schedule for Later</option>
+            </select>
+          </div>
         </div>
 
         {/* Scheduling Options (when scheduled is selected) */}
         {executionType === 'scheduled' && (
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-            gap: '1.5rem',
-            marginTop: '1rem'
-          }}>
-            <div className="form-group" style={{ margin: 0 }}>
-              <label htmlFor="scheduleType">Schedule Type</label>
+          <div className="gps-bulk-form-grid" style={{ marginTop: '16px' }}>
+            <div className="gps-bulk-field">
+              <label className="gps-bulk-label" htmlFor="scheduleType">Schedule Type</label>
               <select
                 id="scheduleType"
-                className="form-control"
+                className="gps-bulk-select"
                 value={scheduleType}
                 onChange={(e) => setScheduleType(e.target.value)}
               >
@@ -982,33 +941,33 @@ function BulkProfilingTab({ selectedProject: initialProject }) {
             </div>
 
             {scheduleType === 'recurring' ? (
-              <div className="form-group" style={{ margin: 0 }}>
-                <label htmlFor="cronExpression">Cron Expression</label>
+              <div className="gps-bulk-field">
+                <label className="gps-bulk-label" htmlFor="cronExpression">Cron Expression</label>
                 <input
                   id="cronExpression"
                   type="text"
-                  className="form-control"
+                  className="gps-bulk-input"
                   value={cronExpression}
                   onChange={(e) => setCronExpression(e.target.value)}
                   placeholder="0 0 * * * (Daily at midnight)"
                 />
-                <small style={{ color: '#666' }}>
-                  Examples: <code>0 0 * * *</code> (daily), <code>0 */6 * * *</code> (every 6 hours)
-                </small>
+                <span className="gps-bulk-helper">
+                  Examples: <code className="gps-bulk-code">0 0 * * *</code> (daily), <code className="gps-bulk-code">0 */6 * * *</code> (every 6 hours)
+                </span>
               </div>
             ) : (
-              <div className="form-group" style={{ margin: 0 }}>
-                <label htmlFor="scheduleStartDate">Start Date & Time</label>
+              <div className="gps-bulk-field">
+                <label className="gps-bulk-label" htmlFor="scheduleStartDate">Start Date & Time</label>
                 <input
                   id="scheduleStartDate"
                   type="datetime-local"
-                  className="form-control"
+                  className="gps-bulk-input"
                   value={scheduleStartDate}
                   onChange={(e) => setScheduleStartDate(e.target.value)}
                 />
-                <small style={{ color: '#666' }}>
+                <span className="gps-bulk-helper">
                   Choose when to run this profiling job
-                </small>
+                </span>
               </div>
             )}
           </div>
@@ -1016,152 +975,121 @@ function BulkProfilingTab({ selectedProject: initialProject }) {
 
         {/* Quality Rules Multi-Select Section (Full Width) */}
         {availableQualityRules.length > 0 && (
-          <div className="form-group" style={{ marginTop: '1.5rem', paddingTop: '1.5rem', borderTop: '1px solid #e5e7eb' }}>
-            <label>Quality Rules (Optional)</label>
-            <div style={{
-              border: '1px solid #e5e7eb',
-              borderRadius: '8px',
-              padding: '1rem',
-              background: '#f9fafb',
-              maxHeight: '300px',
-              overflowY: 'auto'
-            }}>
-              <p style={{ margin: '0 0 1rem 0', color: '#666', fontSize: '0.875rem' }}>
-                Select quality rules to apply during profiling. These rules will be validated against the profiled data.
-              </p>
-              {availableQualityRules.length === 0 ? (
-                <p style={{ color: '#666', textAlign: 'center', padding: '1rem' }}>
+          <div className="gps-bulk-quality-section">
+            <label className="gps-bulk-label">Quality Rules (Optional)</label>
+            <p className="gps-bulk-helper" style={{ marginBottom: '12px' }}>
+              Select quality rules to apply during profiling. These rules will be validated against the profiled data.
+            </p>
+            {availableQualityRules.length === 0 ? (
+              <div className="gps-bulk-empty">
+                <p className="gps-bulk-empty-text">
                   No quality rules available for the selected project{selectedSubProject ? ' and sub-project' : ''}.
                 </p>
-              ) : (
-                <div style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
-                  gap: '0.75rem'
-                }}>
-                  {availableQualityRules.map((rule) => (
-                    <label
-                      key={rule.id}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'flex-start',
-                        padding: '0.75rem',
-                        background: 'white',
-                        border: '1px solid #e5e7eb',
-                        borderRadius: '6px',
-                        cursor: 'pointer',
-                        transition: 'all 0.2s',
-                        borderColor: selectedQualityRules.includes(rule.id) ? '#3b82f6' : '#e5e7eb',
-                        backgroundColor: selectedQualityRules.includes(rule.id) ? '#eff6ff' : 'white'
+              </div>
+            ) : (
+              <div className="gps-bulk-quality-grid">
+                {availableQualityRules.map((rule) => (
+                  <label
+                    key={rule.id}
+                    className={`gps-bulk-quality-item ${selectedQualityRules.includes(rule.id) ? 'gps-bulk-quality-item--selected' : ''}`}
+                  >
+                    <input
+                      type="checkbox"
+                      className="gps-bulk-quality-checkbox"
+                      checked={selectedQualityRules.includes(rule.id)}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedQualityRules([...selectedQualityRules, rule.id]);
+                        } else {
+                          setSelectedQualityRules(selectedQualityRules.filter(id => id !== rule.id));
+                        }
                       }}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={selectedQualityRules.includes(rule.id)}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setSelectedQualityRules([...selectedQualityRules, rule.id]);
-                          } else {
-                            setSelectedQualityRules(selectedQualityRules.filter(id => id !== rule.id));
-                          }
-                        }}
-                        style={{ marginRight: '0.75rem', marginTop: '0.25rem' }}
-                      />
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontWeight: '500', marginBottom: '0.25rem' }}>
-                          {rule.rule_name}
-                        </div>
-                        <div style={{ fontSize: '0.75rem', color: '#666', marginBottom: '0.25rem' }}>
-                          Type: {rule.rule_type} | Severity: {rule.severity}
-                        </div>
-                        {rule.column_name && (
-                          <div style={{ fontSize: '0.75rem', color: '#666' }}>
-                            Column: {rule.column_name}
-                          </div>
-                        )}
+                    />
+                    <div>
+                      <div className="gps-bulk-quality-label" style={{ fontWeight: 500, marginBottom: '4px' }}>
+                        {rule.rule_name}
                       </div>
-                    </label>
-                  ))}
-                </div>
-              )}
-              {selectedQualityRules.length > 0 && (
-                <div style={{ marginTop: '1rem', padding: '0.75rem', background: '#e0f2fe', borderRadius: '4px' }}>
-                  <strong>{selectedQualityRules.length}</strong> quality rule{selectedQualityRules.length !== 1 ? 's' : ''} selected
-                </div>
-              )}
-            </div>
+                      <div className="gps-bulk-helper">
+                        Type: {rule.rule_type} | Severity: {rule.severity}
+                      </div>
+                      {rule.column_name && (
+                        <div className="gps-bulk-helper">
+                          Column: {rule.column_name}
+                        </div>
+                      )}
+                    </div>
+                  </label>
+                ))}
+              </div>
+            )}
+            {selectedQualityRules.length > 0 && (
+              <div className="gps-bulk-banner gps-bulk-banner--info" style={{ marginTop: '12px', padding: '12px' }}>
+                <strong>{selectedQualityRules.length}</strong> quality rule{selectedQualityRules.length !== 1 ? 's' : ''} selected
+              </div>
+            )}
           </div>
         )}
 
-        <button
-          className="btn btn-primary"
-          onClick={handleDiscover}
-          disabled={isDiscovering || !selectedConnection || !s3Path}
-          style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '1rem' }}
-        >
-          <FiSearch />
-          {isDiscovering ? 'Discovering Files...' : 'Discover Files'}
-        </button>
+        <div className="gps-bulk-actions" style={{ marginTop: '20px' }}>
+          <button
+            className="gps-bulk-btn gps-bulk-btn--primary"
+            onClick={handleDiscover}
+            disabled={isDiscovering || !selectedConnection || !s3Path}
+          >
+            <FiSearch />
+            {isDiscovering ? 'Discovering Files...' : 'Discover Files'}
+          </button>
+        </div>
       </div>
 
       {/* Discovered Files Section */}
       {discoveredFiles.length > 0 && (
-        <div style={{ marginTop: '2rem' }}>
-          <h3 style={{ marginBottom: '1rem' }}>
-            Discovered Files ({discoveredFiles.length})
-          </h3>
+        <div style={{ marginTop: '24px' }}>
+          <div className="gps-bulk-files-header">
+            <h3 className="gps-bulk-files-title">Discovered Files</h3>
+            <span className="gps-bulk-files-count">{discoveredFiles.length} files found</span>
+          </div>
 
-          <div style={{
-            maxHeight: '400px',
-            overflowY: 'auto',
-            border: '1px solid #e5e7eb',
-            borderRadius: '4px',
-            marginBottom: '1.5rem'
-          }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead style={{ position: 'sticky', top: 0, background: '#f9fafb' }}>
+          <div className="gps-bulk-table-container" style={{ maxHeight: '400px' }}>
+            <table className="gps-bulk-table">
+              <thead>
                 <tr>
-                  <th style={{ padding: '0.75rem', textAlign: 'left', borderBottom: '1px solid #e5e7eb' }}>File Name</th>
-                  <th style={{ padding: '0.75rem', textAlign: 'left', borderBottom: '1px solid #e5e7eb' }}>Type</th>
-                  <th style={{ padding: '0.75rem', textAlign: 'right', borderBottom: '1px solid #e5e7eb' }}>Size</th>
+                  <th>File Name</th>
+                  <th>Type</th>
+                  <th style={{ textAlign: 'right' }}>Size</th>
                 </tr>
               </thead>
               <tbody>
                 {discoveredFiles.map((file, index) => (
-                  <tr key={index} style={{ borderBottom: '1px solid #f3f4f6' }}>
-                    <td style={{ padding: '0.75rem' }}>{file.name}</td>
-                    <td style={{ padding: '0.75rem' }}>
-                      <span style={{
-                        padding: '0.25rem 0.5rem',
-                        background: '#eff6ff',
-                        color: '#1e40af',
-                        borderRadius: '4px',
-                        fontSize: '0.875rem'
-                      }}>
+                  <tr key={index}>
+                    <td>{file.name}</td>
+                    <td>
+                      <span className="gps-bulk-status gps-bulk-status--processing">
                         {file.type.toUpperCase()}
                       </span>
                     </td>
-                    <td style={{ padding: '0.75rem', textAlign: 'right' }}>{formatFileSize(file.size)}</td>
+                    <td style={{ textAlign: 'right' }}>{formatFileSize(file.size)}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
 
-          <button
-            className="btn btn-primary"
-            onClick={handleCreateJob}
-            disabled={isCreatingJob}
-            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
-          >
-            <FiPlay />
-            {isCreatingJob 
-              ? 'Creating Job...' 
-              : executionType === 'scheduled'
-                ? `Schedule Profiling Job (${discoveredFiles.length} Files)`
-                : `Start Profiling ${discoveredFiles.length} Files`
-            }
-          </button>
+          <div className="gps-bulk-actions">
+            <button
+              className="gps-bulk-btn gps-bulk-btn--primary"
+              onClick={handleCreateJob}
+              disabled={isCreatingJob}
+            >
+              <FiPlay />
+              {isCreatingJob 
+                ? 'Creating Job...' 
+                : executionType === 'scheduled'
+                  ? `Schedule Profiling Job (${discoveredFiles.length} Files)`
+                  : `Start Profiling ${discoveredFiles.length} Files`
+              }
+            </button>
+          </div>
         </div>
       )}
         </>
