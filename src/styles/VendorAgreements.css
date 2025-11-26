@@ -546,21 +546,21 @@
   text-align: left !important;
 }
 
-.locked-message {
+.details-tab .locked-message {
   background-color: #fef7e0;
   color: #ea8600;
   padding: 8px 12px;
   border-radius: var(--gps-radius-sm, 4px);
   margin-bottom: var(--gps-spacing-lg, 12px);
-  font-family: var(--gps-font-family, 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
-  font-size: 11px;
+  font-family: var(--gps-font-family, 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif) !important;
+  font-size: 11px !important;
   display: flex;
   align-items: center;
   gap: 6px;
   text-align: left !important;
 }
 
-.detail-grid {
+.details-tab .detail-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: var(--gps-spacing-lg, 12px);
@@ -568,7 +568,7 @@
   text-align: left !important;
 }
 
-.detail-item {
+.details-tab .detail-item {
   display: flex;
   flex-direction: column;
   gap: 3px;
@@ -576,35 +576,35 @@
   align-items: flex-start !important;
 }
 
-.detail-item.full-width {
+.details-tab .detail-item.full-width {
   grid-column: 1 / -1;
 }
 
-.detail-item label {
-  font-family: var(--gps-font-family, 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
-  font-weight: var(--gps-font-weight-semibold, 600);
-  color: var(--gps-text-muted, #666666);
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.3px;
+.details-tab .detail-item label {
+  font-family: var(--gps-font-family, 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif) !important;
+  font-weight: var(--gps-font-weight-semibold, 600) !important;
+  color: var(--gps-text-muted, #666666) !important;
+  font-size: 10px !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.3px !important;
   text-align: left !important;
 }
 
-.detail-item span {
-  font-family: var(--gps-font-family, 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
-  color: var(--gps-text-dark, #333333);
-  font-size: 11px;
-  font-weight: var(--gps-font-weight-medium, 500);
+.details-tab .detail-item span {
+  font-family: var(--gps-font-family, 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif) !important;
+  color: var(--gps-text-dark, #333333) !important;
+  font-size: 11px !important;
+  font-weight: var(--gps-font-weight-medium, 500) !important;
   text-align: left !important;
 }
 
-.detail-section-header {
+.details-tab .detail-section-header {
   margin-top: var(--gps-spacing-lg, 12px) !important;
   padding-top: var(--gps-spacing-lg, 12px) !important;
   border-top: 1px solid var(--gps-border-light, #e2e8f0) !important;
 }
 
-.detail-section-header label {
+.details-tab .detail-section-header label {
   font-family: var(--gps-font-family, 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif) !important;
   font-size: 12px !important;
   font-weight: var(--gps-font-weight-bold, 700) !important;
