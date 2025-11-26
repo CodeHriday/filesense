@@ -1292,6 +1292,234 @@ def health():
     return jsonify({'status': 'healthy'}), 200
 
 
+@app.route('/api/dq-suggestions', methods=['POST'])
+def generate_dq_suggestions():
+    """
+    Generate AI-powered data quality rule suggestions based on file profile data.
+    Uses OpenAI via Replit AI Integrations.
+    """
+    try:
+        data = request.json
+        if not data:
+            return jsonify({'error': 'No data provided'}), 400
+        
+        columns = data.get('columns', [])
+        filename = data.get('filename', 'unknown')
+        file_id = data.get('fileId', '')
+        
+        if not columns:
+            return jsonify({'error': 'No column data provided'}), 400
+        
+        # Check if feature is enabled
+        conn = get_db_connection()
+        if conn:
+            try:
+                cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+                cursor.execute("""
+                    SELECT setting_value FROM app_settings 
+                    WHERE setting_key = 'ai_dq_suggestions_enabled'
+                """)
+                result = cursor.fetchone()
+                cursor.close()
+                
+                if not result or result['setting_value'].lower() != 'true':
+                    return jsonify({
+                        'enabled': False,
+                        'suggestions': [],
+                        'message': 'AI DQ Suggestions feature is disabled. Enable it in admin settings.'
+                    }), 200
+            finally:
+                conn.close()
+        
+        # Format column data for AI prompt
+        column_summary = []
+        for col in columns:
+            col_info = {
+                'name': col.get('name', 'Unknown'),
+                'type': col.get('type', 'Unknown'),
+                'completeness': col.get('completeness', 100),
+                'null_percentage': 100 - col.get('completeness', 100),
+                'unique_count': col.get('uniqueCount', 0),
+                'patterns': col.get('patterns', []),
+                'semantic_type': col.get('semanticType', None),
+                'has_nulls': col.get('hasNulls', False)
+            }
+            column_summary.append(col_info)
+        
+        # Build AI prompt
+        prompt = f"""You are a data quality expert analyzing a file called "{filename}".
+
+Based on the following column profile data, suggest specific data quality rules that should be implemented.
+
+Column Profile Data:
+{json.dumps(column_summary, indent=2)}
+
+For each column with potential issues, suggest one or more quality rules. Focus on:
+1. Completeness issues (null values, especially for important fields like IDs, emails, etc.)
+2. Validity issues (pattern violations - emails should be valid, phones should match patterns, dates should be valid)
+3. Consistency issues (relationships between columns, date ordering)
+4. Uniqueness issues (ID fields should be unique)
+
+For each suggestion, provide:
+- column_name: The column this rule applies to
+- rule_type: One of "completeness", "validity", "consistency", "uniqueness", or "freshness"
+- rule_name: A descriptive name for the rule
+- description: What the rule checks
+- severity: "critical", "warning", or "error" based on business impact
+- rule_config: JSON configuration for the rule with specific parameters
+- reason: Why this rule is suggested based on the profile data
+
+Respond ONLY with valid JSON in this format:
+{{
+  "suggestions": [
+    {{
+      "column_name": "email",
+      "rule_type": "validity",
+      "rule_name": "Email Format Validation",
+      "description": "Ensures email column contains valid email addresses",
+      "severity": "warning",
+      "rule_config": {{"pattern": "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{{2,}}$", "type": "regex"}},
+      "reason": "Column detected as EMAIL semantic type but has 2% null values"
+    }}
+  ]
+}}
+
+Limit to the 10 most important suggestions. Only suggest rules where there's a clear issue in the data."""
+
+        # Call OpenAI via Replit AI Integrations
+        # the newest OpenAI model is "gpt-5" which was released August 7, 2025.
+        # do not change this unless explicitly requested by the user
+        from openai import OpenAI
+        
+        api_key = os.environ.get("AI_INTEGRATIONS_OPENAI_API_KEY")
+        base_url = os.environ.get("AI_INTEGRATIONS_OPENAI_BASE_URL")
+        
+        if not api_key or not base_url:
+            return jsonify({
+                'error': 'OpenAI integration not configured',
+                'suggestions': []
+            }), 500
+        
+        client = OpenAI(api_key=api_key, base_url=base_url)
+        
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[{"role": "user", "content": prompt}],
+            response_format={"type": "json_object"},
+            max_completion_tokens=4096
+        )
+        
+        result_text = response.choices[0].message.content
+        result = json.loads(result_text)
+        
+        suggestions = result.get('suggestions', [])
+        
+        # Add unique IDs to each suggestion
+        for i, suggestion in enumerate(suggestions):
+            suggestion['id'] = f"dq-suggestion-{i+1}"
+            suggestion['fileId'] = file_id
+        
+        logger.info(f"Generated {len(suggestions)} DQ suggestions for file: {filename}")
+        
+        return jsonify({
+            'enabled': True,
+            'suggestions': suggestions,
+            'filename': filename,
+            'fileId': file_id,
+            'generatedAt': datetime.now().isoformat()
+        }), 200
+        
+    except json.JSONDecodeError as e:
+        logger.error(f"Failed to parse AI response: {str(e)}")
+        return jsonify({
+            'error': 'Failed to parse AI response',
+            'suggestions': []
+        }), 500
+    except Exception as e:
+        logger.error(f"DQ suggestions error: {str(e)}", exc_info=True)
+        return jsonify({
+            'error': 'Failed to generate suggestions',
+            'details': str(e),
+            'suggestions': []
+        }), 500
+
+
+@app.route('/api/settings/<setting_key>', methods=['GET'])
+def get_setting(setting_key):
+    """Get a specific app setting"""
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({'error': 'Database connection failed'}), 500
+        
+        try:
+            cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+            cursor.execute("""
+                SELECT setting_key, setting_value, description 
+                FROM app_settings WHERE setting_key = %s
+            """, (setting_key,))
+            result = cursor.fetchone()
+            cursor.close()
+            
+            if not result:
+                return jsonify({'error': 'Setting not found'}), 404
+            
+            return jsonify({
+                'key': result['setting_key'],
+                'value': result['setting_value'],
+                'description': result['description']
+            }), 200
+        finally:
+            conn.close()
+            
+    except Exception as e:
+        logger.error(f"Error fetching setting: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/settings/<setting_key>', methods=['PUT'])
+def update_setting(setting_key):
+    """Update a specific app setting"""
+    try:
+        data = request.json
+        if not data or 'value' not in data:
+            return jsonify({'error': 'No value provided'}), 400
+        
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({'error': 'Database connection failed'}), 500
+        
+        try:
+            cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+            cursor.execute("""
+                UPDATE app_settings 
+                SET setting_value = %s, updated_at = NOW()
+                WHERE setting_key = %s
+                RETURNING setting_key, setting_value, description
+            """, (str(data['value']), setting_key))
+            
+            result = cursor.fetchone()
+            conn.commit()
+            cursor.close()
+            
+            if not result:
+                return jsonify({'error': 'Setting not found'}), 404
+            
+            logger.info(f"Setting updated: {setting_key} = {data['value']}")
+            
+            return jsonify({
+                'key': result['setting_key'],
+                'value': result['setting_value'],
+                'description': result['description']
+            }), 200
+        finally:
+            conn.close()
+            
+    except Exception as e:
+        logger.error(f"Error updating setting: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+
 if __name__ == '__main__':
     port = int(os.environ.get('PROFILE_API_PORT', 8000))
     app.run(host='0.0.0.0', port=port, debug=False)

@@ -130,3 +130,6 @@ externalPort = 6000
 [[ports]]
 localPort = 46193
 externalPort = 3001
+
+[agent]
+integrations = ["python_openai_ai_integrations:1.0.0"]
