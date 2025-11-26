@@ -1,22 +1,25 @@
 .three-stage-approval-panel {
-  background: #f9fafb;
-  border-radius: 8px;
-  padding: 1.5rem;
-  margin-top: 1rem;
+  background: var(--gps-bg-page, #f7fafc);
+  border-radius: 6px;
+  padding: 12px;
+  margin-top: 12px;
+  font-family: var(--gps-font-family, 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
 }
 
 .three-stage-approval-panel h3 {
-  margin: 0 0 1.5rem 0;
-  color: #1f2937;
-  font-size: 1.25rem;
+  margin: 0 0 12px 0;
+  color: var(--gps-primary-teal, #025043);
+  font-size: 13px;
   font-weight: 600;
+  font-family: var(--gps-font-family, 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
 }
 
 .three-stage-approval-panel h4 {
-  margin: 0 0 1rem 0;
-  color: #374151;
-  font-size: 1.1rem;
+  margin: 0 0 10px 0;
+  color: var(--gps-text-dark, #333333);
+  font-size: 12px;
   font-weight: 600;
+  font-family: var(--gps-font-family, 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
 }
 
 /* Approval Stages */
@@ -24,7 +27,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 2rem;
+  margin-bottom: 12px;
   position: relative;
 }
 
@@ -36,45 +39,45 @@
   text-align: center;
   position: relative;
   background: white;
-  border: 2px solid #e5e7eb;
-  border-radius: 8px;
-  padding: 1rem;
+  border: 1px solid var(--gps-border-light, #e2e8f0);
+  border-radius: 6px;
+  padding: 10px;
   transition: all 0.3s ease;
 }
 
 .approval-stage.active {
-  border-color: #3b82f6;
-  background: #eff6ff;
+  border-color: var(--gps-primary-teal, #025043);
+  background: #f0f9f7;
 }
 
 .approval-stage.completed {
-  border-color: #10b981;
-  background: #f0fdf4;
+  border-color: var(--gps-success-green, #38a169);
+  background: #f0fff4;
 }
 
 .approval-stage.rejected {
-  border-color: #ef4444;
-  background: #fef2f2;
+  border-color: var(--gps-danger-red, #e53e3e);
+  background: #fff5f5;
 }
 
 .stage-header {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 8px;
   width: 100%;
 }
 
 .stage-icon {
-  font-size: 2rem;
+  font-size: 18px;
   flex-shrink: 0;
 }
 
 .stage-icon.approved {
-  color: #10b981;
+  color: var(--gps-success-green, #38a169);
 }
 
 .stage-icon.rejected {
-  color: #ef4444;
+  color: var(--gps-danger-red, #e53e3e);
 }
 
 .stage-icon.pending {
@@ -82,7 +85,7 @@
 }
 
 .stage-icon.pending-active {
-  color: #3b82f6;
+  color: var(--gps-primary-teal, #025043);
   animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
@@ -106,129 +109,134 @@
 
 .stage-title {
   font-weight: 600;
-  font-size: 0.875rem;
-  color: #1f2937;
-  margin-bottom: 0.25rem;
+  font-size: 11px;
+  color: var(--gps-text-dark, #333333);
+  margin-bottom: 2px;
+  font-family: var(--gps-font-family, 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
 }
 
 .stage-status {
-  font-size: 0.75rem;
-  color: #6b7280;
+  font-size: 10px;
+  color: var(--gps-text-muted, #666666);
+  font-family: var(--gps-font-family, 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
 }
 
 .stage-connector {
-  width: 40px;
+  width: 30px;
   height: 2px;
-  background: #e5e7eb;
-  margin: 0 0.5rem;
+  background: var(--gps-border-light, #e2e8f0);
+  margin: 0 6px;
   flex-shrink: 0;
 }
 
 /* Action Panel */
 .approval-action-panel {
   background: white;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  padding: 1.5rem;
-  margin-top: 1.5rem;
-}
-
-.form-group {
-  margin-bottom: 1.5rem;
-}
-
-.form-group label {
-  display: block;
-  margin-bottom: 0.5rem;
-  color: #374151;
-  font-weight: 500;
-  font-size: 0.875rem;
-}
-
-.form-group textarea {
-  width: 100%;
-  padding: 0.75rem;
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--gps-border-light, #e2e8f0);
   border-radius: 6px;
-  font-family: inherit;
-  font-size: 0.875rem;
+  padding: 12px;
+  margin-top: 12px;
+}
+
+.three-stage-approval-panel .form-group {
+  margin-bottom: 12px;
+}
+
+.three-stage-approval-panel .form-group label {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--gps-text-muted, #666666);
+  font-weight: 500;
+  font-size: 10px;
+  font-family: var(--gps-font-family, 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
+}
+
+.three-stage-approval-panel .form-group textarea {
+  width: 100%;
+  padding: 6px 10px;
+  border: 1px solid var(--gps-border-light, #e2e8f0);
+  border-radius: 4px;
+  font-family: var(--gps-font-family, 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
+  font-size: 11px;
   resize: vertical;
   transition: border-color 0.2s ease;
 }
 
-.form-group textarea:focus {
+.three-stage-approval-panel .form-group textarea:focus {
   outline: none;
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  border-color: var(--gps-primary-teal, #025043);
+  box-shadow: 0 0 0 2px rgba(2, 80, 67, 0.1);
 }
 
 /* File Upload */
 .file-upload-area {
-  border: 2px dashed #d1d5db;
-  border-radius: 6px;
-  padding: 1rem;
+  border: 1px dashed var(--gps-border-light, #e2e8f0);
+  border-radius: 4px;
+  padding: 10px;
   text-align: center;
   transition: border-color 0.2s ease;
 }
 
 .file-upload-area:hover {
-  border-color: #9ca3af;
+  border-color: var(--gps-primary-teal, #025043);
 }
 
 .file-upload-button {
   display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.625rem 1.25rem;
-  background-color: #3b82f6;
+  gap: 6px;
+  padding: 6px 12px;
+  background-color: var(--gps-primary-teal, #025043);
   color: white;
-  border-radius: 6px;
+  border-radius: 4px;
   cursor: pointer;
-  font-size: 0.875rem;
+  font-size: 11px;
   font-weight: 500;
   transition: background-color 0.2s ease;
+  font-family: var(--gps-font-family, 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
 }
 
 .file-upload-button:hover {
-  background-color: #2563eb;
+  background-color: var(--gps-primary-hover, #033830);
 }
 
 .attached-files {
-  margin-top: 1rem;
+  margin-top: 8px;
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 4px;
 }
 
 .attached-file {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem;
-  background: #f3f4f6;
+  gap: 6px;
+  padding: 6px 8px;
+  background: var(--gps-bg-page, #f7fafc);
   border-radius: 4px;
-  font-size: 0.813rem;
+  font-size: 10px;
+  font-family: var(--gps-font-family, 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
 }
 
 .attached-file svg {
-  color: #6b7280;
+  color: var(--gps-text-muted, #666666);
 }
 
 .attached-file span {
   flex: 1;
   text-align: left;
-  color: #374151;
+  color: var(--gps-text-dark, #333333);
 }
 
 .remove-file-btn {
   background: none;
   border: none;
-  color: #ef4444;
-  font-size: 1.5rem;
+  color: var(--gps-danger-red, #e53e3e);
+  font-size: 14px;
   cursor: pointer;
   padding: 0;
-  width: 24px;
-  height: 24px;
+  width: 20px;
+  height: 20px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -237,50 +245,51 @@
 }
 
 .remove-file-btn:hover {
-  background-color: #fee2e2;
+  background-color: #fff5f5;
 }
 
 /* Action Buttons */
 .action-buttons {
   display: flex;
-  gap: 1rem;
-  margin-top: 1.5rem;
+  gap: 10px;
+  margin-top: 12px;
 }
 
 .approve-btn-stage,
 .reject-btn-stage {
   flex: 1;
-  padding: 0.75rem 1.5rem;
+  padding: 6px 12px;
   border: 1px solid transparent;
-  border-radius: 6px;
-  font-size: 0.875rem;
+  border-radius: 4px;
+  font-size: 11px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
   background: none;
+  font-family: var(--gps-font-family, 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
 }
 
 .approve-btn-stage {
-  color: var(--color-success, #10b981);
-  border-color: var(--color-success, #10b981);
+  color: var(--gps-success-green, #38a169);
+  border-color: var(--gps-success-green, #38a169);
 }
 
 .approve-btn-stage:hover:not(:disabled) {
-  background-color: var(--color-success-light, rgba(16, 185, 129, 0.1));
-  color: var(--color-success-dark, #059669);
-  border-color: var(--color-success-dark, #059669);
+  background-color: rgba(56, 161, 105, 0.1);
+  color: #2f855a;
+  border-color: #2f855a;
   transform: translateY(-1px);
 }
 
 .reject-btn-stage {
-  color: var(--color-error, #ef4444);
-  border-color: var(--color-error, #ef4444);
+  color: var(--gps-danger-red, #e53e3e);
+  border-color: var(--gps-danger-red, #e53e3e);
 }
 
 .reject-btn-stage:hover:not(:disabled) {
-  background-color: var(--color-error-light, rgba(239, 68, 68, 0.1));
-  color: var(--color-error-dark, #dc2626);
-  border-color: var(--color-error-dark, #dc2626);
+  background-color: rgba(229, 62, 62, 0.1);
+  color: #c53030;
+  border-color: #c53030;
   transform: translateY(-1px);
 }
 
@@ -292,27 +301,28 @@
 
 /* Warning/Orange variant for "Send Back to Vendor" type actions */
 .approve-btn-stage.warning-action {
-  color: var(--color-warning, #ea8600);
-  border-color: var(--color-warning, #ea8600);
+  color: #dd6b20;
+  border-color: #dd6b20;
 }
 
 .approve-btn-stage.warning-action:hover:not(:disabled) {
-  background-color: var(--color-warning-light, rgba(234, 134, 0, 0.1));
-  color: var(--color-warning-dark, #b56a00);
-  border-color: var(--color-warning-dark, #b56a00);
+  background-color: rgba(221, 107, 32, 0.1);
+  color: #c05621;
+  border-color: #c05621;
 }
 
 /* Locked Notice */
 .locked-notice {
-  background: #fef3c7;
-  border: 1px solid #fcd34d;
-  border-radius: 6px;
-  padding: 1rem;
-  margin-top: 1rem;
+  background: #fffaf0;
+  border: 1px solid #fbd38d;
+  border-radius: 4px;
+  padding: 8px 12px;
+  margin-top: 10px;
   text-align: center;
-  color: #92400e;
-  font-size: 0.875rem;
+  color: #c05621;
+  font-size: 11px;
   font-weight: 500;
+  font-family: var(--gps-font-family, 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
 }
 
 /* Responsive */
