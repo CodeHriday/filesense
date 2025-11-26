@@ -888,6 +888,18 @@ def load_archive(file_path, file_ext, password=None):
         raise Exception(f"Failed to process archive: {str(e)}")
 
 
+def get_file_extension(filename):
+    """
+    Get file extension, handling compound extensions like .tar.gz, .tar.bz2
+    """
+    filename_lower = filename.lower()
+    compound_extensions = ['.tar.gz', '.tar.bz2', '.tgz', '.tbz2']
+    for ext in compound_extensions:
+        if filename_lower.endswith(ext):
+            return ext
+    return os.path.splitext(filename)[1].lower()
+
+
 def profile_vendor_file(file_path, filename, password=None, fixed_width_schema=None, delimiter=None, header_config=None):
     """
     Run comprehensive quality profiling on a vendor file
@@ -907,7 +919,7 @@ def profile_vendor_file(file_path, filename, password=None, fixed_width_schema=N
     Returns:
         Dictionary with profiling results
     """
-    file_ext = os.path.splitext(filename)[1].lower()
+    file_ext = get_file_extension(filename)
     
     # Dispatch to format-specific loader
     df = None
