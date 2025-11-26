@@ -219,7 +219,7 @@ function SchemaHistoryTab({ fileId }) {
           </div>
         )}
         <div className="snapshot-timeline">
-          {allSnapshots.slice(0, 5).map((snapshot, idx) => {
+          {allSnapshots.map((snapshot, idx) => {
             const isCurrent = idx === 0;
             const isSelected = selectedCompareSnapshot?.id === snapshot.id;
             
@@ -250,9 +250,6 @@ function SchemaHistoryTab({ fileId }) {
               </div>
             );
           })}
-          {allSnapshots.length > 5 && (
-            <div className="snapshot-more">+ {allSnapshots.length - 5} more upload{allSnapshots.length - 5 !== 1 ? 's' : ''}</div>
-          )}
         </div>
       </div>
     );
