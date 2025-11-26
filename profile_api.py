@@ -1296,7 +1296,8 @@ def health():
 def generate_dq_suggestions():
     """
     Generate AI-powered data quality rule suggestions based on file profile data.
-    Uses OpenAI via Replit AI Integrations.
+    Uses configurable AI providers (OpenAI, AWS Bedrock, Azure OpenAI, Google Gemini, or rule-based).
+    Provider selection is controlled by AI_PROVIDER env var or database setting.
     """
     try:
         data = request.json
@@ -1306,23 +1307,29 @@ def generate_dq_suggestions():
         columns = data.get('columns', [])
         filename = data.get('filename', 'unknown')
         file_id = data.get('fileId', '')
+        requested_provider = data.get('provider')
         
         if not columns:
             return jsonify({'error': 'No column data provided'}), 400
         
-        # Check if feature is enabled
         conn = get_db_connection()
+        ai_enabled = True
+        configured_provider = None
+        
         if conn:
             try:
                 cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
                 cursor.execute("""
-                    SELECT setting_value FROM app_settings 
-                    WHERE setting_key = 'ai_dq_suggestions_enabled'
+                    SELECT setting_key, setting_value FROM app_settings 
+                    WHERE setting_key IN ('ai_dq_suggestions_enabled', 'ai_provider')
                 """)
-                result = cursor.fetchone()
+                settings = {row['setting_key']: row['setting_value'] for row in cursor.fetchall()}
                 cursor.close()
                 
-                if not result or result['setting_value'].lower() != 'true':
+                ai_enabled = settings.get('ai_dq_suggestions_enabled', 'true').lower() == 'true'
+                configured_provider = settings.get('ai_provider', 'auto')
+                
+                if not ai_enabled:
                     return jsonify({
                         'enabled': False,
                         'suggestions': [],
@@ -1331,93 +1338,15 @@ def generate_dq_suggestions():
             finally:
                 conn.close()
         
-        # Format column data for AI prompt
-        column_summary = []
-        for col in columns:
-            col_info = {
-                'name': col.get('name', 'Unknown'),
-                'type': col.get('type', 'Unknown'),
-                'completeness': col.get('completeness', 100),
-                'null_percentage': 100 - col.get('completeness', 100),
-                'unique_count': col.get('uniqueCount', 0),
-                'patterns': col.get('patterns', []),
-                'semantic_type': col.get('semanticType', None),
-                'has_nulls': col.get('hasNulls', False)
-            }
-            column_summary.append(col_info)
+        from backend.ai_providers import AIProviderFactory
         
-        # Build AI prompt
-        prompt = f"""You are a data quality expert analyzing a file called "{filename}".
-
-Based on the following column profile data, suggest specific data quality rules that should be implemented.
-
-Column Profile Data:
-{json.dumps(column_summary, indent=2)}
-
-For each column with potential issues, suggest one or more quality rules. Focus on:
-1. Completeness issues (null values, especially for important fields like IDs, emails, etc.)
-2. Validity issues (pattern violations - emails should be valid, phones should match patterns, dates should be valid)
-3. Consistency issues (relationships between columns, date ordering)
-4. Uniqueness issues (ID fields should be unique)
-
-For each suggestion, provide:
-- column_name: The column this rule applies to
-- rule_type: One of "completeness", "validity", "consistency", "uniqueness", or "freshness"
-- rule_name: A descriptive name for the rule
-- description: What the rule checks
-- severity: "critical", "warning", or "error" based on business impact
-- rule_config: JSON configuration for the rule with specific parameters
-- reason: Why this rule is suggested based on the profile data
-
-Respond ONLY with valid JSON in this format:
-{{
-  "suggestions": [
-    {{
-      "column_name": "email",
-      "rule_type": "validity",
-      "rule_name": "Email Format Validation",
-      "description": "Ensures email column contains valid email addresses",
-      "severity": "warning",
-      "rule_config": {{"pattern": "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{{2,}}$", "type": "regex"}},
-      "reason": "Column detected as EMAIL semantic type but has 2% null values"
-    }}
-  ]
-}}
-
-Limit to the 10 most important suggestions. Only suggest rules where there's a clear issue in the data."""
-
-        # Call OpenAI via Replit AI Integrations
-        # the newest OpenAI model is "gpt-5" which was released August 7, 2025.
-        # do not change this unless explicitly requested by the user
-        from openai import OpenAI
+        provider_name = requested_provider or configured_provider or os.environ.get('AI_PROVIDER', 'auto')
+        provider = AIProviderFactory.get_provider(provider_name)
+        provider_info = provider.get_provider_info()
         
-        api_key = os.environ.get("AI_INTEGRATIONS_OPENAI_API_KEY")
-        base_url = os.environ.get("AI_INTEGRATIONS_OPENAI_BASE_URL")
+        logger.info(f"Using AI provider: {provider_info.get('display_name', provider_info['name'])} for file: {filename}")
         
-        if not api_key or not base_url:
-            return jsonify({
-                'error': 'OpenAI integration not configured',
-                'suggestions': []
-            }), 500
-        
-        client = OpenAI(api_key=api_key, base_url=base_url)
-        
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[{"role": "user", "content": prompt}],
-            response_format={"type": "json_object"},
-            max_completion_tokens=4096
-        )
-        
-        result_text = response.choices[0].message.content
-        result = json.loads(result_text)
-        
-        suggestions = result.get('suggestions', [])
-        
-        # Add unique IDs to each suggestion
-        for i, suggestion in enumerate(suggestions):
-            suggestion['id'] = f"dq-suggestion-{i+1}"
-            suggestion['fileId'] = file_id
+        suggestions = provider.generate_dq_suggestions(columns, filename, file_id)
         
         logger.info(f"Generated {len(suggestions)} DQ suggestions for file: {filename}")
         
@@ -1426,7 +1355,8 @@ Limit to the 10 most important suggestions. Only suggest rules where there's a c
             'suggestions': suggestions,
             'filename': filename,
             'fileId': file_id,
-            'generatedAt': datetime.now().isoformat()
+            'generatedAt': datetime.now().isoformat(),
+            'provider': provider_info
         }), 200
         
     except json.JSONDecodeError as e:
@@ -1442,6 +1372,100 @@ Limit to the 10 most important suggestions. Only suggest rules where there's a c
             'details': str(e),
             'suggestions': []
         }), 500
+
+
+@app.route('/api/ai-providers', methods=['GET'])
+def list_ai_providers():
+    """
+    List all available AI providers and their configuration status.
+    Returns provider name, availability, and privacy level.
+    """
+    try:
+        from backend.ai_providers import AIProviderFactory
+        
+        providers = AIProviderFactory.list_providers()
+        
+        conn = get_db_connection()
+        current_provider = os.environ.get('AI_PROVIDER', 'auto')
+        ai_enabled = True
+        
+        if conn:
+            try:
+                cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+                cursor.execute("""
+                    SELECT setting_key, setting_value FROM app_settings 
+                    WHERE setting_key IN ('ai_dq_suggestions_enabled', 'ai_provider')
+                """)
+                settings = {row['setting_key']: row['setting_value'] for row in cursor.fetchall()}
+                cursor.close()
+                
+                ai_enabled = settings.get('ai_dq_suggestions_enabled', 'true').lower() == 'true'
+                current_provider = settings.get('ai_provider', current_provider)
+            finally:
+                conn.close()
+        
+        return jsonify({
+            'providers': providers,
+            'current_provider': current_provider,
+            'ai_enabled': ai_enabled
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Error listing AI providers: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/ai-providers/current', methods=['PUT'])
+def set_ai_provider():
+    """
+    Set the current AI provider.
+    Stores the selection in app_settings table.
+    """
+    try:
+        data = request.json
+        if not data or 'provider' not in data:
+            return jsonify({'error': 'No provider specified'}), 400
+        
+        provider_name = data['provider']
+        
+        from backend.ai_providers import AIProviderFactory
+        
+        if provider_name != 'auto' and provider_name not in AIProviderFactory.PROVIDERS:
+            return jsonify({'error': f'Unknown provider: {provider_name}'}), 400
+        
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({'error': 'Database connection failed'}), 500
+        
+        try:
+            cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+            cursor.execute("""
+                INSERT INTO app_settings (setting_key, setting_value, description, updated_at)
+                VALUES ('ai_provider', %s, 'AI provider for DQ suggestions (openai, bedrock, azure, gemini, rule-based, auto)', NOW())
+                ON CONFLICT (setting_key) 
+                DO UPDATE SET setting_value = EXCLUDED.setting_value, updated_at = NOW()
+                RETURNING setting_key, setting_value
+            """, (provider_name,))
+            result = cursor.fetchone()
+            conn.commit()
+            cursor.close()
+            
+            logger.info(f"AI provider updated to: {provider_name}")
+            
+            provider = AIProviderFactory.get_provider(provider_name)
+            provider_info = provider.get_provider_info()
+            
+            return jsonify({
+                'success': True,
+                'provider': provider_name,
+                'provider_info': provider_info
+            }), 200
+        finally:
+            conn.close()
+            
+    except Exception as e:
+        logger.error(f"Error setting AI provider: {str(e)}")
+        return jsonify({'error': str(e)}), 500
 
 
 @app.route('/api/settings/<setting_key>', methods=['GET'])
