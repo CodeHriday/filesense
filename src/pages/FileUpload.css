@@ -789,3 +789,225 @@
   border-color: var(--color-primary);
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
+
+/* Fixed-Width Schema Section */
+.fixed-width-section {
+  margin-top: 16px;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+.fixed-width-section .fixed-width-label {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+  color: #333;
+  display: block;
+  margin-bottom: 8px;
+}
+
+.fixed-width-section .fixed-width-desc {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 10px;
+  color: #666;
+  margin-bottom: 12px;
+  line-height: 1.5;
+}
+
+.fixed-width-upload-box {
+  margin-bottom: 16px;
+  padding: 14px 16px;
+  background-color: #f0f9f6;
+  border-radius: 4px;
+  border: 1px solid #d1e7dd;
+}
+
+.fixed-width-upload-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.fixed-width-upload-btn {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 10px;
+  font-weight: 500;
+  padding: 8px 14px;
+  border-radius: 4px;
+  border: 1px solid #025043;
+  background-color: white;
+  color: #025043;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s ease;
+}
+
+.fixed-width-upload-btn:hover {
+  background-color: #025043;
+  color: white;
+}
+
+.fixed-width-upload-btn svg {
+  width: 12px;
+  height: 12px;
+}
+
+.fixed-width-template-text {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 10px;
+  color: #666;
+}
+
+.fixed-width-template-btn {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 10px;
+  font-weight: 500;
+  padding: 8px 14px;
+  border-radius: 4px;
+  border: 1px solid #025043;
+  background-color: white;
+  color: #025043;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s ease;
+}
+
+.fixed-width-template-btn:hover {
+  background-color: #f0f9f6;
+}
+
+.fixed-width-success-msg {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 10px;
+  padding: 8px 12px;
+  background-color: #d1fae5;
+  border: 1px solid #a7f3d0;
+  border-radius: 4px;
+  color: #065f46;
+  margin-top: 8px;
+}
+
+.fixed-width-error-msg {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 10px;
+  padding: 8px 12px;
+  background-color: #fee2e2;
+  border: 1px solid #fecaca;
+  border-radius: 4px;
+  color: #991b1b;
+  margin-top: 8px;
+}
+
+.fixed-width-formats-hint {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 9px;
+  color: #666;
+  margin-top: 8px;
+}
+
+.fixed-width-schema-box {
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  padding: 14px 16px;
+  background-color: #f8f9fa;
+}
+
+.fixed-width-column-row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 10px;
+  align-items: center;
+}
+
+.fixed-width-column-input {
+  flex: 2;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 10px;
+  padding: 10px 12px;
+  border-radius: 4px;
+  border: 1px solid #d1d5db;
+  background: white;
+  color: #333;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.fixed-width-column-input:focus {
+  outline: none;
+  border-color: #025043;
+  box-shadow: 0 0 0 2px rgba(2, 80, 67, 0.1);
+}
+
+.fixed-width-column-input::placeholder {
+  color: #9ca3af;
+}
+
+.fixed-width-width-input {
+  flex: 1;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 10px;
+  padding: 10px 12px;
+  border-radius: 4px;
+  border: 1px solid #d1d5db;
+  background: white;
+  color: #333;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.fixed-width-width-input:focus {
+  outline: none;
+  border-color: #025043;
+  box-shadow: 0 0 0 2px rgba(2, 80, 67, 0.1);
+}
+
+.fixed-width-width-input::placeholder {
+  color: #9ca3af;
+}
+
+.fixed-width-remove-btn {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 10px;
+  font-weight: 500;
+  padding: 8px 14px;
+  border-radius: 4px;
+  border: 1px solid #ef4444;
+  background-color: white;
+  color: #ef4444;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.fixed-width-remove-btn:hover {
+  background-color: #ef4444;
+  color: white;
+}
+
+.fixed-width-add-btn {
+  margin-top: 10px;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 10px;
+  font-weight: 500;
+  padding: 8px 14px;
+  border-radius: 4px;
+  border: 1px solid #025043;
+  background-color: white;
+  color: #025043;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.fixed-width-add-btn:hover {
+  background-color: #025043;
+  color: white;
+}
+
+.fixed-width-example {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 9px;
+  color: #666;
+  margin-top: 10px;
+}

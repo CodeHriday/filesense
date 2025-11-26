@@ -1952,28 +1952,19 @@ function FileUpload() {
                 
                 {/* Fixed-Width Schema Builder */}
                 {delimiterType === 'fixed-width' && (
-                  <div style={{ marginTop: '1rem' }}>
-                    <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '0.5rem' }}>
+                  <div className="fixed-width-section">
+                    <label className="fixed-width-label">
                       Define Column Schema:
                     </label>
-                    <p style={{ fontSize: '0.875rem', color: '#666', marginBottom: '0.75rem' }}>
+                    <p className="fixed-width-desc">
                       Fixed-width files have no delimiters. Specify each column's name and width in characters. You can upload a schema file or define it manually below.
                     </p>
                     
                     {/* Schema File Upload and Template Download */}
-                    <div style={{ marginBottom: '1rem', padding: '0.75rem', backgroundColor: '#f0f8ff', borderRadius: '4px', border: '1px solid #b0d4f1' }}>
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', alignItems: 'center', marginBottom: '0.5rem' }}>
-                        <label htmlFor="schema-file-upload" style={{ 
-                          padding: '0.5rem 1rem',
-                          borderRadius: '4px',
-                          border: '1px solid #007bff',
-                          backgroundColor: '#fff',
-                          color: '#007bff',
-                          cursor: 'pointer',
-                          fontSize: '0.875rem',
-                          display: 'inline-block'
-                        }}>
-                          📁 Upload Schema File
+                    <div className="fixed-width-upload-box">
+                      <div className="fixed-width-upload-row">
+                        <label htmlFor="schema-file-upload" className="fixed-width-upload-btn">
+                          <FiFolder size={14} /> Upload Schema File
                         </label>
                         <input
                           id="schema-file-upload"
@@ -1983,78 +1974,46 @@ function FileUpload() {
                           style={{ display: 'none' }}
                         />
                         
-                        <span style={{ fontSize: '0.875rem', color: '#666' }}>or download template:</span>
+                        <span className="fixed-width-template-text">or download template:</span>
                         
                         <button
                           type="button"
                           onClick={downloadJSONTemplate}
-                          style={{
-                            padding: '0.5rem 1rem',
-                            borderRadius: '4px',
-                            border: '1px solid #28a745',
-                            backgroundColor: '#fff',
-                            color: '#28a745',
-                            cursor: 'pointer',
-                            fontSize: '0.875rem'
-                          }}
+                          className="fixed-width-template-btn"
                         >
-                          ⬇ JSON Template
+                          ↓ JSON Template
                         </button>
                         
                         <button
                           type="button"
                           onClick={downloadCSVTemplate}
-                          style={{
-                            padding: '0.5rem 1rem',
-                            borderRadius: '4px',
-                            border: '1px solid #28a745',
-                            backgroundColor: '#fff',
-                            color: '#28a745',
-                            cursor: 'pointer',
-                            fontSize: '0.875rem'
-                          }}
+                          className="fixed-width-template-btn"
                         >
-                          ⬇ CSV Template
+                          ↓ CSV Template
                         </button>
                       </div>
                       
                       {/* Success/Error Messages */}
                       {schemaUploadSuccess && (
-                        <div style={{ 
-                          padding: '0.5rem', 
-                          backgroundColor: '#d4edda', 
-                          border: '1px solid #c3e6cb',
-                          borderRadius: '4px',
-                          color: '#155724',
-                          fontSize: '0.875rem',
-                          marginTop: '0.5rem'
-                        }}>
+                        <div className="fixed-width-success-msg">
                           ✓ {schemaUploadSuccess}
                         </div>
                       )}
                       
                       {schemaUploadError && (
-                        <div style={{ 
-                          padding: '0.5rem', 
-                          backgroundColor: '#f8d7da', 
-                          border: '1px solid #f5c6cb',
-                          borderRadius: '4px',
-                          color: '#721c24',
-                          fontSize: '0.875rem',
-                          marginTop: '0.5rem'
-                        }}>
+                        <div className="fixed-width-error-msg">
                           ✗ {schemaUploadError}
                         </div>
                       )}
                       
-                      <div style={{ fontSize: '0.75rem', color: '#666', marginTop: '0.5rem' }}>
+                      <div className="fixed-width-formats-hint">
                         Accepted formats: .json or .csv with "name" and "width" columns
                       </div>
                     </div>
                     
-                    <div style={{ border: '1px solid #ccc', borderRadius: '4px', padding: '0.75rem', backgroundColor: '#f9f9f9' }}>
+                    <div className="fixed-width-schema-box">
                       {fixedWidthSchema.map((column, index) => (
-                        <div key={index} style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem', alignItems: 'center' }}>
+                        <div key={index} className="fixed-width-column-row">
                           <input 
                             type="text"
                             value={column.name}
@@ -2064,12 +2023,7 @@ function FileUpload() {
                               setFixedWidthSchema(newSchema);
                             }}
                             placeholder="Column Name"
-                            style={{
-                              flex: 2,
-                              padding: '0.5rem',
-                              borderRadius: '4px',
-                              border: '1px solid #ccc'
-                            }}
+                            className="fixed-width-column-input"
                           />
                           <input 
                             type="number"
@@ -2081,12 +2035,7 @@ function FileUpload() {
                             }}
                             placeholder="Width"
                             min="1"
-                            style={{
-                              flex: 1,
-                              padding: '0.5rem',
-                              borderRadius: '4px',
-                              border: '1px solid #ccc'
-                            }}
+                            className="fixed-width-width-input"
                           />
                           <button 
                             type="button"
@@ -2094,15 +2043,7 @@ function FileUpload() {
                               const newSchema = fixedWidthSchema.filter((_, i) => i !== index);
                               setFixedWidthSchema(newSchema.length > 0 ? newSchema : [{ name: '', width: '' }]);
                             }}
-                            style={{
-                              padding: '0.5rem 0.75rem',
-                              borderRadius: '4px',
-                              border: '1px solid #dc3545',
-                              backgroundColor: '#fff',
-                              color: '#dc3545',
-                              cursor: 'pointer',
-                              fontSize: '0.875rem'
-                            }}
+                            className="fixed-width-remove-btn"
                           >
                             Remove
                           </button>
@@ -2114,22 +2055,13 @@ function FileUpload() {
                         onClick={() => {
                           setFixedWidthSchema([...fixedWidthSchema, { name: '', width: '' }]);
                         }}
-                        style={{
-                          marginTop: '0.5rem',
-                          padding: '0.5rem 1rem',
-                          borderRadius: '4px',
-                          border: '1px solid #28a745',
-                          backgroundColor: '#fff',
-                          color: '#28a745',
-                          cursor: 'pointer',
-                          fontSize: '0.875rem'
-                        }}
+                        className="fixed-width-add-btn"
                       >
                         + Add Column
                       </button>
                     </div>
                     
-                    <div style={{ fontSize: '0.75rem', color: '#666', marginTop: '0.5rem' }}>
+                    <div className="fixed-width-example">
                       Example: ID (width: 5), Name (width: 20), Age (width: 3)
                     </div>
                   </div>
