@@ -1155,15 +1155,15 @@ function DataProfile() {
           </div>
           <div className="gps-card-body">
           {columns && columns.length > 0 ? (
-            <div className="completeness-table-container">
-              <table className="completeness-table">
+            <div className="gps-table-container">
+              <table className="gps-table">
                 <thead>
                   <tr>
-                    <th className="col-name">Name</th>
-                    <th className="col-type">Type</th>
-                    <th className="col-completeness-compact">Completeness</th>
-                    <th className="col-tags">Tags</th>
-                    <th className="col-policies">Policies</th>
+                    <th>Name</th>
+                    <th>Type</th>
+                    <th>Completeness</th>
+                    <th>Tags</th>
+                    <th>Policies</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1172,67 +1172,58 @@ function DataProfile() {
                     const nullCount = column.missing || 0;
                     const completeness = Math.round(((totalRows - nullCount) / totalRows) * 100);
                     
-                    // Get column-level governance data
                     const columnGovernanceTags = allColumnGovernanceTags[column.name] || [];
                     const columnPoliciesData = allColumnPolicies[column.name] || [];
                     
-                    // Check for anomalies
                     const nullPercentage = (nullCount / totalRows) * 100;
                     const hasHighNulls = nullPercentage > 10;
                     const hasMultiplePatterns = column.patterns && column.patterns.length > 1;
-                    const hasAnomaly = hasHighNulls || hasMultiplePatterns;
                     
                     return (
-                      <tr key={column.name} className={`completeness-row ${hasAnomaly ? 'row-with-anomaly' : ''}`}>
-                        <td className="col-name">
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                            <span>{column.name}</span>
+                      <tr key={column.name}>
+                        <td>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                            <span style={{ fontWeight: '500' }}>{column.name}</span>
                             {hasHighNulls && (
-                              <span className="anomaly-badge anomaly-warning" title={`${nullPercentage.toFixed(1)}% null values`}>
+                              <span className="gps-badge gps-badge--warning" style={{ fontSize: '9px', padding: '2px 6px' }} title={`${nullPercentage.toFixed(1)}% null values`}>
                                 High Nulls
                               </span>
                             )}
                             {hasMultiplePatterns && (
-                              <span className="anomaly-badge anomaly-warning" title={`${column.patterns.length} different patterns detected`}>
-                                Multiple Patterns
+                              <span className="gps-badge gps-badge--warning" style={{ fontSize: '9px', padding: '2px 6px' }} title={`${column.patterns.length} different patterns detected`}>
+                                Multi Pattern
                               </span>
                             )}
                           </div>
                         </td>
-                        <td className="col-type">{column.type}</td>
-                        <td className="col-completeness-compact">
-                          <div className="completeness-bar-container-compact">
-                            <div className="completeness-bar-track-compact">
-                              <div 
-                                className="completeness-bar-fill" 
-                                style={{ width: `${completeness}%` }}
-                              ></div>
+                        <td><span className="gps-badge gps-badge--secondary" style={{ fontSize: '9px' }}>{column.type}</span></td>
+                        <td>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <div style={{ width: '80px', height: '6px', backgroundColor: '#e2e8f0', borderRadius: '3px', overflow: 'hidden' }}>
+                              <div style={{ width: `${completeness}%`, height: '100%', backgroundColor: '#025043', borderRadius: '3px' }}></div>
                             </div>
-                            <span className="completeness-value-compact">
-                              {formatDecimal(completeness, 1)}%
-                            </span>
+                            <span style={{ fontSize: '10px', color: '#666', minWidth: '40px' }}>{formatDecimal(completeness, 1)}%</span>
                           </div>
                         </td>
-                        <td className="col-tags">
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                        <td>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
                             {columnGovernanceTags.length > 0 ? (
                               columnGovernanceTags.map(tagAssignment => (
-                                <span key={tagAssignment.tag_id} className="tag-badge" style={{ 
+                                <span key={tagAssignment.tag_id} className="gps-badge" style={{ 
                                   backgroundColor: tagAssignment.tag_color || '#3b82f6',
                                   color: 'white',
-                                  padding: '2px 8px',
-                                  borderRadius: '12px',
-                                  fontSize: '12px',
-                                  fontWeight: '500'
+                                  fontSize: '9px',
+                                  padding: '2px 8px'
                                 }}>
                                   {tagAssignment.tag_name}
                                 </span>
                               ))
                             ) : (
-                              <span className="no-tag">—</span>
+                              <span style={{ color: '#94a3b8' }}>—</span>
                             )}
                             <button 
-                              className="btn-icon-small" 
+                              className="gps-icon-btn gps-icon-btn--edit"
+                              style={{ width: '22px', height: '22px' }}
                               onClick={async () => {
                                 setSelectedColumn(column.name);
                                 const tags = await fetchColumnGovernanceTags(column.name);
@@ -1242,19 +1233,20 @@ function DataProfile() {
                               disabled={!canEditColumnGovernance(column.name)}
                               title={canEditColumnGovernance(column.name) ? "Edit column tags" : "You don't have permission to edit tags on this column"}
                             >
-                              <FiEdit2 />
+                              <FiEdit2 size={12} />
                             </button>
                           </div>
                         </td>
-                        <td className="col-policies">
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <td>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                             {columnPoliciesData.length > 0 ? (
-                              <span className="policies-count">{columnPoliciesData.length} {columnPoliciesData.length === 1 ? 'policy' : 'policies'}</span>
+                              <span style={{ fontSize: '10px', color: '#666' }}>{columnPoliciesData.length} {columnPoliciesData.length === 1 ? 'policy' : 'policies'}</span>
                             ) : (
-                              <span className="no-policy">—</span>
+                              <span style={{ color: '#94a3b8' }}>—</span>
                             )}
                             <button 
-                              className="btn-icon-small" 
+                              className="gps-icon-btn gps-icon-btn--edit"
+                              style={{ width: '22px', height: '22px' }}
                               onClick={async () => {
                                 setSelectedColumn(column.name);
                                 const colPolicies = await fetchColumnPolicies(column.name);
@@ -1264,7 +1256,7 @@ function DataProfile() {
                               disabled={!canEditColumnGovernance(column.name)}
                               title={canEditColumnGovernance(column.name) ? "Edit column policies" : "You don't have permission to edit policies on this column"}
                             >
-                              <FiEdit2 />
+                              <FiEdit2 size={12} />
                             </button>
                           </div>
                         </td>
@@ -1294,92 +1286,92 @@ function DataProfile() {
     
     return (
       <div className="columns-tab">
-        <Card title="Column Details">
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Column Name</th>
-                <th>Governance Tags</th>
-                <th>Data Type</th>
-                <th>Pattern</th>
-                <th>Unique Values</th>
-                <th>Missing Values</th>
-                <th>Min/Least Frequent</th>
-                <th>Max/Most Frequent</th>
-              </tr>
-            </thead>
-            <tbody>
-              {columns.map((column) => {
-                const nullCount = column.missing || 0;
-                const missingPercentage = Math.round((nullCount / totalRows) * 100);
-                const columnGovernanceTags = allColumnGovernanceTags[column.name] || [];
-                
-                // Format patterns for display
-                const formatPatterns = (patterns) => {
-                  if (!patterns || patterns.length === 0) return 'N/A';
-                  if (shouldMaskValue(column)) return '****';
-                  
-                  // Show top 2 patterns with their percentages
-                  const topPatterns = patterns.slice(0, 2);
-                  return topPatterns.map(p => 
-                    `${p.pattern} (${p.percentage}%)`
-                  ).join(', ');
-                };
-                
-                return (
-                  <tr key={column.name}>
-                    <td>{column.name}</td>
-                    <td>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexWrap: 'wrap' }}>
-                        {columnGovernanceTags.length > 0 ? (
-                          columnGovernanceTags.map(tag => (
-                            <span 
-                              key={tag.tag_id} 
-                              className="tag-badge" 
-                              style={{ 
-                                backgroundColor: tag.tag_color || tag.color || '#3b82f6',
-                                color: 'white',
-                                padding: '2px 8px',
-                                borderRadius: '12px',
-                                fontSize: '11px',
-                                fontWeight: '500'
-                              }}
-                              title={tag.tag_name}
-                            >
-                              {tag.tag_name}
-                            </span>
-                          ))
-                        ) : (
-                          <span className="no-pii-indicator">—</span>
-                        )}
-                      </div>
-                    </td>
-                    <td>{column.type}</td>
-                    <td className="pattern-cell">{formatPatterns(column.patterns)}</td>
-                    <td>{column.unique !== undefined && column.unique !== null ? column.unique.toLocaleString() : '0'}</td>
-                    <td>{`${nullCount.toLocaleString()} (${missingPercentage}%)`}</td>
-                    <td>
-                    {shouldMaskValue(column) ? '****' : 
-                      hasMinMaxValues(column)
-                        ? column.min_is_frequent 
-                          ? `${formatMinMaxValue(column.min, column)} (occurs ${column.min_frequency || 1}x)` 
-                          : formatMinMaxValue(column.min, column)
-                        : column.least_frequent_value ? `${column.least_frequent_value} (occurs ${column.least_frequent_count || 1}x)` : 'N/A'}
-                    </td>
-                    <td>
-                    {shouldMaskValue(column) ? '****' :
-                      hasMinMaxValues(column)
-                        ? column.max_is_frequent 
-                          ? `${formatMinMaxValue(column.max, column)} (occurs ${column.max_frequency || 1}x)` 
-                          : formatMinMaxValue(column.max, column)
-                        : column.most_frequent_value ? `${column.most_frequent_value} (occurs ${column.most_frequent_count || 1}x)` : 'N/A'}
-                    </td>
+        <div className="gps-card">
+          <div className="gps-card-header">
+            <h3 className="gps-card-title">Column Details</h3>
+          </div>
+          <div className="gps-card-body">
+            <div className="gps-table-container">
+              <table className="gps-table">
+                <thead>
+                  <tr>
+                    <th>Column Name</th>
+                    <th>Governance Tags</th>
+                    <th>Data Type</th>
+                    <th>Pattern</th>
+                    <th>Unique Values</th>
+                    <th>Missing Values</th>
+                    <th>Min/Least Frequent</th>
+                    <th>Max/Most Frequent</th>
                   </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </Card>
+                </thead>
+                <tbody>
+                  {columns.map((column) => {
+                    const nullCount = column.missing || 0;
+                    const missingPercentage = Math.round((nullCount / totalRows) * 100);
+                    const columnGovernanceTags = allColumnGovernanceTags[column.name] || [];
+                    
+                    const formatPatterns = (patterns) => {
+                      if (!patterns || patterns.length === 0) return 'N/A';
+                      if (shouldMaskValue(column)) return '****';
+                      const topPatterns = patterns.slice(0, 2);
+                      return topPatterns.map(p => `${p.pattern} (${p.percentage}%)`).join(', ');
+                    };
+                    
+                    return (
+                      <tr key={column.name}>
+                        <td><span style={{ fontWeight: '500' }}>{column.name}</span></td>
+                        <td>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexWrap: 'wrap' }}>
+                            {columnGovernanceTags.length > 0 ? (
+                              columnGovernanceTags.map(tag => (
+                                <span 
+                                  key={tag.tag_id} 
+                                  className="gps-badge" 
+                                  style={{ 
+                                    backgroundColor: tag.tag_color || tag.color || '#3b82f6',
+                                    color: 'white',
+                                    fontSize: '9px',
+                                    padding: '2px 8px'
+                                  }}
+                                  title={tag.tag_name}
+                                >
+                                  {tag.tag_name}
+                                </span>
+                              ))
+                            ) : (
+                              <span style={{ color: '#94a3b8' }}>—</span>
+                            )}
+                          </div>
+                        </td>
+                        <td><span className="gps-badge gps-badge--secondary" style={{ fontSize: '9px' }}>{column.type}</span></td>
+                        <td style={{ maxWidth: '150px', overflow: 'hidden', textOverflow: 'ellipsis' }}>{formatPatterns(column.patterns)}</td>
+                        <td>{column.unique !== undefined && column.unique !== null ? column.unique.toLocaleString() : '0'}</td>
+                        <td>{`${nullCount.toLocaleString()} (${missingPercentage}%)`}</td>
+                        <td style={{ maxWidth: '180px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {shouldMaskValue(column) ? '****' : 
+                          hasMinMaxValues(column)
+                            ? column.min_is_frequent 
+                              ? `${formatMinMaxValue(column.min, column)} (occurs ${column.min_frequency || 1}x)` 
+                              : formatMinMaxValue(column.min, column)
+                            : column.least_frequent_value ? `${column.least_frequent_value} (occurs ${column.least_frequent_count || 1}x)` : 'N/A'}
+                        </td>
+                        <td style={{ maxWidth: '180px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {shouldMaskValue(column) ? '****' :
+                          hasMinMaxValues(column)
+                            ? column.max_is_frequent 
+                              ? `${formatMinMaxValue(column.max, column)} (occurs ${column.max_frequency || 1}x)` 
+                              : formatMinMaxValue(column.max, column)
+                            : column.most_frequent_value ? `${column.most_frequent_value} (occurs ${column.most_frequent_count || 1}x)` : 'N/A'}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
       </div>
     );
   };
@@ -1427,42 +1419,43 @@ function DataProfile() {
     
     return (
       <div className="distribution-tab">
-        <div className="distribution-cards">
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: '16px' }}>
           {columns.map((column) => {
             const anomalyBadges = getAnomalyBadges(column);
             const columnGovernanceTags = allColumnGovernanceTags[column.name] || [];
             
             return (
-              <Card 
+              <div 
                 key={column.name} 
-                className={hasAnomalies(column) ? 'card-with-anomaly' : ''}
+                className="gps-card"
+                style={hasAnomalies(column) ? { borderLeft: '3px solid #f59e0b' } : {}}
               >
-                <div className="distribution-card-header">
-                  <h3>
-                    <span>{column.name}</span>
+                <div className="gps-card-header" style={{ padding: '12px 16px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                    <h3 className="gps-card-title" style={{ margin: 0, fontSize: '12px' }}>{column.name}</h3>
                     {columnGovernanceTags.length > 0 && (
-                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', marginLeft: '8px' }}>
-                        {columnGovernanceTags.map(tag => (
-                          <span 
-                            key={tag.tag_id} 
-                            className="tag-badge" 
-                            style={{ 
-                              backgroundColor: tag.tag_color || tag.color || '#3b82f6',
-                              color: 'white',
-                              padding: '2px 8px',
-                              borderRadius: '12px',
-                              fontSize: '11px',
-                              fontWeight: '500'
-                            }}
-                            title={tag.tag_name}
-                          >
-                            {tag.tag_name}
-                          </span>
-                        ))}
-                      </span>
+                      columnGovernanceTags.map(tag => (
+                        <span 
+                          key={tag.tag_id} 
+                          className="gps-badge" 
+                          style={{ 
+                            backgroundColor: tag.tag_color || tag.color || '#3b82f6',
+                            color: 'white',
+                            fontSize: '9px',
+                            padding: '2px 6px'
+                          }}
+                          title={tag.tag_name}
+                        >
+                          {tag.tag_name}
+                        </span>
+                      ))
                     )}
-                    {anomalyBadges}
-                  </h3>
+                    {anomalyBadges.map((badge, i) => (
+                      <span key={i} className="gps-badge gps-badge--warning" style={{ fontSize: '9px', padding: '2px 6px' }}>
+                        {badge.props.children}
+                      </span>
+                    ))}
+                  </div>
                 </div>
                 <div className="distribution-card-content">
                 <div className="column-distribution">
@@ -1635,14 +1628,14 @@ function DataProfile() {
                       )}
                     </div>
                     <div className="histogram-footer">
-                      <div className="note">Based on actual data distribution</div>
+                      <div className="note" style={{ fontSize: '9px', color: '#94a3b8' }}>Based on actual data distribution</div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-            </Card>
-          );
+              </div>
+            );
           })}
         </div>
       </div>
@@ -1699,178 +1692,173 @@ function DataProfile() {
       filteredViolations = filteredViolations.filter(v => v.column_name === qualityFilter.column);
     }
 
-    // Check if no violations and no rules applied
     if (applied_rules.length === 0) {
       return (
-        <div className="empty-state">
+        <div className="gps-empty-state">
           <FiAlertTriangle size={48} style={{ marginBottom: '16px', opacity: 0.5 }} />
           <p>No quality rules configured</p>
-          <p className="empty-state-hint">
+          <p style={{ fontSize: '10px', color: '#94a3b8' }}>
             Configure quality rules in the Quality Rules page to validate your data
           </p>
         </div>
       );
     }
 
-    // Check if all rules passed
     if (violations.length === 0) {
       return (
         <div className="quality-rules-tab">
-          <div className="quality-summary">
-            <Card>
-              <div className="summary-stats">
-                <div className="stat success">
-                  <FiCheckCircle size={32} style={{ color: '#48bb78' }} />
-                  <div className="stat-label">All Quality Rules Passed!</div>
-                  <div className="stat-value">{summary.total_rules_applied} rules applied</div>
-                </div>
-              </div>
-            </Card>
+          <div className="gps-card" style={{ marginBottom: '16px' }}>
+            <div className="gps-card-body" style={{ textAlign: 'center', padding: '24px' }}>
+              <FiCheckCircle size={32} style={{ color: '#16a34a', marginBottom: '8px' }} />
+              <div style={{ fontSize: '14px', fontWeight: '600', color: '#16a34a' }}>All Quality Rules Passed!</div>
+              <div style={{ fontSize: '10px', color: '#666' }}>{summary.total_rules_applied} rules applied</div>
+            </div>
           </div>
           
-          <Card>
-            <h3 style={{ marginBottom: '1rem' }}>Applied Quality Rules</h3>
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Rule Name</th>
-                  <th>Type</th>
-                  <th>Severity</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {applied_rules.map((rule, idx) => (
-                  <tr key={idx}>
-                    <td>{rule.rule_name}</td>
-                    <td>
-                      <span className="badge badge-secondary">{rule.rule_type}</span>
-                    </td>
-                    <td>
-                      <span className={`severity-badge severity-${rule.severity}`}>
-                        {rule.severity}
-                      </span>
-                    </td>
-                    <td>
-                      <span className="status-badge status-success">
-                        <FiCheckCircle /> Passed
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </Card>
+          <div className="gps-card">
+            <div className="gps-card-header">
+              <h3 className="gps-card-title">Applied Quality Rules</h3>
+            </div>
+            <div className="gps-card-body">
+              <div className="gps-table-container">
+                <table className="gps-table">
+                  <thead>
+                    <tr>
+                      <th>Rule Name</th>
+                      <th>Type</th>
+                      <th>Severity</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {applied_rules.map((rule, idx) => (
+                      <tr key={idx}>
+                        <td><span style={{ fontWeight: '500' }}>{rule.rule_name}</span></td>
+                        <td><span className="gps-badge gps-badge--secondary" style={{ fontSize: '9px' }}>{rule.rule_type}</span></td>
+                        <td><span className={`gps-badge gps-badge--${rule.severity === 'critical' ? 'danger' : rule.severity === 'error' ? 'danger' : 'warning'}`} style={{ fontSize: '9px' }}>{rule.severity}</span></td>
+                        <td><span className="gps-badge gps-badge--success" style={{ fontSize: '9px' }}><FiCheckCircle size={10} style={{ marginRight: '4px' }} /> Passed</span></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
         </div>
       );
     }
 
     return (
       <div className="quality-rules-tab">
-        {/* Summary Cards */}
-        <div className="quality-summary">
-          <Card>
-            <div className="summary-stats">
-              <div className="stat">
-                <div className="stat-label" style={{ fontSize: '0.75rem' }}>Total Rules Applied</div>
-                <div className="stat-value" style={{ fontSize: '1.5rem' }}>{summary.total_rules_applied}</div>
-              </div>
-              <div className="stat success">
-                <FiCheckCircle size={20} />
-                <div className="stat-label" style={{ fontSize: '0.75rem' }}>Passed</div>
-                <div className="stat-value" style={{ fontSize: '1.5rem' }}>{summary.rules_passed}</div>
-              </div>
-              <div className="stat error">
-                <FiXCircle size={20} />
-                <div className="stat-label" style={{ fontSize: '0.75rem' }}>Failed</div>
-                <div className="stat-value" style={{ fontSize: '1.5rem' }}>{summary.rules_failed}</div>
-              </div>
-              <div className="stat">
-                <div className="stat-label" style={{ fontSize: '0.75rem' }}>Total Violations</div>
-                <div className="stat-value" style={{ fontSize: '1.5rem' }}>{summary.total_violations}</div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+          <div className="gps-card">
+            <div className="gps-card-body" style={{ padding: '16px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-around', textAlign: 'center' }}>
+                <div>
+                  <div style={{ fontSize: '10px', color: '#666' }}>Total Rules</div>
+                  <div style={{ fontSize: '20px', fontWeight: '700', color: '#333' }}>{summary.total_rules_applied}</div>
+                </div>
+                <div>
+                  <FiCheckCircle size={16} style={{ color: '#16a34a', marginBottom: '4px' }} />
+                  <div style={{ fontSize: '10px', color: '#666' }}>Passed</div>
+                  <div style={{ fontSize: '20px', fontWeight: '700', color: '#16a34a' }}>{summary.rules_passed}</div>
+                </div>
+                <div>
+                  <FiXCircle size={16} style={{ color: '#e53e3e', marginBottom: '4px' }} />
+                  <div style={{ fontSize: '10px', color: '#666' }}>Failed</div>
+                  <div style={{ fontSize: '20px', fontWeight: '700', color: '#e53e3e' }}>{summary.rules_failed}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '10px', color: '#666' }}>Violations</div>
+                  <div style={{ fontSize: '20px', fontWeight: '700', color: '#333' }}>{summary.total_violations}</div>
+                </div>
               </div>
             </div>
-          </Card>
+          </div>
           
-          <Card>
-            <h4 style={{ marginBottom: '1rem', fontSize: '0.9rem' }}>Violations by Severity</h4>
-            <div className="severity-breakdown">
-              <div className="severity-item critical">
-                <FiAlertTriangle size={20} />
-                <span className="severity-label">Critical</span>
-                <span className="severity-count">{summary.violations_by_severity.critical}</span>
-              </div>
-              <div className="severity-item error">
-                <FiXCircle size={20} />
-                <span className="severity-label">Error</span>
-                <span className="severity-count">{summary.violations_by_severity.error}</span>
-              </div>
-              <div className="severity-item warning">
-                <FiAlertTriangle size={20} />
-                <span className="severity-label">Warning</span>
-                <span className="severity-count">{summary.violations_by_severity.warning}</span>
+          <div className="gps-card">
+            <div className="gps-card-header" style={{ padding: '12px 16px' }}>
+              <h4 className="gps-card-title" style={{ fontSize: '12px' }}>Violations by Severity</h4>
+            </div>
+            <div className="gps-card-body" style={{ padding: '12px 16px' }}>
+              <div style={{ display: 'flex', gap: '16px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <FiAlertTriangle size={14} style={{ color: '#e53e3e' }} />
+                  <span style={{ fontSize: '10px' }}>Critical</span>
+                  <span className="gps-badge gps-badge--danger" style={{ fontSize: '9px' }}>{summary.violations_by_severity.critical}</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <FiXCircle size={14} style={{ color: '#dd6b20' }} />
+                  <span style={{ fontSize: '10px' }}>Error</span>
+                  <span className="gps-badge gps-badge--warning" style={{ fontSize: '9px' }}>{summary.violations_by_severity.error}</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <FiAlertTriangle size={14} style={{ color: '#f59e0b' }} />
+                  <span style={{ fontSize: '10px' }}>Warning</span>
+                  <span className="gps-badge gps-badge--info" style={{ fontSize: '9px' }}>{summary.violations_by_severity.warning}</span>
+                </div>
               </div>
             </div>
-          </Card>
+          </div>
         </div>
 
-        {/* Filters */}
-        <Card>
-          <div className="quality-filters">
-            <div className="filter-group">
-              <label>Severity</label>
-              <select 
-                value={qualityFilter.severity} 
-                onChange={(e) => setQualityFilter({...qualityFilter, severity: e.target.value})}
-                className="filter-select"
-              >
-                <option value="all">All Severities</option>
-                <option value="critical">Critical</option>
-                <option value="error">Error</option>
-                <option value="warning">Warning</option>
-              </select>
-            </div>
-            
-            <div className="filter-group">
-              <label>Rule Type</label>
-              <select 
-                value={qualityFilter.ruleType} 
-                onChange={(e) => setQualityFilter({...qualityFilter, ruleType: e.target.value})}
-                className="filter-select"
-              >
-                <option value="all">All Types</option>
-                {uniqueRuleTypes.map(type => (
-                  <option key={type} value={type}>{type}</option>
-                ))}
-              </select>
-            </div>
-            
-            {uniqueColumns.length > 0 && (
-              <div className="filter-group">
-                <label>Column</label>
+        <div className="gps-card" style={{ marginBottom: '16px' }}>
+          <div className="gps-card-body" style={{ padding: '12px 16px' }}>
+            <div className="gps-filter-row">
+              <div className="gps-filter-group">
+                <label className="gps-filter-label">Severity</label>
                 <select 
-                  value={qualityFilter.column} 
-                  onChange={(e) => setQualityFilter({...qualityFilter, column: e.target.value})}
-                  className="filter-select"
+                  value={qualityFilter.severity} 
+                  onChange={(e) => setQualityFilter({...qualityFilter, severity: e.target.value})}
+                  className="gps-form-select"
                 >
-                  <option value="all">All Columns</option>
-                  {uniqueColumns.map(col => (
-                    <option key={col} value={col}>{col}</option>
+                  <option value="all">All Severities</option>
+                  <option value="critical">Critical</option>
+                  <option value="error">Error</option>
+                  <option value="warning">Warning</option>
+                </select>
+              </div>
+              
+              <div className="gps-filter-group">
+                <label className="gps-filter-label">Rule Type</label>
+                <select 
+                  value={qualityFilter.ruleType} 
+                  onChange={(e) => setQualityFilter({...qualityFilter, ruleType: e.target.value})}
+                  className="gps-form-select"
+                >
+                  <option value="all">All Types</option>
+                  {uniqueRuleTypes.map(type => (
+                    <option key={type} value={type}>{type}</option>
                   ))}
                 </select>
               </div>
-            )}
-            
-            <div className="filter-results">
-              Showing {filteredViolations.length} of {violations.length} violations
+              
+              {uniqueColumns.length > 0 && (
+                <div className="gps-filter-group">
+                  <label className="gps-filter-label">Column</label>
+                  <select 
+                    value={qualityFilter.column} 
+                    onChange={(e) => setQualityFilter({...qualityFilter, column: e.target.value})}
+                    className="gps-form-select"
+                  >
+                    <option value="all">All Columns</option>
+                    {uniqueColumns.map(col => (
+                      <option key={col} value={col}>{col}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+              
+              <div style={{ marginLeft: 'auto', fontSize: '10px', color: '#666' }}>
+                Showing {filteredViolations.length} of {violations.length} violations
+              </div>
             </div>
           </div>
-        </Card>
+        </div>
 
-        {/* Violations Table */}
-        <Card>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-            <h3 style={{ margin: 0 }}>Quality Rule Violations</h3>
+        <div className="gps-card">
+          <div className="gps-card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h3 className="gps-card-title">Quality Rule Violations</h3>
             {filteredViolations.length > 0 && (
               <button
                 onClick={() => {
@@ -1888,80 +1876,73 @@ function DataProfile() {
                   XLSX.utils.book_append_sheet(wb, ws, 'Quality Violations');
                   XLSX.writeFile(wb, `quality-violations-${fileId}.xlsx`);
                 }}
-                className="btn btn-secondary"
-                style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+                className="gps-btn gps-btn--secondary"
+                style={{ fontSize: '10px' }}
               >
-                <FiDownload /> Export to Excel
+                <FiDownload size={12} style={{ marginRight: '4px' }} /> Export to Excel
               </button>
             )}
           </div>
-          
-          {filteredViolations.length === 0 ? (
-            <div className="empty-state">
-              <p>No violations match the selected filters</p>
-            </div>
-          ) : (
-            <div className="table-responsive">
-              <table className="data-table violations-table" style={{ fontSize: '0.8rem' }}>
-                <thead>
-                  <tr>
-                    <th style={{ fontSize: '0.75rem', fontWeight: '600' }}>Primary Key</th>
-                    <th style={{ fontSize: '0.75rem', fontWeight: '600' }}>Rule Name</th>
-                    <th style={{ fontSize: '0.75rem', fontWeight: '600' }}>Severity</th>
-                    <th style={{ fontSize: '0.75rem', fontWeight: '600' }}>Column</th>
-                    <th style={{ fontSize: '0.75rem', fontWeight: '600' }}>Expected</th>
-                    <th style={{ fontSize: '0.75rem', fontWeight: '600' }}>Actual</th>
-                    <th style={{ fontSize: '0.75rem', fontWeight: '600' }}>Type</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredViolations.map((violation, idx) => (
-                    <tr key={idx}>
-                      <td style={{ fontSize: '0.8rem' }}>
-                        {violation.primary_key_value ? (
-                          <div>
-                            <code style={{ fontSize: '0.7rem' }}>{violation.primary_key_column}</code>
-                            <div style={{ fontSize: '0.7rem', color: '#666' }}>{violation.primary_key_value}</div>
-                          </div>
-                        ) : (
-                          <span style={{ fontSize: '0.7rem', color: '#999' }}>Row {violation.row_number || 'N/A'}</span>
-                        )}
-                      </td>
-                      <td style={{ fontSize: '0.8rem' }}>
-                        <div className="rule-info">
-                          <strong style={{ fontSize: '0.8rem' }}>{violation.rule_name}</strong>
-                          {violation.rule_description && (
-                            <div className="rule-description" style={{ fontSize: '0.7rem' }}>{violation.rule_description}</div>
-                          )}
-                        </div>
-                      </td>
-                      <td style={{ fontSize: '0.8rem' }}>
-                        <span className={`severity-badge severity-${violation.severity}`} style={{ fontSize: '0.7rem', padding: '0.2rem 0.4rem' }}>
-                          {violation.severity === 'critical' && <FiAlertTriangle size={12} />}
-                          {violation.severity === 'error' && <FiXCircle size={12} />}
-                          {violation.severity === 'warning' && <FiAlertTriangle size={12} />}
-                          {violation.severity}
-                        </span>
-                      </td>
-                      <td style={{ fontSize: '0.8rem' }}>
-                        <code style={{ fontSize: '0.7rem' }}>{violation.column_name || 'N/A'}</code>
-                      </td>
-                      <td style={{ fontSize: '0.8rem' }}>
-                        <span className="expected-value" style={{ fontSize: '0.75rem' }}>{violation.expected_value}</span>
-                      </td>
-                      <td style={{ fontSize: '0.8rem' }}>
-                        <span className="actual-value" style={{ fontSize: '0.75rem' }}>{violation.actual_value}</span>
-                      </td>
-                      <td style={{ fontSize: '0.8rem' }}>
-                        <span className="badge badge-secondary" style={{ fontSize: '0.7rem', padding: '0.2rem 0.4rem' }}>{violation.rule_type}</span>
-                      </td>
+          <div className="gps-card-body">
+            {filteredViolations.length === 0 ? (
+              <div className="gps-empty-state">
+                <p>No violations match the selected filters</p>
+              </div>
+            ) : (
+              <div className="gps-table-container">
+                <table className="gps-table">
+                  <thead>
+                    <tr>
+                      <th>Primary Key</th>
+                      <th>Rule Name</th>
+                      <th>Severity</th>
+                      <th>Column</th>
+                      <th>Expected</th>
+                      <th>Actual</th>
+                      <th>Type</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </Card>
+                  </thead>
+                  <tbody>
+                    {filteredViolations.map((violation, idx) => (
+                      <tr key={idx}>
+                        <td>
+                          {violation.primary_key_value ? (
+                            <div>
+                              <code style={{ fontSize: '9px', color: '#025043' }}>{violation.primary_key_column}</code>
+                              <div style={{ fontSize: '10px', color: '#666' }}>{violation.primary_key_value}</div>
+                            </div>
+                          ) : (
+                            <span style={{ color: '#94a3b8' }}>Row {violation.row_number || 'N/A'}</span>
+                          )}
+                        </td>
+                        <td>
+                          <div>
+                            <span style={{ fontWeight: '500' }}>{violation.rule_name}</span>
+                            {violation.rule_description && (
+                              <div style={{ fontSize: '9px', color: '#666' }}>{violation.rule_description}</div>
+                            )}
+                          </div>
+                        </td>
+                        <td>
+                          <span className={`gps-badge gps-badge--${violation.severity === 'critical' ? 'danger' : violation.severity === 'error' ? 'danger' : 'warning'}`} style={{ fontSize: '9px' }}>
+                            {violation.severity === 'critical' && <FiAlertTriangle size={10} style={{ marginRight: '3px' }} />}
+                            {violation.severity === 'error' && <FiXCircle size={10} style={{ marginRight: '3px' }} />}
+                            {violation.severity === 'warning' && <FiAlertTriangle size={10} style={{ marginRight: '3px' }} />}
+                            {violation.severity}
+                          </span>
+                        </td>
+                        <td><code style={{ fontSize: '9px', color: '#025043' }}>{violation.column_name || 'N/A'}</code></td>
+                        <td style={{ maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis' }}>{violation.expected_value}</td>
+                        <td style={{ maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis' }}>{violation.actual_value}</td>
+                        <td><span className="gps-badge gps-badge--secondary" style={{ fontSize: '9px' }}>{violation.rule_type}</span></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     );
   };
