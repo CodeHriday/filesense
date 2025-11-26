@@ -782,15 +782,28 @@ def profile_vendor_file(file_path, filename, password=None, fixed_width_schema=N
         else:
             raise ValueError(f"Unsupported file type: {file_ext}")
     except Exception as load_error:
-        logger.error(f"Failed to load file {filename}: {str(load_error)}")
+        error_message = str(load_error)
+        logger.error(f"Failed to load file {filename}: {error_message}")
+        
+        # Check if this is a binary file requiring schema
+        is_binary_schema_error = 'schema definition' in error_message.lower() or 'binary' in error_message.lower()
+        user_friendly_error = error_message
+        
+        if is_binary_schema_error:
+            user_friendly_error = (
+                "This file appears to be in a binary or fixed-width format that cannot be automatically parsed. "
+                "Please re-upload with a column schema definition (specifying column names and widths) to enable profiling."
+            )
+        
         return {
             'quality_score': {'overall_score': 0, 'components': {}},
-            'issues': [{'type': 'error', 'message': f'Failed to load file: {str(load_error)}'}],
+            'issues': [{'type': 'error', 'message': f'Failed to load file: {error_message}'}],
             'header_issues': {},
             'null_value_summary': {},
             'date_format_issues': {},
             'duplicate_data': {},
-            'metadata': {'row_count': 0, 'column_count': 0, 'load_error': str(load_error)}
+            'processing_error': user_friendly_error,
+            'metadata': {'row_count': 0, 'column_count': 0, 'load_error': error_message}
         }
     
     if df is None or df.empty:

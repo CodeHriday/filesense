@@ -1098,7 +1098,8 @@ class FileProcessingWorker {
         encoding: null,
         delimiter: null,
         preview_data: flaskResult.preview_data || [],
-        format_specific: metadata.format_specific || {} // SAS labels, Avro schema, archive manifest
+        format_specific: metadata.format_specific || {}, // SAS labels, Avro schema, archive manifest
+        processing_error: flaskResult.processing_error || metadata.load_error || null // Pass through any load errors
       };
       
     } catch (error) {
@@ -1440,12 +1441,15 @@ print(json.dumps(result))
       duplicatePercentage: duplicateStats?.duplicate_percentage
     });
 
+    // Extract processing error if present (e.g., binary file that couldn't be parsed)
+    const processingError = fileInfo.processing_error || null;
+
     const query = `
       INSERT INTO files (
         file_id, filename, file_type, file_size, 
         row_count, column_count, quality_score, metadata, checksum,
-        duplicate_records_count, duplicate_records_percentage, project_id, sub_project_id, vendor_agreement_id
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+        duplicate_records_count, duplicate_records_percentage, project_id, sub_project_id, vendor_agreement_id, processing_error
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
       ON CONFLICT (file_id) 
       DO UPDATE SET
         row_count = EXCLUDED.row_count,
@@ -1457,6 +1461,7 @@ print(json.dumps(result))
         duplicate_records_percentage = EXCLUDED.duplicate_records_percentage,
         sub_project_id = EXCLUDED.sub_project_id,
         vendor_agreement_id = EXCLUDED.vendor_agreement_id,
+        processing_error = EXCLUDED.processing_error,
         updated_at = CURRENT_TIMESTAMP
       RETURNING *
     `;
@@ -1475,7 +1480,8 @@ print(json.dumps(result))
       duplicateStats?.duplicate_percentage || 0.0,
       projectId,
       subProjectId,
-      agreementId || null
+      agreementId || null,
+      processingError
     ];
 
     const result = await this.dbPool.query(query, values);
