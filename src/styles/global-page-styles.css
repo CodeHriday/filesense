@@ -876,6 +876,50 @@
 }
 
 /* ============================================
+   TABS COMPONENT
+   ============================================ */
+.gps-tabs-container {
+  display: flex;
+  flex-direction: row;
+  gap: 0;
+  margin-bottom: var(--gps-spacing-xl);
+  border-bottom: 2px solid var(--gps-border-light);
+}
+
+.gps-tab {
+  font-family: var(--gps-font-family);
+  font-size: var(--gps-font-size-content);
+  font-weight: var(--gps-font-weight-medium);
+  color: var(--gps-text-muted);
+  background: transparent;
+  border: none;
+  padding: var(--gps-spacing-md) var(--gps-spacing-xl);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+  white-space: nowrap;
+}
+
+.gps-tab:hover {
+  color: var(--gps-primary-teal);
+}
+
+.gps-tab--active {
+  color: var(--gps-primary-teal);
+  font-weight: var(--gps-font-weight-semibold);
+}
+
+.gps-tab--active::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--gps-primary-teal);
+}
+
+/* ============================================
    FORM ELEMENTS
    ============================================ */
 .gps-form-group {

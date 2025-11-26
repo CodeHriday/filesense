@@ -2139,16 +2139,16 @@ function FileUpload() {
             
             {/* Header Configuration Section - hide when fixed-width is selected */}
             {selectedProject && delimiterType !== 'fixed-width' && (
-              <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid #e0e0e0' }}>
-                <label htmlFor="has-header-checkbox" style={{ fontWeight: 'bold', display: 'block', marginBottom: '0.5rem' }}>
+              <div className="upload-subsection">
+                <label htmlFor="has-header-checkbox" className="upload-form-label">
                   Header Configuration:
                 </label>
-                <p style={{ fontSize: '0.875rem', color: '#666', marginBottom: '0.75rem' }}>
+                <p className="upload-field-desc">
                   Specify whether your file has a header row. If not, provide column names.
                 </p>
                 
-                <div style={{ marginBottom: '0.75rem' }}>
-                  <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                <div className="header-checkbox-wrapper">
+                  <label className="upload-checkbox-label">
                     <input 
                       id="has-header-checkbox"
                       type="checkbox"
@@ -2156,10 +2156,9 @@ function FileUpload() {
                       onChange={(e) => {
                         setHasHeader(e.target.checked);
                         if (e.target.checked) {
-                          setColumnNames(''); // Clear column names when header is present
+                          setColumnNames('');
                         }
                       }}
-                      style={{ marginRight: '0.5rem', cursor: 'pointer' }}
                     />
                     <span>File has a header row</span>
                   </label>
@@ -2167,25 +2166,19 @@ function FileUpload() {
                 
                 {/* Column names input (shown when hasHeader is false) */}
                 {!hasHeader && (
-                  <div>
-                    <label htmlFor="column-names-input" style={{ fontWeight: 'bold', display: 'block', marginBottom: '0.5rem' }}>
+                  <div className="column-names-section">
+                    <label htmlFor="column-names-input" className="upload-form-label">
                       Enter Column Names (comma-separated):
                     </label>
                     <input 
                       id="column-names-input"
+                      className="gps-form-input column-names-input"
                       type="text"
                       value={columnNames}
                       onChange={(e) => setColumnNames(e.target.value)}
                       placeholder="e.g., PatientID, Name, DOB, Visit Date"
-                      style={{
-                        width: '100%',
-                        padding: '0.5rem',
-                        borderRadius: '4px',
-                        border: '1px solid #ccc',
-                        fontFamily: 'monospace'
-                      }}
                     />
-                    <div style={{ fontSize: '0.75rem', color: '#666', marginTop: '0.5rem' }}>
+                    <div className="upload-field-hint">
                       Separate column names with commas. These will be used as headers for your data.
                     </div>
                   </div>
@@ -2194,7 +2187,7 @@ function FileUpload() {
             )}
 
             {!selectedProject && (
-              <div style={{ marginTop: '0.75rem', color: '#e74c3c', fontSize: '0.875rem' }}>
+              <div className="project-required-warning">
                 Please select a project to upload files
               </div>
             )}
@@ -2592,19 +2585,18 @@ function FileUpload() {
           hasWritePermission('file_drop') ? (
             <>
               {/* Vendor Project and Connection Selection */}
-              <div style={{ padding: '1rem', background: '#f8f9fa', marginBottom: '1rem', border: '1px solid #ddd', borderRadius: '8px' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <div className="upload-form-section">
+                <div className="dropfile-form-container">
                   {/* Project Selection */}
-                  <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
-                      <label htmlFor="vendor-project-select" style={{ fontWeight: 'bold', whiteSpace: 'nowrap' }}>
-                        Project: <span style={{ color: '#e74c3c' }}>*</span>
+                  <div className="dropfile-field">
+                    <div className="dropfile-label-row">
+                      <label htmlFor="vendor-project-select" className="upload-form-label">
+                        Project: <span className="required-indicator">*</span>
                       </label>
                       {!loadingVendorProjects && vendorProjects.length === 0 && (
                         <button 
-                          className="btn btn-sm btn-primary"
+                          className="gps-btn gps-btn--primary gps-btn--sm"
                           onClick={loadVendorProjects}
-                          style={{ marginLeft: 'auto' }}
                         >
                           Load My Projects
                         </button>
@@ -2612,6 +2604,7 @@ function FileUpload() {
                     </div>
                     <select 
                       id="vendor-project-select"
+                      className="gps-form-select"
                       value={selectedVendorProject || ''}
                       onChange={(e) => {
                         const projectId = Number(e.target.value);
@@ -2624,13 +2617,6 @@ function FileUpload() {
                         }
                       }}
                       disabled={loadingVendorProjects || vendorProjects.length === 0}
-                      style={{
-                        width: '100%',
-                        padding: '0.5rem',
-                        borderRadius: '4px',
-                        border: '1px solid #ccc',
-                        cursor: 'pointer'
-                      }}
                     >
                       {loadingVendorProjects ? (
                         <option>Loading projects...</option>
@@ -2651,12 +2637,13 @@ function FileUpload() {
 
                   {/* Connection Selection */}
                   {selectedVendorProject && (
-                    <div>
-                      <label htmlFor="vendor-connection-select" style={{ fontWeight: 'bold', display: 'block', marginBottom: '0.5rem' }}>
-                        Connection: <span style={{ color: '#e74c3c' }}>*</span>
+                    <div className="dropfile-field">
+                      <label htmlFor="vendor-connection-select" className="upload-form-label">
+                        Connection: <span className="required-indicator">*</span>
                       </label>
                       <select 
                         id="vendor-connection-select"
+                        className="gps-form-select"
                         value={selectedConnection || ''}
                         onChange={(e) => {
                           setSelectedConnection(e.target.value);
@@ -2664,13 +2651,6 @@ function FileUpload() {
                           setBrowseFolders([]);
                         }}
                         disabled={loadingConnections || vendorConnections.length === 0}
-                        style={{
-                          width: '100%',
-                          padding: '0.5rem',
-                          borderRadius: '4px',
-                          border: '1px solid #ccc',
-                          cursor: 'pointer'
-                        }}
                       >
                         {loadingConnections ? (
                           <option>Loading connections...</option>

@@ -377,6 +377,163 @@
   margin-top: 6px;
 }
 
+/* Header Configuration */
+.header-checkbox-wrapper {
+  margin-bottom: 12px;
+}
+
+.upload-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 10px;
+  color: #333;
+}
+
+.upload-checkbox-label input[type="checkbox"] {
+  cursor: pointer;
+  accent-color: #025043;
+}
+
+.column-names-section {
+  margin-top: 12px;
+}
+
+.column-names-input {
+  font-family: 'Monaco', 'Menlo', monospace;
+}
+
+.upload-field-hint {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 9px;
+  color: #666;
+  margin-top: 6px;
+}
+
+.project-required-warning {
+  margin-top: 12px;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 10px;
+  color: #e53e3e;
+}
+
+/* Drop File Tab Styles */
+.dropfile-form-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.dropfile-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.dropfile-label-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dropfile-label-row .gps-btn {
+  margin-left: auto;
+}
+
+/* Connection Details Box */
+.connection-details-box {
+  background: white;
+  padding: 12px;
+  border-radius: 4px;
+  border: 1px solid #e2e8f0;
+}
+
+.connection-path-info {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 10px;
+  color: #666;
+  margin-bottom: 8px;
+}
+
+.connection-path-info strong {
+  color: #333;
+}
+
+/* Folder Browser */
+.folder-browser {
+  margin-top: 16px;
+  max-height: 200px;
+  overflow-y: auto;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  padding: 8px;
+}
+
+.folder-breadcrumb {
+  margin-bottom: 8px;
+}
+
+.folder-path-info {
+  margin-bottom: 8px;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 10px;
+  color: #333;
+}
+
+.folder-path-value {
+  font-weight: 600;
+  color: #025043;
+}
+
+.folder-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.folder-item {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 10px;
+  padding: 6px 8px;
+  background: #f8f9fa;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #333;
+  border: 1px solid transparent;
+  transition: all 0.2s;
+}
+
+.folder-item:hover {
+  background: #e2e8f0;
+  border-color: #025043;
+}
+
+/* Dropzone Placeholder */
+.dropzone-placeholder {
+  padding: 48px;
+  border: 2px dashed #cbd5e0;
+  border-radius: 8px;
+  text-align: center;
+  color: #999;
+  background: #f9fafb;
+}
+
+.dropzone-placeholder-icon {
+  margin-bottom: 16px;
+  opacity: 0.5;
+}
+
+.dropzone-placeholder-text {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 12px;
+  margin: 0;
+}
+
 .access-denied-message {
   background-color: var(--bg-surface);
   border: 1px dashed var(--border-medium);
