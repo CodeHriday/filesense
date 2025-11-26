@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { FiEye, FiDownload, FiCheckCircle, FiAlertTriangle, FiGitBranch } from 'react-icons/fi';
 import axios from 'axios';
 import LoadingSpinner from '../components/LoadingSpinner';
+import '../styles/global-page-styles.css';
 import '../styles/VendorFileQuality.css';
 
 function VendorFileQuality() {
