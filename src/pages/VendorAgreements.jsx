@@ -2453,8 +2453,8 @@ const VendorAgreements = () => {
                             {selectedAgreement.owner_username && selectedAgreement.owner_email ? ` (${selectedAgreement.owner_email})` : ''}
                           </span>
                         </div>
-                        <div className="detail-item full-width" style={{ marginTop: '1rem', borderTop: '1px solid #e5e7eb', paddingTop: '1rem' }}>
-                          <label style={{ fontSize: '1.1rem', fontWeight: '600', color: '#025043' }}>Primary Contact</label>
+                        <div className="detail-item full-width detail-section-header">
+                          <label>Primary Contact</label>
                         </div>
                         <div className="detail-item">
                           <label>Name:</label>
@@ -2472,8 +2472,8 @@ const VendorAgreements = () => {
                           <label>Designation:</label>
                           <span>{selectedAgreement.primary_contact_designation || '-'}</span>
                         </div>
-                        <div className="detail-item full-width" style={{ marginTop: '1rem', borderTop: '1px solid #e5e7eb', paddingTop: '1rem' }}>
-                          <label style={{ fontSize: '1.1rem', fontWeight: '600', color: '#025043' }}>Secondary Contact</label>
+                        <div className="detail-item full-width detail-section-header">
+                          <label>Secondary Contact</label>
                         </div>
                         <div className="detail-item">
                           <label>Name:</label>
@@ -2548,12 +2548,12 @@ const VendorAgreements = () => {
                                 <td>{approval.comments || '-'}</td>
                                 <td>
                                   {approval.documents && approval.documents.length > 0 ? (
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                    <div className="document-list">
                                       {approval.documents.map((doc, docIndex) => (
-                                        <div key={docIndex} style={{ fontSize: '0.85rem' }}>
+                                        <div key={docIndex} className="document-item">
                                           📎 <a 
                                             href="#"
-                                            style={{ color: '#0066cc', textDecoration: 'underline', cursor: 'pointer' }}
+                                            className="document-link"
                                             onClick={(e) => {
                                               e.preventDefault();
                                               const token = localStorage.getItem('token');
@@ -2647,12 +2647,12 @@ const VendorAgreements = () => {
                 
                 {/* Success/Error Messages at Bottom of Modal */}
                 {detailModalSuccess && (
-                  <div className="modal-success-message" role="alert" style={{ marginTop: '1rem', padding: '12px 16px', backgroundColor: '#e6f4ea', color: '#137333', borderRadius: '5px', fontSize: '14px' }}>
+                  <div className="modal-success-message" role="alert">
                     {detailModalSuccess}
                   </div>
                 )}
                 {detailModalError && (
-                  <div className="modal-error-message" role="alert" style={{ marginTop: '1rem', padding: '12px 16px', backgroundColor: '#fce8e6', color: '#d93025', borderRadius: '5px', fontSize: '14px' }}>
+                  <div className="modal-error-message" role="alert">
                     {detailModalError}
                   </div>
                 )}

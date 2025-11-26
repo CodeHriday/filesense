@@ -245,29 +245,30 @@
 .file-configs-list {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: var(--gps-spacing-md, 8px);
 }
 
 .file-config-item {
-  background: white;
-  border: 1px solid #e5e7eb;
-  border-radius: 6px;
-  padding: 1rem;
+  background: var(--gps-bg-white, #ffffff);
+  border: 1px solid var(--gps-border-light, #e2e8f0);
+  border-radius: var(--gps-radius-md, 6px);
+  padding: var(--gps-spacing-lg, 12px);
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  gap: 1rem;
+  gap: var(--gps-spacing-lg, 12px);
   transition: all 0.2s ease;
+  font-family: var(--gps-font-family, 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
 }
 
 .file-config-item:hover {
-  border-color: #3b82f6;
-  box-shadow: 0 2px 4px rgba(59, 130, 246, 0.1);
+  border-color: var(--gps-primary-teal, #025043);
+  box-shadow: 0 2px 4px rgba(2, 80, 67, 0.1);
 }
 
 .file-config-item.editing {
-  border-color: #3b82f6;
-  background: #eff6ff;
+  border-color: var(--gps-primary-teal, #025043);
+  background: rgba(2, 80, 67, 0.03);
 }
 
 .config-main-info {
@@ -277,37 +278,41 @@
 .config-pattern {
   display: flex;
   align-items: center;
-  gap: 0.625rem;
-  margin-bottom: 0.375rem;
+  gap: var(--gps-spacing-md, 8px);
+  margin-bottom: var(--gps-spacing-sm, 6px);
 }
 
 .pattern-icon-inline {
-  color: #3b82f6;
-  font-size: 1rem;
+  color: var(--gps-primary-teal, #025043);
+  font-size: 14px;
 }
 
 .config-pattern strong {
-  font-size: 0.9375rem;
-  color: #1f2937;
+  font-family: var(--gps-font-family, 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
+  font-size: 12px;
+  font-weight: var(--gps-font-weight-semibold, 600);
+  color: var(--gps-text-dark, #333333);
 }
 
 .priority-badge-inline {
-  background: #dbeafe;
-  color: #1e40af;
-  padding: 0.1875rem 0.5rem;
+  background: rgba(2, 80, 67, 0.1);
+  color: var(--gps-primary-teal, #025043);
+  padding: 2px 8px;
   border-radius: 10px;
-  font-size: 0.75rem;
-  font-weight: 500;
+  font-family: var(--gps-font-family, 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
+  font-size: 10px;
+  font-weight: var(--gps-font-weight-medium, 500);
 }
 
 .config-description {
-  font-size: 0.875rem;
-  color: #6b7280;
-  margin-bottom: 0.375rem;
+  font-family: var(--gps-font-family, 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
+  font-size: 11px;
+  color: var(--gps-text-muted, #666666);
+  margin-bottom: var(--gps-spacing-sm, 6px);
 }
 
 .config-schema-preview {
-  margin-top: 0.5rem;
+  margin-top: var(--gps-spacing-md, 8px);
 }
 
 .config-schema-preview details {
@@ -315,58 +320,60 @@
 }
 
 .config-schema-preview summary {
-  font-size: 0.8125rem;
-  color: #3b82f6;
-  font-weight: 500;
-  padding: 0.25rem;
+  font-family: var(--gps-font-family, 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
+  font-size: 11px;
+  color: var(--gps-primary-teal, #025043);
+  font-weight: var(--gps-font-weight-medium, 500);
+  padding: 4px;
   user-select: none;
 }
 
 .config-schema-preview summary:hover {
-  background: #eff6ff;
-  border-radius: 4px;
+  background: rgba(2, 80, 67, 0.05);
+  border-radius: var(--gps-radius-sm, 4px);
 }
 
 .config-schema-preview pre {
-  background: #f9fafb;
-  border: 1px solid #e5e7eb;
-  border-radius: 4px;
-  padding: 0.625rem;
-  margin-top: 0.375rem;
-  font-size: 0.75rem;
+  background: var(--gps-bg-page, #f7fafc);
+  border: 1px solid var(--gps-border-light, #e2e8f0);
+  border-radius: var(--gps-radius-sm, 4px);
+  padding: var(--gps-spacing-md, 8px);
+  margin-top: var(--gps-spacing-sm, 6px);
+  font-family: 'Courier New', monospace;
+  font-size: 10px;
   overflow-x: auto;
   max-height: 200px;
 }
 
 .config-actions {
   display: flex;
-  gap: 0.375rem;
+  gap: var(--gps-spacing-sm, 6px);
 }
 
 .btn-edit-config,
 .btn-delete-config {
-  background: white;
-  border: 1px solid #d1d5db;
-  padding: 0.375rem;
-  border-radius: 4px;
+  background: var(--gps-bg-white, #ffffff);
+  border: 1px solid var(--gps-border-input, #cbd5e0);
+  padding: var(--gps-spacing-sm, 6px);
+  border-radius: var(--gps-radius-sm, 4px);
   cursor: pointer;
-  color: #6b7280;
+  color: var(--gps-text-muted, #666666);
   transition: all 0.2s ease;
   display: flex;
   align-items: center;
-  font-size: 0.875rem;
+  font-size: 14px;
 }
 
 .btn-edit-config:hover:not(:disabled) {
-  background: #eff6ff;
-  color: #3b82f6;
-  border-color: #3b82f6;
+  background: rgba(2, 80, 67, 0.05);
+  color: var(--gps-primary-teal, #025043);
+  border-color: var(--gps-primary-teal, #025043);
 }
 
 .btn-delete-config:hover:not(:disabled) {
   background: #fef2f2;
-  color: #dc2626;
-  border-color: #dc2626;
+  color: var(--gps-danger-red, #e53e3e);
+  border-color: var(--gps-danger-red, #e53e3e);
 }
 
 .btn-edit-config:disabled,
@@ -377,38 +384,39 @@
 
 /* Governance Section Styles */
 .governance-section {
-  background: #f9fafb;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  padding: 1.25rem;
-  margin-top: 0.75rem;
+  background: var(--gps-bg-page, #f7fafc);
+  border: 1px solid var(--gps-border-light, #e2e8f0);
+  border-radius: var(--gps-radius-md, 6px);
+  padding: var(--gps-spacing-lg, 12px);
+  margin-top: var(--gps-spacing-md, 8px);
 }
 
 .governance-header {
   display: flex;
   align-items: center;
-  gap: 0.625rem;
-  margin-bottom: 1rem;
-  padding-bottom: 0.75rem;
-  border-bottom: 1px solid #e5e7eb;
+  gap: var(--gps-spacing-md, 8px);
+  margin-bottom: var(--gps-spacing-lg, 12px);
+  padding-bottom: var(--gps-spacing-md, 8px);
+  border-bottom: 1px solid var(--gps-border-light, #e2e8f0);
 }
 
 .governance-icon {
-  color: #3b82f6;
-  font-size: 1.125rem;
+  color: var(--gps-primary-teal, #025043);
+  font-size: 14px;
 }
 
 .governance-header h5 {
   margin: 0;
-  font-size: 0.9375rem;
-  font-weight: 600;
-  color: #1f2937;
+  font-family: var(--gps-font-family, 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
+  font-size: 12px;
+  font-weight: var(--gps-font-weight-semibold, 600);
+  color: var(--gps-text-dark, #333333);
 }
 
 .governance-controls {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 1rem;
+  gap: var(--gps-spacing-lg, 12px);
 }
 
 .governance-controls .form-group.full-width {
@@ -418,83 +426,85 @@
 .checkbox-label {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: var(--gps-spacing-sm, 6px);
   cursor: pointer;
-  font-weight: 500;
-  color: #374151;
+  font-family: var(--gps-font-family, 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
+  font-weight: var(--gps-font-weight-medium, 500);
+  color: var(--gps-text-dark, #333333);
   user-select: none;
 }
 
 .checkbox-label input[type="checkbox"] {
-  width: 1rem;
-  height: 1rem;
+  width: 14px;
+  height: 14px;
   cursor: pointer;
-  accent-color: #3b82f6;
+  accent-color: var(--gps-primary-teal, #025043);
 }
 
 .checkbox-label span {
-  font-size: 0.875rem;
+  font-size: 11px;
 }
 
 /* Quality Rules Selector */
 .quality-rules-selector {
-  background: white;
-  border: 1px solid #d1d5db;
-  border-radius: 6px;
-  padding: 0.75rem;
-  max-height: 250px;
+  background: var(--gps-bg-white, #ffffff);
+  border: 1px solid var(--gps-border-input, #cbd5e0);
+  border-radius: var(--gps-radius-md, 6px);
+  padding: var(--gps-spacing-md, 8px);
+  max-height: 200px;
   overflow-y: auto;
 }
 
 .quality-rules-list {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: var(--gps-spacing-sm, 6px);
 }
 
 .quality-rule-item {
   display: flex;
   align-items: center;
-  gap: 0.625rem;
-  padding: 0.5rem 0.625rem;
-  background: #f9fafb;
-  border: 1px solid #e5e7eb;
-  border-radius: 6px;
+  gap: var(--gps-spacing-md, 8px);
+  padding: var(--gps-spacing-sm, 6px) var(--gps-spacing-md, 8px);
+  background: var(--gps-bg-page, #f7fafc);
+  border: 1px solid var(--gps-border-light, #e2e8f0);
+  border-radius: var(--gps-radius-sm, 4px);
   cursor: pointer;
   transition: all 0.2s ease;
   user-select: none;
+  font-family: var(--gps-font-family, 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
 }
 
 .quality-rule-item:hover {
-  background: #eff6ff;
-  border-color: #3b82f6;
+  background: rgba(2, 80, 67, 0.05);
+  border-color: var(--gps-primary-teal, #025043);
 }
 
 .quality-rule-item input[type="checkbox"] {
-  width: 1rem;
-  height: 1rem;
+  width: 14px;
+  height: 14px;
   cursor: pointer;
-  accent-color: #3b82f6;
+  accent-color: var(--gps-primary-teal, #025043);
 }
 
 .quality-rule-item .rule-name {
   flex: 1;
-  font-size: 0.875rem;
-  color: #1f2937;
-  font-weight: 500;
+  font-size: 11px;
+  color: var(--gps-text-dark, #333333);
+  font-weight: var(--gps-font-weight-medium, 500);
 }
 
 .quality-rule-item .severity-badge {
-  padding: 0.125rem 0.5rem;
+  padding: 2px 8px;
   border-radius: 10px;
-  font-size: 0.75rem;
-  font-weight: 600;
+  font-size: 9px;
+  font-weight: var(--gps-font-weight-semibold, 600);
   text-transform: uppercase;
 }
 
 .severity-badge.severity-critical {
-  background: #fee2e2;
-  color: #991b1b;
+  background: rgba(229, 62, 62, 0.1);
+  color: var(--gps-danger-red, #e53e3e);
 }
 
 .severity-badge.severity-high {
@@ -503,45 +513,48 @@
 }
 
 .severity-badge.severity-medium {
-  background: #dbeafe;
-  color: #1e40af;
+  background: rgba(2, 80, 67, 0.1);
+  color: var(--gps-primary-teal, #025043);
 }
 
 .severity-badge.severity-low {
-  background: #d1fae5;
-  color: #065f46;
+  background: rgba(56, 161, 105, 0.1);
+  color: var(--gps-success-green, #38a169);
 }
 
 .no-rules-message {
-  color: #9ca3af;
+  color: var(--gps-text-muted, #666666);
+  font-family: var(--gps-font-family, 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
+  font-size: 10px;
   font-style: italic;
   display: block;
   text-align: center;
-  padding: 0.5rem;
+  padding: var(--gps-spacing-sm, 6px);
 }
 
 /* Governance Badges Display */
 .governance-badges {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
-  margin-top: 0.625rem;
-  margin-bottom: 0.375rem;
+  gap: var(--gps-spacing-sm, 6px);
+  margin-top: var(--gps-spacing-md, 8px);
+  margin-bottom: var(--gps-spacing-sm, 6px);
 }
 
 .governance-badge {
   display: inline-flex;
   align-items: center;
-  gap: 0.375rem;
-  padding: 0.25rem 0.625rem;
+  gap: 4px;
+  padding: 2px 8px;
   border-radius: 12px;
-  font-size: 0.75rem;
-  font-weight: 600;
+  font-family: var(--gps-font-family, 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
+  font-size: 10px;
+  font-weight: var(--gps-font-weight-semibold, 600);
   line-height: 1.2;
 }
 
 .governance-badge svg {
-  font-size: 0.875rem;
+  font-size: 12px;
 }
 
 .pii-badge {
@@ -555,15 +568,15 @@
 }
 
 .classification-public {
-  background: #d1fae5;
-  color: #065f46;
-  border-color: #6ee7b7;
+  background: rgba(56, 161, 105, 0.1);
+  color: var(--gps-success-green, #38a169);
+  border-color: rgba(56, 161, 105, 0.3);
 }
 
 .classification-internal {
-  background: #dbeafe;
-  color: #1e40af;
-  border-color: #93c5fd;
+  background: rgba(2, 80, 67, 0.1);
+  color: var(--gps-primary-teal, #025043);
+  border-color: rgba(2, 80, 67, 0.3);
 }
 
 .classification-confidential {
@@ -573,13 +586,13 @@
 }
 
 .classification-highly-confidential {
-  background: #fee2e2;
-  color: #991b1b;
-  border-color: #fca5a5;
+  background: rgba(229, 62, 62, 0.1);
+  color: var(--gps-danger-red, #e53e3e);
+  border-color: rgba(229, 62, 62, 0.3);
 }
 
 .quality-badge {
-  background: #e0e7ff;
-  color: #3730a3;
-  border: 1px solid #a5b4fc;
+  background: rgba(2, 80, 67, 0.1);
+  color: var(--gps-primary-teal, #025043);
+  border: 1px solid rgba(2, 80, 67, 0.3);
 }
