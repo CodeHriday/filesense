@@ -142,12 +142,23 @@ const analyzeColumnQuality = (column, totalRows) => {
     });
   }
   
-  // High null values check
-  if (missingPercentage > 10) {
+  // Missing values check - highlight ALL missing values with severity based on percentage
+  if (nullCount > 0) {
+    let severity = 'info';
+    let label = 'Has Nulls';
+    
+    if (missingPercentage > 50) {
+      severity = 'danger';
+      label = 'Critical Nulls';
+    } else if (missingPercentage > 10) {
+      severity = 'warning';
+      label = 'High Nulls';
+    }
+    
     issues.push({
-      type: 'highnulls',
-      severity: missingPercentage > 50 ? 'danger' : 'warning',
-      label: 'High Nulls',
+      type: 'missingvalues',
+      severity,
+      label,
       detail: `${missingPercentage.toFixed(1)}% missing`,
       tooltip: `${nullCount.toLocaleString()} of ${totalRows.toLocaleString()} values (${missingPercentage.toFixed(1)}%) are null or missing`
     });
