@@ -151,7 +151,25 @@
 .password-input {
   width: 100%;
   padding-right: 40px !important;
-  font-family: 'Monaco', 'Menlo', monospace;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 10px;
+  padding: 10px 40px 10px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  background: white;
+  color: #333;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.password-input:focus {
+  outline: none;
+  border-color: #025043;
+  box-shadow: 0 0 0 2px rgba(2, 80, 67, 0.1);
+}
+
+.password-input::placeholder {
+  color: #9ca3af;
+  font-style: normal;
 }
 
 .password-toggle-btn {
@@ -166,6 +184,7 @@
   display: flex;
   align-items: center;
   color: #666;
+  transition: color 0.2s ease;
 }
 
 .password-toggle-btn:hover {
@@ -424,12 +443,20 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
 .dropfile-field {
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+
+.dropfile-field .upload-form-label {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+  color: #333;
 }
 
 .dropfile-label-row {
@@ -440,6 +467,9 @@
 
 .dropfile-label-row .gps-btn {
   margin-left: auto;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 10px;
+  font-weight: 500;
 }
 
 /* Connection Details Box */
@@ -516,21 +546,23 @@
 /* Dropzone Placeholder */
 .dropzone-placeholder {
   padding: 48px;
-  border: 2px dashed #cbd5e0;
+  border: 2px dashed #d1d5db;
   border-radius: 8px;
   text-align: center;
-  color: #999;
-  background: #f9fafb;
+  background: #fafafa;
+  transition: border-color 0.2s ease;
 }
 
 .dropzone-placeholder-icon {
   margin-bottom: 16px;
-  opacity: 0.5;
+  color: #025043;
+  opacity: 0.6;
 }
 
 .dropzone-placeholder-text {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  font-size: 12px;
+  font-size: 10px;
+  color: #666;
   margin: 0;
 }
 
