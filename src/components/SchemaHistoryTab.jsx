@@ -810,97 +810,105 @@ function SchemaHistoryTab({ fileId }) {
               })()}
             </div>
 
-            <div className="compare-grid" style={{ gridTemplateColumns: `repeat(${selectedForCompare.length}, 1fr)` }}>
-              {selectedForCompare
-                .sort((a, b) => new Date(b.capturedAt) - new Date(a.capturedAt))
-                .map((snapshot, fileIdx) => {
-                  const allColumnNames = [];
-                  selectedForCompare.forEach(s => {
-                    (s.schema?.columns || []).forEach(c => {
-                      if (!allColumnNames.includes(c.name)) {
-                        allColumnNames.push(c.name);
-                      }
-                    });
-                  });
+            {(() => {
+              const sortedSnapshots = [...selectedForCompare].sort((a, b) => 
+                new Date(b.capturedAt) - new Date(a.capturedAt)
+              );
+              
+              const allColumnNames = [];
+              sortedSnapshots.forEach(s => {
+                (s.schema?.columns || []).forEach(c => {
+                  if (!allColumnNames.includes(c.name)) {
+                    allColumnNames.push(c.name);
+                  }
+                });
+              });
 
-                  const snapshotColumns = snapshot.schema?.columns || [];
-                  const snapshotColNames = new Set(snapshotColumns.map(c => c.name));
-                  const snapshotColMap = {};
-                  snapshotColumns.forEach(c => { snapshotColMap[c.name] = c; });
+              const snapshotMaps = sortedSnapshots.map(snapshot => {
+                const cols = snapshot.schema?.columns || [];
+                const colNames = new Set(cols.map(c => c.name));
+                const colMap = {};
+                cols.forEach(c => { colMap[c.name] = c; });
+                return { snapshot, colNames, colMap, cols };
+              });
 
-                  return (
-                    <div key={snapshot.id} className="compare-panel">
-                      <div className="compare-panel-header">
-                        <span className="panel-label">Upload {fileIdx + 1}</span>
-                        <span className="panel-date">{formatDate(snapshot.capturedAt)}</span>
-                        <span className="panel-stats">
-                          {snapshot.columnCount || snapshotColumns.length} cols • {snapshot.rowCount?.toLocaleString() || 'N/A'} rows
-                        </span>
+              return (
+                <div className="compare-grid" style={{ gridTemplateColumns: `repeat(${sortedSnapshots.length}, 1fr)` }}>
+                  {snapshotMaps.map((item, fileIdx) => {
+                    const { snapshot, colNames, colMap, cols } = item;
+                    
+                    return (
+                      <div key={snapshot.id} className="compare-panel">
+                        <div className="compare-panel-header">
+                          <span className="panel-label">Upload {fileIdx + 1}</span>
+                          <span className="panel-date">{formatDate(snapshot.capturedAt)}</span>
+                          <span className="panel-stats">
+                            {snapshot.columnCount || cols.length} cols • {snapshot.rowCount?.toLocaleString() || 'N/A'} rows
+                          </span>
+                        </div>
+                        <div className="compare-panel-body">
+                          <table className="compare-table">
+                            <thead>
+                              <tr>
+                                <th>Column Name</th>
+                                <th>Type</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {allColumnNames.map((colName, colIdx) => {
+                                const col = colMap[colName];
+                                const exists = colNames.has(colName);
+                                
+                                const existsInOthers = snapshotMaps.some((other, otherIdx) => {
+                                  if (otherIdx === fileIdx) return false;
+                                  return other.colNames.has(colName);
+                                });
+                                
+                                const typesInOthers = snapshotMaps
+                                  .filter((_, otherIdx) => otherIdx !== fileIdx)
+                                  .map(other => other.colMap[colName]?.type)
+                                  .filter(Boolean);
+                                
+                                const hasTypeMismatch = exists && typesInOthers.length > 0 && 
+                                  typesInOthers.some(t => t !== col?.type);
+                                
+                                let rowClass = '';
+                                if (!exists && existsInOthers) {
+                                  rowClass = 'compare-row-missing';
+                                } else if (exists && !existsInOthers) {
+                                  rowClass = 'compare-row-unique';
+                                } else if (hasTypeMismatch) {
+                                  rowClass = 'compare-row-mismatch';
+                                }
+                                
+                                return (
+                                  <tr key={colIdx} className={rowClass}>
+                                    <td className="col-name">
+                                      {exists ? colName : <span className="missing-col">{colName}</span>}
+                                      {!exists && existsInOthers && <span className="diff-badge-removed">Missing</span>}
+                                      {exists && !existsInOthers && <span className="diff-badge-added">Unique</span>}
+                                    </td>
+                                    <td className="col-type">
+                                      {exists ? (
+                                        <span className={`type-badge ${hasTypeMismatch ? 'type-mismatch' : ''}`}>
+                                          {col.type}
+                                        </span>
+                                      ) : (
+                                        <span className="type-na">—</span>
+                                      )}
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
                       </div>
-                      <div className="compare-panel-body">
-                        <table className="compare-table">
-                          <thead>
-                            <tr>
-                              <th>Column Name</th>
-                              <th>Type</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {allColumnNames.map((colName, colIdx) => {
-                              const col = snapshotColMap[colName];
-                              const exists = snapshotColNames.has(colName);
-                              
-                              const existsInOthers = selectedForCompare.some((other, otherIdx) => {
-                                if (otherIdx === fileIdx) return false;
-                                return (other.schema?.columns || []).some(c => c.name === colName);
-                              });
-                              
-                              const typesInOthers = selectedForCompare
-                                .filter((_, otherIdx) => otherIdx !== fileIdx)
-                                .map(other => {
-                                  const otherCol = (other.schema?.columns || []).find(c => c.name === colName);
-                                  return otherCol?.type;
-                                })
-                                .filter(Boolean);
-                              
-                              const hasTypeMismatch = exists && typesInOthers.length > 0 && 
-                                typesInOthers.some(t => t !== col?.type);
-                              
-                              let rowClass = '';
-                              if (!exists && existsInOthers) {
-                                rowClass = 'compare-row-missing';
-                              } else if (exists && !existsInOthers) {
-                                rowClass = 'compare-row-unique';
-                              } else if (hasTypeMismatch) {
-                                rowClass = 'compare-row-mismatch';
-                              }
-                              
-                              return (
-                                <tr key={colIdx} className={rowClass}>
-                                  <td className="col-name">
-                                    {exists ? colName : <span className="missing-col">{colName}</span>}
-                                    {!exists && existsInOthers && <span className="diff-badge-removed">Missing</span>}
-                                    {exists && !existsInOthers && <span className="diff-badge-added">Unique</span>}
-                                  </td>
-                                  <td className="col-type">
-                                    {exists ? (
-                                      <span className={`type-badge ${hasTypeMismatch ? 'type-mismatch' : ''}`}>
-                                        {col.type}
-                                      </span>
-                                    ) : (
-                                      <span className="type-na">—</span>
-                                    )}
-                                  </td>
-                                </tr>
-                              );
-                            })}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                  );
-                })}
-            </div>
+                    );
+                  })}
+                </div>
+              );
+            })()}
 
             <div className="compare-legend">
               <span className="legend-item">
