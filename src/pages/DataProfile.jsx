@@ -1037,106 +1037,123 @@ function DataProfile() {
       <div className="profile-overview">
         
         {headerValidation && hasHeaderIssues && (
-          <Card title="Header Validation">
-            <div className="header-validation-container">
-              <div className="header-validation-status">
-                {getHeaderStatusIcon()}
-                <div className="status-text">
-                  <h4>
-                    {headerValidation.status === 'healthy' ? 'Healthy' : 
-                     headerValidation.status === 'warning' ? 'Warning' : 'Critical'}
-                  </h4>
-                  <p>
-                    {(headerValidation.issues_found || 0) === 0
-                      ? 'No header issues detected' 
-                      : `${headerValidation.issues_found} issue${headerValidation.issues_found > 1 ? 's' : ''} found`}
-                  </p>
-                </div>
-                <div className="health-score">
-                  <span className={`score ${headerValidation.status}`}>
-                    {headerValidation.health_score || 0}%
-                  </span>
-                  <span className="score-label">Health Score</span>
-                </div>
-              </div>
-              
-              {hasHeaderIssues && headerValidation.issues && headerValidation.issues.length > 0 && (
-                <div className="header-validation-issues">
-                  <h5>Issues Detected:</h5>
-                  {headerValidation.issues.map((issue, index) => (
-                    <div key={index} className={`issue-item ${issue.severity}`}>
-                      <div className="issue-header">
-                        <span className={`severity-badge ${issue.severity}`}>
-                          {issue.severity === 'high' ? 'High' : 'Medium'}
-                        </span>
-                        <span className="issue-type">
-                          {issue.issue_type?.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                        </span>
-                      </div>
-                      <div className="issue-message">{issue.message}</div>
-                      {issue.recommendation && (
-                        <div className="issue-recommendation">
-                          <strong>Recommendation:</strong> {issue.recommendation}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
+          <div className="gps-card" style={{ marginBottom: '16px' }}>
+            <div className="gps-card-header">
+              <h3 className="gps-card-title">Header Validation</h3>
             </div>
-          </Card>
+            <div className="gps-card-body">
+              <div className="header-validation-container">
+                <div className="header-validation-status">
+                  {getHeaderStatusIcon()}
+                  <div className="status-text">
+                    <h4 style={{ fontSize: '12px', fontWeight: '600', margin: '0 0 4px 0' }}>
+                      {headerValidation.status === 'healthy' ? 'Healthy' : 
+                       headerValidation.status === 'warning' ? 'Warning' : 'Critical'}
+                    </h4>
+                    <p style={{ fontSize: '10px', color: '#666', margin: 0 }}>
+                      {(headerValidation.issues_found || 0) === 0
+                        ? 'No header issues detected' 
+                        : `${headerValidation.issues_found} issue${headerValidation.issues_found > 1 ? 's' : ''} found`}
+                    </p>
+                  </div>
+                  <div className="health-score">
+                    <span className={`score ${headerValidation.status}`}>
+                      {headerValidation.health_score || 0}%
+                    </span>
+                    <span className="score-label">Health Score</span>
+                  </div>
+                </div>
+                
+                {hasHeaderIssues && headerValidation.issues && headerValidation.issues.length > 0 && (
+                  <div className="header-validation-issues">
+                    <h5 style={{ fontSize: '10px', fontWeight: '600', marginBottom: '8px' }}>Issues Detected:</h5>
+                    {headerValidation.issues.map((issue, index) => (
+                      <div key={index} className={`issue-item ${issue.severity}`}>
+                        <div className="issue-header">
+                          <span className={`gps-badge gps-badge--${issue.severity === 'high' ? 'danger' : 'warning'}`} style={{ fontSize: '9px' }}>
+                            {issue.severity === 'high' ? 'High' : 'Medium'}
+                          </span>
+                          <span className="issue-type" style={{ fontSize: '10px' }}>
+                            {issue.issue_type?.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                          </span>
+                        </div>
+                        <div className="issue-message" style={{ fontSize: '10px' }}>{issue.message}</div>
+                        {issue.recommendation && (
+                          <div className="issue-recommendation" style={{ fontSize: '10px' }}>
+                            <strong>Recommendation:</strong> {issue.recommendation}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
         )}
         
-        <div className="file-stats-grid">
-          <Card className="file-stat-card">
-            <div className="stat-icon rows-icon">
-              <FiFileText />
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '12px', marginBottom: '16px' }}>
+          <div className="gps-card">
+            <div className="gps-card-body" style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '16px' }}>
+              <div style={{ width: '40px', height: '40px', borderRadius: '8px', backgroundColor: 'rgba(2, 80, 67, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#025043' }}>
+                <FiFileText size={18} />
+              </div>
+              <div>
+                <h3 style={{ fontSize: '18px', fontWeight: '700', margin: '0 0 2px 0', color: '#333' }}>{formatNumber(file.row_count || basicInfo.rowCount || 0)}</h3>
+                <p style={{ fontSize: '10px', color: '#666', margin: 0 }}>Rows</p>
+              </div>
             </div>
-            <div className="stat-details">
-              <h3>{formatNumber(file.row_count || basicInfo.rowCount || 0)}</h3>
-              <p>Rows</p>
-            </div>
-          </Card>
+          </div>
           
-          <Card className="file-stat-card">
-            <div className="stat-icon columns-icon">
-              <FiBarChart2 />
+          <div className="gps-card">
+            <div className="gps-card-body" style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '16px' }}>
+              <div style={{ width: '40px', height: '40px', borderRadius: '8px', backgroundColor: 'rgba(59, 130, 246, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#3b82f6' }}>
+                <FiBarChart2 size={18} />
+              </div>
+              <div>
+                <h3 style={{ fontSize: '18px', fontWeight: '700', margin: '0 0 2px 0', color: '#333' }}>{file.column_count || columns.length || 0}</h3>
+                <p style={{ fontSize: '10px', color: '#666', margin: 0 }}>Columns</p>
+              </div>
             </div>
-            <div className="stat-details">
-              <h3>{file.column_count || columns.length || 0}</h3>
-              <p>Columns</p>
-            </div>
-          </Card>
+          </div>
           
-          <Card className="file-stat-card">
-            <div className="stat-icon size-icon">
-              <FiDownload />
+          <div className="gps-card">
+            <div className="gps-card-body" style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '16px' }}>
+              <div style={{ width: '40px', height: '40px', borderRadius: '8px', backgroundColor: 'rgba(16, 185, 129, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#10b981' }}>
+                <FiDownload size={18} />
+              </div>
+              <div>
+                <h3 style={{ fontSize: '18px', fontWeight: '700', margin: '0 0 2px 0', color: '#333' }}>{basicInfo.file_size ? formatBytes(basicInfo.file_size) : (file.file_size ? formatBytes(file.file_size) : 'Unknown')}</h3>
+                <p style={{ fontSize: '10px', color: '#666', margin: 0 }}>File Size</p>
+              </div>
             </div>
-            <div className="stat-details">
-              <h3>{basicInfo.file_size ? formatBytes(basicInfo.file_size) : (file.file_size ? formatBytes(file.file_size) : 'Unknown')}</h3>
-              <p>File Size</p>
-            </div>
-          </Card>
+          </div>
           
-          <Card className="file-stat-card">
-            <div className="stat-details stat-timestamps-only">
-              <div><strong>Created:</strong> {formatDate(basicInfo.created_at || file.created_at)}</div>
+          <div className="gps-card">
+            <div className="gps-card-body" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '16px', fontSize: '10px' }}>
+              <div style={{ marginBottom: '4px' }}><strong>Created:</strong> {formatDate(basicInfo.created_at || file.created_at)}</div>
               <div><strong>Updated:</strong> {formatDate(basicInfo.updated_at || basicInfo.created_at || file.created_at)}</div>
             </div>
-          </Card>
+          </div>
           
-          <Card className="file-stat-card">
-            <div className="stat-icon duplicates-icon">
-              <FiCopy />
+          <div className="gps-card">
+            <div className="gps-card-body" style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '16px' }}>
+              <div style={{ width: '40px', height: '40px', borderRadius: '8px', backgroundColor: 'rgba(239, 68, 68, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ef4444' }}>
+                <FiCopy size={18} />
+              </div>
+              <div>
+                <h3 style={{ fontSize: '18px', fontWeight: '700', margin: '0 0 2px 0', color: '#333' }}>{formatNumber(file.duplicate_records_count || 0)}</h3>
+                <p style={{ fontSize: '10px', color: '#666', margin: 0 }}>Duplicate Records ({formatDecimal(file.duplicate_records_percentage || 0, 1)}%)</p>
+              </div>
             </div>
-            <div className="stat-details">
-              <h3>{formatNumber(file.duplicate_records_count || 0)}</h3>
-              <p>Duplicate Records ({formatDecimal(file.duplicate_records_percentage || 0, 1)}%)</p>
-            </div>
-          </Card>
+          </div>
         </div>
         
-        <Card title="Column Details">
+        <div className="gps-card">
+          <div className="gps-card-header">
+            <h3 className="gps-card-title">Column Details</h3>
+          </div>
+          <div className="gps-card-body">
           {columns && columns.length > 0 ? (
             <div className="completeness-table-container">
               <table className="completeness-table">
@@ -1258,11 +1275,12 @@ function DataProfile() {
               </table>
             </div>
           ) : (
-            <div className="empty-state">
+            <div className="gps-empty-state">
               <p>No completeness data available.</p>
             </div>
           )}
-        </Card>
+          </div>
+        </div>
       </div>
     );
   };
@@ -2386,42 +2404,42 @@ function DataProfile() {
             />
           )}
           
-          <div className="profile-tabs">
+          <div className="gps-tabs">
             <button 
-              className={`tab-button ${activeTab === 'attributes' ? 'active' : ''}`}
+              className={`gps-tab ${activeTab === 'attributes' ? 'gps-tab--active' : ''}`}
               onClick={() => setActiveTab('attributes')}
             >
               File Attributes
             </button>
             <button 
-              className={`tab-button ${activeTab === 'profile' ? 'active' : ''}`}
+              className={`gps-tab ${activeTab === 'profile' ? 'gps-tab--active' : ''}`}
               onClick={() => setActiveTab('profile')}
             >
               File Profile
             </button>
             <button 
-              className={`tab-button ${activeTab === 'distribution' ? 'active' : ''}`}
+              className={`gps-tab ${activeTab === 'distribution' ? 'gps-tab--active' : ''}`}
               onClick={() => setActiveTab('distribution')}
             >
               Distribution
             </button>
             <button 
-              className={`tab-button ${activeTab === 'schema-history' ? 'active' : ''}`}
+              className={`gps-tab ${activeTab === 'schema-history' ? 'gps-tab--active' : ''}`}
               onClick={() => setActiveTab('schema-history')}
             >
-              <FiGitBranch className="tab-icon" /> Schema History
+              <FiGitBranch style={{ marginRight: '6px' }} /> Schema History
             </button>
             <button 
-              className={`tab-button ${activeTab === 'preview' ? 'active' : ''}`}
+              className={`gps-tab ${activeTab === 'preview' ? 'gps-tab--active' : ''}`}
               onClick={() => setActiveTab('preview')}
             >
-              <FiTable className="tab-icon" /> Preview
+              <FiTable style={{ marginRight: '6px' }} /> Preview
             </button>
             <button 
-              className={`tab-button ${activeTab === 'quality-rules' ? 'active' : ''}`}
+              className={`gps-tab ${activeTab === 'quality-rules' ? 'gps-tab--active' : ''}`}
               onClick={() => setActiveTab('quality-rules')}
             >
-              <FiCheckCircle className="tab-icon" /> Quality Rules
+              <FiCheckCircle style={{ marginRight: '6px' }} /> Quality Rules
             </button>
           </div>
           
