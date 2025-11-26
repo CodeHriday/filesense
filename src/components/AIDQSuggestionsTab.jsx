@@ -3,8 +3,6 @@ import { FiZap, FiAlertTriangle, FiCheckCircle, FiPlus, FiRefreshCw, FiToggleLef
 import LoadingSpinner from './LoadingSpinner';
 import './AIDQSuggestionsTab.css';
 
-const PROFILE_API_BASE = 'http://0.0.0.0:8000';
-
 const AIDQSuggestionsTab = ({ fileId, filename, columns, projectId }) => {
   const [suggestions, setSuggestions] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -24,7 +22,7 @@ const AIDQSuggestionsTab = ({ fileId, filename, columns, projectId }) => {
   const checkFeatureStatus = async () => {
     try {
       setFeatureLoading(true);
-      const response = await fetch(`${PROFILE_API_BASE}/api/settings/ai_dq_suggestions_enabled`);
+      const response = await fetch('/profile-api/api/settings/ai_dq_suggestions_enabled');
       if (response.ok) {
         const data = await response.json();
         setFeatureEnabled(data.value === 'true');
@@ -43,7 +41,7 @@ const AIDQSuggestionsTab = ({ fileId, filename, columns, projectId }) => {
     try {
       setToggleUpdating(true);
       const newValue = !featureEnabled;
-      const response = await fetch(`${PROFILE_API_BASE}/api/settings/ai_dq_suggestions_enabled`, {
+      const response = await fetch('/profile-api/api/settings/ai_dq_suggestions_enabled', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ value: newValue.toString() })
@@ -83,7 +81,7 @@ const AIDQSuggestionsTab = ({ fileId, filename, columns, projectId }) => {
         hasNulls: col.nullPercentage > 0 || col.null_count > 0
       }));
 
-      const response = await fetch(`${PROFILE_API_BASE}/api/dq-suggestions`, {
+      const response = await fetch('/profile-api/api/dq-suggestions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
