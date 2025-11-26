@@ -36,6 +36,156 @@ ChartJS.register(
   Legend
 );
 
+// ============================================================================
+// SEMANTIC FIELD TYPE DETECTION - Intelligent multi-pattern flagging
+// ============================================================================
+
+// Detect semantic field type based on column name and data type
+const getSemanticFieldType = (column) => {
+  const name = (column.name || '').toLowerCase();
+  const dataType = (column.type || '').toUpperCase();
+  
+  // Phone number detection
+  if (/phone|tel|mobile|fax|cell/.test(name)) {
+    return 'phone';
+  }
+  
+  // Email detection
+  if (/email|e-mail|e_mail/.test(name)) {
+    return 'email';
+  }
+  
+  // Date/DateTime detection - by type first
+  if (dataType === 'DATETIME' || dataType === 'TIMESTAMP') {
+    return 'datetime';
+  }
+  if (dataType === 'DATE') {
+    return 'date';
+  }
+  
+  // Date/DateTime detection - by column name patterns
+  if (/(_ts|_at|timestamp|_datetime)$/.test(name) || /^(created|updated|modified|deleted|processed)_?(at|on|date|time)?$/.test(name)) {
+    return 'datetime';
+  }
+  if (/(_date|_dt)$/.test(name) || /^(birth|start|end|order|ship|delivery|due|expir).*date/.test(name) || name === 'date' || name === 'dob') {
+    return 'date';
+  }
+  
+  // SSN / Tax ID detection
+  if (/ssn|social.*security|tax.*id|tin|ein|itin/.test(name)) {
+    return 'ssn';
+  }
+  
+  // Zip/Postal code detection
+  if (/zip|postal|postcode/.test(name)) {
+    return 'zipcode';
+  }
+  
+  // Credit card detection
+  if (/credit.*card|card.*number|cc.*num/.test(name)) {
+    return 'creditcard';
+  }
+  
+  // IP address detection
+  if (/ip.*addr|ip_address|ipv[46]/.test(name)) {
+    return 'ip';
+  }
+  
+  // URL detection
+  if (/\burl\b|website|link|href/.test(name)) {
+    return 'url';
+  }
+  
+  // Generic string - no special pattern enforcement needed
+  return 'generic';
+};
+
+// Check if a semantic field type should be flagged for multi-pattern issues
+const shouldFlagMultiPattern = (semanticType) => {
+  const flaggableTypes = ['phone', 'email', 'date', 'datetime', 'ssn', 'zipcode', 'creditcard', 'ip'];
+  return flaggableTypes.includes(semanticType);
+};
+
+// Get human-readable label for semantic type
+const getSemanticTypeLabel = (semanticType) => {
+  const labels = {
+    phone: 'Phone',
+    email: 'Email',
+    date: 'Date',
+    datetime: 'DateTime',
+    ssn: 'SSN/Tax ID',
+    zipcode: 'Zip Code',
+    creditcard: 'Credit Card',
+    ip: 'IP Address',
+    url: 'URL',
+    generic: 'Text'
+  };
+  return labels[semanticType] || 'Text';
+};
+
+// Analyze column for data quality issues
+const analyzeColumnQuality = (column, totalRows) => {
+  const issues = [];
+  const semanticType = getSemanticFieldType(column);
+  const nullCount = column.missing || 0;
+  const missingPercentage = totalRows > 0 ? (nullCount / totalRows) * 100 : 0;
+  const uniquePercentage = totalRows > 0 && column.unique ? (column.unique / totalRows) * 100 : 0;
+  
+  // Multi-pattern check - only for semantic field types that should be consistent
+  if (shouldFlagMultiPattern(semanticType) && column.patterns && column.patterns.length > 1) {
+    issues.push({
+      type: 'multipattern',
+      severity: 'warning',
+      label: 'Inconsistent Format',
+      detail: `${getSemanticTypeLabel(semanticType)} field has ${column.patterns.length} different patterns`,
+      tooltip: `${getSemanticTypeLabel(semanticType)} values should follow a consistent format. Found ${column.patterns.length} patterns: ${column.patterns.slice(0, 3).map(p => p.pattern).join(', ')}${column.patterns.length > 3 ? '...' : ''}`
+    });
+  }
+  
+  // High null values check
+  if (missingPercentage > 10) {
+    issues.push({
+      type: 'highnulls',
+      severity: missingPercentage > 50 ? 'danger' : 'warning',
+      label: 'High Nulls',
+      detail: `${missingPercentage.toFixed(1)}% missing`,
+      tooltip: `${nullCount.toLocaleString()} of ${totalRows.toLocaleString()} values (${missingPercentage.toFixed(1)}%) are null or missing`
+    });
+  }
+  
+  // Low uniqueness check for ID-like fields
+  const isIdField = /(_id|_key|_code|^id$)/.test((column.name || '').toLowerCase());
+  if (isIdField && uniquePercentage < 90 && totalRows > 10) {
+    issues.push({
+      type: 'lowuniqueness',
+      severity: 'info',
+      label: 'Low Uniqueness',
+      detail: `${uniquePercentage.toFixed(1)}% unique`,
+      tooltip: `ID field has only ${uniquePercentage.toFixed(1)}% unique values - possible duplicates`
+    });
+  }
+  
+  // Constant value detection (very low uniqueness)
+  if (column.unique === 1 && totalRows > 10) {
+    issues.push({
+      type: 'constant',
+      severity: 'info',
+      label: 'Constant Value',
+      detail: 'Single unique value',
+      tooltip: 'This column contains only one unique value across all rows'
+    });
+  }
+  
+  return {
+    semanticType,
+    issues,
+    hasIssues: issues.length > 0,
+    severityLevel: issues.some(i => i.severity === 'danger') ? 'danger' 
+      : issues.some(i => i.severity === 'warning') ? 'warning' 
+      : issues.length > 0 ? 'info' : 'none'
+  };
+};
+
 function DelimiterConfigModal({ fileId, onClose, onSave, setErrorMessage }) {
   const [delimiterType, setDelimiterType] = useState('comma');
   const [customDelimiter, setCustomDelimiter] = useState('');
@@ -1175,25 +1325,50 @@ function DataProfile() {
                     const columnGovernanceTags = allColumnGovernanceTags[column.name] || [];
                     const columnPoliciesData = allColumnPolicies[column.name] || [];
                     
-                    const nullPercentage = (nullCount / totalRows) * 100;
-                    const hasHighNulls = nullPercentage > 10;
-                    const hasMultiplePatterns = column.patterns && column.patterns.length > 1;
+                    // Use intelligent quality analysis
+                    const quality = analyzeColumnQuality(column, totalRows);
+                    
+                    // Get badge style based on severity
+                    const getAttrIssueBadgeStyle = (severity) => {
+                      const baseStyle = { fontSize: '9px', padding: '2px 6px', cursor: 'help' };
+                      switch (severity) {
+                        case 'danger': return { ...baseStyle, backgroundColor: '#ef4444', color: 'white' };
+                        case 'warning': return { ...baseStyle, backgroundColor: '#f59e0b', color: 'white' };
+                        case 'info': return { ...baseStyle, backgroundColor: '#3b82f6', color: 'white' };
+                        default: return baseStyle;
+                      }
+                    };
                     
                     return (
                       <tr key={column.name}>
                         <td>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
                             <span style={{ fontWeight: '500' }}>{column.name}</span>
-                            {hasHighNulls && (
-                              <span className="gps-badge gps-badge--warning" style={{ fontSize: '9px', padding: '2px 6px' }} title={`${nullPercentage.toFixed(1)}% null values`}>
-                                High Nulls
+                            {quality.semanticType !== 'generic' && (
+                              <span 
+                                className="gps-badge" 
+                                style={{ 
+                                  backgroundColor: '#e2e8f0', 
+                                  color: '#475569', 
+                                  fontSize: '8px', 
+                                  padding: '1px 4px',
+                                  fontWeight: '500'
+                                }}
+                                title={`Detected as ${getSemanticTypeLabel(quality.semanticType)} field`}
+                              >
+                                {getSemanticTypeLabel(quality.semanticType)}
                               </span>
                             )}
-                            {hasMultiplePatterns && (
-                              <span className="gps-badge gps-badge--warning" style={{ fontSize: '9px', padding: '2px 6px' }} title={`${column.patterns.length} different patterns detected`}>
-                                Multi Pattern
+                            {quality.issues.map((issue, idx) => (
+                              <span 
+                                key={idx}
+                                className="gps-badge"
+                                style={getAttrIssueBadgeStyle(issue.severity)}
+                                title={issue.tooltip}
+                              >
+                                {issue.label}
                               </span>
-                            )}
+                            ))}
                           </div>
                         </td>
                         <td><span className="gps-badge gps-badge--secondary" style={{ fontSize: '9px' }}>{column.type}</span></td>
@@ -1284,11 +1459,66 @@ function DataProfile() {
     const basicInfo = profile.basic_info || {};
     const totalRows = file.row_count || basicInfo.rowCount || 100;
     
+    // Analyze all columns for quality issues
+    const columnAnalysis = columns.map(col => ({
+      ...col,
+      quality: analyzeColumnQuality(col, totalRows)
+    }));
+    
+    // Count columns with issues by severity
+    const issueStats = {
+      danger: columnAnalysis.filter(c => c.quality.severityLevel === 'danger').length,
+      warning: columnAnalysis.filter(c => c.quality.severityLevel === 'warning').length,
+      info: columnAnalysis.filter(c => c.quality.severityLevel === 'info').length,
+      total: columnAnalysis.filter(c => c.quality.hasIssues).length
+    };
+    
+    // Get row background style based on severity
+    const getRowStyle = (severityLevel) => {
+      switch (severityLevel) {
+        case 'danger': return { backgroundColor: 'rgba(239, 68, 68, 0.08)' };
+        case 'warning': return { backgroundColor: 'rgba(245, 158, 11, 0.08)' };
+        case 'info': return { backgroundColor: 'rgba(59, 130, 246, 0.06)' };
+        default: return {};
+      }
+    };
+    
+    // Get badge style based on severity
+    const getIssueBadgeStyle = (severity) => {
+      const baseStyle = { fontSize: '9px', padding: '2px 6px', marginLeft: '4px', cursor: 'help' };
+      switch (severity) {
+        case 'danger': return { ...baseStyle, backgroundColor: '#ef4444', color: 'white' };
+        case 'warning': return { ...baseStyle, backgroundColor: '#f59e0b', color: 'white' };
+        case 'info': return { ...baseStyle, backgroundColor: '#3b82f6', color: 'white' };
+        default: return baseStyle;
+      }
+    };
+    
     return (
       <div className="columns-tab">
         <div className="gps-card">
-          <div className="gps-card-header">
+          <div className="gps-card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <h3 className="gps-card-title">Column Details</h3>
+            {issueStats.total > 0 && (
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <span style={{ fontSize: '11px', color: '#64748b' }}>Quality Issues:</span>
+                {issueStats.danger > 0 && (
+                  <span className="gps-badge" style={{ backgroundColor: '#ef4444', color: 'white', fontSize: '10px', padding: '2px 8px' }}>
+                    {issueStats.danger} Critical
+                  </span>
+                )}
+                {issueStats.warning > 0 && (
+                  <span className="gps-badge" style={{ backgroundColor: '#f59e0b', color: 'white', fontSize: '10px', padding: '2px 8px' }}>
+                    {issueStats.warning} Warning
+                  </span>
+                )}
+                {issueStats.info > 0 && (
+                  <span className="gps-badge" style={{ backgroundColor: '#3b82f6', color: 'white', fontSize: '10px', padding: '2px 8px' }}>
+                    {issueStats.info} Info
+                  </span>
+                )}
+              </div>
+            )}
           </div>
           <div className="gps-card-body">
             <div className="gps-table-container">
@@ -1306,10 +1536,11 @@ function DataProfile() {
                   </tr>
                 </thead>
                 <tbody>
-                  {columns.map((column) => {
+                  {columnAnalysis.map((column) => {
                     const nullCount = column.missing || 0;
                     const missingPercentage = Math.round((nullCount / totalRows) * 100);
                     const columnGovernanceTags = allColumnGovernanceTags[column.name] || [];
+                    const { quality } = column;
                     
                     const formatPatterns = (patterns) => {
                       if (!patterns || patterns.length === 0) return 'N/A';
@@ -1318,9 +1549,42 @@ function DataProfile() {
                       return topPatterns.map(p => `${p.pattern} (${p.percentage}%)`).join(', ');
                     };
                     
+                    // Find specific issue types for cell-level highlighting
+                    const multiPatternIssue = quality.issues.find(i => i.type === 'multipattern');
+                    const highNullsIssue = quality.issues.find(i => i.type === 'highnulls');
+                    
                     return (
-                      <tr key={column.name}>
-                        <td><span style={{ fontWeight: '500' }}>{column.name}</span></td>
+                      <tr key={column.name} style={getRowStyle(quality.severityLevel)}>
+                        <td>
+                          <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '4px' }}>
+                            <span style={{ fontWeight: '500' }}>{column.name}</span>
+                            {quality.semanticType !== 'generic' && (
+                              <span 
+                                className="gps-badge" 
+                                style={{ 
+                                  backgroundColor: '#e2e8f0', 
+                                  color: '#475569', 
+                                  fontSize: '8px', 
+                                  padding: '1px 4px',
+                                  fontWeight: '500'
+                                }}
+                                title={`Detected as ${getSemanticTypeLabel(quality.semanticType)} field`}
+                              >
+                                {getSemanticTypeLabel(quality.semanticType)}
+                              </span>
+                            )}
+                            {quality.issues.map((issue, idx) => (
+                              <span 
+                                key={idx}
+                                className="gps-badge"
+                                style={getIssueBadgeStyle(issue.severity)}
+                                title={issue.tooltip}
+                              >
+                                {issue.label}
+                              </span>
+                            ))}
+                          </div>
+                        </td>
                         <td>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexWrap: 'wrap' }}>
                             {columnGovernanceTags.length > 0 ? (
@@ -1345,9 +1609,22 @@ function DataProfile() {
                           </div>
                         </td>
                         <td><span className="gps-badge gps-badge--secondary" style={{ fontSize: '9px' }}>{column.type}</span></td>
-                        <td style={{ maxWidth: '150px', overflow: 'hidden', textOverflow: 'ellipsis' }}>{formatPatterns(column.patterns)}</td>
+                        <td style={{ 
+                          maxWidth: '150px', 
+                          overflow: 'hidden', 
+                          textOverflow: 'ellipsis',
+                          ...(multiPatternIssue ? { borderLeft: '3px solid #f59e0b' } : {})
+                        }}>
+                          {formatPatterns(column.patterns)}
+                        </td>
                         <td>{column.unique !== undefined && column.unique !== null ? column.unique.toLocaleString() : '0'}</td>
-                        <td>{`${nullCount.toLocaleString()} (${missingPercentage}%)`}</td>
+                        <td style={{
+                          ...(highNullsIssue ? { 
+                            borderLeft: highNullsIssue.severity === 'danger' ? '3px solid #ef4444' : '3px solid #f59e0b'
+                          } : {})
+                        }}>
+                          {`${nullCount.toLocaleString()} (${missingPercentage}%)`}
+                        </td>
                         <td style={{ maxWidth: '180px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {shouldMaskValue(column) ? '****' : 
                           hasMinMaxValues(column)
@@ -1383,38 +1660,24 @@ function DataProfile() {
     const basicInfo = profile.basic_info || {};
     const totalRows = file.row_count || basicInfo.rowCount || 100;
     
-    // Helper to check if column has anomalies
+    // Use intelligent quality analysis for anomaly detection
     const hasAnomalies = (column) => {
-      const nullCount = column.missing || 0;
-      const missingPercentage = (nullCount / totalRows) * 100;
-      const hasHighNulls = missingPercentage > 10;
-      const hasMultiplePatterns = column.patterns && column.patterns.length > 1;
-      return hasHighNulls || hasMultiplePatterns;
+      const quality = analyzeColumnQuality(column, totalRows);
+      return quality.hasIssues;
     };
     
-    // Helper to generate anomaly badges
+    // Helper to generate anomaly badges using intelligent detection
     const getAnomalyBadges = (column) => {
-      const badges = [];
-      const nullCount = column.missing || 0;
-      const missingPercentage = (nullCount / totalRows) * 100;
-      
-      if (missingPercentage > 10) {
-        badges.push(
-          <span key="nulls" className="anomaly-badge anomaly-warning" title={`${missingPercentage.toFixed(1)}% null values`}>
-            High Nulls ({missingPercentage.toFixed(1)}%)
-          </span>
-        );
-      }
-      
-      if (column.patterns && column.patterns.length > 1) {
-        badges.push(
-          <span key="patterns" className="anomaly-badge anomaly-warning" title={`${column.patterns.length} different patterns detected`}>
-            Multiple Patterns ({column.patterns.length})
-          </span>
-        );
-      }
-      
-      return badges;
+      const quality = analyzeColumnQuality(column, totalRows);
+      return quality.issues.map((issue, idx) => (
+        <span 
+          key={idx} 
+          className={`anomaly-badge anomaly-${issue.severity === 'danger' ? 'danger' : 'warning'}`} 
+          title={issue.tooltip}
+        >
+          {issue.label}
+        </span>
+      ));
     };
     
     return (
@@ -1552,11 +1815,18 @@ function DataProfile() {
                     <div className="pattern-section">
                       <div className="pattern-header">
                         <strong>Detected Patterns:</strong>
-                        {column.patterns.length > 1 && (
-                          <span className="anomaly-badge anomaly-warning" style={{ marginLeft: '8px' }}>
-                            Multiple Patterns
-                          </span>
-                        )}
+                        {(() => {
+                          const semanticType = getSemanticFieldType(column);
+                          const shouldFlag = shouldFlagMultiPattern(semanticType) && column.patterns.length > 1;
+                          if (shouldFlag) {
+                            return (
+                              <span className="anomaly-badge anomaly-warning" style={{ marginLeft: '8px' }}>
+                                Inconsistent {getSemanticTypeLabel(semanticType)} Format
+                              </span>
+                            );
+                          }
+                          return null;
+                        })()}
                       </div>
                       <div className="pattern-list">
                         {column.patterns.map((p, idx) => (
