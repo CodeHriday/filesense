@@ -2007,23 +2007,10 @@ const VendorAgreements = () => {
                 <div className="form-section">
                   <h3 className="section-title">Vendor Contact Information</h3>
                   
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
+                  <div className="two-column-grid">
                     {/* Primary Contact (Left Column) */}
-                    <div style={{ 
-                      border: '1px solid #e5e7eb', 
-                      borderRadius: '8px', 
-                      padding: '1.5rem',
-                      backgroundColor: '#f9fafb'
-                    }}>
-                      <h4 style={{ 
-                        marginTop: 0, 
-                        marginBottom: '1rem', 
-                        fontSize: '1rem',
-                        fontWeight: 600,
-                        color: '#374151'
-                      }}>
-                        Primary Contact
-                      </h4>
+                    <div className="form-panel">
+                      <h4 className="form-panel-title">Primary Contact</h4>
                       
                       <div className="form-group">
                         <label htmlFor="primary_contact_user_id">
@@ -2050,44 +2037,24 @@ const VendorAgreements = () => {
                       </div>
                       
                       {formData.primary_contact_name && (
-                        <div style={{ 
-                          marginTop: '1rem', 
-                          padding: '0.75rem', 
-                          backgroundColor: 'white', 
-                          border: '1px solid #e5e7eb',
-                          borderRadius: '4px',
-                          fontSize: '0.875rem'
-                        }}>
-                          <div><strong>Name:</strong> {formData.primary_contact_name}</div>
+                        <div className="contact-info-box">
+                          <p><strong>Name:</strong> {formData.primary_contact_name}</p>
                           {formData.primary_contact_email && (
-                            <div><strong>Email:</strong> {formData.primary_contact_email}</div>
+                            <p><strong>Email:</strong> {formData.primary_contact_email}</p>
                           )}
                           {formData.primary_contact_phone && (
-                            <div><strong>Phone:</strong> {formData.primary_contact_phone}</div>
+                            <p><strong>Phone:</strong> {formData.primary_contact_phone}</p>
                           )}
                           {formData.primary_contact_designation && (
-                            <div><strong>Designation:</strong> {formData.primary_contact_designation}</div>
+                            <p><strong>Designation:</strong> {formData.primary_contact_designation}</p>
                           )}
                         </div>
                       )}
                     </div>
                     
                     {/* Secondary Contact (Right Column) */}
-                    <div style={{ 
-                      border: '1px solid #e5e7eb', 
-                      borderRadius: '8px', 
-                      padding: '1.5rem',
-                      backgroundColor: '#f9fafb'
-                    }}>
-                      <h4 style={{ 
-                        marginTop: 0, 
-                        marginBottom: '1rem', 
-                        fontSize: '1rem',
-                        fontWeight: 600,
-                        color: '#374151'
-                      }}>
-                        Secondary Contact
-                      </h4>
+                    <div className="form-panel">
+                      <h4 className="form-panel-title">Secondary Contact</h4>
                       
                       <div className="form-group">
                         <label htmlFor="secondary_contact_user_id">Select Contact <span className="required-field">*</span></label>
@@ -2112,23 +2079,16 @@ const VendorAgreements = () => {
                       </div>
                       
                       {formData.secondary_contact_name && (
-                        <div style={{ 
-                          marginTop: '1rem', 
-                          padding: '0.75rem', 
-                          backgroundColor: 'white', 
-                          border: '1px solid #e5e7eb',
-                          borderRadius: '4px',
-                          fontSize: '0.875rem'
-                        }}>
-                          <div><strong>Name:</strong> {formData.secondary_contact_name}</div>
+                        <div className="contact-info-box">
+                          <p><strong>Name:</strong> {formData.secondary_contact_name}</p>
                           {formData.secondary_contact_email && (
-                            <div><strong>Email:</strong> {formData.secondary_contact_email}</div>
+                            <p><strong>Email:</strong> {formData.secondary_contact_email}</p>
                           )}
                           {formData.secondary_contact_phone && (
-                            <div><strong>Phone:</strong> {formData.secondary_contact_phone}</div>
+                            <p><strong>Phone:</strong> {formData.secondary_contact_phone}</p>
                           )}
                           {formData.secondary_contact_designation && (
-                            <div><strong>Designation:</strong> {formData.secondary_contact_designation}</div>
+                            <p><strong>Designation:</strong> {formData.secondary_contact_designation}</p>
                           )}
                         </div>
                       )}
@@ -2348,149 +2308,90 @@ const VendorAgreements = () => {
                 <div className="form-section">
                   <h3 className="section-title">Connection Configuration</h3>
                   
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
-                    {/* Source Connection Panel */}
-                    <div style={{ 
-                      border: '1px solid #e5e7eb', 
-                      borderRadius: '8px', 
-                      padding: '1.5rem',
-                      backgroundColor: '#f9fafb'
-                    }}>
-                      <h4 style={{ 
-                        marginTop: 0, 
-                        marginBottom: '1rem', 
-                        fontSize: '1rem',
-                        fontWeight: 600,
-                        color: '#374151'
-                      }}>
-                        Source Connection
-                      </h4>
-                      
-                      <div className="form-group" style={{ marginBottom: '1rem' }}>
-                        <label htmlFor="vendor_connection_id">
-                          Vendor File Drop Connection <span className="required-field">*</span>
-                        </label>
-                        <select
-                          id="vendor_connection_id"
-                          name="vendor_connection_id"
-                          value={formData.vendor_connection_id}
-                          onChange={handleInputChange}
-                          required
-                        >
-                          <option value="">Select a vendor connection</option>
-                          {filteredConnections.map(conn => (
-                            <option key={conn.connection_id} value={conn.connection_id}>
-                              {conn.name} ({conn.config?.provider?.toUpperCase() || 'AWS'})
-                            </option>
-                          ))}
-                        </select>
-                        <small style={{ color: '#6b7280', fontSize: '0.875rem', display: 'block', marginTop: '0.5rem' }}>
-                          Where vendor will drop files
-                        </small>
-                      </div>
-                      
-                      <div className="form-group" style={{ marginBottom: '1rem' }}>
-                        <label htmlFor="drop_location_path">Drop Location Path</label>
-                        <input
-                          type="text"
-                          id="drop_location_path"
-                          name="drop_location_path"
-                          value={formData.drop_location_path}
-                          readOnly
-                          placeholder="Auto-populated"
-                          style={{ backgroundColor: '#ffffff', cursor: 'not-allowed' }}
-                        />
-                        <small style={{ color: '#6b7280', fontSize: '0.875rem', display: 'block', marginTop: '0.5rem' }}>
-                          Auto-populated from connection
-                        </small>
-                      </div>
-                      
-                      <div className="form-group" style={{ marginBottom: 0 }}>
-                        <label htmlFor="archive_password">
-                          Archive Password (Optional)
-                        </label>
-                        {modalMode === 'edit' && hasArchivePassword && (
-                          <div style={{ 
-                            marginBottom: '0.5rem', 
-                            padding: '0.5rem', 
-                            backgroundColor: '#ecfdf5', 
-                            border: '1px solid #10b981',
-                            borderRadius: '4px',
-                            fontSize: '0.875rem',
-                            color: '#065f46',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'space-between'
-                          }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                              <FiEye size={14} />
-                              <span>Archive password configured</span>
-                            </div>
-                            <button
-                              type="button"
-                              onClick={async () => {
-                                if (window.confirm('Are you sure you want to remove the archive password?')) {
-                                  try {
-                                    // Await DELETE to ensure it completes before updating UI state
-                                    await axios.delete(`/api/vendor-agreements/${selectedAgreement.id}/archive-password`);
-                                    // Update state only after successful deletion
-                                    setHasArchivePassword(false);
-                                    // Clear the password input field
-                                    setFormData(prev => ({ ...prev, archive_password: '' }));
-                                    addToast('success', 'Password Removed', 'Archive password has been removed');
-                                  } catch (error) {
-                                    console.error('Error removing archive password:', error);
-                                    addToast('error', 'Error', 'Failed to remove archive password');
-                                  }
-                                }
-                              }}
-                              style={{
-                                padding: '0.25rem 0.5rem',
-                                fontSize: '0.75rem',
-                                backgroundColor: '#ffffff',
-                                border: '1px solid #d1d5db',
-                                borderRadius: '4px',
-                                cursor: 'pointer',
-                                color: '#374151'
-                              }}
-                            >
-                              Remove
-                            </button>
+                  <div className="form-panel">
+                    <h4 className="form-panel-title">Source Connection</h4>
+                    
+                    <div className="form-group">
+                      <label htmlFor="vendor_connection_id">
+                        Vendor File Drop Connection <span className="required-field">*</span>
+                      </label>
+                      <select
+                        id="vendor_connection_id"
+                        name="vendor_connection_id"
+                        value={formData.vendor_connection_id}
+                        onChange={handleInputChange}
+                        required
+                      >
+                        <option value="">Select a vendor connection</option>
+                        {filteredConnections.map(conn => (
+                          <option key={conn.connection_id} value={conn.connection_id}>
+                            {conn.name} ({conn.config?.provider?.toUpperCase() || 'AWS'})
+                          </option>
+                        ))}
+                      </select>
+                      <span className="form-helper-text">Where vendor will drop files</span>
+                    </div>
+                    
+                    <div className="form-group">
+                      <label htmlFor="drop_location_path">Drop Location Path</label>
+                      <input
+                        type="text"
+                        id="drop_location_path"
+                        name="drop_location_path"
+                        value={formData.drop_location_path}
+                        readOnly
+                        placeholder="Auto-populated"
+                      />
+                      <span className="form-helper-text">Auto-populated from connection</span>
+                    </div>
+                    
+                    <div className="form-group">
+                      <label htmlFor="archive_password">Archive Password (Optional)</label>
+                      {modalMode === 'edit' && hasArchivePassword && (
+                        <div className="password-configured-notice">
+                          <div className="password-notice-content">
+                            <FiEye size={14} />
+                            <span>Archive password configured</span>
                           </div>
-                        )}
-                        <div style={{ position: 'relative' }}>
-                          <input
-                            type={showArchivePassword ? 'text' : 'password'}
-                            id="archive_password"
-                            name="archive_password"
-                            value={formData.archive_password}
-                            onChange={handleInputChange}
-                            placeholder={modalMode === 'edit' && hasArchivePassword ? 'Enter new password to update' : 'Password for encrypted archives'}
-                          />
                           <button
                             type="button"
-                            onClick={() => setShowArchivePassword(!showArchivePassword)}
-                            style={{
-                              position: 'absolute',
-                              right: '10px',
-                              top: '50%',
-                              transform: 'translateY(-50%)',
-                              border: 'none',
-                              background: 'transparent',
-                              cursor: 'pointer',
-                              padding: '4px',
-                              display: 'flex',
-                              alignItems: 'center',
-                              color: '#6b7280'
+                            className="btn-remove-password"
+                            onClick={async () => {
+                              if (window.confirm('Are you sure you want to remove the archive password?')) {
+                                try {
+                                  await axios.delete(`/api/vendor-agreements/${selectedAgreement.id}/archive-password`);
+                                  setHasArchivePassword(false);
+                                  setFormData(prev => ({ ...prev, archive_password: '' }));
+                                  addToast('success', 'Password Removed', 'Archive password has been removed');
+                                } catch (error) {
+                                  console.error('Error removing archive password:', error);
+                                  addToast('error', 'Error', 'Failed to remove archive password');
+                                }
+                              }
                             }}
                           >
-                            {showArchivePassword ? <FiSlash size={16} /> : <FiEye size={16} />}
+                            Remove
                           </button>
                         </div>
-                        <small style={{ color: '#6b7280', fontSize: '0.875rem', display: 'block', marginTop: '0.5rem' }}>
-                          For password-protected ZIP, 7z, or TAR archives (encrypted with AES-256)
-                        </small>
+                      )}
+                      <div className="password-input-wrapper">
+                        <input
+                          type={showArchivePassword ? 'text' : 'password'}
+                          id="archive_password"
+                          name="archive_password"
+                          value={formData.archive_password}
+                          onChange={handleInputChange}
+                          placeholder={modalMode === 'edit' && hasArchivePassword ? 'Enter new password to update' : 'Password for encrypted archives'}
+                        />
+                        <button
+                          type="button"
+                          className="password-toggle-btn"
+                          onClick={() => setShowArchivePassword(!showArchivePassword)}
+                        >
+                          {showArchivePassword ? <FiSlash size={16} /> : <FiEye size={16} />}
+                        </button>
                       </div>
+                      <span className="form-helper-text">For password-protected ZIP, 7z, or TAR archives (encrypted with AES-256)</span>
                     </div>
                   </div>
                 </div>

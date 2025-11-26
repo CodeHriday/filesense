@@ -357,6 +357,147 @@
   margin-top: var(--gps-spacing-sm, 6px);
 }
 
+/* Two-column grid layout for panels */
+.three-section-modal-content .two-column-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--gps-spacing-xl, 16px);
+}
+
+@media (max-width: 768px) {
+  .three-section-modal-content .two-column-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Panel styles for contact and connection sections */
+.three-section-modal-content .form-panel {
+  border: 1px solid var(--gps-border-light, #e2e8f0);
+  border-radius: var(--gps-radius-md, 6px);
+  padding: var(--gps-spacing-xl, 16px);
+  background: var(--gps-bg-page, #f7fafc);
+}
+
+.three-section-modal-content .form-panel-title {
+  font-family: var(--gps-font-family, 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
+  font-size: 12px;
+  font-weight: var(--gps-font-weight-semibold, 600);
+  color: var(--gps-text-dark, #333333);
+  margin: 0 0 var(--gps-spacing-lg, 12px) 0;
+}
+
+/* Contact info display box */
+.three-section-modal-content .contact-info-box {
+  margin-top: var(--gps-spacing-lg, 12px);
+  padding: var(--gps-spacing-md, 8px) var(--gps-spacing-lg, 12px);
+  background: var(--gps-bg-white, #ffffff);
+  border: 1px solid var(--gps-border-light, #e2e8f0);
+  border-radius: var(--gps-radius-sm, 4px);
+  font-family: var(--gps-font-family, 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
+  font-size: 11px;
+}
+
+.three-section-modal-content .contact-info-box p {
+  margin: var(--gps-spacing-xs, 4px) 0;
+  color: var(--gps-text-dark, #333333);
+}
+
+.three-section-modal-content .contact-info-box strong {
+  color: var(--gps-text-dark, #333333);
+}
+
+/* Form group within panels - compact spacing */
+.three-section-modal-content .form-panel .form-group {
+  margin-bottom: var(--gps-spacing-lg, 12px);
+}
+
+.three-section-modal-content .form-panel .form-group:last-child {
+  margin-bottom: 0;
+}
+
+/* Helper text / small text */
+.three-section-modal-content .form-helper-text {
+  font-family: var(--gps-font-family, 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
+  font-size: 10px;
+  color: var(--gps-text-muted, #666666);
+  margin-top: var(--gps-spacing-xs, 4px);
+  display: block;
+}
+
+/* Checkbox styling */
+.three-section-modal-content .checkbox-group {
+  display: flex;
+  align-items: center;
+  gap: var(--gps-spacing-sm, 6px);
+  font-family: var(--gps-font-family, 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
+  font-size: 11px;
+  color: var(--gps-text-dark, #333333);
+}
+
+.three-section-modal-content .checkbox-group input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--gps-primary-teal, #025043);
+  cursor: pointer;
+}
+
+/* Password input with toggle */
+.three-section-modal-content .password-input-wrapper {
+  position: relative;
+}
+
+.three-section-modal-content .password-toggle-btn {
+  position: absolute;
+  right: var(--gps-spacing-md, 8px);
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: var(--gps-text-muted, #666666);
+  cursor: pointer;
+  padding: var(--gps-spacing-xs, 4px);
+}
+
+.three-section-modal-content .password-toggle-btn:hover {
+  color: var(--gps-text-dark, #333333);
+}
+
+/* Password configured notice */
+.three-section-modal-content .password-configured-notice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--gps-spacing-md, 8px);
+  padding: var(--gps-spacing-md, 8px);
+  background: #ecfdf5;
+  border: 1px solid var(--gps-success-green, #38a169);
+  border-radius: var(--gps-radius-sm, 4px);
+  font-family: var(--gps-font-family, 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
+  font-size: 11px;
+  color: #065f46;
+}
+
+.three-section-modal-content .password-notice-content {
+  display: flex;
+  align-items: center;
+  gap: var(--gps-spacing-sm, 6px);
+}
+
+.three-section-modal-content .btn-remove-password {
+  font-family: var(--gps-font-family, 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
+  font-size: 10px;
+  padding: var(--gps-spacing-xs, 4px) var(--gps-spacing-md, 8px);
+  background: var(--gps-bg-white, #ffffff);
+  border: 1px solid var(--gps-border-input, #cbd5e0);
+  border-radius: var(--gps-radius-sm, 4px);
+  cursor: pointer;
+  color: var(--gps-text-dark, #333333);
+}
+
+.three-section-modal-content .btn-remove-password:hover {
+  background: var(--gps-bg-row-hover, #f7fafc);
+}
+
 /* Responsive design */
 @media (max-width: 768px) {
   .three-section-modal {
