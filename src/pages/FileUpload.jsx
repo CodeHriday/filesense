@@ -1431,8 +1431,13 @@ function FileUpload() {
   };
 
   return (
-    <div className="file-upload-container">
-      <h1>File Upload & Profile</h1>
+    <div className="gps-page-container file-upload-container">
+      <div className="gps-page-header">
+        <div className="gps-page-header-left">
+          <h1 className="gps-page-title">File Upload & Profile</h1>
+          <p className="gps-page-subtitle">Upload data files for analysis and quality profiling</p>
+        </div>
+      </div>
       
       {showDuplicateModal && duplicateFileInfo && (
         <DuplicateFileModal
@@ -1534,23 +1539,23 @@ function FileUpload() {
       
       <Card>
         {/* Upload Mode Tabs */}
-        <div className="upload-tabs">
+        <div className="gps-tabs-container">
           <button 
-            className={`tab-button ${activeTab === 'upload-profile' ? 'active' : ''}`}
+            className={`gps-tab ${activeTab === 'upload-profile' ? 'gps-tab--active' : ''}`}
             onClick={() => setActiveTab('upload-profile')}
           >
             Upload & Profile
           </button>
           {hasWritePermission('file_drop') && (
             <button 
-              className={`tab-button ${activeTab === 'drop-file' ? 'active' : ''}`}
+              className={`gps-tab ${activeTab === 'drop-file' ? 'gps-tab--active' : ''}`}
               onClick={() => setActiveTab('drop-file')}
             >
               Drop File (S3 Direct)
             </button>
           )}
           <button 
-            className={`tab-button ${activeTab === 'bulk-profiling' ? 'active' : ''}`}
+            className={`gps-tab ${activeTab === 'bulk-profiling' ? 'gps-tab--active' : ''}`}
             onClick={() => setActiveTab('bulk-profiling')}
           >
             Bulk Profiling
@@ -1558,14 +1563,14 @@ function FileUpload() {
         </div>
         
         <div className="upload-instructions">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div className="upload-instructions-header">
             <div>
-              <h2>
+              <h2 className="upload-section-title">
                 {activeTab === 'drop-file' 
                   ? 'Drop file to S3 storage'
                   : 'Add a new file to the observatory'}
               </h2>
-              <p>
+              <p className="upload-section-subtitle">
                 {activeTab === 'drop-file'
                   ? 'Upload files directly to S3 storage without profiling or analysis. Quick uploads for raw file storage.'
                   : 'Upload a data file to analyze its structure, profile its content, and track changes over time. Supported file types include CSV, JSON, Parquet, Excel, and XML.'}
@@ -1573,9 +1578,8 @@ function FileUpload() {
             </div>
             {(uploadStatus || uploadedFile) && (
               <button 
-                className="btn btn-secondary"
+                className="gps-btn gps-btn--secondary"
                 onClick={handleUploadAnother}
-                style={{ alignSelf: 'flex-start' }}
               >
                 Reset
               </button>
@@ -1585,14 +1589,12 @@ function FileUpload() {
         
         {/* Project and Owner Section - Combined */}
         {!isProcessing && activeTab === 'upload-profile' && hasWritePermission('file') && (
-          <div style={{ padding: '1rem', background: 'transparent', marginBottom: '1rem', border: '1px solid #ddd', borderRadius: '8px' }}>
+          <div className="upload-form-section">
             {/* Upload Type Selection */}
-            <div style={{ marginBottom: '1.5rem', paddingBottom: '1rem', borderBottom: '1px solid #e0e0e0' }}>
-              <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '0.75rem' }}>
-                Upload Type:
-              </label>
-              <div style={{ display: 'flex', gap: '2rem' }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+            <div className="upload-type-section">
+              <label className="upload-form-label">Upload Type:</label>
+              <div className="upload-type-options">
+                <label className="upload-radio-label">
                   <input
                     type="radio"
                     name="uploadType"
@@ -1603,45 +1605,36 @@ function FileUpload() {
                       setSelectedAgreement(null);
                       setSelectedAgreementSchema(null);
                     }}
-                    style={{ cursor: 'pointer' }}
                   />
                   <span>Ad-hoc Upload</span>
-                  <span style={{ fontSize: '0.875rem', color: '#666' }}>(Standard file upload)</span>
+                  <span className="upload-radio-hint">(Standard file upload)</span>
                 </label>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+                <label className="upload-radio-label">
                   <input
                     type="radio"
                     name="uploadType"
                     value="contract"
                     checked={uploadType === 'contract'}
                     onChange={(e) => setUploadType(e.target.value)}
-                    style={{ cursor: 'pointer' }}
                   />
                   <span>Contract Validation</span>
-                  <span style={{ fontSize: '0.875rem', color: '#666' }}>(Validate against vendor agreement)</span>
+                  <span className="upload-radio-hint">(Validate against vendor agreement)</span>
                 </label>
               </div>
             </div>
 
-            <div style={{ display: 'flex', gap: '2rem', alignItems: 'center', flexWrap: 'wrap' }}>
+            <div className="upload-form-row">
               {/* Project Selection */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: '1 1 300px' }}>
-                <label htmlFor="project-select" style={{ fontWeight: 'bold', whiteSpace: 'nowrap' }}>
-                  Project: <span style={{ color: '#e74c3c' }}>*</span>
+              <div className="upload-form-field">
+                <label htmlFor="project-select" className="upload-form-label">
+                  Project: <span className="required-indicator">*</span>
                 </label>
                 <select 
                   id="project-select"
+                  className="gps-form-select"
                   value={selectedProject || ''}
                   onChange={(e) => setSelectedProject(Number(e.target.value))}
                   disabled={loadingProjects}
-                  style={{
-                    flex: 1,
-                    padding: '0.5rem',
-                    borderRadius: '4px',
-                    border: '1px solid #ccc',
-                    cursor: 'pointer',
-                    minWidth: '200px'
-                  }}
                 >
                   {loadingProjects ? (
                     <option>Loading projects...</option>
@@ -1662,23 +1655,14 @@ function FileUpload() {
 
               {/* Sub-Project Selection */}
               {selectedProject && subProjects.length > 0 && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: '1 1 300px' }}>
-                  <label htmlFor="sub-project-select" style={{ fontWeight: 'bold', whiteSpace: 'nowrap' }}>
-                    Sub-Project:
-                  </label>
+                <div className="upload-form-field">
+                  <label htmlFor="sub-project-select" className="upload-form-label">Sub-Project:</label>
                   <select 
                     id="sub-project-select"
+                    className="gps-form-select"
                     value={selectedSubProject || ''}
                     onChange={(e) => setSelectedSubProject(e.target.value ? Number(e.target.value) : null)}
                     disabled={loadingSubProjects}
-                    style={{
-                      flex: 1,
-                      padding: '0.5rem',
-                      borderRadius: '4px',
-                      border: '1px solid #ccc',
-                      cursor: 'pointer',
-                      minWidth: '200px'
-                    }}
                   >
                     {loadingSubProjects ? (
                       <option>Loading sub-projects...</option>
@@ -1697,62 +1681,42 @@ function FileUpload() {
               )}
 
               {/* File Owner */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: '1 1 300px' }}>
-                <span style={{ fontWeight: 'bold', whiteSpace: 'nowrap' }}>File Owner:</span>
-                <span style={{ flex: 1 }}>{fileOwner || 'Not set'}</span>
+              <div className="upload-form-field upload-owner-field">
+                <span className="upload-form-label">File Owner:</span>
+                <span className="upload-owner-value">{fileOwner || 'Not set'}</span>
                 <button 
-                  className="btn-link"
+                  className="upload-edit-link"
                   onClick={handleOpenOwnerModal}
                   title="Edit owner"
-                  style={{ whiteSpace: 'nowrap' }}
                 >
                   Edit
                 </button>
               </div>
 
               {/* Archive Password - for password-protected ZIP/7z/TAR files */}
-              <div style={{ flex: '1 1 100%', marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid #e0e0e0' }}>
-                <label htmlFor="archive-password" style={{ fontWeight: 'bold', display: 'block', marginBottom: '0.5rem' }}>
-                  Archive Password <span style={{ fontSize: '0.875rem', fontWeight: 'normal', color: '#666' }}>(Optional)</span>
+              <div className="archive-password-section">
+                <label htmlFor="archive-password" className="upload-form-label">
+                  Archive Password <span className="upload-radio-hint">(Optional)</span>
                 </label>
-                <p style={{ fontSize: '0.875rem', color: '#666', marginBottom: '0.75rem' }}>
+                <p className="archive-password-hint">
                   If you're uploading a password-protected archive (ZIP, 7z, TAR), enter the password here. The password is used only for extraction and is not stored.
                 </p>
-                <div style={{ position: 'relative', maxWidth: '400px' }}>
+                <div className="password-input-wrapper">
                   <input
                     id="archive-password"
                     type={showArchivePassword ? 'text' : 'password'}
                     value={archivePassword}
                     onChange={(e) => setArchivePassword(e.target.value)}
                     placeholder="Enter archive password..."
-                    style={{
-                      width: '100%',
-                      padding: '0.5rem',
-                      paddingRight: '2.5rem',
-                      borderRadius: '4px',
-                      border: '1px solid #ccc',
-                      fontFamily: 'monospace'
-                    }}
+                    className="gps-form-input password-input"
                   />
                   <button
                     type="button"
                     onClick={() => setShowArchivePassword(!showArchivePassword)}
-                    style={{
-                      position: 'absolute',
-                      right: '0.5rem',
-                      top: '50%',
-                      transform: 'translateY(-50%)',
-                      background: 'none',
-                      border: 'none',
-                      cursor: 'pointer',
-                      padding: '0.25rem',
-                      display: 'flex',
-                      alignItems: 'center',
-                      color: '#666'
-                    }}
+                    className="password-toggle-btn"
                     title={showArchivePassword ? 'Hide password' : 'Show password'}
                   >
-                    {showArchivePassword ? <FiEyeOff size={18} /> : <FiEye size={18} />}
+                    {showArchivePassword ? <FiEyeOff size={16} /> : <FiEye size={16} />}
                   </button>
                 </div>
               </div>
@@ -1760,25 +1724,19 @@ function FileUpload() {
 
             {/* Vendor Agreement Selection (Contract Validation Mode) */}
             {selectedProject && uploadType === 'contract' && (
-              <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid #e0e0e0' }}>
-                <label htmlFor="vendor-agreement-select" style={{ fontWeight: 'bold', display: 'block', marginBottom: '0.5rem' }}>
-                  Vendor Agreement: <span style={{ color: '#e74c3c' }}>*</span>
+              <div className="upload-subsection">
+                <label htmlFor="vendor-agreement-select" className="upload-form-label">
+                  Vendor Agreement: <span className="required-indicator">*</span>
                 </label>
-                <p style={{ fontSize: '0.875rem', color: '#666', marginBottom: '0.75rem' }}>
+                <p className="upload-field-desc">
                   Select the vendor agreement to validate the uploaded file against its defined schema and governance rules.
                 </p>
                 <select 
                   id="vendor-agreement-select"
+                  className="gps-form-select"
                   value={selectedAgreement || ''}
                   onChange={(e) => setSelectedAgreement(e.target.value)}
                   disabled={loadingAgreements}
-                  style={{
-                    width: '100%',
-                    padding: '0.5rem',
-                    borderRadius: '4px',
-                    border: '1px solid #ccc',
-                    cursor: 'pointer'
-                  }}
                 >
                   {loadingAgreements ? (
                     <option>Loading agreements...</option>
@@ -1798,12 +1756,13 @@ function FileUpload() {
                 
                 {/* File Pattern Selection (Optional - shows after agreement selected) */}
                 {selectedAgreement && agreementFilePatterns.length > 0 && (
-                  <div style={{ marginTop: '1rem' }}>
-                    <label htmlFor="file-pattern-select" style={{ fontWeight: 'bold', display: 'block', marginBottom: '0.5rem' }}>
-                      Expected File Pattern: <span style={{ fontSize: '0.875rem', fontWeight: 'normal', color: '#666' }}>(Optional - auto-matches when file is dropped)</span>
+                  <div className="upload-subsection-inner">
+                    <label htmlFor="file-pattern-select" className="upload-form-label">
+                      Expected File Pattern: <span className="upload-radio-hint">(Optional - auto-matches when file is dropped)</span>
                     </label>
                     <select 
                       id="file-pattern-select"
+                      className={`gps-form-select ${autoMatchedPattern ? 'pattern-auto-matched' : ''}`}
                       value={selectedFilePattern || ''}
                       onChange={(e) => {
                         const patternId = e.target.value ? parseInt(e.target.value) : null;
@@ -1827,14 +1786,6 @@ function FileUpload() {
                           setSelectedQualityRules([]);
                         }
                       }}
-                      style={{
-                        width: '100%',
-                        padding: '0.5rem',
-                        borderRadius: '4px',
-                        border: '1px solid #ccc',
-                        cursor: 'pointer',
-                        background: autoMatchedPattern ? '#e8f5e9' : '#fff'
-                      }}
                     >
                       <option value="">Select a file name pattern...</option>
                       {agreementFilePatterns.map(pattern => (
@@ -1845,12 +1796,7 @@ function FileUpload() {
                         </option>
                       ))}
                     </select>
-                    <div style={{ 
-                      fontSize: '0.75rem', 
-                      marginTop: '0.25rem',
-                      color: autoMatchedPattern ? '#2e7d32' : (selectedFilePattern ? '#666' : '#d32f2f'),
-                      fontWeight: autoMatchedPattern || !selectedFilePattern ? 'bold' : 'normal'
-                    }}>
+                    <div className={`pattern-status ${autoMatchedPattern ? 'pattern-status--success' : selectedFilePattern ? 'pattern-status--info' : 'pattern-status--warning'}`}>
                       {autoMatchedPattern 
                         ? '✓ Pattern auto-matched based on your file. You can override if needed.' 
                         : selectedFilePattern
@@ -1862,76 +1808,36 @@ function FileUpload() {
                 
                 {/* Schema Preview */}
                 {selectedAgreementSchema && selectedAgreementSchema.schema && (
-                  <div style={{ 
-                    marginTop: '1rem', 
-                    padding: '1rem', 
-                    background: '#f8f9fa', 
-                    borderRadius: '4px',
-                    border: '1px solid #dee2e6'
-                  }}>
-                    <div style={{ fontWeight: 'bold', marginBottom: '0.5rem', color: '#495057' }}>
-                      Expected Schema:
-                    </div>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                  <div className="agreement-schema-preview">
+                    <div className="agreement-schema-title">Expected Schema:</div>
+                    <div className="agreement-columns">
                       {Array.isArray(selectedAgreementSchema.schema) && selectedAgreementSchema.schema.map((col, idx) => {
-                        // Support both schema formats: {name, type} and {column_name, data_type}
                         const columnName = col.column_name || col.name;
                         const dataType = col.data_type || col.type;
                         
                         return (
-                          <span 
-                            key={idx}
-                            style={{
-                              padding: '0.25rem 0.5rem',
-                              background: '#fff',
-                              border: '1px solid #ced4da',
-                              borderRadius: '4px',
-                              fontSize: '0.875rem'
-                            }}
-                          >
-                            {columnName} <span style={{ color: '#6c757d' }}>({dataType})</span>
+                          <span key={idx} className="agreement-column-chip">
+                            {columnName} <span className="data-type">({dataType})</span>
                           </span>
                         );
                       })}
                     </div>
                     
                     {/* Governance Info */}
-                    <div style={{ marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid #dee2e6' }}>
-                      <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', fontSize: '0.875rem' }}>
-                        {selectedAgreementSchema.contains_pii && (
-                          <span style={{ 
-                            padding: '0.25rem 0.5rem', 
-                            background: '#fff3cd', 
-                            border: '1px solid #ffc107',
-                            borderRadius: '4px',
-                            color: '#856404'
-                          }}>
-                            🔒 Contains PII
-                          </span>
-                        )}
-                        {selectedAgreementSchema.data_classification && (
-                          <span style={{ 
-                            padding: '0.25rem 0.5rem', 
-                            background: '#d1ecf1', 
-                            border: '1px solid #17a2b8',
-                            borderRadius: '4px',
-                            color: '#0c5460'
-                          }}>
-                            {selectedAgreementSchema.data_classification}
-                          </span>
-                        )}
-                        {selectedAgreementSchema.file_type && (
-                          <span style={{ 
-                            padding: '0.25rem 0.5rem', 
-                            background: '#d4edda', 
-                            border: '1px solid #28a745',
-                            borderRadius: '4px',
-                            color: '#155724'
-                          }}>
-                            {selectedAgreementSchema.file_type.toUpperCase()}
-                          </span>
-                        )}
-                      </div>
+                    <div className="agreement-tags">
+                      {selectedAgreementSchema.contains_pii && (
+                        <span className="agreement-tag agreement-tag--pii">🔒 Contains PII</span>
+                      )}
+                      {selectedAgreementSchema.data_classification && (
+                        <span className="agreement-tag agreement-tag--classification">
+                          {selectedAgreementSchema.data_classification}
+                        </span>
+                      )}
+                      {selectedAgreementSchema.file_type && (
+                        <span className="agreement-tag agreement-tag--filetype">
+                          {selectedAgreementSchema.file_type.toUpperCase()}
+                        </span>
+                      )}
                     </div>
                   </div>
                 )}
@@ -1940,15 +1846,16 @@ function FileUpload() {
 
             {/* Quality Rules Selection */}
             {selectedProject && uploadType === 'adhoc' && (
-              <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid #e0e0e0' }}>
-                <label htmlFor="quality-rules-select" style={{ fontWeight: 'bold', display: 'block', marginBottom: '0.5rem' }}>
+              <div className="quality-rules-section">
+                <label htmlFor="quality-rules-select" className="upload-form-label">
                   Quality Rules (Optional):
                 </label>
-                <p style={{ fontSize: '0.875rem', color: '#666', marginBottom: '0.75rem' }}>
+                <p className="quality-rules-desc">
                   Select quality rules to validate this data. Rules will run during processing.
                 </p>
                 <select 
                   id="quality-rules-select"
+                  className="gps-form-select quality-rules-select"
                   multiple
                   value={selectedQualityRules.map(String)}
                   onChange={(e) => {
@@ -1956,14 +1863,6 @@ function FileUpload() {
                     setSelectedQualityRules(selected);
                   }}
                   disabled={loadingQualityRules}
-                  style={{
-                    width: '100%',
-                    padding: '0.5rem',
-                    borderRadius: '4px',
-                    border: '1px solid #ccc',
-                    minHeight: '100px',
-                    cursor: 'pointer'
-                  }}
                 >
                   {loadingQualityRules ? (
                     <option disabled>Loading quality rules...</option>
@@ -1977,7 +1876,7 @@ function FileUpload() {
                     ))
                   )}
                 </select>
-                <div style={{ fontSize: '0.75rem', color: '#666', marginTop: '0.5rem' }}>
+                <div className="quality-rules-hint">
                   {selectedQualityRules.length > 0 
                     ? `${selectedQualityRules.length} rule(s) selected` 
                     : 'No rules selected (hold Ctrl/Cmd to select multiple)'}
@@ -1987,20 +1886,13 @@ function FileUpload() {
             
             {/* Quality Rules Display for Contract Validation (read-only) */}
             {selectedProject && uploadType === 'contract' && selectedQualityRules.length > 0 && (
-              <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid #e0e0e0' }}>
-                <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '0.5rem' }}>
-                  Quality Rules (from agreement):
-                </label>
-                <div style={{ 
-                  padding: '0.75rem', 
-                  background: '#f8f9fa', 
-                  borderRadius: '4px',
-                  border: '1px solid #dee2e6'
-                }}>
+              <div className="upload-subsection">
+                <label className="upload-form-label">Quality Rules (from agreement):</label>
+                <div className="contract-rules-box">
                   {selectedQualityRules.map(ruleId => {
                     const rule = availableQualityRules.find(r => r.id === ruleId);
                     return rule ? (
-                      <div key={ruleId} style={{ fontSize: '0.875rem', marginBottom: '0.25rem' }}>
+                      <div key={ruleId} className="contract-rule-item">
                         ✓ {rule.rule_name} - {rule.rule_type} ({rule.severity})
                       </div>
                     ) : null;
@@ -2011,29 +1903,22 @@ function FileUpload() {
             
             {/* Delimiter Configuration Section */}
             {selectedProject && (
-              <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid #e0e0e0' }}>
-                <label htmlFor="delimiter-select" style={{ fontWeight: 'bold', display: 'block', marginBottom: '0.5rem' }}>
+              <div className="upload-subsection">
+                <label htmlFor="delimiter-select" className="upload-form-label">
                   File Delimiter (Optional):
                 </label>
-                <p style={{ fontSize: '0.875rem', color: '#666', marginBottom: '0.75rem' }}>
+                <p className="upload-field-desc">
                   Specify the delimiter for delimited files (.csv, .dat, .txt). Default is comma.
                 </p>
                 <select 
                   id="delimiter-select"
+                  className={`gps-form-select ${delimiterType === 'custom' ? 'delimiter-select--has-custom' : ''}`}
                   value={delimiterType}
                   onChange={(e) => {
                     setDelimiterType(e.target.value);
                     if (e.target.value !== 'custom') {
-                      setCustomDelimiter(''); // Clear custom delimiter when switching to predefined type
+                      setCustomDelimiter('');
                     }
-                  }}
-                  style={{
-                    width: '100%',
-                    padding: '0.5rem',
-                    borderRadius: '4px',
-                    border: '1px solid #ccc',
-                    cursor: 'pointer',
-                    marginBottom: delimiterType === 'custom' ? '0.75rem' : '0'
                   }}
                 >
                   <option value="none">Auto-detect</option>
@@ -2047,25 +1932,19 @@ function FileUpload() {
                 
                 {/* Custom delimiter input */}
                 {delimiterType === 'custom' && (
-                  <div>
-                    <label htmlFor="custom-delimiter-input" style={{ fontWeight: 'bold', display: 'block', marginBottom: '0.5rem' }}>
+                  <div className="custom-delimiter-section">
+                    <label htmlFor="custom-delimiter-input" className="upload-form-label">
                       Enter Custom Delimiter:
                     </label>
                     <input 
                       id="custom-delimiter-input"
+                      className="gps-form-input delimiter-input"
                       type="text"
                       value={customDelimiter}
                       onChange={(e) => setCustomDelimiter(e.target.value)}
                       placeholder="e.g., ~^ or || or any multi-character string"
-                      style={{
-                        width: '100%',
-                        padding: '0.5rem',
-                        borderRadius: '4px',
-                        border: '1px solid #ccc',
-                        fontFamily: 'monospace'
-                      }}
                     />
-                    <div style={{ fontSize: '0.75rem', color: '#666', marginTop: '0.5rem' }}>
+                    <div className="delimiter-hint">
                       Supports multi-character delimiters (e.g., '~^', '||', '::')
                     </div>
                   </div>

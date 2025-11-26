@@ -1,62 +1,380 @@
 .file-upload-container {
-  padding: var(--space-5);
+  padding: 0;
 }
 
-.file-upload-container h1 {
-  margin-bottom: var(--space-5);
-}
-
-/* Tab Styles */
-.upload-tabs {
-  display: flex;
-  gap: var(--space-2);
-  margin-bottom: var(--space-6);
-  background-color: white;
-  padding: var(--space-2);
-  border-radius: var(--radius-md);
-  border: 1px solid var(--border-light);
-}
-
-.tab-button {
-  flex: 1;
-  padding: var(--space-3) var(--space-4);
-  border: 1px solid transparent;
-  background-color: white;
-  color: var(--text-secondary);
-  font-size: var(--text-base);
-  font-weight: var(--font-medium);
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.tab-button:focus,
-.tab-button:focus-visible {
-  outline: none !important;
-}
-
-.tab-button:hover {
-  border-color: var(--border-medium);
-  color: var(--text-primary);
-}
-
-.tab-button.active {
-  color: var(--color-primary);
-  font-weight: var(--font-semibold);
-}
-
+/* Upload Instructions */
 .upload-instructions {
-  margin-bottom: var(--space-8);
+  margin-bottom: 16px;
 }
 
-.upload-instructions h2 {
-  font-size: var(--text-2xl);
-  margin-bottom: var(--space-2);
+.upload-instructions-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
 }
 
-.upload-instructions p {
-  color: var(--text-secondary);
-  line-height: var(--leading-normal);
+.upload-section-title {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+  margin: 0 0 4px 0;
+}
+
+.upload-section-subtitle {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 10px;
+  color: #666;
+  margin: 0;
+  line-height: 1.4;
+}
+
+/* Form Section Styles */
+.upload-form-section {
+  padding: 16px;
+  background: transparent;
+  margin-bottom: 16px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+}
+
+.upload-type-section {
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.upload-type-options {
+  display: flex;
+  gap: 24px;
+}
+
+.upload-radio-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 10px;
+  color: #333;
+}
+
+.upload-radio-label input[type="radio"] {
+  cursor: pointer;
+  accent-color: #025043;
+}
+
+.upload-radio-hint {
+  font-size: 10px;
+  color: #666;
+}
+
+.upload-form-row {
+  display: flex;
+  gap: 24px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.upload-form-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1 1 280px;
+}
+
+.upload-form-label {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+  color: #333;
+  white-space: nowrap;
+}
+
+.required-indicator {
+  color: #e53e3e;
+}
+
+.upload-owner-field {
+  flex: 1 1 280px;
+}
+
+.upload-owner-value {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 10px;
+  color: #333;
+  flex: 1;
+}
+
+.upload-edit-link {
+  background: none;
+  border: none;
+  color: #025043;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 10px;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 4px 8px;
+  transition: opacity 0.2s;
+}
+
+.upload-edit-link:hover {
+  opacity: 0.8;
+  text-decoration: underline;
+}
+
+/* Archive Password Section */
+.archive-password-section {
+  flex: 1 1 100%;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.archive-password-section .upload-form-label {
+  margin-bottom: 4px;
+  display: block;
+}
+
+.archive-password-hint {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 9px;
+  color: #666;
+  margin-bottom: 8px;
+}
+
+.password-input-wrapper {
+  position: relative;
+  max-width: 400px;
+}
+
+.password-input {
+  width: 100%;
+  padding-right: 40px !important;
+  font-family: 'Monaco', 'Menlo', monospace;
+}
+
+.password-toggle-btn {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  color: #666;
+}
+
+.password-toggle-btn:hover {
+  color: #025043;
+}
+
+/* Quality Rules Section */
+.quality-rules-section {
+  flex: 1 1 100%;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.quality-rules-desc {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 9px;
+  color: #666;
+  margin-bottom: 8px;
+}
+
+.quality-rules-select {
+  min-height: 100px;
+  width: 100%;
+}
+
+.quality-rules-hint {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 9px;
+  color: #666;
+  margin-top: 6px;
+}
+
+/* Upload Subsection (Vendor Agreement, Delimiter, etc.) */
+.upload-subsection {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.upload-field-desc {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 9px;
+  color: #666;
+  margin-bottom: 8px;
+}
+
+/* Vendor Agreement Schema Display */
+.agreement-schema-preview {
+  margin-top: 16px;
+  padding: 12px;
+  background: #f8f9fa;
+  border-radius: 4px;
+  border: 1px solid #e2e8f0;
+}
+
+.agreement-schema-title {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 8px;
+}
+
+.agreement-columns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.agreement-column-chip {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 9px;
+  padding: 4px 8px;
+  background: #e9ecef;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  color: #333;
+}
+
+.agreement-column-chip .data-type {
+  color: #6c757d;
+}
+
+/* Agreement Tags */
+.agreement-tags {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #dee2e6;
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.agreement-tag {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 9px;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+.agreement-tag--pii {
+  background: #fff3cd;
+  border: 1px solid #ffc107;
+  color: #856404;
+}
+
+.agreement-tag--classification {
+  background: #d1ecf1;
+  border: 1px solid #17a2b8;
+  color: #0c5460;
+}
+
+.agreement-tag--filetype {
+  background: #d4edda;
+  border: 1px solid #28a745;
+  color: #155724;
+}
+
+/* Contract Rules Display */
+.contract-rules-box {
+  padding: 12px;
+  background: #f8f9fa;
+  border-radius: 4px;
+  border: 1px solid #e2e8f0;
+}
+
+.contract-rule-item {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 10px;
+  margin-bottom: 4px;
+}
+
+/* Pattern Match Alert */
+.pattern-match-alert {
+  margin-top: 12px;
+  padding: 12px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pattern-match-alert--success {
+  background: #d4edda;
+  border: 1px solid #28a745;
+  color: #155724;
+}
+
+.pattern-match-alert--warning {
+  background: #fff3cd;
+  border: 1px solid #ffc107;
+  color: #856404;
+}
+
+.pattern-match-text {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 10px;
+}
+
+/* Upload Subsection Inner (nested sections) */
+.upload-subsection-inner {
+  margin-top: 16px;
+}
+
+/* Pattern Auto-matched Select */
+.pattern-auto-matched {
+  background: #e8f5e9 !important;
+}
+
+/* Pattern Status */
+.pattern-status {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 9px;
+  margin-top: 4px;
+}
+
+.pattern-status--success {
+  color: #2e7d32;
+  font-weight: 600;
+}
+
+.pattern-status--info {
+  color: #666;
+}
+
+.pattern-status--warning {
+  color: #d32f2f;
+  font-weight: 600;
+}
+
+/* Delimiter Section */
+.delimiter-select--has-custom {
+  margin-bottom: 12px;
+}
+
+.custom-delimiter-section {
+  margin-top: 12px;
+}
+
+.delimiter-input {
+  font-family: 'Monaco', 'Menlo', monospace;
+}
+
+.delimiter-hint {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 9px;
+  color: #666;
+  margin-top: 6px;
 }
 
 .access-denied-message {
