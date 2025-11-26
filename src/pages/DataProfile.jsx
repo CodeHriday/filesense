@@ -2736,9 +2736,9 @@ function DataProfile() {
             {activeTab === 'ai-suggestions' && (
               <AIDQSuggestionsTab 
                 fileId={fileId}
-                filename={fileDetails?.filename}
+                filename={file?.filename}
                 columns={profile?.columns || []}
-                projectId={fileDetails?.project_id}
+                projectId={file?.project_id}
               />
             )}
           </div>
