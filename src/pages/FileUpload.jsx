@@ -1708,7 +1708,7 @@ function FileUpload() {
                     value={archivePassword}
                     onChange={(e) => setArchivePassword(e.target.value)}
                     placeholder="Enter archive password..."
-                    className="gps-form-input password-input"
+                    className="password-input"
                   />
                   <button
                     type="button"
