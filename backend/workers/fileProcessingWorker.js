@@ -202,6 +202,11 @@ class FileProcessingWorker {
   async processJob(jobId, job) {
     const { fileId, filePath, originalName, fileSize, fileType, userId, fileHash, projectId, subProjectId, qualityRuleIds, agreementId, isVendorFile, delimiter, headerConfig, fixedWidthSchema, archivePassword } = job.data;
     const startTime = Date.now();
+    
+    // Get retry information from job options (BullMQ)
+    const attemptsMade = job.attemptsMade || 0;
+    const maxAttempts = job.opts?.attempts || 3;
+    const isLastAttempt = attemptsMade >= maxAttempts - 1;
 
     this.logger.info('Processing file job', {
       jobId,
@@ -896,8 +901,22 @@ class FileProcessingWorker {
       // Mark processing as failed
       await this.updateProcessingStep(fileId, 'failed');
 
-      // Cleanup: Delete or quarantine failed file
-      await this.cleanupUploadedFile(filePath, 'failure');
+      // Only cleanup file on the last attempt to allow retries to access the file
+      if (isLastAttempt) {
+        this.logger.info('Last retry attempt exhausted, cleaning up file', { 
+          fileId, 
+          attemptsMade: attemptsMade + 1, 
+          maxAttempts 
+        });
+        await this.cleanupUploadedFile(filePath, 'failure');
+      } else {
+        this.logger.info('Preserving file for retry attempt', { 
+          fileId, 
+          attemptsMade: attemptsMade + 1, 
+          maxAttempts,
+          retriesRemaining: maxAttempts - attemptsMade - 1
+        });
+      }
 
       await this.queue.failJob(jobId, error);
     }

@@ -931,7 +931,15 @@ def profile_vendor_file(file_path, filename, password=None, fixed_width_schema=N
             elif isinstance(value, (np.integer, np.floating)):
                 row_dict[col] = float(value)
             else:
-                row_dict[col] = str(value)
+                # Sanitize string values to remove control characters and invalid Unicode
+                # that could break JSON serialization
+                str_value = str(value)
+                # Remove control characters (except newline, tab)
+                str_value = ''.join(char if (char.isprintable() or char in '\n\t') else '?' for char in str_value)
+                # Truncate very long values
+                if len(str_value) > 1000:
+                    str_value = str_value[:1000] + '...[truncated]'
+                row_dict[col] = str_value
         preview_data.append(row_dict)
     
     # Helper function to detect data patterns
@@ -1035,8 +1043,13 @@ def profile_vendor_file(file_path, filename, password=None, fixed_width_schema=N
                         continue
                 except (TypeError, ValueError):
                     pass
+                # Sanitize string values to remove control characters
+                str_val = str(val)
+                str_val = ''.join(char if (char.isprintable() or char in '\n\t') else '?' for char in str_val)
+                if len(str_val) > 200:
+                    str_val = str_val[:200] + '...'
                 profile['top_values'].append({
-                    'value': str(val),
+                    'value': str_val,
                     'count': int(count),
                     'percentage': float((count / len(df)) * 100)
                 })

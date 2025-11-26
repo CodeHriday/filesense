@@ -1695,13 +1695,29 @@ app.post('/api/files/upload', authenticateToken, invalidateCache('cache:*:*files
     let fixedWidthSchema = null;
     if (req.body.fixedWidthSchema) {
       try {
-        fixedWidthSchema = JSON.parse(req.body.fixedWidthSchema);
+        // Handle double-encoded JSON (sometimes FormData sends strings that need double parsing)
+        let schemaString = req.body.fixedWidthSchema;
+        
+        // If the string starts with a quote, it might be double-encoded
+        if (typeof schemaString === 'string' && schemaString.startsWith('"')) {
+          try {
+            schemaString = JSON.parse(schemaString);
+          } catch (innerError) {
+            // Not double-encoded, continue with original
+          }
+        }
+        
+        fixedWidthSchema = typeof schemaString === 'string' ? JSON.parse(schemaString) : schemaString;
         logger.info('Fixed-width schema provided for upload', { 
           columnCount: fixedWidthSchema.columns?.length || 0,
           userId: req.user?.id 
         });
       } catch (e) {
-        logger.warn('Invalid fixedWidthSchema format', { fixedWidthSchema: req.body.fixedWidthSchema });
+        logger.error('Invalid fixedWidthSchema format - JSON parse error', { 
+          fixedWidthSchema: req.body.fixedWidthSchema,
+          errorMessage: e.message,
+          errorName: e.name
+        });
         fixedWidthSchema = null;
       }
     }
