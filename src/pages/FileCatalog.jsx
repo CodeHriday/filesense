@@ -62,7 +62,7 @@ export const FileCatalog = ({ onFileSelect }) => {
     if (projectParam) {
       setSelectedProject(parseInt(projectParam));
     } else {
-      setSelectedProject(null);
+      setSelectedProject('all');
     }
   }, [searchParams]);
   
@@ -301,8 +301,31 @@ export const FileCatalog = ({ onFileSelect }) => {
     };
   };
 
+  // Deduplicate files - keep only the latest version of each file
+  // Group by logical_file_id (or filename if no logical_file_id) and keep the most recent
+  const deduplicatedFiles = React.useMemo(() => {
+    const fileMap = new Map();
+    
+    // Sort files by created_at descending to ensure we keep the latest
+    const sortedByDate = [...files].sort((a, b) => 
+      new Date(b.created_at) - new Date(a.created_at)
+    );
+    
+    sortedByDate.forEach(file => {
+      // Use logical_file_id if available, otherwise use filename as the grouping key
+      const groupKey = file.logical_file_id || file.filename;
+      
+      // Only keep the first (latest) file for each group
+      if (!fileMap.has(groupKey)) {
+        fileMap.set(groupKey, file);
+      }
+    });
+    
+    return Array.from(fileMap.values());
+  }, [files]);
+
   // Filter and sort the files (MUST be before any conditional returns)
-  const filteredAndSortedFiles = files
+  const filteredAndSortedFiles = deduplicatedFiles
     .filter(file => {
       // Filter by search term
       const searchLower = searchTerm.toLowerCase();
