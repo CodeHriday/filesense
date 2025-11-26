@@ -375,16 +375,17 @@
 
 .policy-modal-content {
   background-color: white;
-  border-radius: var(--radius-md);
+  border-radius: 6px;
   box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
   max-height: 90vh;
   overflow-y: auto;
+  font-family: var(--gps-font-family, 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
 }
 
 .policy-error-modal,
 .policy-confirm-modal {
-  max-width: 450px;
-  min-width: 350px;
+  max-width: 420px;
+  min-width: 320px;
 }
 
 /* Error Modal Header */
@@ -392,23 +393,24 @@
   display: flex;
   flex-direction: row;
   align-items: center;
-  gap: var(--space-3);
-  padding: var(--space-4);
-  border-bottom: 1px solid var(--border-light);
-  border-radius: var(--radius-md) var(--radius-md) 0 0;
-  background-color: #fef2f2;
-  color: #dc2626;
+  gap: 10px;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--gps-border-light, #e2e8f0);
+  border-radius: 6px 6px 0 0;
+  background-color: #fff5f5;
+  color: var(--gps-danger-red, #e53e3e);
 }
 
 .policy-error-header .policy-error-icon {
-  font-size: 24px;
+  font-size: 18px;
 }
 
 .policy-error-header h3 {
   flex: 1;
   margin: 0;
-  font-size: var(--text-lg);
-  font-weight: var(--font-semibold);
+  font-size: 13px;
+  font-weight: 600;
+  font-family: var(--gps-font-family, 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
 }
 
 /* Confirm Modal Header */
@@ -416,23 +418,24 @@
   display: flex;
   flex-direction: row;
   align-items: center;
-  gap: var(--space-3);
-  padding: var(--space-4);
-  border-bottom: 1px solid var(--border-light);
-  border-radius: var(--radius-md) var(--radius-md) 0 0;
-  background-color: #fef3c7;
-  color: #d97706;
+  gap: 10px;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--gps-border-light, #e2e8f0);
+  border-radius: 6px 6px 0 0;
+  background-color: #fffaf0;
+  color: #dd6b20;
 }
 
 .policy-confirm-header svg {
-  font-size: 24px;
+  font-size: 18px;
 }
 
 .policy-confirm-header h3 {
   flex: 1;
   margin: 0;
-  font-size: var(--text-lg);
-  font-weight: var(--font-semibold);
+  font-size: 13px;
+  font-weight: 600;
+  font-family: var(--gps-font-family, 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
 }
 
 /* Close Button */
@@ -443,7 +446,7 @@
   cursor: pointer;
   color: currentColor;
   opacity: 0.6;
-  transition: opacity var(--transition-base);
+  transition: opacity 0.2s;
 }
 
 .policy-close-btn:hover {
@@ -451,21 +454,22 @@
 }
 
 .policy-close-btn svg {
-  font-size: 20px;
+  font-size: 16px;
 }
 
 /* Modal Body */
 .policy-error-body,
 .policy-confirm-body {
-  padding: var(--space-5);
+  padding: 16px 20px;
 }
 
 .policy-error-body p,
 .policy-confirm-body p {
   margin: 0;
-  color: var(--text-primary);
-  font-size: var(--text-base);
+  color: var(--gps-text-dark, #333333);
+  font-size: 11px;
   line-height: 1.6;
+  font-family: var(--gps-font-family, 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
 }
 
 /* Modal Actions */
@@ -473,25 +477,26 @@
 .policy-confirm-actions {
   display: flex;
   justify-content: flex-end;
-  gap: var(--space-3);
-  padding: var(--space-4);
-  border-top: 1px solid var(--border-light);
+  gap: 10px;
+  padding: 14px 20px;
+  border-top: 1px solid var(--gps-border-light, #e2e8f0);
 }
 
 .btn-danger {
-  background-color: #dc2626;
+  background-color: var(--gps-danger-red, #e53e3e);
   color: white;
-  padding: var(--space-2) var(--space-4);
+  padding: 6px 14px;
   border: none;
-  border-radius: var(--radius-md);
-  font-size: var(--text-sm);
-  font-weight: var(--font-medium);
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
   cursor: pointer;
-  transition: all var(--transition-base);
+  transition: all 0.2s;
+  font-family: var(--gps-font-family, 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
 }
 
 .btn-danger:hover {
-  background-color: #b91c1c;
+  background-color: #c53030;
 }
 
 /* Toast Notification */

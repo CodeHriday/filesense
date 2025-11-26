@@ -1,3 +1,5 @@
+/* Edit SubProject Modal - Standardized with gps-* variables */
+
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -13,7 +15,7 @@
 
 .modal {
   background: #ffffff;
-  border-radius: var(--border-radius, 8px);
+  border-radius: 6px;
   max-width: 600px;
   width: 90%;
   height: 85vh;
@@ -21,6 +23,7 @@
   flex-direction: column;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
   overflow: hidden;
+  font-family: var(--gps-font-family, 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
 }
 
 .modal-large {
@@ -31,25 +34,27 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0.5rem 1.5rem;
-  background: #6D8196;
-  height: 50px;
+  padding: 0 20px;
+  background: var(--gps-primary-teal, #025043);
+  height: 46px;
   flex-shrink: 0;
-  min-height: 50px;
-  max-height: 50px;
+  min-height: 46px;
+  max-height: 46px;
 }
 
 .modal-header h2 {
   margin: 0;
-  font-size: 1rem;
+  font-size: 13px;
+  font-weight: 600;
   color: #ffffff;
   line-height: 1.2;
+  font-family: var(--gps-font-family, 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
 }
 
 .close-btn {
   background: none;
   border: none;
-  font-size: 1.5rem;
+  font-size: 18px;
   color: #ffffff;
   cursor: pointer;
   line-height: 1;
@@ -62,7 +67,7 @@
 }
 
 .close-btn:hover {
-  color: #f0f0f0;
+  color: rgba(255, 255, 255, 0.8);
 }
 
 .close-btn:disabled {
@@ -80,33 +85,34 @@
   display: flex;
   justify-content: flex-end;
   align-items: center;
-  gap: 1rem;
-  padding: 0.5rem 1.5rem;
-  border-top: 1px solid var(--border-color, #dee2e6);
-  height: 50px;
+  gap: 10px;
+  padding: 0 20px;
+  border-top: 1px solid var(--gps-border-light, #e2e8f0);
+  height: 46px;
   flex-shrink: 0;
-  min-height: 50px;
-  max-height: 50px;
+  min-height: 46px;
+  max-height: 46px;
   background: #ffffff;
 }
 
 .edit-subproject-tabs {
   display: flex;
-  border-bottom: 1px solid var(--border-color, #dee2e6);
-  background: #f8f9fa;
-  padding: 0 1.5rem;
+  border-bottom: 1px solid var(--gps-border-light, #e2e8f0);
+  background: var(--gps-bg-page, #f7fafc);
+  padding: 0 20px;
 }
 
 .tab-button {
   background: none;
   border: none;
-  padding: 0.75rem 1.5rem;
+  padding: 10px 16px;
   cursor: pointer;
-  font-size: 0.875rem;
+  font-size: 11px;
   font-weight: 500;
-  color: #6c757d;
+  color: var(--gps-text-muted, #666666);
   border-bottom: 2px solid transparent;
   transition: all 0.2s;
+  font-family: var(--gps-font-family, 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
 }
 
 .tab-button:focus,
@@ -115,13 +121,14 @@
 }
 
 .tab-button:hover {
-  color: #495057;
+  color: var(--gps-text-dark, #333333);
   background: rgba(0, 0, 0, 0.02);
 }
 
 .tab-button.active {
-  color: var(--primary-color, #025043);
+  color: var(--gps-primary-teal, #025043);
   font-weight: 600;
+  border-bottom-color: var(--gps-primary-teal, #025043);
 }
 
 .tab-content {
@@ -129,26 +136,35 @@
 }
 
 .form-group {
-  margin-bottom: 1rem;
+  margin-bottom: 12px;
 }
 
 .form-group label {
   display: block;
-  margin-bottom: 0.35rem;
+  margin-bottom: 4px;
   font-weight: 500;
-  color: var(--text-primary, #212529);
-  font-size: 0.75rem;
+  color: var(--gps-text-muted, #666666);
+  font-size: 10px;
+  font-family: var(--gps-font-family, 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
 }
 
 .form-group input[type="text"],
 .form-group textarea,
 .form-group select {
   width: 100%;
-  padding: 0.6rem;
-  border: 1px solid var(--border-color, #dee2e6);
-  border-radius: var(--border-radius, 4px);
-  font-size: 0.75rem;
-  font-family: inherit;
+  padding: 8px 10px;
+  border: 1px solid var(--gps-border-light, #e2e8f0);
+  border-radius: 4px;
+  font-size: 11px;
+  font-family: var(--gps-font-family, 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
+}
+
+.form-group input[type="text"]:focus,
+.form-group textarea:focus,
+.form-group select:focus {
+  outline: none;
+  border-color: var(--gps-primary-teal, #025043);
+  box-shadow: 0 0 0 2px rgba(2, 80, 67, 0.1);
 }
 
 .form-group textarea {
@@ -157,17 +173,18 @@
 
 .form-group input[type="text"]:disabled,
 .form-group textarea:disabled {
-  background-color: #e9ecef;
+  background-color: #f7fafc;
   cursor: not-allowed;
 }
 
 .checkbox-label {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 8px;
   cursor: pointer;
   user-select: none;
-  font-size: 0.875rem;
+  font-size: 11px;
+  font-family: var(--gps-font-family, 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
 }
 
 .checkbox-label input[type="checkbox"] {
@@ -176,22 +193,23 @@
 
 .btn-primary,
 .btn-secondary {
-  padding: 0.6rem 1.2rem;
+  padding: 6px 14px;
   border: none;
-  border-radius: var(--border-radius, 4px);
-  font-size: 0.75rem;
+  border-radius: 4px;
+  font-size: 11px;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s;
+  font-family: var(--gps-font-family, 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
 }
 
 .btn-primary {
-  background: var(--primary-color, #025043);
+  background: var(--gps-primary-teal, #025043);
   color: white;
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: var(--primary-hover, #013a30);
+  background: var(--gps-primary-hover, #033830);
 }
 
 .btn-primary:disabled {
@@ -200,13 +218,13 @@
 }
 
 .btn-secondary {
-  background: var(--bg-secondary, #f8f9fa);
-  color: var(--text-primary, #212529);
-  border: 1px solid var(--border-color, #dee2e6);
+  background: var(--gps-bg-page, #f7fafc);
+  color: var(--gps-text-dark, #333333);
+  border: 1px solid var(--gps-border-light, #e2e8f0);
 }
 
 .btn-secondary:hover:not(:disabled) {
-  background: var(--border-color, #dee2e6);
+  background: #edf2f7;
 }
 
 .btn-secondary:disabled {
@@ -215,13 +233,14 @@
 }
 
 .alert {
-  padding: 0.75rem 1rem;
-  border-radius: var(--border-radius, 4px);
-  font-size: 0.875rem;
+  padding: 10px 12px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-family: var(--gps-font-family, 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
 }
 
 .alert-error {
-  background: #f8d7da;
-  color: #721c24;
-  border: 1px solid #f5c6cb;
+  background: #fff5f5;
+  color: #c53030;
+  border: 1px solid #feb2b2;
 }

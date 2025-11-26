@@ -1,3 +1,5 @@
+/* Workflow Config Modal - Standardized with gps-* variables */
+
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -13,37 +15,40 @@
 
 .modal-content {
   background: white;
-  border-radius: 8px;
+  border-radius: 6px;
   width: 90%;
   max-width: 500px;
   max-height: 90vh;
   overflow-y: auto;
   box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+  font-family: var(--gps-font-family, 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
 }
 
 .modal-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1.5rem;
-  border-bottom: 1px solid #e0e0e0;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--gps-border-light, #e2e8f0);
 }
 
 .modal-header h2 {
   margin: 0;
-  font-size: 1.3rem;
-  color: #333;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--gps-primary-teal, #025043);
+  font-family: var(--gps-font-family, 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
 }
 
 .modal-close {
   background: none;
   border: none;
-  font-size: 1.5rem;
+  font-size: 18px;
   cursor: pointer;
-  color: #666;
+  color: var(--gps-text-muted, #666666);
   padding: 0;
-  width: 30px;
-  height: 30px;
+  width: 28px;
+  height: 28px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -51,66 +56,95 @@
 }
 
 .modal-close:hover {
-  background: #f0f0f0;
-  color: #333;
+  background: var(--gps-bg-page, #f7fafc);
+  color: var(--gps-text-dark, #333333);
 }
 
 .modal-content form {
-  padding: 1.5rem;
+  padding: 16px 20px;
 }
 
 .form-group {
-  margin-bottom: 1.5rem;
+  margin-bottom: 14px;
 }
 
 .form-group label {
   display: block;
-  margin-bottom: 0.5rem;
+  margin-bottom: 4px;
   font-weight: 600;
-  font-size: 0.9rem;
-  color: #333;
+  font-size: 10px;
+  color: var(--gps-text-muted, #666666);
+  font-family: var(--gps-font-family, 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
 }
 
 .form-group input,
 .form-group textarea,
 .form-group select {
   width: 100%;
-  padding: 0.75rem;
-  border: 1px solid #ddd;
+  padding: 8px 10px;
+  border: 1px solid var(--gps-border-light, #e2e8f0);
   border-radius: 4px;
-  font-size: 0.9rem;
-  font-family: inherit;
+  font-size: 11px;
+  font-family: var(--gps-font-family, 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
 }
 
 .form-group input:focus,
 .form-group textarea:focus,
 .form-group select:focus {
   outline: none;
-  border-color: #4CAF50;
+  border-color: var(--gps-primary-teal, #025043);
+  box-shadow: 0 0 0 2px rgba(2, 80, 67, 0.1);
 }
 
 .form-group textarea {
   resize: vertical;
-  min-height: 80px;
+  min-height: 70px;
 }
 
 .help-text {
   display: block;
-  margin-top: 0.5rem;
-  font-size: 0.8rem;
-  color: #666;
+  margin-top: 4px;
+  font-size: 10px;
+  color: var(--gps-text-muted, #666666);
   line-height: 1.4;
+  font-family: var(--gps-font-family, 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
 }
 
 .modal-actions {
   display: flex;
   justify-content: flex-end;
-  gap: 0.75rem;
-  padding-top: 1rem;
-  border-top: 1px solid #e0e0e0;
+  gap: 10px;
+  padding-top: 12px;
+  border-top: 1px solid var(--gps-border-light, #e2e8f0);
 }
 
 .modal-actions .btn-primary,
 .modal-actions .btn-secondary {
-  padding: 0.75rem 1.5rem;
+  padding: 6px 14px;
+  font-size: 11px;
+  font-weight: 500;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: var(--gps-font-family, 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
+}
+
+.modal-actions .btn-primary {
+  background: var(--gps-primary-teal, #025043);
+  color: white;
+  border: none;
+}
+
+.modal-actions .btn-primary:hover:not(:disabled) {
+  background: var(--gps-primary-hover, #033830);
+}
+
+.modal-actions .btn-secondary {
+  background: white;
+  color: var(--gps-text-dark, #333333);
+  border: 1px solid var(--gps-border-light, #e2e8f0);
+}
+
+.modal-actions .btn-secondary:hover:not(:disabled) {
+  background: var(--gps-bg-page, #f7fafc);
 }
