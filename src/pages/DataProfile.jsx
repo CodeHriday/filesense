@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { FiFileText, FiCalendar, FiBarChart2, FiDownload, FiTable, FiCopy, FiEdit2, FiUser, FiClock, FiCheckCircle, FiAlertTriangle, FiXCircle, FiGitBranch } from 'react-icons/fi';
+import { FiFileText, FiCalendar, FiBarChart2, FiDownload, FiTable, FiCopy, FiEdit2, FiUser, FiClock, FiCheckCircle, FiAlertTriangle, FiXCircle, FiGitBranch, FiZap } from 'react-icons/fi';
 import Card from '../components/Card';
 import LoadingSpinner from '../components/LoadingSpinner';
 import FilePreview from '../components/FilePreview';
 import ErrorModal from '../components/ErrorModal';
 import SchemaHistoryTab from '../components/SchemaHistoryTab';
+import AIDQSuggestionsTab from '../components/AIDQSuggestionsTab';
 import { getFileDetails, getFileProfile, getFilePreview } from '../api/fileService';
 import { formatBytes, formatDate, getTimeSince, formatNumber, formatDecimal } from '../utils/formatters';
 import { useAuth } from '../context/AuthContext';
@@ -2718,6 +2719,12 @@ function DataProfile() {
             >
               <FiCheckCircle style={{ marginRight: '6px' }} /> Quality Rules
             </button>
+            <button 
+              className={`gps-tab ${activeTab === 'ai-suggestions' ? 'gps-tab--active' : ''}`}
+              onClick={() => setActiveTab('ai-suggestions')}
+            >
+              <FiZap style={{ marginRight: '6px' }} /> AI Suggestions
+            </button>
           </div>
           
           <div className="profile-content">
@@ -2726,6 +2733,14 @@ function DataProfile() {
             {activeTab === 'schema-history' && <SchemaHistoryTab fileId={fileId} />}
             {activeTab === 'preview' && renderPreviewTab()}
             {activeTab === 'quality-rules' && renderQualityRulesTab()}
+            {activeTab === 'ai-suggestions' && (
+              <AIDQSuggestionsTab 
+                fileId={fileId}
+                filename={fileDetails?.filename}
+                columns={profile?.columns || []}
+                projectId={fileDetails?.project_id}
+              />
+            )}
           </div>
         </>
       ) : (
