@@ -243,15 +243,17 @@
 .three-section-modal-content .form-group select,
 .three-section-modal-content .form-group textarea {
   font-family: var(--gps-font-family, 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
-  font-size: 12px;
+  font-size: 11px;
   font-weight: var(--gps-font-weight-medium, 500);
   width: 100%;
-  padding: var(--gps-spacing-md, 8px) var(--gps-spacing-lg, 12px);
+  padding: 6px 10px;
   border: 1px solid var(--gps-border-input, #cbd5e0);
   border-radius: var(--gps-radius-sm, 4px);
   background: var(--gps-bg-white, #ffffff);
   color: var(--gps-text-dark, #333333);
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  height: 32px;
+  box-sizing: border-box;
 }
 
 .three-section-modal-content .form-group input:focus,
@@ -273,14 +275,23 @@
 .three-section-modal-content .form-group input::placeholder,
 .three-section-modal-content .form-group textarea::placeholder {
   color: var(--gps-text-light, #9ca3af);
+  font-size: 10px;
 }
 
-.three-section-modal-content .form-group small {
+.three-section-modal-content .form-group textarea {
+  height: auto;
+  min-height: 60px;
+  resize: vertical;
+}
+
+.three-section-modal-content .form-group small,
+.three-section-modal-content .form-helper-text {
   display: block;
   font-family: var(--gps-font-family, 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
   font-size: 9px;
   color: var(--gps-text-muted, #666666);
-  margin-top: var(--gps-spacing-xs, 4px);
+  margin-top: 3px;
+  line-height: 1.3;
 }
 
 .three-section-modal-content .form-row-grid {
