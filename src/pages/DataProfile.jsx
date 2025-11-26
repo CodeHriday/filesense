@@ -1660,42 +1660,58 @@ function DataProfile() {
     const basicInfo = profile.basic_info || {};
     const totalRows = file.row_count || basicInfo.rowCount || 100;
     
-    // Use intelligent quality analysis for anomaly detection
-    const hasAnomalies = (column) => {
-      const quality = analyzeColumnQuality(column, totalRows);
-      return quality.hasIssues;
+    // Get severity-based border color for distribution cards
+    const getSeverityBorderColor = (severityLevel) => {
+      switch (severityLevel) {
+        case 'danger': return '#ef4444';
+        case 'warning': return '#f59e0b';
+        case 'info': return '#3b82f6';
+        default: return null;
+      }
     };
     
-    // Helper to generate anomaly badges using intelligent detection
-    const getAnomalyBadges = (column) => {
-      const quality = analyzeColumnQuality(column, totalRows);
-      return quality.issues.map((issue, idx) => (
-        <span 
-          key={idx} 
-          className={`anomaly-badge anomaly-${issue.severity === 'danger' ? 'danger' : 'warning'}`} 
-          title={issue.tooltip}
-        >
-          {issue.label}
-        </span>
-      ));
+    // Get badge style for distribution tab based on severity
+    const getDistBadgeStyle = (severity) => {
+      switch (severity) {
+        case 'danger': return { backgroundColor: '#ef4444', color: 'white', fontSize: '9px', padding: '2px 6px' };
+        case 'warning': return { backgroundColor: '#f59e0b', color: 'white', fontSize: '9px', padding: '2px 6px' };
+        case 'info': return { backgroundColor: '#3b82f6', color: 'white', fontSize: '9px', padding: '2px 6px' };
+        default: return { fontSize: '9px', padding: '2px 6px' };
+      }
     };
     
     return (
       <div className="distribution-tab">
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: '16px' }}>
           {columns.map((column) => {
-            const anomalyBadges = getAnomalyBadges(column);
+            const quality = analyzeColumnQuality(column, totalRows);
             const columnGovernanceTags = allColumnGovernanceTags[column.name] || [];
+            const borderColor = getSeverityBorderColor(quality.severityLevel);
             
             return (
               <div 
                 key={column.name} 
                 className="gps-card"
-                style={hasAnomalies(column) ? { borderLeft: '3px solid #f59e0b' } : {}}
+                style={borderColor ? { borderLeft: `3px solid ${borderColor}` } : {}}
               >
                 <div className="gps-card-header" style={{ padding: '12px 16px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                     <h3 className="gps-card-title" style={{ margin: 0, fontSize: '12px' }}>{column.name}</h3>
+                    {quality.semanticType !== 'generic' && (
+                      <span 
+                        className="gps-badge" 
+                        style={{ 
+                          backgroundColor: '#e2e8f0', 
+                          color: '#475569', 
+                          fontSize: '8px', 
+                          padding: '1px 4px',
+                          fontWeight: '500'
+                        }}
+                        title={`Detected as ${getSemanticTypeLabel(quality.semanticType)} field`}
+                      >
+                        {getSemanticTypeLabel(quality.semanticType)}
+                      </span>
+                    )}
                     {columnGovernanceTags.length > 0 && (
                       columnGovernanceTags.map(tag => (
                         <span 
@@ -1713,9 +1729,14 @@ function DataProfile() {
                         </span>
                       ))
                     )}
-                    {anomalyBadges.map((badge, i) => (
-                      <span key={i} className="gps-badge gps-badge--warning" style={{ fontSize: '9px', padding: '2px 6px' }}>
-                        {badge.props.children}
+                    {quality.issues.map((issue, idx) => (
+                      <span 
+                        key={idx} 
+                        className="gps-badge" 
+                        style={getDistBadgeStyle(issue.severity)}
+                        title={issue.tooltip}
+                      >
+                        {issue.label}
                       </span>
                     ))}
                   </div>
