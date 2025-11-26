@@ -302,6 +302,69 @@
   }
 }
 
+/* Quick Setup Section */
+.three-section-modal-content .quick-setup-section {
+  background: var(--gps-bg-page, #f7fafc);
+  padding: var(--gps-spacing-xl, 16px);
+  border-radius: var(--gps-radius-md, 6px);
+  border: 1px solid var(--gps-primary-teal, #025043);
+  margin-bottom: var(--gps-spacing-xl, 16px);
+}
+
+.three-section-modal-content .quick-setup-title {
+  color: var(--gps-primary-teal, #025043);
+  margin-bottom: var(--gps-spacing-sm, 6px);
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.three-section-modal-content .quick-setup-description {
+  font-family: var(--gps-font-family, 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
+  font-size: var(--gps-font-size-content, 10px);
+  color: var(--gps-text-muted, #666666);
+  margin: 0 0 var(--gps-spacing-lg, 12px) 0;
+}
+
+.three-section-modal-content .template-buttons {
+  display: flex;
+  gap: var(--gps-spacing-md, 8px);
+  flex-wrap: wrap;
+}
+
+.three-section-modal-content .btn-template {
+  font-family: var(--gps-font-family, 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
+  font-size: var(--gps-font-size-content, 10px);
+  font-weight: var(--gps-font-weight-semibold, 600);
+  padding: var(--gps-spacing-sm, 6px) var(--gps-spacing-lg, 12px);
+  background: var(--gps-bg-white, #ffffff);
+  color: var(--gps-primary-teal, #025043);
+  border: 1px solid var(--gps-primary-teal, #025043);
+  border-radius: var(--gps-radius-sm, 4px);
+  cursor: pointer;
+  transition: all 0.2s;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.three-section-modal-content .btn-template:hover {
+  background: var(--gps-primary-teal, #025043);
+  color: white;
+}
+
+.three-section-modal-content .success-text {
+  font-family: var(--gps-font-family, 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
+  font-size: var(--gps-font-size-content, 10px);
+  color: var(--gps-success-green, #38a169);
+  margin-top: var(--gps-spacing-sm, 6px);
+}
+
+.three-section-modal-content .processing-text {
+  font-family: var(--gps-font-family, 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
+  font-size: var(--gps-font-size-content, 10px);
+  color: var(--gps-text-muted, #666666);
+  margin-top: var(--gps-spacing-sm, 6px);
+}
+
 /* Responsive design */
 @media (max-width: 768px) {
   .three-section-modal {

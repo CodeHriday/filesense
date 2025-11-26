@@ -1636,7 +1636,6 @@ const VendorAgreements = () => {
                     type="button" 
                     onClick={(e) => handleSubmit(e, true)}
                     className="btn-secondary"
-                    style={{ backgroundColor: '#6b7280' }}
                   >
                     Save Draft
                   </button>
@@ -1649,22 +1648,21 @@ const VendorAgreements = () => {
               <form id="agreement-form" onSubmit={handleSubmit} className="agreement-form">
                 {/* Section 1: Quick Setup with Template (Optional - Auto-populate fields) */}
                 {modalMode === 'create' && (
-                  <div className="form-section" style={{ backgroundColor: '#f8f9fa', padding: '1.5rem', borderRadius: '8px', border: '2px solid #3b82f6' }}>
-                    <h3 className="section-title" style={{ marginBottom: '0.5rem', color: '#1e40af' }}>
-                      🚀 Quick Setup with Template
+                  <div className="form-section quick-setup-section">
+                    <h3 className="section-title quick-setup-title">
+                      Quick Setup with Template
                     </h3>
-                    <p style={{ fontSize: '0.9rem', color: '#6b7280', marginBottom: '1rem' }}>
+                    <p className="quick-setup-description">
                       Download a template, fill it with your contract details, and upload to auto-populate most fields below.
                     </p>
                     
                     <div className="form-group">
                       <label>Download Template</label>
-                      <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                      <div className="template-buttons">
                         <button
                           type="button"
                           onClick={() => handleDownloadTemplate('xlsx')}
-                          className="btn-secondary"
-                          style={{ padding: '0.5rem 1rem', fontSize: '0.9rem' }}
+                          className="btn-template"
                         >
                           Excel (.xlsx)
                         </button>
@@ -1681,16 +1679,16 @@ const VendorAgreements = () => {
                         disabled={uploadingTemplate}
                       />
                       {templateFile && (
-                        <p className="file-selected" style={{ color: '#059669', marginTop: '0.5rem' }}>
-                          ✓ Template uploaded: {templateFile.name}
+                        <p className="file-selected success-text">
+                          Template uploaded: {templateFile.name}
                         </p>
                       )}
                       {uploadingTemplate && (
-                        <p style={{ color: '#6b7280', marginTop: '0.5rem' }}>
+                        <p className="processing-text">
                           Processing template...
                         </p>
                       )}
-                      <small style={{ color: '#6b7280', fontSize: '0.875rem', display: 'block', marginTop: '0.5rem' }}>
+                      <small>
                         Upload Excel (.xlsx, .xls) file - Fields below will auto-populate
                       </small>
                     </div>
