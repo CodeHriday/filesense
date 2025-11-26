@@ -20,14 +20,14 @@
 
 .page-layout-title {
   margin: 0;
-  font-size: 1.5rem;
+  font-size: 14px;
   font-weight: 600;
   color: #025043;
 }
 
 .page-layout-subtitle {
-  margin: 0.25rem 0 0 0;
-  font-size: 0.8rem;
+  margin: 2px 0 0 0;
+  font-size: 10px;
   color: #037c6e;
 }
 
@@ -111,6 +111,6 @@ table.page-layout-table tbody tr:last-child td {
   }
 
   .page-layout-title {
-    font-size: 1.25rem;
+    font-size: 12px;
   }
 }
