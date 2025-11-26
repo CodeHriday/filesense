@@ -897,34 +897,48 @@
 
 .action-badge,
 .change-badge {
-  display: inline-block;
-  padding: 4px 8px;
-  border-radius: 12px;
-  font-size: 11px;
-  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-family: var(--gps-font-family, 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
+  font-size: 9px;
+  font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.3px;
+  min-width: 60px;
+  text-align: center;
 }
 
 .action-approved,
-.change-created {
-  background-color: #e6f4ea;
-  color: #137333;
+.change-created,
+.change-CREATED {
+  background-color: #e6ffed;
+  color: var(--gps-success-green, #38a169);
 }
 
 .action-rejected {
-  background-color: #feeceb;
-  color: #d93025;
+  background-color: #fff5f5;
+  color: var(--gps-danger-red, #e53e3e);
 }
 
-.change-updated {
-  background-color: #e8f0fe;
-  color: #1a73e8;
+.change-updated,
+.change-UPDATED {
+  background-color: #ebf8ff;
+  color: #3182ce;
 }
 
-.change-deleted {
-  background-color: #f1f3f4;
-  color: #5f6368;
+.change-deleted,
+.change-DELETED {
+  background-color: #f7fafc;
+  color: var(--gps-text-muted, #666666);
+}
+
+.change-locked,
+.change-LOCKED {
+  background-color: #f7fafc;
+  color: var(--gps-text-dark, #333333);
 }
 
 body.high-contrast .vendor-agreements-container h1 {
