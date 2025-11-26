@@ -11,22 +11,34 @@ class GeminiProvider(AIProvider):
     """Google Gemini/Vertex AI provider."""
     
     PROVIDER_NAME = "gemini"
-    REQUIRED_SECRETS = ["GOOGLE_API_KEY"]
+    REQUIRED_SECRETS = []
     
     def __init__(self):
         self._client = None
         self._model = os.environ.get("GEMINI_MODEL", "gemini-1.5-flash")
+        self._credentials_validated = False
         super().__init__()
     
     def validate_credentials(self) -> bool:
+        if self._credentials_validated and self._client is not None:
+            return True
+        
         api_key = os.environ.get("GOOGLE_API_KEY")
-        if not api_key:
+        credentials_path = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
+        
+        if not api_key and not credentials_path:
             return False
         
         try:
             import google.generativeai as genai
-            genai.configure(api_key=api_key)
+            
+            if api_key:
+                genai.configure(api_key=api_key)
+            elif credentials_path:
+                genai.configure()
+            
             self._client = genai.GenerativeModel(self._model)
+            self._credentials_validated = True
             return True
         except ImportError:
             logger.warning("google-generativeai package not installed")

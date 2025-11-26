@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FiZap, FiAlertTriangle, FiCheckCircle, FiPlus, FiRefreshCw, FiToggleLeft, FiToggleRight, FiInfo, FiCheck, FiX } from 'react-icons/fi';
+import { FiZap, FiAlertTriangle, FiCheckCircle, FiPlus, FiRefreshCw, FiToggleLeft, FiToggleRight, FiInfo, FiCheck, FiX, FiCpu, FiCloud, FiLock, FiChevronDown } from 'react-icons/fi';
 import LoadingSpinner from './LoadingSpinner';
 import './AIDQSuggestionsTab.css';
 
@@ -14,10 +14,70 @@ const AIDQSuggestionsTab = ({ fileId, filename, columns, projectId }) => {
   const [creatingRules, setCreatingRules] = useState({});
   const [createdRules, setCreatedRules] = useState(new Set());
   const [toggleUpdating, setToggleUpdating] = useState(false);
+  const [providers, setProviders] = useState([]);
+  const [currentProvider, setCurrentProvider] = useState('auto');
+  const [providerInfo, setProviderInfo] = useState(null);
+  const [showProviderSelect, setShowProviderSelect] = useState(false);
+  const [providerUpdating, setProviderUpdating] = useState(false);
 
   useEffect(() => {
     checkFeatureStatus();
+    fetchProviders();
   }, []);
+
+  const fetchProviders = async () => {
+    try {
+      const response = await fetch('/profile-api/api/ai-providers');
+      if (response.ok) {
+        const data = await response.json();
+        setProviders(data.providers || []);
+        setCurrentProvider(data.current_provider || 'auto');
+      }
+    } catch (err) {
+      console.error('Error fetching providers:', err);
+    }
+  };
+
+  const updateProvider = async (providerName) => {
+    try {
+      setProviderUpdating(true);
+      const response = await fetch('/profile-api/api/ai-providers/current', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ provider: providerName })
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setCurrentProvider(providerName);
+        setProviderInfo(data.provider_info);
+        if (suggestions.length > 0) {
+          setSuggestions([]);
+          setGeneratedAt(null);
+          setCreatedRules(new Set());
+          setSelectedSuggestions(new Set());
+        }
+      }
+    } catch (err) {
+      console.error('Error updating provider:', err);
+    } finally {
+      setProviderUpdating(false);
+      setShowProviderSelect(false);
+    }
+  };
+
+  const getProviderIcon = (provider) => {
+    if (!provider) return <FiCpu />;
+    const level = provider.privacy_level || '';
+    if (level === 'local') return <FiLock />;
+    if (level.includes('cloud')) return <FiCloud />;
+    return <FiCpu />;
+  };
+
+  const getProviderDisplayName = (name) => {
+    const provider = providers.find(p => p.name === name);
+    return provider?.display_name || name;
+  };
 
   const checkFeatureStatus = async () => {
     try {
@@ -49,10 +109,6 @@ const AIDQSuggestionsTab = ({ fileId, filename, columns, projectId }) => {
       
       if (response.ok) {
         setFeatureEnabled(newValue);
-        if (newValue) {
-          setSuggestions([]);
-          setGeneratedAt(null);
-        }
       }
     } catch (err) {
       console.error('Error toggling feature:', err);
@@ -106,6 +162,7 @@ const AIDQSuggestionsTab = ({ fileId, filename, columns, projectId }) => {
 
       setSuggestions(data.suggestions || []);
       setGeneratedAt(data.generatedAt);
+      setProviderInfo(data.provider);
       setSelectedSuggestions(new Set());
     } catch (err) {
       console.error('Error generating suggestions:', err);
@@ -233,6 +290,48 @@ const AIDQSuggestionsTab = ({ fileId, filename, columns, projectId }) => {
           </p>
         </div>
         <div className="ai-header-right">
+          <div className="provider-selector">
+            <span className="provider-label">Provider:</span>
+            <div className="provider-dropdown-container">
+              <button 
+                className="provider-dropdown-trigger"
+                onClick={() => setShowProviderSelect(!showProviderSelect)}
+                disabled={providerUpdating}
+              >
+                {getProviderIcon(providers.find(p => p.name === currentProvider))}
+                <span>{currentProvider === 'auto' ? 'Auto' : getProviderDisplayName(currentProvider)}</span>
+                <FiChevronDown className={showProviderSelect ? 'rotated' : ''} />
+              </button>
+              {showProviderSelect && (
+                <div className="provider-dropdown-menu">
+                  <button
+                    className={`provider-option ${currentProvider === 'auto' ? 'active' : ''}`}
+                    onClick={() => updateProvider('auto')}
+                  >
+                    <FiCpu />
+                    <span>Auto-detect</span>
+                    <small>Use best available provider</small>
+                  </button>
+                  {providers.map(provider => (
+                    <button
+                      key={provider.name}
+                      className={`provider-option ${currentProvider === provider.name ? 'active' : ''} ${!provider.available ? 'unavailable' : ''}`}
+                      onClick={() => provider.available && updateProvider(provider.name)}
+                      disabled={!provider.available}
+                    >
+                      {getProviderIcon(provider)}
+                      <span>{provider.display_name || provider.name}</span>
+                      <small>
+                        {provider.privacy_level === 'local' ? 'Fully Private' : 
+                         provider.privacy_level?.includes('cloud') ? 'Cloud' : ''}
+                        {!provider.available && ' (Not Configured)'}
+                      </small>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
           <div className="feature-toggle">
             <span className="toggle-label">AI Analysis</span>
             <button 
@@ -305,9 +404,17 @@ const AIDQSuggestionsTab = ({ fileId, filename, columns, projectId }) => {
           </div>
 
           {generatedAt && (
-            <p className="generated-at">
-              Generated: {new Date(generatedAt).toLocaleString()}
-            </p>
+            <div className="generated-info">
+              <p className="generated-at">
+                Generated: {new Date(generatedAt).toLocaleString()}
+              </p>
+              {providerInfo && (
+                <p className="provider-used">
+                  {getProviderIcon(providerInfo)} Using: {providerInfo.display_name || providerInfo.name}
+                  {providerInfo.privacy_level === 'local' && <span className="privacy-badge">Fully Private</span>}
+                </p>
+              )}
+            </div>
           )}
 
           {error && (

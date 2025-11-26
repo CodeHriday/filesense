@@ -17,9 +17,13 @@ class BedrockProvider(AIProvider):
         self._client = None
         self._model_id = os.environ.get("BEDROCK_MODEL_ID", "anthropic.claude-3-sonnet-20240229-v1:0")
         self._region = os.environ.get("AWS_REGION", "us-east-1")
+        self._credentials_validated = False
         super().__init__()
     
     def validate_credentials(self) -> bool:
+        if self._credentials_validated and self._client is not None:
+            return True
+        
         if not super().validate_credentials():
             return False
         
@@ -31,6 +35,7 @@ class BedrockProvider(AIProvider):
                 aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID"),
                 aws_secret_access_key=os.environ.get("AWS_SECRET_ACCESS_KEY")
             )
+            self._credentials_validated = True
             return True
         except Exception as e:
             logger.warning(f"Bedrock client initialization failed: {e}")

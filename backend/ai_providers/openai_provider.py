@@ -15,13 +15,29 @@ class OpenAIProvider(AIProvider):
     
     def __init__(self):
         self._client = None
+        self._credentials_validated = False
         super().__init__()
     
     def validate_credentials(self) -> bool:
-        """OpenAI via Replit integration doesn't need explicit API key."""
+        """OpenAI via Replit integration uses AI_INTEGRATIONS_OPENAI_* env vars."""
+        if self._credentials_validated and self._client is not None:
+            return True
+        
         try:
             from openai import OpenAI
+            api_key = os.environ.get("AI_INTEGRATIONS_OPENAI_API_KEY") or os.environ.get("OPENAI_API_KEY")
+            base_url = os.environ.get("AI_INTEGRATIONS_OPENAI_BASE_URL")
+            
+            if api_key:
+                if base_url:
+                    self._client = OpenAI(api_key=api_key, base_url=base_url)
+                else:
+                    self._client = OpenAI(api_key=api_key)
+                self._credentials_validated = True
+                return True
+            
             self._client = OpenAI()
+            self._credentials_validated = True
             return True
         except Exception as e:
             logger.warning(f"OpenAI client initialization failed: {e}")

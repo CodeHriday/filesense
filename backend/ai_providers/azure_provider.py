@@ -17,9 +17,13 @@ class AzureOpenAIProvider(AIProvider):
         self._client = None
         self._deployment = os.environ.get("AZURE_OPENAI_DEPLOYMENT", "gpt-4o")
         self._api_version = os.environ.get("AZURE_OPENAI_API_VERSION", "2024-02-15-preview")
+        self._credentials_validated = False
         super().__init__()
     
     def validate_credentials(self) -> bool:
+        if self._credentials_validated and self._client is not None:
+            return True
+        
         if not super().validate_credentials():
             return False
         
@@ -30,6 +34,7 @@ class AzureOpenAIProvider(AIProvider):
                 api_version=self._api_version,
                 azure_endpoint=os.environ.get("AZURE_OPENAI_ENDPOINT")
             )
+            self._credentials_validated = True
             return True
         except Exception as e:
             logger.warning(f"Azure OpenAI client initialization failed: {e}")
