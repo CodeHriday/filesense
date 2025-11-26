@@ -1,4 +1,6 @@
-.modal-overlay {
+/* DuplicateFileModal - Standardized with Inter font and teal branding */
+
+.duplicate-modal-overlay {
   position: fixed;
   top: 0;
   left: 0;
@@ -9,10 +11,10 @@
   justify-content: center;
   align-items: center;
   z-index: 1000;
-  animation: fadeIn 0.2s ease-in;
+  animation: duplicateModalFadeIn 0.2s ease-in;
 }
 
-@keyframes fadeIn {
+@keyframes duplicateModalFadeIn {
   from {
     opacity: 0;
   }
@@ -22,15 +24,16 @@
 }
 
 .duplicate-modal {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   background: white;
-  border-radius: 12px;
+  border-radius: 8px;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-  max-width: 500px;
+  max-width: 480px;
   width: 90%;
-  animation: slideUp 0.3s ease-out;
+  animation: duplicateModalSlideUp 0.3s ease-out;
 }
 
-@keyframes slideUp {
+@keyframes duplicateModalSlideUp {
   from {
     transform: translateY(20px);
     opacity: 0;
@@ -41,160 +44,169 @@
   }
 }
 
-.modal-header {
+.duplicate-modal .modal-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 24px 24px 16px;
-  border-bottom: 1px solid #e5e7eb;
+  padding: 20px 24px 16px;
+  border-bottom: 1px solid #e2e8f0;
 }
 
-.modal-title {
+.duplicate-modal .modal-title {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
 }
 
-.modal-title h2 {
+.duplicate-modal .modal-title h2 {
   margin: 0;
-  font-size: 20px;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 12px;
   font-weight: 600;
-  color: #111827;
+  color: #333;
 }
 
-.warning-icon {
-  width: 24px;
-  height: 24px;
+.duplicate-modal .warning-icon {
+  width: 22px;
+  height: 22px;
   color: #f59e0b;
 }
 
-.modal-close {
+.duplicate-modal .modal-close {
   background: none;
   border: none;
   cursor: pointer;
-  padding: 8px;
+  padding: 6px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 6px;
+  border-radius: 4px;
   transition: background-color 0.2s;
 }
 
-.modal-close:hover {
+.duplicate-modal .modal-close:hover {
   background-color: #f3f4f6;
 }
 
-.modal-close svg {
-  width: 20px;
-  height: 20px;
+.duplicate-modal .modal-close svg {
+  width: 18px;
+  height: 18px;
   color: #6b7280;
 }
 
-.modal-body {
-  padding: 24px;
+.duplicate-modal .modal-body {
+  padding: 20px 24px;
 }
 
-.modal-message {
-  margin: 0 0 20px;
-  color: #4b5563;
-  font-size: 15px;
+.duplicate-modal .modal-message {
+  margin: 0 0 16px;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 10px;
+  color: #666;
   line-height: 1.5;
 }
 
-.existing-file-info {
-  background: #f9fafb;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  padding: 16px;
-  margin-bottom: 20px;
+.duplicate-modal .existing-file-info {
+  background: #f8f9fa;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 14px 16px;
+  margin-bottom: 16px;
 }
 
-.existing-file-info h3 {
-  margin: 0 0 12px;
-  font-size: 14px;
+.duplicate-modal .existing-file-info h3 {
+  margin: 0 0 10px;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 10px;
   font-weight: 600;
-  color: #374151;
+  color: #333;
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
 
-.file-details {
+.duplicate-modal .file-details {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
 }
 
-.detail-row {
+.duplicate-modal .detail-row {
   display: flex;
-  justify-content: space-between;
+  justify-content: center;
   align-items: center;
+  gap: 4px;
 }
 
-.detail-row .label {
-  font-size: 14px;
-  color: #6b7280;
+.duplicate-modal .detail-row .label {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 10px;
+  color: #666;
   font-weight: 500;
 }
 
-.detail-row .value {
-  font-size: 14px;
-  color: #111827;
+.duplicate-modal .detail-row .value {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 10px;
+  color: #025043;
   font-weight: 600;
 }
 
-.modal-question {
+.duplicate-modal .modal-question {
   margin: 0;
-  font-size: 15px;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 10px;
   font-weight: 500;
-  color: #111827;
+  color: #333;
 }
 
-.modal-actions {
+.duplicate-modal .modal-actions {
   display: flex;
-  gap: 12px;
-  padding: 16px 24px 24px;
-  border-top: 1px solid #e5e7eb;
+  gap: 10px;
+  padding: 16px 24px 20px;
+  border-top: 1px solid #e2e8f0;
 }
 
-.modal-actions .btn {
+.duplicate-modal .modal-actions .btn {
   flex: 1;
-  padding: 10px 16px;
-  font-size: 14px;
+  padding: 10px 14px;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 10px;
   font-weight: 500;
-  border-radius: 8px;
+  border-radius: 4px;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.2s ease;
   border: none;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-.modal-actions .btn-danger {
+.duplicate-modal .modal-actions .btn-danger {
   background-color: #ef4444;
   color: white;
 }
 
-.modal-actions .btn-danger:hover {
+.duplicate-modal .modal-actions .btn-danger:hover {
   background-color: #dc2626;
 }
 
-.modal-actions .btn-secondary {
-  background-color: #6D8196;
+.duplicate-modal .modal-actions .btn-secondary {
+  background-color: #025043;
   color: white;
 }
 
-.modal-actions .btn-secondary:hover {
-  background-color: #5B7C99;
+.duplicate-modal .modal-actions .btn-secondary:hover {
+  background-color: #013d34;
 }
 
-.modal-actions .btn-outline {
+.duplicate-modal .modal-actions .btn-outline {
   background-color: white;
-  color: #6b7280;
+  color: #666;
   border: 1px solid #d1d5db;
 }
 
-.modal-actions .btn-outline:hover {
-  background-color: #f9fafb;
-  border-color: #9ca3af;
+.duplicate-modal .modal-actions .btn-outline:hover {
+  background-color: #f3f4f6;
+  border-color: #025043;
+  color: #025043;
 }

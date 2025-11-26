@@ -16,7 +16,7 @@ const DuplicateFileModal = ({ existingFile, onReplace, onKeepBoth, onCancel }) =
   };
 
   return (
-    <div className="modal-overlay">
+    <div className="duplicate-modal-overlay">
       <div className="duplicate-modal">
         <div className="modal-header">
           <div className="modal-title">
