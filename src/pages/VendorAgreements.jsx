@@ -1743,9 +1743,7 @@ const VendorAgreements = () => {
                         onChange={handleInputChange}
                         placeholder="Enter a description for this agreement"
                       />
-                      <small style={{ color: '#6b7280', fontSize: '0.875rem', display: 'block', marginTop: '0.5rem' }}>
-                        Optional: Add a description to easily identify this agreement
-                      </small>
+                      <span className="form-helper-text">Optional: Add a description to easily identify this agreement</span>
                     </div>
                   </div>
                   
@@ -1760,11 +1758,8 @@ const VendorAgreements = () => {
                           value={formData.project_name || ''}
                           readOnly
                           placeholder={formData.project_name ? "" : "No project assigned to vendor"}
-                          style={{ backgroundColor: '#f9fafb', cursor: 'not-allowed' }}
                         />
-                        <small style={{ color: '#6b7280', fontSize: '0.875rem', display: 'block', marginTop: '0.5rem' }}>
-                          Automatically assigned from the vendor's project
-                        </small>
+                        <span className="form-helper-text">Automatically assigned from the vendor's project</span>
                       </div>
                       
                       {formData.project_id && (
@@ -1787,9 +1782,9 @@ const VendorAgreements = () => {
                               </option>
                             ))}
                           </select>
-                          <small style={{ color: '#6b7280', fontSize: '0.875rem', display: 'block', marginTop: '0.5rem' }}>
+                          <span className="form-helper-text">
                             {!formData.project_id ? 'Project assignment required' : subProjects.length === 0 ? 'No sub-projects available' : 'Optional: Select a sub-project for this agreement'}
-                          </small>
+                          </span>
                         </div>
                       )}
                     </div>
@@ -1830,11 +1825,8 @@ const VendorAgreements = () => {
                           onChange={handleInputChange}
                           readOnly
                           placeholder="Auto-populated from vendor manager"
-                          style={{ backgroundColor: '#f9fafb', cursor: 'not-allowed' }}
                         />
-                        <small style={{ color: '#6b7280', fontSize: '0.875rem', display: 'block', marginTop: '0.5rem' }}>
-                          Automatically populated from vendor manager's email
-                        </small>
+                        <span className="form-helper-text">Automatically populated from vendor manager's email</span>
                       </div>
                     )}
                   </div>
@@ -1861,9 +1853,7 @@ const VendorAgreements = () => {
                             </option>
                           ))}
                       </select>
-                      <small style={{ color: '#6b7280', fontSize: '0.875rem', display: 'block', marginTop: '0.5rem' }}>
-                        Responsible for final approval of the vendor contract
-                      </small>
+                      <span className="form-helper-text">Responsible for final approval of the vendor contract</span>
                     </div>
                     
                     {formData.governance_manager_user_id && (
@@ -1875,11 +1865,8 @@ const VendorAgreements = () => {
                           value={users.find(u => u.id === parseInt(formData.governance_manager_user_id))?.email || ''}
                           readOnly
                           placeholder="Governance manager email"
-                          style={{ backgroundColor: '#f9fafb', cursor: 'not-allowed' }}
                         />
-                        <small style={{ color: '#6b7280', fontSize: '0.875rem', display: 'block', marginTop: '0.5rem' }}>
-                          Email address of the selected governance manager
-                        </small>
+                        <span className="form-helper-text">Email address of the selected governance manager</span>
                       </div>
                     )}
                   </div>
@@ -1900,11 +1887,8 @@ const VendorAgreements = () => {
                           value={formData.vendor_code}
                           readOnly
                           placeholder="Auto from vendor"
-                          style={{ backgroundColor: '#f9fafb', cursor: 'not-allowed' }}
                         />
-                        <small style={{ color: '#6b7280', fontSize: '0.875rem', display: 'block', marginTop: '0.5rem' }}>
-                          Automatically assigned when vendor is selected
-                        </small>
+                        <span className="form-helper-text">Automatically assigned when vendor is selected</span>
                       </div>
                       
                       <div className="form-group">
@@ -1916,11 +1900,8 @@ const VendorAgreements = () => {
                           value={formData.vendor_type}
                           readOnly
                           placeholder="Auto from vendor"
-                          style={{ backgroundColor: '#f9fafb', cursor: 'not-allowed' }}
                         />
-                        <small style={{ color: '#6b7280', fontSize: '0.875rem', display: 'block', marginTop: '0.5rem' }}>
-                          Automatically assigned when vendor is selected
-                        </small>
+                        <span className="form-helper-text">Automatically assigned when vendor is selected</span>
                       </div>
                     </div>
                     
@@ -1947,9 +1928,7 @@ const VendorAgreements = () => {
                           onChange={handleInputChange}
                           required
                         />
-                        <small style={{ color: '#6b7280', fontSize: '0.875rem', display: 'block', marginTop: '0.5rem' }}>
-                          Date and time when the contract becomes active
-                        </small>
+                        <span className="form-helper-text">Date and time when the contract becomes active</span>
                       </div>
                       
                       <div className="form-group">
@@ -1962,9 +1941,7 @@ const VendorAgreements = () => {
                           onChange={handleInputChange}
                           required
                         />
-                        <small style={{ color: '#6b7280', fontSize: '0.875rem', display: 'block', marginTop: '0.5rem' }}>
-                          Contract will be automatically disabled after this date and time
-                        </small>
+                        <span className="form-helper-text">Contract will be automatically disabled after this date and time</span>
                       </div>
                     </div>
                   </div>
@@ -2204,20 +2181,19 @@ const VendorAgreements = () => {
                   <h3 className="section-title">SLA Monitoring Configuration</h3>
                   
                   {/* SLA Enabled Toggle */}
-                  <div className="form-group" style={{ marginBottom: '1.5rem' }}>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+                  <div className="form-group checkbox-group">
+                    <label className="checkbox-label">
                       <input
                         type="checkbox"
                         name="sla_enabled"
                         checked={formData.sla_enabled}
                         onChange={(e) => setFormData(prev => ({ ...prev, sla_enabled: e.target.checked }))}
-                        style={{ width: '18px', height: '18px', cursor: 'pointer' }}
                       />
-                      <span style={{ fontWeight: 500 }}>Enable SLA Monitoring</span>
+                      <span className="checkbox-text">Enable SLA Monitoring</span>
                     </label>
-                    <small style={{ color: '#6b7280', fontSize: '0.875rem', display: 'block', marginTop: '0.5rem', marginLeft: '26px' }}>
+                    <span className="form-helper-text checkbox-helper">
                       Automatically track file arrival times and send alerts when files are late
-                    </small>
+                    </span>
                   </div>
                   
                   {formData.sla_enabled && (
@@ -2239,9 +2215,7 @@ const VendorAgreements = () => {
                             <option value="monthly">Monthly</option>
                             <option value="custom">Custom</option>
                           </select>
-                          <small style={{ color: '#6b7280', fontSize: '0.875rem', display: 'block', marginTop: '0.5rem' }}>
-                            How often the file is expected to arrive
-                          </small>
+                          <span className="form-helper-text">How often the file is expected to arrive</span>
                         </div>
                         
                         <div className="form-group">
@@ -2256,9 +2230,7 @@ const VendorAgreements = () => {
                             onChange={handleInputChange}
                             required={formData.sla_enabled}
                           />
-                          <small style={{ color: '#6b7280', fontSize: '0.875rem', display: 'block', marginTop: '0.5rem' }}>
-                            Time of day the file should arrive (24-hour format)
-                          </small>
+                          <span className="form-helper-text">Time of day the file should arrive (24-hour format)</span>
                         </div>
                       </div>
                       
@@ -2276,9 +2248,7 @@ const VendorAgreements = () => {
                             placeholder="e.g., 1,3,5 for Monday, Wednesday, Friday"
                             required={formData.sla_enabled && formData.frequency_pattern === 'weekly'}
                           />
-                          <small style={{ color: '#6b7280', fontSize: '0.875rem', display: 'block', marginTop: '0.5rem' }}>
-                            Days of the week: 0=Sunday, 1=Monday, 2=Tuesday, 3=Wednesday, 4=Thursday, 5=Friday, 6=Saturday
-                          </small>
+                          <span className="form-helper-text">Days of the week: 0=Sunday, 1=Monday, 2=Tuesday, 3=Wednesday, 4=Thursday, 5=Friday, 6=Saturday</span>
                         </div>
                       )}
                       
@@ -2296,9 +2266,9 @@ const VendorAgreements = () => {
                           min="0"
                           required={formData.sla_enabled}
                         />
-                        <small style={{ color: '#6b7280', fontSize: '0.875rem', display: 'block', marginTop: '0.5rem' }}>
+                        <span className="form-helper-text">
                           Grace period in minutes after expected arrival time before triggering an alert
-                        </small>
+                        </span>
                       </div>
                     </>
                   )}
