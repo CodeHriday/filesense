@@ -372,3 +372,29 @@
   background-color: #f3f4f6;
   border-color: #025043;
 }
+
+/* File Status Labels */
+.gps-dropzone-file-scanning,
+.gps-dropzone-file-uploading {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 9px;
+  color: #025043;
+}
+
+.gps-dropzone-file-complete {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 9px;
+  color: #10b981;
+}
+
+.gps-dropzone-file-failed {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 9px;
+  color: #ef4444;
+}
+
+.gps-dropzone-file-pending {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 9px;
+  color: #6b7280;
+}

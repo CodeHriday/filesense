@@ -471,37 +471,24 @@ function FileDropzone({ onFileDrop, onBatchFileDrop, acceptedFileTypes = ['.csv'
               <div>
                 <p>{completedFiles.length} file(s) uploaded successfully!</p>
                 {virusScan && (
-                  <div style={{ 
-                    marginTop: '1rem', 
-                    marginBottom: '1rem',
-                    padding: '0.75rem', 
-                    backgroundColor: virusScan.skipped ? '#fff3cd' : '#d4edda',
-                    borderRadius: '4px',
-                    fontSize: '0.9rem'
-                  }}>
+                  <div className={`gps-dropzone-scan-banner ${virusScan.skipped ? 'gps-dropzone-scan-banner--warning' : 'gps-dropzone-scan-banner--clean'}`}>
                     <strong>Security Scan: </strong>
                     {virusScan.clean && !virusScan.skipped && (
-                      <span style={{ color: '#155724' }}>✓ Files scanned - No vulnerabilities found</span>
+                      <span>✓ Files scanned - No vulnerabilities found</span>
                     )}
                     {virusScan.skipped && (
-                      <span style={{ color: '#856404' }}>⚠ {virusScan.message}</span>
+                      <span>⚠ {virusScan.message}</span>
                     )}
                   </div>
                 )}
-                <div style={{ marginTop: '1rem', maxHeight: '200px', overflowY: 'auto' }}>
+                <div className="gps-dropzone-file-list">
                   {uploadingFiles.map((file, idx) => (
-                    <div key={idx} style={{ 
-                      display: 'flex', 
-                      justifyContent: 'space-between', 
-                      alignItems: 'center',
-                      padding: '0.5rem', 
-                      borderBottom: '1px solid #eee' 
-                    }}>
-                      <span style={{ flex: 1 }}>{file.name}</span>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        {file.error && <span style={{ fontSize: '0.85rem', color: 'red' }}>{file.error}</span>}
-                        {file.status === 'success' && <FiCheckCircle style={{ color: 'green' }} />}
-                        {file.status === 'error' && <FiAlertCircle style={{ color: 'red' }} />}
+                    <div key={idx} className="gps-dropzone-file-item">
+                      <span className="gps-dropzone-file-name">{file.name}</span>
+                      <div className="gps-dropzone-file-status">
+                        {file.error && <span className="gps-dropzone-file-error">{file.error}</span>}
+                        {file.status === 'success' && <FiCheckCircle className="gps-dropzone-icon-success" />}
+                        {file.status === 'error' && <FiAlertCircle className="gps-dropzone-icon-error" />}
                       </div>
                     </div>
                   ))}
@@ -511,19 +498,13 @@ function FileDropzone({ onFileDrop, onBatchFileDrop, acceptedFileTypes = ['.csv'
               <div>
                 <p>File uploaded successfully!</p>
                 {virusScan && (
-                  <div style={{ 
-                    marginTop: '1rem', 
-                    padding: '0.75rem', 
-                    backgroundColor: virusScan.skipped ? '#fff3cd' : '#d4edda',
-                    borderRadius: '4px',
-                    fontSize: '0.9rem'
-                  }}>
+                  <div className={`gps-dropzone-scan-banner ${virusScan.skipped ? 'gps-dropzone-scan-banner--warning' : 'gps-dropzone-scan-banner--clean'}`}>
                     <strong>Security Scan: </strong>
                     {virusScan.clean && !virusScan.skipped && (
-                      <span style={{ color: '#155724' }}>✓ File scanned - No vulnerabilities found</span>
+                      <span>✓ File scanned - No vulnerabilities found</span>
                     )}
                     {virusScan.skipped && (
-                      <span style={{ color: '#856404' }}>⚠ {virusScan.message}</span>
+                      <span>⚠ {virusScan.message}</span>
                     )}
                   </div>
                 )}
@@ -535,19 +516,13 @@ function FileDropzone({ onFileDrop, onBatchFileDrop, acceptedFileTypes = ['.csv'
             <FiAlertCircle className="error-icon" />
             <p>{fileError}</p>
             {multiple && uploadingFiles.length > 0 && (
-              <div style={{ marginTop: '1rem', maxHeight: '200px', overflowY: 'auto' }}>
+              <div className="gps-dropzone-file-list">
                 {uploadingFiles.map((file, idx) => (
-                  <div key={idx} style={{ 
-                    display: 'flex', 
-                    justifyContent: 'space-between', 
-                    alignItems: 'center',
-                    padding: '0.5rem', 
-                    borderBottom: '1px solid #eee' 
-                  }}>
-                    <span style={{ flex: 1 }}>{file.name}</span>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      {file.error && <span style={{ fontSize: '0.85rem', color: 'red' }}>{file.error}</span>}
-                      <FiAlertCircle style={{ color: 'red' }} />
+                  <div key={idx} className="gps-dropzone-file-item">
+                    <span className="gps-dropzone-file-name">{file.name}</span>
+                    <div className="gps-dropzone-file-status">
+                      {file.error && <span className="gps-dropzone-file-error">{file.error}</span>}
+                      <FiAlertCircle className="gps-dropzone-icon-error" />
                     </div>
                   </div>
                 ))}
@@ -559,20 +534,14 @@ function FileDropzone({ onFileDrop, onBatchFileDrop, acceptedFileTypes = ['.csv'
             <FiAlertCircle className="error-icon" />
             <p>{fileError}</p>
             {multiple && uploadingFiles.length > 0 && (
-              <div style={{ marginTop: '1rem', maxHeight: '200px', overflowY: 'auto' }}>
+              <div className="gps-dropzone-file-list">
                 {uploadingFiles.map((file, idx) => (
-                  <div key={idx} style={{ 
-                    display: 'flex', 
-                    justifyContent: 'space-between', 
-                    alignItems: 'center',
-                    padding: '0.5rem', 
-                    borderBottom: '1px solid #eee' 
-                  }}>
-                    <span style={{ flex: 1 }}>{file.name}</span>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      {file.error && <span style={{ fontSize: '0.85rem', color: 'red' }}>{file.error}</span>}
-                      {file.status === 'success' && <FiCheckCircle style={{ color: 'green' }} />}
-                      {file.status === 'error' && <FiAlertCircle style={{ color: 'red' }} />}
+                  <div key={idx} className="gps-dropzone-file-item">
+                    <span className="gps-dropzone-file-name">{file.name}</span>
+                    <div className="gps-dropzone-file-status">
+                      {file.error && <span className="gps-dropzone-file-error">{file.error}</span>}
+                      {file.status === 'success' && <FiCheckCircle className="gps-dropzone-icon-success" />}
+                      {file.status === 'error' && <FiAlertCircle className="gps-dropzone-icon-error" />}
                     </div>
                   </div>
                 ))}
@@ -584,46 +553,36 @@ function FileDropzone({ onFileDrop, onBatchFileDrop, acceptedFileTypes = ['.csv'
             {multiple && uploadingFiles.length > 0 ? (
               <div>
                 <p>Processing {uploadingFiles.length} file(s)...</p>
-                <div style={{ marginTop: '1rem', maxHeight: '200px', overflowY: 'auto' }}>
+                <div className="gps-dropzone-file-list">
                   {uploadingFiles.map((file, idx) => (
-                    <div key={idx} style={{ 
-                      display: 'flex', 
-                      justifyContent: 'space-between', 
-                      alignItems: 'center',
-                      padding: '0.5rem', 
-                      borderBottom: '1px solid #eee' 
-                    }}>
-                      <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {file.name}
-                      </span>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', minWidth: '120px', justifyContent: 'flex-end' }}>
+                    <div key={idx} className="gps-dropzone-file-item">
+                      <span className="gps-dropzone-file-name">{file.name}</span>
+                      <div className="gps-dropzone-file-status">
                         {file.status === 'scanning' && (
                           <>
-                            <FiLoader className="scanning-icon" style={{ fontSize: '1rem', animation: 'spin 1s linear infinite' }} />
-                            <span style={{ color: '#0066cc', fontSize: '0.85rem' }}>Scanning...</span>
+                            <FiLoader className="gps-dropzone-icon-pending" style={{ animation: 'spin 1s linear infinite' }} />
+                            <span className="gps-dropzone-file-scanning">Scanning...</span>
                           </>
                         )}
                         {file.status === 'uploading' && (
-                          <>
-                            <span style={{ color: '#0066cc', fontSize: '0.85rem' }}>
-                              {file.progress > 0 ? `${file.progress}%` : 'Uploading...'}
-                            </span>
-                          </>
+                          <span className="gps-dropzone-file-uploading">
+                            {file.progress > 0 ? `${file.progress}%` : 'Uploading...'}
+                          </span>
                         )}
                         {file.status === 'success' && (
                           <>
-                            <FiCheckCircle style={{ color: 'green' }} />
-                            <span style={{ color: 'green', fontSize: '0.85rem' }}>Complete</span>
+                            <FiCheckCircle className="gps-dropzone-icon-success" />
+                            <span className="gps-dropzone-file-complete">Complete</span>
                           </>
                         )}
                         {file.status === 'error' && (
                           <>
-                            <FiAlertCircle style={{ color: 'red' }} />
-                            <span style={{ color: 'red', fontSize: '0.85rem' }}>Failed</span>
+                            <FiAlertCircle className="gps-dropzone-icon-error" />
+                            <span className="gps-dropzone-file-failed">Failed</span>
                           </>
                         )}
                         {file.status === 'pending' && (
-                          <span style={{ color: 'gray', fontSize: '0.85rem' }}>Waiting...</span>
+                          <span className="gps-dropzone-file-pending">Waiting...</span>
                         )}
                       </div>
                     </div>
