@@ -501,6 +501,144 @@ def load_avro(file_path):
     except Exception as e:
         raise Exception(f"Failed to load Avro file: {str(e)}")
 
+
+def parse_binary_fixed_width(file_path, schema, encoding='ascii'):
+    """
+    Parse a binary fixed-width file using struct module.
+    
+    Supports typed columns where integer types are stored as binary bytes
+    and string types are null-padded text.
+    
+    Args:
+        file_path: Path to the binary file
+        schema: Dict with 'columns' array of {'name': str, 'width': int, 'type': str}
+                Supported types:
+                - 'uint8', 'uint16', 'uint32', 'uint64': Unsigned integers (1, 2, 4, 8 bytes)
+                - 'int8', 'int16', 'int32', 'int64': Signed integers (1, 2, 4, 8 bytes)
+                - 'float32', 'float64': Floating point (4, 8 bytes)
+                - 'string': Null-padded ASCII/UTF-8 string (uses 'width' bytes)
+        encoding: String encoding for text fields ('ascii', 'utf-8', 'latin-1')
+    
+    Returns:
+        DataFrame, column_names, metadata
+    """
+    columns_spec = schema.get('columns', [])
+    file_encoding = schema.get('encoding', encoding)
+    
+    if not columns_spec:
+        raise ValueError("Schema must contain 'columns' array")
+    
+    # Build struct format string and calculate record size
+    # Type mapping to struct format characters
+    type_to_struct = {
+        'uint8': ('B', 1),      # Unsigned char (1 byte)
+        'uint16': ('H', 2),     # Unsigned short (2 bytes)
+        'uint32': ('I', 4),     # Unsigned int (4 bytes)
+        'uint64': ('Q', 8),     # Unsigned long long (8 bytes)
+        'int8': ('b', 1),       # Signed char (1 byte)
+        'int16': ('h', 2),      # Signed short (2 bytes)
+        'int32': ('i', 4),      # Signed int (4 bytes)
+        'int64': ('q', 8),      # Signed long long (8 bytes)
+        'float32': ('f', 4),    # Float (4 bytes)
+        'float64': ('d', 8),    # Double (8 bytes)
+    }
+    
+    # Build format string and collect metadata
+    format_parts = []
+    column_names = []
+    column_types = []
+    record_size = 0
+    
+    for col in columns_spec:
+        name = col.get('name', f'col_{len(column_names)}')
+        col_type = col.get('type', 'string').lower()
+        width = col.get('width', 0)
+        
+        column_names.append(name)
+        column_types.append(col_type)
+        
+        if col_type in type_to_struct:
+            # Numeric type - use struct format
+            fmt_char, type_size = type_to_struct[col_type]
+            # For numeric types, width should match type size (but we use type size)
+            format_parts.append(fmt_char)
+            record_size += type_size
+        elif col_type == 'string':
+            # String type - use width as byte count
+            if width <= 0:
+                raise ValueError(f"String column '{name}' must have width > 0")
+            format_parts.append(f'{width}s')
+            record_size += width
+        else:
+            # Unknown type - treat as string with given width
+            if width <= 0:
+                raise ValueError(f"Column '{name}' with unknown type '{col_type}' must have width > 0")
+            format_parts.append(f'{width}s')
+            record_size += width
+            logger.warning(f"Unknown type '{col_type}' for column '{name}', treating as string")
+    
+    # Use little-endian format (most common for binary files)
+    # Can be configured via schema.get('byte_order', '<')
+    byte_order = schema.get('byte_order', '<')  # < = little-endian, > = big-endian
+    format_string = byte_order + ''.join(format_parts)
+    
+    logger.info(f"Binary parsing: format='{format_string}', record_size={record_size} bytes")
+    
+    # Read the binary file
+    with open(file_path, 'rb') as f:
+        data = f.read()
+    
+    file_size = len(data)
+    num_records = file_size // record_size
+    
+    if file_size % record_size != 0:
+        logger.warning(f"File size ({file_size}) is not evenly divisible by record size ({record_size}). "
+                      f"Partial record of {file_size % record_size} bytes will be ignored.")
+    
+    logger.info(f"Binary file: {file_size} bytes, {num_records} records of {record_size} bytes each")
+    
+    # Parse records
+    records = []
+    for i in range(num_records):
+        start = i * record_size
+        chunk = data[start:start + record_size]
+        
+        try:
+            # Unpack the record
+            values = struct.unpack_from(format_string, chunk, 0)
+            
+            # Process values - convert bytes to strings, clean up null padding
+            row = {}
+            for idx, (name, col_type, value) in enumerate(zip(column_names, column_types, values)):
+                if isinstance(value, bytes):
+                    # String field - remove null padding and decode
+                    value = value.split(b'\x00', 1)[0].decode(file_encoding, errors='replace')
+                    # Also sanitize any remaining control characters
+                    value = ''.join(char if (char.isprintable() or char in '\n\t') else '' for char in value)
+                row[name] = value
+            
+            records.append(row)
+            
+        except struct.error as e:
+            logger.warning(f"Failed to parse record {i}: {str(e)}")
+            continue
+    
+    if not records:
+        raise ValueError("No valid records could be parsed from binary file")
+    
+    df = pd.DataFrame(records)
+    
+    metadata = {
+        'dat_load_method': 'binary_struct',
+        'record_size': record_size,
+        'num_records': num_records,
+        'format_string': format_string,
+        'encoding': file_encoding
+    }
+    
+    return df, column_names, metadata
+
+
 def load_dat(file_path, fixed_width_schema=None, delimiter=None, header_config=None):
     """
     Load .dat file with heuristic detection or user-provided schema
@@ -518,8 +656,22 @@ def load_dat(file_path, fixed_width_schema=None, delimiter=None, header_config=N
         if fixed_width_schema and isinstance(fixed_width_schema, dict):
             columns_spec = fixed_width_schema.get('columns', [])
             if columns_spec:
+                # Check if schema has type information (binary format)
+                has_type_info = any(col.get('type') for col in columns_spec)
+                
+                if has_type_info:
+                    # Use binary struct-based parsing for typed schemas
+                    try:
+                        logger.info("Schema contains type information, using binary struct parser")
+                        df, names, metadata = parse_binary_fixed_width(file_path, fixed_width_schema)
+                        logger.info(f"Successfully loaded binary DAT file ({len(names)} columns, {len(df)} rows)")
+                        return df, names, metadata
+                    except Exception as binary_error:
+                        logger.warning(f"Binary struct parsing failed: {str(binary_error)}")
+                        # Fall through to try text-based parsing
+                
                 try:
-                    # Build column specifications for pandas read_fwf
+                    # Build column specifications for pandas read_fwf (text-based)
                     colspecs = []
                     names = []
                     start_pos = 0
@@ -531,7 +683,7 @@ def load_dat(file_path, fixed_width_schema=None, delimiter=None, header_config=N
                         colspecs.append((start_pos, start_pos + width))
                         start_pos += width
                     
-                    # Load with user-defined schema
+                    # Load with user-defined schema (text-based)
                     df = pd.read_fwf(file_path, colspecs=colspecs, names=names, header=None)
                     
                     if len(df.columns) > 0 and len(df) > 0:

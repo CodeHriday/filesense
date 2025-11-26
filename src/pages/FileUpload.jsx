@@ -96,8 +96,21 @@ function FileUpload() {
   
   // Fixed-width schema configuration
   const [fixedWidthSchema, setFixedWidthSchema] = useState([
-    { name: '', width: '' }
-  ]); // Array of {name: string, width: number} for fixed-width files
+    { name: '', width: '', type: 'string' }
+  ]); // Array of {name: string, width: number, type: string} for fixed-width files
+  
+  // Supported binary column types for fixed-width files
+  const binaryColumnTypes = [
+    { value: 'string', label: 'String (text)', description: 'Null-padded text' },
+    { value: 'uint8', label: 'UInt8 (1 byte)', description: 'Unsigned 0-255' },
+    { value: 'uint16', label: 'UInt16 (2 bytes)', description: 'Unsigned 0-65535' },
+    { value: 'uint32', label: 'UInt32 (4 bytes)', description: 'Unsigned integer' },
+    { value: 'int8', label: 'Int8 (1 byte)', description: 'Signed -128 to 127' },
+    { value: 'int16', label: 'Int16 (2 bytes)', description: 'Signed short' },
+    { value: 'int32', label: 'Int32 (4 bytes)', description: 'Signed integer' },
+    { value: 'float32', label: 'Float32 (4 bytes)', description: 'Single precision' },
+    { value: 'float64', label: 'Float64 (8 bytes)', description: 'Double precision' }
+  ];
   
   // Archive password configuration (for password-protected archives)
   const [archivePassword, setArchivePassword] = useState('');
@@ -509,11 +522,11 @@ function FileUpload() {
     
     // Filter out empty rows and parse widths as integers
     const columns = fixedWidthSchema
-      .filter(col => col.name.trim() && col.width)
+      .filter(col => col.name.trim() && (col.width || col.type !== 'string'))
       .map(col => ({
         name: col.name.trim(),
-        width: parseInt(col.width, 10),
-        type: 'string' // Default type
+        width: parseInt(col.width, 10) || 0,
+        type: col.type || 'string'
       }));
     
     if (columns.length === 0) {
@@ -2012,6 +2025,12 @@ function FileUpload() {
                     </div>
                     
                     <div className="fixed-width-schema-box">
+                      <div className="fixed-width-header-row">
+                        <span className="fixed-width-header-name">Column Name</span>
+                        <span className="fixed-width-header-type">Type</span>
+                        <span className="fixed-width-header-width">Width (bytes)</span>
+                        <span className="fixed-width-header-action"></span>
+                      </div>
                       {fixedWidthSchema.map((column, index) => (
                         <div key={index} className="fixed-width-column-row">
                           <input 
@@ -2025,6 +2044,31 @@ function FileUpload() {
                             placeholder="Column Name"
                             className="fixed-width-column-input"
                           />
+                          <select
+                            value={column.type || 'string'}
+                            onChange={(e) => {
+                              const newSchema = [...fixedWidthSchema];
+                              const newType = e.target.value;
+                              newSchema[index].type = newType;
+                              const typeWidths = {
+                                'uint8': 1, 'int8': 1,
+                                'uint16': 2, 'int16': 2,
+                                'uint32': 4, 'int32': 4, 'float32': 4,
+                                'uint64': 8, 'int64': 8, 'float64': 8
+                              };
+                              if (typeWidths[newType]) {
+                                newSchema[index].width = typeWidths[newType].toString();
+                              } else if (newType === 'string') {
+                                newSchema[index].width = '';
+                              }
+                              setFixedWidthSchema(newSchema);
+                            }}
+                            className="fixed-width-type-select"
+                          >
+                            {binaryColumnTypes.map(t => (
+                              <option key={t.value} value={t.value}>{t.label}</option>
+                            ))}
+                          </select>
                           <input 
                             type="number"
                             value={column.width}
@@ -2033,15 +2077,16 @@ function FileUpload() {
                               newSchema[index].width = e.target.value;
                               setFixedWidthSchema(newSchema);
                             }}
-                            placeholder="Width"
+                            placeholder={column.type && column.type !== 'string' ? 'Fixed' : 'Width'}
                             min="1"
                             className="fixed-width-width-input"
+                            disabled={column.type && column.type !== 'string'}
                           />
                           <button 
                             type="button"
                             onClick={() => {
                               const newSchema = fixedWidthSchema.filter((_, i) => i !== index);
-                              setFixedWidthSchema(newSchema.length > 0 ? newSchema : [{ name: '', width: '' }]);
+                              setFixedWidthSchema(newSchema.length > 0 ? newSchema : [{ name: '', width: '', type: 'string' }]);
                             }}
                             className="fixed-width-remove-btn"
                           >
@@ -2053,7 +2098,7 @@ function FileUpload() {
                       <button 
                         type="button"
                         onClick={() => {
-                          setFixedWidthSchema([...fixedWidthSchema, { name: '', width: '' }]);
+                          setFixedWidthSchema([...fixedWidthSchema, { name: '', width: '', type: 'string' }]);
                         }}
                         className="fixed-width-add-btn"
                       >
@@ -2062,7 +2107,7 @@ function FileUpload() {
                     </div>
                     
                     <div className="fixed-width-example">
-                      Example: ID (width: 5), Name (width: 20), Age (width: 3)
+                      Binary files: Select data types for each column. String fields need width in bytes. Integer types have fixed sizes (e.g., UInt8 = 1 byte).
                     </div>
                   </div>
                 )}

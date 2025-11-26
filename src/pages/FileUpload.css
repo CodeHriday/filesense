@@ -1011,3 +1011,76 @@
   color: #666;
   margin-top: 10px;
 }
+
+/* Header row for fixed-width schema */
+.fixed-width-header-row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 8px;
+  padding: 0 2px;
+}
+
+.fixed-width-header-name,
+.fixed-width-header-type,
+.fixed-width-header-width,
+.fixed-width-header-action {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 9px;
+  font-weight: 600;
+  color: #555;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.fixed-width-header-name {
+  flex: 2;
+}
+
+.fixed-width-header-type {
+  flex: 1.5;
+}
+
+.fixed-width-header-width {
+  flex: 1;
+}
+
+.fixed-width-header-action {
+  width: 70px;
+  min-width: 70px;
+}
+
+/* Type select dropdown */
+.fixed-width-type-select {
+  flex: 1.5;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 10px;
+  padding: 10px 8px;
+  border-radius: 4px;
+  border: 1px solid #d1d5db;
+  background: white;
+  color: #333;
+  cursor: pointer;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23666' d='M2 4l4 4 4-4H2z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  padding-right: 24px;
+}
+
+.fixed-width-type-select:focus {
+  outline: none;
+  border-color: #025043;
+  box-shadow: 0 0 0 2px rgba(2, 80, 67, 0.1);
+}
+
+.fixed-width-type-select:hover {
+  border-color: #025043;
+}
+
+/* Disabled width input styling */
+.fixed-width-width-input:disabled {
+  background-color: #f3f4f6;
+  color: #9ca3af;
+  cursor: not-allowed;
+}
