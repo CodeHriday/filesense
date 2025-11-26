@@ -121,10 +121,12 @@
 .form-grid-inline select,
 .form-grid-inline textarea {
   font-family: var(--gps-font-family, 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
-  padding: var(--gps-spacing-md, 8px) var(--gps-spacing-lg, 12px);
+  padding: 6px 10px;
   border: 1px solid var(--gps-border-input, #cbd5e0);
   border-radius: var(--gps-radius-sm, 4px);
-  font-size: 12px;
+  font-size: 11px;
+  height: 32px;
+  box-sizing: border-box;
   transition: border-color 0.2s ease;
 }
 
@@ -139,6 +141,8 @@
 .form-grid-inline textarea {
   font-family: 'Courier New', monospace;
   resize: vertical;
+  height: auto;
+  min-height: 60px;
 }
 
 .form-grid-inline small {
@@ -215,24 +219,27 @@
 
 .empty-state-inline {
   text-align: center;
-  padding: 2rem 1rem;
-  color: #6b7280;
+  padding: var(--gps-spacing-xl, 16px) var(--gps-spacing-lg, 12px);
+  color: var(--gps-text-muted, #666666);
+  font-family: var(--gps-font-family, 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
 }
 
 .empty-icon-inline {
-  font-size: 2.5rem;
-  color: #d1d5db;
-  margin-bottom: 0.75rem;
+  font-size: 1.5rem;
+  color: var(--gps-border-input, #cbd5e0);
+  margin-bottom: var(--gps-spacing-md, 8px);
 }
 
 .empty-state-inline p {
-  margin: 0.5rem 0;
-  color: #4b5563;
-  font-size: 1rem;
+  margin: var(--gps-spacing-sm, 6px) 0;
+  color: var(--gps-text-dark, #333333);
+  font-size: 11px;
+  font-weight: var(--gps-font-weight-medium, 500);
 }
 
 .empty-state-inline small {
-  font-size: 0.875rem;
+  font-size: 10px;
+  color: var(--gps-text-muted, #666666);
 }
 
 .file-configs-list {
