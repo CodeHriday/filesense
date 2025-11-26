@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { FiClock, FiAlertCircle, FiCheckCircle, FiArrowRight, FiExternalLink } from 'react-icons/fi';
+import React, { useState, useEffect, useMemo } from 'react';
+import { FiClock, FiAlertCircle, FiCheckCircle, FiArrowRight, FiExternalLink, FiX } from 'react-icons/fi';
 import { Link } from 'react-router-dom';
 import { getFileSchemaHistory } from '../api/fileService';
 import { formatDate } from '../utils/formatters';
@@ -11,6 +11,7 @@ function SchemaHistoryTab({ fileId }) {
   const [historyData, setHistoryData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [selectedCompareSnapshot, setSelectedCompareSnapshot] = useState(null);
 
   useEffect(() => {
     if (fileId) {
@@ -24,11 +25,99 @@ function SchemaHistoryTab({ fileId }) {
       setError(null);
       const data = await getFileSchemaHistory(fileId);
       setHistoryData(data);
+      setSelectedCompareSnapshot(null);
     } catch (err) {
       console.error('Error fetching schema history:', err);
       setError(err.message || 'Failed to load schema history');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const computeComparison = (currentSchema, previousSchema) => {
+    if (!currentSchema?.columns || !previousSchema?.columns) {
+      return { hasChanges: false };
+    }
+
+    const currentCols = currentSchema.columns;
+    const previousCols = previousSchema.columns;
+    
+    const currentColNames = new Set(currentCols.map(c => c.name));
+    const previousColNames = new Set(previousCols.map(c => c.name));
+    
+    const addedColumns = currentCols
+      .filter(c => !previousColNames.has(c.name))
+      .map(c => ({ name: c.name, currentType: c.type }));
+    
+    const removedColumns = previousCols
+      .filter(c => !currentColNames.has(c.name))
+      .map(c => ({ name: c.name, previousType: c.type }));
+    
+    const modifiedColumns = [];
+    const reorderedColumns = [];
+    
+    currentCols.forEach((currentCol, currentIdx) => {
+      const previousCol = previousCols.find(p => p.name === currentCol.name);
+      if (previousCol) {
+        if (previousCol.type !== currentCol.type) {
+          modifiedColumns.push({
+            name: currentCol.name,
+            previousType: previousCol.type,
+            currentType: currentCol.type
+          });
+        }
+        const previousIdx = previousCols.findIndex(p => p.name === currentCol.name);
+        if (previousIdx !== currentIdx && previousIdx !== -1) {
+          reorderedColumns.push({
+            name: currentCol.name,
+            previousIndex: previousIdx,
+            currentIndex: currentIdx
+          });
+        }
+      }
+    });
+    
+    const hasChanges = addedColumns.length > 0 || 
+                       removedColumns.length > 0 || 
+                       modifiedColumns.length > 0 || 
+                       reorderedColumns.length > 0;
+    
+    return {
+      hasChanges,
+      addedColumns,
+      removedColumns,
+      modifiedColumns,
+      reorderedColumns
+    };
+  };
+
+  const activeComparison = useMemo(() => {
+    if (!historyData?.current?.schema || !selectedCompareSnapshot) {
+      return historyData?.comparison || null;
+    }
+    return computeComparison(historyData.current.schema, selectedCompareSnapshot.schema);
+  }, [historyData, selectedCompareSnapshot]);
+
+  const activePrevious = useMemo(() => {
+    if (selectedCompareSnapshot) {
+      return {
+        ...selectedCompareSnapshot,
+        columnCount: selectedCompareSnapshot.columnCount || selectedCompareSnapshot.schema?.columns?.length || 0,
+        rowCount: selectedCompareSnapshot.rowCount
+      };
+    }
+    return historyData?.previous || null;
+  }, [historyData, selectedCompareSnapshot]);
+
+  const handleSnapshotClick = (snapshot, idx) => {
+    if (idx === 0) {
+      setSelectedCompareSnapshot(null);
+      return;
+    }
+    if (selectedCompareSnapshot?.id === snapshot.id) {
+      setSelectedCompareSnapshot(null);
+    } else {
+      setSelectedCompareSnapshot(snapshot);
     }
   };
 
@@ -108,6 +197,64 @@ function SchemaHistoryTab({ fileId }) {
         {badge.icon}
         {badge.text}
       </span>
+    );
+  };
+
+  const renderUploadHistory = () => {
+    if (!allSnapshots || allSnapshots.length <= 1) return null;
+    
+    return (
+      <div className="snapshot-history">
+        <h4>Upload History</h4>
+        {selectedCompareSnapshot && (
+          <div className="compare-indicator">
+            <span>Comparing current with: {formatDate(selectedCompareSnapshot.capturedAt)}</span>
+            <button 
+              className="clear-compare-btn"
+              onClick={() => setSelectedCompareSnapshot(null)}
+              title="Clear comparison"
+            >
+              <FiX size={14} />
+            </button>
+          </div>
+        )}
+        <div className="snapshot-timeline">
+          {allSnapshots.slice(0, 5).map((snapshot, idx) => {
+            const isCurrent = idx === 0;
+            const isSelected = selectedCompareSnapshot?.id === snapshot.id;
+            
+            return (
+              <div 
+                key={snapshot.id} 
+                className={`snapshot-item ${isCurrent ? 'snapshot-current' : ''} ${isSelected ? 'snapshot-selected' : ''} ${!isCurrent ? 'snapshot-clickable' : ''}`}
+                onClick={() => handleSnapshotClick(snapshot, idx)}
+                role={!isCurrent ? "button" : undefined}
+                tabIndex={!isCurrent ? 0 : undefined}
+                onKeyDown={(e) => {
+                  if (!isCurrent && (e.key === 'Enter' || e.key === ' ')) {
+                    handleSnapshotClick(snapshot, idx);
+                  }
+                }}
+              >
+                <div className="snapshot-marker">{isCurrent ? '●' : isSelected ? '◉' : '○'}</div>
+                <div className="snapshot-details">
+                  <span className="snapshot-date">
+                    {formatDate(snapshot.capturedAt)}
+                    {isCurrent && <span className="current-label"> (Current)</span>}
+                    {isSelected && <span className="selected-label"> (Comparing)</span>}
+                  </span>
+                  <span className="snapshot-meta">
+                    {snapshot.columnCount} cols • {snapshot.rowCount?.toLocaleString() || 'N/A'} rows
+                  </span>
+                </div>
+              </div>
+            );
+          })}
+          {allSnapshots.length > 5 && (
+            <div className="snapshot-more">+ {allSnapshots.length - 5} more upload{allSnapshots.length - 5 !== 1 ? 's' : ''}</div>
+          )}
+        </div>
+      </div>
     );
   };
 
@@ -326,24 +473,24 @@ function SchemaHistoryTab({ fileId }) {
             )}
           </div>
         </div>
-      ) : hasPrevious ? (
+      ) : hasPrevious || selectedCompareSnapshot ? (
         <div className="schema-comparison-three-panel">
           {/* Change Summary (Left Panel) */}
           <div className="schema-changes-panel">
             <h3>Change Summary</h3>
             
-            {comparison?.hasChanges ? (
+            {activeComparison?.hasChanges ? (
               <div className="changes-content">
                 <div className="change-overview">
-                  {comparison.addedColumns?.length > 0 && (
+                  {activeComparison.addedColumns?.length > 0 && (
                     <div className="change-category">
                       <h4>
                         <span className={getDiffBadgeClass('added')}>
-                          +{comparison.addedColumns.length} Column{comparison.addedColumns.length !== 1 ? 's' : ''} Added
+                          +{activeComparison.addedColumns.length} Column{activeComparison.addedColumns.length !== 1 ? 's' : ''} Added
                         </span>
                       </h4>
                       <ul className="change-list">
-                        {comparison.addedColumns.map((col, idx) => (
+                        {activeComparison.addedColumns.map((col, idx) => (
                           <li key={idx} className="change-item-added">
                             <strong>{col.name}</strong>
                             <span className="type-badge-small">{col.currentType}</span>
@@ -353,15 +500,15 @@ function SchemaHistoryTab({ fileId }) {
                     </div>
                   )}
 
-                  {comparison.removedColumns?.length > 0 && (
+                  {activeComparison.removedColumns?.length > 0 && (
                     <div className="change-category">
                       <h4>
                         <span className={getDiffBadgeClass('removed')}>
-                          -{comparison.removedColumns.length} Column{comparison.removedColumns.length !== 1 ? 's' : ''} Removed
+                          -{activeComparison.removedColumns.length} Column{activeComparison.removedColumns.length !== 1 ? 's' : ''} Removed
                         </span>
                       </h4>
                       <ul className="change-list">
-                        {comparison.removedColumns.map((col, idx) => (
+                        {activeComparison.removedColumns.map((col, idx) => (
                           <li key={idx} className="change-item-removed">
                             <strong>{col.name}</strong>
                             <span className="type-badge-small">{col.previousType}</span>
@@ -371,15 +518,15 @@ function SchemaHistoryTab({ fileId }) {
                     </div>
                   )}
 
-                  {comparison.modifiedColumns?.length > 0 && (
+                  {activeComparison.modifiedColumns?.length > 0 && (
                     <div className="change-category">
                       <h4>
                         <span className={getDiffBadgeClass('modified')}>
-                          ~{comparison.modifiedColumns.length} Column{comparison.modifiedColumns.length !== 1 ? 's' : ''} Modified
+                          ~{activeComparison.modifiedColumns.length} Column{activeComparison.modifiedColumns.length !== 1 ? 's' : ''} Modified
                         </span>
                       </h4>
                       <ul className="change-list">
-                        {comparison.modifiedColumns.map((col, idx) => (
+                        {activeComparison.modifiedColumns.map((col, idx) => (
                           <li key={idx} className="change-item-modified">
                             <strong>{col.name}</strong>
                             <div className="type-change">
@@ -393,15 +540,15 @@ function SchemaHistoryTab({ fileId }) {
                     </div>
                   )}
 
-                  {comparison.reorderedColumns?.length > 0 && (
+                  {activeComparison.reorderedColumns?.length > 0 && (
                     <div className="change-category">
                       <h4>
                         <span className={getDiffBadgeClass('reordered')}>
-                          ↕{comparison.reorderedColumns.length} Column{comparison.reorderedColumns.length !== 1 ? 's' : ''} Reordered
+                          ↕{activeComparison.reorderedColumns.length} Column{activeComparison.reorderedColumns.length !== 1 ? 's' : ''} Reordered
                         </span>
                       </h4>
                       <ul className="change-list">
-                        {comparison.reorderedColumns.map((col, idx) => (
+                        {activeComparison.reorderedColumns.map((col, idx) => (
                           <li key={idx} className="change-item-reordered">
                             <strong>{col.name}</strong>
                             <span className="position-change">Position {col.previousIndex + 1} → {col.currentIndex + 1}</span>
@@ -412,62 +559,14 @@ function SchemaHistoryTab({ fileId }) {
                   )}
                 </div>
 
-                {allSnapshots && allSnapshots.length > 2 && (
-                  <div className="snapshot-history">
-                    <h4>Upload History</h4>
-                    <div className="snapshot-timeline">
-                      {allSnapshots.slice(0, 5).map((snapshot, idx) => (
-                        <Link 
-                          key={snapshot.id} 
-                          to={`/files/${snapshot.fileId}`}
-                          className={`snapshot-item ${idx === 0 ? 'snapshot-current' : ''}`}
-                        >
-                          <div className="snapshot-marker">{idx === 0 ? '●' : '○'}</div>
-                          <div className="snapshot-details">
-                            <span className="snapshot-date">{formatDate(snapshot.capturedAt)}</span>
-                            <span className="snapshot-meta">
-                              {snapshot.columnCount} cols • {snapshot.rowCount?.toLocaleString() || 'N/A'} rows
-                            </span>
-                          </div>
-                        </Link>
-                      ))}
-                      {allSnapshots.length > 5 && (
-                        <div className="snapshot-more">+ {allSnapshots.length - 5} more upload{allSnapshots.length - 5 !== 1 ? 's' : ''}</div>
-                      )}
-                    </div>
-                  </div>
-                )}
+                {renderUploadHistory()}
               </div>
             ) : (
               <div className="no-changes">
                 <FiCheckCircle size={48} className="no-changes-icon" />
                 <h4>No Changes Detected</h4>
-                <p>The schema is identical to the previous upload.</p>
-                {allSnapshots && allSnapshots.length > 2 && (
-                  <div className="snapshot-history">
-                    <h4>Upload History</h4>
-                    <div className="snapshot-timeline">
-                      {allSnapshots.slice(0, 5).map((snapshot, idx) => (
-                        <Link 
-                          key={snapshot.id} 
-                          to={`/files/${snapshot.fileId}`}
-                          className={`snapshot-item ${idx === 0 ? 'snapshot-current' : ''}`}
-                        >
-                          <div className="snapshot-marker">{idx === 0 ? '●' : '○'}</div>
-                          <div className="snapshot-details">
-                            <span className="snapshot-date">{formatDate(snapshot.capturedAt)}</span>
-                            <span className="snapshot-meta">
-                              {snapshot.columnCount} cols • {snapshot.rowCount?.toLocaleString() || 'N/A'} rows
-                            </span>
-                          </div>
-                        </Link>
-                      ))}
-                      {allSnapshots.length > 5 && (
-                        <div className="snapshot-more">+ {allSnapshots.length - 5} more upload{allSnapshots.length - 5 !== 1 ? 's' : ''}</div>
-                      )}
-                    </div>
-                  </div>
-                )}
+                <p>The schema is identical to the {selectedCompareSnapshot ? 'selected' : 'previous'} upload.</p>
+                {renderUploadHistory()}
               </div>
             )}
           </div>
@@ -500,8 +599,8 @@ function SchemaHistoryTab({ fileId }) {
                 </thead>
                 <tbody>
                   {current.schema?.columns?.map((col, index) => {
-                    const isAdded = comparison?.addedColumns?.some(c => c.name === col.name);
-                    const isModified = comparison?.modifiedColumns?.some(c => c.name === col.name);
+                    const isAdded = activeComparison?.addedColumns?.some(c => c.name === col.name);
+                    const isModified = activeComparison?.modifiedColumns?.some(c => c.name === col.name);
                     
                     let diffClass = '';
                     let diffBadge = null;
@@ -511,7 +610,7 @@ function SchemaHistoryTab({ fileId }) {
                       diffBadge = <span className={getDiffBadgeClass('added')}>New</span>;
                     } else if (isModified) {
                       diffClass = 'row-modified';
-                      const modifiedCol = comparison.modifiedColumns.find(c => c.name === col.name);
+                      const modifiedCol = activeComparison.modifiedColumns.find(c => c.name === col.name);
                       diffBadge = <span className={getDiffBadgeClass('modified')}>Type: {modifiedCol?.previousType} → {modifiedCol?.currentType}</span>;
                     }
                     
@@ -531,21 +630,21 @@ function SchemaHistoryTab({ fileId }) {
             </div>
           </div>
 
-          {/* Previous Schema (Right Panel) */}
+          {/* Previous/Selected Schema (Right Panel) */}
           <div className="schema-section schema-previous">
             <h3>
-              Previous Schema
-              {previous.actualFilename && previous.actualFilename !== previous.fileName && (
-                <span className="schema-subtitle">{previous.actualFilename}</span>
+              {selectedCompareSnapshot ? 'Selected Upload' : 'Previous Schema'}
+              {activePrevious?.actualFilename && activePrevious?.actualFilename !== activePrevious?.fileName && (
+                <span className="schema-subtitle">{activePrevious.actualFilename}</span>
               )}
             </h3>
             <div className="schema-info">
               <p className="capture-date">
                 <FiClock size={14} />
-                {formatDate(previous.capturedAt)}
+                {formatDate(activePrevious?.capturedAt)}
               </p>
               <p className="schema-stats">
-                {previous.columnCount} columns • {previous.rowCount?.toLocaleString() || 'N/A'} rows
+                {activePrevious?.columnCount || activePrevious?.schema?.columns?.length || 0} columns • {activePrevious?.rowCount?.toLocaleString() || 'N/A'} rows
               </p>
             </div>
             <div className="schema-table">
@@ -558,8 +657,8 @@ function SchemaHistoryTab({ fileId }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {previous.schema?.columns?.map((col, index) => {
-                    const isRemoved = comparison?.removedColumns?.some(c => c.name === col.name);
+                  {(activePrevious?.schema?.columns || []).map((col, index) => {
+                    const isRemoved = activeComparison?.removedColumns?.some(c => c.name === col.name);
                     return (
                       <tr key={index} className={isRemoved ? 'row-removed' : ''}>
                         <td>{col.index !== undefined ? col.index + 1 : index + 1}</td>
@@ -611,6 +710,7 @@ function SchemaHistoryTab({ fileId }) {
                 </tbody>
               </table>
             </div>
+            {renderUploadHistory()}
           </div>
         </div>
       )}

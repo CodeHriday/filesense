@@ -593,6 +593,71 @@
   font-style: italic;
 }
 
+/* Clickable snapshot items */
+.snapshot-clickable {
+  cursor: pointer;
+}
+
+.snapshot-clickable:hover {
+  background: #e0f2f1;
+  border: 1px solid #b2dfdb;
+}
+
+.snapshot-selected {
+  background: #e0f2f1 !important;
+  border: 2px solid #025043 !important;
+}
+
+.snapshot-selected .snapshot-marker {
+  color: #025043;
+  font-weight: 700;
+}
+
+.current-label {
+  font-weight: 400;
+  color: #2563eb;
+  margin-left: 4px;
+}
+
+.selected-label {
+  font-weight: 600;
+  color: #025043;
+  margin-left: 4px;
+}
+
+/* Compare indicator */
+.compare-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  background: #e0f2f1;
+  border: 1px solid #b2dfdb;
+  border-radius: 4px;
+  margin-bottom: 10px;
+  font-size: 10px;
+  color: #025043;
+  font-weight: 500;
+}
+
+.clear-compare-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border: none;
+  background: #025043;
+  color: white;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.clear-compare-btn:hover {
+  background: #033830;
+}
+
 /* Responsive Design */
 @media (max-width: 1400px) {
   .schema-comparison-three-panel {
