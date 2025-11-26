@@ -1,27 +1,37 @@
+/* FileDropzone.css - Standardized styling with Inter font and teal branding */
+
+/* Base Dropzone Container */
 .file-dropzone {
-  border: 2px dashed var(--border-light);
-  border-radius: var(--radius-md);
-  padding: var(--space-10) var(--space-5);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  border: 2px dashed #d1d5db;
+  border-radius: 8px;
+  padding: 48px 24px;
   text-align: center;
-  transition: var(--transition-base);
-  background-color: var(--bg-surface);
+  transition: all 0.2s ease;
+  background-color: #fafafa;
 }
 
 .file-dropzone.dragging {
-  border-color: var(--color-primary);
-  background-color: var(--color-primary-50);
+  border-color: #025043;
+  background-color: rgba(2, 80, 67, 0.05);
 }
 
 .file-dropzone.status-success {
-  border-color: var(--color-success);
-  background-color: var(--color-success-light);
+  border-color: #10b981;
+  background-color: #f0fdf4;
 }
 
 .file-dropzone.status-error {
-  border-color: var(--color-error);
-  background-color: var(--color-error-light);
+  border-color: #ef4444;
+  background-color: #fef2f2;
 }
 
+.file-dropzone.status-partial {
+  border-color: #f59e0b;
+  background-color: #fffbeb;
+}
+
+/* Dropzone Content Container */
 .dropzone-content {
   display: flex;
   flex-direction: column;
@@ -29,83 +39,96 @@
   justify-content: center;
 }
 
+/* Upload Icon */
 .upload-icon {
-  font-size: 3rem;
-  color: var(--color-primary);
-  margin-bottom: var(--space-4);
+  font-size: 48px;
+  color: #025043;
+  margin-bottom: 16px;
 }
 
+/* Success Icon */
 .success-icon-wrapper {
-  margin-bottom: var(--space-4);
+  margin-bottom: 16px;
 }
 
 .dropzone-success-icon {
-  width: 80px;
-  height: 80px;
-  color: var(--color-success);
+  width: 64px;
+  height: 64px;
+  color: #10b981;
 }
 
+/* Error Icon */
 .error-icon {
-  font-size: 3rem;
-  color: var(--color-error);
-  margin-bottom: var(--space-4);
+  font-size: 48px;
+  color: #ef4444;
+  margin-bottom: 16px;
 }
 
+/* Dropzone Text */
 .dropzone-text {
-  margin-bottom: var(--space-5);
+  margin-bottom: 20px;
 }
 
 .dropzone-text p {
-  margin-bottom: var(--space-2);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 10px;
+  color: #333;
+  margin-bottom: 8px;
 }
 
+/* File Select Button */
 .file-select-button {
   display: inline-block;
-  padding: var(--space-2) var(--space-4);
-  background-color: var(--color-primary);
-  color: var(--text-on-primary);
-  border-radius: var(--radius-sm);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 10px;
+  font-weight: 500;
+  padding: 10px 20px;
+  background-color: #025043;
+  color: white;
+  border-radius: 4px;
   cursor: pointer;
-  font-weight: var(--font-medium);
-  transition: var(--transition-base);
+  transition: background-color 0.2s ease;
 }
 
 .file-select-button:hover {
-  background-color: var(--color-primary-dark);
+  background-color: #013d34;
 }
 
 .file-input {
   display: none;
 }
 
+/* File Requirements */
 .file-requirements {
-  margin-top: var(--space-5);
-  font-size: var(--text-sm);
-  color: var(--text-tertiary);
+  margin-top: 20px;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 9px;
+  color: #666;
 }
 
 .file-requirements p {
-  margin: var(--space-1) 0;
+  margin: 4px 0;
 }
 
 .file-size-limit {
-  font-weight: var(--font-medium);
-  color: var(--text-secondary);
+  font-weight: 500;
+  color: #333;
 }
 
 .file-size-helper {
-  font-size: var(--text-xs);
-  color: var(--color-primary);
+  font-size: 9px;
+  color: #025043;
   font-style: italic;
-  margin-top: var(--space-2) !important;
+  margin-top: 8px !important;
 }
 
+/* Upload Progress */
 .upload-progress {
   display: flex;
   flex-direction: column;
   align-items: center;
   width: 100%;
-  max-width: 450px;
+  max-width: 400px;
 }
 
 .file-info {
@@ -116,8 +139,10 @@
 }
 
 .file-name {
-  font-weight: var(--font-semibold);
-  font-size: var(--text-sm);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-weight: 600;
+  font-size: 10px;
+  color: #333;
   margin: 0;
   text-align: left;
   white-space: nowrap;
@@ -127,26 +152,28 @@
 }
 
 .file-size {
-  font-size: var(--text-sm);
-  color: var(--text-secondary);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 10px;
+  color: #666;
   margin: 0;
 }
 
+/* Progress Bar */
 .progress-container {
   width: 100%;
-  height: 20px;
-  background-color: var(--color-gray-200);
-  border-radius: var(--radius-lg);
-  margin: var(--space-2) 0;
+  height: 16px;
+  background-color: #e5e7eb;
+  border-radius: 8px;
+  margin: 8px 0;
   overflow: hidden;
   position: relative;
 }
 
 .progress-bar {
   height: 100%;
-  background-color: var(--color-primary);
-  border-radius: var(--radius-lg);
-  transition: width 0.5s ease;
+  background-color: #025043;
+  border-radius: 8px;
+  transition: width 0.3s ease;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -156,19 +183,22 @@
   position: absolute;
   left: 50%;
   transform: translateX(-50%);
-  color: var(--text-primary);
-  font-weight: var(--font-semibold);
-  font-size: var(--text-xs);
-  text-shadow: 0 0 2px var(--color-white);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  color: #333;
+  font-weight: 600;
+  font-size: 9px;
+  text-shadow: 0 0 2px white;
 }
 
 .processing-step {
-  margin-top: var(--space-2);
-  color: var(--text-primary);
-  font-weight: var(--font-medium);
-  font-size: var(--text-sm);
+  margin-top: 8px;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  color: #333;
+  font-weight: 500;
+  font-size: 10px;
 }
 
+/* Scanning Animation */
 @keyframes spin {
   to {
     transform: rotate(360deg);
@@ -176,9 +206,9 @@
 }
 
 .scanning-icon {
-  font-size: 3rem;
-  color: var(--color-primary);
-  margin-bottom: var(--space-4);
+  font-size: 48px;
+  color: #025043;
+  margin-bottom: 16px;
   animation: spin 1s linear infinite;
 }
 
@@ -190,14 +220,155 @@
 }
 
 .scanning-text {
-  margin-top: var(--space-2);
-  color: var(--text-primary);
-  font-weight: var(--font-medium);
-  font-size: var(--text-base);
+  margin-top: 8px;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  color: #333;
+  font-weight: 500;
+  font-size: 11px;
 }
 
 .scanning-subtext {
-  margin-top: var(--space-1);
-  color: var(--text-secondary);
-  font-size: var(--text-sm);
+  margin-top: 4px;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  color: #666;
+  font-size: 10px;
+}
+
+/* Upload Success */
+.upload-success {
+  text-align: center;
+}
+
+.upload-success p {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 11px;
+  color: #065f46;
+  margin: 0;
+}
+
+/* Upload Error */
+.upload-error {
+  text-align: center;
+}
+
+.upload-error p {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 10px;
+  color: #991b1b;
+}
+
+.error-text {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 10px;
+  color: #991b1b;
+  margin-top: 8px;
+}
+
+/* Multi-file Upload List */
+.gps-dropzone-file-list {
+  margin-top: 16px;
+  max-height: 200px;
+  overflow-y: auto;
+  width: 100%;
+  max-width: 400px;
+}
+
+.gps-dropzone-file-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  border-bottom: 1px solid #e2e8f0;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 10px;
+}
+
+.gps-dropzone-file-item:last-child {
+  border-bottom: none;
+}
+
+.gps-dropzone-file-name {
+  flex: 1;
+  color: #333;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-right: 12px;
+}
+
+.gps-dropzone-file-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.gps-dropzone-file-error {
+  font-size: 9px;
+  color: #ef4444;
+}
+
+.gps-dropzone-icon-success {
+  color: #10b981;
+}
+
+.gps-dropzone-icon-error {
+  color: #ef4444;
+}
+
+.gps-dropzone-icon-pending {
+  color: #f59e0b;
+}
+
+/* Security Scan Banner */
+.gps-dropzone-scan-banner {
+  margin-top: 16px;
+  margin-bottom: 16px;
+  padding: 12px;
+  border-radius: 4px;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 10px;
+}
+
+.gps-dropzone-scan-banner--clean {
+  background-color: #d1fae5;
+  color: #065f46;
+}
+
+.gps-dropzone-scan-banner--warning {
+  background-color: #fef3c7;
+  color: #92400e;
+}
+
+.gps-dropzone-scan-banner strong {
+  font-weight: 600;
+}
+
+/* Reset/Retry Button */
+.gps-dropzone-reset-btn {
+  margin-top: 16px;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 10px;
+  font-weight: 500;
+  padding: 8px 16px;
+  background-color: #025043;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.gps-dropzone-reset-btn:hover {
+  background-color: #013d34;
+}
+
+.gps-dropzone-reset-btn--secondary {
+  background-color: white;
+  color: #333;
+  border: 1px solid #d1d5db;
+}
+
+.gps-dropzone-reset-btn--secondary:hover {
+  background-color: #f3f4f6;
+  border-color: #025043;
 }
