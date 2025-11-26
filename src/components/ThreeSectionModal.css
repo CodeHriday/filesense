@@ -242,18 +242,26 @@
 .three-section-modal-content .form-group input,
 .three-section-modal-content .form-group select,
 .three-section-modal-content .form-group textarea {
-  font-family: var(--gps-font-family, 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
-  font-size: 11px;
+  font-family: var(--gps-font-family, 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif) !important;
+  font-size: 11px !important;
   font-weight: var(--gps-font-weight-medium, 500);
   width: 100%;
-  padding: 6px 10px;
+  padding: 6px 10px !important;
   border: 1px solid var(--gps-border-input, #cbd5e0);
   border-radius: var(--gps-radius-sm, 4px);
   background: var(--gps-bg-white, #ffffff);
   color: var(--gps-text-dark, #333333);
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
-  height: 32px;
+  height: 32px !important;
   box-sizing: border-box;
+}
+
+.three-section-modal-content .form-group input[readonly],
+.three-section-modal-content .form-group input:read-only {
+  font-family: var(--gps-font-family, 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif) !important;
+  font-size: 11px !important;
+  background: var(--gps-bg-page, #f7fafc);
+  cursor: not-allowed;
 }
 
 .three-section-modal-content .form-group input:focus,
