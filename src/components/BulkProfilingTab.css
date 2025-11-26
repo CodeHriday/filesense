@@ -1,0 +1,670 @@
+/* BulkProfilingTab.css - Standardized styling with Inter font and teal branding */
+
+/* Container */
+.gps-bulk-container {
+  padding: 24px;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+/* Header Section */
+.gps-bulk-header {
+  margin-bottom: 24px;
+}
+
+.gps-bulk-title {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  color: #1a1a2e;
+  margin: 0 0 8px 0;
+}
+
+.gps-bulk-subtitle {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 10px;
+  color: #666;
+  margin: 0;
+}
+
+/* Tab Navigation (Create/Scheduled toggle) */
+.gps-bulk-tabs {
+  display: flex;
+  gap: 0;
+  margin-bottom: 24px;
+  border-bottom: 2px solid #e2e8f0;
+}
+
+.gps-bulk-tab {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 10px;
+  font-weight: 500;
+  padding: 12px 20px;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: #6b7280;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-bottom: -2px;
+}
+
+.gps-bulk-tab:hover {
+  color: #025043;
+}
+
+.gps-bulk-tab--active {
+  color: #025043;
+  font-weight: 600;
+  border-bottom-color: #025043;
+}
+
+/* Form Grid Layout */
+.gps-bulk-form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 20px;
+  margin-bottom: 20px;
+}
+
+/* Form Field */
+.gps-bulk-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.gps-bulk-field--full {
+  grid-column: 1 / -1;
+}
+
+.gps-bulk-field--flex {
+  flex-direction: row;
+  align-items: center;
+}
+
+/* Labels */
+.gps-bulk-label {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+  color: #333;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.gps-bulk-label .required {
+  color: #e53e3e;
+}
+
+/* Input and Select */
+.gps-bulk-input,
+.gps-bulk-select {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 10px;
+  padding: 8px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  background: white;
+  color: #333;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  width: 100%;
+}
+
+.gps-bulk-input:focus,
+.gps-bulk-select:focus {
+  outline: none;
+  border-color: #025043;
+  box-shadow: 0 0 0 2px rgba(2, 80, 67, 0.1);
+}
+
+.gps-bulk-input::placeholder {
+  color: #9ca3af;
+}
+
+.gps-bulk-input:disabled,
+.gps-bulk-select:disabled {
+  background: #f3f4f6;
+  color: #9ca3af;
+  cursor: not-allowed;
+}
+
+/* Helper Text */
+.gps-bulk-helper {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 9px;
+  color: #666;
+  margin-top: 2px;
+}
+
+/* Checkbox */
+.gps-bulk-checkbox-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-top: 24px;
+}
+
+.gps-bulk-checkbox {
+  accent-color: #025043;
+  cursor: pointer;
+  width: 14px;
+  height: 14px;
+}
+
+.gps-bulk-checkbox-label {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 10px;
+  color: #333;
+  cursor: pointer;
+}
+
+/* Input Group (input + button) */
+.gps-bulk-input-group {
+  display: flex;
+  gap: 8px;
+}
+
+.gps-bulk-input-group .gps-bulk-input {
+  flex: 1;
+}
+
+/* Section Divider */
+.gps-bulk-section {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid #e2e8f0;
+}
+
+/* Buttons */
+.gps-bulk-btn {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 10px;
+  font-weight: 500;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.gps-bulk-btn--primary {
+  background: #025043;
+  color: white;
+  border: 1px solid #025043;
+}
+
+.gps-bulk-btn--primary:hover {
+  background: #013d34;
+}
+
+.gps-bulk-btn--primary:disabled {
+  background: #9ca3af;
+  border-color: #9ca3af;
+  cursor: not-allowed;
+}
+
+.gps-bulk-btn--secondary {
+  background: white;
+  color: #333;
+  border: 1px solid #d1d5db;
+}
+
+.gps-bulk-btn--secondary:hover {
+  background: #f3f4f6;
+  border-color: #025043;
+}
+
+.gps-bulk-btn--secondary:disabled {
+  color: #9ca3af;
+  cursor: not-allowed;
+}
+
+/* Action Buttons Container */
+.gps-bulk-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 24px;
+  justify-content: flex-start;
+}
+
+.gps-bulk-actions--center {
+  justify-content: center;
+}
+
+/* Status Banners */
+.gps-bulk-banner {
+  padding: 24px;
+  border-radius: 8px;
+  margin-bottom: 24px;
+}
+
+.gps-bulk-banner--success {
+  background: #f0fdf4;
+  border: 2px solid #10b981;
+}
+
+.gps-bulk-banner--error {
+  background: #fef2f2;
+  border: 2px solid #ef4444;
+}
+
+.gps-bulk-banner--info {
+  background: #f8fafc;
+  border: 2px solid #6b7280;
+}
+
+.gps-bulk-banner--warning {
+  background: #fffbeb;
+  border: 2px solid #f59e0b;
+}
+
+/* Banner Header */
+.gps-bulk-banner-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.gps-bulk-banner-icon {
+  flex-shrink: 0;
+}
+
+.gps-bulk-banner-icon--success {
+  color: #10b981;
+}
+
+.gps-bulk-banner-icon--error {
+  color: #ef4444;
+}
+
+.gps-bulk-banner-icon--warning {
+  color: #f59e0b;
+}
+
+.gps-bulk-banner-icon--info {
+  color: #6b7280;
+}
+
+.gps-bulk-banner-title {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  color: #1a1a2e;
+  margin: 0;
+}
+
+.gps-bulk-banner-subtitle {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 10px;
+  color: #666;
+  margin: 4px 0 0 0;
+}
+
+/* Banner Content Card */
+.gps-bulk-banner-content {
+  background: white;
+  border-radius: 6px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.gps-bulk-banner-row {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 10px;
+  color: #333;
+  margin-bottom: 8px;
+}
+
+.gps-bulk-banner-row:last-child {
+  margin-bottom: 0;
+}
+
+.gps-bulk-banner-row strong {
+  font-weight: 600;
+}
+
+/* Code Tag */
+.gps-bulk-code {
+  font-family: 'Monaco', 'Menlo', monospace;
+  font-size: 9px;
+  background: #f3f4f6;
+  padding: 2px 6px;
+  border-radius: 3px;
+  color: #1a1a2e;
+}
+
+/* Progress Section */
+.gps-bulk-progress {
+  margin-bottom: 20px;
+}
+
+.gps-bulk-progress-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 10px;
+  color: #666;
+}
+
+.gps-bulk-progress-bar {
+  width: 100%;
+  height: 8px;
+  background: #e5e7eb;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.gps-bulk-progress-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.gps-bulk-progress-fill--success {
+  background: #10b981;
+}
+
+.gps-bulk-progress-fill--error {
+  background: #ef4444;
+}
+
+.gps-bulk-progress-fill--running {
+  background: #3b82f6;
+}
+
+/* Stats Grid */
+.gps-bulk-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.gps-bulk-stat {
+  text-align: center;
+  padding: 12px;
+  background: white;
+  border-radius: 4px;
+  border: 1px solid #e2e8f0;
+}
+
+.gps-bulk-stat-value {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.gps-bulk-stat-value--success {
+  color: #10b981;
+}
+
+.gps-bulk-stat-value--error {
+  color: #ef4444;
+}
+
+.gps-bulk-stat-value--muted {
+  color: #6b7280;
+}
+
+.gps-bulk-stat-label {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 9px;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+/* Table Styles */
+.gps-bulk-table-container {
+  max-height: 300px;
+  overflow-y: auto;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  background: white;
+  margin-bottom: 16px;
+}
+
+.gps-bulk-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 10px;
+}
+
+.gps-bulk-table thead {
+  position: sticky;
+  top: 0;
+  background: #f8fafc;
+}
+
+.gps-bulk-table th {
+  padding: 10px 12px;
+  text-align: left;
+  font-weight: 600;
+  color: #333;
+  border-bottom: 1px solid #e2e8f0;
+  text-transform: uppercase;
+  font-size: 9px;
+  letter-spacing: 0.3px;
+}
+
+.gps-bulk-table th--center {
+  text-align: center;
+}
+
+.gps-bulk-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid #f3f4f6;
+  color: #333;
+}
+
+.gps-bulk-table td--center {
+  text-align: center;
+}
+
+.gps-bulk-table tr:last-child td {
+  border-bottom: none;
+}
+
+/* Status Badge */
+.gps-bulk-status {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 9px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.gps-bulk-status--completed {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.gps-bulk-status--failed {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.gps-bulk-status--processing {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.gps-bulk-status--skipped {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.gps-bulk-status--pending {
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
+.gps-bulk-status--scheduled {
+  background: #e0f2fe;
+  color: #0369a1;
+}
+
+/* Error Alert */
+.gps-bulk-error-alert {
+  padding: 12px 16px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 4px;
+  margin-bottom: 16px;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 10px;
+  color: #991b1b;
+}
+
+.gps-bulk-error-alert strong {
+  font-weight: 600;
+}
+
+/* Discovered Files */
+.gps-bulk-files-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.gps-bulk-files-title {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  color: #333;
+}
+
+.gps-bulk-files-count {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 10px;
+  color: #666;
+}
+
+/* Quality Rules Section */
+.gps-bulk-quality-section {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.gps-bulk-quality-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.gps-bulk-quality-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.gps-bulk-quality-item:hover {
+  border-color: #025043;
+  background: #f0fdf4;
+}
+
+.gps-bulk-quality-item--selected {
+  border-color: #025043;
+  background: #f0fdf4;
+}
+
+.gps-bulk-quality-checkbox {
+  accent-color: #025043;
+}
+
+.gps-bulk-quality-label {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 10px;
+  color: #333;
+}
+
+/* Empty State */
+.gps-bulk-empty {
+  text-align: center;
+  padding: 32px;
+  color: #6b7280;
+}
+
+.gps-bulk-empty-text {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 10px;
+}
+
+/* Loading State */
+.gps-bulk-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 10px;
+  color: #666;
+}
+
+/* Scheduled Jobs Table Actions */
+.gps-bulk-table-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+
+.gps-bulk-table-btn {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 9px;
+  padding: 4px 10px;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.gps-bulk-table-btn--run {
+  background: #025043;
+  color: white;
+  border: 1px solid #025043;
+}
+
+.gps-bulk-table-btn--run:hover {
+  background: #013d34;
+}
+
+.gps-bulk-table-btn--edit {
+  background: white;
+  color: #025043;
+  border: 1px solid #025043;
+}
+
+.gps-bulk-table-btn--edit:hover {
+  background: #f0fdf4;
+}
+
+.gps-bulk-table-btn--cancel {
+  background: #ef4444;
+  color: white;
+  border: 1px solid #ef4444;
+}
+
+.gps-bulk-table-btn--cancel:hover {
+  background: #dc2626;
+}
