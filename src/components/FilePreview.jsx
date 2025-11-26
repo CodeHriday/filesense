@@ -346,18 +346,13 @@ ${nullCount} null values`}
         </table>
       </div>
       
-      <div className="file-preview-footer">
-        <div className="file-details">
-          <span className="file-name">{previewData.filename || previewData.fileId}</span>
-          <span className="file-type">{previewData.file_type ? previewData.file_type.toUpperCase() : 'FILE'}</span>
-        </div>
-        
-        <div className="preview-notice">
-          {rows.length < totalRows && (
+      {rows.length < totalRows && (
+        <div className="file-preview-footer">
+          <div className="preview-notice">
             <span>Only showing first {rows.length} records</span>
-          )}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };
