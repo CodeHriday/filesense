@@ -16,6 +16,7 @@ import { useAuth } from '../context/AuthContext';
 import { isVendorUser } from '../utils/userHelpers';
 import axios from 'axios';
 import '../styles/global-page-styles.css';
+import '../styles/VendorAgreements.css';
 
 const VendorAgreements = () => {
   const [agreements, setAgreements] = useState([]);
