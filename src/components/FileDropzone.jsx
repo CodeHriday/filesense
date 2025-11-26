@@ -14,6 +14,29 @@ function FileDropzone({ onFileDrop, onBatchFileDrop, acceptedFileTypes = ['.csv'
   const [uploadingFiles, setUploadingFiles] = useState([]);
   const [completedFiles, setCompletedFiles] = useState([]);
   
+  const getAcceptString = useCallback(() => {
+    const mimeTypes = {
+      '.tar.gz': 'application/gzip,application/x-gzip,application/x-compressed-tar',
+      '.tgz': 'application/gzip,application/x-gzip,application/x-compressed-tar',
+      '.tar.bz2': 'application/x-bzip2,application/x-bzip2-compressed-tar',
+      '.tbz2': 'application/x-bzip2,application/x-bzip2-compressed-tar',
+      '.tar': 'application/x-tar',
+      '.gz': 'application/gzip,application/x-gzip',
+      '.zip': 'application/zip,application/x-zip-compressed',
+      '.7z': 'application/x-7z-compressed'
+    };
+    
+    const acceptParts = [];
+    acceptedFileTypes.forEach(ext => {
+      acceptParts.push(ext);
+      if (mimeTypes[ext]) {
+        acceptParts.push(mimeTypes[ext]);
+      }
+    });
+    
+    return acceptParts.join(',');
+  }, [acceptedFileTypes]);
+  
   const handleDragEnter = useCallback((e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -622,7 +645,7 @@ function FileDropzone({ onFileDrop, onBatchFileDrop, acceptedFileTypes = ['.csv'
                   type="file" 
                   className="file-input" 
                   onChange={handleFileSelect}
-                  accept={acceptedFileTypes.join(',')}
+                  accept={getAcceptString()}
                   multiple={multiple}
                 />
               </label>
