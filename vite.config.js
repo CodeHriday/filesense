@@ -30,6 +30,23 @@ export default defineConfig({
       strict: false
     },
     proxy: {
+      '/profile-api': {
+        target: 'http://localhost:8000',
+        changeOrigin: true,
+        secure: false,
+        rewrite: (path) => path.replace(/^\/profile-api/, ''),
+        configure: (proxy, options) => {
+          proxy.on('error', (err, req, res) => {
+            console.log('profile-api proxy error', err);
+          });
+          proxy.on('proxyReq', (proxyReq, req, res) => {
+            console.log('Profile API Request:', req.method, req.url);
+          });
+          proxy.on('proxyRes', (proxyRes, req, res) => {
+            console.log('Profile API Response:', proxyRes.statusCode, req.url);
+          });
+        }
+      },
       '/api': {
         target: 'http://localhost:3000',
         changeOrigin: true,
