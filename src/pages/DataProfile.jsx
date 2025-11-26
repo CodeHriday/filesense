@@ -2701,12 +2701,6 @@ function DataProfile() {
               File Profile
             </button>
             <button 
-              className={`gps-tab ${activeTab === 'distribution' ? 'gps-tab--active' : ''}`}
-              onClick={() => setActiveTab('distribution')}
-            >
-              Distribution
-            </button>
-            <button 
               className={`gps-tab ${activeTab === 'schema-history' ? 'gps-tab--active' : ''}`}
               onClick={() => setActiveTab('schema-history')}
             >
@@ -2729,7 +2723,6 @@ function DataProfile() {
           <div className="profile-content">
             {activeTab === 'attributes' && renderOverviewTab()}
             {activeTab === 'profile' && renderColumnsTab()}
-            {activeTab === 'distribution' && renderDistributionTab()}
             {activeTab === 'schema-history' && <SchemaHistoryTab fileId={fileId} />}
             {activeTab === 'preview' && renderPreviewTab()}
             {activeTab === 'quality-rules' && renderQualityRulesTab()}

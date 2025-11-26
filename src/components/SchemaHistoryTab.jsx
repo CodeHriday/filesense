@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { FiClock, FiAlertCircle, FiCheckCircle, FiArrowRight, FiExternalLink, FiX } from 'react-icons/fi';
+import { FiClock, FiAlertCircle, FiCheckCircle, FiArrowRight, FiExternalLink, FiX, FiGitMerge } from 'react-icons/fi';
 import { Link } from 'react-router-dom';
 import { getFileSchemaHistory } from '../api/fileService';
 import { formatDate } from '../utils/formatters';
@@ -12,6 +12,8 @@ function SchemaHistoryTab({ fileId }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedCompareSnapshot, setSelectedCompareSnapshot] = useState(null);
+  const [selectedForCompare, setSelectedForCompare] = useState([]);
+  const [showCompareModal, setShowCompareModal] = useState(false);
 
   useEffect(() => {
     if (fileId) {
@@ -121,6 +123,32 @@ function SchemaHistoryTab({ fileId }) {
     }
   };
 
+  const handleCompareCheckboxToggle = (snapshot, e) => {
+    e.stopPropagation();
+    setSelectedForCompare(prev => {
+      const isSelected = prev.some(s => s.id === snapshot.id);
+      if (isSelected) {
+        return prev.filter(s => s.id !== snapshot.id);
+      } else {
+        if (prev.length >= 3) {
+          return prev;
+        }
+        return [...prev, snapshot];
+      }
+    });
+  };
+
+  const clearCompareSelection = () => {
+    setSelectedForCompare([]);
+    setShowCompareModal(false);
+  };
+
+  const openCompareModal = () => {
+    if (selectedForCompare.length >= 2) {
+      setShowCompareModal(true);
+    }
+  };
+
   if (loading) {
     return (
       <div className="schema-history-loading">
@@ -205,7 +233,35 @@ function SchemaHistoryTab({ fileId }) {
     
     return (
       <div className="snapshot-history">
-        <h4>Upload History</h4>
+        <div className="upload-history-header">
+          <h4>Upload History</h4>
+          {allSnapshots.length >= 2 && (
+            <div className="compare-actions">
+              {selectedForCompare.length > 0 && (
+                <span className="selection-count">
+                  {selectedForCompare.length} of 3 selected
+                </span>
+              )}
+              {selectedForCompare.length >= 2 && (
+                <button 
+                  className="btn btn-primary btn-sm compare-schemas-btn"
+                  onClick={openCompareModal}
+                >
+                  <FiGitMerge size={14} />
+                  Compare Schemas
+                </button>
+              )}
+              {selectedForCompare.length > 0 && (
+                <button 
+                  className="btn btn-secondary btn-sm"
+                  onClick={clearCompareSelection}
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+          )}
+        </div>
         {selectedCompareSnapshot && (
           <div className="compare-indicator">
             <span>Comparing current with: {formatDate(selectedCompareSnapshot.capturedAt)}</span>
@@ -222,11 +278,13 @@ function SchemaHistoryTab({ fileId }) {
           {allSnapshots.map((snapshot, idx) => {
             const isCurrent = idx === 0;
             const isSelected = selectedCompareSnapshot?.id === snapshot.id;
+            const isCheckedForCompare = selectedForCompare.some(s => s.id === snapshot.id);
+            const isMaxSelected = selectedForCompare.length >= 3 && !isCheckedForCompare;
             
             return (
               <div 
                 key={snapshot.id} 
-                className={`snapshot-item ${isCurrent ? 'snapshot-current' : ''} ${isSelected ? 'snapshot-selected' : ''} ${!isCurrent ? 'snapshot-clickable' : ''}`}
+                className={`snapshot-item ${isCurrent ? 'snapshot-current' : ''} ${isSelected ? 'snapshot-selected' : ''} ${!isCurrent ? 'snapshot-clickable' : ''} ${isCheckedForCompare ? 'snapshot-checked' : ''}`}
                 onClick={() => handleSnapshotClick(snapshot, idx)}
                 role={!isCurrent ? "button" : undefined}
                 tabIndex={!isCurrent ? 0 : undefined}
@@ -236,6 +294,15 @@ function SchemaHistoryTab({ fileId }) {
                   }
                 }}
               >
+                <input
+                  type="checkbox"
+                  className="compare-checkbox"
+                  checked={isCheckedForCompare}
+                  disabled={isMaxSelected}
+                  onChange={(e) => handleCompareCheckboxToggle(snapshot, e)}
+                  onClick={(e) => e.stopPropagation()}
+                  title={isMaxSelected ? 'Maximum 3 files can be compared' : 'Select for comparison'}
+                />
                 <div className="snapshot-marker">{isCurrent ? '●' : isSelected ? '◉' : '○'}</div>
                 <div className="snapshot-details">
                   <span className="snapshot-date">
@@ -708,6 +775,147 @@ function SchemaHistoryTab({ fileId }) {
               </table>
             </div>
             {renderUploadHistory()}
+          </div>
+        </div>
+      )}
+
+      {/* Schema Comparison Modal */}
+      {showCompareModal && selectedForCompare.length >= 2 && (
+        <div className="modal-overlay" onClick={clearCompareSelection}>
+          <div className="schema-compare-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>
+                <FiGitMerge size={20} />
+                Schema Comparison
+              </h2>
+              <button className="modal-close-btn" onClick={clearCompareSelection}>
+                <FiX size={20} />
+              </button>
+            </div>
+            
+            <div className="compare-summary">
+              <span className="compare-info">
+                Comparing {selectedForCompare.length} file uploads
+              </span>
+              {(() => {
+                const allColumnNames = new Set();
+                selectedForCompare.forEach(s => {
+                  (s.schema?.columns || []).forEach(c => allColumnNames.add(c.name));
+                });
+                return (
+                  <span className="total-columns">
+                    {allColumnNames.size} unique columns across all files
+                  </span>
+                );
+              })()}
+            </div>
+
+            <div className="compare-grid" style={{ gridTemplateColumns: `repeat(${selectedForCompare.length}, 1fr)` }}>
+              {selectedForCompare
+                .sort((a, b) => new Date(b.capturedAt) - new Date(a.capturedAt))
+                .map((snapshot, fileIdx) => {
+                  const allColumnNames = [];
+                  selectedForCompare.forEach(s => {
+                    (s.schema?.columns || []).forEach(c => {
+                      if (!allColumnNames.includes(c.name)) {
+                        allColumnNames.push(c.name);
+                      }
+                    });
+                  });
+
+                  const snapshotColumns = snapshot.schema?.columns || [];
+                  const snapshotColNames = new Set(snapshotColumns.map(c => c.name));
+                  const snapshotColMap = {};
+                  snapshotColumns.forEach(c => { snapshotColMap[c.name] = c; });
+
+                  return (
+                    <div key={snapshot.id} className="compare-panel">
+                      <div className="compare-panel-header">
+                        <span className="panel-label">Upload {fileIdx + 1}</span>
+                        <span className="panel-date">{formatDate(snapshot.capturedAt)}</span>
+                        <span className="panel-stats">
+                          {snapshot.columnCount || snapshotColumns.length} cols • {snapshot.rowCount?.toLocaleString() || 'N/A'} rows
+                        </span>
+                      </div>
+                      <div className="compare-panel-body">
+                        <table className="compare-table">
+                          <thead>
+                            <tr>
+                              <th>Column Name</th>
+                              <th>Type</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {allColumnNames.map((colName, colIdx) => {
+                              const col = snapshotColMap[colName];
+                              const exists = snapshotColNames.has(colName);
+                              
+                              const existsInOthers = selectedForCompare.some((other, otherIdx) => {
+                                if (otherIdx === fileIdx) return false;
+                                return (other.schema?.columns || []).some(c => c.name === colName);
+                              });
+                              
+                              const typesInOthers = selectedForCompare
+                                .filter((_, otherIdx) => otherIdx !== fileIdx)
+                                .map(other => {
+                                  const otherCol = (other.schema?.columns || []).find(c => c.name === colName);
+                                  return otherCol?.type;
+                                })
+                                .filter(Boolean);
+                              
+                              const hasTypeMismatch = exists && typesInOthers.length > 0 && 
+                                typesInOthers.some(t => t !== col?.type);
+                              
+                              let rowClass = '';
+                              if (!exists && existsInOthers) {
+                                rowClass = 'compare-row-missing';
+                              } else if (exists && !existsInOthers) {
+                                rowClass = 'compare-row-unique';
+                              } else if (hasTypeMismatch) {
+                                rowClass = 'compare-row-mismatch';
+                              }
+                              
+                              return (
+                                <tr key={colIdx} className={rowClass}>
+                                  <td className="col-name">
+                                    {exists ? colName : <span className="missing-col">{colName}</span>}
+                                    {!exists && existsInOthers && <span className="diff-badge-removed">Missing</span>}
+                                    {exists && !existsInOthers && <span className="diff-badge-added">Unique</span>}
+                                  </td>
+                                  <td className="col-type">
+                                    {exists ? (
+                                      <span className={`type-badge ${hasTypeMismatch ? 'type-mismatch' : ''}`}>
+                                        {col.type}
+                                      </span>
+                                    ) : (
+                                      <span className="type-na">—</span>
+                                    )}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  );
+                })}
+            </div>
+
+            <div className="compare-legend">
+              <span className="legend-item">
+                <span className="legend-color legend-missing"></span>
+                Missing in this file
+              </span>
+              <span className="legend-item">
+                <span className="legend-color legend-unique"></span>
+                Only in this file
+              </span>
+              <span className="legend-item">
+                <span className="legend-color legend-mismatch"></span>
+                Type differs
+              </span>
+            </div>
           </div>
         </div>
       )}
