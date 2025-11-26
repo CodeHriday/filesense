@@ -3,6 +3,8 @@ import { FiZap, FiAlertTriangle, FiCheckCircle, FiPlus, FiRefreshCw, FiToggleLef
 import LoadingSpinner from './LoadingSpinner';
 import './AIDQSuggestionsTab.css';
 
+const STORAGE_KEY_PREFIX = 'ai_dq_suggestions_';
+
 const AIDQSuggestionsTab = ({ fileId, filename, columns, projectId }) => {
   const [suggestions, setSuggestions] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -20,10 +22,45 @@ const AIDQSuggestionsTab = ({ fileId, filename, columns, projectId }) => {
   const [showProviderSelect, setShowProviderSelect] = useState(false);
   const [providerUpdating, setProviderUpdating] = useState(false);
 
+  const getStorageKey = () => `${STORAGE_KEY_PREFIX}${fileId}`;
+
+  const loadCachedData = () => {
+    try {
+      const cached = localStorage.getItem(getStorageKey());
+      if (cached) {
+        const data = JSON.parse(cached);
+        if (data.suggestions && data.suggestions.length > 0) {
+          setSuggestions(data.suggestions);
+          setGeneratedAt(data.generatedAt);
+          setProviderInfo(data.providerInfo);
+          if (data.createdRules) {
+            setCreatedRules(new Set(data.createdRules));
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Error loading cached suggestions:', err);
+    }
+  };
+
+  const saveCachedData = (data) => {
+    try {
+      localStorage.setItem(getStorageKey(), JSON.stringify({
+        suggestions: data.suggestions,
+        generatedAt: data.generatedAt,
+        providerInfo: data.providerInfo,
+        createdRules: Array.from(data.createdRules || [])
+      }));
+    } catch (err) {
+      console.error('Error saving suggestions to cache:', err);
+    }
+  };
+
   useEffect(() => {
     checkFeatureStatus();
     fetchProviders();
-  }, []);
+    loadCachedData();
+  }, [fileId]);
 
   const fetchProviders = async () => {
     try {
@@ -56,6 +93,7 @@ const AIDQSuggestionsTab = ({ fileId, filename, columns, projectId }) => {
           setGeneratedAt(null);
           setCreatedRules(new Set());
           setSelectedSuggestions(new Set());
+          localStorage.removeItem(getStorageKey());
         }
       }
     } catch (err) {
@@ -160,10 +198,22 @@ const AIDQSuggestionsTab = ({ fileId, filename, columns, projectId }) => {
         return;
       }
 
-      setSuggestions(data.suggestions || []);
-      setGeneratedAt(data.generatedAt);
-      setProviderInfo(data.provider);
+      const newSuggestions = data.suggestions || [];
+      const newGeneratedAt = data.generatedAt;
+      const newProviderInfo = data.provider;
+      
+      setSuggestions(newSuggestions);
+      setGeneratedAt(newGeneratedAt);
+      setProviderInfo(newProviderInfo);
       setSelectedSuggestions(new Set());
+      setCreatedRules(new Set());
+      
+      saveCachedData({
+        suggestions: newSuggestions,
+        generatedAt: newGeneratedAt,
+        providerInfo: newProviderInfo,
+        createdRules: []
+      });
     } catch (err) {
       console.error('Error generating suggestions:', err);
       setError('Failed to generate suggestions. Please try again.');
@@ -195,11 +245,19 @@ const AIDQSuggestionsTab = ({ fileId, filename, columns, projectId }) => {
       });
 
       if (response.ok) {
-        setCreatedRules(prev => new Set([...prev, suggestion.id]));
+        const newCreatedRules = new Set([...createdRules, suggestion.id]);
+        setCreatedRules(newCreatedRules);
         setSelectedSuggestions(prev => {
           const next = new Set(prev);
           next.delete(suggestion.id);
           return next;
+        });
+        
+        saveCachedData({
+          suggestions,
+          generatedAt,
+          providerInfo,
+          createdRules: newCreatedRules
         });
       } else {
         const errorData = await response.json();
@@ -363,14 +421,16 @@ const AIDQSuggestionsTab = ({ fileId, filename, columns, projectId }) => {
         <>
           <div className="ai-actions">
             <button 
-              className="generate-btn"
+              className={`generate-btn ${suggestions.length > 0 ? 'regenerate' : ''}`}
               onClick={generateSuggestions}
               disabled={loading}
             >
               {loading ? (
                 <><LoadingSpinner size="small" /> Analyzing...</>
+              ) : suggestions.length > 0 ? (
+                <><FiRefreshCw /> Regenerate Suggestions</>
               ) : (
-                <><FiRefreshCw /> {suggestions.length > 0 ? 'Regenerate' : 'Generate'} Suggestions</>
+                <><FiZap /> Generate Suggestions</>
               )}
             </button>
             
