@@ -325,7 +325,8 @@ router.get('/:fileId/schema-history', authenticateToken, async (req, res) => {
         fileUploadDate: s.file_upload_date,
         schemaHash: s.schema_hash,
         columnCount: s.column_count,
-        rowCount: s.row_count
+        rowCount: s.row_count,
+        schema: s.schema_definition
       }))
     });
 
