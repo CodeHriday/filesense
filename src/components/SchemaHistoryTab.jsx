@@ -264,7 +264,7 @@ function SchemaHistoryTab({ fileId }) {
           </span>
         )}
         <span className="snapshot-count">{totalSnapshots} snapshot{totalSnapshots !== 1 ? 's' : ''} recorded</span>
-        {hasSchemaChanged && (
+        {hasSchemaChanged && hasPrevious && comparison?.hasChanges && (
           <span className="schema-changed-badge">
             <FiAlertCircle size={14} />
             Schema Changed
