@@ -3,6 +3,7 @@ import { FiX } from 'react-icons/fi';
 import axios from 'axios';
 import LoadingSpinner from './LoadingSpinner';
 import { formatBytes, formatDate, formatNumber } from '../utils/formatters';
+import '../styles/global-page-styles.css';
 import './TransformationProfilingModal.css';
 
 const TransformationProfilingModal = ({ jobId, onClose }) => {
