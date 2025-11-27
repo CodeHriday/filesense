@@ -184,9 +184,9 @@
   padding: 10px 12px;
   border-radius: 6px;
   min-width: 160px;
-  max-height: 50px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
   border: 1px solid var(--gps-border-light, #e2e8f0);
+  flex-shrink: 0;
 }
 
 .step-number {
