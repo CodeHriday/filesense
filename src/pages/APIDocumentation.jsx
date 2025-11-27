@@ -334,34 +334,34 @@ print(f"Batches: {len(file_status['batches'])}")`,
 
               <div className="info-card">
                 <h3>Processing Architecture</h3>
-                <div className="architecture-flow">
-                  <div className="flow-step">
-                    <div className="step-number">1</div>
-                    <div className="step-content">
+                <div className="api-architecture-flow">
+                  <div className="api-flow-step">
+                    <div className="api-step-number">1</div>
+                    <div className="api-step-content">
                       <h4>File Upload</h4>
                       <p>Client sends file via multipart/form-data</p>
                     </div>
                   </div>
-                  <div className="flow-arrow">→</div>
-                  <div className="flow-step">
-                    <div className="step-number">2</div>
-                    <div className="step-content">
+                  <div className="api-flow-arrow">→</div>
+                  <div className="api-flow-step">
+                    <div className="api-step-number">2</div>
+                    <div className="api-step-content">
                       <h4>Virus Scan</h4>
                       <p>ClamAV scans file for malware</p>
                     </div>
                   </div>
-                  <div className="flow-arrow">→</div>
-                  <div className="flow-step">
-                    <div className="step-number">3</div>
-                    <div className="step-content">
+                  <div className="api-flow-arrow">→</div>
+                  <div className="api-flow-step">
+                    <div className="api-step-number">3</div>
+                    <div className="api-step-content">
                       <h4>Queue Job</h4>
                       <p>BullMQ worker processes file</p>
                     </div>
                   </div>
-                  <div className="flow-arrow">→</div>
-                  <div className="flow-step">
-                    <div className="step-number">4</div>
-                    <div className="step-content">
+                  <div className="api-flow-arrow">→</div>
+                  <div className="api-flow-step">
+                    <div className="api-step-number">4</div>
+                    <div className="api-step-content">
                       <h4>Batch Insert</h4>
                       <p>Records inserted to upload_staging</p>
                     </div>
