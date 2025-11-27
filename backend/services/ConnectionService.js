@@ -762,7 +762,6 @@ class ConnectionService {
     };
     
     console.log('[DECRYPT] Connection type:', type);
-    console.log('[DECRYPT] Config has access_key:', !!config.access_key);
     console.log('[DECRYPT] Config has secret_key:', !!config.secret_key);
     
     switch (type) {
