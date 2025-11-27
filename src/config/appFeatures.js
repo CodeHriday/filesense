@@ -168,7 +168,7 @@ export const APP_FEATURES = [
   { 
     id: 'workflow_builder', 
     name: 'Visual Workflow Builder', 
-    category: 'Jobs and Monitoring', 
+    category: 'Archived', 
     supportsExecute: true,
     icon: FiGrid,
     route: '/workflow-builder',

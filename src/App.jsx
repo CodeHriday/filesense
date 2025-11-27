@@ -84,7 +84,7 @@ import WorkflowCanvas from './pages/WorkflowCanvas';
 import WorkflowCanvasFixed from './pages/WorkflowCanvasFixed';
 import WorkflowCanvasStandalone from './pages/WorkflowCanvasStandalone';
 import WorkflowTest from './pages/WorkflowTest';
-import WorkflowBuilder from './pages/WorkflowBuilder';
+import WorkflowBuilder from './pages/archived/WorkflowBuilder';
 import WorkflowManager from './pages/WorkflowManager';
 import VisualMappingCanvas from './pages/VisualMappingCanvas';
 import VisualMappingManager from './pages/VisualMappingManager';
