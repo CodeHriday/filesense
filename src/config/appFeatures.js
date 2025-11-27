@@ -154,6 +154,15 @@ export const APP_FEATURES = [
     route: '/mapping-groups',
     showInSidebar: true
   },
+  { 
+    id: 'workflow_manager', 
+    name: 'Visual Workflows', 
+    category: 'Job Design', 
+    supportsExecute: true,
+    icon: FiGrid,
+    route: '/workflow-manager',
+    showInSidebar: true
+  },
   
   // Jobs and Monitoring
   { 
@@ -172,15 +181,6 @@ export const APP_FEATURES = [
     supportsExecute: true,
     icon: FiGrid,
     route: '/workflow-builder',
-    showInSidebar: true
-  },
-  { 
-    id: 'workflow_manager', 
-    name: 'Visual Workflows', 
-    category: 'Jobs and Monitoring', 
-    supportsExecute: true,
-    icon: FiGrid,
-    route: '/workflow-manager',
     showInSidebar: true
   },
   { 
