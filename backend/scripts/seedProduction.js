@@ -463,7 +463,6 @@ class ProductionSeeder {
       
       console.log(`  ✅ Created admin user: ${DEFAULT_ADMIN.username}`);
       console.log(`  📧 Email: ${DEFAULT_ADMIN.email}`);
-      console.log(`  🔑 Password: ${DEFAULT_ADMIN.password}`);
       console.log(`  ⚠️  IMPORTANT: Change the admin password immediately after first login!`);
       
       this.stats.usersCreated++;
@@ -491,7 +490,6 @@ class ProductionSeeder {
     if (this.stats.usersCreated > 0) {
       console.log('\n🔐 DEFAULT ADMIN CREDENTIALS:');
       console.log(`   Username: ${DEFAULT_ADMIN.username}`);
-      console.log(`   Password: ${DEFAULT_ADMIN.password}`);
       console.log('\n⚠️  SECURITY NOTICE:');
       console.log('   1. Login immediately and change the admin password');
       console.log('   2. Create additional admin users if needed');
