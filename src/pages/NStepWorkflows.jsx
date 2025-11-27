@@ -76,15 +76,16 @@ const NStepWorkflows = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [workflowsRes, mappingsRes, groupsRes, projectsRes] = await Promise.all([
+      const [workflowsRes, visualMappingsRes, groupsRes, projectsRes] = await Promise.all([
         axios.get('/api/n-step-workflows'),
-        axios.get('/api/transformations'),
+        axios.get('/api/visual-mappings'),
         axios.get('/api/mapping-groups'),
         axios.get('/api/projects')
       ]);
       
       setWorkflows(workflowsRes.data.workflows || []);
-      setMappings(mappingsRes.data.mappings || []);
+      // Visual mappings API returns array directly with id and name fields
+      setMappings(Array.isArray(visualMappingsRes.data) ? visualMappingsRes.data : []);
       setMappingGroups(groupsRes.data.groups || []);
       setProjects(projectsRes.data || []);
       setError(null);
@@ -458,7 +459,7 @@ const NStepWorkflows = () => {
     
     if (isDuplicate) {
       const assetName = assetType === 'mapping' 
-        ? mappings.find(m => m.mapping_id === assetId)?.mapping_name 
+        ? mappings.find(m => String(m.id) === String(assetId))?.name 
         : mappingGroups.find(g => g.id === parseInt(assetId))?.name;
       setDuplicateErrorMessage(`This ${assetType === 'mapping' ? 'mapping' : 'mapping group'} "${assetName}" is already in this step`);
       setDuplicateErrorModalOpen(true);
@@ -531,8 +532,8 @@ const NStepWorkflows = () => {
 
   const getAssetName = (asset) => {
     if (asset.asset_type === 'mapping') {
-      const mapping = mappings.find(m => m.mapping_id === asset.asset_id);
-      return mapping?.mapping_name || asset.asset_id;
+      const mapping = mappings.find(m => String(m.id) === String(asset.asset_id));
+      return mapping?.name || asset.asset_id;
     } else {
       const group = mappingGroups.find(g => g.id === parseInt(asset.asset_id));
       return group?.name || asset.asset_id;
@@ -990,7 +991,7 @@ const NStepWorkflows = () => {
             <div className="workflow-controls">
               <div className="asset-selectors">
                 <div className="selector-group">
-                  <label>Select Mapping</label>
+                  <label>Select Visual Mapping</label>
                   <select
                     value={selectedMapping}
                     onChange={(e) => {
@@ -999,9 +1000,9 @@ const NStepWorkflows = () => {
                     className="form-select"
                     disabled={!activeStep || mode === 'view'}
                   >
-                    <option value="">-- Select Mapping --</option>
+                    <option value="">-- Select Visual Mapping --</option>
                     {mappings.map(m => (
-                      <option key={m.mapping_id} value={m.mapping_id}>{m.mapping_name}</option>
+                      <option key={m.id} value={m.id}>{m.name}</option>
                     ))}
                   </select>
                   {mode === 'edit' && (
@@ -1009,9 +1010,9 @@ const NStepWorkflows = () => {
                       className="btn btn-primary selector-add-btn"
                       onClick={() => handleAddAssetSmart('mapping')}
                       disabled={!selectedMapping || !activeStep}
-                      title="Add selected mapping to active step"
+                      title="Add selected visual mapping to active step"
                     >
-                      <FiPlus /> Add Mapping
+                      <FiPlus /> Add Visual Mapping
                     </button>
                   )}
                 </div>

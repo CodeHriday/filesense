@@ -153,9 +153,9 @@ const WorkflowBuilderContent = () => {
   const loadAvailableAssets = async () => {
     const token = localStorage.getItem('token');
     try {
-      // Load mapping jobs, job groups, and workflows in parallel
-      const [jobsRes, groupsRes, workflowsRes] = await Promise.all([
-        axios.get('/api/transformations', {
+      // Load visual mappings, job groups, and workflows in parallel
+      const [visualMappingsRes, groupsRes, workflowsRes] = await Promise.all([
+        axios.get('/api/visual-mappings', {
           headers: { Authorization: `Bearer ${token}`, 'Cache-Control': 'no-cache' },
           params: { _t: Date.now() }
         }),
@@ -169,7 +169,8 @@ const WorkflowBuilderContent = () => {
         })
       ]);
       
-      setAvailableJobs(Array.isArray(jobsRes.data) ? jobsRes.data : []);
+      // Visual mappings API returns array directly with id and name fields
+      setAvailableJobs(Array.isArray(visualMappingsRes.data) ? visualMappingsRes.data : []);
       setAvailableJobGroups(groupsRes.data?.groups && Array.isArray(groupsRes.data.groups) ? groupsRes.data.groups : []);
       setAvailableWorkflows(Array.isArray(workflowsRes.data) ? workflowsRes.data : []);
     } catch (err) {
@@ -475,7 +476,7 @@ const WorkflowBuilderContent = () => {
   
   // Filter assets by search query
   const filteredJobs = (Array.isArray(availableJobs) ? availableJobs : []).filter(job =>
-    job.mapping_name?.toLowerCase().includes(searchQuery.toLowerCase())
+    job.name?.toLowerCase().includes(searchQuery.toLowerCase())
   );
   
   const filteredJobGroups = (Array.isArray(availableJobGroups) ? availableJobGroups : []).filter(group =>
@@ -558,7 +559,7 @@ const WorkflowBuilderContent = () => {
             </div>
             
             <div className="workflow-builder-palette-content">
-              {/* Section 1: Mapping Jobs */}
+              {/* Section 1: Visual Mappings */}
               <div className="workflow-builder-palette-section">
                 <div 
                   className="workflow-builder-palette-section-header"
@@ -568,24 +569,24 @@ const WorkflowBuilderContent = () => {
                     {showJobs ? '▼' : '▶'}
                   </span>
                   <span className="workflow-builder-palette-section-title">
-                    MAPPING JOBS ({filteredJobs.length})
+                    VISUAL MAPPINGS ({filteredJobs.length})
                   </span>
                 </div>
                 {showJobs && (
                   <div className="workflow-builder-palette-section-items">
                     {filteredJobs.length === 0 ? (
                       <div className="workflow-builder-palette-empty">
-                        {searchQuery ? 'No matches' : 'No mapping jobs'}
+                        {searchQuery ? 'No matches' : 'No visual mappings'}
                       </div>
                     ) : (
                       filteredJobs.map(job => (
                         <div
-                          key={job.mapping_id}
+                          key={job.id}
                           className="workflow-builder-palette-item"
                           draggable
-                          onDragStart={(e) => onDragStart(e, { ...job, assetType: 'mapping_job' })}
+                          onDragStart={(e) => onDragStart(e, { ...job, assetType: 'visual_mapping' })}
                         >
-                          {job.mapping_name}
+                          {job.name}
                         </div>
                       ))
                     )}

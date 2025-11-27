@@ -3,7 +3,7 @@ import { API_BASE_URL } from '../config';
 import './AssetPalette.css';
 
 function AssetPalette() {
-  const [mappings, setMappings] = useState([]);
+  const [visualMappings, setVisualMappings] = useState([]);
   const [mappingGroups, setMappingGroups] = useState([]);
   const [workflows, setWorkflows] = useState([]);
   const [activeTab, setActiveTab] = useState('mappings');
@@ -17,23 +17,18 @@ function AssetPalette() {
     try {
       const authHeaders = { Authorization: `Bearer ${localStorage.getItem('token')}` };
       const [mappingsRes, groupsRes, workflowsRes] = await Promise.all([
-        fetch(`${API_BASE_URL}/api/transformations`, { headers: authHeaders }),
+        fetch(`${API_BASE_URL}/api/visual-mappings`, { headers: authHeaders }),
         fetch(`${API_BASE_URL}/api/mapping-groups`, { headers: authHeaders }),
         fetch(`${API_BASE_URL}/api/n-step-workflows`, { headers: authHeaders }),
       ]);
 
       if (mappingsRes.ok) {
         const data = await mappingsRes.json();
-        const mappings = Array.isArray(data.mappings) ? data.mappings : [];
-        // Normalize: transformations use 'mapping_name', need to map to 'name'
-        const normalizedMappings = mappings.map(m => ({
-          ...m,
-          id: m.mapping_id || m.id,
-          name: m.mapping_name || m.name
-        }));
-        setMappings(normalizedMappings);
+        // Visual mappings API returns array directly with 'id' and 'name' fields
+        const mappings = Array.isArray(data) ? data : [];
+        setVisualMappings(mappings);
       } else {
-        setMappings([]);
+        setVisualMappings([]);
       }
 
       if (groupsRes.ok) {
@@ -51,7 +46,7 @@ function AssetPalette() {
       }
     } catch (error) {
       console.error('Failed to load assets:', error);
-      setMappings([]);
+      setVisualMappings([]);
       setMappingGroups([]);
       setWorkflows([]);
     }
@@ -105,7 +100,7 @@ function AssetPalette() {
 
   const getAssetIcon = (type) => {
     switch (type) {
-      case 'mapping':
+      case 'visual_mapping':
         return '🔄';
       case 'mapping_group':
         return '📦';
@@ -134,7 +129,7 @@ function AssetPalette() {
           className={`tab ${activeTab === 'mappings' ? 'active' : ''}`}
           onClick={() => setActiveTab('mappings')}
         >
-          Mappings ({mappings.length})
+          Visual Mappings ({visualMappings.length})
         </button>
         <button
           className={`tab ${activeTab === 'groups' ? 'active' : ''}`}
@@ -151,7 +146,7 @@ function AssetPalette() {
       </div>
 
       <div className="palette-content">
-        {activeTab === 'mappings' && renderAssetList(mappings, 'mapping')}
+        {activeTab === 'mappings' && renderAssetList(visualMappings, 'visual_mapping')}
         {activeTab === 'groups' && renderAssetList(mappingGroups, 'mapping_group')}
         {activeTab === 'workflows' && renderAssetList(workflows, 'workflow')}
       </div>
