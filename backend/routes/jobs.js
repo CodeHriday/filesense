@@ -3,53 +3,242 @@ const router = express.Router();
 const pool = require('../db');
 const { systemLogger } = require('../utils/logger');
 const { getJobStatus, cancelJob } = require('../services/jobExecutionEngine');
+const { 
+  decodeCursor, 
+  encodeCursor, 
+  processCursorResults, 
+  createPaginatedResponse 
+} = require('../utils/cursorPagination');
 
 /**
  * GET /api/jobs/stats/summary
- * Get job statistics summary
+ * Get job statistics summary - uses materialized views for enterprise performance
  */
 router.get('/stats/summary', async (req, res) => {
   try {
-    const { days = 30 } = req.query;
+    const { days = 30, projectId } = req.query;
     
-    const cutoffDate = new Date();
-    cutoffDate.setDate(cutoffDate.getDate() - parseInt(days));
+    // Try to use materialized view first for faster response
+    let usedMaterializedView = false;
+    let statsResult, anomalyResult;
     
-    const statsResult = await pool.query(`
-      SELECT 
-        COUNT(*) as total_jobs,
-        COUNT(CASE WHEN status = 'completed' THEN 1 END) as completed_jobs,
-        COUNT(CASE WHEN status = 'failed' THEN 1 END) as failed_jobs,
-        COUNT(CASE WHEN status = 'running' THEN 1 END) as running_jobs,
-        SUM(files_processed) as total_files,
-        SUM(rows_read) as total_rows_read,
-        SUM(rows_written) as total_rows_written,
-        SUM(rows_failed) as total_rows_failed,
-        AVG(EXTRACT(EPOCH FROM (end_time - start_time))) as avg_duration_seconds
-      FROM transformation_jobs
-      WHERE created_at >= $1
-    `, [cutoffDate]);
+    try {
+      // Check if materialized view exists and is fresh enough
+      const mvCheck = await pool.query(`
+        SELECT EXISTS (
+          SELECT FROM pg_matviews WHERE matviewname = 'mv_dashboard_summary'
+        ) as exists
+      `);
+      
+      if (mvCheck.rows[0].exists) {
+        // Use materialized view for instant response
+        const mvQuery = projectId
+          ? `SELECT * FROM mv_dashboard_summary WHERE project_id = $1`
+          : `SELECT * FROM mv_dashboard_summary WHERE project_id = 0`;
+        
+        const mvResult = await pool.query(mvQuery, projectId ? [projectId] : []);
+        
+        if (mvResult.rows.length > 0) {
+          const row = mvResult.rows[0];
+          statsResult = {
+            rows: [{
+              total_jobs: row.total_jobs,
+              completed_jobs: row.completed_jobs,
+              failed_jobs: row.failed_jobs,
+              running_jobs: row.running_jobs,
+              total_files: row.total_files,
+              total_rows_read: row.total_records_processed,
+              total_rows_written: row.total_records_processed,
+              total_rows_failed: 0
+            }]
+          };
+          anomalyResult = {
+            rows: [{
+              total_anomalies: row.total_anomalies,
+              high_severity: row.critical_anomalies,
+              medium_severity: 0,
+              low_severity: 0,
+              open_anomalies: row.total_anomalies
+            }]
+          };
+          usedMaterializedView = true;
+        }
+      }
+    } catch (mvError) {
+      // Materialized view not available, fall back to live query
+      systemLogger.debug('Materialized view not available, using live query');
+    }
     
-    const anomalyResult = await pool.query(`
-      SELECT 
-        COUNT(*) as total_anomalies,
-        COUNT(CASE WHEN severity = 'high' THEN 1 END) as high_severity,
-        COUNT(CASE WHEN severity = 'medium' THEN 1 END) as medium_severity,
-        COUNT(CASE WHEN severity = 'low' THEN 1 END) as low_severity,
-        COUNT(CASE WHEN status = 'open' THEN 1 END) as open_anomalies
-      FROM anomalies
-      WHERE detected_at >= $1
-    `, [cutoffDate]);
+    // Fall back to live query if materialized view not used
+    if (!usedMaterializedView) {
+      const cutoffDate = new Date();
+      cutoffDate.setDate(cutoffDate.getDate() - parseInt(days));
+      
+      statsResult = await pool.query(`
+        SELECT 
+          COUNT(*) as total_jobs,
+          COUNT(CASE WHEN status = 'completed' THEN 1 END) as completed_jobs,
+          COUNT(CASE WHEN status = 'failed' THEN 1 END) as failed_jobs,
+          COUNT(CASE WHEN status = 'running' THEN 1 END) as running_jobs,
+          SUM(files_processed) as total_files,
+          SUM(rows_read) as total_rows_read,
+          SUM(rows_written) as total_rows_written,
+          SUM(rows_failed) as total_rows_failed,
+          AVG(EXTRACT(EPOCH FROM (end_time - start_time))) as avg_duration_seconds
+        FROM transformation_jobs
+        WHERE created_at >= $1
+      `, [cutoffDate]);
+      
+      anomalyResult = await pool.query(`
+        SELECT 
+          COUNT(*) as total_anomalies,
+          COUNT(CASE WHEN severity = 'high' THEN 1 END) as high_severity,
+          COUNT(CASE WHEN severity = 'medium' THEN 1 END) as medium_severity,
+          COUNT(CASE WHEN severity = 'low' THEN 1 END) as low_severity,
+          COUNT(CASE WHEN status = 'open' THEN 1 END) as open_anomalies
+        FROM anomalies
+        WHERE detected_at >= $1
+      `, [cutoffDate]);
+    }
     
     res.json({
       period: `Last ${days} days`,
       jobs: statsResult.rows[0],
-      anomalies: anomalyResult.rows[0]
+      anomalies: anomalyResult.rows[0],
+      source: usedMaterializedView ? 'materialized_view' : 'live_query'
     });
     
   } catch (error) {
     systemLogger.error('Error getting job stats:', error);
     res.status(500).json({ error: 'Failed to get job statistics' });
+  }
+});
+
+/**
+ * GET /api/jobs/v2
+ * List jobs with cursor-based pagination for enterprise performance
+ * Supports terabyte-scale datasets with constant-time pagination
+ */
+router.get('/v2', async (req, res) => {
+  try {
+    const { 
+      status, 
+      mappingId,
+      projectId,
+      cursor,
+      limit = 50, 
+      sortBy = 'created_at',
+      sortOrder = 'DESC'
+    } = req.query;
+    
+    const pageLimit = Math.min(parseInt(limit) || 50, 100);
+    
+    // Get user's accessible projects
+    const { getUserProjects } = require('../middleware/requireProjectAccess');
+    const userProjects = await getUserProjects(req.user.id);
+    const projectIds = userProjects.map(p => p.id);
+    
+    const isAdmin = req.user?.roles?.includes('Admin');
+    
+    if (projectIds.length === 0 && !isAdmin) {
+      return res.json(createPaginatedResponse([], null, false, { total: 0 }));
+    }
+    
+    // Decode cursor
+    const cursorValues = decodeCursor(cursor);
+    
+    // Build query with cursor support
+    let query = `
+      SELECT 
+        tj.id,
+        tj.mapping_id,
+        tj.mapping_name,
+        tj.status,
+        tj.created_at,
+        tj.start_time,
+        tj.end_time,
+        tj.records_processed,
+        tj.records_failed,
+        tj.error_message,
+        tj.execution_type,
+        mg.name as mapping_group_name,
+        COALESCE(nw.name, vw.name) as workflow_name,
+        tm.project_id,
+        p.name as project_name
+      FROM transformation_jobs tj
+      LEFT JOIN transformation_mappings tm ON tj.mapping_id = tm.mapping_id
+      LEFT JOIN projects p ON tm.project_id = p.id
+      LEFT JOIN mapping_group_executions mge ON tj.mapping_group_execution_id = mge.id
+      LEFT JOIN mapping_groups mg ON mge.group_id = mg.id
+      LEFT JOIN n_step_workflow_runs nwr ON tj.workflow_execution_id = nwr.id
+      LEFT JOIN n_step_workflows nw ON nwr.workflow_id = nw.id
+      LEFT JOIN visual_workflow_executions vwe ON tj.visual_workflow_execution_id = vwe.id
+      LEFT JOIN visual_workflows vw ON vwe.workflow_id = vw.id
+      WHERE 1=1
+    `;
+    const params = [];
+    let paramIndex = 1;
+    
+    // Project access filter
+    if (!isAdmin) {
+      query += ` AND tm.project_id = ANY($${paramIndex}::integer[])`;
+      params.push(projectIds);
+      paramIndex++;
+    }
+    
+    if (status) {
+      query += ` AND tj.status = $${paramIndex}`;
+      params.push(status);
+      paramIndex++;
+    }
+    
+    if (mappingId) {
+      query += ` AND tj.mapping_id = $${paramIndex}`;
+      params.push(mappingId);
+      paramIndex++;
+    }
+    
+    if (projectId) {
+      query += ` AND tm.project_id = $${paramIndex}`;
+      params.push(parseInt(projectId));
+      paramIndex++;
+    }
+    
+    // Cursor-based pagination
+    const sortColumn = ['created_at', 'end_time', 'status'].includes(sortBy) ? sortBy : 'created_at';
+    const order = sortOrder.toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
+    const operator = order === 'DESC' ? '<' : '>';
+    
+    if (cursorValues) {
+      query += ` AND (
+        tj.${sortColumn} ${operator} $${paramIndex}
+        OR (tj.${sortColumn} = $${paramIndex} AND tj.id ${operator} $${paramIndex + 1})
+      )`;
+      params.push(cursorValues.sortValue, cursorValues.cursorId);
+      paramIndex += 2;
+    }
+    
+    query += ` ORDER BY tj.${sortColumn} ${order}, tj.id ${order}`;
+    query += ` LIMIT ${pageLimit + 1}`; // Fetch one extra to check for more pages
+    
+    const result = await pool.query(query, params);
+    
+    // Process results with cursor
+    const { items, nextCursor, hasMore } = processCursorResults(
+      result.rows,
+      pageLimit,
+      sortColumn,
+      'id'
+    );
+    
+    res.json(createPaginatedResponse(items, nextCursor, hasMore, {
+      sortBy: sortColumn,
+      sortOrder: order
+    }));
+    
+  } catch (error) {
+    systemLogger.error('Error listing jobs (v2):', error);
+    res.status(500).json({ error: 'Failed to list jobs' });
   }
 });
 

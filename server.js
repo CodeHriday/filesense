@@ -654,6 +654,139 @@ app.get('/api/health/db', async (req, res) => {
   }
 });
 
+// Enterprise Health Check - Comprehensive system status for load balancers
+const materializedViewWorker = require('./backend/workers/materializedViewWorker');
+
+app.get('/api/health/enterprise', async (req, res) => {
+  const startTime = Date.now();
+  const checks = {};
+  let overallHealthy = true;
+
+  // 1. Database Health
+  try {
+    const dbStart = Date.now();
+    const database = diContainer.get('database');
+    const dbHealth = await database.getHealthStatus();
+    checks.database = {
+      healthy: dbHealth.healthy,
+      responseTime: Date.now() - dbStart,
+      poolSize: dbHealth.poolSize,
+      idleConnections: dbHealth.idleConnections,
+      waitingClients: dbHealth.waitingClients
+    };
+    if (!dbHealth.healthy) overallHealthy = false;
+  } catch (err) {
+    checks.database = { healthy: false, error: err.message };
+    overallHealthy = false;
+  }
+
+  // 2. Redis/Cache Health
+  try {
+    const cacheStart = Date.now();
+    const cache = require('./backend/cache');
+    const cacheStats = cache.getStats ? cache.getStats() : { type: 'memory' };
+    checks.cache = {
+      healthy: true,
+      responseTime: Date.now() - cacheStart,
+      type: cacheStats.type || 'memory',
+      hits: cacheStats.hits,
+      misses: cacheStats.misses
+    };
+  } catch (err) {
+    checks.cache = { healthy: false, error: err.message };
+  }
+
+  // 3. Queue Health
+  try {
+    const queueStart = Date.now();
+    const queueMetrics = await queue.getMetrics('file-processing');
+    checks.queue = {
+      healthy: true,
+      responseTime: Date.now() - queueStart,
+      type: process.env.QUEUE_TYPE || 'memory',
+      metrics: queueMetrics
+    };
+  } catch (err) {
+    checks.queue = { healthy: false, error: err.message };
+  }
+
+  // 4. Materialized Views Status
+  try {
+    const viewStatus = materializedViewWorker.getViewStatus();
+    checks.materializedViews = {
+      healthy: true,
+      views: viewStatus
+    };
+  } catch (err) {
+    checks.materializedViews = { healthy: false, error: err.message };
+  }
+
+  // 5. Database Performance Stats (optional, for detailed view)
+  if (req.query.detailed === 'true') {
+    try {
+      const dbStats = await materializedViewWorker.getDatabaseStats();
+      checks.databaseStats = dbStats;
+    } catch (err) {
+      checks.databaseStats = { error: err.message };
+    }
+  }
+
+  // 6. Memory Usage
+  const memUsage = process.memoryUsage();
+  checks.memory = {
+    heapUsed: Math.round(memUsage.heapUsed / 1024 / 1024),
+    heapTotal: Math.round(memUsage.heapTotal / 1024 / 1024),
+    rss: Math.round(memUsage.rss / 1024 / 1024),
+    external: Math.round(memUsage.external / 1024 / 1024),
+    unit: 'MB'
+  };
+
+  // 7. Uptime
+  checks.uptime = {
+    seconds: Math.floor(process.uptime()),
+    human: formatUptime(process.uptime())
+  };
+
+  const response = {
+    status: overallHealthy ? 'healthy' : 'degraded',
+    timestamp: new Date().toISOString(),
+    responseTime: Date.now() - startTime,
+    version: process.env.APP_VERSION || '1.0.0',
+    environment: process.env.NODE_ENV || 'development',
+    checks
+  };
+
+  res.status(overallHealthy ? 200 : 503).json(response);
+});
+
+// Helper to format uptime
+function formatUptime(seconds) {
+  const days = Math.floor(seconds / 86400);
+  const hours = Math.floor((seconds % 86400) / 3600);
+  const mins = Math.floor((seconds % 3600) / 60);
+  return `${days}d ${hours}h ${mins}m`;
+}
+
+// Readiness probe for load balancers (minimal check)
+app.get('/api/health/ready', async (req, res) => {
+  try {
+    const database = diContainer.get('database');
+    const health = await database.getHealthStatus();
+    if (health.healthy) {
+      res.status(200).json({ ready: true });
+    } else {
+      res.status(503).json({ ready: false, reason: 'database' });
+    }
+  } catch (err) {
+    res.status(503).json({ ready: false, reason: err.message });
+  }
+});
+
+// Liveness probe for load balancers (process alive check)
+app.get('/api/health/live', (req, res) => {
+  res.status(200).json({ alive: true, timestamp: Date.now() });
+});
+
 // Queue metrics endpoint for monitoring
 app.get('/api/queue/metrics', async (req, res) => {
   try {
@@ -4342,6 +4475,7 @@ const seedGovernanceTags = require('./backend/migrations/seedGovernanceTags');
 const migrateColumnSensitivityToGovernance = require('./backend/migrations/migrateColumnSensitivityToGovernance');
 const { up: addSLAMonitoringToVendorAgreements } = require('./backend/migrations/addSLAMonitoringToVendorAgreements');
 const { addVendorSLAToAlertScope } = require('./backend/migrations/addVendorSLAToAlertScope');
+const enterprisePerformanceOptimizations = require('./backend/migrations/enterprisePerformanceOptimizations');
 const { addProjectToVisualWorkflows } = require('./backend/migrations/addProjectToVisualWorkflows');
 
 // Run schema migrations asynchronously with tracking to prevent re-running
@@ -4390,6 +4524,7 @@ const { addProjectToVisualWorkflows } = require('./backend/migrations/addProject
     await migrationTracker.runOnce('addSLAMonitoringToVendorAgreements', () => addSLAMonitoringToVendorAgreements());
     await migrationTracker.runOnce('addVendorSLAToAlertScope', () => addVendorSLAToAlertScope(dbPool));
     await migrationTracker.runOnce('addProjectToVisualWorkflows', () => addProjectToVisualWorkflows(dbPool));
+    await migrationTracker.runOnce('enterprisePerformanceOptimizations', () => enterprisePerformanceOptimizations(dbPool));
     
     console.log('🎉 All migrations completed successfully');
   } catch (err) {
@@ -9986,6 +10121,14 @@ async function startServer() {
     visualMappingWS.initialize(io);
     logger.info('Visual mapping WebSocket service initialized');
     
+    // Start materialized view refresh worker for enterprise performance
+    try {
+      materializedViewWorker.startWorker(60 * 1000); // Check every minute
+      logger.info('Materialized view refresh worker started');
+    } catch (error) {
+      logger.warn('Materialized view worker not started', { error: error.message });
+    }
+    
     // Start the HTTP server - bind to 0.0.0.0 for Replit
     httpServer.listen(port, '0.0.0.0', () => {
       logger.info(`🚀 Server running on port ${port}`, {
@@ -10047,6 +10190,9 @@ const gracefulShutdown = async (signal) => {
     if (uploadWorker) {
       await uploadWorker.stop();
     }
+    
+    // Stop materialized view worker
+    materializedViewWorker.stopWorker();
     
     // Close database connections
     const database = diContainer.get('database');
