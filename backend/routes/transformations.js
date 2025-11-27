@@ -88,6 +88,9 @@ router.get('/', async (req, res) => {
     const params = [];
     const whereClauses = [];
     
+    // Always exclude temporary mappings (created by visual mapping executions)
+    whereClauses.push(`(tm.is_temporary IS NULL OR tm.is_temporary = false)`);
+    
     // Filter by project membership (unless admin)
     if (!isAdmin && projectIds.length > 0) {
       whereClauses.push(`tm.project_id = ANY($${params.length + 1})`);
@@ -99,9 +102,7 @@ router.get('/', async (req, res) => {
       params.push(status);
     }
     
-    if (whereClauses.length > 0) {
-      query += ' WHERE ' + whereClauses.join(' AND ');
-    }
+    query += ' WHERE ' + whereClauses.join(' AND ');
     
     query += ' ORDER BY tm.created_at DESC LIMIT $' + (params.length + 1) + ' OFFSET $' + (params.length + 2);
     params.push(limit, offset);
@@ -113,6 +114,9 @@ router.get('/', async (req, res) => {
     const countParams = [];
     const countWhereClauses = [];
     
+    // Always exclude temporary mappings (created by visual mapping executions)
+    countWhereClauses.push(`(is_temporary IS NULL OR is_temporary = false)`);
+    
     if (!isAdmin && projectIds.length > 0) {
       countWhereClauses.push(`project_id = ANY($${countParams.length + 1})`);
       countParams.push(projectIds);
@@ -123,9 +127,7 @@ router.get('/', async (req, res) => {
       countParams.push(status);
     }
     
-    if (countWhereClauses.length > 0) {
-      countQuery += ' WHERE ' + countWhereClauses.join(' AND ');
-    }
+    countQuery += ' WHERE ' + countWhereClauses.join(' AND ');
     
     const countResult = await pool.query(countQuery, countParams);
     
