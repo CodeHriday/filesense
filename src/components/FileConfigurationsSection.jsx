@@ -512,47 +512,6 @@ function FileConfigurationsSection({ fileConfigurations, onChange }) {
               </div>
             )}
 
-            {/* Header Definition Section */}
-            {!isArchiveType(formData.file_type) && (
-              <div className="form-group full-width header-definition-section">
-                <div className="header-definition-header">
-                  <FiFileText className="header-icon" />
-                  <h5>Header Definition</h5>
-                </div>
-                
-                <div className="header-toggle-container">
-                  <span className="header-toggle-label">File Has Header Row</span>
-                  <button
-                    type="button"
-                    className={`toggle-switch ${formData.has_header ? 'active' : ''} ${isFixedWidthType(formData.file_type) ? 'disabled' : ''}`}
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      if (isFixedWidthType(formData.file_type)) return;
-                      const newHasHeader = !formData.has_header;
-                      setFormData({ 
-                        ...formData, 
-                        has_header: newHasHeader,
-                        header_definition: newHasHeader ? null : formData.header_definition
-                      });
-                      if (newHasHeader) {
-                        clearHeaderSchema();
-                      }
-                    }}
-                    disabled={isFixedWidthType(formData.file_type)}
-                  >
-                    <span className="toggle-slider"></span>
-                  </button>
-                </div>
-                <small className="header-toggle-help">
-                  {isFixedWidthType(formData.file_type) 
-                    ? 'Fixed width/binary files require field definitions with width and position in the Schema section below' 
-                    : 'Toggle off if file has no header row. Define fields with width/position in the Schema section below.'}
-                </small>
-              </div>
-            )}
-
-
             <div className="form-group full-width governance-section">
               <div className="governance-header">
                 <FiShield className="governance-icon" />
@@ -621,6 +580,17 @@ function FileConfigurationsSection({ fileConfigurations, onChange }) {
                 onChange={(value) => setFormData({ ...formData, schema: value })}
                 fileType={formData.file_type}
                 hasHeader={formData.has_header}
+                onHasHeaderChange={(newValue) => {
+                  setFormData({ 
+                    ...formData, 
+                    has_header: newValue,
+                    header_definition: newValue ? null : formData.header_definition
+                  });
+                  if (newValue) {
+                    clearHeaderSchema();
+                  }
+                }}
+                showHeaderToggle={!isArchiveType(formData.file_type)}
               />
             </div>
           </div>

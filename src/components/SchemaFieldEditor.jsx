@@ -1,14 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { FiPlus, FiTrash2, FiAlertCircle, FiInfo } from 'react-icons/fi';
+import { FiPlus, FiTrash2, FiAlertCircle, FiInfo, FiFileText } from 'react-icons/fi';
 import './SchemaFieldEditor.css';
 
 const FIXED_WIDTH_FILE_TYPES = ['fixed_width', 'binary', 'dat'];
+const ARCHIVE_FILE_TYPES = ['zip', '7z', 'tar', 'tar.gz', 'tar.bz2'];
 
-function SchemaFieldEditor({ value, onChange, fileType, hasHeader }) {
+function SchemaFieldEditor({ value, onChange, fileType, hasHeader, onHasHeaderChange, showHeaderToggle = true }) {
   const [fields, setFields] = useState([]);
   const [error, setError] = useState(null);
 
   const isFixedWidthType = FIXED_WIDTH_FILE_TYPES.includes(fileType);
+  const isArchiveType = ARCHIVE_FILE_TYPES.includes(fileType);
   const showExtendedFields = isFixedWidthType || hasHeader === false;
 
   useEffect(() => {
@@ -109,10 +111,18 @@ function SchemaFieldEditor({ value, onChange, fileType, hasHeader }) {
     'json'
   ];
 
+  const handleToggleHeader = () => {
+    if (isFixedWidthType || !onHasHeaderChange) return;
+    onHasHeaderChange(!hasHeader);
+  };
+
   return (
     <div className="schema-field-editor">
       <div className="editor-header">
-        <label>Schema Fields</label>
+        <div className="editor-title-row">
+          <FiFileText className="editor-icon" />
+          <label>Schema Fields</label>
+        </div>
         <button
           type="button"
           className="btn-add-field"
@@ -122,13 +132,37 @@ function SchemaFieldEditor({ value, onChange, fileType, hasHeader }) {
         </button>
       </div>
 
+      {/* Header Toggle - integrated into Schema Fields section */}
+      {showHeaderToggle && !isArchiveType && (
+        <div className="header-toggle-row">
+          <div className="header-toggle-content">
+            <span className="header-toggle-label">File Has Header Row</span>
+            <button
+              type="button"
+              className={`toggle-switch ${hasHeader ? 'active' : ''} ${isFixedWidthType ? 'disabled' : ''}`}
+              onClick={handleToggleHeader}
+              disabled={isFixedWidthType}
+            >
+              <span className="toggle-slider"></span>
+            </button>
+          </div>
+          <small className="header-toggle-help">
+            {isFixedWidthType 
+              ? 'Fixed-width/binary files require explicit field definitions with width and position'
+              : hasHeader 
+                ? 'File includes a header row with column names'
+                : 'No header row - define fields with width and start position below'}
+          </small>
+        </div>
+      )}
+
       {showExtendedFields && (
         <div className="extended-fields-notice">
           <FiInfo />
           <span>
             {isFixedWidthType 
-              ? 'Fixed-width file type detected. Width and start position fields are available for precise field definitions.'
-              : 'Headerless file mode. Extended field properties are available for defining field metadata.'}
+              ? 'Fixed-width file type detected. Define each field with width and start position.'
+              : 'Headerless file mode. Specify width, start position, and optionally precision/scale for numeric fields.'}
           </span>
         </div>
       )}
@@ -152,13 +186,15 @@ function SchemaFieldEditor({ value, onChange, fileType, hasHeader }) {
           <table>
             <thead>
               <tr>
-                <th>Field Name</th>
-                <th>Type</th>
-                {showExtendedFields && <th>Width</th>}
-                {showExtendedFields && <th>Start Pos</th>}
-                <th>Nullable</th>
+                <th>FIELD NAME</th>
+                <th>TYPE</th>
+                {showExtendedFields && <th>WIDTH</th>}
+                {showExtendedFields && <th>START POS</th>}
+                {showExtendedFields && <th>PRECISION</th>}
+                {showExtendedFields && <th>SCALE</th>}
+                <th>NULLABLE</th>
                 <th>PII</th>
-                <th>Description</th>
+                <th>DESCRIPTION</th>
                 <th></th>
               </tr>
             </thead>
@@ -204,6 +240,30 @@ function SchemaFieldEditor({ value, onChange, fileType, hasHeader }) {
                         value={field.start_position || ''}
                         onChange={(e) => handleFieldChange(index, 'start_position', e.target.value)}
                         placeholder="0"
+                        className="field-input field-input-small"
+                        min="0"
+                      />
+                    </td>
+                  )}
+                  {showExtendedFields && (
+                    <td>
+                      <input
+                        type="number"
+                        value={field.precision || ''}
+                        onChange={(e) => handleFieldChange(index, 'precision', e.target.value)}
+                        placeholder="-"
+                        className="field-input field-input-small"
+                        min="1"
+                      />
+                    </td>
+                  )}
+                  {showExtendedFields && (
+                    <td>
+                      <input
+                        type="number"
+                        value={field.scale || ''}
+                        onChange={(e) => handleFieldChange(index, 'scale', e.target.value)}
+                        placeholder="-"
                         className="field-input field-input-small"
                         min="0"
                       />
