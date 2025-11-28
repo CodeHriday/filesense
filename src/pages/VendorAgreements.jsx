@@ -80,10 +80,6 @@ const VendorAgreements = () => {
     message: ''
   });
   
-  // Archive password state
-  const [hasArchivePassword, setHasArchivePassword] = useState(false);
-  const [showArchivePassword, setShowArchivePassword] = useState(false);
-  
   const [formData, setFormData] = useState({
     vendor_id: '',
     vendor_code: '',
@@ -127,8 +123,7 @@ const VendorAgreements = () => {
     frequency_pattern: 'daily',
     arrival_time: '09:00',
     arrival_days: '',
-    alert_threshold_minutes: 60,
-    archive_password: ''
+    alert_threshold_minutes: 60
   });
   
   const [templateFile, setTemplateFile] = useState(null);
@@ -624,15 +619,12 @@ const VendorAgreements = () => {
       frequency_pattern: 'daily',
       arrival_time: '09:00',
       arrival_days: '',
-      alert_threshold_minutes: 60,
-      archive_password: ''
+      alert_threshold_minutes: 60
     });
     setTemplateFile(null);
     setModalMode('create');
     setError('');
     setSuccessMessage('');
-    setHasArchivePassword(false);
-    setShowArchivePassword(false);
     setModalOpen(true);
   };
   
@@ -661,15 +653,6 @@ const VendorAgreements = () => {
     } catch (error) {
       console.error('Error loading file schemas:', error);
       setFileConfigurations([]);
-    }
-    
-    // Check if archive password exists for this agreement
-    try {
-      const passwordResponse = await axios.get(`/api/vendor-agreements/${agreement.id}/archive-password`);
-      setHasArchivePassword(passwordResponse.data.exists || false);
-    } catch (error) {
-      console.error('Error checking archive password:', error);
-      setHasArchivePassword(false);
     }
     
     // Format date for HTML date input (YYYY-MM-DD)
@@ -738,13 +721,11 @@ const VendorAgreements = () => {
       frequency_pattern: agreement.frequency_pattern || 'daily',
       arrival_time: agreement.arrival_time || '09:00',
       arrival_days: agreement.arrival_days || '',
-      alert_threshold_minutes: agreement.alert_threshold_minutes || 60,
-      archive_password: ''
+      alert_threshold_minutes: agreement.alert_threshold_minutes || 60
     });
     setTemplateFile(null);
     setModalMode('edit');
     setSuccessMessage('');
-    setShowArchivePassword(false);
     setModalOpen(true);
   };
   
@@ -759,9 +740,6 @@ const VendorAgreements = () => {
     setModalOpen(false);
     setSelectedAgreement(null);
     setTemplateFile(null);
-    // Clear password field to prevent stale values across modal sessions
-    setFormData(prev => ({ ...prev, archive_password: '' }));
-    setShowArchivePassword(false);
   };
   
   const closeDetailModal = () => {
@@ -1033,27 +1011,6 @@ const VendorAgreements = () => {
         }
       } else {
         console.log('Skipping file configurations save:', { agreementId, hasConfigs: fileConfigurations.length > 0 });
-      }
-      
-      // Save archive password if provided (only if user entered a new password)
-      if (agreementId && formData.archive_password && formData.archive_password.trim() !== '') {
-        try {
-          console.log('Saving archive password for agreement:', agreementId);
-          await axios.post(`/api/vendor-agreements/${agreementId}/archive-password`, {
-            password: formData.archive_password
-          });
-          console.log('Archive password saved successfully');
-          // Refresh password existence state
-          setHasArchivePassword(true);
-        } catch (passwordError) {
-          console.error('Error saving archive password:', passwordError);
-          setNotificationModal({
-            isOpen: true,
-            type: 'warning',
-            title: 'Partial Success',
-            message: 'Agreement saved but failed to save archive password: ' + (passwordError.response?.data?.error || passwordError.message)
-          });
-        }
       }
       
       setTimeout(() => {
@@ -2314,55 +2271,6 @@ const VendorAgreements = () => {
                         placeholder="Auto-populated"
                       />
                       <span className="form-helper-text">Auto-populated from connection</span>
-                    </div>
-                    
-                    <div className="form-group">
-                      <label htmlFor="archive_password">Archive Password (Optional)</label>
-                      {modalMode === 'edit' && hasArchivePassword && (
-                        <div className="password-configured-notice">
-                          <div className="password-notice-content">
-                            <FiEye size={14} />
-                            <span>Archive password configured</span>
-                          </div>
-                          <button
-                            type="button"
-                            className="btn-remove-password"
-                            onClick={async () => {
-                              if (window.confirm('Are you sure you want to remove the archive password?')) {
-                                try {
-                                  await axios.delete(`/api/vendor-agreements/${selectedAgreement.id}/archive-password`);
-                                  setHasArchivePassword(false);
-                                  setFormData(prev => ({ ...prev, archive_password: '' }));
-                                  addToast('success', 'Password Removed', 'Archive password has been removed');
-                                } catch (error) {
-                                  console.error('Error removing archive password:', error);
-                                  addToast('error', 'Error', 'Failed to remove archive password');
-                                }
-                              }
-                            }}
-                          >
-                            Remove
-                          </button>
-                        </div>
-                      )}
-                      <div className="password-input-wrapper">
-                        <input
-                          type={showArchivePassword ? 'text' : 'password'}
-                          id="archive_password"
-                          name="archive_password"
-                          value={formData.archive_password}
-                          onChange={handleInputChange}
-                          placeholder={modalMode === 'edit' && hasArchivePassword ? 'Enter new password to update' : 'Password for encrypted archives'}
-                        />
-                        <button
-                          type="button"
-                          className="password-toggle-btn"
-                          onClick={() => setShowArchivePassword(!showArchivePassword)}
-                        >
-                          {showArchivePassword ? <FiSlash size={16} /> : <FiEye size={16} />}
-                        </button>
-                      </div>
-                      <span className="form-helper-text">For password-protected ZIP, 7z, or TAR archives (encrypted with AES-256)</span>
                     </div>
                   </div>
                 </div>
