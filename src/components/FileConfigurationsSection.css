@@ -3,7 +3,7 @@
   border: 1px solid var(--gps-border-light, #e2e8f0);
   border-radius: var(--gps-radius-md, 6px);
   padding: var(--gps-spacing-xl, 16px);
-  margin-top: var(--gps-spacing-xl, 16px);
+  margin-top: var(--gps-spacing-sm, 6px);
   font-family: var(--gps-font-family, 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
 }
 
@@ -595,4 +595,40 @@
   background: rgba(2, 80, 67, 0.1);
   color: var(--gps-primary-teal, #025043);
   border: 1px solid rgba(2, 80, 67, 0.3);
+}
+
+.password-badge {
+  background: #dbeafe;
+  color: #1e40af;
+  border: 1px solid #93c5fd;
+}
+
+/* Password Input Styles */
+.password-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.password-input-wrapper input {
+  width: 100%;
+  padding-right: 36px;
+}
+
+.password-input-wrapper .password-toggle-btn {
+  position: absolute;
+  right: 8px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--gps-text-muted, #666666);
+  transition: color 0.2s ease;
+}
+
+.password-input-wrapper .password-toggle-btn:hover {
+  color: var(--gps-primary-teal, #025043);
 }

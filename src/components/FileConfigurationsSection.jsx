@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FiPlus, FiEdit2, FiTrash2, FiSave, FiX, FiFileText, FiShield, FiCheckCircle } from 'react-icons/fi';
+import { FiPlus, FiEdit2, FiTrash2, FiSave, FiX, FiFileText, FiShield, FiCheckCircle, FiLock, FiEye, FiEyeOff } from 'react-icons/fi';
 import axios from 'axios';
 import SchemaFieldEditor from './SchemaFieldEditor';
 import './FileConfigurationsSection.css';
@@ -9,6 +9,7 @@ function FileConfigurationsSection({ fileConfigurations, onChange }) {
   const [editingIndex, setEditingIndex] = useState(null);
   const [qualityRules, setQualityRules] = useState([]);
   const [deleteConfirmation, setDeleteConfirmation] = useState({ show: false, index: null });
+  const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
     file_name_pattern_base: '',
     file_type: 'csv',
@@ -17,7 +18,8 @@ function FileConfigurationsSection({ fileConfigurations, onChange }) {
     priority: 100,
     contains_pii: false,
     data_classification: '',
-    quality_rule_ids: []
+    quality_rule_ids: [],
+    archive_password: ''
   });
 
   const FILE_TYPES = [
@@ -89,7 +91,8 @@ function FileConfigurationsSection({ fileConfigurations, onChange }) {
       is_active: true,
       contains_pii: formData.contains_pii,
       data_classification: formData.data_classification || null,
-      quality_rule_ids: formData.quality_rule_ids || []
+      quality_rule_ids: formData.quality_rule_ids || [],
+      archive_password: formData.archive_password || ''
     };
 
     onChange([...fileConfigurations, newConfig]);
@@ -102,8 +105,10 @@ function FileConfigurationsSection({ fileConfigurations, onChange }) {
       priority: 100,
       contains_pii: false,
       data_classification: '',
-      quality_rule_ids: []
+      quality_rule_ids: [],
+      archive_password: ''
     });
+    setShowPassword(false);
     setShowAddForm(false);
   };
 
@@ -117,8 +122,10 @@ function FileConfigurationsSection({ fileConfigurations, onChange }) {
       priority: config.priority ?? 100,
       contains_pii: config.contains_pii || false,
       data_classification: config.data_classification || '',
-      quality_rule_ids: config.quality_rule_ids || []
+      quality_rule_ids: config.quality_rule_ids || [],
+      archive_password: config.archive_password || ''
     });
+    setShowPassword(false);
     setEditingIndex(index);
   };
 
@@ -144,7 +151,8 @@ function FileConfigurationsSection({ fileConfigurations, onChange }) {
       is_active: true,
       contains_pii: formData.contains_pii,
       data_classification: formData.data_classification || null,
-      quality_rule_ids: formData.quality_rule_ids || []
+      quality_rule_ids: formData.quality_rule_ids || [],
+      archive_password: formData.archive_password || ''
     };
 
     const updated = [...fileConfigurations];
@@ -159,8 +167,10 @@ function FileConfigurationsSection({ fileConfigurations, onChange }) {
       priority: 100,
       contains_pii: false,
       data_classification: '',
-      quality_rule_ids: []
+      quality_rule_ids: [],
+      archive_password: ''
     });
+    setShowPassword(false);
     setEditingIndex(null);
   };
 
@@ -189,8 +199,10 @@ function FileConfigurationsSection({ fileConfigurations, onChange }) {
       priority: 100,
       contains_pii: false,
       data_classification: '',
-      quality_rule_ids: []
+      quality_rule_ids: [],
+      archive_password: ''
     });
+    setShowPassword(false);
     setShowAddForm(false);
     setEditingIndex(null);
   };
@@ -284,6 +296,26 @@ function FileConfigurationsSection({ fileConfigurations, onChange }) {
                 step="1"
               />
               <small>Lower numbers match first (default: 100)</small>
+            </div>
+
+            <div className="form-group">
+              <label>Archive Password (Optional)</label>
+              <div className="password-input-wrapper">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value={formData.archive_password}
+                  onChange={(e) => setFormData({ ...formData, archive_password: e.target.value })}
+                  placeholder="Password for encrypted ZIP files"
+                />
+                <button
+                  type="button"
+                  className="password-toggle-btn"
+                  onClick={() => setShowPassword(!showPassword)}
+                >
+                  {showPassword ? <FiEyeOff size={14} /> : <FiEye size={14} />}
+                </button>
+              </div>
+              <small>For password-protected ZIP, 7z, or TAR archives</small>
             </div>
 
             <div className="form-group full-width governance-section">
@@ -396,6 +428,11 @@ function FileConfigurationsSection({ fileConfigurations, onChange }) {
                   
                   {/* Governance Badges */}
                   <div className="governance-badges">
+                    {config.archive_password && (
+                      <span className="governance-badge password-badge">
+                        <FiLock /> Password Protected
+                      </span>
+                    )}
                     {config.contains_pii && (
                       <span className="governance-badge pii-badge">
                         <FiShield /> Contains PII
