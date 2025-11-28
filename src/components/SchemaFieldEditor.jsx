@@ -11,7 +11,6 @@ function SchemaFieldEditor({ value, onChange, fileType, hasHeader, onHasHeaderCh
 
   const isFixedWidthType = FIXED_WIDTH_FILE_TYPES.includes(fileType);
   const isArchiveType = ARCHIVE_FILE_TYPES.includes(fileType);
-  const showExtendedFields = isFixedWidthType || hasHeader === false;
 
   useEffect(() => {
     if (!value || value.trim() === '') {
@@ -55,14 +54,12 @@ function SchemaFieldEditor({ value, onChange, fileType, hasHeader, onHasHeaderCh
           pii: field.pii,
           nullable: field.nullable
         };
-        if (showExtendedFields) {
-          if (field.width) cleanField.width = parseInt(field.width) || field.width;
-          if (field.start_position !== '' && field.start_position !== undefined) {
-            cleanField.start_position = parseInt(field.start_position) || 0;
-          }
-          if (field.precision) cleanField.precision = parseInt(field.precision) || field.precision;
-          if (field.scale) cleanField.scale = parseInt(field.scale) || field.scale;
+        if (field.width) cleanField.width = parseInt(field.width) || field.width;
+        if (field.start_position !== '' && field.start_position !== undefined) {
+          cleanField.start_position = parseInt(field.start_position) || 0;
         }
+        if (field.precision) cleanField.precision = parseInt(field.precision) || field.precision;
+        if (field.scale) cleanField.scale = parseInt(field.scale) || field.scale;
         return cleanField;
       });
       onChange(JSON.stringify(cleanedFields, null, 2));
@@ -75,14 +72,12 @@ function SchemaFieldEditor({ value, onChange, fileType, hasHeader, onHasHeaderCh
       type: 'string', 
       description: '', 
       pii: false,
-      nullable: true
+      nullable: true,
+      width: '',
+      start_position: '',
+      precision: '',
+      scale: ''
     };
-    if (showExtendedFields) {
-      newField.width = '';
-      newField.start_position = '';
-      newField.precision = '';
-      newField.scale = '';
-    }
     const newFields = [...fields, newField];
     setFields(newFields);
     updateParent(newFields);
@@ -163,16 +158,6 @@ function SchemaFieldEditor({ value, onChange, fileType, hasHeader, onHasHeaderCh
         </div>
       )}
 
-      {showExtendedFields && (
-        <div className="extended-fields-notice">
-          <FiInfo />
-          <span>
-            {isFixedWidthType 
-              ? 'Fixed-width file type detected. Define each field with width and start position.'
-              : 'Headerless file mode. Specify width, start position, and optionally precision/scale for numeric fields.'}
-          </span>
-        </div>
-      )}
 
       {error && (
         <div className="schema-error">
@@ -184,9 +169,6 @@ function SchemaFieldEditor({ value, onChange, fileType, hasHeader, onHasHeaderCh
       {fields.length === 0 ? (
         <div className="empty-schema">
           <p>No fields defined. Click "Add Field" to start building your schema.</p>
-          {showExtendedFields && (
-            <small>For {isFixedWidthType ? 'fixed-width files' : 'headerless files'}, define each field with width and position.</small>
-          )}
         </div>
       ) : (
         <div className="fields-table">
@@ -195,10 +177,10 @@ function SchemaFieldEditor({ value, onChange, fileType, hasHeader, onHasHeaderCh
               <tr>
                 <th>Field Name</th>
                 <th>Type</th>
-                {showExtendedFields && <th>Width</th>}
-                {showExtendedFields && <th>Start Pos</th>}
-                {showExtendedFields && <th>Precision</th>}
-                {showExtendedFields && <th>Scale</th>}
+                <th>Width</th>
+                <th>Start Pos</th>
+                <th>Precision</th>
+                <th>Scale</th>
                 <th>Nullable</th>
                 <th>PII</th>
                 <th>Description</th>
@@ -228,54 +210,46 @@ function SchemaFieldEditor({ value, onChange, fileType, hasHeader, onHasHeaderCh
                       ))}
                     </select>
                   </td>
-                  {showExtendedFields && (
-                    <td>
-                      <input
-                        type="number"
-                        value={field.width || ''}
-                        onChange={(e) => handleFieldChange(index, 'width', e.target.value)}
-                        placeholder="0"
-                        className="field-input field-input-small"
-                        min="1"
-                      />
-                    </td>
-                  )}
-                  {showExtendedFields && (
-                    <td>
-                      <input
-                        type="number"
-                        value={field.start_position || ''}
-                        onChange={(e) => handleFieldChange(index, 'start_position', e.target.value)}
-                        placeholder="0"
-                        className="field-input field-input-small"
-                        min="0"
-                      />
-                    </td>
-                  )}
-                  {showExtendedFields && (
-                    <td>
-                      <input
-                        type="number"
-                        value={field.precision || ''}
-                        onChange={(e) => handleFieldChange(index, 'precision', e.target.value)}
-                        placeholder="-"
-                        className="field-input field-input-small"
-                        min="1"
-                      />
-                    </td>
-                  )}
-                  {showExtendedFields && (
-                    <td>
-                      <input
-                        type="number"
-                        value={field.scale || ''}
-                        onChange={(e) => handleFieldChange(index, 'scale', e.target.value)}
-                        placeholder="-"
-                        className="field-input field-input-small"
-                        min="0"
-                      />
-                    </td>
-                  )}
+                  <td>
+                    <input
+                      type="number"
+                      value={field.width || ''}
+                      onChange={(e) => handleFieldChange(index, 'width', e.target.value)}
+                      placeholder="-"
+                      className="field-input field-input-small"
+                      min="1"
+                    />
+                  </td>
+                  <td>
+                    <input
+                      type="number"
+                      value={field.start_position || ''}
+                      onChange={(e) => handleFieldChange(index, 'start_position', e.target.value)}
+                      placeholder="-"
+                      className="field-input field-input-small"
+                      min="0"
+                    />
+                  </td>
+                  <td>
+                    <input
+                      type="number"
+                      value={field.precision || ''}
+                      onChange={(e) => handleFieldChange(index, 'precision', e.target.value)}
+                      placeholder="-"
+                      className="field-input field-input-small"
+                      min="1"
+                    />
+                  </td>
+                  <td>
+                    <input
+                      type="number"
+                      value={field.scale || ''}
+                      onChange={(e) => handleFieldChange(index, 'scale', e.target.value)}
+                      placeholder="-"
+                      className="field-input field-input-small"
+                      min="0"
+                    />
+                  </td>
                   <td className="nullable-cell">
                     <label className="nullable-checkbox">
                       <input
@@ -325,9 +299,7 @@ function SchemaFieldEditor({ value, onChange, fileType, hasHeader, onHasHeaderCh
       )}
 
       <small className="editor-hint">
-        {showExtendedFields 
-          ? 'Define field structure with position details. For numeric types, you can also specify precision and scale in the JSON.'
-          : 'Define your expected file structure. Mark sensitive fields as PII for automatic data governance.'}
+        Define your expected file structure. Width is used for fixed-width/delimited files. Mark sensitive fields as PII for automatic data governance.
       </small>
     </div>
   );
