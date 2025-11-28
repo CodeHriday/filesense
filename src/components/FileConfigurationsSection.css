@@ -714,8 +714,8 @@
   margin-top: 4px;
 }
 
-/* Toggle Switch Button */
-.toggle-switch {
+/* Toggle Switch Button - scoped to header-toggle-container for specificity */
+.header-toggle-container .toggle-switch {
   position: relative;
   width: 44px;
   height: 24px;
@@ -728,24 +728,24 @@
   flex-shrink: 0;
 }
 
-.toggle-switch:hover:not(.disabled) {
+.header-toggle-container .toggle-switch:hover:not(.disabled) {
   background: #a0aec0;
 }
 
-.toggle-switch.active {
+.header-toggle-container .toggle-switch.active {
   background: var(--gps-primary-teal, #025043);
 }
 
-.toggle-switch.active:hover:not(.disabled) {
+.header-toggle-container .toggle-switch.active:hover:not(.disabled) {
   background: #036b5a;
 }
 
-.toggle-switch.disabled {
+.header-toggle-container .toggle-switch.disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
 
-.toggle-slider {
+.header-toggle-container .toggle-slider {
   position: absolute;
   top: 2px;
   left: 2px;
@@ -756,9 +756,10 @@
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
   transition: transform 0.2s ease;
   pointer-events: none;
+  transform: translateX(0);
 }
 
-.toggle-switch.active .toggle-slider {
+.header-toggle-container .toggle-switch.active .toggle-slider {
   transform: translateX(20px);
 }
 
