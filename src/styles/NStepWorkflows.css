@@ -214,6 +214,34 @@
   justify-content: center;
 }
 
+.confirmation-modal {
+  max-width: 450px !important;
+  width: 90%;
+  height: auto !important;
+  max-height: fit-content !important;
+  min-height: auto !important;
+}
+
+.confirmation-modal .modal-body {
+  padding: 1.5rem;
+}
+
+.confirmation-modal .modal-body p {
+  margin: 0 0 0.75rem 0;
+}
+
+.confirmation-modal .modal-body p:last-child {
+  margin-bottom: 0;
+}
+
+.confirmation-modal .modal-footer {
+  padding: 1rem 1.5rem;
+  border-top: 1px solid #e2e8f0;
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+}
+
 .workflow-controls {
   background: white;
   padding: 1.5rem;
