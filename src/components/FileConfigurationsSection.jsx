@@ -538,13 +538,8 @@ function FileConfigurationsSection({ fileConfigurations, onChange }) {
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
-                      console.log('Toggle clicked! Current has_header:', formData.has_header);
-                      if (isFixedWidthType(formData.file_type)) {
-                        console.log('Fixed width type, not toggling');
-                        return;
-                      }
+                      if (isFixedWidthType(formData.file_type)) return;
                       const newHasHeader = !formData.has_header;
-                      console.log('Setting has_header to:', newHasHeader);
                       setFormData({ 
                         ...formData, 
                         has_header: newHasHeader,
