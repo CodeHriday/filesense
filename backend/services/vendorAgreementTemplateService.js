@@ -21,13 +21,17 @@ class VendorAgreementTemplateService {
       { field: 'delivery_method', label: 'Delivery Method', type: 'dropdown', required: false, options: ['SFTP', 'S3', 'API', 'Email', 'Manual'] }
     ];
 
+    // Fixed width file types that require header definition
+    this.FIXED_WIDTH_FILE_TYPES = ['fixed_width', 'binary', 'dat'];
+    
     // File configuration fields (multiple per agreement)
     this.fileConfigFields = [
       { field: 'agreement_id', label: 'Agreement ID *', type: 'text', required: true },
       { field: 'file_name_pattern', label: 'File Name Pattern *', type: 'text', required: true },
       { field: 'file_description', label: 'File Description', type: 'text', required: false },
-      { field: 'file_type', label: 'File Type *', type: 'dropdown', required: true, options: ['csv', 'json', 'xml', 'xlsx', 'parquet', 'zip', '7z', 'tar', 'tar.gz'] },
+      { field: 'file_type', label: 'File Type *', type: 'dropdown', required: true, options: ['csv', 'json', 'xml', 'xlsx', 'parquet', 'fixed_width', 'binary', 'dat', 'sas7bdat', 'avro', 'zip', '7z', 'tar', 'tar.gz', 'tar.bz2'] },
       { field: 'archive_password', label: 'Archive Password', type: 'text', required: false },
+      { field: 'has_header', label: 'Has Header', type: 'boolean', required: false },
       { field: 'schema', label: 'Schema (JSON)', type: 'text', required: false },
       { field: 'priority', label: 'Priority', type: 'number', required: false },
       { field: 'contains_pii', label: 'Contains PII', type: 'boolean', required: false },
@@ -186,6 +190,8 @@ class VendorAgreementTemplateService {
         return fileNum === 1 ? 'csv' : 'json';
       case 'archive_password':
         return '';
+      case 'has_header':
+        return 'TRUE';
       case 'schema':
         return fileNum === 1 
           ? '[{"name":"ID","type":"integer","description":"Customer ID","pii":false},{"name":"Name","type":"string","description":"Customer name","pii":false},{"name":"Email","type":"string","description":"Customer email","pii":true}]'
@@ -279,9 +285,11 @@ class VendorAgreementTemplateService {
       ['Agreement ID: Must match an Agreement ID from Agreement Info sheet - REQUIRED'],
       ['File Name Pattern: Base pattern without extension, e.g., customer_data - REQUIRED'],
       ['File Description: What the file contains (optional)'],
-      ['File Type: Type of file - REQUIRED. Values: csv, json, xml, xlsx, parquet, zip, 7z, tar, tar.gz, tar.bz2'],
+      ['File Type: Type of file - REQUIRED. Values: csv, json, xml, xlsx, parquet, fixed_width, binary, dat, sas7bdat, avro, zip, 7z, tar, tar.gz, tar.bz2'],
       ['Archive Password: Password for encrypted archives - ONLY allowed for archive file types (zip, 7z, tar, tar.gz, tar.bz2). Leave blank for non-archive types.'],
-      ['Schema: JSON array of field definitions with PII marking. Format: [{"name":"FieldName","type":"string","description":"...","pii":false}]'],
+      ['Has Header: TRUE or FALSE - indicates if file has a header row. For fixed_width, binary, dat file types this should be FALSE.'],
+      ['Schema: JSON array of field definitions with PII marking. For headerless files, include width and start_position for fixed-width formats.'],
+      ['  Format: [{"name":"FieldName","type":"string","width":10,"start_position":0,"nullable":true,"pii":false}]'],
       ['  Each field can have:'],
       ['    - name: Field name (required)'],
       ['    - type: Data type (required): string, integer, float, boolean, date, timestamp, json'],
@@ -450,6 +458,22 @@ class VendorAgreementTemplateService {
           rowErrors.push(`Archive Password: Only allowed for archive file types (${this.ARCHIVE_FILE_TYPES.join(', ')}). Current file type is "${fileType}".`);
         }
 
+        // Determine has_header value - defaults to true unless explicitly false or fixed-width type
+        let hasHeader = fileConfig.has_header;
+        if (hasHeader === null || hasHeader === undefined) {
+          hasHeader = !this.FIXED_WIDTH_FILE_TYPES.includes(fileType);
+        }
+        
+        // For fixed-width types, has_header should be false
+        if (this.FIXED_WIDTH_FILE_TYPES.includes(fileType) && hasHeader) {
+          rowErrors.push(`Has Header: Fixed width/binary/dat file types should have Has Header set to FALSE.`);
+        }
+
+        // Validate that headerless files have schema defined (for non-archive types)
+        if (!hasHeader && !fileConfig.schema && !this.ARCHIVE_FILE_TYPES.includes(fileType)) {
+          rowErrors.push(`Schema: Required when Has Header is FALSE. Provide field definitions with name, type, and width.`);
+        }
+
         if (rowErrors.length > 0) {
           errors.push({
             sheet: 'File Configurations',
@@ -466,6 +490,8 @@ class VendorAgreementTemplateService {
             file_name_pattern: `${basePattern}*.${fileType}`,
             file_description: fileConfig.file_description || '',
             archive_password: archivePassword,
+            has_header: hasHeader,
+            header_definition: !hasHeader ? fileConfig.schema : null,
             schema: fileConfig.schema || null,
             priority: fileConfig.priority ?? 100,
             is_active: true,
