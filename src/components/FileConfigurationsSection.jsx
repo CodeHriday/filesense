@@ -532,9 +532,10 @@ function FileConfigurationsSection({ fileConfigurations, onChange }) {
                 
                 <div className="header-definition-controls">
                   <div className="form-group">
-                    <label className="checkbox-label">
+                    <div className="checkbox-wrapper">
                       <input
                         type="checkbox"
+                        id="has-header-checkbox"
                         checked={formData.has_header}
                         onChange={(e) => {
                           const hasHeader = e.target.checked;
@@ -549,8 +550,10 @@ function FileConfigurationsSection({ fileConfigurations, onChange }) {
                         }}
                         disabled={isFixedWidthType(formData.file_type)}
                       />
-                      <span>File has header row</span>
-                    </label>
+                      <label htmlFor="has-header-checkbox" className="checkbox-text-label">
+                        File Has Header Row
+                      </label>
+                    </div>
                     <small>
                       {isFixedWidthType(formData.file_type) 
                         ? 'Fixed width/binary files require explicit header definition' 

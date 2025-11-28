@@ -424,7 +424,7 @@
 }
 
 .checkbox-label {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: var(--gps-spacing-sm, 6px);
   cursor: pointer;
@@ -432,17 +432,54 @@
   font-weight: var(--gps-font-weight-medium, 500);
   color: var(--gps-text-dark, #333333);
   user-select: none;
+  position: relative;
 }
 
 .checkbox-label input[type="checkbox"] {
-  width: 14px;
-  height: 14px;
+  width: 16px;
+  height: 16px;
+  min-width: 16px;
+  min-height: 16px;
   cursor: pointer;
   accent-color: var(--gps-primary-teal, #025043);
+  margin: 0;
+  padding: 0;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 1;
 }
 
 .checkbox-label span {
   font-size: 11px;
+  cursor: pointer;
+}
+
+/* Checkbox wrapper for separate input and label */
+.checkbox-wrapper {
+  display: flex;
+  align-items: center;
+  gap: var(--gps-spacing-sm, 8px);
+}
+
+.checkbox-wrapper input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  min-width: 16px;
+  min-height: 16px;
+  cursor: pointer;
+  accent-color: var(--gps-primary-teal, #025043);
+  margin: 0;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.checkbox-text-label {
+  font-family: var(--gps-font-family, 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
+  font-size: 11px;
+  font-weight: var(--gps-font-weight-medium, 500);
+  color: var(--gps-text-dark, #333333);
+  cursor: pointer;
+  user-select: none;
 }
 
 /* Quality Rules Selector */
