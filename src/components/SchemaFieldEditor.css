@@ -208,6 +208,7 @@
   color: var(--text-secondary);
   border-bottom: 2px solid var(--border-light);
   white-space: nowrap;
+  text-transform: none;
 }
 
 .fields-table tbody tr {
