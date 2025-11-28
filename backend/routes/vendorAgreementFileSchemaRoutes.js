@@ -55,7 +55,7 @@ router.get('/:agreementId/file-schemas', requirePermission('vendor_agreements:re
       let hasArchivePassword = false;
       if (passwordVaultService) {
         try {
-          hasArchivePassword = await passwordVaultService.hasPassword('file_schema', schema.id.toString());
+          hasArchivePassword = await passwordVaultService.hasPassword('vendor_agreement_file_schema', schema.id.toString());
         } catch (error) {
           systemLogger.warn('Error checking password status', { schemaId: schema.id, error: error.message });
         }
@@ -303,7 +303,7 @@ router.put('/:agreementId/file-schemas', requirePermission('vendor_agreements:wr
     if (passwordVaultService && existingSchemas.rows.length > 0) {
       for (const schema of existingSchemas.rows) {
         try {
-          await passwordVaultService.deletePassword('file_schema', schema.id.toString(), req.user.id);
+          await passwordVaultService.deletePassword('vendor_agreement_file_schema', schema.id.toString(), req.user.id);
         } catch (error) {
           systemLogger.warn('Error deleting old schema password', { schemaId: schema.id, error: error.message });
         }
@@ -406,7 +406,7 @@ router.put('/:agreementId/file-schemas', requirePermission('vendor_agreements:wr
     if (passwordVaultService && passwordsToStore.length > 0) {
       for (const item of passwordsToStore) {
         try {
-          await passwordVaultService.storePassword('file_schema', item.schemaId.toString(), item.password, req.user.id);
+          await passwordVaultService.storePassword('vendor_agreement_file_schema', item.schemaId.toString(), item.password, req.user.id);
           systemLogger.info('Archive password stored for file schema', { schemaId: item.schemaId });
         } catch (error) {
           systemLogger.error('Error storing archive password', { schemaId: item.schemaId, error: error.message });
