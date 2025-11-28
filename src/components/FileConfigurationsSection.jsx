@@ -27,8 +27,17 @@ function FileConfigurationsSection({ fileConfigurations, onChange }) {
     { value: 'xlsx', label: 'Excel (XLSX)' },
     { value: 'json', label: 'JSON' },
     { value: 'xml', label: 'XML' },
-    { value: 'parquet', label: 'Parquet' }
+    { value: 'parquet', label: 'Parquet' },
+    { value: 'zip', label: 'ZIP Archive' },
+    { value: '7z', label: '7z Archive' },
+    { value: 'tar', label: 'TAR Archive' },
+    { value: 'tar.gz', label: 'TAR.GZ Archive' },
+    { value: 'tar.bz2', label: 'TAR.BZ2 Archive' }
   ];
+
+  const ARCHIVE_FILE_TYPES = ['zip', '7z', 'tar', 'tar.gz', 'tar.bz2'];
+  
+  const isArchiveType = (fileType) => ARCHIVE_FILE_TYPES.includes(fileType);
 
   const DATA_CLASSIFICATIONS = [
     { value: '', label: 'Select classification' },
@@ -260,7 +269,14 @@ function FileConfigurationsSection({ fileConfigurations, onChange }) {
               <label>File Type *</label>
               <select
                 value={formData.file_type}
-                onChange={(e) => setFormData({ ...formData, file_type: e.target.value })}
+                onChange={(e) => {
+                  const newType = e.target.value;
+                  const updates = { file_type: newType };
+                  if (!isArchiveType(newType)) {
+                    updates.archive_password = '';
+                  }
+                  setFormData({ ...formData, ...updates });
+                }}
               >
                 {FILE_TYPES.map(type => (
                   <option key={type.value} value={type.value}>{type.label}</option>
@@ -299,31 +315,33 @@ function FileConfigurationsSection({ fileConfigurations, onChange }) {
               <small>Lower numbers match first (default: 100)</small>
             </div>
 
-            <div className="form-group">
-              <label>Archive Password (Optional)</label>
-              {formData.has_archive_password && !formData.archive_password && (
-                <div className="password-configured-notice">
-                  <FiLock size={14} />
-                  <span>Password configured - enter new password to update</span>
+            {isArchiveType(formData.file_type) && (
+              <div className="form-group">
+                <label>Archive Password (Optional)</label>
+                {formData.has_archive_password && !formData.archive_password && (
+                  <div className="password-configured-notice">
+                    <FiLock size={14} />
+                    <span>Password configured - enter new password to update</span>
+                  </div>
+                )}
+                <div className="password-input-wrapper">
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    value={formData.archive_password}
+                    onChange={(e) => setFormData({ ...formData, archive_password: e.target.value })}
+                    placeholder={formData.has_archive_password ? "Enter new password to update" : "Password for encrypted archive files"}
+                  />
+                  <button
+                    type="button"
+                    className="password-toggle-btn"
+                    onClick={() => setShowPassword(!showPassword)}
+                  >
+                    {showPassword ? <FiEyeOff size={14} /> : <FiEye size={14} />}
+                  </button>
                 </div>
-              )}
-              <div className="password-input-wrapper">
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  value={formData.archive_password}
-                  onChange={(e) => setFormData({ ...formData, archive_password: e.target.value })}
-                  placeholder={formData.has_archive_password ? "Enter new password to update" : "Password for encrypted ZIP files"}
-                />
-                <button
-                  type="button"
-                  className="password-toggle-btn"
-                  onClick={() => setShowPassword(!showPassword)}
-                >
-                  {showPassword ? <FiEyeOff size={14} /> : <FiEye size={14} />}
-                </button>
+                <small>For password-protected ZIP, 7z, or TAR archives</small>
               </div>
-              <small>For password-protected ZIP, 7z, or TAR archives</small>
-            </div>
+            )}
 
             <div className="form-group full-width governance-section">
               <div className="governance-header">
