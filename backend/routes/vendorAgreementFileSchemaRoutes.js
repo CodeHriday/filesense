@@ -129,6 +129,8 @@ router.get('/:agreementId/file-schemas/:schemaId', requirePermission('vendor_agr
  * Create a new file schema for a vendor agreement
  */
 router.post('/:agreementId/file-schemas', requirePermission('vendor_agreements:write'), async (req, res) => {
+  const ARCHIVE_FILE_TYPES = ['zip', '7z', 'tar', 'tar.gz', 'tar.bz2'];
+  
   try {
     const { agreementId } = req.params;
     const { 
@@ -141,7 +143,10 @@ router.post('/:agreementId/file-schemas', requirePermission('vendor_agreements:w
       data_classification = null,
       file_type = null,
       quality_rule_ids = [],
-      column_metadata = {}
+      column_metadata = {},
+      has_header = true,
+      header_definition = null,
+      archive_password = null
     } = req.body;
     
     // Validate required fields
@@ -179,11 +184,19 @@ router.post('/:agreementId/file-schemas', requirePermission('vendor_agreements:w
     }
     
     // Validate file_type if provided
-    const validFileTypes = ['csv', 'json', 'xml', 'xlsx', 'parquet'];
+    const validFileTypes = ['csv', 'json', 'xml', 'xlsx', 'parquet', 'fixed_width', 'binary', 'dat', 'sas7bdat', 'avro', 'zip', '7z', 'tar', 'tar.gz', 'tar.bz2'];
     if (file_type && !validFileTypes.includes(file_type.toLowerCase())) {
       return res.status(400).json({
         success: false,
         error: `Invalid file_type. Must be one of: ${validFileTypes.join(', ')}`
+      });
+    }
+    
+    // Validate archive_password only allowed for archive file types
+    if (archive_password && !ARCHIVE_FILE_TYPES.includes(file_type)) {
+      return res.status(400).json({
+        success: false,
+        error: `Archive password is only allowed for archive file types (${ARCHIVE_FILE_TYPES.join(', ')})`
       });
     }
     
@@ -214,9 +227,11 @@ router.post('/:agreementId/file-schemas', requirePermission('vendor_agreements:w
         file_type,
         quality_rule_ids,
         column_metadata,
+        has_header,
+        header_definition,
         created_by,
         updated_by
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
       RETURNING *`,
       [
         agreementId,
@@ -230,10 +245,22 @@ router.post('/:agreementId/file-schemas', requirePermission('vendor_agreements:w
         file_type,
         JSON.stringify(quality_rule_ids),
         JSON.stringify(column_metadata),
+        has_header,
+        header_definition ? JSON.stringify(header_definition) : null,
         req.user.id,
         req.user.id
       ]
     );
+    
+    // Store archive password if provided
+    if (archive_password && passwordVaultService) {
+      try {
+        await passwordVaultService.storePassword('vendor_agreement_file_schema', result.rows[0].id.toString(), archive_password);
+        systemLogger.info('Archive password stored for file schema', { schemaId: result.rows[0].id });
+      } catch (pwError) {
+        systemLogger.warn('Failed to store archive password', { schemaId: result.rows[0].id, error: pwError.message });
+      }
+    }
     
     systemLogger.info('File schema created', { 
       schemaId: result.rows[0].id, 
@@ -334,7 +361,9 @@ router.put('/:agreementId/file-schemas', requirePermission('vendor_agreements:wr
         file_type = null,
         quality_rule_ids = [],
         column_metadata = {},
-        archive_password = ''
+        archive_password = '',
+        has_header = true,
+        header_definition = null
       } = schema;
       
       // Validate required fields
@@ -367,9 +396,11 @@ router.put('/:agreementId/file-schemas', requirePermission('vendor_agreements:wr
           file_type,
           quality_rule_ids,
           column_metadata,
+          has_header,
+          header_definition,
           created_by,
           updated_by
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
         RETURNING *`,
         [
           agreementId,
@@ -383,6 +414,8 @@ router.put('/:agreementId/file-schemas', requirePermission('vendor_agreements:wr
           file_type,
           JSON.stringify(quality_rule_ids),
           JSON.stringify(column_metadata),
+          has_header,
+          header_definition ? JSON.stringify(header_definition) : null,
           req.user.id,
           req.user.id
         ]
@@ -448,6 +481,8 @@ router.put('/:agreementId/file-schemas', requirePermission('vendor_agreements:wr
  * Update an existing file schema
  */
 router.put('/:agreementId/file-schemas/:schemaId', requirePermission('vendor_agreements:write'), async (req, res) => {
+  const ARCHIVE_FILE_TYPES = ['zip', '7z', 'tar', 'tar.gz', 'tar.bz2'];
+  
   try {
     const { agreementId, schemaId } = req.params;
     const { 
@@ -460,12 +495,15 @@ router.put('/:agreementId/file-schemas/:schemaId', requirePermission('vendor_agr
       data_classification,
       file_type,
       quality_rule_ids,
-      column_metadata
+      column_metadata,
+      has_header,
+      header_definition,
+      archive_password
     } = req.body;
     
     // Verify file schema exists and belongs to this agreement
     const existingCheck = await pool.query(
-      'SELECT id FROM vendor_agreement_file_schemas WHERE id = $1 AND vendor_agreement_id = $2',
+      'SELECT id, file_type FROM vendor_agreement_file_schemas WHERE id = $1 AND vendor_agreement_id = $2',
       [schemaId, agreementId]
     );
     
@@ -486,11 +524,22 @@ router.put('/:agreementId/file-schemas/:schemaId', requirePermission('vendor_agr
     }
     
     // Validate file_type if provided
-    const validFileTypes = ['csv', 'json', 'xml', 'xlsx', 'parquet'];
+    const validFileTypes = ['csv', 'json', 'xml', 'xlsx', 'parquet', 'fixed_width', 'binary', 'dat', 'sas7bdat', 'avro', 'zip', '7z', 'tar', 'tar.gz', 'tar.bz2'];
     if (file_type !== undefined && file_type !== null && !validFileTypes.includes(file_type.toLowerCase())) {
       return res.status(400).json({
         success: false,
         error: `Invalid file_type. Must be one of: ${validFileTypes.join(', ')}`
+      });
+    }
+    
+    // Determine effective file type for password validation
+    const effectiveFileType = file_type !== undefined ? file_type : existingCheck.rows[0].file_type;
+    
+    // Validate archive_password only allowed for archive file types
+    if (archive_password && !ARCHIVE_FILE_TYPES.includes(effectiveFileType)) {
+      return res.status(400).json({
+        success: false,
+        error: `Archive password is only allowed for archive file types (${ARCHIVE_FILE_TYPES.join(', ')})`
       });
     }
     
@@ -566,29 +615,79 @@ router.put('/:agreementId/file-schemas/:schemaId', requirePermission('vendor_agr
       values.push(JSON.stringify(column_metadata));
     }
     
-    if (updates.length === 0) {
+    if (has_header !== undefined) {
+      updates.push(`has_header = $${paramIndex++}`);
+      values.push(has_header);
+    }
+    
+    if (header_definition !== undefined) {
+      updates.push(`header_definition = $${paramIndex++}`);
+      values.push(header_definition ? JSON.stringify(header_definition) : null);
+    }
+    
+    if (updates.length === 0 && archive_password === undefined) {
       return res.status(400).json({
         success: false,
         error: 'No fields to update'
       });
     }
     
-    // Add updated_by and updated_at
-    updates.push(`updated_by = $${paramIndex++}`);
-    values.push(req.user.id);
+    let result;
+    if (updates.length > 0) {
+      // Add updated_by and updated_at
+      updates.push(`updated_by = $${paramIndex++}`);
+      values.push(req.user.id);
+      
+      // Add WHERE clause parameters
+      values.push(schemaId);
+      values.push(agreementId);
+      
+      const query = `
+        UPDATE vendor_agreement_file_schemas 
+        SET ${updates.join(', ')}
+        WHERE id = $${paramIndex++} AND vendor_agreement_id = $${paramIndex++}
+        RETURNING *
+      `;
+      
+      result = await pool.query(query, values);
+    } else {
+      // Only updating password, fetch current data
+      result = await pool.query(
+        'SELECT * FROM vendor_agreement_file_schemas WHERE id = $1 AND vendor_agreement_id = $2',
+        [schemaId, agreementId]
+      );
+    }
     
-    // Add WHERE clause parameters
-    values.push(schemaId);
-    values.push(agreementId);
+    // Handle archive password update
+    if (archive_password !== undefined && passwordVaultService) {
+      if (archive_password && archive_password.trim() !== '') {
+        // Store or update password
+        try {
+          await passwordVaultService.storePassword('vendor_agreement_file_schema', schemaId.toString(), archive_password, req.user.id);
+          systemLogger.info('Archive password updated for file schema', { schemaId });
+        } catch (pwError) {
+          systemLogger.warn('Failed to update archive password', { schemaId, error: pwError.message });
+        }
+      } else {
+        // Remove password if empty string provided
+        try {
+          await passwordVaultService.deletePassword('vendor_agreement_file_schema', schemaId.toString(), req.user.id);
+          systemLogger.info('Archive password removed for file schema', { schemaId });
+        } catch (pwError) {
+          systemLogger.warn('Failed to remove archive password', { schemaId, error: pwError.message });
+        }
+      }
+    }
     
-    const query = `
-      UPDATE vendor_agreement_file_schemas 
-      SET ${updates.join(', ')}
-      WHERE id = $${paramIndex++} AND vendor_agreement_id = $${paramIndex++}
-      RETURNING *
-    `;
-    
-    const result = await pool.query(query, values);
+    // Check password status
+    let hasArchivePassword = false;
+    if (passwordVaultService) {
+      try {
+        hasArchivePassword = await passwordVaultService.hasPassword('vendor_agreement_file_schema', schemaId.toString());
+      } catch (error) {
+        systemLogger.warn('Error checking password status', { schemaId, error: error.message });
+      }
+    }
     
     systemLogger.info('File schema updated', { 
       schemaId, 
@@ -598,7 +697,7 @@ router.put('/:agreementId/file-schemas/:schemaId', requirePermission('vendor_agr
     
     res.json({
       success: true,
-      fileSchema: result.rows[0],
+      fileSchema: { ...result.rows[0], has_archive_password: hasArchivePassword },
       message: 'File schema updated successfully'
     });
     
