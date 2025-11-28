@@ -179,7 +179,7 @@ function FileConfigurationsSection({ fileConfigurations, onChange }) {
   const clearHeaderSchema = () => {
     setHeaderSchemaFile(null);
     setHeaderSchemaError('');
-    setFormData({ ...formData, header_definition: null });
+    setFormData(prev => ({ ...prev, header_definition: null }));
     if (headerSchemaInputRef.current) {
       headerSchemaInputRef.current.value = '';
     }
@@ -581,13 +581,17 @@ function FileConfigurationsSection({ fileConfigurations, onChange }) {
                 fileType={formData.file_type}
                 hasHeader={formData.has_header}
                 onHasHeaderChange={(newValue) => {
-                  setFormData({ 
-                    ...formData, 
+                  setFormData(prev => ({ 
+                    ...prev, 
                     has_header: newValue,
-                    header_definition: newValue ? null : formData.header_definition
-                  });
+                    header_definition: newValue ? null : prev.header_definition
+                  }));
                   if (newValue) {
-                    clearHeaderSchema();
+                    setHeaderSchemaFile(null);
+                    setHeaderSchemaError('');
+                    if (headerSchemaInputRef.current) {
+                      headerSchemaInputRef.current.value = '';
+                    }
                   }
                 }}
                 showHeaderToggle={!isArchiveType(formData.file_type)}
