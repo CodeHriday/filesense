@@ -531,55 +531,38 @@ function FileConfigurationsSection({ fileConfigurations, onChange }) {
                 </div>
                 
                 <div className="header-definition-controls">
-                  <div className="form-group" style={{ position: 'relative', zIndex: 1 }}>
-                    <div 
-                      className="checkbox-wrapper"
-                      style={{ position: 'relative', zIndex: 10, pointerEvents: 'auto' }}
-                      onClick={(e) => {
-                        if (isFixedWidthType(formData.file_type)) return;
-                        const newHasHeader = !formData.has_header;
+                  <div className="header-checkbox-row">
+                    <input
+                      type="checkbox"
+                      id="has-header-checkbox"
+                      className="header-checkbox-input"
+                      checked={formData.has_header}
+                      onChange={(e) => {
+                        e.stopPropagation();
+                        const hasHeader = e.target.checked;
                         setFormData({ 
                           ...formData, 
-                          has_header: newHasHeader,
-                          header_definition: newHasHeader ? null : formData.header_definition
+                          has_header: hasHeader,
+                          header_definition: hasHeader ? null : formData.header_definition
                         });
-                        if (newHasHeader) {
+                        if (hasHeader) {
                           clearHeaderSchema();
                         }
                       }}
-                    >
-                      <input
-                        type="checkbox"
-                        id="has-header-checkbox"
-                        checked={formData.has_header}
-                        onChange={() => {}}
-                        disabled={isFixedWidthType(formData.file_type)}
-                        style={{ 
-                          width: '18px', 
-                          height: '18px', 
-                          cursor: 'pointer',
-                          pointerEvents: 'auto',
-                          position: 'relative',
-                          zIndex: 20
-                        }}
-                      />
-                      <label 
-                        htmlFor="has-header-checkbox" 
-                        className="checkbox-text-label"
-                        style={{ cursor: 'pointer', pointerEvents: 'auto' }}
-                      >
-                        File Has Header Row
-                      </label>
-                    </div>
-                    <small>
-                      {isFixedWidthType(formData.file_type) 
-                        ? 'Fixed width/binary files require explicit header definition' 
-                        : 'Uncheck if file has no header row and you need to define field names'}
-                    </small>
+                      disabled={isFixedWidthType(formData.file_type)}
+                    />
+                    <label htmlFor="has-header-checkbox" className="header-checkbox-label">
+                      File Has Header Row
+                    </label>
                   </div>
+                  <p className="header-checkbox-help">
+                    {isFixedWidthType(formData.file_type) 
+                      ? 'Fixed width/binary files require explicit header definition' 
+                      : 'Uncheck if file has no header row and you need to define field names'}
+                  </p>
 
                   {!formData.has_header && (
-                    <div className="form-group full-width">
+                    <div className="header-schema-section">
                       <label>Header Schema File (CSV or JSON) *</label>
                       <div className="header-schema-upload">
                         <input
