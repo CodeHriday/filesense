@@ -632,3 +632,20 @@
 .password-input-wrapper .password-toggle-btn:hover {
   color: var(--gps-primary-teal, #025043);
 }
+
+.password-configured-notice {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  background: #dbeafe;
+  border: 1px solid #93c5fd;
+  border-radius: 4px;
+  font-size: 12px;
+  color: #1e40af;
+  margin-bottom: 8px;
+}
+
+.password-configured-notice svg {
+  flex-shrink: 0;
+}

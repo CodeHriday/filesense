@@ -123,7 +123,8 @@ function FileConfigurationsSection({ fileConfigurations, onChange }) {
       contains_pii: config.contains_pii || false,
       data_classification: config.data_classification || '',
       quality_rule_ids: config.quality_rule_ids || [],
-      archive_password: config.archive_password || ''
+      archive_password: config.archive_password || '',
+      has_archive_password: config.has_archive_password || false
     });
     setShowPassword(false);
     setEditingIndex(index);
@@ -300,12 +301,18 @@ function FileConfigurationsSection({ fileConfigurations, onChange }) {
 
             <div className="form-group">
               <label>Archive Password (Optional)</label>
+              {formData.has_archive_password && !formData.archive_password && (
+                <div className="password-configured-notice">
+                  <FiLock size={14} />
+                  <span>Password configured - enter new password to update</span>
+                </div>
+              )}
               <div className="password-input-wrapper">
                 <input
                   type={showPassword ? 'text' : 'password'}
                   value={formData.archive_password}
                   onChange={(e) => setFormData({ ...formData, archive_password: e.target.value })}
-                  placeholder="Password for encrypted ZIP files"
+                  placeholder={formData.has_archive_password ? "Enter new password to update" : "Password for encrypted ZIP files"}
                 />
                 <button
                   type="button"
@@ -428,7 +435,7 @@ function FileConfigurationsSection({ fileConfigurations, onChange }) {
                   
                   {/* Governance Badges */}
                   <div className="governance-badges">
-                    {config.archive_password && (
+                    {(config.archive_password || config.has_archive_password) && (
                       <span className="governance-badge password-badge">
                         <FiLock /> Password Protected
                       </span>

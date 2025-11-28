@@ -647,7 +647,9 @@ const VendorAgreements = () => {
         is_active: schema.is_active !== false,
         contains_pii: schema.contains_pii || false,
         data_classification: schema.data_classification || '',
-        quality_rule_ids: schema.quality_rule_ids || []
+        quality_rule_ids: schema.quality_rule_ids || [],
+        archive_password: '',
+        has_archive_password: schema.has_archive_password || false
       }));
       setFileConfigurations(configs);
     } catch (error) {

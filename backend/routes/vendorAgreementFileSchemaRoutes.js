@@ -9,6 +9,15 @@ const pool = require('../db');
 const { systemLogger } = require('../utils/logger');
 const { requirePermission } = require('../middleware/vendorPermissions');
 const { matchesPattern } = require('../utils/filePatternMatcher');
+const PasswordVaultService = require('../services/passwordVaultService');
+
+let passwordVaultService = null;
+
+try {
+  passwordVaultService = new PasswordVaultService(pool, null, systemLogger);
+} catch (error) {
+  systemLogger.warn('Password vault service not available - archive passwords will not be stored securely', { error: error.message });
+}
 
 /**
  * GET /api/vendor-agreements/:agreementId/file-schemas
@@ -41,10 +50,26 @@ router.get('/:agreementId/file-schemas', requirePermission('vendor_agreements:re
     
     const result = await pool.query(query, params);
     
+    // Check password status for each schema
+    const schemasWithPasswordStatus = await Promise.all(result.rows.map(async (schema) => {
+      let hasArchivePassword = false;
+      if (passwordVaultService) {
+        try {
+          hasArchivePassword = await passwordVaultService.hasPassword('file_schema', schema.id.toString());
+        } catch (error) {
+          systemLogger.warn('Error checking password status', { schemaId: schema.id, error: error.message });
+        }
+      }
+      return {
+        ...schema,
+        has_archive_password: hasArchivePassword
+      };
+    }));
+    
     res.json({
       success: true,
-      fileSchemas: result.rows,
-      total: result.rows.length
+      fileSchemas: schemasWithPasswordStatus,
+      total: schemasWithPasswordStatus.length
     });
     
   } catch (error) {
@@ -237,6 +262,7 @@ router.post('/:agreementId/file-schemas', requirePermission('vendor_agreements:w
  * PUT /api/vendor-agreements/:agreementId/file-schemas
  * Bulk replace all file schemas for an agreement (atomic operation)
  * Deletes all existing schemas and creates new ones in a single transaction
+ * Also handles archive passwords for each file schema
  */
 router.put('/:agreementId/file-schemas', requirePermission('vendor_agreements:write'), async (req, res) => {
   const client = await pool.connect();
@@ -267,6 +293,23 @@ router.put('/:agreementId/file-schemas', requirePermission('vendor_agreements:wr
     
     await client.query('BEGIN');
     
+    // Get existing schema IDs to clean up their passwords
+    const existingSchemas = await client.query(
+      'SELECT id FROM vendor_agreement_file_schemas WHERE vendor_agreement_id = $1',
+      [agreementId]
+    );
+    
+    // Delete passwords for existing schemas
+    if (passwordVaultService && existingSchemas.rows.length > 0) {
+      for (const schema of existingSchemas.rows) {
+        try {
+          await passwordVaultService.deletePassword('file_schema', schema.id.toString(), req.user.id);
+        } catch (error) {
+          systemLogger.warn('Error deleting old schema password', { schemaId: schema.id, error: error.message });
+        }
+      }
+    }
+    
     // Delete all existing file schemas for this agreement
     await client.query(
       'DELETE FROM vendor_agreement_file_schemas WHERE vendor_agreement_id = $1',
@@ -275,8 +318,10 @@ router.put('/:agreementId/file-schemas', requirePermission('vendor_agreements:wr
     
     systemLogger.info('Deleted existing file schemas', { agreementId, userId: req.user.id });
     
-    // Insert new file schemas
+    // Insert new file schemas and store passwords
     const createdSchemas = [];
+    const passwordsToStore = [];
+    
     for (const schema of fileSchemas) {
       const {
         file_name_pattern,
@@ -288,7 +333,8 @@ router.put('/:agreementId/file-schemas', requirePermission('vendor_agreements:wr
         data_classification = null,
         file_type = null,
         quality_rule_ids = [],
-        column_metadata = {}
+        column_metadata = {},
+        archive_password = ''
       } = schema;
       
       // Validate required fields
@@ -342,14 +388,36 @@ router.put('/:agreementId/file-schemas', requirePermission('vendor_agreements:wr
         ]
       );
       
-      createdSchemas.push(result.rows[0]);
+      const createdSchema = result.rows[0];
+      createdSchemas.push(createdSchema);
+      
+      // Queue password for storage if provided
+      if (archive_password && archive_password.trim() !== '') {
+        passwordsToStore.push({
+          schemaId: createdSchema.id,
+          password: archive_password
+        });
+      }
     }
     
     await client.query('COMMIT');
     
+    // Store passwords after commit (outside transaction for security)
+    if (passwordVaultService && passwordsToStore.length > 0) {
+      for (const item of passwordsToStore) {
+        try {
+          await passwordVaultService.storePassword('file_schema', item.schemaId.toString(), item.password, req.user.id);
+          systemLogger.info('Archive password stored for file schema', { schemaId: item.schemaId });
+        } catch (error) {
+          systemLogger.error('Error storing archive password', { schemaId: item.schemaId, error: error.message });
+        }
+      }
+    }
+    
     systemLogger.info('Bulk replaced file schemas', { 
       agreementId,
       count: createdSchemas.length,
+      passwordsStored: passwordsToStore.length,
       userId: req.user.id 
     });
     
