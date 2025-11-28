@@ -183,19 +183,19 @@ class VendorAgreementTemplateService {
       case 'agreement_id':
         return agreementId;
       case 'file_name_pattern':
-        return fileNum === 1 ? 'customer_data' : 'transaction_log';
+        return fileNum === 1 ? 'customer_data' : 'legacy_transactions';
       case 'file_description':
-        return fileNum === 1 ? 'Daily customer information export' : 'Transaction logs for audit';
+        return fileNum === 1 ? 'Daily customer information export' : 'Fixed-width transaction file from legacy system';
       case 'file_type':
-        return fileNum === 1 ? 'csv' : 'json';
+        return fileNum === 1 ? 'csv' : 'fixed_width';
       case 'archive_password':
         return '';
       case 'has_header':
-        return 'TRUE';
+        return fileNum === 1 ? 'TRUE' : 'FALSE';
       case 'schema':
         return fileNum === 1 
-          ? '[{"name":"ID","type":"integer","description":"Customer ID","pii":false},{"name":"Name","type":"string","description":"Customer name","pii":false},{"name":"Email","type":"string","description":"Customer email","pii":true}]'
-          : '[{"name":"transaction_id","type":"string","description":"Transaction ID","pii":false},{"name":"amount","type":"float","description":"Transaction amount","pii":false},{"name":"timestamp","type":"timestamp","description":"Transaction time","pii":false}]';
+          ? '[{"name":"ID","type":"integer","description":"Customer ID","nullable":false,"pii":false},{"name":"Name","type":"string","description":"Customer name","nullable":true,"pii":false},{"name":"Email","type":"string","description":"Customer email","nullable":true,"pii":true}]'
+          : '[{"name":"transaction_id","type":"string","width":15,"start_position":0,"nullable":false,"pii":false},{"name":"amount","type":"float","width":12,"start_position":15,"precision":10,"scale":2,"nullable":false,"pii":false},{"name":"customer_name","type":"string","width":50,"start_position":27,"nullable":true,"pii":false},{"name":"timestamp","type":"timestamp","width":19,"start_position":77,"nullable":false,"pii":false}]';
       case 'priority':
         return fileNum === 1 ? '100' : '200';
       case 'contains_pii':
