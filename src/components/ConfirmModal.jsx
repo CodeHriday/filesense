@@ -1,4 +1,5 @@
 import React from 'react';
+import ReactDOM from 'react-dom';
 import { FiAlertTriangle, FiX } from 'react-icons/fi';
 
 const ConfirmModal = ({ 
@@ -126,7 +127,7 @@ const ConfirmModal = ({
     }
   };
 
-  return (
+  const modalContent = (
     <div style={styles.overlay} onClick={onClose}>
       <div style={styles.content} onClick={e => e.stopPropagation()}>
         <div style={styles.header}>
@@ -152,6 +153,8 @@ const ConfirmModal = ({
       </div>
     </div>
   );
+
+  return ReactDOM.createPortal(modalContent, document.body);
 };
 
 export default ConfirmModal;
