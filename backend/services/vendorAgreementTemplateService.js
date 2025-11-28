@@ -23,7 +23,8 @@ class VendorAgreementTemplateService {
       { field: 'agreement_id', label: 'Agreement ID *', type: 'text', required: true },
       { field: 'file_name_pattern', label: 'File Name Pattern *', type: 'text', required: true },
       { field: 'file_description', label: 'File Description', type: 'text', required: false },
-      { field: 'file_type', label: 'File Type *', type: 'dropdown', required: true, options: ['csv', 'json', 'xml', 'xlsx', 'parquet'] },
+      { field: 'file_type', label: 'File Type *', type: 'dropdown', required: true, options: ['csv', 'json', 'xml', 'xlsx', 'parquet', 'zip', '7z', 'tar', 'tar.gz'] },
+      { field: 'archive_password', label: 'Archive Password', type: 'text', required: false },
       { field: 'schema', label: 'Schema (JSON)', type: 'text', required: false },
       { field: 'priority', label: 'Priority', type: 'number', required: false },
       { field: 'contains_pii', label: 'Contains PII', type: 'boolean', required: false },
@@ -180,6 +181,8 @@ class VendorAgreementTemplateService {
         return fileNum === 1 ? 'Daily customer information export' : 'Transaction logs for audit';
       case 'file_type':
         return fileNum === 1 ? 'csv' : 'json';
+      case 'archive_password':
+        return '';
       case 'schema':
         return fileNum === 1 
           ? '[{"name":"ID","type":"integer","description":"Customer ID","pii":false},{"name":"Name","type":"string","description":"Customer name","pii":false},{"name":"Email","type":"string","description":"Customer email","pii":true}]'
@@ -452,6 +455,7 @@ class VendorAgreementTemplateService {
             file_type: fileType,
             file_name_pattern: `${basePattern}*.${fileType}`,
             file_description: fileConfig.file_description || '',
+            archive_password: fileConfig.archive_password || '',
             schema: fileConfig.schema || null,
             priority: fileConfig.priority ?? 100,
             is_active: true,
