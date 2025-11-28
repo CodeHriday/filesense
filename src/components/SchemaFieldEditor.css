@@ -191,3 +191,61 @@
   font-size: var(--text-xs);
   margin-top: var(--space-2);
 }
+
+/* Extended fields notice */
+.extended-fields-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  background-color: #dbeafe;
+  border: 1px solid #3b82f6;
+  border-radius: var(--radius-sm);
+  color: #1e40af;
+  margin-bottom: var(--space-3);
+  font-size: var(--text-sm);
+}
+
+.extended-fields-notice svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+/* Small input fields for width/position */
+.field-input-small {
+  width: 70px;
+  text-align: center;
+}
+
+/* Nullable cell styling */
+.nullable-cell {
+  text-align: center;
+  width: 80px;
+}
+
+.nullable-checkbox {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  cursor: pointer;
+  justify-content: center;
+}
+
+.nullable-checkbox input[type="checkbox"] {
+  cursor: pointer;
+}
+
+.nullable-checkbox span {
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+  color: var(--text-secondary);
+}
+
+/* Empty schema hint for extended mode */
+.empty-schema small {
+  display: block;
+  margin-top: var(--space-2);
+  color: var(--text-muted);
+}

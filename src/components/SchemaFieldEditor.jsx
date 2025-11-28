@@ -1,10 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { FiPlus, FiTrash2, FiAlertCircle } from 'react-icons/fi';
+import { FiPlus, FiTrash2, FiAlertCircle, FiInfo } from 'react-icons/fi';
 import './SchemaFieldEditor.css';
 
-function SchemaFieldEditor({ value, onChange }) {
+const FIXED_WIDTH_FILE_TYPES = ['fixed_width', 'binary', 'dat'];
+
+function SchemaFieldEditor({ value, onChange, fileType, hasHeader }) {
   const [fields, setFields] = useState([]);
   const [error, setError] = useState(null);
+
+  const isFixedWidthType = FIXED_WIDTH_FILE_TYPES.includes(fileType);
+  const showExtendedFields = isFixedWidthType || hasHeader === false;
 
   useEffect(() => {
     if (!value || value.trim() === '') {
@@ -20,7 +25,12 @@ function SchemaFieldEditor({ value, onChange }) {
           name: field.name || '',
           type: field.type || 'string',
           description: field.description || '',
-          pii: field.pii || false
+          pii: field.pii || false,
+          width: field.width || '',
+          start_position: field.start_position || '',
+          precision: field.precision || '',
+          scale: field.scale || '',
+          nullable: field.nullable !== undefined ? field.nullable : true
         })));
         setError(null);
       } else {
@@ -35,12 +45,43 @@ function SchemaFieldEditor({ value, onChange }) {
     if (newFields.length === 0) {
       onChange('');
     } else {
-      onChange(JSON.stringify(newFields, null, 2));
+      const cleanedFields = newFields.map(field => {
+        const cleanField = {
+          name: field.name,
+          type: field.type,
+          description: field.description,
+          pii: field.pii,
+          nullable: field.nullable
+        };
+        if (showExtendedFields) {
+          if (field.width) cleanField.width = parseInt(field.width) || field.width;
+          if (field.start_position !== '' && field.start_position !== undefined) {
+            cleanField.start_position = parseInt(field.start_position) || 0;
+          }
+          if (field.precision) cleanField.precision = parseInt(field.precision) || field.precision;
+          if (field.scale) cleanField.scale = parseInt(field.scale) || field.scale;
+        }
+        return cleanField;
+      });
+      onChange(JSON.stringify(cleanedFields, null, 2));
     }
   };
 
   const handleAddField = () => {
-    const newFields = [...fields, { name: '', type: 'string', description: '', pii: false }];
+    const newField = { 
+      name: '', 
+      type: 'string', 
+      description: '', 
+      pii: false,
+      nullable: true
+    };
+    if (showExtendedFields) {
+      newField.width = '';
+      newField.start_position = '';
+      newField.precision = '';
+      newField.scale = '';
+    }
+    const newFields = [...fields, newField];
     setFields(newFields);
     updateParent(newFields);
   };
@@ -81,6 +122,17 @@ function SchemaFieldEditor({ value, onChange }) {
         </button>
       </div>
 
+      {showExtendedFields && (
+        <div className="extended-fields-notice">
+          <FiInfo />
+          <span>
+            {isFixedWidthType 
+              ? 'Fixed-width file type detected. Width and start position fields are available for precise field definitions.'
+              : 'Headerless file mode. Extended field properties are available for defining field metadata.'}
+          </span>
+        </div>
+      )}
+
       {error && (
         <div className="schema-error">
           <FiAlertCircle />
@@ -91,6 +143,9 @@ function SchemaFieldEditor({ value, onChange }) {
       {fields.length === 0 ? (
         <div className="empty-schema">
           <p>No fields defined. Click "Add Field" to start building your schema.</p>
+          {showExtendedFields && (
+            <small>For {isFixedWidthType ? 'fixed-width files' : 'headerless files'}, define each field with width and position.</small>
+          )}
         </div>
       ) : (
         <div className="fields-table">
@@ -99,8 +154,11 @@ function SchemaFieldEditor({ value, onChange }) {
               <tr>
                 <th>Field Name</th>
                 <th>Type</th>
-                <th>Description</th>
+                {showExtendedFields && <th>Width</th>}
+                {showExtendedFields && <th>Start Pos</th>}
+                <th>Nullable</th>
                 <th>PII</th>
+                <th>Description</th>
                 <th></th>
               </tr>
             </thead>
@@ -127,14 +185,39 @@ function SchemaFieldEditor({ value, onChange }) {
                       ))}
                     </select>
                   </td>
-                  <td>
-                    <input
-                      type="text"
-                      value={field.description}
-                      onChange={(e) => handleFieldChange(index, 'description', e.target.value)}
-                      placeholder="Field description"
-                      className="field-input"
-                    />
+                  {showExtendedFields && (
+                    <td>
+                      <input
+                        type="number"
+                        value={field.width || ''}
+                        onChange={(e) => handleFieldChange(index, 'width', e.target.value)}
+                        placeholder="0"
+                        className="field-input field-input-small"
+                        min="1"
+                      />
+                    </td>
+                  )}
+                  {showExtendedFields && (
+                    <td>
+                      <input
+                        type="number"
+                        value={field.start_position || ''}
+                        onChange={(e) => handleFieldChange(index, 'start_position', e.target.value)}
+                        placeholder="0"
+                        className="field-input field-input-small"
+                        min="0"
+                      />
+                    </td>
+                  )}
+                  <td className="nullable-cell">
+                    <label className="nullable-checkbox">
+                      <input
+                        type="checkbox"
+                        checked={field.nullable !== false}
+                        onChange={(e) => handleFieldChange(index, 'nullable', e.target.checked)}
+                      />
+                      <span>{field.nullable !== false ? 'Yes' : 'No'}</span>
+                    </label>
                   </td>
                   <td className="pii-cell">
                     <label className="pii-checkbox">
@@ -147,6 +230,15 @@ function SchemaFieldEditor({ value, onChange }) {
                         {field.pii ? 'Yes' : 'No'}
                       </span>
                     </label>
+                  </td>
+                  <td>
+                    <input
+                      type="text"
+                      value={field.description}
+                      onChange={(e) => handleFieldChange(index, 'description', e.target.value)}
+                      placeholder="Description"
+                      className="field-input"
+                    />
                   </td>
                   <td className="actions-cell">
                     <button
@@ -166,7 +258,9 @@ function SchemaFieldEditor({ value, onChange }) {
       )}
 
       <small className="editor-hint">
-        Define your expected file structure. Mark sensitive fields as PII for automatic data governance.
+        {showExtendedFields 
+          ? 'Define field structure with position details. For numeric types, you can also specify precision and scale in the JSON.'
+          : 'Define your expected file structure. Mark sensitive fields as PII for automatic data governance.'}
       </small>
     </div>
   );

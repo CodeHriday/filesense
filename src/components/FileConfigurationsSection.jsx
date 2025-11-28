@@ -236,11 +236,6 @@ function FileConfigurationsSection({ fileConfigurations, onChange }) {
       return;
     }
 
-    if (!formData.has_header && !formData.header_definition) {
-      alert('Header definition is required when file has no header row');
-      return;
-    }
-
     const newConfig = {
       file_name_pattern_base: formData.file_name_pattern_base.trim(),
       file_type: formData.file_type,
@@ -308,11 +303,6 @@ function FileConfigurationsSection({ fileConfigurations, onChange }) {
 
     if (formData.schema && !validateSchema(formData.schema)) {
       alert('Invalid JSON schema format');
-      return;
-    }
-
-    if (!formData.has_header && !formData.header_definition) {
-      alert('Header definition is required when file has no header row');
       return;
     }
 
@@ -556,91 +546,12 @@ function FileConfigurationsSection({ fileConfigurations, onChange }) {
                 </div>
                 <small className="header-toggle-help">
                   {isFixedWidthType(formData.file_type) 
-                    ? 'Fixed width/binary files require explicit header definition' 
-                    : 'Toggle off if file has no header row and you need to define field names'}
+                    ? 'Fixed width/binary files require field definitions with width and position in the Schema section below' 
+                    : 'Toggle off if file has no header row. Define fields with width/position in the Schema section below.'}
                 </small>
               </div>
             )}
 
-            {/* Header Schema Upload - Separate section that appears when has_header is false */}
-            {!isArchiveType(formData.file_type) && !formData.has_header && (
-              <div className="form-group full-width header-schema-section">
-                <label>Header Schema File (CSV or JSON) *</label>
-                <div className="header-schema-upload">
-                  <input
-                    ref={headerSchemaInputRef}
-                    type="file"
-                    accept=".csv,.json"
-                    onChange={handleHeaderSchemaUpload}
-                    style={{ display: 'none' }}
-                  />
-                  <button
-                    type="button"
-                    className="btn-upload-schema"
-                    onClick={() => headerSchemaInputRef.current?.click()}
-                  >
-                    <FiUpload /> {headerSchemaFile ? 'Replace File' : 'Upload Schema'}
-                  </button>
-                  {headerSchemaFile && (
-                    <span className="schema-file-name">
-                      <FiFileText /> {headerSchemaFile.name}
-                      <button type="button" className="btn-clear-schema" onClick={clearHeaderSchema}>
-                        <FiX />
-                      </button>
-                    </span>
-                  )}
-                </div>
-                {headerSchemaError && (
-                  <div className="schema-error">
-                    <FiAlertCircle /> {headerSchemaError}
-                  </div>
-                )}
-                <small>
-                  Upload a CSV or JSON file with field definitions. Required columns: name, type. 
-                  Optional: width, start_position, precision, scale, nullable, description, pii
-                </small>
-
-                {formData.header_definition && formData.header_definition.length > 0 && (
-                  <div className="header-definition-preview">
-                    <details open>
-                      <summary>{formData.header_definition.length} field(s) defined</summary>
-                      <div className="header-fields-table">
-                        <table>
-                          <thead>
-                            <tr>
-                              <th>Name</th>
-                              <th>Type</th>
-                              {requiresWidthInSchema(formData.file_type) && <th>Width</th>}
-                              {requiresWidthInSchema(formData.file_type) && <th>Start</th>}
-                              <th>Nullable</th>
-                              <th>PII</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {formData.header_definition.map((field, idx) => (
-                              <tr key={idx}>
-                                <td>{field.name}</td>
-                                <td>{field.type}</td>
-                                {requiresWidthInSchema(formData.file_type) && (
-                                  <td className={!field.width ? 'missing-value' : ''}>
-                                    {field.width || '-'}
-                                  </td>
-                                )}
-                                {requiresWidthInSchema(formData.file_type) && (
-                                  <td>{field.start_position || '-'}</td>
-                                )}
-                                <td>{field.nullable ? 'Yes' : 'No'}</td>
-                                <td>{field.pii ? 'Yes' : 'No'}</td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    </details>
-                  </div>
-                )}
-              </div>
-            )}
 
             <div className="form-group full-width governance-section">
               <div className="governance-header">
@@ -708,6 +619,8 @@ function FileConfigurationsSection({ fileConfigurations, onChange }) {
               <SchemaFieldEditor
                 value={formData.schema}
                 onChange={(value) => setFormData({ ...formData, schema: value })}
+                fileType={formData.file_type}
+                hasHeader={formData.has_header}
               />
             </div>
           </div>
