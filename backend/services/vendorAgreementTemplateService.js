@@ -374,18 +374,49 @@ class VendorAgreementTemplateService {
         raw: false
       });
 
-      if (agreementData.length < 3) {
-        throw new Error('Agreement Info sheet must have at least 3 rows (headers, example, and data)');
+      if (agreementData.length < 2) {
+        throw new Error('Agreement Info sheet must have at least 2 rows (headers and data)');
       }
-      if (fileConfigData.length < 4) {
-        throw new Error('File Configurations sheet must have at least 4 rows (headers, 2 examples, and data)');
+      if (fileConfigData.length < 2) {
+        throw new Error('File Configurations sheet must have at least 2 rows (headers and data)');
       }
 
       const agreementHeaders = agreementData[0];
-      const agreementRows = agreementData.slice(2);
+      
+      // Smart row detection: skip example rows if present (rows starting with "e.g." or containing example markers)
+      // Check if row 2 looks like an example row
+      const isAgreementExampleRow = (row) => {
+        if (!row || row.length === 0) return false;
+        const firstCell = String(row[0] || '').toLowerCase().trim();
+        return firstCell.startsWith('e.g.') || firstCell.startsWith('example') || firstCell === '';
+      };
+      
+      // Skip example row if present (row index 1), otherwise start from row 1
+      let agreementStartRow = 1;
+      if (agreementData.length > 2 && isAgreementExampleRow(agreementData[1])) {
+        agreementStartRow = 2;
+      }
+      const agreementRows = agreementData.slice(agreementStartRow);
       
       const fileConfigHeaders = fileConfigData[0];
-      const fileConfigRows = fileConfigData.slice(3);
+      
+      // For file configurations, check if rows 1-2 are example rows
+      const isFileConfigExampleRow = (row) => {
+        if (!row || row.length === 0) return false;
+        const firstCell = String(row[0] || '').toLowerCase().trim();
+        return firstCell.startsWith('e.g.') || firstCell.startsWith('example') || 
+               firstCell.includes('acme') || firstCell === '' || firstCell.startsWith('agr-');
+      };
+      
+      // Determine where data rows start by checking for example rows
+      let fileConfigStartRow = 1;
+      if (fileConfigData.length > 2 && isFileConfigExampleRow(fileConfigData[1])) {
+        fileConfigStartRow = 2;
+        if (fileConfigData.length > 3 && isFileConfigExampleRow(fileConfigData[2])) {
+          fileConfigStartRow = 3;
+        }
+      }
+      const fileConfigRows = fileConfigData.slice(fileConfigStartRow);
 
       const agreements = {};
       const errors = [];

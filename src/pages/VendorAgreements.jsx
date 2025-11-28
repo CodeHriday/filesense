@@ -128,6 +128,7 @@ const VendorAgreements = () => {
   
   const [templateFile, setTemplateFile] = useState(null);
   const [uploadingTemplate, setUploadingTemplate] = useState(false);
+  const [templateError, setTemplateError] = useState('');
   
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -622,6 +623,7 @@ const VendorAgreements = () => {
       alert_threshold_minutes: 60
     });
     setTemplateFile(null);
+    setTemplateError('');
     setModalMode('create');
     setError('');
     setSuccessMessage('');
@@ -1174,7 +1176,7 @@ const VendorAgreements = () => {
     event.target.value = '';
     
     try {
-      setError('');
+      setTemplateError('');
       setUploadingTemplate(true);
       setLoading(true);
       
@@ -1253,9 +1255,9 @@ const VendorAgreements = () => {
         const errorMsg = `Template validation failed:\n${details.map(e => 
           `Row ${e.row}: ${e.errors.join(', ')}`
         ).join('\n')}`;
-        setError(errorMsg);
+        setTemplateError(errorMsg);
       } else {
-        setError('Failed to upload template: ' + (error.response?.data?.error || error.response?.data?.message || error.message));
+        setTemplateError('Failed to upload template: ' + (error.response?.data?.error || error.response?.data?.message || error.message));
       }
     }
   };
@@ -1638,7 +1640,7 @@ const VendorAgreements = () => {
                         onChange={handleTemplateUpload}
                         disabled={uploadingTemplate}
                       />
-                      {templateFile && (
+                      {templateFile && !templateError && (
                         <p className="file-selected success-text">
                           Template uploaded: {templateFile.name}
                         </p>
@@ -1647,6 +1649,22 @@ const VendorAgreements = () => {
                         <p className="processing-text">
                           Processing template...
                         </p>
+                      )}
+                      {templateError && (
+                        <div className="template-error-message">
+                          <p className="error-text" style={{ 
+                            color: '#dc3545', 
+                            backgroundColor: '#f8d7da', 
+                            border: '1px solid #f5c6cb',
+                            borderRadius: '4px',
+                            padding: '10px 12px',
+                            marginTop: '8px',
+                            fontSize: '12px',
+                            whiteSpace: 'pre-line'
+                          }}>
+                            {templateError}
+                          </p>
+                        </div>
                       )}
                       <small>
                         Upload Excel (.xlsx, .xls) file - Fields below will auto-populate
