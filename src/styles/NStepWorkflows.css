@@ -216,14 +216,17 @@
 
 .confirmation-modal {
   max-width: 450px !important;
-  width: 90%;
+  width: 90% !important;
   height: auto !important;
   max-height: fit-content !important;
   min-height: auto !important;
+  display: block !important;
 }
 
 .confirmation-modal .modal-body {
   padding: 1.5rem;
+  flex: none !important;
+  height: auto !important;
 }
 
 .confirmation-modal .modal-body p {
