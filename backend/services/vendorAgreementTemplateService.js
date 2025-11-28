@@ -4,6 +4,9 @@ const fs = require('fs');
 
 class VendorAgreementTemplateService {
   constructor() {
+    // Archive file types that support password protection
+    this.ARCHIVE_FILE_TYPES = ['zip', '7z', 'tar', 'tar.gz', 'tar.bz2'];
+    
     // Agreement-level fields
     this.agreementFields = [
       { field: 'agreement_id', label: 'Agreement ID *', type: 'text', required: true },
@@ -439,6 +442,13 @@ class VendorAgreementTemplateService {
           rowErrors.push(`Agreement ID "${agreementId}" not found in Agreement Info sheet`);
         }
 
+        // Validate archive_password only allowed for archive file types
+        const fileType = fileConfig.file_type || 'csv';
+        const archivePassword = fileConfig.archive_password || '';
+        if (archivePassword && !this.ARCHIVE_FILE_TYPES.includes(fileType)) {
+          rowErrors.push(`Archive Password: Only allowed for archive file types (${this.ARCHIVE_FILE_TYPES.join(', ')}). Current file type is "${fileType}".`);
+        }
+
         if (rowErrors.length > 0) {
           errors.push({
             sheet: 'File Configurations',
@@ -448,14 +458,13 @@ class VendorAgreementTemplateService {
         } else if (agreementId && agreements[agreementId]) {
           // Build the file configuration with derived pattern
           const basePattern = fileConfig.file_name_pattern || '';
-          const fileType = fileConfig.file_type || 'csv';
           
           const fullConfig = {
             file_name_pattern_base: basePattern,
             file_type: fileType,
             file_name_pattern: `${basePattern}*.${fileType}`,
             file_description: fileConfig.file_description || '',
-            archive_password: fileConfig.archive_password || '',
+            archive_password: archivePassword,
             schema: fileConfig.schema || null,
             priority: fileConfig.priority ?? 100,
             is_active: true,
