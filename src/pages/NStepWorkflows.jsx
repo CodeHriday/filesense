@@ -1398,36 +1398,16 @@ const NStepWorkflows = () => {
           </div>
         )}
 
-        {deleteWorkflowModalOpen && (
-          <div className="modal-overlay" onClick={() => setDeleteWorkflowModalOpen(false)}>
-            <div className="modal-content confirmation-modal" onClick={(e) => e.stopPropagation()}>
-              <div className="modal-header">
-                <h2>Delete Workflow</h2>
-                <button className="modal-close" onClick={() => setDeleteWorkflowModalOpen(false)}>
-                  <FiX />
-                </button>
-              </div>
-              <div className="modal-body">
-                <p>Are you sure you want to delete this workflow?</p>
-                <p><strong>{workflows.find(w => w.id === workflowToDelete)?.name}</strong></p>
-                <p className="text-muted">
-                  This action cannot be undone. All workflow steps and configurations will be permanently deleted.
-                </p>
-              </div>
-              <div className="modal-footer">
-                <button className="btn btn-secondary" onClick={() => setDeleteWorkflowModalOpen(false)}>
-                  Cancel
-                </button>
-                <button 
-                  className="btn btn-danger" 
-                  onClick={handleDeleteWorkflow}
-                >
-                  <FiTrash2 /> Delete
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+        <ConfirmModal
+          isOpen={deleteWorkflowModalOpen}
+          onClose={() => setDeleteWorkflowModalOpen(false)}
+          onConfirm={handleDeleteWorkflow}
+          title="Delete Workflow"
+          message={`Are you sure you want to delete "${workflows.find(w => w.id === workflowToDelete)?.name || 'this workflow'}"? This action cannot be undone.`}
+          confirmText="Delete"
+          cancelText="Cancel"
+          variant="danger"
+        />
 
         {executionResultModalOpen && (
           <div className="modal-overlay" onClick={() => setExecutionResultModalOpen(false)}>
