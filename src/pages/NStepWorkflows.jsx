@@ -1335,36 +1335,16 @@ const NStepWorkflows = () => {
           </div>
         )}
 
-        {deleteStepModalOpen && (
-          <div className="modal-overlay" onClick={() => setDeleteStepModalOpen(false)}>
-            <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-              <div className="modal-header">
-                <h2>Delete Step</h2>
-                <button className="modal-close" onClick={() => setDeleteStepModalOpen(false)}>
-                  <FiX />
-                </button>
-              </div>
-              <div className="modal-body">
-                <p>Are you sure you want to delete this step?</p>
-                <p><strong>Step {stepToDelete?.step_index}</strong></p>
-                <p className="text-muted">
-                  This will delete all assets in this step and renumber the remaining steps.
-                </p>
-              </div>
-              <div className="modal-footer">
-                <button className="btn btn-secondary" onClick={() => setDeleteStepModalOpen(false)}>
-                  Cancel
-                </button>
-                <button 
-                  className="btn btn-danger" 
-                  onClick={handleDeleteStep}
-                >
-                  <FiTrash2 /> Delete
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+        <ConfirmModal
+          isOpen={deleteStepModalOpen}
+          onClose={() => { setDeleteStepModalOpen(false); setStepToDelete(null); }}
+          onConfirm={handleDeleteStep}
+          title="Delete Step"
+          message={`Are you sure you want to delete Step ${stepToDelete?.step_index}? This will delete all assets in this step and renumber the remaining steps.`}
+          confirmText="Delete"
+          cancelText="Cancel"
+          variant="danger"
+        />
 
         {saveSuccessModalOpen && (
           <div className="modal-overlay" onClick={() => setSaveSuccessModalOpen(false)}>
