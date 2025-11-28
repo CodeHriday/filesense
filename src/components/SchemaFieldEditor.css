@@ -63,42 +63,51 @@
   margin: 0;
 }
 
-/* Toggle Switch */
-.toggle-switch {
+/* Toggle Switch - following MicroInteractions.css pattern */
+.schema-field-editor .toggle-switch {
   position: relative;
-  width: 44px;
+  display: inline-block;
+  width: 48px;
   height: 24px;
-  background-color: #ccc;
-  border: none;
-  border-radius: 12px;
+  flex-shrink: 0;
   cursor: pointer;
-  transition: background-color 0.2s;
-  padding: 0;
 }
 
-.toggle-switch.active {
-  background-color: #0d6e6e;
-}
-
-.toggle-switch.disabled {
-  opacity: 0.5;
+.schema-field-editor .toggle-switch.disabled {
+  opacity: 0.6;
   cursor: not-allowed;
 }
 
-.toggle-slider {
+.schema-field-editor .toggle-slider {
   position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 20px;
-  height: 20px;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #ccc;
+  transition: 0.3s;
+  border-radius: 34px;
+}
+
+.schema-field-editor .toggle-knob {
+  position: absolute;
+  height: 18px;
+  width: 18px;
+  left: 3px;
+  bottom: 3px;
   background-color: white;
+  transition: 0.3s;
   border-radius: 50%;
-  transition: transform 0.2s;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
 }
 
-.toggle-switch.active .toggle-slider {
-  transform: translateX(20px);
+.schema-field-editor .toggle-switch.on .toggle-slider {
+  background-color: #0d6e6e;
+}
+
+.schema-field-editor .toggle-switch.on .toggle-knob {
+  transform: translateX(24px);
 }
 
 .btn-add-field {
@@ -182,8 +191,6 @@
   font-size: 10px;
   font-family: 'Inter', sans-serif;
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
   color: var(--text-secondary);
   border-bottom: 2px solid var(--border-light);
   white-space: nowrap;

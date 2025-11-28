@@ -667,6 +667,14 @@ class VendorAgreementTemplateService {
               if (col.pii === undefined || col.pii === null) {
                 col.pii = false;
               }
+              
+              // Set default for nullable if not provided
+              if (col.nullable === undefined || col.nullable === null) {
+                col.nullable = true;
+              }
+              
+              // Preserve extended properties for fixed-width/binary files
+              // width, start_position, precision, scale are already in col if provided
             }
             return { valid: true, value: parsed };
           } catch (e) {

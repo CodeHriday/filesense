@@ -137,14 +137,21 @@ function SchemaFieldEditor({ value, onChange, fileType, hasHeader, onHasHeaderCh
         <div className="header-toggle-row">
           <div className="header-toggle-content">
             <span className="header-toggle-label">File Has Header Row</span>
-            <button
-              type="button"
-              className={`toggle-switch ${hasHeader ? 'active' : ''} ${isFixedWidthType ? 'disabled' : ''}`}
-              onClick={handleToggleHeader}
-              disabled={isFixedWidthType}
+            <div 
+              className={`toggle-switch ${hasHeader ? 'on' : 'off'} ${isFixedWidthType ? 'disabled' : ''}`}
+              onClick={isFixedWidthType ? undefined : handleToggleHeader}
+              role="button"
+              tabIndex={isFixedWidthType ? -1 : 0}
+              onKeyDown={(e) => {
+                if (!isFixedWidthType && (e.key === 'Enter' || e.key === ' ')) {
+                  e.preventDefault();
+                  handleToggleHeader();
+                }
+              }}
             >
               <span className="toggle-slider"></span>
-            </button>
+              <span className="toggle-knob"></span>
+            </div>
           </div>
           <small className="header-toggle-help">
             {isFixedWidthType 
@@ -186,15 +193,15 @@ function SchemaFieldEditor({ value, onChange, fileType, hasHeader, onHasHeaderCh
           <table>
             <thead>
               <tr>
-                <th>FIELD NAME</th>
-                <th>TYPE</th>
-                {showExtendedFields && <th>WIDTH</th>}
-                {showExtendedFields && <th>START POS</th>}
-                {showExtendedFields && <th>PRECISION</th>}
-                {showExtendedFields && <th>SCALE</th>}
-                <th>NULLABLE</th>
+                <th>Field Name</th>
+                <th>Type</th>
+                {showExtendedFields && <th>Width</th>}
+                {showExtendedFields && <th>Start Pos</th>}
+                {showExtendedFields && <th>Precision</th>}
+                {showExtendedFields && <th>Scale</th>}
+                <th>Nullable</th>
                 <th>PII</th>
-                <th>DESCRIPTION</th>
+                <th>Description</th>
                 <th></th>
               </tr>
             </thead>
