@@ -63,22 +63,26 @@
   margin: 0;
 }
 
-/* Toggle Switch - following MicroInteractions.css pattern */
-.schema-field-editor .toggle-switch {
+/* Toggle Switch - self-contained implementation with high specificity */
+.schema-field-editor .header-toggle-row .toggle-switch {
   position: relative;
   display: inline-block;
   width: 48px;
   height: 24px;
   flex-shrink: 0;
   cursor: pointer;
+  background: transparent;
+  border: none;
+  padding: 0;
+  margin: 0;
 }
 
-.schema-field-editor .toggle-switch.disabled {
+.schema-field-editor .header-toggle-row .toggle-switch.disabled {
   opacity: 0.6;
   cursor: not-allowed;
 }
 
-.schema-field-editor .toggle-slider {
+.schema-field-editor .header-toggle-row .toggle-slider {
   position: absolute;
   cursor: pointer;
   top: 0;
@@ -86,28 +90,38 @@
   right: 0;
   bottom: 0;
   background-color: #ccc;
-  transition: 0.3s;
-  border-radius: 34px;
+  transition: background-color 0.3s ease;
+  border-radius: 24px;
+  z-index: 1;
 }
 
-.schema-field-editor .toggle-knob {
+.schema-field-editor .header-toggle-row .toggle-knob {
   position: absolute;
   height: 18px;
   width: 18px;
   left: 3px;
-  bottom: 3px;
+  top: 3px;
   background-color: white;
-  transition: 0.3s;
+  transition: transform 0.3s ease;
   border-radius: 50%;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  z-index: 2;
 }
 
-.schema-field-editor .toggle-switch.on .toggle-slider {
+.schema-field-editor .header-toggle-row .toggle-switch.on .toggle-slider {
   background-color: #0d6e6e;
 }
 
-.schema-field-editor .toggle-switch.on .toggle-knob {
+.schema-field-editor .header-toggle-row .toggle-switch.on .toggle-knob {
   transform: translateX(24px);
+}
+
+.schema-field-editor .header-toggle-row .toggle-switch.off .toggle-slider {
+  background-color: #ccc;
+}
+
+.schema-field-editor .header-toggle-row .toggle-switch.off .toggle-knob {
+  transform: translateX(0);
 }
 
 .btn-add-field {
