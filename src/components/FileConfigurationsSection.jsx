@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { FiPlus, FiEdit2, FiTrash2, FiSave, FiX, FiFileText, FiShield, FiCheckCircle, FiLock, FiEye, FiEyeOff } from 'react-icons/fi';
+import React, { useState, useEffect, useRef } from 'react';
+import { FiPlus, FiEdit2, FiTrash2, FiSave, FiX, FiFileText, FiShield, FiCheckCircle, FiLock, FiEye, FiEyeOff, FiUpload, FiAlertCircle } from 'react-icons/fi';
 import axios from 'axios';
 import SchemaFieldEditor from './SchemaFieldEditor';
 import './FileConfigurationsSection.css';
@@ -10,6 +10,9 @@ function FileConfigurationsSection({ fileConfigurations, onChange }) {
   const [qualityRules, setQualityRules] = useState([]);
   const [deleteConfirmation, setDeleteConfirmation] = useState({ show: false, index: null });
   const [showPassword, setShowPassword] = useState(false);
+  const [headerSchemaFile, setHeaderSchemaFile] = useState(null);
+  const [headerSchemaError, setHeaderSchemaError] = useState('');
+  const headerSchemaInputRef = useRef(null);
   const [formData, setFormData] = useState({
     file_name_pattern_base: '',
     file_type: 'csv',
@@ -19,7 +22,9 @@ function FileConfigurationsSection({ fileConfigurations, onChange }) {
     contains_pii: false,
     data_classification: '',
     quality_rule_ids: [],
-    archive_password: ''
+    archive_password: '',
+    has_header: true,
+    header_definition: null
   });
 
   const FILE_TYPES = [
@@ -28,6 +33,11 @@ function FileConfigurationsSection({ fileConfigurations, onChange }) {
     { value: 'json', label: 'JSON' },
     { value: 'xml', label: 'XML' },
     { value: 'parquet', label: 'Parquet' },
+    { value: 'fixed_width', label: 'Fixed Width' },
+    { value: 'binary', label: 'Binary' },
+    { value: 'dat', label: 'DAT File' },
+    { value: 'sas7bdat', label: 'SAS Dataset' },
+    { value: 'avro', label: 'Avro' },
     { value: 'zip', label: 'ZIP Archive' },
     { value: '7z', label: '7z Archive' },
     { value: 'tar', label: 'TAR Archive' },
@@ -36,8 +46,144 @@ function FileConfigurationsSection({ fileConfigurations, onChange }) {
   ];
 
   const ARCHIVE_FILE_TYPES = ['zip', '7z', 'tar', 'tar.gz', 'tar.bz2'];
+  const FIXED_WIDTH_TYPES = ['fixed_width', 'binary', 'dat'];
   
   const isArchiveType = (fileType) => ARCHIVE_FILE_TYPES.includes(fileType);
+  const isFixedWidthType = (fileType) => FIXED_WIDTH_TYPES.includes(fileType);
+  const requiresWidthInSchema = (fileType) => FIXED_WIDTH_TYPES.includes(fileType);
+
+  const parseHeaderSchemaFile = async (file) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const content = e.target.result;
+          const fileName = file.name.toLowerCase();
+          let fields = [];
+
+          if (fileName.endsWith('.json')) {
+            const parsed = JSON.parse(content);
+            fields = Array.isArray(parsed) ? parsed : (parsed.fields || parsed.columns || []);
+          } else if (fileName.endsWith('.csv')) {
+            const lines = content.split('\n').filter(line => line.trim());
+            if (lines.length < 2) {
+              reject(new Error('CSV must have a header row and at least one data row'));
+              return;
+            }
+            const headers = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/['"]/g, ''));
+            for (let i = 1; i < lines.length; i++) {
+              const values = lines[i].split(',').map(v => v.trim().replace(/['"]/g, ''));
+              const field = {};
+              headers.forEach((header, idx) => {
+                const value = values[idx] || '';
+                switch (header) {
+                  case 'field_name':
+                  case 'name':
+                  case 'column_name':
+                    field.name = value;
+                    break;
+                  case 'data_type':
+                  case 'type':
+                    field.type = value.toLowerCase();
+                    break;
+                  case 'width':
+                  case 'length':
+                    field.width = parseInt(value) || null;
+                    break;
+                  case 'start_position':
+                  case 'start':
+                    field.start_position = parseInt(value) || null;
+                    break;
+                  case 'precision':
+                    field.precision = parseInt(value) || null;
+                    break;
+                  case 'scale':
+                    field.scale = parseInt(value) || null;
+                    break;
+                  case 'nullable':
+                  case 'null':
+                  case 'allow_null':
+                    field.nullable = ['true', 'yes', '1', 'y'].includes(value.toLowerCase());
+                    break;
+                  case 'description':
+                    field.description = value;
+                    break;
+                  case 'pii':
+                    field.pii = ['true', 'yes', '1', 'y'].includes(value.toLowerCase());
+                    break;
+                  default:
+                    break;
+                }
+              });
+              if (field.name) {
+                fields.push(field);
+              }
+            }
+          } else {
+            reject(new Error('Unsupported file format. Please use CSV or JSON.'));
+            return;
+          }
+
+          if (fields.length === 0) {
+            reject(new Error('No valid field definitions found in the file'));
+            return;
+          }
+
+          const validatedFields = fields.map((f, idx) => ({
+            name: f.name || `field_${idx + 1}`,
+            type: f.type || 'string',
+            width: f.width || null,
+            start_position: f.start_position || null,
+            precision: f.precision || null,
+            scale: f.scale || null,
+            nullable: f.nullable !== undefined ? f.nullable : true,
+            description: f.description || '',
+            pii: f.pii || false
+          }));
+
+          resolve(validatedFields);
+        } catch (err) {
+          reject(new Error(`Failed to parse file: ${err.message}`));
+        }
+      };
+      reader.onerror = () => reject(new Error('Failed to read file'));
+      reader.readAsText(file);
+    });
+  };
+
+  const handleHeaderSchemaUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setHeaderSchemaError('');
+    setHeaderSchemaFile(file);
+
+    try {
+      const fields = await parseHeaderSchemaFile(file);
+      const fileType = formData.file_type;
+      
+      if (requiresWidthInSchema(fileType)) {
+        const missingWidth = fields.filter(f => !f.width && f.width !== 0);
+        if (missingWidth.length > 0) {
+          setHeaderSchemaError(`Warning: ${missingWidth.length} field(s) missing width. Width is required for ${fileType} files.`);
+        }
+      }
+
+      setFormData({ ...formData, header_definition: fields });
+    } catch (err) {
+      setHeaderSchemaError(err.message);
+      setHeaderSchemaFile(null);
+    }
+  };
+
+  const clearHeaderSchema = () => {
+    setHeaderSchemaFile(null);
+    setHeaderSchemaError('');
+    setFormData({ ...formData, header_definition: null });
+    if (headerSchemaInputRef.current) {
+      headerSchemaInputRef.current.value = '';
+    }
+  };
 
   const DATA_CLASSIFICATIONS = [
     { value: '', label: 'Select classification' },
@@ -90,6 +236,11 @@ function FileConfigurationsSection({ fileConfigurations, onChange }) {
       return;
     }
 
+    if (!formData.has_header && !formData.header_definition) {
+      alert('Header definition is required when file has no header row');
+      return;
+    }
+
     const newConfig = {
       file_name_pattern_base: formData.file_name_pattern_base.trim(),
       file_type: formData.file_type,
@@ -101,7 +252,9 @@ function FileConfigurationsSection({ fileConfigurations, onChange }) {
       contains_pii: formData.contains_pii,
       data_classification: formData.data_classification || null,
       quality_rule_ids: formData.quality_rule_ids || [],
-      archive_password: formData.archive_password || ''
+      archive_password: isArchiveType(formData.file_type) ? (formData.archive_password || '') : '',
+      has_header: formData.has_header,
+      header_definition: formData.header_definition
     };
 
     onChange([...fileConfigurations, newConfig]);
@@ -115,9 +268,13 @@ function FileConfigurationsSection({ fileConfigurations, onChange }) {
       contains_pii: false,
       data_classification: '',
       quality_rule_ids: [],
-      archive_password: ''
+      archive_password: '',
+      has_header: true,
+      header_definition: null
     });
     setShowPassword(false);
+    setHeaderSchemaFile(null);
+    setHeaderSchemaError('');
     setShowAddForm(false);
   };
 
@@ -133,9 +290,13 @@ function FileConfigurationsSection({ fileConfigurations, onChange }) {
       data_classification: config.data_classification || '',
       quality_rule_ids: config.quality_rule_ids || [],
       archive_password: config.archive_password || '',
-      has_archive_password: config.has_archive_password || false
+      has_archive_password: config.has_archive_password || false,
+      has_header: config.has_header !== undefined ? config.has_header : true,
+      header_definition: config.header_definition || null
     });
     setShowPassword(false);
+    setHeaderSchemaFile(null);
+    setHeaderSchemaError('');
     setEditingIndex(index);
   };
 
@@ -147,6 +308,11 @@ function FileConfigurationsSection({ fileConfigurations, onChange }) {
 
     if (formData.schema && !validateSchema(formData.schema)) {
       alert('Invalid JSON schema format');
+      return;
+    }
+
+    if (!formData.has_header && !formData.header_definition) {
+      alert('Header definition is required when file has no header row');
       return;
     }
 
@@ -162,7 +328,9 @@ function FileConfigurationsSection({ fileConfigurations, onChange }) {
       contains_pii: formData.contains_pii,
       data_classification: formData.data_classification || null,
       quality_rule_ids: formData.quality_rule_ids || [],
-      archive_password: formData.archive_password || ''
+      archive_password: isArchiveType(formData.file_type) ? (formData.archive_password || '') : '',
+      has_header: formData.has_header,
+      header_definition: formData.header_definition
     };
 
     const updated = [...fileConfigurations];
@@ -178,9 +346,13 @@ function FileConfigurationsSection({ fileConfigurations, onChange }) {
       contains_pii: false,
       data_classification: '',
       quality_rule_ids: [],
-      archive_password: ''
+      archive_password: '',
+      has_header: true,
+      header_definition: null
     });
     setShowPassword(false);
+    setHeaderSchemaFile(null);
+    setHeaderSchemaError('');
     setEditingIndex(null);
   };
 
@@ -210,9 +382,13 @@ function FileConfigurationsSection({ fileConfigurations, onChange }) {
       contains_pii: false,
       data_classification: '',
       quality_rule_ids: [],
-      archive_password: ''
+      archive_password: '',
+      has_header: true,
+      header_definition: null
     });
     setShowPassword(false);
+    setHeaderSchemaFile(null);
+    setHeaderSchemaError('');
     setShowAddForm(false);
     setEditingIndex(null);
   };
@@ -274,6 +450,9 @@ function FileConfigurationsSection({ fileConfigurations, onChange }) {
                   const updates = { file_type: newType };
                   if (!isArchiveType(newType)) {
                     updates.archive_password = '';
+                  }
+                  if (isFixedWidthType(newType) && formData.has_header) {
+                    updates.has_header = false;
                   }
                   setFormData({ ...formData, ...updates });
                 }}
@@ -340,6 +519,124 @@ function FileConfigurationsSection({ fileConfigurations, onChange }) {
                   </button>
                 </div>
                 <small>For password-protected ZIP, 7z, or TAR archives</small>
+              </div>
+            )}
+
+            {/* Header Definition Section */}
+            {!isArchiveType(formData.file_type) && (
+              <div className="form-group full-width header-definition-section">
+                <div className="header-definition-header">
+                  <FiFileText className="header-icon" />
+                  <h5>Header Definition</h5>
+                </div>
+                
+                <div className="header-definition-controls">
+                  <div className="form-group">
+                    <label className="checkbox-label">
+                      <input
+                        type="checkbox"
+                        checked={formData.has_header}
+                        onChange={(e) => {
+                          const hasHeader = e.target.checked;
+                          setFormData({ 
+                            ...formData, 
+                            has_header: hasHeader,
+                            header_definition: hasHeader ? null : formData.header_definition
+                          });
+                          if (hasHeader) {
+                            clearHeaderSchema();
+                          }
+                        }}
+                        disabled={isFixedWidthType(formData.file_type)}
+                      />
+                      <span>File has header row</span>
+                    </label>
+                    <small>
+                      {isFixedWidthType(formData.file_type) 
+                        ? 'Fixed width/binary files require explicit header definition' 
+                        : 'Uncheck if file has no header row and you need to define field names'}
+                    </small>
+                  </div>
+
+                  {!formData.has_header && (
+                    <div className="form-group full-width">
+                      <label>Header Schema File (CSV or JSON) *</label>
+                      <div className="header-schema-upload">
+                        <input
+                          ref={headerSchemaInputRef}
+                          type="file"
+                          accept=".csv,.json"
+                          onChange={handleHeaderSchemaUpload}
+                          style={{ display: 'none' }}
+                        />
+                        <button
+                          type="button"
+                          className="btn-upload-schema"
+                          onClick={() => headerSchemaInputRef.current?.click()}
+                        >
+                          <FiUpload /> {headerSchemaFile ? 'Replace File' : 'Upload Schema'}
+                        </button>
+                        {headerSchemaFile && (
+                          <span className="schema-file-name">
+                            <FiFileText /> {headerSchemaFile.name}
+                            <button type="button" className="btn-clear-schema" onClick={clearHeaderSchema}>
+                              <FiX />
+                            </button>
+                          </span>
+                        )}
+                      </div>
+                      {headerSchemaError && (
+                        <div className="schema-error">
+                          <FiAlertCircle /> {headerSchemaError}
+                        </div>
+                      )}
+                      <small>
+                        Upload a CSV or JSON file with field definitions. Required columns: name, type. 
+                        Optional: width, start_position, precision, scale, nullable, description, pii
+                      </small>
+
+                      {formData.header_definition && formData.header_definition.length > 0 && (
+                        <div className="header-definition-preview">
+                          <details open>
+                            <summary>{formData.header_definition.length} field(s) defined</summary>
+                            <div className="header-fields-table">
+                              <table>
+                                <thead>
+                                  <tr>
+                                    <th>Name</th>
+                                    <th>Type</th>
+                                    {requiresWidthInSchema(formData.file_type) && <th>Width</th>}
+                                    {requiresWidthInSchema(formData.file_type) && <th>Start</th>}
+                                    <th>Nullable</th>
+                                    <th>PII</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {formData.header_definition.map((field, idx) => (
+                                    <tr key={idx}>
+                                      <td>{field.name}</td>
+                                      <td>{field.type}</td>
+                                      {requiresWidthInSchema(formData.file_type) && (
+                                        <td className={!field.width ? 'missing-value' : ''}>
+                                          {field.width || '-'}
+                                        </td>
+                                      )}
+                                      {requiresWidthInSchema(formData.file_type) && (
+                                        <td>{field.start_position || '-'}</td>
+                                      )}
+                                      <td>{field.nullable ? 'Yes' : 'No'}</td>
+                                      <td>{field.pii ? 'Yes' : 'No'}</td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          </details>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 
@@ -456,6 +753,16 @@ function FileConfigurationsSection({ fileConfigurations, onChange }) {
                     {(config.archive_password || config.has_archive_password) && (
                       <span className="governance-badge password-badge">
                         <FiLock /> Password Protected
+                      </span>
+                    )}
+                    {config.has_header === false && (
+                      <span className="governance-badge no-header-badge">
+                        <FiFileText /> No Header
+                      </span>
+                    )}
+                    {config.header_definition && config.header_definition.length > 0 && (
+                      <span className="governance-badge header-badge">
+                        <FiFileText /> {config.header_definition.length} Fields Defined
                       </span>
                     )}
                     {config.contains_pii && (
