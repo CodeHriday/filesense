@@ -6,7 +6,7 @@ import { parseCronExpression } from '../utils/cronParser';
 import PageHeader from '../components/PageHeader';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { PageTransition } from '../components/MicroAnimations';
-import Modal from '../components/Modal';
+import ConfirmModal from '../components/ConfirmModal';
 import { useNotification } from '../contexts/NotificationContext';
 import './WorkflowManager.css';
 
@@ -325,27 +325,16 @@ const WorkflowManager = () => {
         )}
 
         {/* Delete Confirmation Modal */}
-        <Modal
+        <ConfirmModal
           isOpen={deleteModal.show}
           onClose={() => setDeleteModal({ show: false, workflowId: null })}
+          onConfirm={handleDeleteConfirm}
           title="Delete Workflow"
-        >
-          <p>Are you sure you want to delete this workflow? This action cannot be undone.</p>
-          <div className="modal-actions">
-            <button 
-              className="btn btn-secondary" 
-              onClick={() => setDeleteModal({ show: false, workflowId: null })}
-            >
-              Cancel
-            </button>
-            <button 
-              className="btn btn-danger" 
-              onClick={handleDeleteConfirm}
-            >
-              Delete
-            </button>
-          </div>
-        </Modal>
+          message="Are you sure you want to delete this workflow? This action cannot be undone."
+          confirmText="Delete"
+          cancelText="Cancel"
+          variant="danger"
+        />
       </div>
     </PageTransition>
   );
