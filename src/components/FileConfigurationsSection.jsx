@@ -531,26 +531,43 @@ function FileConfigurationsSection({ fileConfigurations, onChange }) {
                 </div>
                 
                 <div className="header-definition-controls">
-                  <div className="form-group">
-                    <div className="checkbox-wrapper">
+                  <div className="form-group" style={{ position: 'relative', zIndex: 1 }}>
+                    <div 
+                      className="checkbox-wrapper"
+                      style={{ position: 'relative', zIndex: 10, pointerEvents: 'auto' }}
+                      onClick={(e) => {
+                        if (isFixedWidthType(formData.file_type)) return;
+                        const newHasHeader = !formData.has_header;
+                        setFormData({ 
+                          ...formData, 
+                          has_header: newHasHeader,
+                          header_definition: newHasHeader ? null : formData.header_definition
+                        });
+                        if (newHasHeader) {
+                          clearHeaderSchema();
+                        }
+                      }}
+                    >
                       <input
                         type="checkbox"
                         id="has-header-checkbox"
                         checked={formData.has_header}
-                        onChange={(e) => {
-                          const hasHeader = e.target.checked;
-                          setFormData({ 
-                            ...formData, 
-                            has_header: hasHeader,
-                            header_definition: hasHeader ? null : formData.header_definition
-                          });
-                          if (hasHeader) {
-                            clearHeaderSchema();
-                          }
-                        }}
+                        onChange={() => {}}
                         disabled={isFixedWidthType(formData.file_type)}
+                        style={{ 
+                          width: '18px', 
+                          height: '18px', 
+                          cursor: 'pointer',
+                          pointerEvents: 'auto',
+                          position: 'relative',
+                          zIndex: 20
+                        }}
                       />
-                      <label htmlFor="has-header-checkbox" className="checkbox-text-label">
+                      <label 
+                        htmlFor="has-header-checkbox" 
+                        className="checkbox-text-label"
+                        style={{ cursor: 'pointer', pointerEvents: 'auto' }}
+                      >
                         File Has Header Row
                       </label>
                     </div>
