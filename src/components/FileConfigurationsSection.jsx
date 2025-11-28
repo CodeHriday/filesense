@@ -535,9 +535,16 @@ function FileConfigurationsSection({ fileConfigurations, onChange }) {
                   <button
                     type="button"
                     className={`toggle-switch ${formData.has_header ? 'active' : ''} ${isFixedWidthType(formData.file_type) ? 'disabled' : ''}`}
-                    onClick={() => {
-                      if (isFixedWidthType(formData.file_type)) return;
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      console.log('Toggle clicked! Current has_header:', formData.has_header);
+                      if (isFixedWidthType(formData.file_type)) {
+                        console.log('Fixed width type, not toggling');
+                        return;
+                      }
                       const newHasHeader = !formData.has_header;
+                      console.log('Setting has_header to:', newHasHeader);
                       setFormData({ 
                         ...formData, 
                         has_header: newHasHeader,
