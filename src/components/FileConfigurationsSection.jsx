@@ -531,32 +531,33 @@ function FileConfigurationsSection({ fileConfigurations, onChange }) {
                 </div>
                 
                 <div className="header-definition-controls">
-                  <div className="form-group">
-                    <label className="checkbox-label">
-                      <input
-                        type="checkbox"
-                        checked={formData.has_header}
-                        onChange={(e) => {
-                          const hasHeader = e.target.checked;
-                          setFormData({ 
-                            ...formData, 
-                            has_header: hasHeader,
-                            header_definition: hasHeader ? null : formData.header_definition
-                          });
-                          if (hasHeader) {
-                            clearHeaderSchema();
-                          }
-                        }}
-                        disabled={isFixedWidthType(formData.file_type)}
-                      />
-                      <span>File Has Header Row</span>
-                    </label>
-                    <small>
-                      {isFixedWidthType(formData.file_type) 
-                        ? 'Fixed width/binary files require explicit header definition' 
-                        : 'Uncheck if file has no header row and you need to define field names'}
-                    </small>
+                  <div className="header-toggle-row">
+                    <span className="header-toggle-label">File Has Header Row</span>
+                    <button
+                      type="button"
+                      className={`toggle-switch ${formData.has_header ? 'active' : ''} ${isFixedWidthType(formData.file_type) ? 'disabled' : ''}`}
+                      onClick={() => {
+                        if (isFixedWidthType(formData.file_type)) return;
+                        const newHasHeader = !formData.has_header;
+                        setFormData({ 
+                          ...formData, 
+                          has_header: newHasHeader,
+                          header_definition: newHasHeader ? null : formData.header_definition
+                        });
+                        if (newHasHeader) {
+                          clearHeaderSchema();
+                        }
+                      }}
+                      disabled={isFixedWidthType(formData.file_type)}
+                    >
+                      <span className="toggle-slider"></span>
+                    </button>
                   </div>
+                  <small className="header-toggle-help">
+                    {isFixedWidthType(formData.file_type) 
+                      ? 'Fixed width/binary files require explicit header definition' 
+                      : 'Uncheck if file has no header row and you need to define field names'}
+                  </small>
 
                   {!formData.has_header && (
                     <div className="form-group full-width">
