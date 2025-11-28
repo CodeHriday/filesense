@@ -20,21 +20,21 @@ const ConfirmModal = ({
   };
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" onClick={e => e.stopPropagation()}>
-        <div className="modal-header">
-          <div className={`modal-icon modal-icon-${variant}`}>
+    <div className="confirm-modal-overlay" onClick={onClose}>
+      <div className="confirm-modal-content" onClick={e => e.stopPropagation()}>
+        <div className="confirm-modal-header">
+          <div className={`confirm-modal-icon confirm-modal-icon-${variant}`}>
             <FiAlertTriangle />
           </div>
           <h3>{title}</h3>
-          <button className="modal-close" onClick={onClose}>
+          <button className="confirm-modal-close" onClick={onClose}>
             <FiX />
           </button>
         </div>
-        <div className="modal-body">
+        <div className="confirm-modal-body">
           <p>{message}</p>
         </div>
-        <div className="modal-footer">
+        <div className="confirm-modal-footer">
           <button className="btn btn-secondary" onClick={onClose}>
             {cancelText}
           </button>
