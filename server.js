@@ -7290,9 +7290,13 @@ app.get('/api/roles', authenticateToken, async (req, res) => {
     const countResult = await dbPool.query('SELECT COUNT(*) FROM roles');
     const totalCount = parseInt(countResult.rows[0].count);
     
-    // Get paginated roles
+    // Get paginated roles with user counts
     const result = await dbPool.query(
-      'SELECT * FROM roles ORDER BY id ASC LIMIT $1 OFFSET $2',
+      `SELECT r.*, 
+              COALESCE((SELECT COUNT(*) FROM user_roles ur WHERE ur.role_id = r.id), 0) AS user_count
+       FROM roles r 
+       ORDER BY r.id ASC 
+       LIMIT $1 OFFSET $2`,
       [limit, offset]
     );
     
