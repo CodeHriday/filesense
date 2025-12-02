@@ -174,6 +174,13 @@ export const EmailProvidersConfig = () => {
     setShowTestModal(true);
   };
 
+  const handleCloseTestModal = () => {
+    setShowTestModal(false);
+    setSelectedConnection(null);
+    setTestEmail('');
+    setTestResult(null);
+  };
+
   const renderProviderForm = () => {
     const { provider_type } = formData;
 
@@ -576,48 +583,12 @@ export const EmailProvidersConfig = () => {
 
       <Modal
         isOpen={showTestModal}
-        onClose={() => {
-          setShowTestModal(false);
-          setSelectedConnection(null);
-          setTestEmail('');
-          setTestResult(null);
-        }}
+        onClose={handleCloseTestModal}
         title={`Test Email Connection - ${selectedConnection?.name || ''}`}
         size="medium"
-      >
-        <div className="test-modal">
-          <p className="test-description">
-            Send a test email to verify your email provider configuration.
-          </p>
-
-          <div className="form-group">
-            <label className="form-label">Recipient Email *</label>
-            <input
-              type="email"
-              value={testEmail}
-              onChange={(e) => setTestEmail(e.target.value)}
-              className="form-input"
-              placeholder="test@example.com"
-            />
-          </div>
-
-          {testResult && !testResult.loading && (
-            <div className={`test-result ${testResult.success ? 'success' : 'error'}`}>
-              {testResult.success ? <FiCheck /> : <FiX />}
-              <span>{testResult.message}</span>
-            </div>
-          )}
-
-          <div className="modal-actions">
-            <button
-              onClick={() => {
-                setShowTestModal(false);
-                setSelectedConnection(null);
-                setTestEmail('');
-                setTestResult(null);
-              }}
-              className="btn-secondary"
-            >
+        footer={
+          <>
+            <button onClick={handleCloseTestModal} className="btn-secondary">
               Close
             </button>
             <button
@@ -627,8 +598,30 @@ export const EmailProvidersConfig = () => {
             >
               {testResult?.loading ? 'Sending...' : 'Send Test Email'}
             </button>
-          </div>
+          </>
+        }
+      >
+        <p className="test-description">
+          Send a test email to verify your email provider configuration.
+        </p>
+
+        <div className="form-group">
+          <label className="form-label">Recipient Email *</label>
+          <input
+            type="email"
+            value={testEmail}
+            onChange={(e) => setTestEmail(e.target.value)}
+            className="form-input"
+            placeholder="test@example.com"
+          />
         </div>
+
+        {testResult && !testResult.loading && (
+          <div className={`test-result ${testResult.success ? 'success' : 'error'}`}>
+            {testResult.success ? <FiCheck /> : <FiX />}
+            <span>{testResult.message}</span>
+          </div>
+        )}
       </Modal>
 
       <Modal
