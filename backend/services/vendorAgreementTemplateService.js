@@ -291,6 +291,10 @@ class VendorAgreementTemplateService {
       [''],
       ['Schema: JSON array of field definitions. Enhanced format supports all file types including fixed-width and headerless files.'],
       [''],
+      ['  FOR LARGE SCHEMAS (200+ fields): Use reference tokens instead of JSON - attach schema file separately after upload:'],
+      ['    @external                  - Schema will be uploaded as a separate JSON file after template import'],
+      ['    @schema:my_schema.json     - Reference a specific schema filename (upload the JSON file after import)'],
+      [''],
       ['  STANDARD FORMAT (for files with headers - csv, json, xlsx, etc.):'],
       ['  [{"name":"FieldName","type":"string","description":"Field description","nullable":true,"pii":false}]'],
       [''],
@@ -663,6 +667,36 @@ class VendorAgreementTemplateService {
       case 'text':
         // Special handling for schema field
         if (fieldDef.field === 'schema' && strValue) {
+          // Check for schema reference tokens (for large schemas that don't fit in Excel cells)
+          const schemaRefPattern = /^@schema:(.+)$/i;
+          const externalRefPattern = /^@external$/i;
+          
+          if (schemaRefPattern.test(strValue)) {
+            // Schema reference token - extract filename and mark as pending attachment
+            const match = strValue.match(schemaRefPattern);
+            return { 
+              valid: true, 
+              value: {
+                _schemaRef: true,
+                _refType: 'file',
+                _refFilename: match[1].trim(),
+                _pendingUpload: true
+              }
+            };
+          }
+          
+          if (externalRefPattern.test(strValue)) {
+            // External reference - mark as pending attachment without specific filename
+            return { 
+              valid: true, 
+              value: {
+                _schemaRef: true,
+                _refType: 'external',
+                _pendingUpload: true
+              }
+            };
+          }
+          
           try {
             const parsed = JSON.parse(strValue);
             // Validate it's an array with proper structure
