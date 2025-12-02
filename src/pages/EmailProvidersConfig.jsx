@@ -29,6 +29,8 @@ export const EmailProvidersConfig = () => {
   const [selectedConnection, setSelectedConnection] = useState(null);
   const [testEmail, setTestEmail] = useState('');
   const [testResult, setTestResult] = useState(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [connectionToDelete, setConnectionToDelete] = useState(null);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -82,17 +84,30 @@ export const EmailProvidersConfig = () => {
     }
   };
 
-  const handleDeleteConnection = async (connectionId) => {
-    if (!window.confirm('Are you sure you want to delete this email connection?')) return;
+  const handleDeleteClick = (connection) => {
+    setConnectionToDelete(connection);
+    setShowDeleteModal(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!connectionToDelete) return;
 
     try {
-      const response = await alertService.deleteEmailConnection(connectionId);
+      const response = await alertService.deleteEmailConnection(connectionToDelete.connection_id);
       if (response.success) {
         loadConnections();
       }
     } catch (err) {
       showError(err.response?.data?.error || 'Failed to delete email connection');
+    } finally {
+      setShowDeleteModal(false);
+      setConnectionToDelete(null);
     }
+  };
+
+  const handleCancelDelete = () => {
+    setShowDeleteModal(false);
+    setConnectionToDelete(null);
   };
 
   const handleTestConnection = async () => {
@@ -517,7 +532,7 @@ export const EmailProvidersConfig = () => {
                         <span>Test</span>
                       </button>
                       <button
-                        onClick={() => handleDeleteConnection(connection.connection_id)}
+                        onClick={() => handleDeleteClick(connection)}
                         className="gps-action-btn gps-action-btn--danger"
                         title="Delete Provider"
                       >
@@ -628,6 +643,37 @@ export const EmailProvidersConfig = () => {
           </div>
         )}
       </ThreeSectionModal>
+
+      <Modal
+        isOpen={showDeleteModal}
+        onClose={handleCancelDelete}
+        title="Delete Email Provider"
+        size="small"
+      >
+        <div className="delete-confirmation-content">
+          <div className="delete-icon">
+            <FiAlertCircle size={32} color="#e53e3e" />
+          </div>
+          <p className="delete-message">
+            Are you sure you want to delete the email provider <strong>"{connectionToDelete?.name}"</strong>?
+          </p>
+          <p className="delete-warning">This action cannot be undone.</p>
+          <div className="modal-actions">
+            <button
+              onClick={handleCancelDelete}
+              className="btn-secondary"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleConfirmDelete}
+              className="btn-danger"
+            >
+              Delete
+            </button>
+          </div>
+        </div>
+      </Modal>
 
       <Modal
         isOpen={showErrorModal}
