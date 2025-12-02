@@ -322,14 +322,6 @@
   font-size: 0.875rem;
 }
 
-.modal-actions {
-  display: flex;
-  gap: 0.75rem;
-  justify-content: flex-end;
-  padding-top: 1rem;
-  border-top: 1px solid #e5e7eb;
-  margin-top: 0.5rem;
-}
 
 .test-description {
   font-family: var(--gps-font-family, 'Inter', sans-serif);
@@ -434,58 +426,33 @@
   border-color: #fca5a5;
 }
 
-/* Error modal styles */
-.error-modal-content {
+
+/* Confirmation modal body - standardized for delete/error dialogs */
+.confirmation-body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 1rem;
-  padding: 1rem;
+  gap: 0.75rem;
   text-align: center;
 }
 
-.error-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.confirmation-body > svg {
+  flex-shrink: 0;
 }
 
-.error-message {
+.confirmation-body p {
   font-size: 0.875rem;
   color: #374151;
   margin: 0;
 }
 
-/* Delete confirmation modal styles */
-.delete-confirmation-content {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 1rem;
-  padding: 1rem;
-  text-align: center;
-}
-
-.delete-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.delete-message {
-  font-size: 0.875rem;
-  color: #374151;
-  margin: 0;
-}
-
-.delete-message strong {
+.confirmation-body p strong {
   color: #111827;
 }
 
-.delete-warning {
+.confirmation-body .warning-text {
   font-size: 0.75rem;
   color: #9ca3af;
-  margin: 0;
 }
 
 .btn-danger {

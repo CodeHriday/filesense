@@ -649,29 +649,23 @@ export const EmailProvidersConfig = () => {
         onClose={handleCancelDelete}
         title="Delete Email Provider"
         size="small"
-      >
-        <div className="delete-confirmation-content">
-          <div className="delete-icon">
-            <FiAlertCircle size={32} color="#e53e3e" />
-          </div>
-          <p className="delete-message">
-            Are you sure you want to delete the email provider <strong>"{connectionToDelete?.name}"</strong>?
-          </p>
-          <p className="delete-warning">This action cannot be undone.</p>
-          <div className="modal-actions">
-            <button
-              onClick={handleCancelDelete}
-              className="btn-secondary"
-            >
+        footer={
+          <>
+            <button onClick={handleCancelDelete} className="btn-secondary">
               Cancel
             </button>
-            <button
-              onClick={handleConfirmDelete}
-              className="btn-danger"
-            >
+            <button onClick={handleConfirmDelete} className="btn-danger">
               Delete
             </button>
-          </div>
+          </>
+        }
+      >
+        <div className="confirmation-body">
+          <FiAlertCircle size={32} color="#e53e3e" />
+          <p>
+            Are you sure you want to delete the email provider <strong>"{connectionToDelete?.name}"</strong>?
+          </p>
+          <p className="warning-text">This action cannot be undone.</p>
         </div>
       </Modal>
 
@@ -680,20 +674,15 @@ export const EmailProvidersConfig = () => {
         onClose={() => setShowErrorModal(false)}
         title="Error"
         size="small"
+        footer={
+          <button onClick={() => setShowErrorModal(false)} className="btn-primary">
+            OK
+          </button>
+        }
       >
-        <div className="error-modal-content">
-          <div className="error-icon">
-            <FiAlertCircle size={32} color="#e53e3e" />
-          </div>
-          <p className="error-message">{errorMessage}</p>
-          <div className="modal-actions">
-            <button
-              onClick={() => setShowErrorModal(false)}
-              className="btn-primary"
-            >
-              OK
-            </button>
-          </div>
+        <div className="confirmation-body">
+          <FiAlertCircle size={32} color="#e53e3e" />
+          <p>{errorMessage}</p>
         </div>
       </Modal>
     </PageLayout>
