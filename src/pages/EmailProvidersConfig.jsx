@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { FiMail, FiPlus, FiTrash2, FiCheck, FiX, FiAlertCircle } from 'react-icons/fi';
+import { FiPlus, FiTrash2, FiCheck, FiX, FiAlertCircle } from 'react-icons/fi';
+import PageLayout from '../components/PageLayout';
 import Card from '../components/Card';
 import Modal from '../components/Modal';
 import './EmailProvidersConfig.css';
@@ -7,13 +8,13 @@ import * as alertService from '../api/alertService';
 import axios from 'axios';
 
 const PROVIDER_TYPES = {
-  smtp: { label: 'SMTP', icon: '📧' },
-  gmail_oauth2: { label: 'Gmail OAuth2', icon: '📮' },
-  outlook_oauth2: { label: 'Outlook OAuth2', icon: '📬' },
-  sendgrid: { label: 'SendGrid', icon: '📨' },
-  ses: { label: 'AWS SES', icon: '📩' },
-  azure_email: { label: 'Azure Email', icon: '📪' },
-  gcp_email: { label: 'GCP SMTP Relay', icon: '📫' }
+  smtp: { label: 'SMTP' },
+  gmail_oauth2: { label: 'Gmail OAuth2' },
+  outlook_oauth2: { label: 'Outlook OAuth2' },
+  sendgrid: { label: 'SendGrid' },
+  ses: { label: 'AWS SES' },
+  azure_email: { label: 'Azure Email' },
+  gcp_email: { label: 'GCP SMTP Relay' }
 };
 
 export const EmailProvidersConfig = () => {
@@ -464,24 +465,20 @@ export const EmailProvidersConfig = () => {
 
   if (loading) {
     return (
-      <div className="email-providers-container">
+      <PageLayout 
+        title="Email Providers" 
+        subtitle="Configure email providers for sending alert notifications"
+      >
         <div className="loading-state">Loading email providers...</div>
-      </div>
+      </PageLayout>
     );
   }
 
   return (
-    <div className="email-providers-container">
-      <div className="page-header">
-        <div>
-          <h1 className="page-title">
-            <FiMail className="title-icon" />
-            Email Providers
-          </h1>
-          <p className="page-subtitle">
-            Configure email providers for sending alert notifications
-          </p>
-        </div>
+    <PageLayout 
+      title="Email Providers" 
+      subtitle="Configure email providers for sending alert notifications"
+      headerActions={
         <button
           onClick={() => setShowCreateModal(true)}
           className="btn-primary"
@@ -489,8 +486,8 @@ export const EmailProvidersConfig = () => {
           <FiPlus />
           Add Provider
         </button>
-      </div>
-
+      }
+    >
       {error && (
         <div className="error-banner">
           {error}
@@ -498,9 +495,8 @@ export const EmailProvidersConfig = () => {
       )}
 
       {connections.length === 0 ? (
-        <Card title="No Email Providers">
+        <Card>
           <div className="empty-state">
-            <FiMail className="empty-state-icon" />
             <h3>No email providers configured</h3>
             <p>Add an email provider to start sending alert notifications</p>
             <button
@@ -517,9 +513,6 @@ export const EmailProvidersConfig = () => {
             <Card key={connection.connection_id}>
               <div className="provider-card">
                 <div className="provider-header">
-                  <div className="provider-icon">
-                    {PROVIDER_TYPES[connection.provider_type]?.icon || '📧'}
-                  </div>
                   <div className="provider-info">
                     <h3 className="provider-name">{connection.name}</h3>
                     <span className="provider-type">
@@ -611,7 +604,7 @@ export const EmailProvidersConfig = () => {
             >
               {Object.entries(PROVIDER_TYPES).map(([key, value]) => (
                 <option key={key} value={key}>
-                  {value.icon} {value.label}
+                  {value.label}
                 </option>
               ))}
             </select>
@@ -698,6 +691,6 @@ export const EmailProvidersConfig = () => {
           </div>
         </div>
       </Modal>
-    </div>
+    </PageLayout>
   );
 };
