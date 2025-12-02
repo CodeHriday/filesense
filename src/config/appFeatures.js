@@ -26,7 +26,8 @@ import {
   FiTruck,
   FiCheckCircle,
   FiArchive,
-  FiKey
+  FiKey,
+  FiMail
 } from 'react-icons/fi';
 
 export const APP_FEATURES = [
@@ -331,6 +332,14 @@ export const APP_FEATURES = [
     category: 'Administration',
     icon: FiBookOpen,
     route: '/api-documentation',
+    showInSidebar: true
+  },
+  { 
+    id: 'email_providers', 
+    name: 'Email Providers', 
+    category: 'Administration',
+    icon: FiMail,
+    route: '/email-providers',
     showInSidebar: true
   },
   { 
