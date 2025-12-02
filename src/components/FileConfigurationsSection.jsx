@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { FiPlus, FiEdit2, FiTrash2, FiSave, FiX, FiFileText, FiShield, FiCheckCircle, FiLock, FiEye, FiEyeOff, FiUpload, FiAlertCircle } from 'react-icons/fi';
+import { FiPlus, FiEdit2, FiTrash2, FiSave, FiX, FiFileText, FiShield, FiCheckCircle, FiLock, FiEye, FiEyeOff, FiUpload, FiAlertCircle, FiPaperclip } from 'react-icons/fi';
 import axios from 'axios';
 import SchemaFieldEditor from './SchemaFieldEditor';
 import './FileConfigurationsSection.css';
@@ -13,6 +13,9 @@ function FileConfigurationsSection({ fileConfigurations, onChange }) {
   const [headerSchemaFile, setHeaderSchemaFile] = useState(null);
   const [headerSchemaError, setHeaderSchemaError] = useState('');
   const headerSchemaInputRef = useRef(null);
+  const [schemaUploadLoading, setSchemaUploadLoading] = useState({});
+  const [schemaUploadError, setSchemaUploadError] = useState({});
+  const schemaUploadRefs = useRef({});
   const [formData, setFormData] = useState({
     file_name_pattern_base: '',
     file_type: 'csv',
@@ -51,6 +54,55 @@ function FileConfigurationsSection({ fileConfigurations, onChange }) {
   const isArchiveType = (fileType) => ARCHIVE_FILE_TYPES.includes(fileType);
   const isFixedWidthType = (fileType) => FIXED_WIDTH_TYPES.includes(fileType);
   const requiresWidthInSchema = (fileType) => FIXED_WIDTH_TYPES.includes(fileType);
+
+  const isSchemaRefToken = (schema) => {
+    return schema && typeof schema === 'object' && schema._schemaRef === true && schema._pendingUpload === true;
+  };
+
+  const getSchemaRefInfo = (schema) => {
+    if (!isSchemaRefToken(schema)) return null;
+    return {
+      type: schema._refType,
+      filename: schema._refFilename || null
+    };
+  };
+
+  const handleSchemaFileUpload = async (configIndex, event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setSchemaUploadLoading(prev => ({ ...prev, [configIndex]: true }));
+    setSchemaUploadError(prev => ({ ...prev, [configIndex]: null }));
+
+    try {
+      const formData = new FormData();
+      formData.append('schema', file);
+
+      const response = await axios.post('/api/vendor-agreement-template/upload-schema', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+
+      if (response.data.success) {
+        const updatedConfigs = [...fileConfigurations];
+        updatedConfigs[configIndex] = {
+          ...updatedConfigs[configIndex],
+          schema: response.data.schema
+        };
+        onChange(updatedConfigs);
+      } else {
+        setSchemaUploadError(prev => ({ ...prev, [configIndex]: response.data.error || 'Upload failed' }));
+      }
+    } catch (error) {
+      console.error('Schema upload error:', error);
+      const errMsg = error.response?.data?.error || error.response?.data?.details || error.message;
+      setSchemaUploadError(prev => ({ ...prev, [configIndex]: errMsg }));
+    } finally {
+      setSchemaUploadLoading(prev => ({ ...prev, [configIndex]: false }));
+      if (schemaUploadRefs.current[configIndex]) {
+        schemaUploadRefs.current[configIndex].value = '';
+      }
+    }
+  };
 
   const parseHeaderSchemaFile = async (file) => {
     return new Promise((resolve, reject) => {
@@ -673,10 +725,50 @@ function FileConfigurationsSection({ fileConfigurations, onChange }) {
                   
                   {config.schema && (
                     <div className="config-schema-preview">
-                      <details>
-                        <summary>View Schema</summary>
-                        <pre>{JSON.stringify(config.schema, null, 2)}</pre>
-                      </details>
+                      {isSchemaRefToken(config.schema) ? (
+                        <div className="schema-attachment-required">
+                          <div className="schema-ref-notice">
+                            <FiAlertCircle className="warning-icon" />
+                            <span>
+                              {getSchemaRefInfo(config.schema)?.filename 
+                                ? `Schema file required: ${getSchemaRefInfo(config.schema).filename}`
+                                : 'Schema attachment required'}
+                            </span>
+                          </div>
+                          <div className="schema-upload-controls">
+                            <input
+                              type="file"
+                              accept=".json"
+                              ref={el => schemaUploadRefs.current[index] = el}
+                              onChange={(e) => handleSchemaFileUpload(index, e)}
+                              style={{ display: 'none' }}
+                              id={`schema-upload-${index}`}
+                            />
+                            <button
+                              type="button"
+                              className="btn-attach-schema"
+                              onClick={() => schemaUploadRefs.current[index]?.click()}
+                              disabled={schemaUploadLoading[index]}
+                            >
+                              {schemaUploadLoading[index] ? (
+                                <>Loading...</>
+                              ) : (
+                                <><FiPaperclip /> Attach Schema JSON</>
+                              )}
+                            </button>
+                          </div>
+                          {schemaUploadError[index] && (
+                            <div className="schema-upload-error">
+                              <FiAlertCircle /> {schemaUploadError[index]}
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <details>
+                          <summary>View Schema ({Array.isArray(config.schema) ? config.schema.length : 0} fields)</summary>
+                          <pre>{JSON.stringify(config.schema, null, 2)}</pre>
+                        </details>
+                      )}
                     </div>
                   )}
                 </div>

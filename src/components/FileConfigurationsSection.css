@@ -921,3 +921,73 @@
   color: #92400e;
   border: 1px solid #fcd34d;
 }
+
+/* Schema Attachment Required UI */
+.schema-attachment-required {
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+  border-radius: var(--gps-radius-sm, 4px);
+  padding: var(--gps-spacing-md, 8px) var(--gps-spacing-lg, 12px);
+  margin-top: var(--gps-spacing-sm, 6px);
+}
+
+.schema-ref-notice {
+  display: flex;
+  align-items: center;
+  gap: var(--gps-spacing-sm, 6px);
+  font-family: var(--gps-font-family, 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
+  font-size: 11px;
+  color: #92400e;
+  font-weight: var(--gps-font-weight-medium, 500);
+  margin-bottom: var(--gps-spacing-sm, 6px);
+}
+
+.schema-ref-notice .warning-icon {
+  color: #d97706;
+  flex-shrink: 0;
+}
+
+.schema-upload-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--gps-spacing-md, 8px);
+}
+
+.btn-attach-schema {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--gps-spacing-xs, 4px);
+  padding: var(--gps-spacing-xs, 4px) var(--gps-spacing-md, 8px);
+  background: var(--gps-primary-teal, #025043);
+  color: white;
+  border: none;
+  border-radius: var(--gps-radius-sm, 4px);
+  font-family: var(--gps-font-family, 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
+  font-size: 10px;
+  font-weight: var(--gps-font-weight-semibold, 600);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-attach-schema:hover:not(:disabled) {
+  background: var(--gps-primary-hover, #033830);
+}
+
+.btn-attach-schema:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.schema-upload-error {
+  display: flex;
+  align-items: center;
+  gap: var(--gps-spacing-xs, 4px);
+  margin-top: var(--gps-spacing-sm, 6px);
+  padding: var(--gps-spacing-xs, 4px) var(--gps-spacing-sm, 6px);
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: var(--gps-radius-sm, 4px);
+  font-family: var(--gps-font-family, 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
+  font-size: 10px;
+  color: #dc2626;
+}
