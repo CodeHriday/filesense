@@ -1344,10 +1344,16 @@ const VendorAgreements = () => {
     // Check approval_status field for accurate workflow state
     const status = agreement.approval_status;
     
+    // If status is null/empty and agreement is in draft, show nothing (blank)
+    if (!status && agreement.status === 'draft') {
+      return null;
+    }
+    
     switch (status) {
       case 'draft':
         return <span className="approval-badge approval-draft">Draft</span>;
       
+      case 'pending_vendor_acceptance':
       case 'changes_pending':
         return <span className="approval-badge approval-pending">Pending Vendor</span>;
       
@@ -1373,7 +1379,11 @@ const VendorAgreements = () => {
         return <span className="approval-badge approval-locked">Closed</span>;
       
       default:
-        return <span className="approval-badge approval-pending">Pending Vendor</span>;
+        // For active agreements with no approval_status, default to Pending Vendor
+        if (agreement.status === 'active') {
+          return <span className="approval-badge approval-pending">Pending Vendor</span>;
+        }
+        return null;
     }
   };
   
