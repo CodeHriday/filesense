@@ -926,6 +926,10 @@ class VendorAgreementService {
         return { success: false, error: 'No changes detected' };
       }
       
+      // Track if we need to reset approvals
+      let approvalsReset = false;
+      let resetReason = '';
+      
       // If locked and admin is making changes, unlock and reset approvals
       if (current.is_locked && isAdmin) {
         updates.push(`is_locked = false`);
@@ -936,6 +940,8 @@ class VendorAgreementService {
         updates.push(`owner_approved_at = NULL`);
         updates.push(`owner_approved_by = NULL`);
         updates.push(`version = version + 1`);
+        approvalsReset = true;
+        resetReason = 'Agreement unlocked by Admin for modifications';
         
         // Log unlock
         await client.query(
@@ -943,6 +949,45 @@ class VendorAgreementService {
             agreement_id, change_type, changes_summary, from_version, to_version, changed_by, changed_at
           ) VALUES ($1, 'unlocked', 'Agreement unlocked by Admin for modifications', $2, $3, $4, CURRENT_TIMESTAMP)`,
           [agreementId, current.version, current.version + 1, updatedBy]
+        );
+      } 
+      // If in approval workflow (not draft, not locked), reset approvals
+      else if (current.approval_status && 
+               current.approval_status !== 'draft' && 
+               current.status === 'active' &&
+               !current.is_locked) {
+        updates.push(`approval_status = 'pending_vendor_acceptance'`);
+        updates.push(`vendor_approved_at = NULL`);
+        updates.push(`vendor_approved_by = NULL`);
+        updates.push(`owner_approved_at = NULL`);
+        updates.push(`owner_approved_by = NULL`);
+        updates.push(`version = version + 1`);
+        approvalsReset = true;
+        resetReason = `Contract modified during approval workflow (was: ${current.approval_status})`;
+        
+        systemLogger.info('Resetting approvals due to contract modification', { 
+          agreementId, 
+          previousApprovalStatus: current.approval_status,
+          changedBy: updatedBy
+        });
+        
+        // Log approval reset
+        await client.query(
+          `INSERT INTO vendor_agreement_changes (
+            agreement_id, change_type, changes_summary, from_version, to_version, changed_by, changed_at, reason
+          ) VALUES ($1, 'approval_reset', $2, $3, $4, $5, CURRENT_TIMESTAMP, $6)`,
+          [
+            agreementId, 
+            JSON.stringify({ 
+              previous_approval_status: current.approval_status, 
+              reset_to: 'pending_vendor_acceptance',
+              fields_changed: Object.keys(changes)
+            }), 
+            current.version, 
+            current.version + 1, 
+            updatedBy,
+            resetReason
+          ]
         );
       }
       
@@ -983,12 +1028,18 @@ class VendorAgreementService {
       
       await client.query('COMMIT');
       
-      systemLogger.info('Vendor agreement updated', { agreementId });
+      systemLogger.info('Vendor agreement updated', { 
+        agreementId, 
+        approvalsReset,
+        resetReason: resetReason || null
+      });
       
       return {
         success: true,
         agreement: updated,
-        requiresReapproval: current.is_locked && isAdmin
+        requiresReapproval: current.is_locked && isAdmin,
+        approvalsReset,
+        resetReason: resetReason || null
       };
       
     } catch (error) {

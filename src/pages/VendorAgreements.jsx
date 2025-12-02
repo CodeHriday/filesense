@@ -916,6 +916,11 @@ const VendorAgreements = () => {
           message: isDraft ? 'Draft saved successfully!' : 'Vendor agreement created successfully!'
         });
       } else {
+        // Check if agreement is in approval workflow (not draft)
+        const isInApprovalWorkflow = selectedAgreement.approval_status && 
+          selectedAgreement.approval_status !== 'draft' &&
+          selectedAgreement.status === 'active';
+        
         if (selectedAgreement.is_locked && isAdmin) {
           setConfirmModalConfig({
             title: 'Edit Locked Agreement',
@@ -931,7 +936,73 @@ const VendorAgreements = () => {
                   isOpen: true,
                   type: 'success',
                   title: 'Success',
-                  message: 'Vendor agreement updated successfully!'
+                  message: 'Vendor agreement updated successfully! Approvals have been reset.'
+                });
+                setTimeout(() => {
+                  closeModal();
+                  fetchData();
+                }, 2000);
+              } catch (error) {
+                console.error('Error saving agreement:', error);
+                let errorMessage = 'Failed to save vendor agreement';
+                if (error.response?.data) {
+                  const { error: errorMsg, message } = error.response.data;
+                  errorMessage = errorMsg || message || errorMessage;
+                } else if (error.message) {
+                  errorMessage += ': ' + error.message;
+                }
+                setNotificationModal({
+                  isOpen: true,
+                  type: 'error',
+                  title: 'Error',
+                  message: errorMessage
+                });
+              }
+            }
+          });
+          setConfirmModalOpen(true);
+          return;
+        }
+        
+        // Show warning if editing a contract that's in the approval workflow
+        if (isInApprovalWorkflow) {
+          setConfirmModalConfig({
+            title: 'Contract In Approval Workflow',
+            message: 'This contract is currently in the approval process. Saving changes will reset all approvals and the contract will need to be re-approved starting from Vendor acceptance. Do you want to continue?',
+            onConfirm: async () => {
+              try {
+                const response = await axios.put(`/api/vendor-agreements/${selectedAgreement.id}`, submitData, {
+                  headers: {
+                    'Content-Type': 'multipart/form-data'
+                  }
+                });
+                
+                // Save file configurations
+                const agreementIdForConfigs = selectedAgreement.id;
+                if (agreementIdForConfigs && fileConfigurations.length > 0) {
+                  try {
+                    const fileSchemas = fileConfigurations.map(config => ({
+                      file_name_pattern: config.file_name_pattern,
+                      file_description: config.file_description || '',
+                      schema: config.schema || [],
+                      priority: config.priority ?? 100,
+                      is_active: config.is_active !== false,
+                      contains_pii: config.contains_pii || false,
+                      data_classification: config.data_classification || null,
+                      file_type: config.file_type || null,
+                      quality_rule_ids: config.quality_rule_ids || []
+                    }));
+                    await axios.put(`/api/vendor-agreements/${agreementIdForConfigs}/file-schemas`, { fileSchemas });
+                  } catch (fileConfigError) {
+                    console.error('Error saving file configurations:', fileConfigError);
+                  }
+                }
+                
+                setNotificationModal({
+                  isOpen: true,
+                  type: 'success',
+                  title: 'Success',
+                  message: 'Contract updated successfully! Approvals have been reset to Pending Vendor acceptance.'
                 });
                 setTimeout(() => {
                   closeModal();
