@@ -3,6 +3,7 @@ import { FiPlus, FiTrash2, FiCheck, FiX, FiAlertCircle } from 'react-icons/fi';
 import PageLayout from '../components/PageLayout';
 import Card from '../components/Card';
 import Modal from '../components/Modal';
+import ThreeSectionModal from '../components/ThreeSectionModal';
 import './EmailProvidersConfig.css';
 import * as alertService from '../api/alertService';
 import axios from 'axios';
@@ -214,61 +215,56 @@ export const EmailProvidersConfig = () => {
     if (provider_type === 'smtp') {
       return (
         <>
-          <div className="form-row">
+          <div className="form-row-grid">
             <div className="form-group">
-              <label className="form-label">SMTP Host *</label>
+              <label>SMTP Host <span className="required-field">*</span></label>
               <input
                 type="text"
                 value={formData.config.host || ''}
                 onChange={(e) => setFormData({ ...formData, config: { ...formData.config, host: e.target.value } })}
-                className="form-input"
                 placeholder="smtp.example.com"
               />
             </div>
             <div className="form-group">
-              <label className="form-label">Port *</label>
+              <label>Port <span className="required-field">*</span></label>
               <input
                 type="number"
                 value={formData.config.port || 587}
                 onChange={(e) => setFormData({ ...formData, config: { ...formData.config, port: parseInt(e.target.value) } })}
-                className="form-input"
               />
             </div>
           </div>
 
-          <div className="form-row">
+          <div className="form-row-grid">
             <div className="form-group">
-              <label className="form-label">Username *</label>
+              <label>Username <span className="required-field">*</span></label>
               <input
                 type="text"
                 value={formData.config.username || ''}
                 onChange={(e) => setFormData({ ...formData, config: { ...formData.config, username: e.target.value } })}
-                className="form-input"
               />
             </div>
             <div className="form-group">
-              <label className="form-label">Password *</label>
+              <label>Password <span className="required-field">*</span></label>
               <input
                 type="password"
                 value={formData.config.password || ''}
                 onChange={(e) => setFormData({ ...formData, config: { ...formData.config, password: e.target.value } })}
-                className="form-input"
               />
             </div>
           </div>
 
           <div className="form-group">
-            <label className="form-label">From Email *</label>
+            <label>From Email <span className="required-field">*</span></label>
             <input
               type="email"
               value={formData.config.from || ''}
               onChange={(e) => setFormData({ ...formData, config: { ...formData.config, from: e.target.value } })}
-              className="form-input"
               placeholder="alerts@example.com"
             />
           </div>
 
-          <div className="form-checkbox">
+          <div className="checkbox-group">
             <input
               type="checkbox"
               checked={formData.config.secure !== false}
@@ -285,22 +281,20 @@ export const EmailProvidersConfig = () => {
       return (
         <>
           <div className="form-group">
-            <label className="form-label">API Key *</label>
+            <label>API Key <span className="required-field">*</span></label>
             <input
               type="password"
               value={formData.config.apiKey || ''}
               onChange={(e) => setFormData({ ...formData, config: { ...formData.config, apiKey: e.target.value } })}
-              className="form-input"
               placeholder="SG.xxxxxxxxxxxxx"
             />
           </div>
           <div className="form-group">
-            <label className="form-label">From Email *</label>
+            <label>From Email <span className="required-field">*</span></label>
             <input
               type="email"
               value={formData.config.from || ''}
               onChange={(e) => setFormData({ ...formData, config: { ...formData.config, from: e.target.value } })}
-              className="form-input"
               placeholder="alerts@example.com"
             />
           </div>
@@ -312,42 +306,38 @@ export const EmailProvidersConfig = () => {
       return (
         <>
           <div className="form-group">
-            <label className="form-label">AWS Region *</label>
+            <label>AWS Region <span className="required-field">*</span></label>
             <input
               type="text"
               value={formData.config.region || ''}
               onChange={(e) => setFormData({ ...formData, config: { ...formData.config, region: e.target.value } })}
-              className="form-input"
               placeholder="us-east-1"
             />
           </div>
-          <div className="form-row">
+          <div className="form-row-grid">
             <div className="form-group">
-              <label className="form-label">Access Key ID *</label>
+              <label>Access Key ID <span className="required-field">*</span></label>
               <input
                 type="text"
                 value={formData.config.accessKeyId || ''}
                 onChange={(e) => setFormData({ ...formData, config: { ...formData.config, accessKeyId: e.target.value } })}
-                className="form-input"
               />
             </div>
             <div className="form-group">
-              <label className="form-label">Secret Access Key *</label>
+              <label>Secret Access Key <span className="required-field">*</span></label>
               <input
                 type="password"
                 value={formData.config.secretAccessKey || ''}
                 onChange={(e) => setFormData({ ...formData, config: { ...formData.config, secretAccessKey: e.target.value } })}
-                className="form-input"
               />
             </div>
           </div>
           <div className="form-group">
-            <label className="form-label">From Email *</label>
+            <label>From Email <span className="required-field">*</span></label>
             <input
               type="email"
               value={formData.config.from || ''}
               onChange={(e) => setFormData({ ...formData, config: { ...formData.config, from: e.target.value } })}
-              className="form-input"
               placeholder="alerts@example.com"
             />
           </div>
@@ -359,31 +349,28 @@ export const EmailProvidersConfig = () => {
       return (
         <>
           <div className="form-group">
-            <label className="form-label">Endpoint *</label>
+            <label>Endpoint <span className="required-field">*</span></label>
             <input
               type="text"
               value={formData.config.endpoint || ''}
               onChange={(e) => setFormData({ ...formData, config: { ...formData.config, endpoint: e.target.value } })}
-              className="form-input"
               placeholder="https://<resource-name>.communication.azure.com"
             />
           </div>
           <div className="form-group">
-            <label className="form-label">Access Key *</label>
+            <label>Access Key <span className="required-field">*</span></label>
             <input
               type="password"
               value={formData.config.accessKey || ''}
               onChange={(e) => setFormData({ ...formData, config: { ...formData.config, accessKey: e.target.value } })}
-              className="form-input"
             />
           </div>
           <div className="form-group">
-            <label className="form-label">From Email *</label>
+            <label>From Email <span className="required-field">*</span></label>
             <input
               type="email"
               value={formData.config.from || ''}
               onChange={(e) => setFormData({ ...formData, config: { ...formData.config, from: e.target.value } })}
-              className="form-input"
               placeholder="DoNotReply@<resource-name>.azurecomm.net"
             />
           </div>
@@ -394,33 +381,30 @@ export const EmailProvidersConfig = () => {
     if (provider_type === 'gcp_email') {
       return (
         <>
-          <div className="form-row">
+          <div className="form-row-grid">
             <div className="form-group">
-              <label className="form-label">SMTP Host *</label>
+              <label>SMTP Host <span className="required-field">*</span></label>
               <input
                 type="text"
                 value={formData.config.host || 'smtp-relay.gmail.com'}
                 onChange={(e) => setFormData({ ...formData, config: { ...formData.config, host: e.target.value } })}
-                className="form-input"
               />
             </div>
             <div className="form-group">
-              <label className="form-label">Port *</label>
+              <label>Port <span className="required-field">*</span></label>
               <input
                 type="number"
                 value={formData.config.port || 587}
                 onChange={(e) => setFormData({ ...formData, config: { ...formData.config, port: parseInt(e.target.value) } })}
-                className="form-input"
               />
             </div>
           </div>
           <div className="form-group">
-            <label className="form-label">From Email *</label>
+            <label>From Email <span className="required-field">*</span></label>
             <input
               type="email"
               value={formData.config.from || ''}
               onChange={(e) => setFormData({ ...formData, config: { ...formData.config, from: e.target.value } })}
-              className="form-input"
               placeholder="alerts@example.com"
             />
           </div>
@@ -499,12 +483,6 @@ export const EmailProvidersConfig = () => {
           <div className="empty-state">
             <h3>No email providers configured</h3>
             <p>Add an email provider to start sending alert notifications</p>
-            <button
-              onClick={() => setShowCreateModal(true)}
-              className="btn-primary"
-            >
-              Add Email Provider
-            </button>
           </div>
         </Card>
       ) : (
@@ -558,82 +536,76 @@ export const EmailProvidersConfig = () => {
         </div>
       )}
 
-      <Modal
+      <ThreeSectionModal
         isOpen={showCreateModal}
         onClose={() => {
           setShowCreateModal(false);
           resetForm();
         }}
         title="Add Email Provider"
-        size="large"
-      >
-        <div className="modal-form">
-          <div className="form-group">
-            <label className="form-label">Connection Name *</label>
-            <input
-              type="text"
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              className="form-input"
-              placeholder="Production Alerts"
-            />
-          </div>
-
-          <div className="form-group">
-            <label className="form-label">Project *</label>
-            <select
-              value={formData.project_id}
-              onChange={(e) => setFormData({ ...formData, project_id: e.target.value })}
-              className="form-select"
-            >
-              <option value="">Select a project</option>
-              {projects.map((project) => (
-                <option key={project.id} value={project.id}>
-                  {project.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="form-group">
-            <label className="form-label">Provider Type *</label>
-            <select
-              value={formData.provider_type}
-              onChange={(e) => setFormData({ ...formData, provider_type: e.target.value, config: {} })}
-              className="form-select"
-            >
-              {Object.entries(PROVIDER_TYPES).map(([key, value]) => (
-                <option key={key} value={key}>
-                  {value.label}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {renderProviderForm()}
-
-          <div className="modal-actions">
+        size="medium"
+        footer={
+          <>
             <button
               onClick={() => {
                 setShowCreateModal(false);
                 resetForm();
               }}
-              className="btn-secondary"
             >
               Cancel
             </button>
             {formData.provider_type !== 'gmail_oauth2' && formData.provider_type !== 'outlook_oauth2' && (
               <button
                 onClick={handleCreateConnection}
-                className="btn-primary"
                 disabled={!isFormValid()}
               >
                 Add Provider
               </button>
             )}
-          </div>
+          </>
+        }
+      >
+        <div className="form-group">
+          <label>Connection Name <span className="required-field">*</span></label>
+          <input
+            type="text"
+            value={formData.name}
+            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+            placeholder="Production Alerts"
+          />
         </div>
-      </Modal>
+
+        <div className="form-group">
+          <label>Project <span className="required-field">*</span></label>
+          <select
+            value={formData.project_id}
+            onChange={(e) => setFormData({ ...formData, project_id: e.target.value })}
+          >
+            <option value="">Select a project</option>
+            {projects.map((project) => (
+              <option key={project.id} value={project.id}>
+                {project.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="form-group">
+          <label>Provider Type <span className="required-field">*</span></label>
+          <select
+            value={formData.provider_type}
+            onChange={(e) => setFormData({ ...formData, provider_type: e.target.value, config: {} })}
+          >
+            {Object.entries(PROVIDER_TYPES).map(([key, value]) => (
+              <option key={key} value={key}>
+                {value.label}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {renderProviderForm()}
+      </ThreeSectionModal>
 
       <Modal
         isOpen={showTestModal}
