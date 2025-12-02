@@ -581,19 +581,18 @@ export const EmailProvidersConfig = () => {
         {renderProviderForm()}
       </ThreeSectionModal>
 
-      <Modal
+      <ThreeSectionModal
         isOpen={showTestModal}
         onClose={handleCloseTestModal}
         title={`Test Email Connection - ${selectedConnection?.name || ''}`}
-        size="medium"
+        size="small"
         footer={
           <>
-            <button onClick={handleCloseTestModal} className="btn-secondary">
+            <button onClick={handleCloseTestModal}>
               Close
             </button>
             <button
               onClick={handleTestConnection}
-              className="btn-primary"
               disabled={!testEmail || testResult?.loading}
             >
               {testResult?.loading ? 'Sending...' : 'Send Test Email'}
@@ -601,17 +600,16 @@ export const EmailProvidersConfig = () => {
           </>
         }
       >
-        <p className="test-description">
+        <p className="gps-help-text" style={{ marginBottom: '12px' }}>
           Send a test email to verify your email provider configuration.
         </p>
 
         <div className="form-group">
-          <label className="form-label">Recipient Email *</label>
+          <label className="gps-form-label">Recipient Email <span className="required-field">*</span></label>
           <input
             type="email"
             value={testEmail}
             onChange={(e) => setTestEmail(e.target.value)}
-            className="form-input"
             placeholder="test@example.com"
           />
         </div>
@@ -622,7 +620,7 @@ export const EmailProvidersConfig = () => {
             <span>{testResult.message}</span>
           </div>
         )}
-      </Modal>
+      </ThreeSectionModal>
 
       <Modal
         isOpen={showErrorModal}
