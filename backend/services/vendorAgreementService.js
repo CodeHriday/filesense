@@ -588,6 +588,58 @@ class VendorAgreementService {
       let paramIndex = 1;
       const changes = {};
       
+      // Helper function to normalize values for comparison
+      const normalizeForComparison = (value) => {
+        if (value === null || value === undefined) return null;
+        if (value === '') return null;
+        
+        // If it's a string that looks like JSON, parse it
+        if (typeof value === 'string') {
+          const trimmed = value.trim();
+          if ((trimmed.startsWith('{') && trimmed.endsWith('}')) ||
+              (trimmed.startsWith('[') && trimmed.endsWith(']'))) {
+            try {
+              return JSON.parse(trimmed);
+            } catch {
+              return value;
+            }
+          }
+        }
+        return value;
+      };
+      
+      // Helper function to compare values (handles JSON objects/arrays)
+      const valuesAreEqual = (a, b) => {
+        const normA = normalizeForComparison(a);
+        const normB = normalizeForComparison(b);
+        
+        // Both null/undefined
+        if (normA === null && normB === null) return true;
+        if (normA === null || normB === null) return false;
+        
+        // Compare objects/arrays as JSON strings
+        if (typeof normA === 'object' || typeof normB === 'object') {
+          return JSON.stringify(normA) === JSON.stringify(normB);
+        }
+        
+        // Direct comparison for primitives
+        return normA === normB;
+      };
+      
+      // Helper function to normalize dates for comparison
+      const normalizeDateForComparison = (value) => {
+        if (!value) return null;
+        if (value instanceof Date) {
+          return value.toISOString().split('T')[0];
+        }
+        if (typeof value === 'string') {
+          // Extract just the date part
+          const dateMatch = value.match(/^\d{4}-\d{2}-\d{2}/);
+          return dateMatch ? dateMatch[0] : value;
+        }
+        return String(value);
+      };
+      
       if (file_name !== undefined && file_name !== current.file_name) {
         updates.push(`file_name = $${paramIndex}`);
         params.push(file_name);
@@ -610,7 +662,7 @@ class VendorAgreementService {
         paramIndex++;
       }
       
-      if (parsedSchema !== undefined && JSON.stringify(parsedSchema) !== JSON.stringify(current.schema)) {
+      if (parsedSchema !== undefined && !valuesAreEqual(parsedSchema, current.schema)) {
         updates.push(`schema = $${paramIndex}`);
         params.push(parsedSchema ? JSON.stringify(parsedSchema) : null);
         changes.schema = { from: current.schema, to: parsedSchema };
@@ -652,11 +704,15 @@ class VendorAgreementService {
         paramIndex++;
       }
       
-      if (vendor_onboarding_date !== undefined && vendor_onboarding_date !== current.vendor_onboarding_date) {
-        updates.push(`vendor_onboarding_date = $${paramIndex}`);
-        params.push(vendor_onboarding_date || null);
-        changes.vendor_onboarding_date = { from: current.vendor_onboarding_date, to: vendor_onboarding_date };
-        paramIndex++;
+      if (vendor_onboarding_date !== undefined) {
+        const normCurrentDate = normalizeDateForComparison(current.vendor_onboarding_date);
+        const normNewDate = normalizeDateForComparison(vendor_onboarding_date);
+        if (normNewDate !== normCurrentDate) {
+          updates.push(`vendor_onboarding_date = $${paramIndex}`);
+          params.push(vendor_onboarding_date || null);
+          changes.vendor_onboarding_date = { from: current.vendor_onboarding_date, to: vendor_onboarding_date };
+          paramIndex++;
+        }
       }
       
       let managerContactUpdated = false;
@@ -757,14 +813,11 @@ class VendorAgreementService {
         paramIndex++;
       }
       
-      if (metadata !== undefined) {
-        const metaStr = metadata ? JSON.stringify(metadata) : null;
-        if (metaStr !== current.metadata) {
-          updates.push(`metadata = $${paramIndex}`);
-          params.push(metaStr);
-          changes.metadata = { from: current.metadata, to: metadata };
-          paramIndex++;
-        }
+      if (metadata !== undefined && !valuesAreEqual(metadata, current.metadata)) {
+        updates.push(`metadata = $${paramIndex}`);
+        params.push(metadata ? JSON.stringify(metadata) : null);
+        changes.metadata = { from: current.metadata, to: metadata };
+        paramIndex++;
       }
       
       if (vendor_connection_id !== undefined && vendor_connection_id !== current.vendor_connection_id) {
@@ -858,7 +911,7 @@ class VendorAgreementService {
         paramIndex++;
       }
       
-      if (arrival_days !== undefined && arrival_days !== current.arrival_days) {
+      if (arrival_days !== undefined && !valuesAreEqual(arrival_days, current.arrival_days)) {
         updates.push(`arrival_days = $${paramIndex}`);
         params.push(arrival_days || null);
         changes.arrival_days = { from: current.arrival_days, to: arrival_days };
