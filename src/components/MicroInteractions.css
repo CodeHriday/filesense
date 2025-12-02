@@ -257,6 +257,7 @@
   background-color: #ccc;
   transition: 0.3s;
   border-radius: 34px;
+  pointer-events: none;
 }
 
 .toggle-knob {
@@ -273,6 +274,7 @@
   justify-content: center;
   color: #666;
   font-size: 10px;
+  pointer-events: none;
 }
 
 .toggle-switch.small .toggle-knob {
