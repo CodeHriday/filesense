@@ -93,6 +93,7 @@
   transition: background-color 0.3s ease;
   border-radius: 24px;
   z-index: 1;
+  pointer-events: none; /* Fix: Let clicks pass through to parent toggle-switch */
 }
 
 .schema-field-editor .header-toggle-row .toggle-knob {

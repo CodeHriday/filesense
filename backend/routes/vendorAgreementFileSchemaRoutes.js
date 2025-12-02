@@ -157,20 +157,28 @@ router.post('/:agreementId/file-schemas', requirePermission('vendor_agreements:w
       });
     }
     
-    if (!schema || !Array.isArray(schema) || schema.length === 0) {
+    // Check for schema reference token (for large schemas that don't fit in Excel cells)
+    const isSchemaRefToken = schema && 
+      typeof schema === 'object' && 
+      !Array.isArray(schema) && 
+      schema._schemaRef === true;
+    
+    if (!isSchemaRefToken && (!schema || !Array.isArray(schema) || schema.length === 0)) {
       return res.status(400).json({
         success: false,
-        error: 'schema is required and must be a non-empty array'
+        error: 'schema is required and must be a non-empty array or a schema reference token'
       });
     }
     
-    // Validate schema structure
-    for (const col of schema) {
-      if (!col.column_name || !col.data_type) {
-        return res.status(400).json({
-          success: false,
-          error: 'Each schema column must have column_name and data_type'
-        });
+    // Only validate schema structure for actual arrays (not reference tokens)
+    if (!isSchemaRefToken) {
+      for (const col of schema) {
+        if (!col.column_name || !col.data_type) {
+          return res.status(400).json({
+            success: false,
+            error: 'Each schema column must have column_name and data_type'
+          });
+        }
       }
     }
     
@@ -375,11 +383,18 @@ router.put('/:agreementId/file-schemas', requirePermission('vendor_agreements:wr
         });
       }
       
-      if (!schemaDefinition || !Array.isArray(schemaDefinition) || schemaDefinition.length === 0) {
+      // Check for schema reference token (for large schemas that don't fit in Excel cells)
+      // Schema reference tokens have _schemaRef: true and _pendingUpload: true
+      const isSchemaRefToken = schemaDefinition && 
+        typeof schemaDefinition === 'object' && 
+        !Array.isArray(schemaDefinition) && 
+        schemaDefinition._schemaRef === true;
+      
+      if (!isSchemaRefToken && (!schemaDefinition || !Array.isArray(schemaDefinition) || schemaDefinition.length === 0)) {
         await client.query('ROLLBACK');
         return res.status(400).json({
           success: false,
-          error: 'Each file schema must have a valid schema definition array'
+          error: 'Each file schema must have a valid schema definition array or a schema reference token'
         });
       }
       
@@ -559,20 +574,28 @@ router.put('/:agreementId/file-schemas/:schemaId', requirePermission('vendor_agr
     }
     
     if (schema !== undefined) {
-      if (!Array.isArray(schema) || schema.length === 0) {
+      // Check for schema reference token (for large schemas that don't fit in Excel cells)
+      const isSchemaRefToken = schema && 
+        typeof schema === 'object' && 
+        !Array.isArray(schema) && 
+        schema._schemaRef === true;
+      
+      if (!isSchemaRefToken && (!Array.isArray(schema) || schema.length === 0)) {
         return res.status(400).json({
           success: false,
-          error: 'schema must be a non-empty array'
+          error: 'schema must be a non-empty array or a schema reference token'
         });
       }
       
-      // Validate schema structure
-      for (const col of schema) {
-        if (!col.column_name || !col.data_type) {
-          return res.status(400).json({
-            success: false,
-            error: 'Each schema column must have column_name and data_type'
-          });
+      // Only validate schema structure for actual arrays (not reference tokens)
+      if (!isSchemaRefToken) {
+        for (const col of schema) {
+          if (!col.column_name || !col.data_type) {
+            return res.status(400).json({
+              success: false,
+              error: 'Each schema column must have column_name and data_type'
+            });
+          }
         }
       }
       
