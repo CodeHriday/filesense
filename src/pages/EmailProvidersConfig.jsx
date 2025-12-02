@@ -107,9 +107,16 @@ export const EmailProvidersConfig = () => {
         message: response.message || 'Test email sent successfully!'
       });
     } catch (err) {
+      // Show detailed error message if available
+      const errorMsg = err.response?.data?.error || 'Test failed';
+      const details = err.response?.data?.details;
+      const fullMessage = details && details !== errorMsg 
+        ? `${errorMsg} (${details})`
+        : errorMsg;
+      
       setTestResult({
         success: false,
-        message: err.response?.data?.error || 'Test failed'
+        message: fullMessage
       });
     }
   };

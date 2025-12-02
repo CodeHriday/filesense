@@ -335,10 +335,25 @@ router.post('/:connectionId/test', async (req, res) => {
         error: sendError.message
       });
       
+      // Provide a more user-friendly error message with the actual details
+      const errorMessage = sendError.message || 'Unknown error';
+      let userFriendlyMessage = 'Failed to send test email';
+      
+      // Check for common error patterns and provide helpful messages
+      if (errorMessage.includes('invalid') || errorMessage.includes('expired') || errorMessage.includes('revoked') || errorMessage.includes('401')) {
+        userFriendlyMessage = 'API key is invalid, expired, or revoked. Please update your email provider credentials.';
+      } else if (errorMessage.includes('rate limit') || errorMessage.includes('429')) {
+        userFriendlyMessage = 'Rate limit exceeded. Please try again later.';
+      } else if (errorMessage.includes('ECONNREFUSED') || errorMessage.includes('ENOTFOUND')) {
+        userFriendlyMessage = 'Unable to connect to email provider. Check your server settings.';
+      } else if (errorMessage.includes('authentication') || errorMessage.includes('unauthorized')) {
+        userFriendlyMessage = 'Authentication failed. Please check your credentials.';
+      }
+      
       res.status(500).json({
         success: false,
-        error: 'Failed to send test email',
-        details: sendError.message
+        error: userFriendlyMessage,
+        details: errorMessage
       });
     }
   } catch (error) {
