@@ -655,7 +655,9 @@ class VendorAgreementService {
       }
       
       const { description } = updateData;
-      if (description !== undefined && description !== current.description) {
+      const normalizedNewDesc = description === '' ? null : description;
+      const normalizedCurrDesc = current.description === '' ? null : current.description;
+      if (description !== undefined && normalizedNewDesc !== normalizedCurrDesc) {
         updates.push(`description = $${paramIndex}`);
         params.push(description || null);
         changes.description = { from: current.description, to: description };
@@ -926,23 +928,23 @@ class VendorAgreementService {
       }
       
       if (contract_start_date !== undefined) {
-        const currentStartDate = current.contract_start_date ? current.contract_start_date.toISOString() : null;
-        const newStartDate = contract_start_date ? new Date(contract_start_date).toISOString() : null;
+        const currentStartDate = normalizeDateForComparison(current.contract_start_date);
+        const newStartDate = normalizeDateForComparison(contract_start_date);
         if (newStartDate !== currentStartDate) {
           updates.push(`contract_start_date = $${paramIndex}`);
           params.push(contract_start_date || null);
-          changes.contract_start_date = { from: currentStartDate, to: contract_start_date };
+          changes.contract_start_date = { from: current.contract_start_date, to: contract_start_date };
           paramIndex++;
         }
       }
       
       if (contract_end_date !== undefined) {
-        const currentEndDate = current.contract_end_date ? current.contract_end_date.toISOString() : null;
-        const newEndDate = contract_end_date ? new Date(contract_end_date).toISOString() : null;
+        const currentEndDate = normalizeDateForComparison(current.contract_end_date);
+        const newEndDate = normalizeDateForComparison(contract_end_date);
         if (newEndDate !== currentEndDate) {
           updates.push(`contract_end_date = $${paramIndex}`);
           params.push(contract_end_date || null);
-          changes.contract_end_date = { from: currentEndDate, to: contract_end_date };
+          changes.contract_end_date = { from: current.contract_end_date, to: contract_end_date };
           paramIndex++;
         }
       }
