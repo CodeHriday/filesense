@@ -181,7 +181,7 @@
   border-color: var(--gps-primary-teal, #025043);
 }
 
-.file-upload-button {
+.three-stage-approval-panel .form-group label.file-upload-button {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -196,7 +196,7 @@
   font-family: var(--gps-font-family, 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
 }
 
-.file-upload-button:hover {
+.three-stage-approval-panel .form-group label.file-upload-button:hover {
   background-color: var(--gps-primary-hover, #033830);
 }
 
