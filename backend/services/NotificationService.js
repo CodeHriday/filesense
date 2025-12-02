@@ -17,7 +17,8 @@ const { createCredentialsSummary } = require('../utils/credentialSanitizer');
 
 class NotificationService {
   constructor() {
-    this.connectionService = new ConnectionService();
+    // ConnectionService is exported as a singleton instance, use it directly
+    this.connectionService = ConnectionService;
     this.rateLimitCache = new Map(); // provider_id -> { count, resetTime }
     this.providerCircuitBreakers = new Map(); // provider_id -> { failures, lastFailure, isOpen }
   }
