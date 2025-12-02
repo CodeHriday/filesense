@@ -47,12 +47,8 @@ router.get('/', async (req, res) => {
 });
 
 // Get a single email connection by ID
-router.get('/:connectionId',
-  authorizeProjectResource({
-    resourceType: 'connection',
-    requiredPermissions: ['connection:read']
-  }),
-  async (req, res) => {
+// Email connections are application-wide, so no project authorization needed
+router.get('/:connectionId', async (req, res) => {
   try {
     const { connectionId } = req.params;
     
@@ -168,12 +164,8 @@ router.post('/', async (req, res) => {
 });
 
 // Update an email connection
-router.put('/:connectionId',
-  authorizeProjectResource({
-    resourceType: 'connection',
-    requiredPermissions: ['connection:update']
-  }),
-  async (req, res) => {
+// Email connections are application-wide, so no project authorization needed
+router.put('/:connectionId', async (req, res) => {
   try {
     const { connectionId } = req.params;
     const {
@@ -229,12 +221,8 @@ router.put('/:connectionId',
 });
 
 // Delete an email connection
-router.delete('/:connectionId',
-  authorizeProjectResource({
-    resourceType: 'connection',
-    requiredPermissions: ['connection:delete']
-  }),
-  async (req, res) => {
+// Email connections are application-wide, so no project authorization needed
+router.delete('/:connectionId', async (req, res) => {
   try {
     const { connectionId } = req.params;
     
@@ -269,12 +257,8 @@ router.delete('/:connectionId',
 });
 
 // Test an email connection
-router.post('/:connectionId/test',
-  authorizeProjectResource({
-    resourceType: 'connection',
-    requiredPermissions: ['connection:update']
-  }),
-  async (req, res) => {
+// Email connections are application-wide, so no project authorization needed
+router.post('/:connectionId/test', async (req, res) => {
   try {
     const { connectionId } = req.params;
     const { to_email } = req.body;
