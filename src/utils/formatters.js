@@ -165,3 +165,101 @@ export const formatTimestampWithMicroseconds = (dateString) => {
   
   return `${formatted}.${microseconds}`;
 };
+
+/**
+ * Format a field name from snake_case to Title Case
+ * @param {string} fieldName - The field name in snake_case
+ * @returns {string} Formatted field name in Title Case
+ */
+const formatFieldName = (fieldName) => {
+  if (!fieldName) return '';
+  return fieldName
+    .split('_')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+};
+
+/**
+ * Format a value for display (handles dates, null, objects)
+ * @param {*} value - The value to format
+ * @returns {string} Formatted value string
+ */
+const formatDisplayValue = (value) => {
+  if (value === null || value === undefined) return 'empty';
+  if (value === '') return 'empty';
+  if (typeof value === 'boolean') return value ? 'Yes' : 'No';
+  if (typeof value === 'object') return JSON.stringify(value);
+  
+  const str = String(value);
+  if (str.match(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/)) {
+    try {
+      const date = new Date(str);
+      return date.toLocaleDateString(undefined, { 
+        year: 'numeric', 
+        month: 'short', 
+        day: 'numeric' 
+      });
+    } catch {
+      return str;
+    }
+  }
+  
+  if (str.length > 50) {
+    return str.substring(0, 47) + '...';
+  }
+  return str;
+};
+
+/**
+ * Format a changes summary from JSON to human-readable text
+ * Handles vendor agreement change history records
+ * @param {string|object} summary - The changes_summary value (can be JSON string or object)
+ * @returns {string} Human-readable summary
+ */
+export const formatChangeSummary = (summary) => {
+  if (!summary) return '-';
+  
+  if (typeof summary !== 'string' || (!summary.startsWith('{') && !summary.startsWith('['))) {
+    return summary;
+  }
+  
+  try {
+    const changes = JSON.parse(summary);
+    
+    if (changes.approval_reset) {
+      const fieldsChanged = changes.fields_changed || [];
+      const resetTo = changes.reset_to || 'pending';
+      const prevStatus = changes.previous_approval_status || 'unknown';
+      
+      if (fieldsChanged.length > 0) {
+        const fieldNames = fieldsChanged.map(f => formatFieldName(f)).join(', ');
+        return `Approval reset (${formatFieldName(prevStatus)} \u2192 ${formatFieldName(resetTo)}). Modified: ${fieldNames}`;
+      }
+      return `Approval reset from ${formatFieldName(prevStatus)} to ${formatFieldName(resetTo)}`;
+    }
+    
+    if (Array.isArray(changes)) {
+      if (changes.length === 0) return 'No changes recorded';
+      return changes.map(field => formatFieldName(field)).join(', ');
+    }
+    
+    const entries = Object.entries(changes);
+    if (entries.length === 0) return 'No changes recorded';
+    
+    if (entries.length <= 3) {
+      const details = entries.map(([field, value]) => {
+        if (value && typeof value === 'object' && 'from' in value && 'to' in value) {
+          return `${formatFieldName(field)}: ${formatDisplayValue(value.from)} \u2192 ${formatDisplayValue(value.to)}`;
+        }
+        return formatFieldName(field);
+      });
+      return details.join('; ');
+    }
+    
+    const fieldNames = entries.map(([field]) => formatFieldName(field));
+    return `Updated ${entries.length} fields: ${fieldNames.join(', ')}`;
+    
+  } catch {
+    return summary;
+  }
+};

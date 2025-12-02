@@ -14,6 +14,7 @@ import FileSchemaManager from '../components/FileSchemaManager';
 import FileConfigurationsSection from '../components/FileConfigurationsSection';
 import { useAuth } from '../context/AuthContext';
 import { isVendorUser } from '../utils/userHelpers';
+import { formatChangeSummary } from '../utils/formatters';
 import axios from 'axios';
 import '../styles/global-page-styles.css';
 import '../styles/VendorAgreements.css';
@@ -2636,7 +2637,7 @@ const VendorAgreements = () => {
                                       {change.change_type}
                                     </span>
                                   </td>
-                                  <td>{change.changes_summary || change.summary || change.description || '-'}</td>
+                                  <td>{formatChangeSummary(change.changes_summary || change.summary || change.description)}</td>
                                 </tr>
                               );
                             })}
