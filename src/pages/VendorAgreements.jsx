@@ -2835,6 +2835,7 @@ const VendorAgreements = () => {
             type={notificationModal.type}
             title={notificationModal.title}
             message={notificationModal.message}
+            autoClose={notificationModal.type !== 'error'}
           />
         </>
       )}

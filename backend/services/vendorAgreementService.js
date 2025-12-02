@@ -971,14 +971,15 @@ class VendorAgreementService {
           changedBy: updatedBy
         });
         
-        // Log approval reset
+        // Log approval reset as 'updated' change type (approval_reset not in allowed constraint values)
         await client.query(
           `INSERT INTO vendor_agreement_changes (
             agreement_id, change_type, changes_summary, from_version, to_version, changed_by, changed_at, reason
-          ) VALUES ($1, 'approval_reset', $2, $3, $4, $5, CURRENT_TIMESTAMP, $6)`,
+          ) VALUES ($1, 'updated', $2, $3, $4, $5, CURRENT_TIMESTAMP, $6)`,
           [
             agreementId, 
             JSON.stringify({ 
+              approval_reset: true,
               previous_approval_status: current.approval_status, 
               reset_to: 'pending_vendor_acceptance',
               fields_changed: Object.keys(changes)
