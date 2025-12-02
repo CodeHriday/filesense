@@ -138,12 +138,18 @@ router.post('/vendor-agreement-template/upload-schema', authenticateToken, schem
     
     const validationErrors = [];
     const normalizedSchema = parsedSchema.map((field, index) => {
+      // Ensure each element is an object
+      if (typeof field !== 'object' || field === null || Array.isArray(field)) {
+        validationErrors.push(`Field ${index + 1}: Must be an object with field definitions`);
+        return null;
+      }
+      
       const hasNewFormat = field.name && field.type;
       const hasOldFormat = field.column_name && field.data_type;
       
       if (!hasNewFormat && !hasOldFormat) {
         validationErrors.push(`Field ${index + 1}: Must have name+type or column_name+data_type`);
-        return field;
+        return null;
       }
       
       const normalized = { ...field };
@@ -154,6 +160,13 @@ router.post('/vendor-agreement-template/upload-schema', authenticateToken, schem
         delete normalized.data_type;
       }
       
+      // Validate type is a valid string
+      const validTypes = ['string', 'integer', 'float', 'boolean', 'date', 'timestamp', 'json', 'decimal', 'text', 'number'];
+      if (typeof normalized.type !== 'string') {
+        validationErrors.push(`Field ${index + 1} (${normalized.name}): Type must be a string`);
+        return null;
+      }
+      
       if (normalized.pii === undefined || normalized.pii === null) {
         normalized.pii = false;
       }
@@ -162,7 +175,7 @@ router.post('/vendor-agreement-template/upload-schema', authenticateToken, schem
       }
       
       return normalized;
-    });
+    }).filter(f => f !== null);
     
     if (validationErrors.length > 0) {
       return res.status(400).json({

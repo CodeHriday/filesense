@@ -523,8 +523,13 @@ class VendorAgreementTemplateService {
         }
 
         // Validate that headerless files have schema defined (for non-archive types)
-        if (!hasHeader && !fileConfig.schema && !this.ARCHIVE_FILE_TYPES.includes(fileType)) {
-          rowErrors.push(`Schema: Required when Has Header is FALSE. Provide field definitions with name, type, and width.`);
+        // Schema can be either a parsed JSON array or a schema reference token
+        const hasValidSchema = fileConfig.schema && (
+          Array.isArray(fileConfig.schema) || 
+          (fileConfig.schema._schemaRef === true)
+        );
+        if (!hasHeader && !hasValidSchema && !this.ARCHIVE_FILE_TYPES.includes(fileType)) {
+          rowErrors.push(`Schema: Required when Has Header is FALSE. Provide field definitions with name, type, and width, or use @external token.`);
         }
 
         if (rowErrors.length > 0) {
@@ -537,6 +542,10 @@ class VendorAgreementTemplateService {
           // Build the file configuration with derived pattern
           const basePattern = fileConfig.file_name_pattern || '';
           
+          // Don't use schema reference tokens as header_definition - only use actual parsed schema arrays
+          const isSchemaRef = fileConfig.schema && fileConfig.schema._schemaRef === true;
+          const schemaArray = Array.isArray(fileConfig.schema) ? fileConfig.schema : null;
+          
           const fullConfig = {
             file_name_pattern_base: basePattern,
             file_type: fileType,
@@ -544,7 +553,7 @@ class VendorAgreementTemplateService {
             file_description: fileConfig.file_description || '',
             archive_password: archivePassword,
             has_header: hasHeader,
-            header_definition: !hasHeader ? fileConfig.schema : null,
+            header_definition: !hasHeader && schemaArray ? schemaArray : null,
             schema: fileConfig.schema || null,
             priority: fileConfig.priority ?? 100,
             is_active: true,
