@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { getRoles, createRole, updateRole, deleteRole, getPermissions } from '../api/authService';
 import LoadingSpinner from '../components/LoadingSpinner';
 import Pagination from '../components/Pagination';
+import ThreeSectionModal from '../components/ThreeSectionModal';
 import '../styles/RoleManagement.css';
 import axios from 'axios';
 import { API_BASE_URL } from '../config';
@@ -707,217 +708,212 @@ const RoleManagement = () => {
       />
       
       {/* Role Form Modal */}
-      {modalOpen && (
-        <div className="modal-overlay">
-          <div className="role-modal" role="dialog" aria-labelledby="role-modal-title">
-            {/* Static Header */}
-            <div className="modal-header">
-              <h2 id="role-modal-title">
-                {modalMode === 'create' ? 'Create New Role' : 'Edit Role'}
-              </h2>
-              <button className="close-modal-btn" onClick={closeModal} aria-label="Close">
-                ×
-              </button>
+      <ThreeSectionModal
+        isOpen={modalOpen}
+        onClose={closeModal}
+        title={modalMode === 'create' ? 'Create New Role' : 'Edit Role'}
+        size="large"
+        footer={
+          <>
+            <button type="button" onClick={closeModal}>
+              Cancel
+            </button>
+            <button type="submit" form="role-form">
+              {modalMode === 'create' ? 'Create Role' : 'Update Role'}
+            </button>
+          </>
+        }
+      >
+        <form id="role-form" onSubmit={handleSubmit}>
+          <div className="form-section">
+            <h3 className="section-title">ROLE INFORMATION</h3>
+            
+            <div className="form-group">
+              <label htmlFor="name">Role Name <span className="required-field">*</span></label>
+              <input
+                type="text"
+                id="name"
+                name="name"
+                value={formData.name}
+                onChange={handleInputChange}
+                disabled={modalMode === 'edit' && formData.name.toLowerCase() === 'admin'}
+                required
+              />
             </div>
             
-            {/* Scrollable Content */}
-            <div className="modal-content-scrollable">
-            <form onSubmit={handleSubmit} className="role-form">
-              <div className="form-group">
-                <label htmlFor="name">Role Name <span className="required-field">*</span></label>
-                <input
-                  type="text"
-                  id="name"
-                  name="name"
-                  value={formData.name}
-                  onChange={handleInputChange}
-                  disabled={modalMode === 'edit' && formData.name.toLowerCase() === 'admin'}
-                  required
-                />
-              </div>
-              
-              <div className="form-group">
-                <label htmlFor="description">Description</label>
-                <textarea
-                  id="description"
-                  name="description"
-                  value={formData.description}
-                  onChange={handleInputChange}
-                  placeholder="Describe the purpose of this role"
-                />
-              </div>
-              
-              <div className="permissions-section">
-                <h3 className="permissions-title">Feature Permissions</h3>
-                <p>Select which features this role can access and modify.</p>
-                
-                {Object.entries(FEATURE_CATEGORIES).map(([category, features]) => {
-                  // Filter out parent-only features
-                  const displayFeatures = features.filter(f => !f.isParentOnly);
-                  if (displayFeatures.length === 0) return null;
-                  
-                  const hasExecuteFeatures = displayFeatures.some(f => f.supportsExecute);
-                  const hasApproveFeatures = displayFeatures.some(f => f.supportsApprove);
-                  
-                  // Determine grid class based on special columns
-                  let gridClass = "permissions-grid";
-                  if (hasExecuteFeatures && hasApproveFeatures) {
-                    gridClass = "permissions-grid-with-execute-approve";
-                  } else if (hasExecuteFeatures) {
-                    gridClass = "permissions-grid-with-execute";
-                  } else if (hasApproveFeatures) {
-                    gridClass = "permissions-grid-with-approve";
-                  }
-                  
-                  return (
-                    <div key={category} className="permission-category">
-                      <div className={gridClass}>
-                        <div className="permission-header feature-name">{category}</div>
-                        <div className="permission-header">View</div>
-                        <div className="permission-header">Edit</div>
-                        {hasExecuteFeatures && <div className="permission-header">Execute</div>}
-                        {hasApproveFeatures && <div className="permission-header">Approve</div>}
-                        
-                        <div className="section-divider"></div>
-                        
-                        {displayFeatures.map(feature => (
-                          <React.Fragment key={feature.id}>
-                            <div className={`feature-name ${feature.isNested || feature.isVendorSubmodule ? 'nested-feature' : ''}`}>
-                              {(feature.isNested || feature.isVendorSubmodule) && <span className="nested-indicator">↳ </span>}
-                              {feature.name}
-                            </div>
-                            <div className="permission-checkbox">
-                              <input
-                                type="checkbox"
-                                id={`${feature.id}-read`}
-                                checked={formData.permissions[feature.id]?.read || false}
-                                onChange={(e) => handlePermissionChange(feature.id, 'read', e.target.checked)}
-                                aria-label={`View permission for ${feature.name}`}
-                              />
-                            </div>
-                            <div className="permission-checkbox">
-                              <input
-                                type="checkbox"
-                                id={`${feature.id}-write`}
-                                checked={formData.permissions[feature.id]?.write || false}
-                                onChange={(e) => handlePermissionChange(feature.id, 'write', e.target.checked)}
-                                aria-label={`Edit permission for ${feature.name}`}
-                                disabled={!formData.permissions[feature.id]?.read}
-                              />
-                            </div>
-                            {hasExecuteFeatures && (
-                              <div className="permission-checkbox">
-                                {feature.supportsExecute ? (
-                                  <input
-                                    type="checkbox"
-                                    id={`${feature.id}-execute`}
-                                    checked={formData.permissions[feature.id]?.execute || false}
-                                    onChange={(e) => handlePermissionChange(feature.id, 'execute', e.target.checked)}
-                                    aria-label={`Execute permission for ${feature.name}`}
-                                    disabled={!formData.permissions[feature.id]?.read}
-                                  />
-                                ) : (
-                                  <span className="permission-na">-</span>
-                                )}
-                              </div>
-                            )}
-                            {hasApproveFeatures && (
-                              <div className="permission-checkbox">
-                                {feature.supportsApprove ? (
-                                  <input
-                                    type="checkbox"
-                                    id={`${feature.id}-approve`}
-                                    checked={formData.permissions[feature.id]?.approve || false}
-                                    onChange={(e) => handlePermissionChange(feature.id, 'approve', e.target.checked)}
-                                    aria-label={`Approve permission for ${feature.name}`}
-                                    disabled={!formData.permissions[feature.id]?.read}
-                                  />
-                                ) : (
-                                  <span className="permission-na">-</span>
-                                )}
-                              </div>
-                            )}
-                          </React.Fragment>
-                        ))}
-                      </div>
-                      <div className="section-divider"></div>
-                    </div>
-                  );
-                })}
-              </div>
-              
-              {/* Tag Permissions Section */}
-              {governanceTags.length > 0 && (
-                <div className="permissions-section tag-permissions-section">
-                  <h3 className="permissions-title">Data Governance Tag Permissions</h3>
-                  <p>Control access to columns tagged with sensitive data classifications.</p>
-                  
-                  <div className="permission-category">
-                    <div className="permissions-grid">
-                      <div className="permission-header feature-name">Tag</div>
-                      <div className="permission-header">View</div>
-                      <div className="permission-header">Edit</div>
-                      
-                      <div className="section-divider"></div>
-                      
-                      {governanceTags.map(tag => {
-                        const tagKey = tag.tag_name.toLowerCase();
-                        return (
-                          <React.Fragment key={tag.tag_id}>
-                            <div className="feature-name">
-                              <span 
-                                className="tag-badge-inline" 
-                                style={{ backgroundColor: tag.color || '#3B82F6' }}
-                              >
-                                {tag.tag_name}
-                              </span>
-                              {tag.sensitivity_level && (
-                                <span className="tag-sensitivity-hint">
-                                  ({tag.sensitivity_level})
-                                </span>
-                              )}
-                            </div>
-                            <div className="permission-checkbox">
-                              <input
-                                type="checkbox"
-                                id={`tag-${tagKey}-read`}
-                                checked={formData.tagPermissions?.[tagKey]?.read || false}
-                                onChange={(e) => handleTagPermissionChange(tagKey, 'read', e.target.checked)}
-                                aria-label={`View permission for ${tag.tag_name} tagged data`}
-                              />
-                            </div>
-                            <div className="permission-checkbox">
-                              <input
-                                type="checkbox"
-                                id={`tag-${tagKey}-edit`}
-                                checked={formData.tagPermissions?.[tagKey]?.edit || false}
-                                onChange={(e) => handleTagPermissionChange(tagKey, 'edit', e.target.checked)}
-                                aria-label={`Edit permission for ${tag.tag_name} tagged data`}
-                                disabled={!formData.tagPermissions?.[tagKey]?.read}
-                              />
-                            </div>
-                          </React.Fragment>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </div>
-              )}
-            </form>
-            </div>
-            
-            {/* Static Footer */}
-            <div className="modal-footer">
-              <button type="button" className="cancel-btn" onClick={closeModal}>
-                Cancel
-              </button>
-              <button type="submit" className="save-btn" onClick={handleSubmit}>
-                {modalMode === 'create' ? 'Create Role' : 'Update Role'}
-              </button>
+            <div className="form-group">
+              <label htmlFor="description">Description</label>
+              <textarea
+                id="description"
+                name="description"
+                value={formData.description}
+                onChange={handleInputChange}
+                placeholder="Describe the purpose of this role"
+                rows={3}
+              />
             </div>
           </div>
-        </div>
-      )}
+          
+          <div className="form-section">
+            <h3 className="section-title">FEATURE PERMISSIONS</h3>
+            <small style={{ display: 'block', marginBottom: '16px', color: '#666', fontSize: '10px' }}>
+              Select which features this role can access and modify.
+            </small>
+            
+            {Object.entries(FEATURE_CATEGORIES).map(([category, features]) => {
+              const displayFeatures = features.filter(f => !f.isParentOnly);
+              if (displayFeatures.length === 0) return null;
+              
+              const hasExecuteFeatures = displayFeatures.some(f => f.supportsExecute);
+              const hasApproveFeatures = displayFeatures.some(f => f.supportsApprove);
+              
+              let gridClass = "permissions-grid";
+              if (hasExecuteFeatures && hasApproveFeatures) {
+                gridClass = "permissions-grid-with-execute-approve";
+              } else if (hasExecuteFeatures) {
+                gridClass = "permissions-grid-with-execute";
+              } else if (hasApproveFeatures) {
+                gridClass = "permissions-grid-with-approve";
+              }
+              
+              return (
+                <div key={category} className="permission-category">
+                  <div className={gridClass}>
+                    <div className="permission-header feature-name">{category}</div>
+                    <div className="permission-header">View</div>
+                    <div className="permission-header">Edit</div>
+                    {hasExecuteFeatures && <div className="permission-header">Execute</div>}
+                    {hasApproveFeatures && <div className="permission-header">Approve</div>}
+                    
+                    <div className="section-divider"></div>
+                    
+                    {displayFeatures.map(feature => (
+                      <React.Fragment key={feature.id}>
+                        <div className={`feature-name ${feature.isNested || feature.isVendorSubmodule ? 'nested-feature' : ''}`}>
+                          {(feature.isNested || feature.isVendorSubmodule) && <span className="nested-indicator">↳ </span>}
+                          {feature.name}
+                        </div>
+                        <div className="permission-checkbox">
+                          <input
+                            type="checkbox"
+                            id={`${feature.id}-read`}
+                            checked={formData.permissions[feature.id]?.read || false}
+                            onChange={(e) => handlePermissionChange(feature.id, 'read', e.target.checked)}
+                            aria-label={`View permission for ${feature.name}`}
+                          />
+                        </div>
+                        <div className="permission-checkbox">
+                          <input
+                            type="checkbox"
+                            id={`${feature.id}-write`}
+                            checked={formData.permissions[feature.id]?.write || false}
+                            onChange={(e) => handlePermissionChange(feature.id, 'write', e.target.checked)}
+                            aria-label={`Edit permission for ${feature.name}`}
+                            disabled={!formData.permissions[feature.id]?.read}
+                          />
+                        </div>
+                        {hasExecuteFeatures && (
+                          <div className="permission-checkbox">
+                            {feature.supportsExecute ? (
+                              <input
+                                type="checkbox"
+                                id={`${feature.id}-execute`}
+                                checked={formData.permissions[feature.id]?.execute || false}
+                                onChange={(e) => handlePermissionChange(feature.id, 'execute', e.target.checked)}
+                                aria-label={`Execute permission for ${feature.name}`}
+                                disabled={!formData.permissions[feature.id]?.read}
+                              />
+                            ) : (
+                              <span className="permission-na">-</span>
+                            )}
+                          </div>
+                        )}
+                        {hasApproveFeatures && (
+                          <div className="permission-checkbox">
+                            {feature.supportsApprove ? (
+                              <input
+                                type="checkbox"
+                                id={`${feature.id}-approve`}
+                                checked={formData.permissions[feature.id]?.approve || false}
+                                onChange={(e) => handlePermissionChange(feature.id, 'approve', e.target.checked)}
+                                aria-label={`Approve permission for ${feature.name}`}
+                                disabled={!formData.permissions[feature.id]?.read}
+                              />
+                            ) : (
+                              <span className="permission-na">-</span>
+                            )}
+                          </div>
+                        )}
+                      </React.Fragment>
+                    ))}
+                  </div>
+                  <div className="section-divider"></div>
+                </div>
+              );
+            })}
+          </div>
+          
+          {/* Tag Permissions Section */}
+          {governanceTags.length > 0 && (
+            <div className="form-section">
+              <h3 className="section-title">DATA GOVERNANCE TAG PERMISSIONS</h3>
+              <small style={{ display: 'block', marginBottom: '16px', color: '#666', fontSize: '10px' }}>
+                Control access to columns tagged with sensitive data classifications.
+              </small>
+              
+              <div className="permission-category">
+                <div className="permissions-grid">
+                  <div className="permission-header feature-name">Tag</div>
+                  <div className="permission-header">View</div>
+                  <div className="permission-header">Edit</div>
+                  
+                  <div className="section-divider"></div>
+                  
+                  {governanceTags.map(tag => {
+                    const tagKey = tag.tag_name.toLowerCase();
+                    return (
+                      <React.Fragment key={tag.tag_id}>
+                        <div className="feature-name">
+                          <span 
+                            className="tag-badge-inline" 
+                            style={{ backgroundColor: tag.color || '#3B82F6' }}
+                          >
+                            {tag.tag_name}
+                          </span>
+                          {tag.sensitivity_level && (
+                            <span className="tag-sensitivity-hint">
+                              ({tag.sensitivity_level})
+                            </span>
+                          )}
+                        </div>
+                        <div className="permission-checkbox">
+                          <input
+                            type="checkbox"
+                            id={`tag-${tagKey}-read`}
+                            checked={formData.tagPermissions?.[tagKey]?.read || false}
+                            onChange={(e) => handleTagPermissionChange(tagKey, 'read', e.target.checked)}
+                            aria-label={`View permission for ${tag.tag_name} tagged data`}
+                          />
+                        </div>
+                        <div className="permission-checkbox">
+                          <input
+                            type="checkbox"
+                            id={`tag-${tagKey}-edit`}
+                            checked={formData.tagPermissions?.[tagKey]?.edit || false}
+                            onChange={(e) => handleTagPermissionChange(tagKey, 'edit', e.target.checked)}
+                            aria-label={`Edit permission for ${tag.tag_name} tagged data`}
+                            disabled={!formData.tagPermissions?.[tagKey]?.read}
+                          />
+                        </div>
+                      </React.Fragment>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
+        </form>
+      </ThreeSectionModal>
       
       {/* Delete Role Confirmation Modal */}
       {deleteModalOpen && roleToDelete && (
