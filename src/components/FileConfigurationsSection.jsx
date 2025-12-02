@@ -577,7 +577,7 @@ function FileConfigurationsSection({ fileConfigurations, onChange }) {
             <div className="form-group full-width">
               <SchemaFieldEditor
                 value={formData.schema}
-                onChange={(value) => setFormData({ ...formData, schema: value })}
+                onChange={(value) => setFormData(prev => ({ ...prev, schema: value }))}
                 fileType={formData.file_type}
                 hasHeader={formData.has_header}
                 onHasHeaderChange={(newValue) => {
