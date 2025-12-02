@@ -11,14 +11,14 @@
 
 const { pool, query } = require('../config/database');
 const EmailProviderFactory = require('./email/EmailProviderFactory');
-const ConnectionService = require('./ConnectionService');
+const connectionService = require('./ConnectionService');
 const EmailComposer = require('./EmailComposer');
 const { systemLogger } = require('../utils/logger');
 const { getSetting } = require('./appSettingsService');
 
 class VendorAgreementNotificationService {
   constructor() {
-    this.connectionService = new ConnectionService();
+    this.connectionService = connectionService;
   }
 
   /**

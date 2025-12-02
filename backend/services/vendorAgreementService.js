@@ -7,6 +7,7 @@ const { pool } = require('../config/database');
 const { systemLogger } = require('../utils/logger');
 const { parseSchemaFile, validateSchema } = require('../utils/schemaParser');
 const crypto = require('crypto');
+const { formatChangeSummary } = require('../utils/formatters');
 
 class VendorAgreementService {
   /**
@@ -1121,6 +1122,44 @@ class VendorAgreementService {
         approvalsReset,
         resetReason: resetReason || null
       });
+      
+      // Send notification to stakeholders (async, non-blocking)
+      if (Object.keys(changes).length > 0) {
+        setImmediate(async () => {
+          try {
+            const VendorAgreementNotificationService = require('./VendorAgreementNotificationService');
+            const changeSummary = formatChangeSummary(changes);
+            
+            // Helper to safely format values, distinguishing null/undefined from legitimate falsy values
+            const formatValue = (value) => {
+              if (value === null || value === undefined) return '(empty)';
+              if (value === '') return '(empty)';
+              if (typeof value === 'boolean') return value ? 'Yes' : 'No';
+              if (typeof value === 'number') return String(value);
+              return String(value);
+            };
+            
+            const changesArray = Object.entries(changes).map(([field, change]) => ({
+              field: field.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+              oldValue: formatValue(change.from),
+              newValue: formatValue(change.to)
+            }));
+            
+            await VendorAgreementNotificationService.sendUpdateNotification({
+              agreement: updated,
+              changeSummary,
+              changes: changesArray,
+              updatedBy,
+              baseUrl: process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : process.env.APP_URL
+            });
+          } catch (notifyError) {
+            systemLogger.warn('Failed to send agreement update notification', {
+              agreementId,
+              error: notifyError.message
+            });
+          }
+        });
+      }
       
       return {
         success: true,
