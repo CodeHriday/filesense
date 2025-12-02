@@ -281,14 +281,34 @@ router.post('/:connectionId/test', async (req, res) => {
     
     // Import NotificationService to test the connection
     const NotificationService = require('../services/NotificationService');
+    const notificationService = new NotificationService();
     
     try {
-      const result = await NotificationService.sendEmailAlert({
+      // Parse config if it's a string
+      const config = typeof connection.config === 'string' 
+        ? JSON.parse(connection.config) 
+        : connection.config;
+      
+      // Decrypt sensitive fields for the connection type
+      const decryptedConfig = notificationService.connectionService.decryptSensitiveFields(
+        connection.type,
+        config
+      );
+      
+      // Create provider object in the format expected by sendWithProvider
+      const provider = {
+        id: connection.connection_id,
+        type: connection.type,
+        name: connection.name,
+        config: decryptedConfig
+      };
+      
+      // Send test email using the provider
+      const result = await notificationService.sendWithProvider(provider, {
         to: [to_email],
         subject: 'Test Email from Data File Observatory',
-        html: '<p>This is a test email to verify your email connection is working correctly.</p>',
-        text: 'This is a test email to verify your email connection is working correctly.',
-        connectionId: connection.connection_id
+        html: '<p>This is a test email to verify your email connection is working correctly.</p><p>If you received this message, your email provider configuration is working!</p>',
+        text: 'This is a test email to verify your email connection is working correctly. If you received this message, your email provider configuration is working!'
       });
       
       if (result.success) {
