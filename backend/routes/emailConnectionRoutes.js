@@ -52,7 +52,7 @@ router.get('/:connectionId', async (req, res) => {
   try {
     const { connectionId } = req.params;
     
-    const connection = await ConnectionService.getConnection(connectionId);
+    const connection = await ConnectionService.getConnectionById(connectionId);
     
     if (!connection) {
       return res.status(404).json({
@@ -270,7 +270,7 @@ router.post('/:connectionId/test', async (req, res) => {
       });
     }
     
-    const connection = await ConnectionService.getConnection(connectionId);
+    const connection = await ConnectionService.getConnectionById(connectionId);
     
     if (!connection) {
       return res.status(404).json({
