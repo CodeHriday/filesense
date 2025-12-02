@@ -6,6 +6,7 @@ import PasswordStrengthMeter from '../components/PasswordStrengthMeter';
 import PasswordInput from '../components/PasswordInput';
 import Pagination from '../components/Pagination';
 import TransferOwnershipModal from '../components/TransferOwnershipModal';
+import ThreeSectionModal from '../components/ThreeSectionModal';
 import { useAuth } from '../context/AuthContext';
 import { getAllUsers, getRoles, createUser, updateUser, deleteUser } from '../api/authService';
 import axios from 'axios';
@@ -807,196 +808,194 @@ const UserManagement = () => {
       />
       
       {/* User Form Modal */}
-      {modalOpen && (
-        <div className="modal-overlay">
-          <div className="user-modal" role="dialog" aria-labelledby="user-modal-title">
-            {/* Static Header */}
-            <div className="modal-header">
-              <h2 id="user-modal-title">
-                {modalMode === 'create' ? 'Create New User' : 'Edit User'}
-              </h2>
-              <button className="close-modal-btn" onClick={closeModal} aria-label="Close">
-                ×
-              </button>
+      <ThreeSectionModal
+        isOpen={modalOpen}
+        onClose={closeModal}
+        title={modalMode === 'create' ? 'Create New User' : 'Edit User'}
+        size="medium"
+        footer={
+          <>
+            <button type="button" onClick={closeModal}>
+              Cancel
+            </button>
+            <button type="submit" form="user-form">
+              {modalMode === 'create' ? 'Create User' : 'Update User'}
+            </button>
+          </>
+        }
+      >
+        {modalError && (
+          <div className="gps-alert gps-alert--error" role="alert" style={{ marginBottom: '16px' }}>
+            {modalError}
+          </div>
+        )}
+        
+        <form id="user-form" onSubmit={handleSubmit}>
+          <div className="form-section">
+            <h3 className="section-title">ACCOUNT INFORMATION</h3>
+            
+            <div className="form-group">
+              <label htmlFor="username">Username <span className="required-field">*</span></label>
+              <input
+                type="text"
+                id="username"
+                name="username"
+                value={formData.username}
+                onChange={handleInputChange}
+                disabled={modalMode === 'edit'}
+                required
+              />
             </div>
             
-            {/* Scrollable Content */}
-            <div className="modal-content-scrollable">
-              {modalError && (
-                <div className="error-message modal-error-message" role="alert">
-                  {modalError}
-                </div>
-              )}
-              
-            <form onSubmit={handleSubmit} className="user-form">
+            {formData.auth_provider === 'local' && (
               <div className="form-group">
-                <label htmlFor="username">Username</label>
+                <label htmlFor="password">
+                  Password {modalMode === 'create' && <span className="required-field">*</span>}
+                  {modalMode === 'edit' && <span style={{ fontWeight: 'normal', fontSize: '9px', color: '#666' }}> (leave blank to keep current)</span>}
+                </label>
+                <PasswordInput
+                  id="password"
+                  name="password"
+                  value={formData.password}
+                  onChange={handleInputChange}
+                  placeholder={modalMode === 'edit' ? 'Leave blank to keep current' : 'Enter password'}
+                  required={modalMode === 'create'}
+                />
+                {modalMode === 'create' && formData.password && (
+                  <PasswordStrengthMeter password={formData.password} />
+                )}
+              </div>
+            )}
+          </div>
+          
+          <div className="form-section">
+            <h3 className="section-title">PERSONAL INFORMATION</h3>
+            
+            <div className="form-row-grid">
+              <div className="form-group">
+                <label htmlFor="first_name">First Name</label>
                 <input
                   type="text"
-                  id="username"
-                  name="username"
-                  value={formData.username}
+                  id="first_name"
+                  name="first_name"
+                  value={formData.first_name}
                   onChange={handleInputChange}
-                  disabled={modalMode === 'edit'}
-                  required
                 />
               </div>
               
-              {formData.auth_provider === 'local' && (
-                <div className="form-group">
-                  <label htmlFor="password">
-                    Password {modalMode === 'edit' && '(leave blank to keep current)'}
-                  </label>
-                  <PasswordInput
-                    id="password"
-                    name="password"
-                    value={formData.password}
-                    onChange={handleInputChange}
-                    placeholder={modalMode === 'edit' ? 'Leave blank to keep current' : 'Enter password'}
-                    required={modalMode === 'create'}
-                  />
-                  {modalMode === 'create' && formData.password && (
-                    <PasswordStrengthMeter password={formData.password} />
-                  )}
-                </div>
-              )}
-              
-              <div className="form-row">
-                <div className="form-group">
-                  <label htmlFor="first_name">First Name</label>
-                  <input
-                    type="text"
-                    id="first_name"
-                    name="first_name"
-                    value={formData.first_name}
-                    onChange={handleInputChange}
-                  />
-                </div>
-                
-                <div className="form-group">
-                  <label htmlFor="middle_name">Middle Name</label>
-                  <input
-                    type="text"
-                    id="middle_name"
-                    name="middle_name"
-                    value={formData.middle_name}
-                    onChange={handleInputChange}
-                  />
-                </div>
-              </div>
-              
-              <div className="form-row">
-                <div className="form-group">
-                  <label htmlFor="last_name">Last Name</label>
-                  <input
-                    type="text"
-                    id="last_name"
-                    name="last_name"
-                    value={formData.last_name}
-                    onChange={handleInputChange}
-                  />
-                </div>
-                
-                <div className="form-group">
-                  <label htmlFor="phone_number">Phone Number</label>
-                  <input
-                    type="tel"
-                    id="phone_number"
-                    name="phone_number"
-                    value={formData.phone_number}
-                    onChange={handleInputChange}
-                    placeholder="+1-555-123-4567"
-                  />
-                </div>
-              </div>
-              
               <div className="form-group">
-                <label htmlFor="email">Email</label>
+                <label htmlFor="middle_name">Middle Name</label>
                 <input
-                  type="email"
-                  id="email"
-                  name="email"
-                  value={formData.email}
+                  type="text"
+                  id="middle_name"
+                  name="middle_name"
+                  value={formData.middle_name}
                   onChange={handleInputChange}
                 />
               </div>
-              
-              <div className="form-row">
-                <div className="form-group">
-                  <label htmlFor="user_type">User Type</label>
-                  <select
-                    id="user_type"
-                    name="user_type"
-                    value={formData.user_type}
-                    onChange={handleInputChange}
-                  >
-                    <option value="">Select Type</option>
-                    <option value="FTE">FTE</option>
-                    <option value="Consultant">Consultant</option>
-                    <option value="Vendor">Vendor</option>
-                  </select>
-                </div>
-                
-                <div className="form-group">
-                  <label htmlFor="internal_user" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <input
-                      type="checkbox"
-                      id="internal_user"
-                      name="internal_user"
-                      checked={formData.internal_user}
-                      onChange={(e) => setFormData(prev => ({ ...prev, internal_user: e.target.checked }))}
-                      disabled={formData.user_type === 'Vendor'}
-                      style={{ width: 'auto', margin: 0 }}
-                    />
-                    Internal User
-                  </label>
-                </div>
-              </div>
-              
-              <div className="form-group">
-                <label>Roles <span className="required-field">*</span></label>
-                <div className="roles-info">
-                  At least one role must be assigned to each user.
-                  {roles.length === 0 && (
-                    <div className="no-roles-warning">
-                      No roles available. Please <Link to="/roles">create roles</Link> first.
-                    </div>
-                  )}
-                </div>
-                <div className="roles-checkboxes">
-                  {roles
-                    .filter(role => role.name !== 'Viewer') // Filter out the Viewer role
-                    .map(role => (
-                      <div key={role.id} className="role-checkbox">
-                        <label htmlFor={`role-${role.id}`}>
-                          {role.name}
-                        </label>
-                        <input
-                          type="checkbox"
-                          id={`role-${role.id}`}
-                          value={role.name}
-                          checked={formData.roles.includes(role.name)}
-                          onChange={handleRoleChange}
-                        />
-                      </div>
-                    ))}
-                </div>
-              </div>
-            </form>
             </div>
             
-            {/* Static Footer */}
-            <div className="modal-footer">
-              <button type="button" className="cancel-btn" onClick={closeModal}>
-                Cancel
-              </button>
-              <button type="submit" className="save-btn" onClick={handleSubmit}>
-                {modalMode === 'create' ? 'Create User' : 'Update User'}
-              </button>
+            <div className="form-row-grid">
+              <div className="form-group">
+                <label htmlFor="last_name">Last Name</label>
+                <input
+                  type="text"
+                  id="last_name"
+                  name="last_name"
+                  value={formData.last_name}
+                  onChange={handleInputChange}
+                />
+              </div>
+              
+              <div className="form-group">
+                <label htmlFor="phone_number">Phone Number</label>
+                <input
+                  type="tel"
+                  id="phone_number"
+                  name="phone_number"
+                  value={formData.phone_number}
+                  onChange={handleInputChange}
+                  placeholder="+1-555-123-4567"
+                />
+              </div>
+            </div>
+            
+            <div className="form-group">
+              <label htmlFor="email">Email</label>
+              <input
+                type="email"
+                id="email"
+                name="email"
+                value={formData.email}
+                onChange={handleInputChange}
+              />
             </div>
           </div>
-        </div>
-      )}
+          
+          <div className="form-section">
+            <h3 className="section-title">USER CLASSIFICATION</h3>
+            
+            <div className="form-row-grid">
+              <div className="form-group">
+                <label htmlFor="user_type">User Type</label>
+                <select
+                  id="user_type"
+                  name="user_type"
+                  value={formData.user_type}
+                  onChange={handleInputChange}
+                >
+                  <option value="">Select Type</option>
+                  <option value="FTE">FTE</option>
+                  <option value="Consultant">Consultant</option>
+                  <option value="Vendor">Vendor</option>
+                </select>
+              </div>
+              
+              <div className="form-group" style={{ display: 'flex', alignItems: 'flex-end', paddingBottom: '8px' }}>
+                <div className="checkbox-group">
+                  <input
+                    type="checkbox"
+                    id="internal_user"
+                    name="internal_user"
+                    checked={formData.internal_user}
+                    onChange={(e) => setFormData(prev => ({ ...prev, internal_user: e.target.checked }))}
+                    disabled={formData.user_type === 'Vendor'}
+                  />
+                  <label htmlFor="internal_user" style={{ marginBottom: 0, cursor: 'pointer' }}>Internal User</label>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div className="form-section">
+            <h3 className="section-title">ROLE ASSIGNMENT</h3>
+            <small style={{ display: 'block', marginBottom: '12px', color: '#666', fontSize: '10px' }}>
+              At least one role must be assigned to each user.
+              {roles.length === 0 && (
+                <span style={{ color: '#e53e3e', marginLeft: '8px' }}>
+                  No roles available. Please <Link to="/roles" style={{ color: '#025043' }}>create roles</Link> first.
+                </span>
+              )}
+            </small>
+            <div className="user-roles-grid">
+              {roles
+                .filter(role => role.name !== 'Viewer')
+                .map(role => (
+                  <div key={role.id} className="user-role-checkbox">
+                    <input
+                      type="checkbox"
+                      id={`role-${role.id}`}
+                      value={role.name}
+                      checked={formData.roles.includes(role.name)}
+                      onChange={handleRoleChange}
+                    />
+                    <label htmlFor={`role-${role.id}`}>{role.name}</label>
+                  </div>
+                ))}
+            </div>
+          </div>
+        </form>
+      </ThreeSectionModal>
       
       {/* Password Reset Requests Modal */}
       {resetRequestsModalOpen && (
