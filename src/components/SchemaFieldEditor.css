@@ -185,6 +185,8 @@
 
 .fields-table {
   overflow-x: auto;
+  overflow-y: auto;
+  max-height: 300px;
   border: 1px solid var(--border-light);
   border-radius: var(--radius-sm);
   margin-bottom: var(--space-2);
@@ -197,6 +199,9 @@
 
 .fields-table thead {
   background-color: var(--color-gray-50);
+  position: sticky;
+  top: 0;
+  z-index: 1;
 }
 
 .fields-table th {
@@ -209,6 +214,7 @@
   border-bottom: 2px solid var(--border-light);
   white-space: nowrap;
   text-transform: none;
+  background-color: var(--color-gray-50);
 }
 
 .fields-table tbody tr {
