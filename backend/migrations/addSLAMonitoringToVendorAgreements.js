@@ -18,7 +18,7 @@ async function up() {
       SELECT column_name 
       FROM information_schema.columns 
       WHERE table_name = 'vendor_agreements' 
-      AND column_name IN ('sla_enabled', 'frequency_pattern', 'arrival_days', 'alert_threshold_minutes')
+      AND column_name IN ('sla_enabled', 'frequency_pattern', 'arrival_time', 'arrival_days', 'alert_threshold_minutes')
     `);
     
     const existingColumns = columnCheck.rows.map(r => r.column_name);
@@ -43,6 +43,17 @@ async function up() {
       systemLogger.info('✓ Added frequency_pattern column to vendor_agreements');
     } else {
       systemLogger.info('⏭️  frequency_pattern column already exists');
+    }
+
+    // Add arrival_time column if not exists (stores time like "09:00")
+    if (!existingColumns.includes('arrival_time')) {
+      await client.query(`
+        ALTER TABLE vendor_agreements
+        ADD COLUMN arrival_time VARCHAR(10);
+      `);
+      systemLogger.info('✓ Added arrival_time column to vendor_agreements');
+    } else {
+      systemLogger.info('⏭️  arrival_time column already exists');
     }
 
     // Add arrival_days column if not exists (stores JSON array like ["Monday", "Wednesday"] or [1, 15])
