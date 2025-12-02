@@ -119,7 +119,12 @@ class VendorAgreementService {
         status,
         contract_start_date,
         contract_end_date,
-        sub_project_id
+        sub_project_id,
+        sla_enabled,
+        frequency_pattern,
+        arrival_time,
+        arrival_days,
+        alert_threshold_minutes
       } = agreementData;
       
       // Check for duplicate file_name
