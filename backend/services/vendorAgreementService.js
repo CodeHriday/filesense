@@ -992,6 +992,23 @@ class VendorAgreementService {
         paramIndex++;
       }
       
+      // For draft agreements, always ensure approval_status is null
+      // This handles both new drafts and existing drafts that may have stale approval_status
+      const effectiveStatus = status !== undefined ? status : current.status;
+      if (effectiveStatus === 'draft' && current.approval_status !== null) {
+        updates.push(`approval_status = NULL`);
+        updates.push(`vendor_approved_at = NULL`);
+        updates.push(`vendor_approved_by = NULL`);
+        updates.push(`owner_approved_at = NULL`);
+        updates.push(`owner_approved_by = NULL`);
+        changes.approval_status = { from: current.approval_status, to: null };
+        
+        systemLogger.info('Reset approval status for draft agreement', { 
+          agreementId, 
+          previousApprovalStatus: current.approval_status
+        });
+      }
+      
       if (updates.length === 0) {
         return { success: false, error: 'No changes detected' };
       }
