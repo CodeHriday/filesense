@@ -310,6 +310,76 @@ class EmailComposer {
   }
 
   /**
+   * Compose vendor agreement update notification email
+   * @param {Object} data - Agreement update data
+   * @returns {Promise<Object>} - { subject, html, text }
+   */
+  async composeVendorAgreementUpdate(data) {
+    this.registerHelpers();
+
+    const { 
+      agreement, 
+      vendorName, 
+      changeSummary, 
+      changes,
+      updatedByName,
+      baseUrl 
+    } = data;
+    
+    const subject = `[Agreement Updated] ${agreement.agreement_code} - ${vendorName}`;
+    
+    const getStatusClass = (status) => {
+      switch (status?.toLowerCase()) {
+        case 'draft': return 'draft';
+        case 'active': return 'active';
+        case 'closed': return 'draft';
+        default: return 'active';
+      }
+    };
+
+    const formatApprovalStatus = (status) => {
+      if (!status) return null;
+      const statusMap = {
+        'pending_vendor_acceptance': 'Pending Vendor Acceptance',
+        'changes_pending': 'Changes Pending Vendor Review',
+        'vendor_accepted': 'Vendor Accepted - Pending Manager',
+        'vendor_rejected': 'Vendor Rejected',
+        'manager_approved': 'Manager Approved - Pending Governance',
+        'manager_rejected': 'Manager Rejected',
+        'governance_approved': 'Fully Approved',
+        'governance_rejected': 'Governance Rejected',
+        'draft': 'Draft'
+      };
+      return statusMap[status] || status;
+    };
+    
+    const templateData = {
+      agreementCode: agreement.agreement_code,
+      vendorName,
+      status: agreement.status?.charAt(0).toUpperCase() + agreement.status?.slice(1) || 'Unknown',
+      statusClass: getStatusClass(agreement.status),
+      approvalStatus: formatApprovalStatus(agreement.approval_status),
+      updatedByName: updatedByName || 'System',
+      updatedAt: new Date(),
+      hasChanges: changes && changes.length > 0,
+      changes: changes || [],
+      changeSummary,
+      agreementUrl: `${baseUrl}/vendor/agreements?id=${agreement.id}`
+    };
+
+    const [htmlTemplate, textTemplate] = await Promise.all([
+      this.loadTemplate('vendor-agreement-update', 'html'),
+      this.loadTemplate('vendor-agreement-update', 'text')
+    ]);
+
+    return {
+      subject,
+      html: htmlTemplate(templateData),
+      text: textTemplate(templateData)
+    };
+  }
+
+  /**
    * Compose alert email based on entity type
    * @param {string} entityType - 'job', 'workflow', 'mapping_group', 'schedule'
    * @param {Object} entityData - Entity-specific data
@@ -325,6 +395,8 @@ class EmailComposer {
         return await this.composeMappingGroupAlert(entityData);
       case 'schedule':
         return await this.composeScheduleAlert(entityData);
+      case 'vendor_agreement':
+        return await this.composeVendorAgreementUpdate(entityData);
       default:
         throw new Error(`Unsupported entity type for alert composition: ${entityType}`);
     }

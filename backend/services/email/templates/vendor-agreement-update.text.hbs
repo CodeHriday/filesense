@@ -1,0 +1,35 @@
+VENDOR AGREEMENT UPDATED
+========================
+
+Agreement: {{agreementCode}}
+
+AGREEMENT DETAILS
+-----------------
+Vendor: {{vendorName}}
+Agreement Code: {{agreementCode}}
+Status: {{status}}
+{{#if approvalStatus}}Approval Status: {{approvalStatus}}
+{{/if}}Updated By: {{updatedByName}}
+Updated At: {{formatDate updatedAt}}
+
+{{#if hasChanges}}
+WHAT CHANGED
+------------
+{{#each changes}}
+- {{field}}: {{#if oldValue}}{{oldValue}} → {{/if}}{{newValue}}
+{{/each}}
+{{/if}}
+
+{{#if changeSummary}}
+CHANGE SUMMARY
+--------------
+{{changeSummary}}
+{{/if}}
+
+VIEW AGREEMENT
+--------------
+{{agreementUrl}}
+
+---
+This is an automated notification from Data File Observatory.
+You are receiving this email because you are listed as a stakeholder for this vendor agreement.
