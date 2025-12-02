@@ -20,7 +20,6 @@ const PROVIDER_TYPES = {
 
 export const EmailProvidersConfig = () => {
   const [connections, setConnections] = useState([]);
-  const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -32,13 +31,11 @@ export const EmailProvidersConfig = () => {
   const [formData, setFormData] = useState({
     name: '',
     provider_type: 'smtp',
-    project_id: '',
     config: {}
   });
 
   useEffect(() => {
     loadConnections();
-    loadProjects();
   }, []);
 
   const loadConnections = async () => {
@@ -58,24 +55,11 @@ export const EmailProvidersConfig = () => {
     }
   };
 
-  const loadProjects = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const response = await axios.get('/api/projects', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setProjects(Array.isArray(response.data) ? response.data : []);
-    } catch (err) {
-      console.error('Failed to load projects:', err);
-    }
-  };
-
   const handleCreateConnection = async () => {
     try {
       const payload = {
         name: formData.name,
         provider_type: formData.provider_type,
-        project_id: formData.project_id,
         config: formData.config
       };
 
@@ -124,12 +108,6 @@ export const EmailProvidersConfig = () => {
   };
 
   const handleOAuth2Auth = async (providerType) => {
-    const projectId = formData.project_id;
-    if (!projectId) {
-      alert('Please select a project first');
-      return;
-    }
-
     try {
       // Call POST endpoint to get auth URL
       const token = localStorage.getItem('token');
@@ -137,7 +115,7 @@ export const EmailProvidersConfig = () => {
       
       const response = await axios.post(
         `/api/email-connections/oauth2/${provider}/auth`,
-        { project_id: projectId },
+        { name: formData.name },
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
@@ -179,7 +157,6 @@ export const EmailProvidersConfig = () => {
     setFormData({
       name: '',
       provider_type: 'smtp',
-      project_id: '',
       config: {}
     });
   };
@@ -204,7 +181,7 @@ export const EmailProvidersConfig = () => {
           <button
             onClick={() => handleOAuth2Auth(provider_type)}
             className="btn-primary"
-            disabled={!formData.project_id}
+            disabled={!formData.name}
           >
             Authorize {provider_type === 'gmail_oauth2' ? 'Gmail' : 'Outlook'}
           </button>
@@ -416,7 +393,7 @@ export const EmailProvidersConfig = () => {
   };
 
   const isFormValid = () => {
-    if (!formData.name || !formData.project_id) return false;
+    if (!formData.name) return false;
 
     const { provider_type, config } = formData;
 
@@ -499,20 +476,14 @@ export const EmailProvidersConfig = () => {
                   </div>
                 </div>
 
-                <div className="provider-details">
-                  <div className="detail-item">
-                    <span className="detail-label">Project:</span>
-                    <span className="detail-value">
-                      {projects.find(p => p.id === connection.project_id)?.name || connection.project_id}
-                    </span>
-                  </div>
-                  {connection.config?.from && (
+                {connection.config?.from && (
+                  <div className="provider-details">
                     <div className="detail-item">
                       <span className="detail-label">From:</span>
                       <span className="detail-value">{connection.config.from}</span>
                     </div>
-                  )}
-                </div>
+                  </div>
+                )}
 
                 <div className="provider-actions">
                   <button
@@ -573,21 +544,6 @@ export const EmailProvidersConfig = () => {
             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
             placeholder="Production Alerts"
           />
-        </div>
-
-        <div className="form-group">
-          <label>Project <span className="required-field">*</span></label>
-          <select
-            value={formData.project_id}
-            onChange={(e) => setFormData({ ...formData, project_id: e.target.value })}
-          >
-            <option value="">Select a project</option>
-            {projects.map((project) => (
-              <option key={project.id} value={project.id}>
-                {project.name}
-              </option>
-            ))}
-          </select>
         </div>
 
         <div className="form-group">
