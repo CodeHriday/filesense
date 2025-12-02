@@ -84,7 +84,6 @@
 
 .schema-field-editor .header-toggle-row .toggle-slider {
   position: absolute;
-  cursor: pointer;
   top: 0;
   left: 0;
   right: 0;
@@ -93,7 +92,7 @@
   transition: background-color 0.3s ease;
   border-radius: 24px;
   z-index: 1;
-  pointer-events: none; /* Fix: Let clicks pass through to parent toggle-switch */
+  pointer-events: none !important; /* Fix: Let clicks pass through to parent toggle-switch */
 }
 
 .schema-field-editor .header-toggle-row .toggle-knob {
@@ -107,6 +106,7 @@
   border-radius: 50%;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
   z-index: 2;
+  pointer-events: none !important; /* Fix: Let clicks pass through to parent toggle-switch */
 }
 
 .schema-field-editor .header-toggle-row .toggle-switch.on .toggle-slider {
