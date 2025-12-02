@@ -954,6 +954,21 @@ class VendorAgreementService {
         params.push(status);
         changes.status = { from: current.status, to: status };
         paramIndex++;
+        
+        // If changing to draft status, reset approval_status to null and clear all approval fields
+        if (status === 'draft') {
+          updates.push(`approval_status = NULL`);
+          updates.push(`vendor_approved_at = NULL`);
+          updates.push(`vendor_approved_by = NULL`);
+          updates.push(`owner_approved_at = NULL`);
+          updates.push(`owner_approved_by = NULL`);
+          changes.approval_status = { from: current.approval_status, to: null };
+          
+          systemLogger.info('Reset approval status for draft agreement', { 
+            agreementId, 
+            previousApprovalStatus: current.approval_status
+          });
+        }
       }
       
       // Initialize approval workflow when activating a draft
