@@ -24,6 +24,8 @@ export const EmailProvidersConfig = () => {
   const [error, setError] = useState(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showTestModal, setShowTestModal] = useState(false);
+  const [showErrorModal, setShowErrorModal] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
   const [selectedConnection, setSelectedConnection] = useState(null);
   const [testEmail, setTestEmail] = useState('');
   const [testResult, setTestResult] = useState(null);
@@ -33,6 +35,11 @@ export const EmailProvidersConfig = () => {
     provider_type: 'smtp',
     config: {}
   });
+
+  const showError = (message) => {
+    setErrorMessage(message);
+    setShowErrorModal(true);
+  };
 
   useEffect(() => {
     loadConnections();
@@ -71,7 +78,7 @@ export const EmailProvidersConfig = () => {
         resetForm();
       }
     } catch (err) {
-      alert(err.response?.data?.error || 'Failed to create email connection');
+      showError(err.response?.data?.error || 'Failed to create email connection');
     }
   };
 
@@ -84,7 +91,7 @@ export const EmailProvidersConfig = () => {
         loadConnections();
       }
     } catch (err) {
-      alert(err.response?.data?.error || 'Failed to delete email connection');
+      showError(err.response?.data?.error || 'Failed to delete email connection');
     }
   };
 
@@ -120,7 +127,7 @@ export const EmailProvidersConfig = () => {
       );
 
       if (!response.data.success) {
-        alert(response.data.error || 'Failed to initiate OAuth2 flow');
+        showError(response.data.error || 'Failed to initiate OAuth2 flow');
         return;
       }
 
@@ -139,17 +146,16 @@ export const EmailProvidersConfig = () => {
           loadConnections();
           setShowCreateModal(false);
           resetForm();
-          alert('Email connection created successfully!');
         } else if (event.data && event.data.type === 'oauth2_error') {
           window.removeEventListener('message', handleMessage);
           authWindow?.close();
-          alert(event.data.error || 'OAuth2 authorization failed');
+          showError(event.data.error || 'OAuth2 authorization failed');
         }
       };
 
       window.addEventListener('message', handleMessage);
     } catch (error) {
-      alert(error.response?.data?.error || 'Failed to initiate OAuth2 flow');
+      showError(error.response?.data?.error || 'Failed to initiate OAuth2 flow');
     }
   };
 
@@ -615,6 +621,28 @@ export const EmailProvidersConfig = () => {
               disabled={!testEmail || testResult?.loading}
             >
               {testResult?.loading ? 'Sending...' : 'Send Test Email'}
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal
+        isOpen={showErrorModal}
+        onClose={() => setShowErrorModal(false)}
+        title="Error"
+        size="small"
+      >
+        <div className="error-modal-content">
+          <div className="error-icon">
+            <FiAlertCircle size={32} color="#e53e3e" />
+          </div>
+          <p className="error-message">{errorMessage}</p>
+          <div className="modal-actions">
+            <button
+              onClick={() => setShowErrorModal(false)}
+              className="btn-primary"
+            >
+              OK
             </button>
           </div>
         </div>

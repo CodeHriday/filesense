@@ -10,48 +10,28 @@ const ConnectionService = require('../services/ConnectionService');
  * Handles email provider connections with OAuth2 support
  */
 
-// Get all email connections (filtered by user's accessible projects)
+// Get all email connections (application-wide, includes null project_id connections)
 router.get('/', async (req, res) => {
   try {
-    const { getUserProjects } = require('../middleware/requireProjectAccess');
-    
-    const isAdmin = req.user?.roles?.includes('Admin');
-    let projectIds = [];
-    
-    if (!isAdmin) {
-      const userProjects = await getUserProjects(req.user.id);
-      projectIds = userProjects.map(p => p.id);
-      
-      if (projectIds.length === 0) {
-        return res.json({
-          success: true,
-          connections: []
-        });
-      }
-    }
-    
-    let query = `
+    // Email connections are application-wide, so we include connections with null project_id
+    // All authenticated users can view email connections
+    const query = `
       SELECT 
         connection_id,
-        type,
+        type as provider_type,
         name,
         status,
         created_at,
         updated_at,
         project_id,
-        description
+        description,
+        config
       FROM storage_connections
       WHERE type IN ('smtp', 'gmail_oauth2', 'outlook_oauth2', 'sendgrid', 'ses', 'azure_email', 'gcp_email')
+      ORDER BY created_at DESC
     `;
     
-    if (!isAdmin && projectIds.length > 0) {
-      query += ` AND project_id = ANY($1)`;
-    }
-    
-    query += ` ORDER BY created_at DESC`;
-    
-    const params = (!isAdmin && projectIds.length > 0) ? [projectIds] : [];
-    const result = await pool.query(query, params);
+    const result = await pool.query(query);
     
     res.json({
       success: true,
@@ -111,20 +91,19 @@ router.get('/:connectionId',
 });
 
 // Create a new email connection
-router.post('/',
-  authorizeProjectResource({
-    resourceType: 'connection',
-    requiredPermissions: ['connection:create']
-  }),
-  async (req, res) => {
+// Email connections are application-wide and don't require project context
+router.post('/', async (req, res) => {
   try {
     const {
       name,
+      provider_type,
       type,
       description,
-      project_id,
       config
     } = req.body;
+    
+    // Use provider_type from frontend, fallback to type for backward compatibility
+    const connectionType = provider_type || type;
     
     // Validate required fields
     if (!name) {
@@ -134,23 +113,16 @@ router.post('/',
       });
     }
     
-    if (!type) {
+    if (!connectionType) {
       return res.status(400).json({
         success: false,
         error: 'Connection type is required'
       });
     }
     
-    if (!project_id) {
-      return res.status(400).json({
-        success: false,
-        error: 'Project ID is required'
-      });
-    }
-    
     // Validate email provider type
     const emailTypes = ['smtp', 'gmail_oauth2', 'outlook_oauth2', 'sendgrid', 'ses', 'azure_email', 'gcp_email'];
-    if (!emailTypes.includes(type)) {
+    if (!emailTypes.includes(connectionType)) {
       return res.status(400).json({
         success: false,
         error: `Invalid email provider type. Must be one of: ${emailTypes.join(', ')}`
@@ -165,11 +137,12 @@ router.post('/',
     }
     
     // Create connection using ConnectionService (handles encryption)
+    // Email connections are application-wide, so project_id is null
     const connection = await ConnectionService.createConnection({
       name,
-      type,
+      type: connectionType,
       description: description || null,
-      project_id,
+      project_id: null,
       config,
       connection_direction: 'outbound',
       status: 'active'
