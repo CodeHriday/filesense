@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { FiPlus, FiTrash2, FiCheck, FiX, FiAlertCircle } from 'react-icons/fi';
+import { FiPlus, FiTrash2, FiCheck, FiX, FiAlertCircle, FiSend } from 'react-icons/fi';
 import PageLayout from '../components/PageLayout';
-import Card from '../components/Card';
 import Modal from '../components/Modal';
 import ThreeSectionModal from '../components/ThreeSectionModal';
 import './EmailProvidersConfig.css';
+import '../styles/global-page-styles.css';
 import * as alertService from '../api/alertService';
 import axios from 'axios';
 
@@ -461,57 +461,62 @@ export const EmailProvidersConfig = () => {
         </div>
       )}
 
-      {connections.length === 0 ? (
-        <Card>
-          <div className="empty-state">
-            <h3>No email providers configured</h3>
-            <p>Add an email provider to start sending alert notifications</p>
-          </div>
-        </Card>
-      ) : (
-        <div className="providers-grid">
-          {connections.map((connection) => (
-            <Card key={connection.connection_id}>
-              <div className="provider-card">
-                <div className="provider-header">
-                  <div className="provider-info">
-                    <h3 className="provider-name">{connection.name}</h3>
-                    <span className="provider-type">
+      <div className="gps-table-container">
+        <table className="gps-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Provider Type</th>
+              <th>From Email</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {connections.length === 0 ? (
+              <tr>
+                <td colSpan="4" className="gps-table-empty">
+                  No email providers configured. Add an email provider to start sending alert notifications.
+                </td>
+              </tr>
+            ) : (
+              connections.map((connection) => (
+                <tr key={connection.connection_id}>
+                  <td>
+                    <span className="provider-name-cell">{connection.name}</span>
+                  </td>
+                  <td>
+                    <span className="provider-type-badge">
                       {PROVIDER_TYPES[connection.provider_type]?.label || connection.provider_type}
                     </span>
-                  </div>
-                </div>
-
-                {connection.config?.from && (
-                  <div className="provider-details">
-                    <div className="detail-item">
-                      <span className="detail-label">From:</span>
-                      <span className="detail-value">{connection.config.from}</span>
+                  </td>
+                  <td>
+                    <span className="from-email-cell">{connection.config?.from || '-'}</span>
+                  </td>
+                  <td>
+                    <div className="table-actions">
+                      <button
+                        onClick={() => openTestModal(connection)}
+                        className="gps-action-btn gps-action-btn--primary"
+                        title="Test Connection"
+                      >
+                        <FiSend size={14} />
+                        <span>Test</span>
+                      </button>
+                      <button
+                        onClick={() => handleDeleteConnection(connection.connection_id)}
+                        className="gps-action-btn gps-action-btn--danger"
+                        title="Delete Provider"
+                      >
+                        <FiTrash2 size={14} />
+                      </button>
                     </div>
-                  </div>
-                )}
-
-                <div className="provider-actions">
-                  <button
-                    onClick={() => openTestModal(connection)}
-                    className="btn-icon btn-icon-blue"
-                    title="Test Connection"
-                  >
-                    <FiCheck />
-                  </button>
-                  <button
-                    onClick={() => handleDeleteConnection(connection.connection_id)}
-                    className="btn-icon btn-icon-red"
-                    title="Delete Provider"
-                  >
-                    <FiTrash2 />
-                  </button>
-                </div>
-              </div>
-            </Card>
-          ))}
-        </div>
-      )}
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
 
       <ThreeSectionModal
         isOpen={showCreateModal}
