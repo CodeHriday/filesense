@@ -1622,6 +1622,83 @@ class VendorAgreementService {
       
       systemLogger.info('Vendor action completed', { agreementId, action, approverUserId, newStatus });
       
+      // Send email notification to all stakeholders asynchronously
+      try {
+        const VendorAgreementNotificationService = require('./VendorAgreementNotificationService');
+        
+        // Fetch the updated agreement with stakeholder data for notification
+        const updatedAgreementResult = await pool.query(
+          `SELECT va.*, 
+                  va.additional_stakeholder_user_ids,
+                  va.additional_stakeholder_group_ids
+           FROM vendor_agreements va 
+           WHERE va.id = $1`,
+          [agreementId]
+        );
+        
+        if (updatedAgreementResult.rows.length > 0) {
+          const updatedAgreement = updatedAgreementResult.rows[0];
+          
+          if (action === 'accept') {
+            // Send vendor acceptance notification
+            VendorAgreementNotificationService.sendVendorAcceptanceNotification({
+              agreement: updatedAgreement,
+              acceptedBy: approverUserId,
+              comments: comments,
+              baseUrl: process.env.APP_URL || 'https://your-app-url.replit.app'
+            }).then(result => {
+              if (result.success) {
+                systemLogger.info('Vendor acceptance email notification sent', {
+                  agreementId,
+                  recipientCount: result.sent
+                });
+              } else if (result.errors.length > 0) {
+                systemLogger.warn('Vendor acceptance email notification issues', {
+                  agreementId,
+                  errors: result.errors
+                });
+              }
+            }).catch(err => {
+              systemLogger.error('Failed to send vendor acceptance email notification', {
+                agreementId,
+                error: err.message
+              });
+            });
+          } else {
+            // Send vendor rejection notification
+            VendorAgreementNotificationService.sendVendorRejectionNotification({
+              agreement: updatedAgreement,
+              rejectedBy: approverUserId,
+              rejectionReason: comments,
+              baseUrl: process.env.APP_URL || 'https://your-app-url.replit.app'
+            }).then(result => {
+              if (result.success) {
+                systemLogger.info('Vendor rejection email notification sent', {
+                  agreementId,
+                  recipientCount: result.sent
+                });
+              } else if (result.errors.length > 0) {
+                systemLogger.warn('Vendor rejection email notification issues', {
+                  agreementId,
+                  errors: result.errors
+                });
+              }
+            }).catch(err => {
+              systemLogger.error('Failed to send vendor rejection email notification', {
+                agreementId,
+                error: err.message
+              });
+            });
+          }
+        }
+      } catch (notificationError) {
+        // Log but don't fail the main operation
+        systemLogger.error('Error setting up vendor action notification', {
+          agreementId,
+          error: notificationError.message
+        });
+      }
+      
       return {
         success: true,
         approvalStatus: newStatus,
