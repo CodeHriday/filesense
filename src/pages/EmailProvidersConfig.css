@@ -426,6 +426,17 @@
   border-color: #fca5a5;
 }
 
+.gps-action-btn--secondary {
+  background-color: #f3f4f6;
+  color: #374151;
+  border-color: #d1d5db;
+}
+
+.gps-action-btn--secondary:hover {
+  background-color: #e5e7eb;
+  border-color: #9ca3af;
+}
+
 
 /* Confirmation modal body - standardized for delete/error dialogs */
 .confirmation-body {

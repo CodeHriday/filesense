@@ -155,6 +155,18 @@ export const testEmailConnection = async (connectionId, toEmail) => {
   }
 };
 
+export const updateEmailConnection = async (connectionId, connection) => {
+  try {
+    const response = await axios.put(`${API_URL}/email-connections/${connectionId}`, connection, {
+      headers: getAuthHeaders()
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error updating email connection:', error);
+    throw error;
+  }
+};
+
 export const deleteEmailConnection = async (connectionId) => {
   try {
     const response = await axios.delete(`${API_URL}/email-connections/${connectionId}`, {

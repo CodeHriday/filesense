@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { FiPlus, FiTrash2, FiCheck, FiX, FiAlertCircle, FiSend } from 'react-icons/fi';
+import { FiPlus, FiTrash2, FiCheck, FiX, FiAlertCircle, FiSend, FiEdit2 } from 'react-icons/fi';
 import PageLayout from '../components/PageLayout';
-import Modal from '../components/Modal';
 import ThreeSectionModal from '../components/ThreeSectionModal';
+import ConfirmationModal from '../components/ConfirmationModal';
 import './EmailProvidersConfig.css';
 import '../styles/global-page-styles.css';
 import * as alertService from '../api/alertService';
@@ -31,6 +31,8 @@ export const EmailProvidersConfig = () => {
   const [testResult, setTestResult] = useState(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [connectionToDelete, setConnectionToDelete] = useState(null);
+  const [editMode, setEditMode] = useState(false);
+  const [editingConnection, setEditingConnection] = useState(null);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -81,6 +83,41 @@ export const EmailProvidersConfig = () => {
       }
     } catch (err) {
       showError(err.response?.data?.error || 'Failed to create email connection');
+    }
+  };
+
+  const handleEditClick = (connection) => {
+    setEditMode(true);
+    setEditingConnection(connection);
+    setFormData({
+      name: connection.name,
+      provider_type: connection.provider_type,
+      config: connection.config || {}
+    });
+    setShowCreateModal(true);
+  };
+
+  const handleUpdateConnection = async () => {
+    if (!editingConnection) return;
+    
+    try {
+      const payload = {
+        name: formData.name,
+        provider_type: formData.provider_type,
+        config: formData.config
+      };
+
+      const response = await alertService.updateEmailConnection(editingConnection.connection_id, payload);
+      
+      if (response.success) {
+        loadConnections();
+        setShowCreateModal(false);
+        resetForm();
+        setEditMode(false);
+        setEditingConnection(null);
+      }
+    } catch (err) {
+      showError(err.response?.data?.error || 'Failed to update email connection');
     }
   };
 
@@ -187,6 +224,8 @@ export const EmailProvidersConfig = () => {
       provider_type: 'smtp',
       config: {}
     });
+    setEditMode(false);
+    setEditingConnection(null);
   };
 
   const openTestModal = (connection) => {
@@ -532,6 +571,13 @@ export const EmailProvidersConfig = () => {
                         <span>Test</span>
                       </button>
                       <button
+                        onClick={() => handleEditClick(connection)}
+                        className="gps-action-btn gps-action-btn--secondary"
+                        title="Edit Provider"
+                      >
+                        <FiEdit2 size={14} />
+                      </button>
+                      <button
                         onClick={() => handleDeleteClick(connection)}
                         className="gps-action-btn gps-action-btn--danger"
                         title="Delete Provider"
@@ -553,7 +599,7 @@ export const EmailProvidersConfig = () => {
           setShowCreateModal(false);
           resetForm();
         }}
-        title="Add Email Provider"
+        title={editMode ? "Edit Email Provider" : "Add Email Provider"}
         size="medium"
         footer={
           <>
@@ -565,12 +611,12 @@ export const EmailProvidersConfig = () => {
             >
               Cancel
             </button>
-            {formData.provider_type !== 'gmail_oauth2' && formData.provider_type !== 'outlook_oauth2' && (
+            {(editMode || (formData.provider_type !== 'gmail_oauth2' && formData.provider_type !== 'outlook_oauth2')) && (
               <button
-                onClick={handleCreateConnection}
+                onClick={editMode ? handleUpdateConnection : handleCreateConnection}
                 disabled={!isFormValid()}
               >
-                Add Provider
+                {editMode ? 'Update Provider' : 'Add Provider'}
               </button>
             )}
           </>
@@ -644,47 +690,28 @@ export const EmailProvidersConfig = () => {
         )}
       </ThreeSectionModal>
 
-      <Modal
+      <ConfirmationModal
         isOpen={showDeleteModal}
         onClose={handleCancelDelete}
+        onConfirm={handleConfirmDelete}
         title="Delete Email Provider"
-        size="small"
-        footer={
-          <>
-            <button onClick={handleCancelDelete} className="btn-secondary">
-              Cancel
-            </button>
-            <button onClick={handleConfirmDelete} className="btn-danger">
-              Delete
-            </button>
-          </>
-        }
-      >
-        <div className="confirmation-body">
-          <FiAlertCircle size={32} color="#e53e3e" />
-          <p>
-            Are you sure you want to delete the email provider <strong>"{connectionToDelete?.name}"</strong>?
-          </p>
-          <p className="warning-text">This action cannot be undone.</p>
-        </div>
-      </Modal>
+        message={<>Are you sure you want to delete the email provider <strong>"{connectionToDelete?.name}"</strong>?</>}
+        subMessage="This action cannot be undone."
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="danger"
+      />
 
-      <Modal
+      <ConfirmationModal
         isOpen={showErrorModal}
         onClose={() => setShowErrorModal(false)}
+        onConfirm={() => setShowErrorModal(false)}
         title="Error"
-        size="small"
-        footer={
-          <button onClick={() => setShowErrorModal(false)} className="btn-primary">
-            OK
-          </button>
-        }
-      >
-        <div className="confirmation-body">
-          <FiAlertCircle size={32} color="#e53e3e" />
-          <p>{errorMessage}</p>
-        </div>
-      </Modal>
+        message={errorMessage}
+        confirmText="OK"
+        variant="danger"
+        showCancel={false}
+      />
     </PageLayout>
   );
 };
