@@ -1341,6 +1341,284 @@ router.delete('/:id/archive-password', requirePermission('vendor_agreements:writ
   }
 });
 
+// ===========================
+// ADDITIONAL STAKEHOLDERS ENDPOINTS
+// ===========================
+
+/**
+ * GET /stakeholder-options
+ * Get list of internal users and access groups that can be added as stakeholders
+ * Only returns internal users (internal_user = true) for security
+ */
+router.get('/stakeholder-options', requirePermission('vendor_agreements:read'), async (req, res) => {
+  try {
+    const { pool } = require('../config/database');
+    
+    // Get internal users only (security: no external users can be added)
+    const usersResult = await pool.query(`
+      SELECT 
+        u.id,
+        u.username,
+        u.email,
+        TRIM(CONCAT(u.first_name, ' ', COALESCE(u.middle_name, ''), ' ', u.last_name)) AS full_name
+      FROM users u
+      WHERE u.internal_user = true
+      ORDER BY u.first_name, u.last_name, u.username
+    `);
+    
+    // Get access groups
+    const groupsResult = await pool.query(`
+      SELECT 
+        ag.id,
+        ag.name,
+        ag.description,
+        ag.group_type,
+        (
+          SELECT COUNT(*)::int 
+          FROM user_groups ug 
+          WHERE ug.group_id = ag.id
+        ) as member_count
+      FROM access_groups ag
+      ORDER BY ag.name
+    `);
+    
+    res.json({
+      success: true,
+      users: usersResult.rows.map(u => ({
+        id: u.id,
+        username: u.username,
+        email: u.email,
+        fullName: u.full_name || u.username || u.email
+      })),
+      groups: groupsResult.rows.map(g => ({
+        id: g.id,
+        name: g.name,
+        description: g.description,
+        groupType: g.group_type,
+        memberCount: g.member_count
+      }))
+    });
+    
+  } catch (error) {
+    systemLogger.error('Error fetching stakeholder options', {
+      error: error.message,
+      userId: req.user?.id
+    });
+    res.status(500).json({
+      error: 'Failed to fetch stakeholder options',
+      details: error.message
+    });
+  }
+});
+
+/**
+ * GET /:id/stakeholders
+ * Get current additional stakeholders for an agreement
+ */
+router.get('/:id/stakeholders', checkAgreementAccess, async (req, res) => {
+  try {
+    const agreementId = parseInt(req.params.id);
+    
+    if (isNaN(agreementId)) {
+      return res.status(400).json({ error: 'Invalid agreement ID' });
+    }
+    
+    const { pool } = require('../config/database');
+    
+    // Get agreement with stakeholder IDs
+    const agreementResult = await pool.query(`
+      SELECT 
+        additional_stakeholder_user_ids,
+        additional_stakeholder_group_ids
+      FROM vendor_agreements
+      WHERE id = $1
+    `, [agreementId]);
+    
+    if (agreementResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Agreement not found' });
+    }
+    
+    const agreement = agreementResult.rows[0];
+    const userIds = agreement.additional_stakeholder_user_ids || [];
+    const groupIds = agreement.additional_stakeholder_group_ids || [];
+    
+    // Get user details for the selected user IDs
+    let users = [];
+    if (userIds.length > 0) {
+      const usersResult = await pool.query(`
+        SELECT 
+          u.id,
+          u.username,
+          u.email,
+          TRIM(CONCAT(u.first_name, ' ', COALESCE(u.middle_name, ''), ' ', u.last_name)) AS full_name
+        FROM users u
+        WHERE u.id = ANY($1::int[])
+        ORDER BY u.first_name, u.last_name
+      `, [userIds]);
+      users = usersResult.rows.map(u => ({
+        id: u.id,
+        username: u.username,
+        email: u.email,
+        fullName: u.full_name || u.username || u.email
+      }));
+    }
+    
+    // Get group details for the selected group IDs
+    let groups = [];
+    if (groupIds.length > 0) {
+      const groupsResult = await pool.query(`
+        SELECT 
+          ag.id,
+          ag.name,
+          ag.description,
+          ag.group_type,
+          (
+            SELECT COUNT(*)::int 
+            FROM user_groups ug 
+            WHERE ug.group_id = ag.id
+          ) as member_count
+        FROM access_groups ag
+        WHERE ag.id = ANY($1::int[])
+        ORDER BY ag.name
+      `, [groupIds]);
+      groups = groupsResult.rows.map(g => ({
+        id: g.id,
+        name: g.name,
+        description: g.description,
+        groupType: g.group_type,
+        memberCount: g.member_count
+      }));
+    }
+    
+    res.json({
+      success: true,
+      userIds,
+      groupIds,
+      users,
+      groups
+    });
+    
+  } catch (error) {
+    systemLogger.error('Error fetching agreement stakeholders', {
+      agreementId: req.params.id,
+      error: error.message
+    });
+    res.status(500).json({
+      error: 'Failed to fetch stakeholders',
+      details: error.message
+    });
+  }
+});
+
+/**
+ * PUT /:id/stakeholders
+ * Update additional stakeholders for an agreement
+ */
+router.put('/:id/stakeholders', requirePermission('vendor_agreements:write'), async (req, res) => {
+  try {
+    const agreementId = parseInt(req.params.id);
+    const { userIds = [], groupIds = [] } = req.body;
+    
+    if (isNaN(agreementId)) {
+      return res.status(400).json({ error: 'Invalid agreement ID' });
+    }
+    
+    // Validate input arrays
+    if (!Array.isArray(userIds) || !Array.isArray(groupIds)) {
+      return res.status(400).json({ error: 'userIds and groupIds must be arrays' });
+    }
+    
+    const { pool } = require('../config/database');
+    
+    // Verify agreement exists
+    const agreementCheck = await pool.query(
+      'SELECT id FROM vendor_agreements WHERE id = $1',
+      [agreementId]
+    );
+    
+    if (agreementCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'Agreement not found' });
+    }
+    
+    // Validate that all user IDs are internal users (security check)
+    if (userIds.length > 0) {
+      const validUsersResult = await pool.query(`
+        SELECT id FROM users 
+        WHERE id = ANY($1::int[]) 
+        AND internal_user = true
+      `, [userIds]);
+      
+      const validUserIds = validUsersResult.rows.map(r => r.id);
+      const invalidUserIds = userIds.filter(id => !validUserIds.includes(id));
+      
+      if (invalidUserIds.length > 0) {
+        return res.status(400).json({
+          error: 'Invalid user IDs. Only internal users can be added as stakeholders.',
+          invalidIds: invalidUserIds
+        });
+      }
+    }
+    
+    // Validate that all group IDs exist
+    if (groupIds.length > 0) {
+      const validGroupsResult = await pool.query(`
+        SELECT id FROM access_groups 
+        WHERE id = ANY($1::int[])
+      `, [groupIds]);
+      
+      const validGroupIds = validGroupsResult.rows.map(r => r.id);
+      const invalidGroupIds = groupIds.filter(id => !validGroupIds.includes(id));
+      
+      if (invalidGroupIds.length > 0) {
+        return res.status(400).json({
+          error: 'Invalid group IDs',
+          invalidIds: invalidGroupIds
+        });
+      }
+    }
+    
+    // Update the agreement
+    await pool.query(`
+      UPDATE vendor_agreements
+      SET 
+        additional_stakeholder_user_ids = $1::jsonb,
+        additional_stakeholder_group_ids = $2::jsonb,
+        updated_at = NOW(),
+        updated_by = $3
+      WHERE id = $4
+    `, [
+      JSON.stringify(userIds),
+      JSON.stringify(groupIds),
+      req.user.id,
+      agreementId
+    ]);
+    
+    systemLogger.info('Updated agreement stakeholders', {
+      agreementId,
+      userIds,
+      groupIds,
+      updatedBy: req.user.id
+    });
+    
+    res.json({
+      success: true,
+      message: 'Stakeholders updated successfully',
+      userIds,
+      groupIds
+    });
+    
+  } catch (error) {
+    systemLogger.error('Error updating agreement stakeholders', {
+      agreementId: req.params.id,
+      error: error.message
+    });
+    res.status(500).json({
+      error: 'Failed to update stakeholders',
+      details: error.message
+    });
+  }
+});
+
 // Register Multer error handling middleware
 router.use(handleMulterError);
 
