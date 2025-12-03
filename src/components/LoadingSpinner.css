@@ -22,21 +22,54 @@
 }
 
 /* Throbbing spinner animation */
-/* UPDATED 2025-11-05 - ALL SPINNERS MUST BE 5PX */
+/* UPDATED 2025-12-03 - Spinner size set to 20px */
 .throb-spinner,
+div.throb-spinner {
+  width: 20px !important;
+  height: 20px !important;
+  min-width: 20px !important;
+  min-height: 20px !important;
+  max-width: 20px !important;
+  max-height: 20px !important;
+  background: var(--color-primary);
+  border-radius: var(--radius-full);
+  animation: throb 1.2s ease-in-out infinite;
+}
+
 .throb-spinner-small,
+div.throb-spinner-small {
+  width: 12px !important;
+  height: 12px !important;
+  min-width: 12px !important;
+  min-height: 12px !important;
+  max-width: 12px !important;
+  max-height: 12px !important;
+  background: var(--color-primary);
+  border-radius: var(--radius-full);
+  animation: throb 1.2s ease-in-out infinite;
+}
+
 .throb-spinner-medium,
+div.throb-spinner-medium {
+  width: 20px !important;
+  height: 20px !important;
+  min-width: 20px !important;
+  min-height: 20px !important;
+  max-width: 20px !important;
+  max-height: 20px !important;
+  background: var(--color-primary);
+  border-radius: var(--radius-full);
+  animation: throb 1.2s ease-in-out infinite;
+}
+
 .throb-spinner-large,
-div.throb-spinner,
-div.throb-spinner-small,
-div.throb-spinner-medium,
 div.throb-spinner-large {
-  width: 5px !important;
-  height: 5px !important;
-  min-width: 5px !important;
-  min-height: 5px !important;
-  max-width: 5px !important;
-  max-height: 5px !important;
+  width: 32px !important;
+  height: 32px !important;
+  min-width: 32px !important;
+  min-height: 32px !important;
+  max-width: 32px !important;
+  max-height: 32px !important;
   background: var(--color-primary);
   border-radius: var(--radius-full);
   animation: throb 1.2s ease-in-out infinite;
