@@ -187,11 +187,13 @@ class VendorAgreementNotificationService {
       if (!connectionId) {
         systemLogger?.debug('No default email provider configured in app_settings');
         
+        // Use correct column names: connection_id, status, is_deleted
         const result = await query(
-          `SELECT id, type, config, name 
+          `SELECT connection_id, type, config, name 
            FROM storage_connections 
            WHERE type IN ('smtp', 'gmail_oauth2', 'outlook_oauth2', 'sendgrid', 'ses', 'azure_email', 'gcp_email')
-           AND is_active = true
+           AND status = 'active'
+           AND (is_deleted = false OR is_deleted IS NULL)
            ORDER BY created_at ASC
            LIMIT 1`
         );
@@ -209,14 +211,18 @@ class VendorAgreementNotificationService {
         
         return {
           ...connection,
+          id: connection.connection_id, // Map connection_id to id for compatibility
           config: decryptedConfig
         };
       }
       
+      // Use correct column names: connection_id, status, is_deleted
       const result = await query(
-        `SELECT id, type, config, name 
+        `SELECT connection_id, type, config, name 
          FROM storage_connections 
-         WHERE id = $1 AND is_active = true`,
+         WHERE connection_id = $1 
+         AND status = 'active'
+         AND (is_deleted = false OR is_deleted IS NULL)`,
         [connectionId]
       );
       
@@ -233,10 +239,11 @@ class VendorAgreementNotificationService {
       
       return {
         ...connection,
+        id: connection.connection_id, // Map connection_id to id for compatibility
         config: decryptedConfig
       };
     } catch (error) {
-      systemLogger?.error('Failed to get email provider', { error: error.message });
+      systemLogger?.error('Failed to get email provider', { error: error.message, stack: error.stack });
       return null;
     }
   }
