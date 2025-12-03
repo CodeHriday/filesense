@@ -7,6 +7,8 @@
  * - Secondary contact (secondary_contact_email)
  * - Vendor Manager (manager_contact)
  * - Governance Manager (governance_manager_user_id -> users.email)
+ * - Additional stakeholder users (additional_stakeholder_user_ids)
+ * - Additional stakeholder group members (additional_stakeholder_group_ids -> user_groups -> users)
  */
 
 const { pool, query } = require('../config/database');
@@ -70,6 +72,57 @@ class VendorAgreementNotificationService {
         systemLogger?.warn('Failed to get governance manager email', {
           agreementId: agreement.id,
           governanceManagerUserId: agreement.governance_manager_user_id,
+          error: error.message
+        });
+      }
+    }
+
+    // Add additional stakeholder users
+    const additionalUserIds = agreement.additional_stakeholder_user_ids || [];
+    if (additionalUserIds.length > 0) {
+      try {
+        const result = await query(
+          `SELECT id, email, first_name, last_name 
+           FROM users 
+           WHERE id = ANY($1::int[]) AND internal_user = true`,
+          [additionalUserIds]
+        );
+        for (const user of result.rows) {
+          const name = [user.first_name, user.last_name].filter(Boolean).join(' ') || user.email;
+          addStakeholder(user.email, name, 'Additional Stakeholder');
+        }
+      } catch (error) {
+        systemLogger?.warn('Failed to get additional stakeholder users', {
+          agreementId: agreement.id,
+          userIds: additionalUserIds,
+          error: error.message
+        });
+      }
+    }
+
+    // Add additional stakeholder group members
+    const additionalGroupIds = agreement.additional_stakeholder_group_ids || [];
+    if (additionalGroupIds.length > 0) {
+      try {
+        // Get all user IDs from the specified groups via user_groups junction table
+        const groupMembersResult = await query(
+          `SELECT DISTINCT u.id, u.email, u.first_name, u.last_name, ag.name as group_name
+           FROM user_groups ug
+           INNER JOIN users u ON u.id = ug.user_id
+           INNER JOIN access_groups ag ON ag.id = ug.group_id
+           WHERE ug.group_id = ANY($1::int[]) 
+           AND u.internal_user = true`,
+          [additionalGroupIds]
+        );
+        
+        for (const member of groupMembersResult.rows) {
+          const name = [member.first_name, member.last_name].filter(Boolean).join(' ') || member.email;
+          addStakeholder(member.email, name, `Group Member (${member.group_name})`);
+        }
+      } catch (error) {
+        systemLogger?.warn('Failed to get additional stakeholder group members', {
+          agreementId: agreement.id,
+          groupIds: additionalGroupIds,
           error: error.message
         });
       }
