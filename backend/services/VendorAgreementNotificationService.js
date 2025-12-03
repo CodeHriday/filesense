@@ -162,7 +162,7 @@ class VendorAgreementNotificationService {
     
     try {
       const result = await query(
-        'SELECT username, first_name, last_name FROM users WHERE id = $1',
+        'SELECT username, first_name, last_name, email FROM users WHERE id = $1',
         [userId]
       );
       if (result.rows.length > 0) {
@@ -174,6 +174,142 @@ class VendorAgreementNotificationService {
     } catch (error) {
       return 'System';
     }
+  }
+
+  /**
+   * Get multiple user names by IDs
+   * @param {Array<number>} userIds - Array of user IDs
+   * @returns {Promise<Array<string>>} - Array of user display names
+   */
+  async getUserNamesByIds(userIds) {
+    if (!userIds || userIds.length === 0) return [];
+    
+    try {
+      const result = await query(
+        'SELECT id, username, first_name, last_name, email FROM users WHERE id = ANY($1::int[])',
+        [userIds]
+      );
+      
+      const userMap = new Map();
+      for (const user of result.rows) {
+        const fullName = [user.first_name, user.last_name].filter(Boolean).join(' ');
+        const displayName = fullName || user.username || user.email || `User ${user.id}`;
+        userMap.set(user.id, displayName);
+      }
+      
+      return userIds.map(id => userMap.get(id) || `User ${id}`);
+    } catch (error) {
+      systemLogger?.warn('Failed to get user names by IDs', { userIds, error: error.message });
+      return userIds.map(id => `User ${id}`);
+    }
+  }
+
+  /**
+   * Get multiple group names by IDs
+   * @param {Array<number>} groupIds - Array of group IDs
+   * @returns {Promise<Array<string>>} - Array of group names
+   */
+  async getGroupNamesByIds(groupIds) {
+    if (!groupIds || groupIds.length === 0) return [];
+    
+    try {
+      const result = await query(
+        'SELECT id, name FROM access_groups WHERE id = ANY($1::int[])',
+        [groupIds]
+      );
+      
+      const groupMap = new Map();
+      for (const group of result.rows) {
+        groupMap.set(group.id, group.name || `Group ${group.id}`);
+      }
+      
+      return groupIds.map(id => groupMap.get(id) || `Group ${id}`);
+    } catch (error) {
+      systemLogger?.warn('Failed to get group names by IDs', { groupIds, error: error.message });
+      return groupIds.map(id => `Group ${id}`);
+    }
+  }
+
+  /**
+   * Transform changes to replace IDs with friendly names for email display
+   * @param {Array} changes - Array of {field, oldValue, newValue} changes
+   * @returns {Promise<Array>} - Transformed changes with friendly names
+   */
+  async transformChangesForEmail(changes) {
+    if (!changes || changes.length === 0) return changes;
+    
+    const transformedChanges = [];
+    
+    for (const change of changes) {
+      let transformedChange = { ...change };
+      
+      // Transform additional_stakeholder_user_ids to user names
+      if (change.field === 'additional_stakeholder_user_ids' || 
+          change.field === 'Additional Stakeholder User Ids') {
+        const oldIds = Array.isArray(change.oldValue) ? change.oldValue : [];
+        const newIds = Array.isArray(change.newValue) ? change.newValue : [];
+        
+        const [oldNames, newNames] = await Promise.all([
+          this.getUserNamesByIds(oldIds),
+          this.getUserNamesByIds(newIds)
+        ]);
+        
+        transformedChange = {
+          field: 'Additional Stakeholders (Users)',
+          oldValue: oldNames.length > 0 ? oldNames.join(', ') : 'None',
+          newValue: newNames.length > 0 ? newNames.join(', ') : 'None'
+        };
+      }
+      // Transform additional_stakeholder_group_ids to group names
+      else if (change.field === 'additional_stakeholder_group_ids' ||
+               change.field === 'Additional Stakeholder Group Ids') {
+        const oldIds = Array.isArray(change.oldValue) ? change.oldValue : [];
+        const newIds = Array.isArray(change.newValue) ? change.newValue : [];
+        
+        const [oldNames, newNames] = await Promise.all([
+          this.getGroupNamesByIds(oldIds),
+          this.getGroupNamesByIds(newIds)
+        ]);
+        
+        transformedChange = {
+          field: 'Additional Stakeholders (Groups)',
+          oldValue: oldNames.length > 0 ? oldNames.join(', ') : 'None',
+          newValue: newNames.length > 0 ? newNames.join(', ') : 'None'
+        };
+      }
+      // Transform file_owner_user_id to user name
+      else if (change.field === 'file_owner_user_id' ||
+               change.field === 'File Owner User Id') {
+        const [oldName, newName] = await Promise.all([
+          change.oldValue ? this.getUserName(change.oldValue) : Promise.resolve('None'),
+          change.newValue ? this.getUserName(change.newValue) : Promise.resolve('None')
+        ]);
+        
+        transformedChange = {
+          field: 'File Owner',
+          oldValue: oldName,
+          newValue: newName
+        };
+      }
+      // Transform governance_manager_user_id to user name
+      else if (change.field === 'governance_manager_user_id' ||
+               change.field === 'Governance Manager User Id') {
+        const [oldName, newName] = await Promise.all([
+          change.oldValue ? this.getUserName(change.oldValue) : Promise.resolve('None'),
+          change.newValue ? this.getUserName(change.newValue) : Promise.resolve('None')
+        ]);
+        
+        transformedChange = {
+          field: 'Governance Manager',
+          oldValue: oldName,
+          newValue: newName
+        };
+      }
+      
+      transformedChanges.push(transformedChange);
+    }
+    
+    return transformedChanges;
   }
 
   /**
@@ -311,12 +447,15 @@ class VendorAgreementNotificationService {
 
       const vendorName = await this.getVendorName(agreement.vendor_id);
       const updatedByName = await this.getUserName(updatedBy);
+      
+      // Transform changes to replace IDs with friendly names
+      const transformedChanges = await this.transformChangesForEmail(changes);
 
       const emailContent = await EmailComposer.composeVendorAgreementUpdate({
         agreement,
         vendorName,
         changeSummary,
-        changes,
+        changes: transformedChanges,
         updatedByName,
         baseUrl: baseUrl || process.env.APP_URL || 'https://your-app-url.replit.app'
       });
