@@ -323,10 +323,20 @@ router.post('/:connectionId/test', async (req, res) => {
           details: result
         });
       } else {
+        // Ensure error details are always a string for frontend display
+        let errorDetails = result.error;
+        if (typeof errorDetails === 'object') {
+          if (errorDetails?.errors && Array.isArray(errorDetails.errors)) {
+            errorDetails = errorDetails.errors.map(e => e.message || e).join('; ');
+          } else {
+            errorDetails = JSON.stringify(errorDetails);
+          }
+        }
+        
         res.status(500).json({
           success: false,
           error: 'Failed to send test email',
-          details: result.error
+          details: errorDetails
         });
       }
     } catch (sendError) {

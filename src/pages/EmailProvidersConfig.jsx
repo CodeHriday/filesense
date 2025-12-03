@@ -161,7 +161,19 @@ export const EmailProvidersConfig = () => {
     } catch (err) {
       // Show detailed error message if available
       const errorMsg = err.response?.data?.error || 'Test failed';
-      const details = err.response?.data?.details;
+      let details = err.response?.data?.details;
+      
+      // Ensure details is always a string (handle object errors)
+      if (details && typeof details === 'object') {
+        if (details.errors && Array.isArray(details.errors)) {
+          details = details.errors.map(e => e.message || String(e)).join('; ');
+        } else if (details.message) {
+          details = details.message;
+        } else {
+          details = JSON.stringify(details);
+        }
+      }
+      
       const fullMessage = details && details !== errorMsg 
         ? `${errorMsg} (${details})`
         : errorMsg;

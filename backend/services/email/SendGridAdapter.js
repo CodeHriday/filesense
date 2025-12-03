@@ -180,12 +180,25 @@ class SendGridAdapter extends EmailProviderAdapter {
     } catch (err) {
       // Extract sendgrid errors (if present)
       const statusCode = err?.code || err?.response?.status || err?.statusCode;
-      const sgError = err?.response?.body || err?.response?.data || err?.message;
+      const sgErrorRaw = err?.response?.body || err?.response?.data || err?.message;
+      
+      // Always convert error to string for consistent frontend display
+      let sgError;
+      if (typeof sgErrorRaw === 'string') {
+        sgError = sgErrorRaw;
+      } else if (sgErrorRaw?.errors && Array.isArray(sgErrorRaw.errors)) {
+        // SendGrid returns { errors: [{ message, field, help }] }
+        sgError = sgErrorRaw.errors.map(e => e.message).join('; ');
+      } else if (sgErrorRaw?.error) {
+        sgError = sgErrorRaw.error;
+      } else {
+        sgError = JSON.stringify(sgErrorRaw);
+      }
 
       // Safe logging: avoid printing full payloads / secrets
       systemLogger?.error('SendGrid send failed', {
         provider: 'sendgrid',
-        error: typeof sgError === 'string' ? sgError : JSON.stringify(sgError).slice(0, 2000),
+        error: sgError.slice(0, 2000),
         statusCode,
         to: (Array.isArray(emailData?.to) ? emailData.to : emailData?.to)
       });
