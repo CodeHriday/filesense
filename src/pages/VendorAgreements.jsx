@@ -124,8 +124,14 @@ const VendorAgreements = () => {
     frequency_pattern: 'daily',
     arrival_time: '09:00',
     arrival_days: '',
-    alert_threshold_minutes: 60
+    alert_threshold_minutes: 60,
+    additional_stakeholder_user_ids: [],
+    additional_stakeholder_group_ids: []
   });
+  
+  // Additional stakeholders state
+  const [stakeholderOptions, setStakeholderOptions] = useState({ users: [], groups: [] });
+  const [loadingStakeholders, setLoadingStakeholders] = useState(false);
   
   const [templateFile, setTemplateFile] = useState(null);
   const [uploadingTemplate, setUploadingTemplate] = useState(false);
@@ -308,6 +314,24 @@ const VendorAgreements = () => {
       setSubProjects([]);
     } finally {
       setLoadingSubProjects(false);
+    }
+  };
+  
+  const fetchStakeholderOptions = async () => {
+    try {
+      setLoadingStakeholders(true);
+      const response = await axios.get('/api/vendor-agreements/stakeholder-options');
+      if (response.data.success) {
+        setStakeholderOptions({
+          users: response.data.users || [],
+          groups: response.data.groups || []
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching stakeholder options:', error);
+      setStakeholderOptions({ users: [], groups: [] });
+    } finally {
+      setLoadingStakeholders(false);
     }
   };
   
@@ -621,7 +645,9 @@ const VendorAgreements = () => {
       frequency_pattern: 'daily',
       arrival_time: '09:00',
       arrival_days: '',
-      alert_threshold_minutes: 60
+      alert_threshold_minutes: 60,
+      additional_stakeholder_user_ids: [],
+      additional_stakeholder_group_ids: []
     });
     setTemplateFile(null);
     setTemplateError('');
@@ -629,6 +655,7 @@ const VendorAgreements = () => {
     setError('');
     setSuccessMessage('');
     setModalOpen(true);
+    fetchStakeholderOptions();
   };
   
   const openEditModal = async (agreement) => {
@@ -728,12 +755,15 @@ const VendorAgreements = () => {
       frequency_pattern: agreement.frequency_pattern || 'daily',
       arrival_time: agreement.arrival_time || '09:00',
       arrival_days: agreement.arrival_days || '',
-      alert_threshold_minutes: agreement.alert_threshold_minutes || 60
+      alert_threshold_minutes: agreement.alert_threshold_minutes || 60,
+      additional_stakeholder_user_ids: agreement.additional_stakeholder_user_ids || [],
+      additional_stakeholder_group_ids: agreement.additional_stakeholder_group_ids || []
     });
     setTemplateFile(null);
     setModalMode('edit');
     setSuccessMessage('');
     setModalOpen(true);
+    fetchStakeholderOptions();
   };
   
   const openDetailModal = async (agreement) => {
@@ -2130,6 +2160,99 @@ const VendorAgreements = () => {
                             <p><strong>Designation:</strong> {formData.secondary_contact_designation}</p>
                           )}
                         </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Section 5: Additional Stakeholders */}
+                <div className="form-section">
+                  <h3 className="section-title">Additional Stakeholders</h3>
+                  <p className="section-description" style={{ fontSize: '12px', color: '#666', marginBottom: '16px' }}>
+                    Add internal users or groups who should receive notifications when this agreement is updated.
+                    These stakeholders will be notified in addition to the primary contacts, vendor manager, and governance manager.
+                  </p>
+                  
+                  <div className="form-row-grid">
+                    {/* Additional Users */}
+                    <div className="form-group">
+                      <label>Additional Users</label>
+                      {loadingStakeholders ? (
+                        <p style={{ color: '#666', fontSize: '12px' }}>Loading users...</p>
+                      ) : (
+                        <>
+                          <select
+                            multiple
+                            value={formData.additional_stakeholder_user_ids.map(id => String(id))}
+                            onChange={(e) => {
+                              const selectedIds = Array.from(e.target.selectedOptions, option => parseInt(option.value));
+                              setFormData(prev => ({
+                                ...prev,
+                                additional_stakeholder_user_ids: selectedIds
+                              }));
+                            }}
+                            style={{ minHeight: '120px', width: '100%' }}
+                          >
+                            {stakeholderOptions.users.map(user => (
+                              <option key={user.id} value={user.id}>
+                                {user.fullName} ({user.email})
+                              </option>
+                            ))}
+                          </select>
+                          <span className="form-helper-text">Hold Ctrl/Cmd to select multiple users</span>
+                          {formData.additional_stakeholder_user_ids.length > 0 && (
+                            <div style={{ marginTop: '8px', padding: '8px', background: '#f5f5f5', borderRadius: '4px' }}>
+                              <strong>Selected ({formData.additional_stakeholder_user_ids.length}):</strong>
+                              <ul style={{ margin: '4px 0 0 16px', padding: 0 }}>
+                                {formData.additional_stakeholder_user_ids.map(id => {
+                                  const user = stakeholderOptions.users.find(u => u.id === id);
+                                  return user ? <li key={id}>{user.fullName}</li> : null;
+                                })}
+                              </ul>
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </div>
+                    
+                    {/* Additional Groups */}
+                    <div className="form-group">
+                      <label>Additional Groups</label>
+                      {loadingStakeholders ? (
+                        <p style={{ color: '#666', fontSize: '12px' }}>Loading groups...</p>
+                      ) : (
+                        <>
+                          <select
+                            multiple
+                            value={formData.additional_stakeholder_group_ids.map(id => String(id))}
+                            onChange={(e) => {
+                              const selectedIds = Array.from(e.target.selectedOptions, option => parseInt(option.value));
+                              setFormData(prev => ({
+                                ...prev,
+                                additional_stakeholder_group_ids: selectedIds
+                              }));
+                            }}
+                            style={{ minHeight: '120px', width: '100%' }}
+                          >
+                            {stakeholderOptions.groups.map(group => (
+                              <option key={group.id} value={group.id}>
+                                {group.name} ({group.memberCount} members)
+                              </option>
+                            ))}
+                          </select>
+                          <span className="form-helper-text">Hold Ctrl/Cmd to select multiple groups. All members of selected groups will be notified.</span>
+                          {formData.additional_stakeholder_group_ids.length > 0 && (
+                            <div style={{ marginTop: '8px', padding: '8px', background: '#f5f5f5', borderRadius: '4px' }}>
+                              <strong>Selected ({formData.additional_stakeholder_group_ids.length}):</strong>
+                              <ul style={{ margin: '4px 0 0 16px', padding: 0 }}>
+                                {formData.additional_stakeholder_group_ids.map(id => {
+                                  const group = stakeholderOptions.groups.find(g => g.id === id);
+                                  return group ? <li key={id}>{group.name} ({group.memberCount} members)</li> : null;
+                                })}
+                              </ul>
+                            </div>
+                          )}
+                        </>
                       )}
                     </div>
                   </div>

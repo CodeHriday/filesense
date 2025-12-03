@@ -282,6 +282,10 @@ class VendorAgreementService {
       // Set approval_status - 'draft' for draft agreements, 'pending_vendor_acceptance' for active agreements
       const approvalStatus = finalStatus === 'draft' ? 'draft' : 'pending_vendor_acceptance';
       
+      // Prepare additional stakeholder arrays
+      const additionalStakeholderUserIds = agreementData.additional_stakeholder_user_ids || [];
+      const additionalStakeholderGroupIds = agreementData.additional_stakeholder_group_ids || [];
+      
       // Create agreement
       const result = await client.query(
         `INSERT INTO vendor_agreements (
@@ -294,8 +298,9 @@ class VendorAgreementService {
           manager_contact, governance_manager_user_id,
           contains_pii, file_type, data_classification, domain, retention_days, expected_arrival_time, delivery_method,
           sla_enabled, frequency_pattern, arrival_time, arrival_days, alert_threshold_minutes,
+          additional_stakeholder_user_ids, additional_stakeholder_group_ids,
           status, contract_start_date, contract_end_date, approval_status, version, created_by, created_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44, $45, 1, $46, CURRENT_TIMESTAMP)
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44, $45, $46, $47, $48, 1, $49, CURRENT_TIMESTAMP)
         RETURNING *`,
         [
           vendor_id, agreementCode, file_name, file_description, description || null, parsedSchema ? JSON.stringify(parsedSchema) : null,
@@ -307,6 +312,7 @@ class VendorAgreementService {
           finalManagerContact, governance_manager_user_id || null,
           contains_pii, file_type, data_classification, domain, retention_days, expected_arrival_time, delivery_method,
           sla_enabled || false, frequency_pattern || 'daily', arrival_time || '09:00', arrival_days || null, alert_threshold_minutes || 60,
+          JSON.stringify(additionalStakeholderUserIds), JSON.stringify(additionalStakeholderGroupIds),
           finalStatus, contract_start_date || null, contract_end_date || null, approvalStatus,
           createdBy
         ]
@@ -458,7 +464,9 @@ class VendorAgreementService {
         frequency_pattern,
         arrival_time,
         arrival_days,
-        alert_threshold_minutes
+        alert_threshold_minutes,
+        additional_stakeholder_user_ids,
+        additional_stakeholder_group_ids
       } = updateData;
       
       // Check for duplicate file_name (excluding current agreement)
@@ -926,6 +934,36 @@ class VendorAgreementService {
         params.push(alert_threshold_minutes);
         changes.alert_threshold_minutes = { from: current.alert_threshold_minutes, to: alert_threshold_minutes };
         paramIndex++;
+      }
+      
+      // Handle additional stakeholder user IDs (JSONB array)
+      if (additional_stakeholder_user_ids !== undefined) {
+        const currentUserIds = current.additional_stakeholder_user_ids || [];
+        const newUserIds = Array.isArray(additional_stakeholder_user_ids) ? additional_stakeholder_user_ids : [];
+        const currentUserIdsStr = JSON.stringify(currentUserIds.sort());
+        const newUserIdsStr = JSON.stringify([...newUserIds].sort());
+        
+        if (currentUserIdsStr !== newUserIdsStr) {
+          updates.push(`additional_stakeholder_user_ids = $${paramIndex}`);
+          params.push(JSON.stringify(newUserIds));
+          changes.additional_stakeholder_user_ids = { from: currentUserIds, to: newUserIds };
+          paramIndex++;
+        }
+      }
+      
+      // Handle additional stakeholder group IDs (JSONB array)
+      if (additional_stakeholder_group_ids !== undefined) {
+        const currentGroupIds = current.additional_stakeholder_group_ids || [];
+        const newGroupIds = Array.isArray(additional_stakeholder_group_ids) ? additional_stakeholder_group_ids : [];
+        const currentGroupIdsStr = JSON.stringify(currentGroupIds.sort());
+        const newGroupIdsStr = JSON.stringify([...newGroupIds].sort());
+        
+        if (currentGroupIdsStr !== newGroupIdsStr) {
+          updates.push(`additional_stakeholder_group_ids = $${paramIndex}`);
+          params.push(JSON.stringify(newGroupIds));
+          changes.additional_stakeholder_group_ids = { from: currentGroupIds, to: newGroupIds };
+          paramIndex++;
+        }
       }
       
       if (contract_start_date !== undefined) {
