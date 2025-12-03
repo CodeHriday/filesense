@@ -44,7 +44,7 @@
 .notification-bell .notification-dropdown {
   position: absolute;
   top: 100%;
-  right: -20px;
+  right: -40px;
   margin-top: 6px;
   background: #ffffff;
   border: 1px solid #e5e7eb;
@@ -61,7 +61,7 @@
 
 .notification-bell .notification-dropdown .notification-header {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-start;
   align-items: center;
   padding: 10px 12px;
   border-bottom: 1px solid #e5e7eb;
