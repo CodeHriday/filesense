@@ -2452,6 +2452,83 @@ class VendorAgreementService {
       
       systemLogger.info('Governance action completed', { agreementId, action, approverUserId, newStatus, isLocked });
       
+      // Send email notification for governance approval or rejection
+      try {
+        const VendorAgreementNotificationService = require('./VendorAgreementNotificationService');
+        
+        // Fetch the updated agreement with stakeholder data for notification
+        const updatedAgreementResult = await pool.query(
+          `SELECT va.*, 
+                  va.additional_stakeholder_user_ids,
+                  va.additional_stakeholder_group_ids
+           FROM vendor_agreements va 
+           WHERE va.id = $1`,
+          [agreementId]
+        );
+        
+        if (updatedAgreementResult.rows.length > 0) {
+          const updatedAgreement = updatedAgreementResult.rows[0];
+          
+          if (action === 'approve') {
+            // Send governance approval notification
+            VendorAgreementNotificationService.sendGovernanceApprovalNotification({
+              agreement: updatedAgreement,
+              approvedBy: approverUserId,
+              comments: comments,
+              baseUrl: process.env.APP_URL || 'https://your-app-url.replit.app'
+            }).then(result => {
+              if (result.success) {
+                systemLogger.info('Governance approval email notification sent', {
+                  agreementId,
+                  recipientCount: result.sent
+                });
+              } else if (result.errors.length > 0) {
+                systemLogger.warn('Governance approval email notification issues', {
+                  agreementId,
+                  errors: result.errors
+                });
+              }
+            }).catch(err => {
+              systemLogger.error('Failed to send governance approval email notification', {
+                agreementId,
+                error: err.message
+              });
+            });
+          } else {
+            // Send governance rejection notification
+            VendorAgreementNotificationService.sendGovernanceRejectionNotification({
+              agreement: updatedAgreement,
+              rejectedBy: approverUserId,
+              rejectionReason: comments,
+              baseUrl: process.env.APP_URL || 'https://your-app-url.replit.app'
+            }).then(result => {
+              if (result.success) {
+                systemLogger.info('Governance rejection email notification sent', {
+                  agreementId,
+                  recipientCount: result.sent
+                });
+              } else if (result.errors.length > 0) {
+                systemLogger.warn('Governance rejection email notification issues', {
+                  agreementId,
+                  errors: result.errors
+                });
+              }
+            }).catch(err => {
+              systemLogger.error('Failed to send governance rejection email notification', {
+                agreementId,
+                error: err.message
+              });
+            });
+          }
+        }
+      } catch (notificationError) {
+        // Log but don't fail the main operation
+        systemLogger.error('Error setting up governance notification', {
+          agreementId,
+          error: notificationError.message
+        });
+      }
+      
       return {
         success: true,
         approvalStatus: newStatus,
