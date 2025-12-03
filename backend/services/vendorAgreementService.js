@@ -357,7 +357,7 @@ class VendorAgreementService {
               [
                 user.id,
                 'New Vendor Contract Awaiting Your Review',
-                `A new contract "${file_name || 'Untitled'}" has been created and requires your acceptance to proceed.`,
+                `A new contract "${file_name || agreementCode}" has been created and requires your acceptance to proceed.`,
                 agreement.id,
                 `/vendor-agreements?view=${agreement.id}`,
                 JSON.stringify({ 
