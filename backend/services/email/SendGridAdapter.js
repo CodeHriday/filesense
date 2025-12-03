@@ -72,12 +72,18 @@ class SendGridAdapter extends EmailProviderAdapter {
         throw new Error('`to` is required unless using a system template (template_id)');
       }
 
+      // Get from email - support both field naming conventions (from_email and from)
+      const fromEmail = emailData.from || this.config.from_email || this.config.from;
+      if (!fromEmail) {
+        throw new Error('Sender email address (from) is required. Please configure a from_email in your SendGrid settings.');
+      }
+
       const msg = {
         personalizations: [{
           to: toList,
         }],
         from: {
-          email: emailData.from || this.config.from_email,
+          email: fromEmail,
           name: emailData.fromName || this.config.from_name || 'Data Observatory Alerts'
         },
         // Allow reply_to
@@ -203,10 +209,13 @@ class SendGridAdapter extends EmailProviderAdapter {
       return false;
     }
 
+    // Support both field naming conventions (from_email and from)
+    const fromEmail = this.config?.from_email || this.config?.from || 'test@example.com';
+
     try {
       const testMsg = {
-        personalizations: [{ to: [{ email: this.config?.from_email || 'test@example.com' }], subject: 'SendGrid API Key Test' }],
-        from: { email: this.config?.from_email || 'test@example.com' },
+        personalizations: [{ to: [{ email: fromEmail }], subject: 'SendGrid API Key Test' }],
+        from: { email: fromEmail },
         content: [{ type: 'text/plain', value: 'This is a sandbox test of SendGrid API key' }],
         mail_settings: { sandbox_mode: { enable: true } }
       };
@@ -279,7 +288,10 @@ class SendGridAdapter extends EmailProviderAdapter {
   validateConfig() {
     const errors = [];
     if (!this.apiKey) errors.push('SendGrid API key is required (config.api_key or SENDGRID_API_KEY)');
-    if (!this.config?.from_email) errors.push('SendGrid from email is required (config.from_email)');
+    // Support both field naming conventions (from_email and from)
+    if (!this.config?.from_email && !this.config?.from) {
+      errors.push('SendGrid from email is required (config.from_email or config.from)');
+    }
     return { isValid: errors.length === 0, errors };
   }
 
