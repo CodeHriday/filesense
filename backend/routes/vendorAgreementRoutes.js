@@ -282,6 +282,72 @@ router.get('/', async (req, res) => {
 });
 
 /**
+ * GET /stakeholder-options
+ * Get list of internal users and access groups that can be added as stakeholders
+ * NOTE: This route MUST be defined before /:id routes to avoid path conflict
+ */
+router.get('/stakeholder-options', requirePermission('vendor_agreements:read'), async (req, res) => {
+  try {
+    const { pool } = require('../config/database');
+    
+    // Get internal users only (security: no external users can be added)
+    const usersResult = await pool.query(`
+      SELECT 
+        u.id,
+        u.username,
+        u.email,
+        TRIM(CONCAT(u.first_name, ' ', COALESCE(u.middle_name, ''), ' ', u.last_name)) AS full_name
+      FROM users u
+      WHERE u.internal_user = true
+      ORDER BY u.first_name, u.last_name, u.username
+    `);
+    
+    // Get access groups
+    const groupsResult = await pool.query(`
+      SELECT 
+        ag.id,
+        ag.name,
+        ag.description,
+        ag.group_type,
+        (
+          SELECT COUNT(*)::int 
+          FROM user_groups ug 
+          WHERE ug.group_id = ag.id
+        ) as member_count
+      FROM access_groups ag
+      ORDER BY ag.name
+    `);
+    
+    res.json({
+      success: true,
+      users: usersResult.rows.map(u => ({
+        id: u.id,
+        username: u.username,
+        email: u.email,
+        fullName: u.full_name || u.username || u.email
+      })),
+      groups: groupsResult.rows.map(g => ({
+        id: g.id,
+        name: g.name,
+        description: g.description,
+        groupType: g.group_type,
+        memberCount: g.member_count
+      }))
+    });
+    
+  } catch (error) {
+    systemLogger.error('Error fetching stakeholder options', {
+      error: error.message,
+      userId: req.user?.id
+    });
+    res.status(500).json({
+      error: 'Failed to fetch stakeholder options',
+      details: error.message
+    });
+  }
+});
+
+/**
  * GET /api/vendor-agreements/:id
  * Get agreement by ID
  */
@@ -1344,72 +1410,6 @@ router.delete('/:id/archive-password', requirePermission('vendor_agreements:writ
 // ===========================
 // ADDITIONAL STAKEHOLDERS ENDPOINTS
 // ===========================
-
-/**
- * GET /stakeholder-options
- * Get list of internal users and access groups that can be added as stakeholders
- * Only returns internal users (internal_user = true) for security
- */
-router.get('/stakeholder-options', requirePermission('vendor_agreements:read'), async (req, res) => {
-  try {
-    const { pool } = require('../config/database');
-    
-    // Get internal users only (security: no external users can be added)
-    const usersResult = await pool.query(`
-      SELECT 
-        u.id,
-        u.username,
-        u.email,
-        TRIM(CONCAT(u.first_name, ' ', COALESCE(u.middle_name, ''), ' ', u.last_name)) AS full_name
-      FROM users u
-      WHERE u.internal_user = true
-      ORDER BY u.first_name, u.last_name, u.username
-    `);
-    
-    // Get access groups
-    const groupsResult = await pool.query(`
-      SELECT 
-        ag.id,
-        ag.name,
-        ag.description,
-        ag.group_type,
-        (
-          SELECT COUNT(*)::int 
-          FROM user_groups ug 
-          WHERE ug.group_id = ag.id
-        ) as member_count
-      FROM access_groups ag
-      ORDER BY ag.name
-    `);
-    
-    res.json({
-      success: true,
-      users: usersResult.rows.map(u => ({
-        id: u.id,
-        username: u.username,
-        email: u.email,
-        fullName: u.full_name || u.username || u.email
-      })),
-      groups: groupsResult.rows.map(g => ({
-        id: g.id,
-        name: g.name,
-        description: g.description,
-        groupType: g.group_type,
-        memberCount: g.member_count
-      }))
-    });
-    
-  } catch (error) {
-    systemLogger.error('Error fetching stakeholder options', {
-      error: error.message,
-      userId: req.user?.id
-    });
-    res.status(500).json({
-      error: 'Failed to fetch stakeholder options',
-      details: error.message
-    });
-  }
-});
 
 /**
  * GET /:id/stakeholders
