@@ -1712,6 +1712,8 @@ const VendorAgreements = () => {
                     type="button" 
                     onClick={(e) => handleSubmit(e, true)}
                     className="btn-secondary"
+                    disabled={modalMode === 'edit' && selectedAgreement?.approval_status && selectedAgreement.approval_status !== 'draft'}
+                    title={modalMode === 'edit' && selectedAgreement?.approval_status && selectedAgreement.approval_status !== 'draft' ? 'Cannot save as draft once contract is in approval workflow' : ''}
                   >
                     Save Draft
                   </button>
