@@ -1188,15 +1188,15 @@
   justify-content: space-between;
   align-items: center;
   padding: var(--gps-spacing-lg) var(--gps-spacing-xl);
-  border-bottom: 1px solid var(--gps-border-light);
-  background: var(--gps-bg-header);
+  background: var(--gps-primary-teal);
+  min-height: 50px;
 }
 
 .gps-modal-title {
   font-family: var(--gps-font-family);
   font-size: var(--gps-font-size-title);
   font-weight: var(--gps-font-weight-bold);
-  color: var(--gps-primary-teal);
+  color: white;
   margin: 0;
 }
 
@@ -1204,14 +1204,17 @@
   background: none;
   border: none;
   font-size: 24px;
-  color: var(--gps-text-muted);
+  color: white;
   cursor: pointer;
   padding: 0;
   line-height: 1;
+  opacity: 0.8;
+  transition: opacity 0.2s ease;
 }
 
 .gps-modal-close:hover {
-  color: var(--gps-text-dark);
+  opacity: 1;
+  color: white;
 }
 
 .gps-modal-body {
