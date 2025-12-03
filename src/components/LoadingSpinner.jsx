@@ -8,7 +8,7 @@ const LoadingSpinner = ({
   className = '',
   showMessage = false // New prop to control message visibility
 }) => {
-  const containerClass = `loading-spinner ${fullPage ? 'fullpage' : ''} ${className}`.trim();
+  const containerClass = `loading-spinner-wrapper ${fullPage ? 'fullpage' : ''} ${className}`.trim();
   
   return (
     <div className={containerClass} aria-label={message || 'Loading...'} role="status">
