@@ -164,7 +164,7 @@ function NotificationBell() {
 
       {dropdownOpen && (
         <div className="notification-dropdown">
-          <div className="notification-header">
+          <div className="notification-bell-header">
             <h3>Notifications</h3>
             {unreadCount > 0 && (
               <button 
@@ -189,9 +189,6 @@ function NotificationBell() {
                   className={`notification-item ${notification.is_read ? 'read' : 'unread'}`}
                   onClick={() => handleNotificationClick(notification)}
                 >
-                  <div className="notification-icon">
-                    {getNotificationIcon(notification.notification_type)}
-                  </div>
                   <div className="notification-content">
                     <div className="notification-title">{notification.title}</div>
                     <div className="notification-message">{notification.message}</div>
