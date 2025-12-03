@@ -1895,6 +1895,58 @@ class VendorAgreementService {
       
       systemLogger.info('Manager action completed', { agreementId, action, approverUserId, newStatus });
       
+      // Send email notification for manager approval (rejection is already handled above)
+      if (action === 'approve') {
+        try {
+          const VendorAgreementNotificationService = require('./VendorAgreementNotificationService');
+          
+          // Fetch the updated agreement with stakeholder data for notification
+          const updatedAgreementResult = await pool.query(
+            `SELECT va.*, 
+                    va.additional_stakeholder_user_ids,
+                    va.additional_stakeholder_group_ids
+             FROM vendor_agreements va 
+             WHERE va.id = $1`,
+            [agreementId]
+          );
+          
+          if (updatedAgreementResult.rows.length > 0) {
+            const updatedAgreement = updatedAgreementResult.rows[0];
+            
+            // Send email notification asynchronously (don't block the main flow)
+            VendorAgreementNotificationService.sendManagerApprovalNotification({
+              agreement: updatedAgreement,
+              approvedBy: approverUserId,
+              comments: comments,
+              baseUrl: process.env.APP_URL || 'https://your-app-url.replit.app'
+            }).then(result => {
+              if (result.success) {
+                systemLogger.info('Manager approval email notification sent', {
+                  agreementId,
+                  recipientCount: result.sent
+                });
+              } else if (result.errors.length > 0) {
+                systemLogger.warn('Manager approval email notification issues', {
+                  agreementId,
+                  errors: result.errors
+                });
+              }
+            }).catch(err => {
+              systemLogger.error('Failed to send manager approval email notification', {
+                agreementId,
+                error: err.message
+              });
+            });
+          }
+        } catch (notificationError) {
+          // Log but don't fail the main operation
+          systemLogger.error('Error setting up manager approval notification', {
+            agreementId,
+            error: notificationError.message
+          });
+        }
+      }
+      
       return {
         success: true,
         approvalStatus: newStatus,
