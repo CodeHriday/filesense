@@ -537,6 +537,718 @@ This is an automated notification from Data File Observatory.`;
       return result;
     }
   }
+
+  /**
+   * Generate common email styles for all notification types
+   */
+  getEmailStyles() {
+    return `
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 0; background-color: #f5f5f5; }
+    .container { max-width: 600px; margin: 0 auto; background: #ffffff; }
+    .header { padding: 24px; text-align: center; }
+    .header h1 { margin: 0; font-size: 20px; color: white; }
+    .header-success { background: #059669; }
+    .header-warning { background: #d97706; }
+    .header-error { background: #dc2626; }
+    .header-info { background: #0d9488; }
+    .content { padding: 24px; }
+    .status-box { border-radius: 8px; padding: 16px; margin-bottom: 20px; }
+    .status-success { background: #ecfdf5; border: 1px solid #a7f3d0; }
+    .status-success h3 { color: #059669; margin: 0 0 8px 0; font-size: 14px; }
+    .status-success p { margin: 0; color: #065f46; font-size: 14px; }
+    .status-warning { background: #fffbeb; border: 1px solid #fcd34d; }
+    .status-warning h3 { color: #d97706; margin: 0 0 8px 0; font-size: 14px; }
+    .status-warning p { margin: 0; color: #92400e; font-size: 14px; }
+    .status-error { background: #fef2f2; border: 1px solid #fecaca; }
+    .status-error h3 { color: #dc2626; margin: 0 0 8px 0; font-size: 14px; }
+    .status-error p { margin: 0; color: #7f1d1d; font-size: 14px; }
+    .details { margin: 20px 0; }
+    .detail-row { display: flex; padding: 12px 0; border-bottom: 1px solid #e5e5e5; }
+    .detail-label { font-weight: 600; color: #6b7280; min-width: 140px; font-size: 13px; }
+    .detail-value { color: #111827; font-size: 13px; }
+    .reason-box { background: #f9fafb; border-radius: 8px; padding: 16px; margin: 20px 0; border-left: 4px solid #dc2626; }
+    .reason-box h4 { margin: 0 0 8px 0; color: #374151; font-size: 13px; }
+    .reason-box p { margin: 0; color: #4b5563; font-size: 14px; white-space: pre-wrap; }
+    .comments-box { background: #f9fafb; border-radius: 8px; padding: 16px; margin: 20px 0; border-left: 4px solid #0d9488; }
+    .comments-box h4 { margin: 0 0 8px 0; color: #374151; font-size: 13px; }
+    .comments-box p { margin: 0; color: #4b5563; font-size: 14px; white-space: pre-wrap; }
+    .cta-button { display: inline-block; background: #0d9488; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: 500; margin-top: 16px; }
+    .footer { background: #f9fafb; padding: 16px 24px; text-align: center; color: #6b7280; font-size: 12px; }
+    .workflow-stage { background: #f3f4f6; border-radius: 8px; padding: 16px; margin: 20px 0; }
+    .workflow-stage h4 { margin: 0 0 12px 0; color: #374151; font-size: 13px; }
+    .stage-item { display: flex; align-items: center; padding: 8px 0; }
+    .stage-dot { width: 12px; height: 12px; border-radius: 50%; margin-right: 12px; }
+    .stage-complete { background: #059669; }
+    .stage-current { background: #0d9488; }
+    .stage-pending { background: #d1d5db; }
+    .stage-text { font-size: 13px; color: #374151; }`;
+  }
+
+  /**
+   * Send vendor acceptance notification to stakeholders (Stage 1 - Vendor Accepts)
+   */
+  async sendVendorAcceptanceNotification({ agreement, acceptedBy, comments, baseUrl }) {
+    const result = { success: false, stakeholders: [], sent: 0, failed: 0, errors: [] };
+
+    try {
+      const provider = await this.getEmailProvider();
+      if (!provider) {
+        result.errors.push('No email provider configured');
+        systemLogger?.info('Skipping vendor acceptance notification - no email provider', { agreementId: agreement.id });
+        return result;
+      }
+
+      const stakeholders = await this.getStakeholders(agreement);
+      result.stakeholders = stakeholders;
+
+      if (stakeholders.length === 0) {
+        result.errors.push('No stakeholders to notify');
+        return result;
+      }
+
+      const vendorName = await this.getVendorName(agreement.vendor_id);
+      const acceptedByName = await this.getUserName(acceptedBy);
+      const appBaseUrl = baseUrl || process.env.APP_URL || 'https://your-app-url.replit.app';
+
+      const subject = `[Vendor Accepted] Contract ${agreement.agreement_code} - ${vendorName}`;
+      
+      const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>${this.getEmailStyles()}</style>
+</head>
+<body>
+  <div class="container">
+    <div class="header header-success">
+      <h1>Vendor Has Accepted the Contract</h1>
+    </div>
+    <div class="content">
+      <div class="status-box status-success">
+        <h3>Stage 1 Complete</h3>
+        <p>The vendor has accepted this contract. It is now pending Manager approval.</p>
+      </div>
+      
+      <div class="details">
+        <div class="detail-row">
+          <span class="detail-label">Agreement Code:</span>
+          <span class="detail-value">${agreement.agreement_code}</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Vendor:</span>
+          <span class="detail-value">${vendorName}</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Accepted By:</span>
+          <span class="detail-value">${acceptedByName}</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Accepted At:</span>
+          <span class="detail-value">${new Date().toLocaleString('en-US', { 
+            year: 'numeric', month: 'short', day: 'numeric',
+            hour: '2-digit', minute: '2-digit', timeZoneName: 'short'
+          })}</span>
+        </div>
+      </div>
+      
+      ${comments ? `<div class="comments-box"><h4>Comments:</h4><p>${comments}</p></div>` : ''}
+      
+      <div class="workflow-stage">
+        <h4>Approval Workflow Progress:</h4>
+        <div class="stage-item"><span class="stage-dot stage-complete"></span><span class="stage-text">Vendor Acceptance - Complete</span></div>
+        <div class="stage-item"><span class="stage-dot stage-current"></span><span class="stage-text">Manager Approval - Pending</span></div>
+        <div class="stage-item"><span class="stage-dot stage-pending"></span><span class="stage-text">Governance Approval - Waiting</span></div>
+      </div>
+      
+      <a href="${appBaseUrl}/vendor-agreements?view=${agreement.id}" class="cta-button">View Contract Details</a>
+    </div>
+    <div class="footer">
+      <p>This is an automated notification from Data File Observatory.</p>
+    </div>
+  </div>
+</body>
+</html>`;
+
+      const text = `VENDOR HAS ACCEPTED THE CONTRACT
+
+Agreement Code: ${agreement.agreement_code}
+Vendor: ${vendorName}
+Accepted By: ${acceptedByName}
+Accepted At: ${new Date().toLocaleString()}
+${comments ? `\nComments: ${comments}` : ''}
+
+NEXT STEP: Manager Approval
+
+View contract details: ${appBaseUrl}/vendor-agreements?view=${agreement.id}
+
+---
+This is an automated notification from Data File Observatory.`;
+
+      const recipientEmails = stakeholders.map(s => s.email);
+      
+      try {
+        await this.sendEmail(provider, { to: recipientEmails, subject, html, text });
+        result.sent = stakeholders.length;
+        result.success = true;
+        systemLogger?.info('Sent vendor acceptance notification', {
+          agreementId: agreement.id,
+          agreementCode: agreement.agreement_code,
+          recipients: recipientEmails,
+          providerType: provider.type
+        });
+      } catch (sendError) {
+        result.failed = stakeholders.length;
+        result.errors.push(sendError.message);
+        systemLogger?.error('Failed to send vendor acceptance notification', {
+          agreementId: agreement.id,
+          recipients: recipientEmails,
+          error: sendError.message
+        });
+      }
+
+      return result;
+    } catch (error) {
+      result.errors.push(error.message);
+      systemLogger?.error('Error in sendVendorAcceptanceNotification', { agreementId: agreement.id, error: error.message });
+      return result;
+    }
+  }
+
+  /**
+   * Send vendor rejection notification to stakeholders (Stage 1 - Vendor Rejects)
+   */
+  async sendVendorRejectionNotification({ agreement, rejectedBy, rejectionReason, baseUrl }) {
+    const result = { success: false, stakeholders: [], sent: 0, failed: 0, errors: [] };
+
+    try {
+      const provider = await this.getEmailProvider();
+      if (!provider) {
+        result.errors.push('No email provider configured');
+        systemLogger?.info('Skipping vendor rejection notification - no email provider', { agreementId: agreement.id });
+        return result;
+      }
+
+      const stakeholders = await this.getStakeholders(agreement);
+      result.stakeholders = stakeholders;
+
+      if (stakeholders.length === 0) {
+        result.errors.push('No stakeholders to notify');
+        return result;
+      }
+
+      const vendorName = await this.getVendorName(agreement.vendor_id);
+      const rejectedByName = await this.getUserName(rejectedBy);
+      const appBaseUrl = baseUrl || process.env.APP_URL || 'https://your-app-url.replit.app';
+
+      const subject = `[Vendor Rejected] Contract ${agreement.agreement_code} - ${vendorName}`;
+      
+      const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>${this.getEmailStyles()}</style>
+</head>
+<body>
+  <div class="container">
+    <div class="header header-error">
+      <h1>Vendor Has Rejected the Contract</h1>
+    </div>
+    <div class="content">
+      <div class="status-box status-error">
+        <h3>Action Required</h3>
+        <p>The vendor has rejected this contract. Please review the rejection reason and take appropriate action.</p>
+      </div>
+      
+      <div class="details">
+        <div class="detail-row">
+          <span class="detail-label">Agreement Code:</span>
+          <span class="detail-value">${agreement.agreement_code}</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Vendor:</span>
+          <span class="detail-value">${vendorName}</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Rejected By:</span>
+          <span class="detail-value">${rejectedByName}</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Rejected At:</span>
+          <span class="detail-value">${new Date().toLocaleString('en-US', { 
+            year: 'numeric', month: 'short', day: 'numeric',
+            hour: '2-digit', minute: '2-digit', timeZoneName: 'short'
+          })}</span>
+        </div>
+      </div>
+      
+      <div class="reason-box">
+        <h4>Rejection Reason:</h4>
+        <p>${rejectionReason || 'No reason provided'}</p>
+      </div>
+      
+      <a href="${appBaseUrl}/vendor-agreements?view=${agreement.id}" class="cta-button">View Contract Details</a>
+    </div>
+    <div class="footer">
+      <p>This is an automated notification from Data File Observatory.</p>
+    </div>
+  </div>
+</body>
+</html>`;
+
+      const text = `VENDOR HAS REJECTED THE CONTRACT
+
+Agreement Code: ${agreement.agreement_code}
+Vendor: ${vendorName}
+Rejected By: ${rejectedByName}
+Rejected At: ${new Date().toLocaleString()}
+
+REJECTION REASON:
+${rejectionReason || 'No reason provided'}
+
+View contract details: ${appBaseUrl}/vendor-agreements?view=${agreement.id}
+
+---
+This is an automated notification from Data File Observatory.`;
+
+      const recipientEmails = stakeholders.map(s => s.email);
+      
+      try {
+        await this.sendEmail(provider, { to: recipientEmails, subject, html, text });
+        result.sent = stakeholders.length;
+        result.success = true;
+        systemLogger?.info('Sent vendor rejection notification', {
+          agreementId: agreement.id,
+          agreementCode: agreement.agreement_code,
+          recipients: recipientEmails,
+          providerType: provider.type
+        });
+      } catch (sendError) {
+        result.failed = stakeholders.length;
+        result.errors.push(sendError.message);
+        systemLogger?.error('Failed to send vendor rejection notification', {
+          agreementId: agreement.id,
+          recipients: recipientEmails,
+          error: sendError.message
+        });
+      }
+
+      return result;
+    } catch (error) {
+      result.errors.push(error.message);
+      systemLogger?.error('Error in sendVendorRejectionNotification', { agreementId: agreement.id, error: error.message });
+      return result;
+    }
+  }
+
+  /**
+   * Send manager approval notification to stakeholders (Stage 2 - Manager Approves)
+   */
+  async sendManagerApprovalNotification({ agreement, approvedBy, comments, baseUrl }) {
+    const result = { success: false, stakeholders: [], sent: 0, failed: 0, errors: [] };
+
+    try {
+      const provider = await this.getEmailProvider();
+      if (!provider) {
+        result.errors.push('No email provider configured');
+        systemLogger?.info('Skipping manager approval notification - no email provider', { agreementId: agreement.id });
+        return result;
+      }
+
+      const stakeholders = await this.getStakeholders(agreement);
+      result.stakeholders = stakeholders;
+
+      if (stakeholders.length === 0) {
+        result.errors.push('No stakeholders to notify');
+        return result;
+      }
+
+      const vendorName = await this.getVendorName(agreement.vendor_id);
+      const approvedByName = await this.getUserName(approvedBy);
+      const appBaseUrl = baseUrl || process.env.APP_URL || 'https://your-app-url.replit.app';
+
+      const subject = `[Manager Approved] Contract ${agreement.agreement_code} - ${vendorName}`;
+      
+      const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>${this.getEmailStyles()}</style>
+</head>
+<body>
+  <div class="container">
+    <div class="header header-success">
+      <h1>Manager Has Approved the Contract</h1>
+    </div>
+    <div class="content">
+      <div class="status-box status-success">
+        <h3>Stage 2 Complete</h3>
+        <p>The vendor manager has approved this contract. It is now pending final Governance approval.</p>
+      </div>
+      
+      <div class="details">
+        <div class="detail-row">
+          <span class="detail-label">Agreement Code:</span>
+          <span class="detail-value">${agreement.agreement_code}</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Vendor:</span>
+          <span class="detail-value">${vendorName}</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Approved By:</span>
+          <span class="detail-value">${approvedByName}</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Approved At:</span>
+          <span class="detail-value">${new Date().toLocaleString('en-US', { 
+            year: 'numeric', month: 'short', day: 'numeric',
+            hour: '2-digit', minute: '2-digit', timeZoneName: 'short'
+          })}</span>
+        </div>
+      </div>
+      
+      ${comments ? `<div class="comments-box"><h4>Comments:</h4><p>${comments}</p></div>` : ''}
+      
+      <div class="workflow-stage">
+        <h4>Approval Workflow Progress:</h4>
+        <div class="stage-item"><span class="stage-dot stage-complete"></span><span class="stage-text">Vendor Acceptance - Complete</span></div>
+        <div class="stage-item"><span class="stage-dot stage-complete"></span><span class="stage-text">Manager Approval - Complete</span></div>
+        <div class="stage-item"><span class="stage-dot stage-current"></span><span class="stage-text">Governance Approval - Pending</span></div>
+      </div>
+      
+      <a href="${appBaseUrl}/vendor-agreements?view=${agreement.id}" class="cta-button">View Contract Details</a>
+    </div>
+    <div class="footer">
+      <p>This is an automated notification from Data File Observatory.</p>
+    </div>
+  </div>
+</body>
+</html>`;
+
+      const text = `MANAGER HAS APPROVED THE CONTRACT
+
+Agreement Code: ${agreement.agreement_code}
+Vendor: ${vendorName}
+Approved By: ${approvedByName}
+Approved At: ${new Date().toLocaleString()}
+${comments ? `\nComments: ${comments}` : ''}
+
+NEXT STEP: Governance Approval (Final)
+
+View contract details: ${appBaseUrl}/vendor-agreements?view=${agreement.id}
+
+---
+This is an automated notification from Data File Observatory.`;
+
+      const recipientEmails = stakeholders.map(s => s.email);
+      
+      try {
+        await this.sendEmail(provider, { to: recipientEmails, subject, html, text });
+        result.sent = stakeholders.length;
+        result.success = true;
+        systemLogger?.info('Sent manager approval notification', {
+          agreementId: agreement.id,
+          agreementCode: agreement.agreement_code,
+          recipients: recipientEmails,
+          providerType: provider.type
+        });
+      } catch (sendError) {
+        result.failed = stakeholders.length;
+        result.errors.push(sendError.message);
+        systemLogger?.error('Failed to send manager approval notification', {
+          agreementId: agreement.id,
+          recipients: recipientEmails,
+          error: sendError.message
+        });
+      }
+
+      return result;
+    } catch (error) {
+      result.errors.push(error.message);
+      systemLogger?.error('Error in sendManagerApprovalNotification', { agreementId: agreement.id, error: error.message });
+      return result;
+    }
+  }
+
+  /**
+   * Send governance approval notification to stakeholders (Stage 3 - Fully Approved)
+   */
+  async sendGovernanceApprovalNotification({ agreement, approvedBy, comments, baseUrl }) {
+    const result = { success: false, stakeholders: [], sent: 0, failed: 0, errors: [] };
+
+    try {
+      const provider = await this.getEmailProvider();
+      if (!provider) {
+        result.errors.push('No email provider configured');
+        systemLogger?.info('Skipping governance approval notification - no email provider', { agreementId: agreement.id });
+        return result;
+      }
+
+      const stakeholders = await this.getStakeholders(agreement);
+      result.stakeholders = stakeholders;
+
+      if (stakeholders.length === 0) {
+        result.errors.push('No stakeholders to notify');
+        return result;
+      }
+
+      const vendorName = await this.getVendorName(agreement.vendor_id);
+      const approvedByName = await this.getUserName(approvedBy);
+      const appBaseUrl = baseUrl || process.env.APP_URL || 'https://your-app-url.replit.app';
+
+      const subject = `[Fully Approved] Contract ${agreement.agreement_code} - ${vendorName}`;
+      
+      const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>${this.getEmailStyles()}</style>
+</head>
+<body>
+  <div class="container">
+    <div class="header header-success">
+      <h1>Contract Fully Approved</h1>
+    </div>
+    <div class="content">
+      <div class="status-box status-success">
+        <h3>All Approvals Complete</h3>
+        <p>This contract has been fully approved by all stakeholders and is now locked and active.</p>
+      </div>
+      
+      <div class="details">
+        <div class="detail-row">
+          <span class="detail-label">Agreement Code:</span>
+          <span class="detail-value">${agreement.agreement_code}</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Vendor:</span>
+          <span class="detail-value">${vendorName}</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Final Approval By:</span>
+          <span class="detail-value">${approvedByName}</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Approved At:</span>
+          <span class="detail-value">${new Date().toLocaleString('en-US', { 
+            year: 'numeric', month: 'short', day: 'numeric',
+            hour: '2-digit', minute: '2-digit', timeZoneName: 'short'
+          })}</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Status:</span>
+          <span class="detail-value" style="color: #059669; font-weight: 600;">Locked & Active</span>
+        </div>
+      </div>
+      
+      ${comments ? `<div class="comments-box"><h4>Comments:</h4><p>${comments}</p></div>` : ''}
+      
+      <div class="workflow-stage">
+        <h4>Approval Workflow Progress:</h4>
+        <div class="stage-item"><span class="stage-dot stage-complete"></span><span class="stage-text">Vendor Acceptance - Complete</span></div>
+        <div class="stage-item"><span class="stage-dot stage-complete"></span><span class="stage-text">Manager Approval - Complete</span></div>
+        <div class="stage-item"><span class="stage-dot stage-complete"></span><span class="stage-text">Governance Approval - Complete</span></div>
+      </div>
+      
+      <a href="${appBaseUrl}/vendor-agreements?view=${agreement.id}" class="cta-button">View Contract Details</a>
+    </div>
+    <div class="footer">
+      <p>This is an automated notification from Data File Observatory.</p>
+    </div>
+  </div>
+</body>
+</html>`;
+
+      const text = `CONTRACT FULLY APPROVED
+
+Agreement Code: ${agreement.agreement_code}
+Vendor: ${vendorName}
+Final Approval By: ${approvedByName}
+Approved At: ${new Date().toLocaleString()}
+Status: Locked & Active
+${comments ? `\nComments: ${comments}` : ''}
+
+All approval stages are complete. The contract is now locked and active.
+
+View contract details: ${appBaseUrl}/vendor-agreements?view=${agreement.id}
+
+---
+This is an automated notification from Data File Observatory.`;
+
+      const recipientEmails = stakeholders.map(s => s.email);
+      
+      try {
+        await this.sendEmail(provider, { to: recipientEmails, subject, html, text });
+        result.sent = stakeholders.length;
+        result.success = true;
+        systemLogger?.info('Sent governance approval notification', {
+          agreementId: agreement.id,
+          agreementCode: agreement.agreement_code,
+          recipients: recipientEmails,
+          providerType: provider.type
+        });
+      } catch (sendError) {
+        result.failed = stakeholders.length;
+        result.errors.push(sendError.message);
+        systemLogger?.error('Failed to send governance approval notification', {
+          agreementId: agreement.id,
+          recipients: recipientEmails,
+          error: sendError.message
+        });
+      }
+
+      return result;
+    } catch (error) {
+      result.errors.push(error.message);
+      systemLogger?.error('Error in sendGovernanceApprovalNotification', { agreementId: agreement.id, error: error.message });
+      return result;
+    }
+  }
+
+  /**
+   * Send governance rejection notification to stakeholders (Stage 3 - Governance Rejects)
+   */
+  async sendGovernanceRejectionNotification({ agreement, rejectedBy, rejectionReason, baseUrl }) {
+    const result = { success: false, stakeholders: [], sent: 0, failed: 0, errors: [] };
+
+    try {
+      const provider = await this.getEmailProvider();
+      if (!provider) {
+        result.errors.push('No email provider configured');
+        systemLogger?.info('Skipping governance rejection notification - no email provider', { agreementId: agreement.id });
+        return result;
+      }
+
+      const stakeholders = await this.getStakeholders(agreement);
+      result.stakeholders = stakeholders;
+
+      if (stakeholders.length === 0) {
+        result.errors.push('No stakeholders to notify');
+        return result;
+      }
+
+      const vendorName = await this.getVendorName(agreement.vendor_id);
+      const rejectedByName = await this.getUserName(rejectedBy);
+      const appBaseUrl = baseUrl || process.env.APP_URL || 'https://your-app-url.replit.app';
+
+      const subject = `[Governance Rejected] Contract ${agreement.agreement_code} - ${vendorName}`;
+      
+      const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>${this.getEmailStyles()}</style>
+</head>
+<body>
+  <div class="container">
+    <div class="header header-error">
+      <h1>Contract Rejected by Governance</h1>
+    </div>
+    <div class="content">
+      <div class="status-box status-error">
+        <h3>Final Approval Denied</h3>
+        <p>The governance manager has rejected this contract. Please review the feedback and address the issues.</p>
+      </div>
+      
+      <div class="details">
+        <div class="detail-row">
+          <span class="detail-label">Agreement Code:</span>
+          <span class="detail-value">${agreement.agreement_code}</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Vendor:</span>
+          <span class="detail-value">${vendorName}</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Rejected By:</span>
+          <span class="detail-value">${rejectedByName}</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Rejected At:</span>
+          <span class="detail-value">${new Date().toLocaleString('en-US', { 
+            year: 'numeric', month: 'short', day: 'numeric',
+            hour: '2-digit', minute: '2-digit', timeZoneName: 'short'
+          })}</span>
+        </div>
+      </div>
+      
+      <div class="reason-box">
+        <h4>Rejection Reason:</h4>
+        <p>${rejectionReason || 'No reason provided'}</p>
+      </div>
+      
+      <div class="workflow-stage">
+        <h4>Approval Workflow Status:</h4>
+        <div class="stage-item"><span class="stage-dot stage-complete"></span><span class="stage-text">Vendor Acceptance - Complete</span></div>
+        <div class="stage-item"><span class="stage-dot stage-complete"></span><span class="stage-text">Manager Approval - Complete</span></div>
+        <div class="stage-item"><span class="stage-dot" style="background: #dc2626;"></span><span class="stage-text" style="color: #dc2626; font-weight: 600;">Governance Approval - Rejected</span></div>
+      </div>
+      
+      <a href="${appBaseUrl}/vendor-agreements?view=${agreement.id}" class="cta-button">View Contract Details</a>
+    </div>
+    <div class="footer">
+      <p>This is an automated notification from Data File Observatory.</p>
+    </div>
+  </div>
+</body>
+</html>`;
+
+      const text = `CONTRACT REJECTED BY GOVERNANCE
+
+Agreement Code: ${agreement.agreement_code}
+Vendor: ${vendorName}
+Rejected By: ${rejectedByName}
+Rejected At: ${new Date().toLocaleString()}
+
+REJECTION REASON:
+${rejectionReason || 'No reason provided'}
+
+The contract must be revised and resubmitted for approval.
+
+View contract details: ${appBaseUrl}/vendor-agreements?view=${agreement.id}
+
+---
+This is an automated notification from Data File Observatory.`;
+
+      const recipientEmails = stakeholders.map(s => s.email);
+      
+      try {
+        await this.sendEmail(provider, { to: recipientEmails, subject, html, text });
+        result.sent = stakeholders.length;
+        result.success = true;
+        systemLogger?.info('Sent governance rejection notification', {
+          agreementId: agreement.id,
+          agreementCode: agreement.agreement_code,
+          recipients: recipientEmails,
+          providerType: provider.type
+        });
+      } catch (sendError) {
+        result.failed = stakeholders.length;
+        result.errors.push(sendError.message);
+        systemLogger?.error('Failed to send governance rejection notification', {
+          agreementId: agreement.id,
+          recipients: recipientEmails,
+          error: sendError.message
+        });
+      }
+
+      return result;
+    } catch (error) {
+      result.errors.push(error.message);
+      systemLogger?.error('Error in sendGovernanceRejectionNotification', { agreementId: agreement.id, error: error.message });
+      return result;
+    }
+  }
 }
 
 module.exports = new VendorAgreementNotificationService();
