@@ -1,4 +1,4 @@
-.loading-spinner {
+.loading-spinner-wrapper {
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -7,7 +7,7 @@
   padding: 20px;
 }
 
-.loading-spinner.fullpage {
+.loading-spinner-wrapper.fullpage {
   position: fixed;
   top: 0;
   left: 0;
