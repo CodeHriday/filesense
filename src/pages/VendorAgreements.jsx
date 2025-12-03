@@ -2202,8 +2202,8 @@ const VendorAgreements = () => {
                           <span className="form-helper-text">Hold Ctrl/Cmd to select multiple users</span>
                           {formData.additional_stakeholder_user_ids.length > 0 && (
                             <div style={{ marginTop: '8px', padding: '8px', background: '#f5f5f5', borderRadius: '4px' }}>
-                              <strong>Selected ({formData.additional_stakeholder_user_ids.length}):</strong>
-                              <ul style={{ margin: '4px 0 0 16px', padding: 0 }}>
+                              <strong style={{ fontFamily: 'Inter, sans-serif', fontSize: '10px', fontWeight: 600 }}>Selected ({formData.additional_stakeholder_user_ids.length}):</strong>
+                              <ul style={{ margin: '4px 0 0 16px', padding: 0, fontFamily: 'Inter, sans-serif', fontSize: '8px', fontWeight: 400 }}>
                                 {formData.additional_stakeholder_user_ids.map(id => {
                                   const user = stakeholderOptions.users.find(u => u.id === id);
                                   return user ? <li key={id}>{user.fullName}</li> : null;
@@ -2243,8 +2243,8 @@ const VendorAgreements = () => {
                           <span className="form-helper-text">Hold Ctrl/Cmd to select multiple groups. All members of selected groups will be notified.</span>
                           {formData.additional_stakeholder_group_ids.length > 0 && (
                             <div style={{ marginTop: '8px', padding: '8px', background: '#f5f5f5', borderRadius: '4px' }}>
-                              <strong>Selected ({formData.additional_stakeholder_group_ids.length}):</strong>
-                              <ul style={{ margin: '4px 0 0 16px', padding: 0 }}>
+                              <strong style={{ fontFamily: 'Inter, sans-serif', fontSize: '10px', fontWeight: 600 }}>Selected ({formData.additional_stakeholder_group_ids.length}):</strong>
+                              <ul style={{ margin: '4px 0 0 16px', padding: 0, fontFamily: 'Inter, sans-serif', fontSize: '8px', fontWeight: 400 }}>
                                 {formData.additional_stakeholder_group_ids.map(id => {
                                   const group = stakeholderOptions.groups.find(g => g.id === id);
                                   return group ? <li key={id}>{group.name} ({group.memberCount} members)</li> : null;
