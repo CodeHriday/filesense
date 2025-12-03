@@ -362,6 +362,181 @@ class VendorAgreementNotificationService {
   async queueNotification(options) {
     return this.sendUpdateNotification(options);
   }
+
+  /**
+   * Send manager rejection notification to stakeholders
+   * @param {Object} options - Notification options
+   * @param {Object} options.agreement - The agreement object
+   * @param {string} options.rejectionReason - Reason for rejection (comments)
+   * @param {number} options.rejectedBy - User ID who rejected
+   * @param {string} options.baseUrl - Base URL for the application
+   * @returns {Promise<Object>} - Notification result
+   */
+  async sendManagerRejectionNotification({ agreement, rejectionReason, rejectedBy, baseUrl }) {
+    const result = {
+      success: false,
+      stakeholders: [],
+      sent: 0,
+      failed: 0,
+      errors: []
+    };
+
+    try {
+      const provider = await this.getEmailProvider();
+      
+      if (!provider) {
+        result.errors.push('No email provider configured');
+        systemLogger?.info('Skipping manager rejection notification - no email provider', {
+          agreementId: agreement.id
+        });
+        return result;
+      }
+
+      const stakeholders = await this.getStakeholders(agreement);
+      result.stakeholders = stakeholders;
+
+      if (stakeholders.length === 0) {
+        result.errors.push('No stakeholders to notify');
+        systemLogger?.info('Skipping manager rejection notification - no stakeholders', {
+          agreementId: agreement.id
+        });
+        return result;
+      }
+
+      const vendorName = await this.getVendorName(agreement.vendor_id);
+      const rejectedByName = await this.getUserName(rejectedBy);
+      const appBaseUrl = baseUrl || process.env.APP_URL || 'https://your-app-url.replit.app';
+
+      const subject = `[Manager Rejected] Contract ${agreement.agreement_code} - ${vendorName}`;
+      
+      const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 0; background-color: #f5f5f5; }
+    .container { max-width: 600px; margin: 0 auto; background: #ffffff; }
+    .header { background: #dc2626; color: white; padding: 24px; text-align: center; }
+    .header h1 { margin: 0; font-size: 20px; }
+    .content { padding: 24px; }
+    .alert-box { background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 16px; margin-bottom: 20px; }
+    .alert-box h3 { color: #dc2626; margin: 0 0 8px 0; font-size: 14px; }
+    .alert-box p { margin: 0; color: #7f1d1d; font-size: 14px; }
+    .details { margin: 20px 0; }
+    .detail-row { display: flex; padding: 12px 0; border-bottom: 1px solid #e5e5e5; }
+    .detail-label { font-weight: 600; color: #6b7280; min-width: 140px; font-size: 13px; }
+    .detail-value { color: #111827; font-size: 13px; }
+    .reason-box { background: #f9fafb; border-radius: 8px; padding: 16px; margin: 20px 0; border-left: 4px solid #dc2626; }
+    .reason-box h4 { margin: 0 0 8px 0; color: #374151; font-size: 13px; }
+    .reason-box p { margin: 0; color: #4b5563; font-size: 14px; white-space: pre-wrap; }
+    .cta-button { display: inline-block; background: #0d9488; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: 500; margin-top: 16px; }
+    .footer { background: #f9fafb; padding: 16px 24px; text-align: center; color: #6b7280; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>Contract Rejected by Manager</h1>
+    </div>
+    <div class="content">
+      <div class="alert-box">
+        <h3>Action Required</h3>
+        <p>The vendor manager has rejected this contract. Please review the feedback and make necessary revisions.</p>
+      </div>
+      
+      <div class="details">
+        <div class="detail-row">
+          <span class="detail-label">Agreement Code:</span>
+          <span class="detail-value">${agreement.agreement_code}</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Vendor:</span>
+          <span class="detail-value">${vendorName}</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Rejected By:</span>
+          <span class="detail-value">${rejectedByName}</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Rejected At:</span>
+          <span class="detail-value">${new Date().toLocaleString('en-US', { 
+            year: 'numeric', month: 'short', day: 'numeric',
+            hour: '2-digit', minute: '2-digit', timeZoneName: 'short'
+          })}</span>
+        </div>
+      </div>
+      
+      <div class="reason-box">
+        <h4>Rejection Reason:</h4>
+        <p>${rejectionReason || 'No reason provided'}</p>
+      </div>
+      
+      <a href="${appBaseUrl}/vendor-agreements?view=${agreement.id}" class="cta-button">View Contract Details</a>
+    </div>
+    <div class="footer">
+      <p>This is an automated notification from Data File Observatory.</p>
+    </div>
+  </div>
+</body>
+</html>`;
+
+      const text = `CONTRACT REJECTED BY MANAGER
+
+Agreement Code: ${agreement.agreement_code}
+Vendor: ${vendorName}
+Rejected By: ${rejectedByName}
+Rejected At: ${new Date().toLocaleString()}
+
+REJECTION REASON:
+${rejectionReason || 'No reason provided'}
+
+View contract details: ${appBaseUrl}/vendor-agreements?view=${agreement.id}
+
+---
+This is an automated notification from Data File Observatory.`;
+
+      const recipientEmails = stakeholders.map(s => s.email);
+      
+      try {
+        await this.sendEmail(provider, {
+          to: recipientEmails,
+          subject,
+          html,
+          text
+        });
+        
+        result.sent = stakeholders.length;
+        result.success = true;
+        
+        systemLogger?.info('Sent manager rejection notification', {
+          agreementId: agreement.id,
+          agreementCode: agreement.agreement_code,
+          recipients: recipientEmails,
+          providerType: provider.type
+        });
+      } catch (sendError) {
+        result.failed = stakeholders.length;
+        result.errors.push(sendError.message);
+        
+        systemLogger?.error('Failed to send manager rejection notification', {
+          agreementId: agreement.id,
+          recipients: recipientEmails,
+          error: sendError.message
+        });
+      }
+
+      return result;
+    } catch (error) {
+      result.errors.push(error.message);
+      systemLogger?.error('Error in sendManagerRejectionNotification', {
+        agreementId: agreement.id,
+        error: error.message
+      });
+      return result;
+    }
+  }
 }
 
 module.exports = new VendorAgreementNotificationService();
