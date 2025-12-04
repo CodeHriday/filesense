@@ -1114,6 +1114,19 @@ function DataProfile() {
       // Set both current and saved state with independent copies
       setRuleColumnAssignments(currentAssignments);
       setSavedRuleColumnAssignments(persistedAssignments);
+      
+      // Also sync with Schema Builder: invert mapping from { ruleId: [columns] } to { column: [ruleIds] }
+      const invertedAssignments = {};
+      Object.entries(currentAssignments).forEach(([ruleId, columns]) => {
+        (columns || []).forEach(columnName => {
+          if (!invertedAssignments[columnName]) {
+            invertedAssignments[columnName] = [];
+          }
+          // Keep rule id in its original form from the API (should match availableGenericRules.id)
+          invertedAssignments[columnName].push(parseInt(ruleId, 10));
+        });
+      });
+      setColumnDQAssignments(invertedAssignments);
     } catch (err) {
       console.error('Error fetching file quality rules:', err);
     } finally {
@@ -1133,6 +1146,20 @@ function DataProfile() {
         savedCopy[ruleId] = [...(ruleColumnAssignments[ruleId] || [])];
       });
       setSavedRuleColumnAssignments(savedCopy);
+      
+      // Sync with Schema Builder: invert mapping from { ruleId: [columns] } to { column: [ruleIds] }
+      const invertedAssignments = {};
+      Object.entries(ruleColumnAssignments).forEach(([ruleId, columns]) => {
+        (columns || []).forEach(columnName => {
+          if (!invertedAssignments[columnName]) {
+            invertedAssignments[columnName] = [];
+          }
+          // Keep rule id in its original form from the API (should match availableGenericRules.id)
+          invertedAssignments[columnName].push(parseInt(ruleId, 10));
+        });
+      });
+      setColumnDQAssignments(invertedAssignments);
+      
       // Clear expanded state after save
       setExpandedRuleId(null);
       // Refresh violations data after saving rules
@@ -2216,7 +2243,7 @@ function DataProfile() {
       return (
         <div className="gps-card" style={{ marginBottom: '16px' }}>
           <div className="gps-card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div>
+            <div style={{ flex: 1 }}>
               <h3 className="gps-card-title" style={{ margin: 0, fontSize: '12px' }}>Assign Quality Rules</h3>
               <p style={{ margin: '4px 0 0 0', fontSize: '10px', color: '#64748b' }}>
                 Click a rule to select columns, then save to apply
@@ -2226,7 +2253,7 @@ function DataProfile() {
               className="btn btn-primary" 
               onClick={handleSaveFileRules}
               disabled={rulesSaving || !hasUnsavedChanges}
-              style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', padding: '8px 16px' }}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '11px', padding: '8px 16px', flexShrink: 0, width: 'auto' }}
             >
               {rulesSaving ? 'Saving...' : 'Save Rules'}
             </button>
@@ -2291,8 +2318,9 @@ function DataProfile() {
                             {rule.severity}
                           </span>
                           {isSelected && (
-                            <button
+                            <span
                               onClick={(e) => { e.stopPropagation(); handleRuleToggle(rule.id); }}
+                              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); e.preventDefault(); handleRuleToggle(rule.id); } }}
                               style={{
                                 marginLeft: '4px',
                                 background: 'rgba(255,255,255,0.2)',
@@ -2300,7 +2328,7 @@ function DataProfile() {
                                 borderRadius: '50%',
                                 width: '16px',
                                 height: '16px',
-                                display: 'flex',
+                                display: 'inline-flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
                                 cursor: 'pointer',
@@ -2308,9 +2336,11 @@ function DataProfile() {
                                 fontSize: '10px'
                               }}
                               title="Remove rule"
+                              role="button"
+                              tabIndex={0}
                             >
                               ×
-                            </button>
+                            </span>
                           )}
                         </button>
                       </div>
@@ -2542,6 +2572,7 @@ function DataProfile() {
                     <tr>
                       <th>Rule Name</th>
                       <th>Type</th>
+                      <th>Target Columns</th>
                       <th>Severity</th>
                       <th>Status</th>
                     </tr>
@@ -2551,8 +2582,30 @@ function DataProfile() {
                       <tr key={idx}>
                         <td><span style={{ fontWeight: '500' }}>{rule.rule_name}</span></td>
                         <td><span className="gps-badge gps-badge--secondary" style={{ fontSize: '9px' }}>{rule.rule_type}</span></td>
-                        <td><span className={`gps-badge gps-badge--${rule.severity === 'critical' ? 'danger' : rule.severity === 'error' ? 'danger' : 'warning'}`} style={{ fontSize: '9px' }}>{rule.severity}</span></td>
-                        <td><span className="gps-badge gps-badge--success" style={{ fontSize: '9px' }}><FiCheckCircle size={10} style={{ marginRight: '4px' }} /> Passed</span></td>
+                        <td>
+                          {rule.target_columns && rule.target_columns.length > 0 ? (
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                              {rule.target_columns.slice(0, 3).map((col, i) => (
+                                <span key={i} className="gps-badge gps-badge--info" style={{ fontSize: '9px' }}>{col}</span>
+                              ))}
+                              {rule.target_columns.length > 3 && (
+                                <span className="gps-badge gps-badge--secondary" style={{ fontSize: '9px' }} title={rule.target_columns.join(', ')}>
+                                  +{rule.target_columns.length - 3} more
+                                </span>
+                              )}
+                            </div>
+                          ) : (
+                            <span style={{ fontSize: '10px', color: '#94a3b8' }}>All columns</span>
+                          )}
+                        </td>
+                        <td><span className={`gps-badge gps-badge--${rule.severity === 'critical' ? 'danger' : rule.severity === 'high' ? 'danger' : 'warning'}`} style={{ fontSize: '9px' }}>{rule.severity}</span></td>
+                        <td>
+                          {rule.status === 'passed' ? (
+                            <span className="gps-badge gps-badge--success" style={{ fontSize: '9px' }}><FiCheckCircle size={10} style={{ marginRight: '4px' }} /> Passed</span>
+                          ) : (
+                            <span className="gps-badge gps-badge--danger" style={{ fontSize: '9px' }}><FiXCircle size={10} style={{ marginRight: '4px' }} /> Failed ({rule.violation_count})</span>
+                          )}
+                        </td>
                       </tr>
                     ))}
                   </tbody>

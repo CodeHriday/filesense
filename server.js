@@ -5059,8 +5059,10 @@ app.get('/api/files/:fileId/quality-violations', async (req, res) => {
     
     // Get all quality rules that were actually applied to this file
     // Query from file_quality_rules table which tracks file-specific rule associations
+    // Each file-rule pair should have one row, select target_columns directly with COALESCE
     const appliedRulesResult = await dbPool.query(`
-      SELECT DISTINCT qr.id, qr.rule_name, qr.rule_type, qr.severity, qr.enabled
+      SELECT qr.id, qr.rule_name, qr.rule_type, qr.severity, qr.enabled, 
+             COALESCE(fqr.target_columns, ARRAY[]::text[]) as target_columns
       FROM file_quality_rules fqr
       JOIN quality_rules qr ON fqr.quality_rule_id = qr.id
       WHERE fqr.file_id = $1
@@ -5104,12 +5106,19 @@ app.get('/api/files/:fileId/quality-violations', async (req, res) => {
       ruleViolationCounts[v.rule_id] = (ruleViolationCounts[v.rule_id] || 0) + 1;
     });
     
-    appliedRules.forEach(rule => {
-      if (ruleViolationCounts[rule.id]) {
+    // Add status field to each applied rule
+    const appliedRulesWithStatus = appliedRules.map(rule => {
+      const violationCount = ruleViolationCounts[rule.id] || 0;
+      if (violationCount > 0) {
         summary.rules_failed++;
       } else {
         summary.rules_passed++;
       }
+      return {
+        ...rule,
+        status: violationCount > 0 ? 'failed' : 'passed',
+        violation_count: violationCount
+      };
     });
     
     res.json({
@@ -5117,7 +5126,7 @@ app.get('/api/files/:fileId/quality-violations', async (req, res) => {
       filename: fileResult.rows[0].filename,
       summary,
       violations,
-      applied_rules: appliedRules
+      applied_rules: appliedRulesWithStatus
     });
   } catch (err) {
     console.error('Error fetching quality violations:', err);
