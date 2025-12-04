@@ -819,6 +819,11 @@ function DataProfile() {
   const [selectedRuleIds, setSelectedRuleIds] = useState([]);
   const [rulesLoading, setRulesLoading] = useState(false);
   const [rulesSaving, setRulesSaving] = useState(false);
+  
+  // Rule-to-column assignment state for Quality Rules tab
+  const [expandedRuleId, setExpandedRuleId] = useState(null);
+  const [ruleColumnAssignments, setRuleColumnAssignments] = useState({}); // { ruleId: [columnNames] }
+  const [savedRuleColumnAssignments, setSavedRuleColumnAssignments] = useState({}); // Tracks persisted state for change detection
 
   // Helper functions for column type checking
   const isNumericColumn = (column) => {
@@ -1094,6 +1099,21 @@ function DataProfile() {
       setFileAvailableRules(data.available || []);
       setFileAssignedRules(data.assigned || []);
       setSelectedRuleIds((data.assigned || []).map(r => r.id));
+      
+      // Load saved column assignments from the assigned rules
+      // Create separate deep copies for current and saved state to avoid reference sharing
+      const currentAssignments = {};
+      const persistedAssignments = {};
+      (data.assigned || []).forEach(rule => {
+        if (rule.target_columns && rule.target_columns.length > 0) {
+          // Clone arrays to prevent shared references
+          currentAssignments[rule.id] = [...rule.target_columns];
+          persistedAssignments[rule.id] = [...rule.target_columns];
+        }
+      });
+      // Set both current and saved state with independent copies
+      setRuleColumnAssignments(currentAssignments);
+      setSavedRuleColumnAssignments(persistedAssignments);
     } catch (err) {
       console.error('Error fetching file quality rules:', err);
     } finally {
@@ -1104,8 +1124,17 @@ function DataProfile() {
   const handleSaveFileRules = async () => {
     try {
       setRulesSaving(true);
-      await assignFileQualityRules(fileId, selectedRuleIds);
-      setFileAssignedRules(fileAvailableRules.filter(r => selectedRuleIds.includes(r.id)));
+      // Include column assignments in the save request
+      const result = await assignFileQualityRules(fileId, selectedRuleIds, ruleColumnAssignments);
+      setFileAssignedRules(result.assigned || fileAvailableRules.filter(r => selectedRuleIds.includes(r.id)));
+      // Update saved state with deep copy to match current state (now persisted)
+      const savedCopy = {};
+      Object.keys(ruleColumnAssignments).forEach(ruleId => {
+        savedCopy[ruleId] = [...(ruleColumnAssignments[ruleId] || [])];
+      });
+      setSavedRuleColumnAssignments(savedCopy);
+      // Clear expanded state after save
+      setExpandedRuleId(null);
       // Refresh violations data after saving rules
       await fetchQualityViolations();
     } catch (err) {
@@ -1117,13 +1146,56 @@ function DataProfile() {
   };
 
   const handleRuleToggle = (ruleId) => {
+    // Toggle rule selection
     setSelectedRuleIds(prev => {
       if (prev.includes(ruleId)) {
+        // When deselecting a rule, also remove its column assignments
+        setRuleColumnAssignments(prevAssignments => {
+          const { [ruleId]: _, ...rest } = prevAssignments;
+          return rest;
+        });
+        setExpandedRuleId(null);
         return prev.filter(id => id !== ruleId);
       } else {
+        // When selecting a rule, expand it to show column selection
+        setExpandedRuleId(ruleId);
         return [...prev, ruleId];
       }
     });
+  };
+  
+  const handleRuleExpand = (ruleId) => {
+    // Toggle expansion for column selection (only for selected rules)
+    if (selectedRuleIds.includes(ruleId)) {
+      setExpandedRuleId(prev => prev === ruleId ? null : ruleId);
+    }
+  };
+  
+  const handleRuleColumnToggle = (ruleId, columnName) => {
+    setRuleColumnAssignments(prev => {
+      const currentColumns = prev[ruleId] || [];
+      if (currentColumns.includes(columnName)) {
+        return { ...prev, [ruleId]: currentColumns.filter(c => c !== columnName) };
+      } else {
+        return { ...prev, [ruleId]: [...currentColumns, columnName] };
+      }
+    });
+  };
+  
+  const selectAllColumnsForRule = (ruleId) => {
+    if (!profile?.columns) return;
+    const allColumnNames = profile.columns.map(col => col.name);
+    setRuleColumnAssignments(prev => ({
+      ...prev,
+      [ruleId]: allColumnNames
+    }));
+  };
+  
+  const clearAllColumnsForRule = (ruleId) => {
+    setRuleColumnAssignments(prev => ({
+      ...prev,
+      [ruleId]: []
+    }));
   };
 
   const handleColumnRuleToggle = (columnName, ruleId) => {
@@ -2117,83 +2189,280 @@ function DataProfile() {
       'timestamp_format': 'Timestamp Format'
     };
 
-    const hasUnsavedChanges = JSON.stringify(selectedRuleIds.sort()) !== 
+    const hasRuleChanges = JSON.stringify(selectedRuleIds.sort()) !== 
       JSON.stringify(fileAssignedRules.map(r => r.id).sort());
+    
+    // Compare current column assignments with saved ones
+    const hasColumnChanges = (() => {
+      const currentKeys = Object.keys(ruleColumnAssignments).sort();
+      const savedKeys = Object.keys(savedRuleColumnAssignments).sort();
+      
+      // Different number of rules with assignments
+      if (currentKeys.length !== savedKeys.length) return true;
+      
+      // Check if any rule has different columns assigned
+      return currentKeys.some(ruleId => {
+        const currentCols = (ruleColumnAssignments[ruleId] || []).slice().sort();
+        const savedCols = (savedRuleColumnAssignments[ruleId] || []).slice().sort();
+        return JSON.stringify(currentCols) !== JSON.stringify(savedCols);
+      });
+    })();
+    
+    const hasUnsavedChanges = hasRuleChanges || hasColumnChanges;
 
-    const renderRuleAssignmentSection = () => (
-      <div className="gps-card" style={{ marginBottom: '16px' }}>
-        <div className="gps-card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div>
-            <h3 className="gps-card-title" style={{ margin: 0, fontSize: '12px' }}>Assign Quality Rules</h3>
-            <p style={{ margin: '4px 0 0 0', fontSize: '10px', color: '#64748b' }}>
-              Select quality rules to apply to this file
-            </p>
+    const renderRuleAssignmentSection = () => {
+      const columns = profile?.columns || [];
+      
+      return (
+        <div className="gps-card" style={{ marginBottom: '16px' }}>
+          <div className="gps-card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <h3 className="gps-card-title" style={{ margin: 0, fontSize: '12px' }}>Assign Quality Rules</h3>
+              <p style={{ margin: '4px 0 0 0', fontSize: '10px', color: '#64748b' }}>
+                Click a rule to select columns, then save to apply
+              </p>
+            </div>
+            <button 
+              className="btn btn-primary" 
+              onClick={handleSaveFileRules}
+              disabled={rulesSaving || !hasUnsavedChanges}
+              style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', padding: '8px 16px' }}
+            >
+              {rulesSaving ? 'Saving...' : 'Save Rules'}
+            </button>
           </div>
-          <button 
-            className="btn btn-primary" 
-            onClick={handleSaveFileRules}
-            disabled={rulesSaving || !hasUnsavedChanges}
-            style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', padding: '8px 16px' }}
-          >
-            {rulesSaving ? 'Saving...' : 'Save Rules'}
-          </button>
+          <div className="gps-card-body" style={{ padding: '16px' }}>
+            {rulesLoading ? (
+              <div style={{ textAlign: 'center', padding: '20px' }}>
+                <LoadingSpinner />
+              </div>
+            ) : fileAvailableRules.length === 0 ? (
+              <p style={{ color: '#64748b', fontSize: '11px', margin: 0 }}>No quality rules available</p>
+            ) : (
+              <div>
+                {/* Rule buttons */}
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: expandedRuleId ? '16px' : 0 }}>
+                  {fileAvailableRules.map(rule => {
+                    const isSelected = selectedRuleIds.includes(rule.id);
+                    const isExpanded = expandedRuleId === rule.id;
+                    const assignedColumns = ruleColumnAssignments[rule.id] || [];
+                    
+                    return (
+                      <div key={rule.id} style={{ position: 'relative' }}>
+                        <button
+                          onClick={() => isSelected ? handleRuleExpand(rule.id) : handleRuleToggle(rule.id)}
+                          style={{
+                            padding: '6px 12px',
+                            fontSize: '10px',
+                            fontFamily: 'Inter, sans-serif',
+                            fontWeight: 500,
+                            border: isExpanded ? '2px solid #025043' : (isSelected ? 'none' : '1px solid #e2e8f0'),
+                            borderRadius: '6px',
+                            cursor: 'pointer',
+                            backgroundColor: isSelected ? '#025043' : '#f8fafc',
+                            color: isSelected ? 'white' : '#475569',
+                            transition: 'all 0.2s ease',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '6px'
+                          }}
+                          title={isSelected ? 'Click to select columns' : rule.description || rule.rule_name}
+                        >
+                          {isSelected && <FiCheckCircle size={12} />}
+                          {RULE_TYPE_LABELS[rule.rule_type] || rule.rule_name}
+                          {isSelected && assignedColumns.length > 0 && (
+                            <span style={{ 
+                              fontSize: '9px', 
+                              backgroundColor: 'rgba(255,255,255,0.3)',
+                              padding: '1px 5px',
+                              borderRadius: '8px',
+                              fontWeight: 600
+                            }}>
+                              {assignedColumns.length}
+                            </span>
+                          )}
+                          <span style={{ 
+                            fontSize: '9px', 
+                            opacity: 0.8,
+                            backgroundColor: isSelected ? 'rgba(255,255,255,0.2)' : '#e2e8f0',
+                            padding: '2px 6px',
+                            borderRadius: '4px'
+                          }}>
+                            {rule.severity}
+                          </span>
+                          {isSelected && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); handleRuleToggle(rule.id); }}
+                              style={{
+                                marginLeft: '4px',
+                                background: 'rgba(255,255,255,0.2)',
+                                border: 'none',
+                                borderRadius: '50%',
+                                width: '16px',
+                                height: '16px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                cursor: 'pointer',
+                                color: 'white',
+                                fontSize: '10px'
+                              }}
+                              title="Remove rule"
+                            >
+                              ×
+                            </button>
+                          )}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+                
+                {/* Column selection panel for expanded rule */}
+                {expandedRuleId && selectedRuleIds.includes(expandedRuleId) && (
+                  <div style={{ 
+                    marginTop: '16px',
+                    padding: '16px',
+                    backgroundColor: '#f8fafc',
+                    borderRadius: '8px',
+                    border: '1px solid #e2e8f0'
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                      <div>
+                        <h4 style={{ margin: 0, fontSize: '11px', fontWeight: 600, color: '#334155' }}>
+                          Select Columns for: {RULE_TYPE_LABELS[fileAvailableRules.find(r => r.id === expandedRuleId)?.rule_type] || 'Rule'}
+                        </h4>
+                        <p style={{ margin: '4px 0 0 0', fontSize: '10px', color: '#64748b' }}>
+                          Choose which columns this rule should validate
+                        </p>
+                      </div>
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <button
+                          onClick={() => selectAllColumnsForRule(expandedRuleId)}
+                          style={{
+                            padding: '4px 10px',
+                            fontSize: '9px',
+                            fontFamily: 'Inter, sans-serif',
+                            fontWeight: 500,
+                            border: '1px solid #025043',
+                            borderRadius: '4px',
+                            cursor: 'pointer',
+                            backgroundColor: 'white',
+                            color: '#025043'
+                          }}
+                        >
+                          Select All
+                        </button>
+                        <button
+                          onClick={() => clearAllColumnsForRule(expandedRuleId)}
+                          style={{
+                            padding: '4px 10px',
+                            fontSize: '9px',
+                            fontFamily: 'Inter, sans-serif',
+                            fontWeight: 500,
+                            border: '1px solid #94a3b8',
+                            borderRadius: '4px',
+                            cursor: 'pointer',
+                            backgroundColor: 'white',
+                            color: '#64748b'
+                          }}
+                        >
+                          Clear All
+                        </button>
+                        <button
+                          onClick={() => setExpandedRuleId(null)}
+                          style={{
+                            padding: '4px 10px',
+                            fontSize: '9px',
+                            fontFamily: 'Inter, sans-serif',
+                            fontWeight: 500,
+                            border: 'none',
+                            borderRadius: '4px',
+                            cursor: 'pointer',
+                            backgroundColor: '#025043',
+                            color: 'white'
+                          }}
+                        >
+                          Done
+                        </button>
+                      </div>
+                    </div>
+                    
+                    {columns.length === 0 ? (
+                      <p style={{ fontSize: '10px', color: '#94a3b8', margin: 0 }}>No columns available. Please profile the file first.</p>
+                    ) : (
+                      <div style={{ 
+                        display: 'grid', 
+                        gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', 
+                        gap: '8px',
+                        maxHeight: '240px',
+                        overflowY: 'auto',
+                        paddingRight: '8px'
+                      }}>
+                        {columns.map(col => {
+                          const isColumnSelected = (ruleColumnAssignments[expandedRuleId] || []).includes(col.name);
+                          return (
+                            <label 
+                              key={col.name}
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '8px',
+                                padding: '8px 10px',
+                                backgroundColor: isColumnSelected ? '#ecfdf5' : 'white',
+                                border: isColumnSelected ? '1px solid #059669' : '1px solid #e2e8f0',
+                                borderRadius: '6px',
+                                cursor: 'pointer',
+                                fontSize: '10px',
+                                fontFamily: 'Inter, sans-serif',
+                                transition: 'all 0.15s ease'
+                              }}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={isColumnSelected}
+                                onChange={() => handleRuleColumnToggle(expandedRuleId, col.name)}
+                                style={{ accentColor: '#025043', cursor: 'pointer' }}
+                              />
+                              <span style={{ 
+                                fontWeight: 500, 
+                                color: isColumnSelected ? '#059669' : '#334155',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap'
+                              }}>
+                                {col.name}
+                              </span>
+                              <span style={{ 
+                                fontSize: '9px', 
+                                color: '#94a3b8',
+                                marginLeft: 'auto',
+                                flexShrink: 0
+                              }}>
+                                {col.type || 'unknown'}
+                              </span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    )}
+                    
+                    <div style={{ marginTop: '12px', fontSize: '10px', color: '#64748b' }}>
+                      {(ruleColumnAssignments[expandedRuleId] || []).length} of {columns.length} columns selected
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+            {hasUnsavedChanges && (
+              <p style={{ fontSize: '10px', color: '#f59e0b', marginTop: '12px', marginBottom: 0 }}>
+                You have unsaved changes. Click "Save Rules" to apply them.
+              </p>
+            )}
+          </div>
         </div>
-        <div className="gps-card-body" style={{ padding: '16px' }}>
-          {rulesLoading ? (
-            <div style={{ textAlign: 'center', padding: '20px' }}>
-              <LoadingSpinner />
-            </div>
-          ) : fileAvailableRules.length === 0 ? (
-            <p style={{ color: '#64748b', fontSize: '11px', margin: 0 }}>No quality rules available</p>
-          ) : (
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-              {fileAvailableRules.map(rule => {
-                const isSelected = selectedRuleIds.includes(rule.id);
-                return (
-                  <button
-                    key={rule.id}
-                    onClick={() => handleRuleToggle(rule.id)}
-                    style={{
-                      padding: '6px 12px',
-                      fontSize: '10px',
-                      fontFamily: 'Inter, sans-serif',
-                      fontWeight: 500,
-                      border: isSelected ? 'none' : '1px solid #e2e8f0',
-                      borderRadius: '6px',
-                      cursor: 'pointer',
-                      backgroundColor: isSelected ? '#025043' : '#f8fafc',
-                      color: isSelected ? 'white' : '#475569',
-                      transition: 'all 0.2s ease',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '6px'
-                    }}
-                    title={rule.description || rule.rule_name}
-                  >
-                    {isSelected && <FiCheckCircle size={12} />}
-                    {RULE_TYPE_LABELS[rule.rule_type] || rule.rule_name}
-                    <span style={{ 
-                      fontSize: '9px', 
-                      opacity: 0.8,
-                      backgroundColor: isSelected ? 'rgba(255,255,255,0.2)' : '#e2e8f0',
-                      padding: '2px 6px',
-                      borderRadius: '4px'
-                    }}>
-                      {rule.severity}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          )}
-          {hasUnsavedChanges && (
-            <p style={{ fontSize: '10px', color: '#f59e0b', marginTop: '12px', marginBottom: 0 }}>
-              You have unsaved changes. Click "Save Rules" to apply them.
-            </p>
-          )}
-        </div>
-      </div>
-    );
+      );
+    };
 
     if (qualityLoading && rulesLoading) {
       return (

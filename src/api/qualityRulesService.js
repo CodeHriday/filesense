@@ -96,11 +96,12 @@ export const getFileQualityRules = async (fileId) => {
   }
 };
 
-export const assignFileQualityRules = async (fileId, ruleIds) => {
+export const assignFileQualityRules = async (fileId, ruleIds, columnAssignments = {}) => {
   try {
     const encodedFileId = encodeURIComponent(fileId);
     const response = await axios.post(`${API_URL}/files/${encodedFileId}/quality-rules`, {
-      rule_ids: ruleIds
+      rule_ids: ruleIds,
+      column_assignments: columnAssignments
     });
     return response.data;
   } catch (error) {

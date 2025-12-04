@@ -5136,9 +5136,10 @@ app.get('/api/files/:fileId/quality-rules', authenticateToken, async (req, res) 
       return res.status(404).json({ error: 'File not found' });
     }
     
-    // Get assigned rules
+    // Get assigned rules with target columns
     const assignedResult = await dbPool.query(`
-      SELECT qr.id, qr.rule_name, qr.rule_type, qr.severity, qr.description, qr.enabled, fqr.created_at as assigned_at
+      SELECT qr.id, qr.rule_name, qr.rule_type, qr.severity, qr.description, qr.enabled, 
+             fqr.created_at as assigned_at, fqr.target_columns
       FROM file_quality_rules fqr
       JOIN quality_rules qr ON fqr.quality_rule_id = qr.id
       WHERE fqr.file_id = $1
@@ -5164,11 +5165,11 @@ app.get('/api/files/:fileId/quality-rules', authenticateToken, async (req, res) 
   }
 });
 
-// Assign quality rules to a file
+// Assign quality rules to a file with optional column assignments
 app.post('/api/files/:fileId/quality-rules', authenticateToken, async (req, res) => {
   try {
     const { fileId } = req.params;
-    const { rule_ids } = req.body;
+    const { rule_ids, column_assignments = {} } = req.body;
     
     if (!Array.isArray(rule_ids)) {
       return res.status(400).json({ error: 'rule_ids must be an array' });
@@ -5188,20 +5189,24 @@ app.post('/api/files/:fileId/quality-rules', authenticateToken, async (req, res)
       // Remove existing rule assignments
       await client.query('DELETE FROM file_quality_rules WHERE file_id = $1', [fileId]);
       
-      // Insert new rule assignments
+      // Insert new rule assignments with column assignments
       if (rule_ids.length > 0) {
-        const values = rule_ids.map((ruleId, idx) => `($1, $${idx + 2}, NOW())`).join(', ');
-        await client.query(
-          `INSERT INTO file_quality_rules (file_id, quality_rule_id, created_at) VALUES ${values}`,
-          [fileId, ...rule_ids]
-        );
+        for (const ruleId of rule_ids) {
+          // Get target columns for this rule (or empty array if none specified)
+          const targetColumns = column_assignments[ruleId] || [];
+          await client.query(
+            `INSERT INTO file_quality_rules (file_id, quality_rule_id, target_columns, created_at) 
+             VALUES ($1, $2, $3, NOW())`,
+            [fileId, ruleId, targetColumns]
+          );
+        }
       }
       
       await client.query('COMMIT');
       
-      // Return updated assignments
+      // Return updated assignments with column info
       const assignedResult = await dbPool.query(`
-        SELECT qr.id, qr.rule_name, qr.rule_type, qr.severity, qr.description
+        SELECT qr.id, qr.rule_name, qr.rule_type, qr.severity, qr.description, fqr.target_columns
         FROM file_quality_rules fqr
         JOIN quality_rules qr ON fqr.quality_rule_id = qr.id
         WHERE fqr.file_id = $1
