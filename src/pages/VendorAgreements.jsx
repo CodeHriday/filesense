@@ -2864,96 +2864,35 @@ const VendorAgreements = () => {
                 </>
               }
             >
-              <div style={{ padding: '1rem' }}>
+              <div className="agreement-files-modal-content">
                 {multipleFilesData.length === 0 ? (
-                  <p style={{ color: '#6b7280', fontStyle: 'italic' }}>No files configured</p>
+                  <p className="no-files-message">No files configured</p>
                 ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                  <div className="agreement-files-list">
                     {multipleFilesData.map((fileSchema, index) => (
-                      <div 
-                        key={index}
-                        style={{
-                          padding: '1rem',
-                          border: '1px solid #e5e7eb',
-                          borderRadius: '8px',
-                          backgroundColor: '#f9fafb'
-                        }}
-                      >
-                        <div style={{ 
-                          display: 'flex', 
-                          alignItems: 'center', 
-                          justifyContent: 'space-between',
-                          marginBottom: '0.5rem'
-                        }}>
-                          <h4 style={{ 
-                            margin: 0, 
-                            fontSize: '1rem', 
-                            fontWeight: 600,
-                            color: '#1f2937'
-                          }}>
-                            {fileSchema.file_name}
-                          </h4>
-                          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                      <div key={index} className="agreement-file-card">
+                        <div className="file-card-header">
+                          <span className="file-pattern">{fileSchema.file_name}</span>
+                          <div className="file-badges">
                             {fileSchema.contains_pii && (
-                              <span style={{
-                                padding: '0.25rem 0.5rem',
-                                backgroundColor: '#fef3c7',
-                                color: '#92400e',
-                                borderRadius: '4px',
-                                fontSize: '0.75rem',
-                                fontWeight: 500
-                              }}>
-                                PII
-                              </span>
+                              <span className="file-badge badge-pii">PII</span>
                             )}
                             {fileSchema.data_classification && (
-                              <span style={{
-                                padding: '0.25rem 0.5rem',
-                                backgroundColor: fileSchema.data_classification === 'Highly Confidential' ? '#fecaca' : 
-                                                 fileSchema.data_classification === 'Confidential' ? '#fed7aa' :
-                                                 fileSchema.data_classification === 'Internal' ? '#bfdbfe' : '#d1fae5',
-                                color: fileSchema.data_classification === 'Highly Confidential' ? '#991b1b' :
-                                       fileSchema.data_classification === 'Confidential' ? '#9a3412' :
-                                       fileSchema.data_classification === 'Internal' ? '#1e40af' : '#065f46',
-                                borderRadius: '4px',
-                                fontSize: '0.75rem',
-                                fontWeight: 500
-                              }}>
+                              <span className={`file-badge badge-classification badge-${fileSchema.data_classification.toLowerCase().replace(' ', '-')}`}>
                                 {fileSchema.data_classification}
                               </span>
                             )}
                             {fileSchema.file_type && (
-                              <span style={{
-                                padding: '0.25rem 0.5rem',
-                                backgroundColor: '#e0e7ff',
-                                color: '#3730a3',
-                                borderRadius: '4px',
-                                fontSize: '0.75rem',
-                                fontWeight: 500
-                              }}>
-                                {fileSchema.file_type}
-                              </span>
+                              <span className="file-badge badge-filetype">{fileSchema.file_type}</span>
                             )}
                           </div>
                         </div>
                         {fileSchema.file_description && (
-                          <p style={{ 
-                            margin: '0.5rem 0 0 0', 
-                            color: '#6b7280', 
-                            fontSize: '0.875rem' 
-                          }}>
-                            {fileSchema.file_description}
-                          </p>
+                          <p className="file-description">{fileSchema.file_description}</p>
                         )}
                         {fileSchema.quality_rule_ids && fileSchema.quality_rule_ids.length > 0 && (
-                          <div style={{ marginTop: '0.5rem' }}>
-                            <span style={{ 
-                              fontSize: '0.75rem', 
-                              color: '#6b7280',
-                              fontWeight: 500
-                            }}>
-                              Quality Rules: {fileSchema.quality_rule_ids.length}
-                            </span>
+                          <div className="file-quality-rules">
+                            <span>Quality Rules: {fileSchema.quality_rule_ids.length}</span>
                           </div>
                         )}
                       </div>
