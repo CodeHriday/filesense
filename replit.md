@@ -11,7 +11,9 @@ Preferred communication style: Simple, everyday language.
 ### UI/UX Decisions
 The application is a modern single-page application built with React (TypeScript, Vite). It utilizes Chart.js for data visualization, features drag-and-drop file uploads, and maintains consistent CSS styling and React modals. A standardized `PageLayout` component ensures consistent spacing and structure across most admin pages, with responsive design principles applied.
 
-**Typography Standard (November 2025):** The ETL Mapping Wizard uses a comprehensive 10px Inter font system for compact, information-dense interfaces. All text elements (headers, labels, inputs, buttons, helper text) use 10px Inter font with reduced spacing. Headers are uppercase with 600 weight. This provides visual consistency across all wizard steps including TableBasedMapper, RdmLookupStep, and CrosswalkLookupStep components.
+**Typography Standard (November 2025):** The ETL Mapping Wizard uses a comprehensive 10px Inter font system for compact, information-dense interfaces. All text elements (headers, labels, inputs, buttons, helper text) use 10px Inter font with reduced spacing. Headers use 600 weight with Title Case formatting (not uppercase). This provides visual consistency across all wizard steps including TableBasedMapper, RdmLookupStep, and CrosswalkLookupStep components.
+
+**Header Case Standard (December 2025):** All section headers, panel titles, and form section titles should use Title Case (e.g., "Vendor Primary Contact") rather than all caps. This applies to modal headers, card titles, and any UI section headings.
 
 ### Technical Implementations
 -   **Backend (Python/Streamlit):** Handles data processing, quality analysis (completeness, consistency, validity, uniqueness) for various file types (CSV, JSON, XLSX, XML, Parquet), supports large files with constant memory usage, data profiling, and asynchronous processing.
