@@ -3483,9 +3483,6 @@ function DataProfile() {
             <div className="gps-card-body" style={{ padding: '16px 20px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <span className="gps-badge gps-badge--primary" style={{ fontSize: '11px', padding: '6px 12px', fontWeight: '600' }}>
-                    {file.file_type?.toUpperCase() || 'FILE'}
-                  </span>
                   <h1 className="gps-page-title" style={{ margin: 0, fontSize: '16px' }}>{file.filename}</h1>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '16px', fontSize: '10px', color: '#666' }}>
