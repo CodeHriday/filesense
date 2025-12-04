@@ -2645,6 +2645,7 @@ function DataProfile() {
     };
 
     // Render Applied Quality Rules section (shown below Assign Quality Rules)
+    // Reorganized to be column-centric: shows columns first, then rules assigned to each column
     const renderAppliedRulesSection = () => {
       if (!qualityViolations || !qualityViolations.applied_rules || qualityViolations.applied_rules.length === 0) {
         return null;
@@ -2652,56 +2653,103 @@ function DataProfile() {
       
       const rules = qualityViolations.applied_rules;
       
+      // Transform rule-centric data to column-centric
+      // Build a map of column -> array of rules applied to that column
+      const columnRulesMap = {};
+      
+      rules.forEach(rule => {
+        const targetCols = rule.target_columns && rule.target_columns.length > 0 
+          ? rule.target_columns 
+          : ['(All Columns)'];
+        
+        targetCols.forEach(col => {
+          if (!columnRulesMap[col]) {
+            columnRulesMap[col] = [];
+          }
+          columnRulesMap[col].push({
+            rule_name: rule.rule_name,
+            rule_type: rule.rule_type,
+            severity: rule.severity,
+            status: rule.status,
+            violation_count: rule.violation_count
+          });
+        });
+      });
+      
+      // Sort columns alphabetically, but keep "(All Columns)" at the end
+      const sortedColumns = Object.keys(columnRulesMap).sort((a, b) => {
+        if (a === '(All Columns)') return 1;
+        if (b === '(All Columns)') return -1;
+        return a.localeCompare(b);
+      });
+      
       return (
         <div className="gps-card" style={{ marginBottom: '16px' }}>
           <div className="gps-card-header">
-            <h3 className="gps-card-title" style={{ fontSize: '12px' }}>Applied Quality Rules</h3>
+            <h3 className="gps-card-title" style={{ fontSize: '12px' }}>Applied Quality Rules by Column</h3>
           </div>
           <div className="gps-card-body" style={{ padding: 0 }}>
-            <div className="gps-table-container" style={{ maxHeight: '200px', overflowY: 'auto' }}>
+            <div className="gps-table-container" style={{ maxHeight: '300px', overflowY: 'auto' }}>
               <table className="gps-table">
-                <thead style={{ position: 'sticky', top: 0, backgroundColor: '#f8fafc' }}>
+                <thead style={{ position: 'sticky', top: 0, backgroundColor: '#f8fafc', zIndex: 1 }}>
                   <tr>
-                    <th>Rule Name</th>
-                    <th>Type</th>
-                    <th>Target Columns</th>
-                    <th>Severity</th>
-                    <th>Status</th>
+                    <th style={{ width: '180px' }}>Target Column</th>
+                    <th>Applied Rules</th>
+                    <th style={{ width: '100px' }}>Severity</th>
+                    <th style={{ width: '120px' }}>Status</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {rules.map((rule, idx) => (
-                    <tr key={idx}>
-                      <td><span style={{ fontWeight: '500', fontSize: '10px' }}>{rule.rule_name}</span></td>
-                      <td><span className="gps-badge gps-badge--secondary" style={{ fontSize: '9px' }}>{rule.rule_type}</span></td>
-                      <td>
-                        {rule.target_columns && rule.target_columns.length > 0 ? (
-                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
-                            {rule.target_columns.slice(0, 3).map((col, i) => (
-                              <span key={i} className="gps-badge gps-badge--info" style={{ fontSize: '9px' }}>{col}</span>
-                            ))}
-                            {rule.target_columns.length > 3 && (
-                              <span className="gps-badge gps-badge--secondary" style={{ fontSize: '9px' }} title={rule.target_columns.join(', ')}>
-                                +{rule.target_columns.length - 3} more
-                              </span>
-                            )}
+                  {sortedColumns.map((columnName, colIdx) => {
+                    const columnRules = columnRulesMap[columnName];
+                    
+                    return columnRules.map((rule, ruleIdx) => (
+                      <tr key={`${colIdx}-${ruleIdx}`}>
+                        {ruleIdx === 0 ? (
+                          <td 
+                            rowSpan={columnRules.length} 
+                            style={{ 
+                              verticalAlign: 'top',
+                              borderBottom: colIdx < sortedColumns.length - 1 ? '2px solid #e2e8f0' : undefined,
+                              backgroundColor: '#f8fafc'
+                            }}
+                          >
+                            <span 
+                              className="gps-badge gps-badge--info" 
+                              style={{ 
+                                fontSize: '10px', 
+                                fontWeight: '600',
+                                display: 'inline-block',
+                                marginTop: '2px'
+                              }}
+                            >
+                              {columnName}
+                            </span>
+                          </td>
+                        ) : null}
+                        <td>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span style={{ fontWeight: '500', fontSize: '10px' }}>{rule.rule_name}</span>
+                            <span className="gps-badge gps-badge--secondary" style={{ fontSize: '8px' }}>{rule.rule_type}</span>
                           </div>
-                        ) : (
-                          <span style={{ fontSize: '10px', color: '#94a3b8' }}>All columns</span>
-                        )}
-                      </td>
-                      <td><span className={`gps-badge gps-badge--${rule.severity === 'critical' ? 'danger' : rule.severity === 'high' ? 'danger' : 'warning'}`} style={{ fontSize: '9px' }}>{rule.severity}</span></td>
-                      <td>
-                        {rule.status === null ? (
-                          <span className="gps-badge gps-badge--secondary" style={{ fontSize: '9px' }}>Not Run</span>
-                        ) : rule.status === 'passed' ? (
-                          <span className="gps-badge gps-badge--success" style={{ fontSize: '9px' }}><FiCheckCircle size={10} style={{ marginRight: '4px' }} /> Passed</span>
-                        ) : (
-                          <span className="gps-badge gps-badge--danger" style={{ fontSize: '9px' }}><FiXCircle size={10} style={{ marginRight: '4px' }} /> Failed ({rule.violation_count})</span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
+                        </td>
+                        <td>
+                          <span className={`gps-badge gps-badge--${rule.severity === 'critical' ? 'danger' : rule.severity === 'high' ? 'danger' : rule.severity === 'error' ? 'danger' : 'warning'}`} style={{ fontSize: '9px' }}>
+                            {rule.severity}
+                          </span>
+                        </td>
+                        <td>
+                          {rule.status === null ? (
+                            <span className="gps-badge gps-badge--secondary" style={{ fontSize: '9px' }}>Not Run</span>
+                          ) : rule.status === 'passed' ? (
+                            <span className="gps-badge gps-badge--success" style={{ fontSize: '9px' }}><FiCheckCircle size={10} style={{ marginRight: '4px' }} /> Passed</span>
+                          ) : (
+                            <span className="gps-badge gps-badge--danger" style={{ fontSize: '9px' }}><FiXCircle size={10} style={{ marginRight: '4px' }} /> Failed ({rule.violation_count})</span>
+                          )}
+                        </td>
+                      </tr>
+                    ));
+                  })}
                 </tbody>
               </table>
             </div>
