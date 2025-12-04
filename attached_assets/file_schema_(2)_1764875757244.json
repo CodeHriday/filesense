@@ -1,0 +1,126 @@
+[
+  {
+    "name": "customer_key",
+    "type": "int",
+    "nullable": true,
+    "pii": false,
+    "quality_rules": [
+      "duplicate_check",
+      "column_completeness",
+      "uniqueness"
+    ]
+  },
+  {
+    "name": "customer_id",
+    "type": "string",
+    "nullable": true,
+    "pii": false,
+    "quality_rules": [
+      "duplicate_check",
+      "column_completeness",
+      "uniqueness",
+      "special_character_presence"
+    ]
+  },
+  {
+    "name": "first_name",
+    "type": "string",
+    "nullable": true,
+    "pii": false
+  },
+  {
+    "name": "last_name",
+    "type": "string",
+    "nullable": true,
+    "pii": false
+  },
+  {
+    "name": "gender",
+    "type": "string",
+    "nullable": true,
+    "pii": false
+  },
+  {
+    "name": "date_of_birth",
+    "type": "string",
+    "nullable": true,
+    "pii": false,
+    "quality_rules": [
+      "date_format"
+    ]
+  },
+  {
+    "name": "loyalty_tier",
+    "type": "string",
+    "nullable": true,
+    "pii": false,
+    "quality_rules": [
+      "null_check",
+      "isna_check"
+    ]
+  },
+  {
+    "name": "signup_date",
+    "type": "string",
+    "nullable": true,
+    "pii": false,
+    "quality_rules": [
+      "date_format"
+    ]
+  },
+  {
+    "name": "email",
+    "type": "string",
+    "nullable": true,
+    "pii": false,
+    "quality_rules": [
+      "email_validity"
+    ]
+  },
+  {
+    "name": "phone",
+    "type": "string",
+    "nullable": true,
+    "pii": false,
+    "quality_rules": [
+      "phone_validity"
+    ]
+  },
+  {
+    "name": "Country_Alpha3_Code",
+    "type": "string",
+    "nullable": true,
+    "pii": false,
+    "quality_rules": [
+      "uniqueness"
+    ]
+  },
+  {
+    "name": "Country_Alpha2_Code",
+    "type": "string",
+    "nullable": true,
+    "pii": false,
+    "quality_rules": [
+      "uniqueness"
+    ]
+  },
+  {
+    "name": "home_region",
+    "type": "string",
+    "nullable": true,
+    "pii": false,
+    "quality_rules": [
+      "uniqueness",
+      "numeric_only_string"
+    ]
+  },
+  {
+    "name": "home_city",
+    "type": "string",
+    "nullable": true,
+    "pii": false,
+    "quality_rules": [
+      "special_character_presence"
+    ]
+  }
+]
