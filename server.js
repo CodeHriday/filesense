@@ -5407,36 +5407,42 @@ app.post('/api/files/:fileId/quality-rules/run', authenticateToken, async (req, 
         }
       }
       
-      // Handle duplicate check separately
+      // Handle duplicate check separately - check EACH target column independently
       if (rule.rule_type === 'duplicate_check' && targetColumns.length > 0) {
-        const valueMap = new Map();
         // Resolve all target columns to actual header names
         const resolvedColumns = targetColumns.map(col => resolveColumnName(col)).filter(Boolean);
         
-        if (resolvedColumns.length > 0) {
+        // Check each column independently for duplicates
+        for (const columnName of resolvedColumns) {
+          const valueMap = new Map();
+          
           for (const row of rows) {
-            // Create composite key from resolved columns
-            const keyParts = resolvedColumns.map(col => row.row_data[col] ?? '');
-            const compositeKey = keyParts.join('||');
+            const cellValue = row.row_data[columnName];
+            // Skip null/empty values for duplicate checking
+            if (cellValue === null || cellValue === undefined || String(cellValue).trim() === '') {
+              continue;
+            }
             
-            if (valueMap.has(compositeKey)) {
-              const firstOccurrence = valueMap.get(compositeKey);
+            const valueKey = String(cellValue).toLowerCase();
+            
+            if (valueMap.has(valueKey)) {
+              const firstOccurrence = valueMap.get(valueKey);
               violations.push({
                 rule_id: rule.id,
                 file_id: fileId,
                 row_number: row.row_number,
-                column_name: resolvedColumns.join(', '),
+                column_name: columnName,
                 expected_value: 'Unique value',
-                actual_value: compositeKey.substring(0, 500),
+                actual_value: String(cellValue).substring(0, 500),
                 violation_details: { 
                   reason: 'Duplicate value found',
                   first_occurrence_row: firstOccurrence,
-                  duplicate_columns: resolvedColumns
+                  duplicate_value: String(cellValue)
                 },
                 severity: rule.severity || 'warning'
               });
             } else {
-              valueMap.set(compositeKey, row.row_number);
+              valueMap.set(valueKey, row.row_number);
             }
           }
         }
@@ -5948,34 +5954,42 @@ app.post('/api/files/:fileId/quality-rules/revalidate', authenticateToken, uploa
         }
       }
       
-      // Handle duplicate check separately
+      // Handle duplicate check separately - check EACH target column independently
       if (rule.rule_type === 'duplicate_check' && targetColumns.length > 0) {
-        const valueMap = new Map();
         // Resolve all target columns to actual header names
         const resolvedColumns = targetColumns.map(col => resolveColumnName(col)).filter(Boolean);
         
-        if (resolvedColumns.length > 0) {
+        // Check each column independently for duplicates
+        for (const columnName of resolvedColumns) {
+          const valueMap = new Map();
+          
           for (const row of parsedRows) {
-            const keyParts = resolvedColumns.map(col => row.row_data[col] ?? '');
-            const compositeKey = keyParts.join('||');
+            const cellValue = row.row_data[columnName];
+            // Skip null/empty values for duplicate checking
+            if (cellValue === null || cellValue === undefined || String(cellValue).trim() === '') {
+              continue;
+            }
             
-            if (valueMap.has(compositeKey)) {
+            const valueKey = String(cellValue).toLowerCase();
+            
+            if (valueMap.has(valueKey)) {
+              const firstOccurrence = valueMap.get(valueKey);
               violations.push({
                 rule_id: rule.id,
                 file_id: fileId,
                 row_number: row.row_number,
-                column_name: resolvedColumns.join(', '),
+                column_name: columnName,
                 expected_value: 'Unique value',
-                actual_value: compositeKey.substring(0, 500),
+                actual_value: String(cellValue).substring(0, 500),
                 violation_details: { 
                   reason: 'Duplicate value found',
-                  first_occurrence_row: valueMap.get(compositeKey),
-                  duplicate_columns: resolvedColumns
+                  first_occurrence_row: firstOccurrence,
+                  duplicate_value: String(cellValue)
                 },
                 severity: rule.severity || 'warning'
               });
             } else {
-              valueMap.set(compositeKey, row.row_number);
+              valueMap.set(valueKey, row.row_number);
             }
           }
         }
