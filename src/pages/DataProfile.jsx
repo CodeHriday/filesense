@@ -825,6 +825,9 @@ function DataProfile() {
   const [ruleColumnAssignments, setRuleColumnAssignments] = useState({}); // { ruleId: [columnNames] }
   const [savedRuleColumnAssignments, setSavedRuleColumnAssignments] = useState({}); // Tracks persisted state for change detection
   const [rulesRunning, setRulesRunning] = useState(false); // Running quality rule validation
+  const [showRevalidateModal, setShowRevalidateModal] = useState(false); // Show file upload modal for revalidation
+  const [revalidateFile, setRevalidateFile] = useState(null); // Selected file for revalidation
+  const [revalidateProgress, setRevalidateProgress] = useState(0); // Upload progress
 
   // Helper functions for column type checking
   const isNumericColumn = (column) => {
@@ -1182,24 +1185,68 @@ function DataProfile() {
     }
   };
   
-  const handleRunQualityRules = async () => {
+  const handleRunQualityRules = () => {
+    // Show the file upload modal for revalidation
+    setShowRevalidateModal(true);
+    setRevalidateFile(null);
+    setRevalidateProgress(0);
+  };
+  
+  const handleRevalidateFileSelect = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setRevalidateFile(file);
+    }
+  };
+  
+  const handleRevalidateSubmit = async () => {
+    if (!revalidateFile) {
+      setErrorMessage('Please select a file to upload');
+      return;
+    }
+    
     try {
       setRulesRunning(true);
+      setRevalidateProgress(10);
+      
+      const formData = new FormData();
+      formData.append('file', revalidateFile);
+      
+      const token = localStorage.getItem('token');
       const encodedFileId = encodeURIComponent(fileId);
-      const response = await axios.post(`/api/files/${encodedFileId}/quality-rules/run`);
+      const response = await axios.post(`/api/files/${encodedFileId}/quality-rules/revalidate`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+          'Authorization': `Bearer ${token}`
+        },
+        onUploadProgress: (progressEvent) => {
+          const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+          setRevalidateProgress(Math.min(percentCompleted, 90)); // Reserve last 10% for processing
+        }
+      });
+      
+      setRevalidateProgress(100);
       
       if (response.data.success) {
-        // Refresh violations data to show updated results
+        // Close modal, reset state, and refresh violations data
+        setShowRevalidateModal(false);
+        setRevalidateFile(null);
+        setRevalidateProgress(0);
         await fetchQualityViolations();
       } else {
         setErrorMessage(response.data.message || 'Failed to run quality rules');
+        setShowRevalidateModal(false);
+        setRevalidateFile(null);
       }
     } catch (err) {
       console.error('Error running quality rules:', err);
       const message = err.response?.data?.message || err.response?.data?.error || 'Failed to run quality rules';
       setErrorMessage(message);
+      setShowRevalidateModal(false);
+      setRevalidateFile(null);
     } finally {
       setRulesRunning(false);
+      setRevalidateProgress(0);
     }
   };
 
@@ -3526,6 +3573,172 @@ function DataProfile() {
         message={errorMessage} 
         onClose={() => setErrorMessage(null)} 
       />
+      
+      {/* Revalidation Modal - File Upload for Quality Rules */}
+      {showRevalidateModal && (
+        <div className="modal-overlay" onClick={() => !rulesRunning && setShowRevalidateModal(false)} style={{ zIndex: 2000 }}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '500px' }}>
+            <div style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'space-between',
+              padding: '16px 20px',
+              backgroundColor: '#ffffff',
+              borderBottom: '1px solid #e0e0e0'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <FiPlay style={{ color: '#2e7d32', fontSize: '20px' }} />
+                <h2 style={{ margin: 0, fontSize: '16px', fontWeight: 600, color: '#333' }}>Run Quality Rules</h2>
+              </div>
+              <button 
+                onClick={() => !rulesRunning && setShowRevalidateModal(false)}
+                disabled={rulesRunning}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  cursor: rulesRunning ? 'not-allowed' : 'pointer',
+                  padding: '4px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#666',
+                  opacity: rulesRunning ? 0.5 : 1
+                }}
+              >
+                <FiXCircle style={{ fontSize: '18px' }} />
+              </button>
+            </div>
+            
+            <div style={{ padding: '20px' }}>
+              <p style={{ margin: '0 0 16px 0', color: '#555', fontSize: '14px', lineHeight: '1.5' }}>
+                Upload a new version of the file to run quality rules validation. The existing rule configurations will be applied to the uploaded data.
+              </p>
+              
+              <div style={{ 
+                border: '2px dashed #ccc', 
+                borderRadius: '8px', 
+                padding: '24px', 
+                textAlign: 'center',
+                backgroundColor: revalidateFile ? '#f0f9f0' : '#fafafa',
+                transition: 'all 0.2s'
+              }}>
+                {revalidateFile ? (
+                  <div>
+                    <FiCheckCircle style={{ fontSize: '32px', color: '#2e7d32', marginBottom: '8px' }} />
+                    <p style={{ margin: '0 0 8px 0', fontWeight: 500, color: '#333' }}>{revalidateFile.name}</p>
+                    <p style={{ margin: 0, fontSize: '12px', color: '#666' }}>
+                      {(revalidateFile.size / 1024).toFixed(1)} KB
+                    </p>
+                    {!rulesRunning && (
+                      <button
+                        onClick={() => setRevalidateFile(null)}
+                        style={{
+                          marginTop: '12px',
+                          padding: '4px 12px',
+                          fontSize: '12px',
+                          border: '1px solid #ccc',
+                          borderRadius: '4px',
+                          backgroundColor: '#fff',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        Choose Different File
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <div>
+                    <FiFileText style={{ fontSize: '32px', color: '#999', marginBottom: '8px' }} />
+                    <p style={{ margin: '0 0 12px 0', color: '#666' }}>Select a CSV or JSON file</p>
+                    <label style={{
+                      display: 'inline-block',
+                      padding: '8px 16px',
+                      backgroundColor: '#2e7d32',
+                      color: '#fff',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                      fontSize: '14px'
+                    }}>
+                      Choose File
+                      <input 
+                        type="file" 
+                        accept=".csv,.json"
+                        onChange={handleRevalidateFileSelect}
+                        style={{ display: 'none' }}
+                      />
+                    </label>
+                  </div>
+                )}
+              </div>
+              
+              {rulesRunning && (
+                <div style={{ marginTop: '16px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                    <span style={{ fontSize: '12px', color: '#666' }}>
+                      {revalidateProgress < 90 ? 'Uploading...' : 'Processing rules...'}
+                    </span>
+                    <span style={{ fontSize: '12px', color: '#666' }}>{revalidateProgress}%</span>
+                  </div>
+                  <div style={{ 
+                    height: '6px', 
+                    backgroundColor: '#e0e0e0', 
+                    borderRadius: '3px',
+                    overflow: 'hidden'
+                  }}>
+                    <div style={{ 
+                      height: '100%', 
+                      width: `${revalidateProgress}%`, 
+                      backgroundColor: '#2e7d32',
+                      transition: 'width 0.3s'
+                    }} />
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            <div style={{ 
+              display: 'flex',
+              justifyContent: 'flex-end', 
+              gap: '12px',
+              padding: '12px 20px',
+              borderTop: '1px solid #e0e0e0',
+              backgroundColor: '#fafafa'
+            }}>
+              <button 
+                onClick={() => setShowRevalidateModal(false)}
+                disabled={rulesRunning}
+                style={{
+                  padding: '8px 16px',
+                  fontSize: '14px',
+                  border: '1px solid #ccc',
+                  borderRadius: '4px',
+                  backgroundColor: '#fff',
+                  cursor: rulesRunning ? 'not-allowed' : 'pointer',
+                  opacity: rulesRunning ? 0.5 : 1
+                }}
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={handleRevalidateSubmit}
+                disabled={!revalidateFile || rulesRunning}
+                style={{
+                  padding: '8px 24px',
+                  fontSize: '14px',
+                  fontWeight: 500,
+                  border: 'none',
+                  borderRadius: '4px',
+                  backgroundColor: (!revalidateFile || rulesRunning) ? '#ccc' : '#2e7d32',
+                  color: '#fff',
+                  cursor: (!revalidateFile || rulesRunning) ? 'not-allowed' : 'pointer'
+                }}
+              >
+                {rulesRunning ? 'Running...' : 'Run Rules'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

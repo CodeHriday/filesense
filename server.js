@@ -5388,6 +5388,406 @@ app.post('/api/files/:fileId/quality-rules/run', authenticateToken, async (req, 
   }
 });
 
+// Re-upload file and run quality rules validation
+// This endpoint accepts a new file version, updates preview data, and runs quality checks
+app.post('/api/files/:fileId/quality-rules/revalidate', authenticateToken, upload.single('file'), async (req, res) => {
+  try {
+    const { fileId } = req.params;
+    const userId = req.user?.id || req.user?.userId;
+    
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file uploaded' });
+    }
+    
+    // Get existing file info to retain configurations
+    const fileResult = await dbPool.query(`
+      SELECT file_id, filename, file_type, project_id, metadata, schema_definition
+      FROM files WHERE file_id = $1
+    `, [fileId]);
+    
+    if (fileResult.rows.length === 0) {
+      // Clean up uploaded file
+      try { fs.unlinkSync(req.file.path); } catch (e) {}
+      return res.status(404).json({ error: 'File not found' });
+    }
+    
+    const existingFile = fileResult.rows[0];
+    const uploadedFile = req.file;
+    
+    // Virus scan the uploaded file
+    const virusScanner = require('./backend/services/VirusScanService');
+    try {
+      const scanResult = await virusScanner.scanFile(uploadedFile.path);
+      if (scanResult.isInfected) {
+        try { fs.unlinkSync(uploadedFile.path); } catch (e) {}
+        return res.status(400).json({
+          error: 'Virus detected',
+          message: 'The uploaded file contains malware and has been rejected'
+        });
+      }
+    } catch (scanErr) {
+      logger.warn('Virus scan skipped for revalidation', { error: scanErr.message });
+    }
+    
+    // Parse the uploaded file and extract rows
+    let parsedRows = [];
+    let columnNames = [];
+    
+    const fileExtension = path.extname(uploadedFile.originalname).toLowerCase();
+    
+    if (fileExtension === '.csv') {
+      // Parse CSV using csv-parser for proper handling of quoted values, commas, and escapes
+      const csvParser = require('csv-parser');
+      const results = [];
+      
+      await new Promise((resolve, reject) => {
+        fs.createReadStream(uploadedFile.path)
+          .pipe(csvParser())
+          .on('headers', (headers) => {
+            columnNames = headers.map(h => h.trim());
+          })
+          .on('data', (data) => {
+            if (results.length < 1000) { // Limit to 1000 rows for preview
+              results.push(data);
+            }
+          })
+          .on('end', () => resolve())
+          .on('error', (err) => reject(err));
+      });
+      
+      // Convert to expected format with row numbers
+      parsedRows = results.map((row, idx) => ({
+        row_number: idx + 1,
+        row_data: row
+      }));
+      
+    } else if (fileExtension === '.json') {
+      // Parse JSON
+      const fileContent = fs.readFileSync(uploadedFile.path, 'utf8');
+      const jsonData = JSON.parse(fileContent);
+      const dataArray = Array.isArray(jsonData) ? jsonData : [jsonData];
+      
+      if (dataArray.length > 0 && typeof dataArray[0] === 'object') {
+        columnNames = Object.keys(dataArray[0]);
+      }
+      
+      for (let i = 0; i < Math.min(dataArray.length, 1000); i++) {
+        parsedRows.push({ row_number: i + 1, row_data: dataArray[i] });
+      }
+    } else {
+      // Clean up and return error for unsupported types
+      try { fs.unlinkSync(uploadedFile.path); } catch (e) {}
+      return res.status(400).json({
+        error: 'Unsupported file type',
+        message: 'Only CSV and JSON files are supported for quality rule revalidation'
+      });
+    }
+    
+    // Clean up uploaded file after parsing
+    try { fs.unlinkSync(uploadedFile.path); } catch (e) {}
+    
+    if (parsedRows.length === 0) {
+      return res.status(400).json({
+        error: 'Empty file',
+        message: 'The uploaded file contains no data rows'
+      });
+    }
+    
+    // Update file_preview_data with new content using transaction
+    const client = await dbPool.connect();
+    try {
+      await client.query('BEGIN');
+      
+      // Delete old preview data
+      await client.query('DELETE FROM file_preview_data WHERE file_id = $1', [fileId]);
+      
+      // Insert new preview data in batches
+      const batchSize = 100;
+      for (let i = 0; i < parsedRows.length; i += batchSize) {
+        const batch = parsedRows.slice(i, i + batchSize);
+        const values = batch.map((row, idx) => {
+          const base = idx * 3;
+          return `($${base + 1}, $${base + 2}, $${base + 3})`;
+        });
+        
+        const params = batch.flatMap(row => [
+          fileId, row.row_number, JSON.stringify(row.row_data)
+        ]);
+        
+        await client.query(`
+          INSERT INTO file_preview_data (file_id, row_number, row_data)
+          VALUES ${values.join(', ')}
+        `, params);
+      }
+      
+      // Update file metadata
+      await client.query(`
+        UPDATE files 
+        SET row_count = $1, 
+            column_count = $2,
+            updated_at = NOW()
+        WHERE file_id = $3
+      `, [parsedRows.length, columnNames.length, fileId]);
+      
+      await client.query('COMMIT');
+    } catch (txErr) {
+      await client.query('ROLLBACK');
+      throw txErr;
+    } finally {
+      client.release();
+    }
+    
+    // Now run quality rules against the fresh data
+    const rulesResult = await dbPool.query(`
+      SELECT qr.id, qr.rule_name, qr.rule_type, qr.severity, qr.rule_config,
+             COALESCE(fqr.target_columns, ARRAY[]::text[]) as target_columns
+      FROM file_quality_rules fqr
+      JOIN quality_rules qr ON fqr.quality_rule_id = qr.id
+      WHERE fqr.file_id = $1 AND qr.enabled = true
+      ORDER BY qr.rule_name
+    `, [fileId]);
+    
+    if (rulesResult.rows.length === 0) {
+      return res.json({
+        success: true,
+        message: 'File uploaded but no quality rules assigned',
+        rows_processed: parsedRows.length,
+        rules_executed: 0,
+        violations_found: 0
+      });
+    }
+    
+    const violations = [];
+    
+    // Execute each rule against its target columns
+    for (const rule of rulesResult.rows) {
+      const targetColumns = rule.target_columns || [];
+      
+      if (targetColumns.length === 0) continue;
+      
+      for (const columnName of targetColumns) {
+        for (const row of parsedRows) {
+          const rowData = row.row_data;
+          const cellValue = rowData[columnName];
+          
+          let isViolation = false;
+          let expectedValue = null;
+          let violationDetails = {};
+          
+          switch (rule.rule_type) {
+            case 'null_check':
+              if (cellValue === null || cellValue === undefined || cellValue === '') {
+                isViolation = true;
+                expectedValue = 'Non-null value';
+                violationDetails = { reason: 'Value is null or empty' };
+              }
+              break;
+              
+            case 'column_completeness':
+              if (cellValue === null || cellValue === undefined || cellValue === '') {
+                isViolation = true;
+                expectedValue = 'Non-empty value';
+                violationDetails = { reason: 'Missing value' };
+              }
+              break;
+              
+            case 'email_validity':
+              if (cellValue && typeof cellValue === 'string') {
+                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                if (!emailRegex.test(cellValue)) {
+                  isViolation = true;
+                  expectedValue = 'Valid email format';
+                  violationDetails = { reason: 'Invalid email format', value: cellValue };
+                }
+              }
+              break;
+              
+            case 'phone_validity':
+              if (cellValue && typeof cellValue === 'string') {
+                const digitsOnly = cellValue.replace(/\D/g, '');
+                if (digitsOnly.length < 10) {
+                  isViolation = true;
+                  expectedValue = 'Valid phone number (10+ digits)';
+                  violationDetails = { reason: 'Invalid phone format', value: cellValue };
+                }
+              }
+              break;
+              
+            case 'date_format':
+              if (cellValue && typeof cellValue === 'string') {
+                const dateValue = new Date(cellValue);
+                if (isNaN(dateValue.getTime())) {
+                  isViolation = true;
+                  expectedValue = 'Valid date format';
+                  violationDetails = { reason: 'Invalid date format', value: cellValue };
+                }
+              }
+              break;
+              
+            case 'timestamp_format':
+              if (cellValue && typeof cellValue === 'string') {
+                const timestampValue = new Date(cellValue);
+                if (isNaN(timestampValue.getTime())) {
+                  isViolation = true;
+                  expectedValue = 'Valid timestamp format';
+                  violationDetails = { reason: 'Invalid timestamp format', value: cellValue };
+                }
+              }
+              break;
+          }
+          
+          if (isViolation) {
+            violations.push({
+              rule_id: rule.id,
+              file_id: fileId,
+              row_number: row.row_number,
+              column_name: columnName,
+              expected_value: expectedValue,
+              actual_value: cellValue !== null ? String(cellValue).substring(0, 500) : null,
+              violation_details: violationDetails,
+              severity: rule.severity || 'warning'
+            });
+          }
+        }
+      }
+      
+      // Handle duplicate check separately
+      if (rule.rule_type === 'duplicate_check' && targetColumns.length > 0) {
+        const valueMap = new Map();
+        
+        for (const row of parsedRows) {
+          const keyParts = targetColumns.map(col => row.row_data[col] ?? '');
+          const compositeKey = keyParts.join('||');
+          
+          if (valueMap.has(compositeKey)) {
+            violations.push({
+              rule_id: rule.id,
+              file_id: fileId,
+              row_number: row.row_number,
+              column_name: targetColumns.join(', '),
+              expected_value: 'Unique value',
+              actual_value: compositeKey.substring(0, 500),
+              violation_details: { 
+                reason: 'Duplicate value found',
+                first_occurrence_row: valueMap.get(compositeKey),
+                duplicate_columns: targetColumns
+              },
+              severity: rule.severity || 'warning'
+            });
+          } else {
+            valueMap.set(compositeKey, row.row_number);
+          }
+        }
+      }
+      
+      // Handle uniqueness check
+      if (rule.rule_type === 'uniqueness' && targetColumns.length > 0) {
+        const valueMap = new Map();
+        
+        for (const row of parsedRows) {
+          const keyParts = targetColumns.map(col => row.row_data[col] ?? '');
+          const compositeKey = keyParts.join('||');
+          
+          if (valueMap.has(compositeKey)) {
+            violations.push({
+              rule_id: rule.id,
+              file_id: fileId,
+              row_number: row.row_number,
+              column_name: targetColumns.join(', '),
+              expected_value: 'Unique value',
+              actual_value: compositeKey.substring(0, 500),
+              violation_details: { 
+                reason: 'Uniqueness violation - duplicate found',
+                first_occurrence_row: valueMap.get(compositeKey)
+              },
+              severity: rule.severity || 'warning'
+            });
+          } else {
+            valueMap.set(compositeKey, row.row_number);
+          }
+        }
+      }
+    }
+    
+    // Save violations to database
+    const violationClient = await dbPool.connect();
+    try {
+      await violationClient.query('BEGIN');
+      
+      // Clear existing violations
+      await violationClient.query('DELETE FROM quality_rule_violations WHERE file_id = $1', [fileId]);
+      
+      // Insert new violations
+      if (violations.length > 0) {
+        const batchSize = 100;
+        for (let i = 0; i < violations.length; i += batchSize) {
+          const batch = violations.slice(i, i + batchSize);
+          const values = batch.map((v, idx) => {
+            const base = idx * 8;
+            return `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6}, $${base + 7}, $${base + 8})`;
+          });
+          
+          const params = batch.flatMap(v => [
+            v.rule_id, v.file_id, v.row_number, v.column_name,
+            v.expected_value, v.actual_value, JSON.stringify(v.violation_details), v.severity
+          ]);
+          
+          await violationClient.query(`
+            INSERT INTO quality_rule_violations 
+              (rule_id, file_id, row_number, column_name, expected_value, actual_value, violation_details, severity)
+            VALUES ${values.join(', ')}
+          `, params);
+        }
+      }
+      
+      await violationClient.query('COMMIT');
+    } catch (txErr) {
+      await violationClient.query('ROLLBACK');
+      throw txErr;
+    } finally {
+      violationClient.release();
+    }
+    
+    logger.info('Quality rules revalidation completed', {
+      service: 'data-observatory-api',
+      fileId,
+      rowsProcessed: parsedRows.length,
+      rulesExecuted: rulesResult.rows.length,
+      violationsFound: violations.length,
+      userId
+    });
+    
+    res.json({
+      success: true,
+      message: 'File uploaded and quality rules executed successfully',
+      rows_processed: parsedRows.length,
+      rules_executed: rulesResult.rows.length,
+      violations_found: violations.length,
+      violations_by_rule: rulesResult.rows.map(rule => ({
+        rule_id: rule.id,
+        rule_name: rule.rule_name,
+        rule_type: rule.rule_type,
+        target_columns: rule.target_columns,
+        violations: violations.filter(v => v.rule_id === rule.id).length,
+        status: violations.filter(v => v.rule_id === rule.id).length > 0 ? 'failed' : 'passed'
+      }))
+    });
+    
+  } catch (err) {
+    // Clean up uploaded file on error
+    if (req.file && req.file.path) {
+      try { fs.unlinkSync(req.file.path); } catch (e) {}
+    }
+    console.error('Error in quality rules revalidation:', err);
+    logger.error('Error in quality rules revalidation', { 
+      service: 'data-observatory-api', 
+      error: err.message,
+      stack: err.stack
+    });
+    res.status(500).json({ error: 'Failed to revalidate file', details: err.message });
+  }
+});
+
 // Get quality rules assigned to a file
 app.get('/api/files/:fileId/quality-rules', authenticateToken, async (req, res) => {
   try {
