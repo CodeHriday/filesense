@@ -180,11 +180,11 @@ function SubProjectManagement({ projectId, projectName }) {
               />
             </div>
             <div className="form-actions">
-              <button type="button" className="btn btn-secondary" onClick={() => setShowCreateForm(false)} disabled={submitting}>
+              <button type="button" className="btn btn-secondary btn-sm" onClick={() => setShowCreateForm(false)} disabled={submitting}>
                 Cancel
               </button>
-              <button type="submit" className="btn btn-primary" disabled={submitting}>
-                <FiSave size={16} />
+              <button type="submit" className="btn btn-primary btn-sm" disabled={submitting}>
+                <FiSave size={14} />
                 {submitting ? 'Creating...' : 'Create Sub-Project'}
               </button>
             </div>
