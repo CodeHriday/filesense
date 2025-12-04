@@ -769,24 +769,29 @@ const VendorManagement = () => {
       {/* Vendor Creation Success Modal */}
       {showSuccessModal && createdVendorInfo && (
         <div className="modal-overlay" onClick={() => setShowSuccessModal(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '500px' }}>
-            <div className="modal-header" style={{ backgroundColor: '#10b981', color: 'white' }}>
-              <h2 style={{ color: 'white' }}>Vendor Created Successfully!</h2>
-              <button className="close-btn" onClick={() => setShowSuccessModal(false)} style={{ color: 'white' }}>×</button>
+          <div className="modal vendor-success-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Vendor Created Successfully</h2>
+              <button className="close-btn" onClick={() => setShowSuccessModal(false)}>×</button>
             </div>
-            <div className="modal-body" style={{ padding: '2rem' }}>
-              <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
-                <div style={{ fontSize: '3rem', color: '#10b981', marginBottom: '1rem' }}>✓</div>
-                <h3 style={{ marginBottom: '0.5rem' }}>Vendor "{createdVendorInfo.vendorName}" has been created.</h3>
-                <p style={{ color: '#6b7280', marginBottom: '1rem' }}>
+            <div className="modal-body">
+              <div className="success-content">
+                <div className="success-icon">
+                  <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="2">
+                    <circle cx="12" cy="12" r="10" />
+                    <path d="M9 12l2 2 4-4" />
+                  </svg>
+                </div>
+                <h3 className="success-title">Vendor "{createdVendorInfo.vendorName}" has been created.</h3>
+                <p className="success-subtitle">
                   A default project <strong>"{createdVendorInfo.projectName}"</strong> has been created.
                 </p>
-                <p style={{ color: '#374151', padding: '1rem', backgroundColor: '#fef3c7', borderRadius: '8px', border: '1px solid #fbbf24' }}>
-                  Please go to the project management page and add respective dev teams or users to provide them access to the project.
-                </p>
+                <div className="success-info-box">
+                  <p>Please go to the project management page and add respective dev teams or users to provide them access to the project.</p>
+                </div>
               </div>
             </div>
-            <div className="modal-actions" style={{ justifyContent: 'center', gap: '1rem' }}>
+            <div className="modal-actions">
               <button 
                 type="button" 
                 className="btn-secondary" 
@@ -801,7 +806,6 @@ const VendorManagement = () => {
                   setShowSuccessModal(false);
                   navigate('/project-management');
                 }}
-                style={{ backgroundColor: '#10b981' }}
               >
                 Go to Project Management
               </button>

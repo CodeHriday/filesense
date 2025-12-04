@@ -594,3 +594,111 @@ body.high-contrast .save-btn {
     flex-direction: column !important;
   }
 }
+
+/* Vendor Success Modal Styles */
+.vendor-success-modal {
+  max-width: 480px;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.vendor-success-modal .modal-header {
+  background-color: #025043;
+  padding: 16px 20px;
+}
+
+.vendor-success-modal .modal-header h2 {
+  color: white;
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.vendor-success-modal .modal-header .close-btn {
+  color: white;
+  opacity: 0.8;
+}
+
+.vendor-success-modal .modal-header .close-btn:hover {
+  opacity: 1;
+}
+
+.vendor-success-modal .modal-body {
+  padding: 24px;
+}
+
+.vendor-success-modal .success-content {
+  text-align: center;
+}
+
+.vendor-success-modal .success-icon {
+  margin-bottom: 16px;
+}
+
+.vendor-success-modal .success-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #1f2937;
+  margin: 0 0 8px 0;
+}
+
+.vendor-success-modal .success-subtitle {
+  font-size: 13px;
+  color: #6b7280;
+  margin: 0 0 16px 0;
+}
+
+.vendor-success-modal .success-subtitle strong {
+  color: #374151;
+}
+
+.vendor-success-modal .success-info-box {
+  background-color: #f0fdf4;
+  border: 1px solid #86efac;
+  border-radius: 6px;
+  padding: 12px 16px;
+  margin-top: 8px;
+}
+
+.vendor-success-modal .success-info-box p {
+  font-size: 12px;
+  color: #166534;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.vendor-success-modal .modal-actions {
+  padding: 16px 24px;
+  border-top: 1px solid #e5e7eb;
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.vendor-success-modal .btn-secondary {
+  background: white;
+  border: 1px solid #d1d5db;
+  color: #374151;
+  padding: 8px 16px;
+  font-size: 13px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.vendor-success-modal .btn-secondary:hover {
+  background: #f9fafb;
+}
+
+.vendor-success-modal .btn-primary {
+  background: #025043;
+  border: none;
+  color: white;
+  padding: 8px 16px;
+  font-size: 13px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.vendor-success-modal .btn-primary:hover {
+  background: #013d33;
+}
