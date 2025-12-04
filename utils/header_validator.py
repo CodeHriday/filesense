@@ -83,8 +83,12 @@ def is_header_like(row_data: pd.Series, actual_headers = None, threshold: float 
     
     Strategy:
     1. First check if values match data patterns - if most are clearly data, reject immediately
-    2. Check similarity to actual headers if provided
-    3. Fall back to broader header heuristics for non-exact duplicates
+    2. Check similarity to actual headers if provided (primary method)
+    3. Use conservative pattern matching only as a fallback
+    
+    NOTE: This function has been tightened to reduce false positives.
+    Text-heavy data rows (names, cities, etc.) were incorrectly flagged as headers.
+    Now we ONLY flag as header-like if there's strong evidence.
     
     Args:
         row_data: The row to check
@@ -101,6 +105,7 @@ def is_header_like(row_data: pd.Series, actual_headers = None, threshold: float 
     data_pattern_count = 0
     string_count = 0
     total_values = 0
+    long_value_count = 0  # Values that are too long to be headers
     
     for val in row_data:
         if pd.isna(val):
@@ -115,18 +120,28 @@ def is_header_like(row_data: pd.Series, actual_headers = None, threshold: float 
         # Track if it's a string for broader heuristic
         if isinstance(val, str) or not isinstance(val, (int, float, bool)):
             string_count += 1
+        
+        # Headers are typically short (1-3 words, <30 chars)
+        # Long values are almost certainly data, not headers
+        if len(val_str) > 30 or len(val_str.split()) > 3:
+            long_value_count += 1
     
     if total_values == 0:
         return False
     
     data_ratio = data_pattern_count / total_values
-    string_ratio = string_count / total_values
+    long_value_ratio = long_value_count / total_values
     
-    # If most values (>70%) look like data patterns, it's NOT a header
-    if data_ratio > 0.7:
+    # If most values (>50%) look like data patterns, it's NOT a header
+    if data_ratio > 0.5:
         return False
     
-    # Step 2: If we have actual headers, check similarity
+    # If many values (>30%) are too long to be headers, it's NOT a header
+    if long_value_ratio > 0.3:
+        return False
+    
+    # Step 2: If we have actual headers, check similarity (PRIMARY METHOD)
+    # This is the most reliable way to detect duplicate headers
     if actual_headers is not None:
         similarity_count = 0
         total_compared = 0
@@ -139,39 +154,34 @@ def is_header_like(row_data: pd.Series, actual_headers = None, threshold: float 
             val_str = str(val).strip().lower()
             header_str = str(header).strip().lower()
             
-            # Check if value matches header name (exact or substring)
+            # Check if value matches header name (exact match only for reliability)
             if val_str == header_str:
                 similarity_count += 1
-            elif val_str in header_str or header_str in val_str:
-                similarity_count += 0.5
+            # Partial matches need to be very close (>80% overlap)
+            elif len(val_str) > 2 and len(header_str) > 2:
+                if val_str in header_str and len(val_str) / len(header_str) > 0.8:
+                    similarity_count += 0.7
+                elif header_str in val_str and len(header_str) / len(val_str) > 0.8:
+                    similarity_count += 0.7
         
         if total_compared > 0:
             similarity_ratio = similarity_count / total_compared
-            # If row matches headers significantly, it's a duplicate header
+            # Require high similarity (>60%) to flag as duplicate header
             if similarity_ratio >= threshold:
                 return True
     
-    # Step 3: Broader header heuristic for non-exact duplicates
-    # Headers typically have mostly strings, short values, and header-like patterns
+    # Step 3: REMOVED the overly broad "mostly strings" check
+    # This was causing false positives for text-heavy data rows
+    # (e.g., rows with names, cities, loyalty tiers, etc.)
     
-    # If mostly strings (>80%) and not mostly data, likely a header
-    if string_ratio > 0.8 and data_ratio < 0.5:
-        return True
-    
-    # Check for header-specific patterns
+    # Only use pattern matching as a last resort with VERY HIGH threshold
+    # This catches cases where headers might be slightly different from column names
     pattern_matches = 0
     header_patterns = [
-        # Common business/database terms
-        r'^(subject|patient|customer|client|user|employee|record|item|product|order|invoice|transaction|account)',
-        # ID and identifier patterns
-        r'(id|number|code|key|ref|reference)$',
-        r'^(id|number|code|key|ref)',
-        # Name and description patterns
-        r'(name|title|description|label|category|type|status|class|group)$',
-        # Date and time patterns
-        r'^(date|time|timestamp|created|updated|modified|deleted|start|end|due)',
-        # Address and contact patterns
-        r'(address|street|city|state|zip|postal|country|phone|email|contact)',
+        # Only match very specific header-like patterns
+        r'^(id|code|key|ref)$',  # Exact matches only
+        r'^(id|code|key|ref)_',  # Prefix matches
+        r'_(id|code|key|ref)$',  # Suffix matches
     ]
     
     for val in row_data:
@@ -180,8 +190,12 @@ def is_header_like(row_data: pd.Series, actual_headers = None, threshold: float 
             
         val_str = str(val).strip().lower()
         
-        # Skip obvious data patterns for pattern matching
+        # Skip if it looks like data
         if is_data_pattern(val):
+            continue
+        
+        # Skip if value is too long to be a header
+        if len(val_str) > 25:
             continue
         
         # Check for header-specific patterns
@@ -190,10 +204,10 @@ def is_header_like(row_data: pd.Series, actual_headers = None, threshold: float 
                 pattern_matches += 1
                 break
     
-    # If we find header patterns in a reasonable number of columns (>30%)
-    # and it's mostly strings, likely a header
+    # Require VERY HIGH pattern match ratio (>60%) to flag as header
+    # This is much stricter than before to avoid false positives
     pattern_ratio = pattern_matches / total_values if total_values > 0 else 0
-    if pattern_ratio > 0.3 and string_ratio > 0.7:
+    if pattern_ratio > 0.6:
         return True
     
     return False
