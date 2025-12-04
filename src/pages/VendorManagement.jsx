@@ -602,140 +602,149 @@ const VendorManagement = () => {
             </div>
             
             <div className="form-group">
-              <label htmlFor="contact_user">
-                Contact User <span className="required-field">*</span>
-              </label>
-              <select
-                id="contact_user"
-                name="contact_user"
-                value={formData.contact_user_id}
-                onChange={handleContactUserChange}
-                required
-              >
-                <option value="">Select a vendor user</option>
-                {vendorUsers.map(user => (
-                  <option key={user.id} value={user.id}>
-                    {user.full_name || user.username} ({user.email})
-                  </option>
-                ))}
-              </select>
-            </div>
-            
-            <div className="form-row-2col">
-              <div className="form-group">
-                <label htmlFor="contact_name">Contact Name (Auto-filled)</label>
-                <input
-                  type="text"
-                  id="contact_name"
-                  name="contact_name"
-                  value={formData.contact_name}
-                  readOnly
-                  disabled
-                  style={{ backgroundColor: '#f3f4f6' }}
-                />
-              </div>
-              
-              <div className="form-group">
-                <label htmlFor="contact_phone">Contact Phone (Auto-filled)</label>
-                <input
-                  type="tel"
-                  id="contact_phone"
-                  name="contact_phone"
-                  value={formData.contact_phone}
-                  readOnly
-                  disabled
-                  style={{ backgroundColor: '#f3f4f6' }}
-                />
-              </div>
-            </div>
-            
-            <div className="form-group">
-              <label htmlFor="contact_email">
-                Contact Email (Auto-filled) <span className="required-field">*</span>
-              </label>
-              <input
-                type="email"
-                id="contact_email"
-                name="contact_email"
-                value={formData.contact_email}
-                readOnly
-                disabled
-                required
-                style={{ backgroundColor: '#f3f4f6' }}
-              />
-            </div>
-            
-            <div className="form-group">
-              <label htmlFor="address">Address</label>
+              <label htmlFor="address">Vendor Local Address</label>
               <textarea
                 id="address"
                 name="address"
                 value={formData.address}
                 onChange={handleInputChange}
                 rows="2"
-                placeholder="Enter vendor's full address"
+                placeholder="Enter vendor's local address"
               />
             </div>
             
-            <div className="form-group">
-              <label htmlFor="backup_contact_user">Backup Contact User</label>
-              <select
-                id="backup_contact_user"
-                name="backup_contact_user"
-                value={formData.backup_contact_user_id}
-                onChange={handleBackupContactUserChange}
-              >
-                <option value="">Select a vendor user (optional)</option>
-                {vendorUsers.map(user => (
-                  <option key={user.id} value={user.id}>
-                    {user.full_name || user.username} ({user.email})
-                  </option>
-                ))}
-              </select>
-            </div>
-            
-            <div className="form-row-2col">
-              <div className="form-group">
-                <label htmlFor="backup_contact_name">Backup Contact Name (Auto-filled)</label>
-                <input
-                  type="text"
-                  id="backup_contact_name"
-                  name="backup_contact_name"
-                  value={formData.backup_contact_name}
-                  readOnly
-                  disabled
-                  style={{ backgroundColor: '#f3f4f6' }}
-                  placeholder="Alternate contact person"
-                />
+            {/* Two-column layout for Primary and Backup Contact */}
+            <div className="contact-panels-container">
+              {/* Vendor Primary Contact Panel */}
+              <div className="contact-panel">
+                <h4 className="contact-panel-title">Vendor Primary Contact</h4>
+                
+                <div className="form-group">
+                  <label htmlFor="contact_user">
+                    Select Contact <span className="required-field">*</span>
+                  </label>
+                  <select
+                    id="contact_user"
+                    name="contact_user"
+                    value={formData.contact_user_id}
+                    onChange={handleContactUserChange}
+                    required
+                  >
+                    <option value="">Select a vendor user</option>
+                    {vendorUsers.map(user => (
+                      <option key={user.id} value={user.id}>
+                        {user.full_name || user.username} ({user.email})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                
+                <div className="form-group">
+                  <label htmlFor="contact_name">Name (Auto-filled)</label>
+                  <input
+                    type="text"
+                    id="contact_name"
+                    name="contact_name"
+                    value={formData.contact_name}
+                    readOnly
+                    disabled
+                    style={{ backgroundColor: '#f3f4f6' }}
+                  />
+                </div>
+                
+                <div className="form-group">
+                  <label htmlFor="contact_phone">Phone (Auto-filled)</label>
+                  <input
+                    type="tel"
+                    id="contact_phone"
+                    name="contact_phone"
+                    value={formData.contact_phone}
+                    readOnly
+                    disabled
+                    style={{ backgroundColor: '#f3f4f6' }}
+                  />
+                </div>
+                
+                <div className="form-group">
+                  <label htmlFor="contact_email">
+                    Email (Auto-filled) <span className="required-field">*</span>
+                  </label>
+                  <input
+                    type="email"
+                    id="contact_email"
+                    name="contact_email"
+                    value={formData.contact_email}
+                    readOnly
+                    disabled
+                    required
+                    style={{ backgroundColor: '#f3f4f6' }}
+                  />
+                </div>
               </div>
               
-              <div className="form-group">
-                <label htmlFor="backup_contact_phone">Backup Contact Phone (Auto-filled)</label>
-                <input
-                  type="tel"
-                  id="backup_contact_phone"
-                  name="backup_contact_phone"
-                  value={formData.backup_contact_phone}
-                  readOnly
-                  disabled
-                  style={{ backgroundColor: '#f3f4f6' }}
-                  placeholder="Alternate contact phone number"
-                />
+              {/* Vendor Backup Contact Panel */}
+              <div className="contact-panel">
+                <h4 className="contact-panel-title">Vendor Backup Contact</h4>
+                
+                <div className="form-group">
+                  <label htmlFor="backup_contact_user">Select Contact</label>
+                  <select
+                    id="backup_contact_user"
+                    name="backup_contact_user"
+                    value={formData.backup_contact_user_id}
+                    onChange={handleBackupContactUserChange}
+                  >
+                    <option value="">Select a vendor user (optional)</option>
+                    {vendorUsers.map(user => (
+                      <option key={user.id} value={user.id}>
+                        {user.full_name || user.username} ({user.email})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                
+                <div className="form-group">
+                  <label htmlFor="backup_contact_name">Name (Auto-filled)</label>
+                  <input
+                    type="text"
+                    id="backup_contact_name"
+                    name="backup_contact_name"
+                    value={formData.backup_contact_name}
+                    readOnly
+                    disabled
+                    style={{ backgroundColor: '#f3f4f6' }}
+                    placeholder="Alternate contact person"
+                  />
+                </div>
+                
+                <div className="form-group">
+                  <label htmlFor="backup_contact_phone">Phone (Auto-filled)</label>
+                  <input
+                    type="tel"
+                    id="backup_contact_phone"
+                    name="backup_contact_phone"
+                    value={formData.backup_contact_phone}
+                    readOnly
+                    disabled
+                    style={{ backgroundColor: '#f3f4f6' }}
+                    placeholder="Alternate contact phone"
+                  />
+                </div>
+                
+                <div className="form-group">
+                  <label htmlFor="backup_contact_email">Email (Auto-filled)</label>
+                  <input
+                    type="email"
+                    id="backup_contact_email"
+                    name="backup_contact_email"
+                    value={formData.backup_contact_email}
+                    readOnly
+                    disabled
+                    style={{ backgroundColor: '#f3f4f6' }}
+                    placeholder="Alternate contact email"
+                  />
+                </div>
               </div>
-            </div>
-            
-            <div className="form-group">
-              <label htmlFor="backup_contact_email">Backup Contact Email (Auto-filled)</label>
-              <input
-                type="email"
-                id="backup_contact_email"
-                name="backup_contact_email"
-                value={formData.backup_contact_email}
-                readOnly
-                disabled
-                style={{ backgroundColor: '#f3f4f6' }}
-                placeholder="Alternate contact email"
-              />
             </div>
           </div>
         </form>
