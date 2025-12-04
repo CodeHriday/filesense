@@ -570,79 +570,36 @@
   border-top: 1px solid rgba(2, 80, 67, 0.1);
 }
 
-.column-assignment-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: var(--gps-spacing-sm, 6px);
-}
-
-.assignment-label {
+.column-multiselect {
+  width: 100%;
+  min-height: 60px;
+  max-height: 100px;
+  padding: 4px;
   font-size: 10px;
   font-family: 'Inter', sans-serif;
-  font-weight: 600;
-  color: var(--gps-text-dark, #333333);
-}
-
-.btn-select-all-columns {
-  padding: 2px 8px;
-  font-size: 9px;
-  font-family: 'Inter', sans-serif;
-  font-weight: 500;
-  background: var(--gps-bg-white, #ffffff);
   border: 1px solid var(--gps-border-input, #cbd5e0);
   border-radius: var(--gps-radius-sm, 4px);
-  color: var(--gps-primary-teal, #025043);
-  cursor: pointer;
-  transition: all 0.2s ease;
+  background: var(--gps-bg-white, #ffffff);
 }
 
-.btn-select-all-columns:hover {
+.column-multiselect option {
+  padding: 4px 8px;
+  font-size: 10px;
+  font-family: 'Inter', sans-serif;
+}
+
+.column-multiselect option:checked {
   background: var(--gps-primary-teal, #025043);
   color: white;
 }
 
-.column-checkboxes {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-}
-
-.column-checkbox {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 3px 8px;
-  background: var(--gps-bg-white, #ffffff);
-  border: 1px solid var(--gps-border-light, #e2e8f0);
-  border-radius: 12px;
+.multiselect-hint {
+  display: block;
+  margin-top: 4px;
   font-size: 9px;
   font-family: 'Inter', sans-serif;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  user-select: none;
-}
-
-.column-checkbox:hover {
-  border-color: var(--gps-primary-teal, #025043);
-  background: rgba(2, 80, 67, 0.05);
-}
-
-.column-checkbox input[type="checkbox"] {
-  width: 10px;
-  height: 10px;
-  cursor: pointer;
-  accent-color: var(--gps-primary-teal, #025043);
-}
-
-.column-checkbox .column-name {
-  font-weight: 500;
-  color: var(--gps-text-dark, #333333);
-}
-
-.column-checkbox .column-type {
   color: var(--gps-text-muted, #666666);
-  font-weight: 400;
+  font-style: italic;
 }
 
 .no-columns-warning,

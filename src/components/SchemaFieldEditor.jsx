@@ -106,6 +106,23 @@ function SchemaFieldEditor({ value, onChange, fileType, hasHeader, onHasHeaderCh
     'json'
   ];
 
+  const RULE_TYPE_LABELS = {
+    'null_check': 'Null',
+    'duplicate_check': 'Duplicate',
+    'email_validity': 'Email',
+    'phone_validity': 'Phone',
+    'column_completeness': 'Completeness',
+    'date_format': 'Date',
+    'timestamp_format': 'Timestamp'
+  };
+
+  const getRuleDisplayLabel = (rule) => {
+    if (rule.rule_type && RULE_TYPE_LABELS[rule.rule_type]) {
+      return RULE_TYPE_LABELS[rule.rule_type];
+    }
+    return rule.rule_name.split(' ')[0];
+  };
+
   const getFieldQualityRules = (fieldName) => {
     const assignedRules = [];
     for (const [ruleId, columns] of Object.entries(qualityRuleAssignments)) {
@@ -306,7 +323,7 @@ function SchemaFieldEditor({ value, onChange, fileType, hasHeader, onHasHeaderCh
                         <div className="field-quality-rules">
                           {assignedRules.map(rule => (
                             <span key={rule.id} className={`rule-tag severity-${(rule.severity || 'medium').toLowerCase()}`} title={rule.rule_name}>
-                              {rule.rule_name.split(' ')[0]}
+                              {getRuleDisplayLabel(rule)}
                             </span>
                           ))}
                         </div>

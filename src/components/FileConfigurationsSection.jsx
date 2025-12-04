@@ -541,14 +541,13 @@ function FileConfigurationsSection({ fileConfigurations, onChange }) {
 
           <div className="form-grid-inline">
             <div className="form-group">
-              <label>File Name Pattern *</label>
+              <label>File Name Pattern * (Base pattern without extension)</label>
               <input
                 type="text"
                 value={formData.file_name_pattern_base}
                 onChange={(e) => setFormData({ ...formData, file_name_pattern_base: e.target.value })}
                 placeholder="e.g., customers_orders"
               />
-              <small>Base pattern without extension</small>
             </div>
 
             <div className="form-group">
@@ -573,16 +572,42 @@ function FileConfigurationsSection({ fileConfigurations, onChange }) {
               </select>
             </div>
 
-            <div className="form-group full-width">
+            <div className="form-group">
               <label>Derived File Pattern</label>
               <div className="derived-pattern-display">
                 <FiFileText />
                 <code>{getDerivedPattern(formData.file_name_pattern_base, formData.file_type) || 'pattern*.type'}</code>
               </div>
-              <small>This pattern will be used for file validation</small>
             </div>
 
-            <div className="form-group full-width">
+            {isArchiveType(formData.file_type) && (
+              <div className="form-group">
+                <label>Archive Password (Optional)</label>
+                {formData.has_archive_password && !formData.archive_password && (
+                  <div className="password-configured-notice">
+                    <FiLock size={14} />
+                    <span>Password configured</span>
+                  </div>
+                )}
+                <div className="password-input-wrapper">
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    value={formData.archive_password}
+                    onChange={(e) => setFormData({ ...formData, archive_password: e.target.value })}
+                    placeholder={formData.has_archive_password ? "New password" : "Password"}
+                  />
+                  <button
+                    type="button"
+                    className="password-toggle-btn"
+                    onClick={() => setShowPassword(!showPassword)}
+                  >
+                    {showPassword ? <FiEyeOff size={14} /> : <FiEye size={14} />}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            <div className="form-group">
               <label>File Description</label>
               <input
                 type="text"
@@ -593,44 +618,16 @@ function FileConfigurationsSection({ fileConfigurations, onChange }) {
             </div>
 
             <div className="form-group">
-              <label>Priority</label>
+              <label>Priority (Lower = higher priority)</label>
               <input
                 type="number"
                 value={formData.priority}
                 onChange={(e) => setFormData({ ...formData, priority: parseInt(e.target.value) || 0 })}
                 min="0"
                 step="1"
+                placeholder="100"
               />
-              <small>Lower numbers match first (default: 100)</small>
             </div>
-
-            {isArchiveType(formData.file_type) && (
-              <div className="form-group">
-                <label>Archive Password (Optional)</label>
-                {formData.has_archive_password && !formData.archive_password && (
-                  <div className="password-configured-notice">
-                    <FiLock size={14} />
-                    <span>Password configured - enter new password to update</span>
-                  </div>
-                )}
-                <div className="password-input-wrapper">
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    value={formData.archive_password}
-                    onChange={(e) => setFormData({ ...formData, archive_password: e.target.value })}
-                    placeholder={formData.has_archive_password ? "Enter new password to update" : "Password for encrypted archive files"}
-                  />
-                  <button
-                    type="button"
-                    className="password-toggle-btn"
-                    onClick={() => setShowPassword(!showPassword)}
-                  >
-                    {showPassword ? <FiEyeOff size={14} /> : <FiEye size={14} />}
-                  </button>
-                </div>
-                <small>For password-protected ZIP, 7z, or TAR archives</small>
-              </div>
-            )}
 
             <div className="form-group full-width governance-section">
               <div className="governance-header">
@@ -695,32 +692,28 @@ function FileConfigurationsSection({ fileConfigurations, onChange }) {
                               
                               {isChecked && isGeneric && schemaColumns.length > 0 && (
                                 <div className="column-assignment-section">
-                                  <div className="column-assignment-header">
-                                    <span className="assignment-label">Apply to columns:</span>
-                                    <button
-                                      type="button"
-                                      className="btn-select-all-columns"
-                                      onClick={() => toggleAllColumnsForRule(rule.id)}
-                                    >
-                                      {assignedColumns.length === schemaColumns.length ? 'Deselect All' : 'Select All'}
-                                    </button>
-                                  </div>
-                                  <div className="column-checkboxes">
+                                  <select
+                                    multiple
+                                    className="column-multiselect"
+                                    value={assignedColumns}
+                                    onChange={(e) => {
+                                      const selected = Array.from(e.target.selectedOptions, option => option.value);
+                                      setFormData(prev => ({
+                                        ...prev,
+                                        quality_rule_assignments: {
+                                          ...prev.quality_rule_assignments,
+                                          [rule.id]: selected
+                                        }
+                                      }));
+                                    }}
+                                  >
                                     {schemaColumns.map(col => (
-                                      <label key={col.name} className="column-checkbox">
-                                        <input
-                                          type="checkbox"
-                                          checked={assignedColumns.includes(col.name)}
-                                          onChange={(e) => handleColumnAssignment(rule.id, col.name, e.target.checked)}
-                                        />
-                                        <span className="column-name">{col.name}</span>
-                                        <span className="column-type">({col.type})</span>
-                                      </label>
+                                      <option key={col.name} value={col.name}>
+                                        {col.name} ({col.type})
+                                      </option>
                                     ))}
-                                  </div>
-                                  {assignedColumns.length === 0 && (
-                                    <small className="no-columns-warning">Select columns to apply this rule</small>
-                                  )}
+                                  </select>
+                                  <small className="multiselect-hint">Hold Ctrl/Cmd to select multiple columns</small>
                                 </div>
                               )}
                               
