@@ -5350,6 +5350,46 @@ app.post('/api/files/:fileId/quality-rules/run', authenticateToken, async (req, 
                 violationDetails = { reason: 'Value is null or undefined' };
               }
               break;
+              
+            case 'numeric_only_string':
+              // Detect when a string field contains only numeric characters
+              if (cellValue !== null && cellValue !== undefined) {
+                const strValue = String(cellValue).trim();
+                // Check if the value consists only of digits (optionally with decimal point)
+                if (strValue !== '' && /^\d+$/.test(strValue)) {
+                  isViolation = true;
+                  expectedValue = 'Text value (not all numeric)';
+                  violationDetails = { 
+                    reason: 'String field contains only numeric characters', 
+                    value: cellValue,
+                    numeric_value: strValue
+                  };
+                }
+              }
+              break;
+              
+            case 'special_character_presence':
+              // Detect special characters in string fields
+              if (cellValue !== null && cellValue !== undefined) {
+                const strValue = String(cellValue);
+                // Match characters outside of: letters, numbers, spaces, periods, commas, apostrophes, hyphens
+                const specialCharPattern = /[^a-zA-Z0-9\s.,'\-]/g;
+                const specialCharsFound = strValue.match(specialCharPattern);
+                
+                if (specialCharsFound && specialCharsFound.length > 0) {
+                  // Get unique special characters found
+                  const uniqueSpecialChars = [...new Set(specialCharsFound)];
+                  isViolation = true;
+                  expectedValue = 'Text without special characters';
+                  violationDetails = { 
+                    reason: 'Special characters detected in string field', 
+                    value: cellValue,
+                    special_characters: uniqueSpecialChars,
+                    character_count: specialCharsFound.length
+                  };
+                }
+              }
+              break;
           }
           
           if (isViolation) {
@@ -5849,6 +5889,46 @@ app.post('/api/files/:fileId/quality-rules/revalidate', authenticateToken, uploa
                 isViolation = true;
                 expectedValue = 'Valid non-empty value (not NA, None, blank, etc.)';
                 violationDetails = { reason: 'Value is null or undefined' };
+              }
+              break;
+              
+            case 'numeric_only_string':
+              // Detect when a string field contains only numeric characters
+              if (cellValue !== null && cellValue !== undefined) {
+                const strValue = String(cellValue).trim();
+                // Check if the value consists only of digits (optionally with decimal point)
+                if (strValue !== '' && /^\d+$/.test(strValue)) {
+                  isViolation = true;
+                  expectedValue = 'Text value (not all numeric)';
+                  violationDetails = { 
+                    reason: 'String field contains only numeric characters', 
+                    value: cellValue,
+                    numeric_value: strValue
+                  };
+                }
+              }
+              break;
+              
+            case 'special_character_presence':
+              // Detect special characters in string fields
+              if (cellValue !== null && cellValue !== undefined) {
+                const strValue = String(cellValue);
+                // Match characters outside of: letters, numbers, spaces, periods, commas, apostrophes, hyphens
+                const specialCharPattern = /[^a-zA-Z0-9\s.,'\-]/g;
+                const specialCharsFound = strValue.match(specialCharPattern);
+                
+                if (specialCharsFound && specialCharsFound.length > 0) {
+                  // Get unique special characters found
+                  const uniqueSpecialChars = [...new Set(specialCharsFound)];
+                  isViolation = true;
+                  expectedValue = 'Text without special characters';
+                  violationDetails = { 
+                    reason: 'Special characters detected in string field', 
+                    value: cellValue,
+                    special_characters: uniqueSpecialChars,
+                    character_count: specialCharsFound.length
+                  };
+                }
               }
               break;
           }
