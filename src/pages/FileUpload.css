@@ -123,6 +123,77 @@
   text-decoration: underline;
 }
 
+/* Compact Form Row Styles */
+.upload-form-row--compact {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.upload-form-field--flex {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1 1 200px;
+  min-width: 180px;
+}
+
+.gps-form-select--compact {
+  padding: 6px 10px;
+  font-size: 10px;
+  max-width: 200px;
+}
+
+.gps-form-input--compact {
+  padding: 6px 10px;
+  font-size: 10px;
+  max-width: 180px;
+}
+
+.password-input-wrapper--compact {
+  display: flex;
+  align-items: center;
+  position: relative;
+  max-width: 180px;
+}
+
+.password-input--compact {
+  padding: 6px 32px 6px 10px;
+  font-size: 10px;
+  width: 100%;
+}
+
+.password-toggle-btn--compact {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 2px;
+  display: flex;
+  align-items: center;
+  color: #666;
+}
+
+.upload-checkbox-label--inline {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 10px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.upload-checkbox-label--inline input[type="checkbox"] {
+  cursor: pointer;
+  accent-color: #025043;
+}
+
 /* Archive Password Section */
 .archive-password-section {
   flex: 1 1 100%;

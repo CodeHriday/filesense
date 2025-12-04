@@ -5138,7 +5138,7 @@ app.get('/api/files/:fileId/quality-rules', authenticateToken, async (req, res) 
     
     // Get assigned rules
     const assignedResult = await dbPool.query(`
-      SELECT qr.id, qr.rule_name, qr.rule_type, qr.severity, qr.description, qr.enabled, fqr.assigned_at
+      SELECT qr.id, qr.rule_name, qr.rule_type, qr.severity, qr.description, qr.enabled, fqr.created_at as assigned_at
       FROM file_quality_rules fqr
       JOIN quality_rules qr ON fqr.quality_rule_id = qr.id
       WHERE fqr.file_id = $1
@@ -5192,7 +5192,7 @@ app.post('/api/files/:fileId/quality-rules', authenticateToken, async (req, res)
       if (rule_ids.length > 0) {
         const values = rule_ids.map((ruleId, idx) => `($1, $${idx + 2}, NOW())`).join(', ');
         await client.query(
-          `INSERT INTO file_quality_rules (file_id, quality_rule_id, assigned_at) VALUES ${values}`,
+          `INSERT INTO file_quality_rules (file_id, quality_rule_id, created_at) VALUES ${values}`,
           [fileId, ...rule_ids]
         );
       }

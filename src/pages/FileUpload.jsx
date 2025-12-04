@@ -1636,15 +1636,16 @@ function FileUpload() {
               </div>
             </div>
 
-            <div className="upload-form-row">
+            {/* Row 1: Project, File Delimiter, Archive Password */}
+            <div className="upload-form-row upload-form-row--compact">
               {/* Project Selection */}
-              <div className="upload-form-field">
+              <div className="upload-form-field upload-form-field--flex">
                 <label htmlFor="project-select" className="upload-form-label">
                   Project: <span className="required-indicator">*</span>
                 </label>
                 <select 
                   id="project-select"
-                  className="gps-form-select"
+                  className="gps-form-select gps-form-select--compact"
                   value={selectedProject || ''}
                   onChange={(e) => setSelectedProject(Number(e.target.value))}
                   disabled={loadingProjects}
@@ -1666,13 +1667,100 @@ function FileUpload() {
                 </select>
               </div>
 
-              {/* Sub-Project Selection */}
-              {selectedProject && subProjects.length > 0 && (
-                <div className="upload-form-field">
+              {/* File Delimiter */}
+              <div className="upload-form-field upload-form-field--flex">
+                <label htmlFor="delimiter-select-inline" className="upload-form-label">
+                  File Delimiter:
+                </label>
+                <select 
+                  id="delimiter-select-inline"
+                  className="gps-form-select gps-form-select--compact"
+                  value={delimiterType}
+                  onChange={(e) => {
+                    setDelimiterType(e.target.value);
+                    if (e.target.value !== 'custom') {
+                      setCustomDelimiter('');
+                    }
+                  }}
+                >
+                  <option value="none">Auto-detect</option>
+                  <option value="comma">Comma (,)</option>
+                  <option value="pipe">Pipe (|)</option>
+                  <option value="tab">Tab (\t)</option>
+                  <option value="semicolon">Semicolon (;)</option>
+                  <option value="custom">Custom...</option>
+                  <option value="fixed-width">Fixed-Width</option>
+                </select>
+              </div>
+
+              {/* Archive Password */}
+              <div className="upload-form-field upload-form-field--flex">
+                <label htmlFor="archive-password-inline" className="upload-form-label">
+                  Archive Password:
+                </label>
+                <div className="password-input-wrapper password-input-wrapper--compact">
+                  <input
+                    id="archive-password-inline"
+                    type={showArchivePassword ? 'text' : 'password'}
+                    value={archivePassword}
+                    onChange={(e) => setArchivePassword(e.target.value)}
+                    placeholder="Optional..."
+                    className="password-input password-input--compact"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowArchivePassword(!showArchivePassword)}
+                    className="password-toggle-btn password-toggle-btn--compact"
+                    title={showArchivePassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showArchivePassword ? <FiEyeOff size={14} /> : <FiEye size={14} />}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Row 2: Header Configuration, File Owner */}
+            <div className="upload-form-row upload-form-row--compact">
+              {/* Header Configuration */}
+              <div className="upload-form-field upload-form-field--flex">
+                <label className="upload-form-label">Header Configuration:</label>
+                <label className="upload-checkbox-label upload-checkbox-label--inline">
+                  <input 
+                    type="checkbox"
+                    checked={hasHeader}
+                    onChange={(e) => {
+                      setHasHeader(e.target.checked);
+                      if (e.target.checked) {
+                        setColumnNames('');
+                      }
+                    }}
+                  />
+                  <span>File has a header row</span>
+                </label>
+              </div>
+
+              {/* File Owner */}
+              <div className="upload-form-field upload-form-field--flex upload-owner-field">
+                <span className="upload-form-label">File Owner:</span>
+                <span className="upload-owner-value">{fileOwner || 'Not set'}</span>
+                <button 
+                  className="upload-edit-link"
+                  onClick={handleOpenOwnerModal}
+                  title="Edit owner"
+                >
+                  Edit
+                </button>
+              </div>
+            </div>
+
+            {/* Sub-Project Selection (shown only when project has sub-projects) */}
+            {selectedProject && subProjects.length > 0 && (
+              <div className="upload-form-row upload-form-row--compact">
+                <div className="upload-form-field upload-form-field--flex">
                   <label htmlFor="sub-project-select" className="upload-form-label">Sub-Project:</label>
                   <select 
                     id="sub-project-select"
-                    className="gps-form-select"
+                    className="gps-form-select gps-form-select--compact"
                     value={selectedSubProject || ''}
                     onChange={(e) => setSelectedSubProject(e.target.value ? Number(e.target.value) : null)}
                     disabled={loadingSubProjects}
@@ -1691,49 +1779,46 @@ function FileUpload() {
                     )}
                   </select>
                 </div>
-              )}
-
-              {/* File Owner */}
-              <div className="upload-form-field upload-owner-field">
-                <span className="upload-form-label">File Owner:</span>
-                <span className="upload-owner-value">{fileOwner || 'Not set'}</span>
-                <button 
-                  className="upload-edit-link"
-                  onClick={handleOpenOwnerModal}
-                  title="Edit owner"
-                >
-                  Edit
-                </button>
               </div>
+            )}
 
-              {/* Archive Password - for password-protected ZIP/7z/TAR files */}
-              <div className="archive-password-section">
-                <label htmlFor="archive-password" className="upload-form-label">
-                  Archive Password <span className="upload-radio-hint">(Optional)</span>
-                </label>
-                <p className="archive-password-hint">
-                  If you're uploading a password-protected archive (ZIP, 7z, TAR), enter the password here. The password is used only for extraction and is not stored.
-                </p>
-                <div className="password-input-wrapper">
-                  <input
-                    id="archive-password"
-                    type={showArchivePassword ? 'text' : 'password'}
-                    value={archivePassword}
-                    onChange={(e) => setArchivePassword(e.target.value)}
-                    placeholder="Enter archive password..."
-                    className="password-input"
+            {/* Custom Delimiter Input (shown when custom is selected) */}
+            {delimiterType === 'custom' && (
+              <div className="upload-form-row upload-form-row--compact">
+                <div className="upload-form-field upload-form-field--flex">
+                  <label htmlFor="custom-delimiter-input" className="upload-form-label">
+                    Custom Delimiter:
+                  </label>
+                  <input 
+                    id="custom-delimiter-input"
+                    className="gps-form-input gps-form-input--compact"
+                    type="text"
+                    value={customDelimiter}
+                    onChange={(e) => setCustomDelimiter(e.target.value)}
+                    placeholder="e.g., ~^ or ||"
                   />
-                  <button
-                    type="button"
-                    onClick={() => setShowArchivePassword(!showArchivePassword)}
-                    className="password-toggle-btn"
-                    title={showArchivePassword ? 'Hide password' : 'Show password'}
-                  >
-                    {showArchivePassword ? <FiEyeOff size={16} /> : <FiEye size={16} />}
-                  </button>
                 </div>
               </div>
-            </div>
+            )}
+
+            {/* Column Names Input (shown when hasHeader is false) */}
+            {!hasHeader && delimiterType !== 'fixed-width' && (
+              <div className="upload-form-row upload-form-row--compact">
+                <div className="upload-form-field" style={{ flex: 1 }}>
+                  <label htmlFor="column-names-input" className="upload-form-label">
+                    Column Names (comma-separated):
+                  </label>
+                  <input 
+                    id="column-names-input"
+                    className="gps-form-input"
+                    type="text"
+                    value={columnNames}
+                    onChange={(e) => setColumnNames(e.target.value)}
+                    placeholder="e.g., PatientID, Name, DOB, Visit Date"
+                  />
+                </div>
+              </div>
+            )}
 
             {/* Vendor Agreement Selection (Contract Validation Mode) */}
             {selectedProject && uploadType === 'contract' && (
@@ -1857,57 +1942,10 @@ function FileUpload() {
               </div>
             )}
 
-            {/* Delimiter Configuration Section */}
-            {selectedProject && (
+            {/* Fixed-Width Schema Builder - shown only when fixed-width is selected */}
+            {selectedProject && delimiterType === 'fixed-width' && (
               <div className="upload-subsection">
-                <label htmlFor="delimiter-select" className="upload-form-label">
-                  File Delimiter (Optional):
-                </label>
-                <p className="upload-field-desc">
-                  Specify the delimiter for delimited files (.csv, .dat, .txt). Default is comma.
-                </p>
-                <select 
-                  id="delimiter-select"
-                  className={`gps-form-select ${delimiterType === 'custom' ? 'delimiter-select--has-custom' : ''}`}
-                  value={delimiterType}
-                  onChange={(e) => {
-                    setDelimiterType(e.target.value);
-                    if (e.target.value !== 'custom') {
-                      setCustomDelimiter('');
-                    }
-                  }}
-                >
-                  <option value="none">Auto-detect</option>
-                  <option value="comma">Comma (,)</option>
-                  <option value="pipe">Pipe (|)</option>
-                  <option value="tab">Tab (\t)</option>
-                  <option value="semicolon">Semicolon (;)</option>
-                  <option value="custom">Custom Delimiter...</option>
-                  <option value="fixed-width">Fixed-Width (no delimiter)</option>
-                </select>
-                
-                {/* Custom delimiter input */}
-                {delimiterType === 'custom' && (
-                  <div className="custom-delimiter-section">
-                    <label htmlFor="custom-delimiter-input" className="upload-form-label">
-                      Enter Custom Delimiter:
-                    </label>
-                    <input 
-                      id="custom-delimiter-input"
-                      className="gps-form-input delimiter-input"
-                      type="text"
-                      value={customDelimiter}
-                      onChange={(e) => setCustomDelimiter(e.target.value)}
-                      placeholder="e.g., ~^ or || or any multi-character string"
-                    />
-                    <div className="delimiter-hint">
-                      Supports multi-character delimiters (e.g., '~^', '||', '::')
-                    </div>
-                  </div>
-                )}
-                
                 {/* Fixed-Width Schema Builder */}
-                {delimiterType === 'fixed-width' && (
                   <div className="fixed-width-section">
                     <label className="fixed-width-label">
                       Define Column Schema:
@@ -2053,56 +2091,6 @@ function FileUpload() {
                       Binary files: Select data types for each column. String fields need width in bytes. Integer types have fixed sizes (e.g., UInt8 = 1 byte).
                     </div>
                   </div>
-                )}
-              </div>
-            )}
-            
-            {/* Header Configuration Section - hide when fixed-width is selected */}
-            {selectedProject && delimiterType !== 'fixed-width' && (
-              <div className="upload-subsection">
-                <label htmlFor="has-header-checkbox" className="upload-form-label">
-                  Header Configuration:
-                </label>
-                <p className="upload-field-desc">
-                  Specify whether your file has a header row. If not, provide column names.
-                </p>
-                
-                <div className="header-checkbox-wrapper">
-                  <label className="upload-checkbox-label">
-                    <input 
-                      id="has-header-checkbox"
-                      type="checkbox"
-                      checked={hasHeader}
-                      onChange={(e) => {
-                        setHasHeader(e.target.checked);
-                        if (e.target.checked) {
-                          setColumnNames('');
-                        }
-                      }}
-                    />
-                    <span>File has a header row</span>
-                  </label>
-                </div>
-                
-                {/* Column names input (shown when hasHeader is false) */}
-                {!hasHeader && (
-                  <div className="column-names-section">
-                    <label htmlFor="column-names-input" className="upload-form-label">
-                      Enter Column Names (comma-separated):
-                    </label>
-                    <input 
-                      id="column-names-input"
-                      className="gps-form-input column-names-input"
-                      type="text"
-                      value={columnNames}
-                      onChange={(e) => setColumnNames(e.target.value)}
-                      placeholder="e.g., PatientID, Name, DOB, Visit Date"
-                    />
-                    <div className="upload-field-hint">
-                      Separate column names with commas. These will be used as headers for your data.
-                    </div>
-                  </div>
-                )}
               </div>
             )}
 
