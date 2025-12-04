@@ -377,12 +377,23 @@
 }
 
 .btn-primary {
-  background: #3b82f6;
+  background: #025043;
   color: white;
 }
 
+.btn-sm {
+  padding: 0.35rem 0.75rem;
+  font-size: 0.7rem;
+  gap: 0.35rem;
+}
+
+.btn-sm svg {
+  width: 14px;
+  height: 14px;
+}
+
 .btn-primary:hover:not(:disabled) {
-  background: #2563eb;
+  background: #013d33;
 }
 
 .btn-secondary {

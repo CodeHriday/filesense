@@ -130,11 +130,11 @@ function SubProjectManagement({ projectId, projectName }) {
           <span className="parent-project-badge">{projectName}</span>
         </div>
         <button 
-          className="btn btn-primary"
+          className="btn btn-primary btn-sm"
           onClick={startCreate}
           disabled={showCreateForm}
         >
-          <FiFolderPlus size={16} />
+          <FiFolderPlus size={14} />
           Create Sub-Project
         </button>
       </div>
@@ -192,17 +192,7 @@ function SubProjectManagement({ projectId, projectName }) {
         </div>
       )}
 
-      {subProjects.length === 0 && !showCreateForm ? (
-        <div className="empty-state">
-          <FiFolder size={64} />
-          <h3>No Sub-Projects Yet</h3>
-          <p>Create sub-projects to organize files within {projectName}</p>
-          <button className="btn btn-primary" onClick={startCreate}>
-            <FiFolderPlus size={16} />
-            Create Your First Sub-Project
-          </button>
-        </div>
-      ) : (
+      {subProjects.length > 0 && (
         <div className="sub-projects-table-container">
           <table className="sub-projects-table">
             <thead>
