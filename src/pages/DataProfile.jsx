@@ -807,6 +807,11 @@ function DataProfile() {
     column: 'all'
   });
 
+  // Schema Builder state
+  const [availableGenericRules, setAvailableGenericRules] = useState([]);
+  const [columnDQAssignments, setColumnDQAssignments] = useState({});
+  const [schemaBuilderLoading, setSchemaBuilderLoading] = useState(false);
+
   // Helper functions for column type checking
   const isNumericColumn = (column) => {
     const numericTypes = ['integer', 'decimal', 'number', 'float', 'int64', 'float64', 'int32', 'float32'];
@@ -1058,10 +1063,100 @@ function DataProfile() {
     }
   };
 
+  const fetchGenericQualityRules = async () => {
+    try {
+      setSchemaBuilderLoading(true);
+      const response = await axios.get('/api/quality-rules');
+      const genericRules = response.data.filter(rule => 
+        ['null_check', 'duplicate_check', 'email_validity', 'phone_validity', 
+         'column_completeness', 'date_format', 'timestamp_format'].includes(rule.rule_type)
+      );
+      setAvailableGenericRules(genericRules);
+    } catch (err) {
+      console.error('Error fetching quality rules:', err);
+    } finally {
+      setSchemaBuilderLoading(false);
+    }
+  };
+
+  const handleColumnRuleToggle = (columnName, ruleId) => {
+    setColumnDQAssignments(prev => {
+      const columnRules = prev[columnName] || [];
+      if (columnRules.includes(ruleId)) {
+        return { ...prev, [columnName]: columnRules.filter(id => id !== ruleId) };
+      } else {
+        return { ...prev, [columnName]: [...columnRules, ruleId] };
+      }
+    });
+  };
+
+  const mapProfileTypeToSchemaType = (profileType) => {
+    const type = (profileType || 'string').toLowerCase();
+    if (type.includes('int') || type === 'integer') return 'int';
+    if (type.includes('float') || type.includes('decimal') || type.includes('number')) return 'float';
+    if (type === 'boolean' || type === 'bool') return 'boolean';
+    if (type.includes('date') && type.includes('time')) return 'timestamp';
+    if (type.includes('date')) return 'date';
+    if (type.includes('time')) return 'timestamp';
+    return 'string';
+  };
+
+  const generateSchemaJSON = () => {
+    if (!profile || !profile.columns) return null;
+    
+    const schema = profile.columns.map(col => {
+      const baseSchema = {
+        name: col.name,
+        type: mapProfileTypeToSchemaType(col.type),
+        nullable: col.missing > 0 || col.nullable !== false,
+        pii: col.pii || false
+      };
+      
+      if (baseSchema.type === 'string' && col.max_length) {
+        baseSchema.width = Math.min(Math.ceil(col.max_length * 1.2), 255);
+      }
+      
+      const assignedRuleIds = columnDQAssignments[col.name] || [];
+      if (assignedRuleIds.length > 0) {
+        baseSchema.quality_rules = assignedRuleIds.map(ruleId => {
+          const rule = availableGenericRules.find(r => r.id === ruleId);
+          return rule ? rule.rule_type : null;
+        }).filter(Boolean);
+      }
+      
+      return baseSchema;
+    });
+    
+    return schema;
+  };
+
+  const handleDownloadSchema = () => {
+    const schema = generateSchemaJSON();
+    if (!schema) {
+      setErrorMessage('No schema data available');
+      return;
+    }
+    
+    const blob = new Blob([JSON.stringify(schema, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    const fileName = file?.original_name || file?.file_name || 'file';
+    link.download = `${fileName.replace(/\.[^/.]+$/, '')}_schema.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   useEffect(() => {
     // Fetch quality violations when quality-rules tab is active
     if (activeTab === 'quality-rules' && !qualityViolations) {
       fetchQualityViolations();
+    }
+    // Fetch generic rules when schema-builder tab is active
+    if (activeTab === 'schema-builder' && availableGenericRules.length === 0) {
+      fetchGenericQualityRules();
     }
   }, [activeTab]);
 
@@ -2250,6 +2345,161 @@ function DataProfile() {
     );
   };
 
+  const renderSchemaBuilderTab = () => {
+    if (!profile || !profile.columns) {
+      return (
+        <div className="empty-state">
+          <FiFileText size={48} style={{ marginBottom: '16px', opacity: 0.5 }} />
+          <p>No column data available</p>
+          <p className="empty-state-hint">Profile the file first to generate schema</p>
+        </div>
+      );
+    }
+
+    if (schemaBuilderLoading) {
+      return (
+        <div style={{ padding: '40px', textAlign: 'center' }}>
+          <LoadingSpinner />
+        </div>
+      );
+    }
+
+    const columns = profile.columns;
+    const RULE_TYPE_LABELS = {
+      'null_check': 'Null Check',
+      'duplicate_check': 'Duplicate Check',
+      'email_validity': 'Email Validity',
+      'phone_validity': 'Phone Validity',
+      'column_completeness': 'Completeness',
+      'date_format': 'Date Format',
+      'timestamp_format': 'Timestamp Format'
+    };
+
+    return (
+      <div className="schema-builder-tab">
+        <div className="gps-card" style={{ marginBottom: '16px' }}>
+          <div className="gps-card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <h3 className="gps-card-title" style={{ margin: 0, fontSize: '12px' }}>Schema Builder</h3>
+              <p style={{ margin: '4px 0 0 0', fontSize: '10px', color: '#64748b' }}>
+                Assign quality rules to columns and generate a schema JSON file for vendor agreements
+              </p>
+            </div>
+            <button 
+              className="btn btn-primary" 
+              onClick={handleDownloadSchema}
+              style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', padding: '8px 16px' }}
+            >
+              <FiDownload size={14} />
+              Generate Schema
+            </button>
+          </div>
+        </div>
+
+        <div className="gps-card">
+          <div className="gps-card-header">
+            <h3 className="gps-card-title" style={{ margin: 0, fontSize: '11px' }}>Column Quality Rule Assignments</h3>
+          </div>
+          <div className="gps-card-body" style={{ padding: 0 }}>
+            <div style={{ overflowX: 'auto' }}>
+              <table className="gps-table" style={{ fontSize: '10px', width: '100%' }}>
+                <thead>
+                  <tr>
+                    <th style={{ padding: '10px 12px', minWidth: '120px' }}>Column Name</th>
+                    <th style={{ padding: '10px 12px', minWidth: '80px' }}>Type</th>
+                    <th style={{ padding: '10px 12px', minWidth: '70px' }}>Nullable</th>
+                    <th style={{ padding: '10px 12px', minWidth: '50px' }}>PII</th>
+                    <th style={{ padding: '10px 12px', minWidth: '300px' }}>Quality Rules</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {columns.map(col => {
+                    const schemaType = mapProfileTypeToSchemaType(col.type);
+                    const isNullable = col.missing > 0 || col.nullable !== false;
+                    const columnTags = allColumnGovernanceTags[col.name] || [];
+                    const hasPII = col.pii || columnTags.some(t => t.tag_name?.toLowerCase().includes('pii'));
+                    const assignedRules = columnDQAssignments[col.name] || [];
+
+                    return (
+                      <tr key={col.name}>
+                        <td style={{ padding: '10px 12px', fontWeight: 500 }}>{col.name}</td>
+                        <td style={{ padding: '10px 12px' }}>
+                          <span className="gps-badge gps-badge--secondary" style={{ fontSize: '9px' }}>{schemaType}</span>
+                        </td>
+                        <td style={{ padding: '10px 12px' }}>
+                          <span style={{ color: isNullable ? '#64748b' : '#059669', fontSize: '10px' }}>
+                            {isNullable ? 'Yes' : 'No'}
+                          </span>
+                        </td>
+                        <td style={{ padding: '10px 12px' }}>
+                          {hasPII ? (
+                            <span className="gps-badge" style={{ backgroundColor: '#fef3c7', color: '#92400e', fontSize: '8px' }}>PII</span>
+                          ) : (
+                            <span style={{ color: '#64748b', fontSize: '10px' }}>No</span>
+                          )}
+                        </td>
+                        <td style={{ padding: '10px 12px' }}>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                            {availableGenericRules.map(rule => {
+                              const isSelected = assignedRules.includes(rule.id);
+                              return (
+                                <button
+                                  key={rule.id}
+                                  onClick={() => handleColumnRuleToggle(col.name, rule.id)}
+                                  style={{
+                                    padding: '3px 8px',
+                                    fontSize: '9px',
+                                    fontFamily: 'Inter, sans-serif',
+                                    fontWeight: 500,
+                                    border: isSelected ? 'none' : '1px solid #e2e8f0',
+                                    borderRadius: '4px',
+                                    cursor: 'pointer',
+                                    backgroundColor: isSelected ? '#025043' : '#f8fafc',
+                                    color: isSelected ? 'white' : '#475569',
+                                    transition: 'all 0.2s ease'
+                                  }}
+                                  title={rule.rule_name}
+                                >
+                                  {RULE_TYPE_LABELS[rule.rule_type] || rule.rule_name}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        {/* Schema Preview */}
+        <div className="gps-card" style={{ marginTop: '16px' }}>
+          <div className="gps-card-header">
+            <h3 className="gps-card-title" style={{ margin: 0, fontSize: '11px' }}>Schema Preview</h3>
+          </div>
+          <div className="gps-card-body">
+            <pre style={{ 
+              backgroundColor: '#1e293b', 
+              color: '#e2e8f0', 
+              padding: '16px', 
+              borderRadius: '6px', 
+              fontSize: '10px',
+              fontFamily: 'monospace',
+              overflow: 'auto',
+              maxHeight: '300px',
+              margin: 0
+            }}>
+              {JSON.stringify(generateSchemaJSON(), null, 2)}
+            </pre>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const fetchProfileHistory = async () => {
     try {
       setHistoryLoading(true);
@@ -2725,6 +2975,12 @@ function DataProfile() {
             >
               <FiZap style={{ marginRight: '6px' }} /> DQ Suggestions
             </button>
+            <button 
+              className={`gps-tab ${activeTab === 'schema-builder' ? 'gps-tab--active' : ''}`}
+              onClick={() => setActiveTab('schema-builder')}
+            >
+              <FiFileText style={{ marginRight: '6px' }} /> Schema Builder
+            </button>
           </div>
           
           <div className="profile-content">
@@ -2741,6 +2997,7 @@ function DataProfile() {
                 projectId={file?.project_id}
               />
             )}
+            {activeTab === 'schema-builder' && renderSchemaBuilderTab()}
           </div>
         </>
       ) : (
