@@ -8,6 +8,7 @@ import ConfirmationModal from '../components/ConfirmationModal';
 import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
 import '../styles/global-page-styles.css';
+import '../styles/VendorManagement.css';
 
 const VendorManagement = () => {
   const [vendors, setVendors] = useState([]);
