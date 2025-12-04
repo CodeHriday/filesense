@@ -5141,7 +5141,7 @@ app.post('/api/files/:fileId/quality-rules/run', authenticateToken, async (req, 
     const userId = req.user?.id || req.user?.userId;
     
     // Get file info
-    const fileResult = await dbPool.query('SELECT file_id, filename, original_name FROM files WHERE file_id = $1', [fileId]);
+    const fileResult = await dbPool.query('SELECT file_id, filename FROM files WHERE file_id = $1', [fileId]);
     if (fileResult.rows.length === 0) {
       return res.status(404).json({ error: 'File not found' });
     }
