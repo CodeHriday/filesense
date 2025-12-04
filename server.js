@@ -5184,6 +5184,44 @@ app.post('/api/files/:fileId/quality-rules/run', authenticateToken, async (req, 
     const rows = previewResult.rows;
     const violations = [];
     
+    // Build a column name resolution map
+    // This handles mismatches between target_columns (e.g., "LOYALTY_TIER", "loyalty_tier") 
+    // and actual CSV headers (e.g., "loyalty_tier", "Loyalty Tier")
+    const normalizeColumnName = (name) => {
+      if (!name) return '';
+      return name.toLowerCase().replace(/[\s_-]+/g, '').trim();
+    };
+    
+    // Get actual column names from the first row
+    const actualColumnNames = rows.length > 0 ? Object.keys(rows[0].row_data) : [];
+    
+    // Build lookup: normalized name -> actual header name
+    const columnLookup = {};
+    actualColumnNames.forEach(actualName => {
+      const normalized = normalizeColumnName(actualName);
+      columnLookup[normalized] = actualName;
+    });
+    
+    // Function to resolve target column to actual header
+    const resolveColumnName = (targetCol) => {
+      // First try exact match
+      if (actualColumnNames.includes(targetCol)) {
+        return targetCol;
+      }
+      // Try normalized lookup
+      const normalized = normalizeColumnName(targetCol);
+      if (columnLookup[normalized]) {
+        return columnLookup[normalized];
+      }
+      // Try case-insensitive match
+      const lowerTarget = targetCol.toLowerCase();
+      const caseMatch = actualColumnNames.find(c => c.toLowerCase() === lowerTarget);
+      if (caseMatch) {
+        return caseMatch;
+      }
+      return null; // Column not found
+    };
+    
     // Execute each rule against its target columns (collect violations first)
     for (const rule of rulesResult.rows) {
       const targetColumns = rule.target_columns || [];
@@ -5194,9 +5232,24 @@ app.post('/api/files/:fileId/quality-rules/run', authenticateToken, async (req, 
       }
       
       for (const columnName of targetColumns) {
+        // Resolve the target column name to the actual header name
+        const actualColumnName = resolveColumnName(columnName);
+        
+        if (!actualColumnName) {
+          // Column not found in file - log warning and skip
+          logger.warn('Target column not found in file during run', { 
+            service: 'data-observatory-api',
+            targetColumn: columnName,
+            availableColumns: actualColumnNames,
+            ruleId: rule.id,
+            ruleName: rule.rule_name
+          });
+          continue;
+        }
+        
         for (const row of rows) {
           const rowData = row.row_data;
-          const cellValue = rowData[columnName];
+          const cellValue = rowData[actualColumnName];
           
           let isViolation = false;
           let expectedValue = null;
@@ -5288,30 +5341,66 @@ app.post('/api/files/:fileId/quality-rules/run', authenticateToken, async (req, 
       // Handle duplicate check separately
       if (rule.rule_type === 'duplicate_check' && targetColumns.length > 0) {
         const valueMap = new Map();
+        // Resolve all target columns to actual header names
+        const resolvedColumns = targetColumns.map(col => resolveColumnName(col)).filter(Boolean);
         
-        for (const row of rows) {
-          // Create composite key from target columns
-          const keyParts = targetColumns.map(col => row.row_data[col] ?? '');
-          const compositeKey = keyParts.join('||');
-          
-          if (valueMap.has(compositeKey)) {
-            const firstOccurrence = valueMap.get(compositeKey);
-            violations.push({
-              rule_id: rule.id,
-              file_id: fileId,
-              row_number: row.row_number,
-              column_name: targetColumns.join(', '),
-              expected_value: 'Unique value',
-              actual_value: compositeKey.substring(0, 500),
-              violation_details: { 
-                reason: 'Duplicate value found',
-                first_occurrence_row: firstOccurrence,
-                duplicate_columns: targetColumns
-              },
-              severity: rule.severity || 'warning'
-            });
-          } else {
-            valueMap.set(compositeKey, row.row_number);
+        if (resolvedColumns.length > 0) {
+          for (const row of rows) {
+            // Create composite key from resolved columns
+            const keyParts = resolvedColumns.map(col => row.row_data[col] ?? '');
+            const compositeKey = keyParts.join('||');
+            
+            if (valueMap.has(compositeKey)) {
+              const firstOccurrence = valueMap.get(compositeKey);
+              violations.push({
+                rule_id: rule.id,
+                file_id: fileId,
+                row_number: row.row_number,
+                column_name: resolvedColumns.join(', '),
+                expected_value: 'Unique value',
+                actual_value: compositeKey.substring(0, 500),
+                violation_details: { 
+                  reason: 'Duplicate value found',
+                  first_occurrence_row: firstOccurrence,
+                  duplicate_columns: resolvedColumns
+                },
+                severity: rule.severity || 'warning'
+              });
+            } else {
+              valueMap.set(compositeKey, row.row_number);
+            }
+          }
+        }
+      }
+      
+      // Handle uniqueness check
+      if (rule.rule_type === 'uniqueness' && targetColumns.length > 0) {
+        const valueMap = new Map();
+        // Resolve all target columns to actual header names
+        const resolvedColumns = targetColumns.map(col => resolveColumnName(col)).filter(Boolean);
+        
+        if (resolvedColumns.length > 0) {
+          for (const row of rows) {
+            const keyParts = resolvedColumns.map(col => row.row_data[col] ?? '');
+            const compositeKey = keyParts.join('||');
+            
+            if (valueMap.has(compositeKey)) {
+              violations.push({
+                rule_id: rule.id,
+                file_id: fileId,
+                row_number: row.row_number,
+                column_name: resolvedColumns.join(', '),
+                expected_value: 'Unique value',
+                actual_value: compositeKey.substring(0, 500),
+                violation_details: { 
+                  reason: 'Uniqueness violation - duplicate found',
+                  first_occurrence_row: valueMap.get(compositeKey)
+                },
+                severity: rule.severity || 'warning'
+              });
+            } else {
+              valueMap.set(compositeKey, row.row_number);
+            }
           }
         }
       }
@@ -5573,6 +5662,44 @@ app.post('/api/files/:fileId/quality-rules/revalidate', authenticateToken, uploa
       });
     }
     
+    // Build a column name resolution map
+    // This handles mismatches between target_columns (e.g., "LOYALTY_TIER", "loyalty_tier") 
+    // and actual CSV headers (e.g., "loyalty_tier", "Loyalty Tier")
+    const normalizeColumnName = (name) => {
+      if (!name) return '';
+      return name.toLowerCase().replace(/[\s_-]+/g, '').trim();
+    };
+    
+    // Get actual column names from the first parsed row
+    const actualColumnNames = parsedRows.length > 0 ? Object.keys(parsedRows[0].row_data) : columnNames;
+    
+    // Build lookup: normalized name -> actual header name
+    const columnLookup = {};
+    actualColumnNames.forEach(actualName => {
+      const normalized = normalizeColumnName(actualName);
+      columnLookup[normalized] = actualName;
+    });
+    
+    // Function to resolve target column to actual header
+    const resolveColumnName = (targetCol) => {
+      // First try exact match
+      if (actualColumnNames.includes(targetCol)) {
+        return targetCol;
+      }
+      // Try normalized lookup
+      const normalized = normalizeColumnName(targetCol);
+      if (columnLookup[normalized]) {
+        return columnLookup[normalized];
+      }
+      // Try case-insensitive match
+      const lowerTarget = targetCol.toLowerCase();
+      const caseMatch = actualColumnNames.find(c => c.toLowerCase() === lowerTarget);
+      if (caseMatch) {
+        return caseMatch;
+      }
+      return null; // Column not found
+    };
+    
     const violations = [];
     
     // Execute each rule against its target columns
@@ -5582,18 +5709,25 @@ app.post('/api/files/:fileId/quality-rules/revalidate', authenticateToken, uploa
       if (targetColumns.length === 0) continue;
       
       for (const columnName of targetColumns) {
+        // Resolve the target column name to the actual header name
+        const actualColumnName = resolveColumnName(columnName);
+        
+        if (!actualColumnName) {
+          // Column not found in file - log warning and skip
+          logger.warn('Target column not found in file', { 
+            service: 'data-observatory-api',
+            targetColumn: columnName,
+            availableColumns: actualColumnNames,
+            ruleId: rule.id,
+            ruleName: rule.rule_name
+          });
+          continue;
+        }
+        
         for (const row of parsedRows) {
           const rowData = row.row_data;
-          // Case-insensitive column lookup
-          let cellValue = rowData[columnName];
-          if (cellValue === undefined) {
-            // Try case-insensitive match
-            const lowerColName = columnName.toLowerCase();
-            const matchingKey = Object.keys(rowData).find(k => k.toLowerCase() === lowerColName);
-            if (matchingKey) {
-              cellValue = rowData[matchingKey];
-            }
-          }
+          // Use the resolved actual column name for lookup
+          let cellValue = rowData[actualColumnName];
           
           let isViolation = false;
           let expectedValue = null;
@@ -5679,28 +5813,32 @@ app.post('/api/files/:fileId/quality-rules/revalidate', authenticateToken, uploa
       // Handle duplicate check separately
       if (rule.rule_type === 'duplicate_check' && targetColumns.length > 0) {
         const valueMap = new Map();
+        // Resolve all target columns to actual header names
+        const resolvedColumns = targetColumns.map(col => resolveColumnName(col)).filter(Boolean);
         
-        for (const row of parsedRows) {
-          const keyParts = targetColumns.map(col => row.row_data[col] ?? '');
-          const compositeKey = keyParts.join('||');
-          
-          if (valueMap.has(compositeKey)) {
-            violations.push({
-              rule_id: rule.id,
-              file_id: fileId,
-              row_number: row.row_number,
-              column_name: targetColumns.join(', '),
-              expected_value: 'Unique value',
-              actual_value: compositeKey.substring(0, 500),
-              violation_details: { 
-                reason: 'Duplicate value found',
-                first_occurrence_row: valueMap.get(compositeKey),
-                duplicate_columns: targetColumns
-              },
-              severity: rule.severity || 'warning'
-            });
-          } else {
-            valueMap.set(compositeKey, row.row_number);
+        if (resolvedColumns.length > 0) {
+          for (const row of parsedRows) {
+            const keyParts = resolvedColumns.map(col => row.row_data[col] ?? '');
+            const compositeKey = keyParts.join('||');
+            
+            if (valueMap.has(compositeKey)) {
+              violations.push({
+                rule_id: rule.id,
+                file_id: fileId,
+                row_number: row.row_number,
+                column_name: resolvedColumns.join(', '),
+                expected_value: 'Unique value',
+                actual_value: compositeKey.substring(0, 500),
+                violation_details: { 
+                  reason: 'Duplicate value found',
+                  first_occurrence_row: valueMap.get(compositeKey),
+                  duplicate_columns: resolvedColumns
+                },
+                severity: rule.severity || 'warning'
+              });
+            } else {
+              valueMap.set(compositeKey, row.row_number);
+            }
           }
         }
       }
@@ -5708,27 +5846,31 @@ app.post('/api/files/:fileId/quality-rules/revalidate', authenticateToken, uploa
       // Handle uniqueness check
       if (rule.rule_type === 'uniqueness' && targetColumns.length > 0) {
         const valueMap = new Map();
+        // Resolve all target columns to actual header names
+        const resolvedColumns = targetColumns.map(col => resolveColumnName(col)).filter(Boolean);
         
-        for (const row of parsedRows) {
-          const keyParts = targetColumns.map(col => row.row_data[col] ?? '');
-          const compositeKey = keyParts.join('||');
-          
-          if (valueMap.has(compositeKey)) {
-            violations.push({
-              rule_id: rule.id,
-              file_id: fileId,
-              row_number: row.row_number,
-              column_name: targetColumns.join(', '),
-              expected_value: 'Unique value',
-              actual_value: compositeKey.substring(0, 500),
-              violation_details: { 
-                reason: 'Uniqueness violation - duplicate found',
-                first_occurrence_row: valueMap.get(compositeKey)
-              },
-              severity: rule.severity || 'warning'
-            });
-          } else {
-            valueMap.set(compositeKey, row.row_number);
+        if (resolvedColumns.length > 0) {
+          for (const row of parsedRows) {
+            const keyParts = resolvedColumns.map(col => row.row_data[col] ?? '');
+            const compositeKey = keyParts.join('||');
+            
+            if (valueMap.has(compositeKey)) {
+              violations.push({
+                rule_id: rule.id,
+                file_id: fileId,
+                row_number: row.row_number,
+                column_name: resolvedColumns.join(', '),
+                expected_value: 'Unique value',
+                actual_value: compositeKey.substring(0, 500),
+                violation_details: { 
+                  reason: 'Uniqueness violation - duplicate found',
+                  first_occurrence_row: valueMap.get(compositeKey)
+                },
+                severity: rule.severity || 'warning'
+              });
+            } else {
+              valueMap.set(compositeKey, row.row_number);
+            }
           }
         }
       }

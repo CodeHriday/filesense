@@ -2764,7 +2764,11 @@ function DataProfile() {
       );
     }
 
-    if (violations.length === 0) {
+    // Check if rules have been executed - a rule with status === null hasn't been run yet
+    const rulesHaveBeenRun = applied_rules.some(rule => rule.status !== null);
+    
+    // Only show "All Quality Rules Passed" if rules have been run AND no violations exist
+    if (violations.length === 0 && rulesHaveBeenRun) {
       return (
         <div className="quality-rules-tab">
           {renderRuleAssignmentSection()}
@@ -2774,6 +2778,23 @@ function DataProfile() {
               <FiCheckCircle size={32} style={{ color: '#16a34a', marginBottom: '8px' }} />
               <div style={{ fontSize: '14px', fontWeight: '600', color: '#16a34a' }}>All Quality Rules Passed!</div>
               <div style={{ fontSize: '10px', color: '#666' }}>{summary.total_rules_applied} rules applied</div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+    
+    // Rules assigned but not run yet - show pending state
+    if (violations.length === 0 && !rulesHaveBeenRun) {
+      return (
+        <div className="quality-rules-tab">
+          {renderRuleAssignmentSection()}
+          {renderAppliedRulesSection()}
+          <div className="gps-card">
+            <div className="gps-card-body" style={{ textAlign: 'center', padding: '24px' }}>
+              <FiClock size={32} style={{ color: '#f59e0b', marginBottom: '8px' }} />
+              <div style={{ fontSize: '14px', fontWeight: '600', color: '#475569' }}>Quality Rules Pending</div>
+              <div style={{ fontSize: '10px', color: '#666' }}>{applied_rules.length} rules assigned - click "Run Rules" to execute</div>
             </div>
           </div>
         </div>
