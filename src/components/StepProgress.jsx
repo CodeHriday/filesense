@@ -8,29 +8,9 @@ const STEPS = [
     icon: '📤'
   },
   {
-    id: 'scanning',
-    label: 'Scan',
+    id: 'processing',
+    label: 'Processing',
     icon: '🔍'
-  },
-  {
-    id: 'analyzing',
-    label: 'Analyze',
-    icon: '📊'
-  },
-  {
-    id: 'profiling',
-    label: 'Profile',
-    icon: '🔢'
-  },
-  {
-    id: 'duplicates',
-    label: 'Duplicates',
-    icon: '🔎'
-  },
-  {
-    id: 'schema',
-    label: 'Schema',
-    icon: '📋'
   },
   {
     id: 'complete',
@@ -39,19 +19,32 @@ const STEPS = [
   }
 ];
 
+const STEP_ID_MAP = {
+  'uploading': 'uploading',
+  'scanning': 'processing',
+  'analyzing': 'processing',
+  'profiling': 'processing',
+  'duplicates': 'processing',
+  'schema': 'processing',
+  'complete': 'complete'
+};
+
 const STEP_DESCRIPTIONS = {
   'uploading': 'Transferring file to server',
-  'scanning': 'Checking file security',
-  'analyzing': 'Reading file contents',
-  'profiling': 'Generating statistics',
-  'duplicates': 'Checking for duplicate rows',
-  'schema': 'Saving metadata',
+  'processing': 'Scanning and processing file',
+  'scanning': 'Scanning and processing file',
+  'analyzing': 'Scanning and processing file',
+  'profiling': 'Scanning and processing file',
+  'duplicates': 'Scanning and processing file',
+  'schema': 'Scanning and processing file',
   'complete': 'Processing finished'
 };
 
 const StepProgress = ({ currentStep, uploadProgress = null }) => {
+  const mappedStep = STEP_ID_MAP[currentStep] || currentStep;
+  
   const getCurrentStepIndex = () => {
-    const index = STEPS.findIndex(s => s.id === currentStep);
+    const index = STEPS.findIndex(s => s.id === mappedStep);
     return index === -1 ? 0 : index;
   };
 
