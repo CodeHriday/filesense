@@ -1096,9 +1096,18 @@ function DataProfile() {
     try {
       setRulesLoading(true);
       const data = await getFileQualityRules(fileId);
-      setFileAvailableRules(data.available || []);
+      const availableRules = data.available || [];
+      setFileAvailableRules(availableRules);
       setFileAssignedRules(data.assigned || []);
       setSelectedRuleIds((data.assigned || []).map(r => r.id));
+      
+      // Also populate availableGenericRules for Schema Builder consistency
+      // Filter to only include generic column-level rules
+      const genericRules = availableRules.filter(rule => 
+        ['null_check', 'duplicate_check', 'email_validity', 'phone_validity', 
+         'column_completeness', 'date_format', 'timestamp_format'].includes(rule.rule_type)
+      );
+      setAvailableGenericRules(genericRules);
       
       // Load saved column assignments from the assigned rules
       // Create separate deep copies for current and saved state to avoid reference sharing
@@ -1122,7 +1131,7 @@ function DataProfile() {
           if (!invertedAssignments[columnName]) {
             invertedAssignments[columnName] = [];
           }
-          // Keep rule id in its original form from the API (should match availableGenericRules.id)
+          // Keep rule id as number to match availableGenericRules.id
           invertedAssignments[columnName].push(parseInt(ruleId, 10));
         });
       });
