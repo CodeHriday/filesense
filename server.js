@@ -5378,9 +5378,11 @@ app.post('/api/files/:fileId/quality-rules/run', authenticateToken, async (req, 
     
   } catch (err) {
     console.error('Error running quality rules:', err);
+    console.error('Error stack:', err.stack);
     logger.error('Error running quality rules', { 
       service: 'data-observatory-api', 
-      error: err.message 
+      error: err.message,
+      stack: err.stack
     });
     res.status(500).json({ error: 'Failed to run quality rules', details: err.message });
   }

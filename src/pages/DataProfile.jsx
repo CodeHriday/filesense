@@ -2903,7 +2903,7 @@ function DataProfile() {
             <button 
               className="btn btn-primary" 
               onClick={handleDownloadSchema}
-              style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', padding: '8px 16px' }}
+              style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', padding: '8px 16px', flex: '0 0 auto', whiteSpace: 'nowrap' }}
             >
               <FiDownload size={14} />
               Generate Schema
