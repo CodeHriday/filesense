@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { FiFileText, FiCalendar, FiBarChart2, FiDownload, FiTable, FiCopy, FiEdit2, FiUser, FiClock, FiCheckCircle, FiAlertTriangle, FiXCircle, FiGitBranch, FiZap, FiPlay } from 'react-icons/fi';
+import { FiFileText, FiCalendar, FiBarChart2, FiDownload, FiTable, FiCopy, FiEdit2, FiUser, FiClock, FiCheckCircle, FiAlertTriangle, FiXCircle, FiGitBranch, FiZap, FiPlay, FiRefreshCw } from 'react-icons/fi';
 import Card from '../components/Card';
 import LoadingSpinner from '../components/LoadingSpinner';
 import FilePreview from '../components/FilePreview';
@@ -828,6 +828,9 @@ function DataProfile() {
   const [showRevalidateModal, setShowRevalidateModal] = useState(false); // Show file upload modal for revalidation
   const [revalidateFile, setRevalidateFile] = useState(null); // Selected file for revalidation
   const [revalidateProgress, setRevalidateProgress] = useState(0); // Upload progress
+  const [violationsPage, setViolationsPage] = useState(1); // Current page for violations
+  const [refreshingRules, setRefreshingRules] = useState(false); // Loading state for refresh button
+  const VIOLATIONS_PER_PAGE = 20; // Pagination size
 
   // Helper functions for column type checking
   const isNumericColumn = (column) => {
@@ -1175,13 +1178,47 @@ function DataProfile() {
       
       // Clear expanded state after save
       setExpandedRuleId(null);
-      // Refresh violations data after saving rules
-      await fetchQualityViolations();
+      
+      // Reset violations and rule statuses when rules are saved
+      // This clears the pass/fail status until rules are run again
+      setQualityViolations(prev => {
+        if (!prev) return null;
+        return {
+          ...prev,
+          violations: [],
+          summary: {
+            ...prev.summary,
+            total_violations: 0,
+            rules_passed: 0,
+            rules_failed: 0,
+            violations_by_severity: { critical: 0, error: 0, warning: 0 }
+          },
+          applied_rules: (prev.applied_rules || []).map(rule => ({
+            ...rule,
+            status: null, // Reset status
+            violation_count: 0
+          }))
+        };
+      });
+      setViolationsPage(1); // Reset pagination
     } catch (err) {
       console.error('Error saving file quality rules:', err);
       setErrorMessage('Failed to save quality rules');
     } finally {
       setRulesSaving(false);
+    }
+  };
+
+  // Refresh available rules from the backend (useful after creating rules in DQ Suggestions)
+  const handleRefreshRules = async () => {
+    try {
+      setRefreshingRules(true);
+      await fetchFileQualityRules();
+    } catch (err) {
+      console.error('Error refreshing rules:', err);
+      setErrorMessage('Failed to refresh rules');
+    } finally {
+      setRefreshingRules(false);
     }
   };
   
@@ -2329,6 +2366,27 @@ function DataProfile() {
             </div>
             <div style={{ display: 'flex', gap: '8px' }}>
               <button 
+                className="btn btn-outline"
+                onClick={handleRefreshRules}
+                disabled={refreshingRules || rulesLoading}
+                style={{ 
+                  display: 'inline-flex', 
+                  alignItems: 'center', 
+                  gap: '6px', 
+                  fontSize: '11px', 
+                  padding: '8px 12px',
+                  border: '1px solid #e2e8f0',
+                  backgroundColor: 'white',
+                  color: '#475569',
+                  borderRadius: '6px',
+                  cursor: refreshingRules ? 'not-allowed' : 'pointer'
+                }}
+                title="Refresh available rules from the database"
+              >
+                <FiRefreshCw size={12} style={{ animation: refreshingRules ? 'spin 1s linear infinite' : 'none' }} />
+                {refreshingRules ? 'Refreshing...' : 'Refresh'}
+              </button>
+              <button 
                 className="btn btn-secondary" 
                 onClick={handleRunQualityRules}
                 disabled={rulesRunning || hasUnsavedChanges || fileAssignedRules.length === 0}
@@ -2769,7 +2827,7 @@ function DataProfile() {
                 <label className="gps-filter-label">Severity</label>
                 <select 
                   value={qualityFilter.severity} 
-                  onChange={(e) => setQualityFilter({...qualityFilter, severity: e.target.value})}
+                  onChange={(e) => { setQualityFilter({...qualityFilter, severity: e.target.value}); setViolationsPage(1); }}
                   className="gps-form-select"
                 >
                   <option value="all">All Severities</option>
@@ -2783,7 +2841,7 @@ function DataProfile() {
                 <label className="gps-filter-label">Rule Type</label>
                 <select 
                   value={qualityFilter.ruleType} 
-                  onChange={(e) => setQualityFilter({...qualityFilter, ruleType: e.target.value})}
+                  onChange={(e) => { setQualityFilter({...qualityFilter, ruleType: e.target.value}); setViolationsPage(1); }}
                   className="gps-form-select"
                 >
                   <option value="all">All Types</option>
@@ -2798,7 +2856,7 @@ function DataProfile() {
                   <label className="gps-filter-label">Column</label>
                   <select 
                     value={qualityFilter.column} 
-                    onChange={(e) => setQualityFilter({...qualityFilter, column: e.target.value})}
+                    onChange={(e) => { setQualityFilter({...qualityFilter, column: e.target.value}); setViolationsPage(1); }}
                     className="gps-form-select"
                   >
                     <option value="all">All Columns</option>
@@ -2816,9 +2874,66 @@ function DataProfile() {
           </div>
         </div>
 
+        {/* Applied Quality Rules Table - Always visible */}
+        <div className="gps-card" style={{ marginBottom: '16px' }}>
+          <div className="gps-card-header">
+            <h3 className="gps-card-title" style={{ fontSize: '12px' }}>Applied Quality Rules</h3>
+          </div>
+          <div className="gps-card-body" style={{ padding: 0 }}>
+            <div className="gps-table-container" style={{ maxHeight: '200px', overflowY: 'auto' }}>
+              <table className="gps-table">
+                <thead style={{ position: 'sticky', top: 0, backgroundColor: '#f8fafc' }}>
+                  <tr>
+                    <th>Rule Name</th>
+                    <th>Type</th>
+                    <th>Target Columns</th>
+                    <th>Severity</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {applied_rules.map((rule, idx) => (
+                    <tr key={idx}>
+                      <td><span style={{ fontWeight: '500', fontSize: '10px' }}>{rule.rule_name}</span></td>
+                      <td><span className="gps-badge gps-badge--secondary" style={{ fontSize: '9px' }}>{rule.rule_type}</span></td>
+                      <td>
+                        {rule.target_columns && rule.target_columns.length > 0 ? (
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                            {rule.target_columns.slice(0, 3).map((col, i) => (
+                              <span key={i} className="gps-badge gps-badge--info" style={{ fontSize: '9px' }}>{col}</span>
+                            ))}
+                            {rule.target_columns.length > 3 && (
+                              <span className="gps-badge gps-badge--secondary" style={{ fontSize: '9px' }} title={rule.target_columns.join(', ')}>
+                                +{rule.target_columns.length - 3} more
+                              </span>
+                            )}
+                          </div>
+                        ) : (
+                          <span style={{ fontSize: '10px', color: '#94a3b8' }}>All columns</span>
+                        )}
+                      </td>
+                      <td><span className={`gps-badge gps-badge--${rule.severity === 'critical' ? 'danger' : rule.severity === 'high' ? 'danger' : 'warning'}`} style={{ fontSize: '9px' }}>{rule.severity}</span></td>
+                      <td>
+                        {rule.status === null ? (
+                          <span className="gps-badge gps-badge--secondary" style={{ fontSize: '9px' }}>Not Run</span>
+                        ) : rule.status === 'passed' ? (
+                          <span className="gps-badge gps-badge--success" style={{ fontSize: '9px' }}><FiCheckCircle size={10} style={{ marginRight: '4px' }} /> Passed</span>
+                        ) : (
+                          <span className="gps-badge gps-badge--danger" style={{ fontSize: '9px' }}><FiXCircle size={10} style={{ marginRight: '4px' }} /> Failed ({rule.violation_count})</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        {/* Quality Rule Violations - Scrollable paginated panel */}
         <div className="gps-card">
           <div className="gps-card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h3 className="gps-card-title">Quality Rule Violations</h3>
+            <h3 className="gps-card-title" style={{ fontSize: '12px' }}>Quality Rule Violations</h3>
             {filteredViolations.length > 0 && (
               <button
                 onClick={() => {
@@ -2843,63 +2958,117 @@ function DataProfile() {
               </button>
             )}
           </div>
-          <div className="gps-card-body">
+          <div className="gps-card-body" style={{ padding: 0 }}>
             {filteredViolations.length === 0 ? (
-              <div className="gps-empty-state">
+              <div className="gps-empty-state" style={{ padding: '20px' }}>
                 <p>No violations match the selected filters</p>
               </div>
             ) : (
-              <div className="gps-table-container">
-                <table className="gps-table">
-                  <thead>
-                    <tr>
-                      <th>Primary Key</th>
-                      <th>Rule Name</th>
-                      <th>Severity</th>
-                      <th>Column</th>
-                      <th>Expected</th>
-                      <th>Actual</th>
-                      <th>Type</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredViolations.map((violation, idx) => (
-                      <tr key={idx}>
-                        <td>
-                          {violation.primary_key_value ? (
-                            <div>
-                              <code style={{ fontSize: '9px', color: '#025043' }}>{violation.primary_key_column}</code>
-                              <div style={{ fontSize: '10px', color: '#666' }}>{violation.primary_key_value}</div>
-                            </div>
-                          ) : (
-                            <span style={{ color: '#94a3b8' }}>Row {violation.row_number || 'N/A'}</span>
-                          )}
-                        </td>
-                        <td>
-                          <div>
-                            <span style={{ fontWeight: '500' }}>{violation.rule_name}</span>
-                            {violation.rule_description && (
-                              <div style={{ fontSize: '9px', color: '#666' }}>{violation.rule_description}</div>
-                            )}
-                          </div>
-                        </td>
-                        <td>
-                          <span className={`gps-badge gps-badge--${violation.severity === 'critical' ? 'danger' : violation.severity === 'error' ? 'danger' : 'warning'}`} style={{ fontSize: '9px' }}>
-                            {violation.severity === 'critical' && <FiAlertTriangle size={10} style={{ marginRight: '3px' }} />}
-                            {violation.severity === 'error' && <FiXCircle size={10} style={{ marginRight: '3px' }} />}
-                            {violation.severity === 'warning' && <FiAlertTriangle size={10} style={{ marginRight: '3px' }} />}
-                            {violation.severity}
-                          </span>
-                        </td>
-                        <td><code style={{ fontSize: '9px', color: '#025043' }}>{violation.column_name || 'N/A'}</code></td>
-                        <td style={{ maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis' }}>{violation.expected_value}</td>
-                        <td style={{ maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis' }}>{violation.actual_value}</td>
-                        <td><span className="gps-badge gps-badge--secondary" style={{ fontSize: '9px' }}>{violation.rule_type}</span></td>
+              <>
+                <div className="gps-table-container" style={{ maxHeight: '300px', overflowY: 'auto' }}>
+                  <table className="gps-table">
+                    <thead style={{ position: 'sticky', top: 0, backgroundColor: '#f8fafc', zIndex: 1 }}>
+                      <tr>
+                        <th>Primary Key</th>
+                        <th>Rule Name</th>
+                        <th>Severity</th>
+                        <th>Column</th>
+                        <th>Expected</th>
+                        <th>Actual</th>
+                        <th>Type</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <tbody>
+                      {filteredViolations
+                        .slice((violationsPage - 1) * VIOLATIONS_PER_PAGE, violationsPage * VIOLATIONS_PER_PAGE)
+                        .map((violation, idx) => (
+                        <tr key={idx}>
+                          <td>
+                            {violation.primary_key_value ? (
+                              <div>
+                                <code style={{ fontSize: '9px', color: '#025043' }}>{violation.primary_key_column}</code>
+                                <div style={{ fontSize: '10px', color: '#666' }}>{violation.primary_key_value}</div>
+                              </div>
+                            ) : (
+                              <span style={{ color: '#94a3b8', fontSize: '10px' }}>Row {violation.row_number || 'N/A'}</span>
+                            )}
+                          </td>
+                          <td>
+                            <div>
+                              <span style={{ fontWeight: '500', fontSize: '10px' }}>{violation.rule_name}</span>
+                              {violation.rule_description && (
+                                <div style={{ fontSize: '9px', color: '#666' }}>{violation.rule_description}</div>
+                              )}
+                            </div>
+                          </td>
+                          <td>
+                            <span className={`gps-badge gps-badge--${violation.severity === 'critical' ? 'danger' : violation.severity === 'error' ? 'danger' : 'warning'}`} style={{ fontSize: '9px' }}>
+                              {violation.severity === 'critical' && <FiAlertTriangle size={10} style={{ marginRight: '3px' }} />}
+                              {violation.severity === 'error' && <FiXCircle size={10} style={{ marginRight: '3px' }} />}
+                              {violation.severity === 'warning' && <FiAlertTriangle size={10} style={{ marginRight: '3px' }} />}
+                              {violation.severity}
+                            </span>
+                          </td>
+                          <td><code style={{ fontSize: '9px', color: '#025043' }}>{violation.column_name || 'N/A'}</code></td>
+                          <td style={{ maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis', fontSize: '10px' }}>{violation.expected_value}</td>
+                          <td style={{ maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis', fontSize: '10px' }}>{violation.actual_value}</td>
+                          <td><span className="gps-badge gps-badge--secondary" style={{ fontSize: '9px' }}>{violation.rule_type}</span></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                {/* Pagination controls */}
+                {filteredViolations.length > VIOLATIONS_PER_PAGE && (
+                  <div style={{ 
+                    display: 'flex', 
+                    justifyContent: 'space-between', 
+                    alignItems: 'center', 
+                    padding: '12px 16px',
+                    borderTop: '1px solid #e2e8f0',
+                    backgroundColor: '#f8fafc'
+                  }}>
+                    <div style={{ fontSize: '10px', color: '#666' }}>
+                      Showing {(violationsPage - 1) * VIOLATIONS_PER_PAGE + 1} - {Math.min(violationsPage * VIOLATIONS_PER_PAGE, filteredViolations.length)} of {filteredViolations.length}
+                    </div>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <button
+                        onClick={() => setViolationsPage(p => Math.max(1, p - 1))}
+                        disabled={violationsPage === 1}
+                        style={{
+                          padding: '4px 12px',
+                          fontSize: '10px',
+                          border: '1px solid #e2e8f0',
+                          borderRadius: '4px',
+                          backgroundColor: violationsPage === 1 ? '#f1f5f9' : 'white',
+                          cursor: violationsPage === 1 ? 'not-allowed' : 'pointer',
+                          color: violationsPage === 1 ? '#94a3b8' : '#475569'
+                        }}
+                      >
+                        Previous
+                      </button>
+                      <span style={{ fontSize: '10px', padding: '4px 8px', color: '#475569' }}>
+                        Page {violationsPage} of {Math.ceil(filteredViolations.length / VIOLATIONS_PER_PAGE)}
+                      </span>
+                      <button
+                        onClick={() => setViolationsPage(p => Math.min(Math.ceil(filteredViolations.length / VIOLATIONS_PER_PAGE), p + 1))}
+                        disabled={violationsPage >= Math.ceil(filteredViolations.length / VIOLATIONS_PER_PAGE)}
+                        style={{
+                          padding: '4px 12px',
+                          fontSize: '10px',
+                          border: '1px solid #e2e8f0',
+                          borderRadius: '4px',
+                          backgroundColor: violationsPage >= Math.ceil(filteredViolations.length / VIOLATIONS_PER_PAGE) ? '#f1f5f9' : 'white',
+                          cursor: violationsPage >= Math.ceil(filteredViolations.length / VIOLATIONS_PER_PAGE) ? 'not-allowed' : 'pointer',
+                          color: violationsPage >= Math.ceil(filteredViolations.length / VIOLATIONS_PER_PAGE) ? '#94a3b8' : '#475569'
+                        }}
+                      >
+                        Next
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </>
             )}
           </div>
         </div>
@@ -3526,16 +3695,16 @@ function DataProfile() {
               <FiTable style={{ marginRight: '6px' }} /> Preview
             </button>
             <button 
-              className={`gps-tab ${activeTab === 'quality-rules' ? 'gps-tab--active' : ''}`}
-              onClick={() => setActiveTab('quality-rules')}
-            >
-              <FiCheckCircle style={{ marginRight: '6px' }} /> Quality Rules
-            </button>
-            <button 
               className={`gps-tab ${activeTab === 'ai-suggestions' ? 'gps-tab--active' : ''}`}
               onClick={() => setActiveTab('ai-suggestions')}
             >
               <FiZap style={{ marginRight: '6px' }} /> DQ Suggestions
+            </button>
+            <button 
+              className={`gps-tab ${activeTab === 'quality-rules' ? 'gps-tab--active' : ''}`}
+              onClick={() => setActiveTab('quality-rules')}
+            >
+              <FiCheckCircle style={{ marginRight: '6px' }} /> Quality Rules
             </button>
             <button 
               className={`gps-tab ${activeTab === 'schema-builder' ? 'gps-tab--active' : ''}`}
@@ -3576,7 +3745,7 @@ function DataProfile() {
       
       {/* Revalidation Modal - File Upload for Quality Rules */}
       {showRevalidateModal && (
-        <div className="modal-overlay" onClick={() => !rulesRunning && setShowRevalidateModal(false)} style={{ zIndex: 2000 }}>
+        <div className="modal-overlay" style={{ zIndex: 2000 }}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '500px' }}>
             <div style={{ 
               display: 'flex', 

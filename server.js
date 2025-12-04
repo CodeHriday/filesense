@@ -5456,10 +5456,26 @@ app.post('/api/files/:fileId/quality-rules/revalidate', authenticateToken, uploa
       });
       
       // Convert to expected format with row numbers
-      parsedRows = results.map((row, idx) => ({
-        row_number: idx + 1,
-        row_data: row
-      }));
+      // Normalize values: treat whitespace-only strings as null
+      parsedRows = results.map((row, idx) => {
+        const normalizedRow = {};
+        for (const [key, value] of Object.entries(row)) {
+          const trimmedKey = key.trim();
+          // Normalize: empty strings and whitespace-only become null
+          if (value === null || value === undefined) {
+            normalizedRow[trimmedKey] = null;
+          } else if (typeof value === 'string') {
+            const trimmed = value.trim();
+            normalizedRow[trimmedKey] = trimmed === '' ? null : trimmed;
+          } else {
+            normalizedRow[trimmedKey] = value;
+          }
+        }
+        return {
+          row_number: idx + 1,
+          row_data: normalizedRow
+        };
+      });
       
     } else if (fileExtension === '.json') {
       // Parse JSON
@@ -5568,7 +5584,16 @@ app.post('/api/files/:fileId/quality-rules/revalidate', authenticateToken, uploa
       for (const columnName of targetColumns) {
         for (const row of parsedRows) {
           const rowData = row.row_data;
-          const cellValue = rowData[columnName];
+          // Case-insensitive column lookup
+          let cellValue = rowData[columnName];
+          if (cellValue === undefined) {
+            // Try case-insensitive match
+            const lowerColName = columnName.toLowerCase();
+            const matchingKey = Object.keys(rowData).find(k => k.toLowerCase() === lowerColName);
+            if (matchingKey) {
+              cellValue = rowData[matchingKey];
+            }
+          }
           
           let isViolation = false;
           let expectedValue = null;
