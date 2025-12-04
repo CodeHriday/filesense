@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { FiPlus, FiTrash2, FiAlertCircle, FiInfo, FiFileText } from 'react-icons/fi';
+import { FiPlus, FiTrash2, FiAlertCircle, FiInfo, FiFileText, FiCheckCircle } from 'react-icons/fi';
 import './SchemaFieldEditor.css';
 
 const FIXED_WIDTH_FILE_TYPES = ['fixed_width', 'binary', 'dat'];
 const ARCHIVE_FILE_TYPES = ['zip', '7z', 'tar', 'tar.gz', 'tar.bz2'];
 
-function SchemaFieldEditor({ value, onChange, fileType, hasHeader, onHasHeaderChange, showHeaderToggle = true }) {
+function SchemaFieldEditor({ value, onChange, fileType, hasHeader, onHasHeaderChange, showHeaderToggle = true, qualityRuleAssignments = {}, qualityRules = [] }) {
   const [fields, setFields] = useState([]);
   const [error, setError] = useState(null);
 
@@ -106,6 +106,19 @@ function SchemaFieldEditor({ value, onChange, fileType, hasHeader, onHasHeaderCh
     'json'
   ];
 
+  const getFieldQualityRules = (fieldName) => {
+    const assignedRules = [];
+    for (const [ruleId, columns] of Object.entries(qualityRuleAssignments)) {
+      if (columns && columns.includes(fieldName)) {
+        const rule = qualityRules.find(r => r.id === parseInt(ruleId));
+        if (rule) {
+          assignedRules.push(rule);
+        }
+      }
+    }
+    return assignedRules;
+  };
+
   const handleToggleHeader = () => {
     if (isFixedWidthType || !onHasHeaderChange) return;
     onHasHeaderChange(!hasHeader);
@@ -171,22 +184,24 @@ function SchemaFieldEditor({ value, onChange, fileType, hasHeader, onHasHeaderCh
           <p>No fields defined. Click "Add Field" to start building your schema.</p>
         </div>
       ) : (
-        <div className="fields-table">
-          <table>
-            <thead>
-              <tr>
-                <th>Field Name</th>
-                <th>Type</th>
-                <th>Width</th>
-                <th>Start Pos</th>
-                <th>Precision</th>
-                <th>Scale</th>
-                <th>Nullable</th>
-                <th>PII</th>
-                <th>Description</th>
-                <th></th>
-              </tr>
-            </thead>
+        <div className="fields-table-container">
+          <div className="fields-table">
+            <table>
+              <thead>
+                <tr>
+                  <th className="th-field-name">Field Name</th>
+                  <th className="th-type">Type</th>
+                  <th className="th-width">Width</th>
+                  <th className="th-start-pos">Start Pos</th>
+                  <th className="th-precision">Precision</th>
+                  <th className="th-scale">Scale</th>
+                  <th className="th-nullable">Nullable</th>
+                  <th className="th-pii">PII</th>
+                  <th className="th-description">Description</th>
+                  <th className="th-quality-rules">Quality Rules</th>
+                  <th className="th-actions"></th>
+                </tr>
+              </thead>
             <tbody>
               {fields.map((field, index) => (
                 <tr key={index}>
@@ -281,6 +296,23 @@ function SchemaFieldEditor({ value, onChange, fileType, hasHeader, onHasHeaderCh
                       className="field-input"
                     />
                   </td>
+                  <td className="quality-rules-cell">
+                    {(() => {
+                      const assignedRules = getFieldQualityRules(field.name);
+                      if (assignedRules.length === 0) {
+                        return <span className="no-rules">-</span>;
+                      }
+                      return (
+                        <div className="field-quality-rules">
+                          {assignedRules.map(rule => (
+                            <span key={rule.id} className={`rule-tag severity-${(rule.severity || 'medium').toLowerCase()}`} title={rule.rule_name}>
+                              {rule.rule_name.split(' ')[0]}
+                            </span>
+                          ))}
+                        </div>
+                      );
+                    })()}
+                  </td>
                   <td className="actions-cell">
                     <button
                       type="button"
@@ -295,6 +327,7 @@ function SchemaFieldEditor({ value, onChange, fileType, hasHeader, onHasHeaderCh
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       )}
 

@@ -184,13 +184,17 @@
   margin: 0 0 4px 0;
 }
 
+.fields-table-container {
+  position: relative;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  margin-bottom: var(--space-2);
+}
+
 .fields-table {
   overflow-x: auto;
   overflow-y: auto;
   max-height: 300px;
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius-sm);
-  margin-bottom: var(--space-2);
 }
 
 .fields-table table {
@@ -387,4 +391,77 @@
   display: block;
   margin-top: var(--space-2);
   color: var(--text-muted);
+}
+
+/* Table column widths */
+.th-field-name { min-width: 120px; }
+.th-type { min-width: 80px; }
+.th-width { min-width: 60px; }
+.th-start-pos { min-width: 70px; }
+.th-precision { min-width: 70px; }
+.th-scale { min-width: 60px; }
+.th-nullable { min-width: 70px; }
+.th-pii { min-width: 50px; }
+.th-description { min-width: 120px; }
+.th-quality-rules { min-width: 140px; }
+.th-actions { min-width: 40px; }
+
+/* Quality Rules column */
+.quality-rules-cell {
+  min-width: 140px;
+  max-width: 180px;
+}
+
+.quality-rules-cell .no-rules {
+  color: var(--text-muted);
+  font-size: 10px;
+  font-family: 'Inter', sans-serif;
+}
+
+.field-quality-rules {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+}
+
+.field-quality-rules .rule-tag {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 8px;
+  font-size: 8px;
+  font-family: 'Inter', sans-serif;
+  font-weight: 600;
+  text-transform: uppercase;
+  white-space: nowrap;
+  cursor: help;
+}
+
+.field-quality-rules .rule-tag.severity-critical {
+  background: rgba(229, 62, 62, 0.15);
+  color: #dc2626;
+}
+
+.field-quality-rules .rule-tag.severity-high {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.field-quality-rules .rule-tag.severity-medium {
+  background: rgba(2, 80, 67, 0.1);
+  color: #025043;
+}
+
+.field-quality-rules .rule-tag.severity-warning {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.field-quality-rules .rule-tag.severity-low {
+  background: rgba(56, 161, 105, 0.1);
+  color: #38a169;
+}
+
+/* Make table scrollable horizontally */
+.fields-table table {
+  min-width: 1000px;
 }

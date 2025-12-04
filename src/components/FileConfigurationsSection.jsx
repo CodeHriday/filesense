@@ -25,10 +25,32 @@ function FileConfigurationsSection({ fileConfigurations, onChange }) {
     contains_pii: false,
     data_classification: '',
     quality_rule_ids: [],
+    quality_rule_assignments: {},
     archive_password: '',
     has_header: true,
     header_definition: null
   });
+
+  const GENERIC_RULE_TYPES = [
+    'null_check', 'duplicate_check', 'email_validity', 'phone_validity',
+    'column_completeness', 'date_format', 'timestamp_format'
+  ];
+
+  const isGenericRule = (rule) => GENERIC_RULE_TYPES.includes(rule.rule_type);
+
+  const getSchemaColumns = () => {
+    if (!formData.schema || formData.schema.trim() === '') return [];
+    try {
+      const parsed = JSON.parse(formData.schema);
+      if (Array.isArray(parsed)) {
+        return parsed.map(field => ({
+          name: field.name || '',
+          type: field.type || 'string'
+        })).filter(f => f.name);
+      }
+    } catch (e) {}
+    return [];
+  };
 
   const FILE_TYPES = [
     { value: 'csv', label: 'CSV' },
@@ -299,6 +321,7 @@ function FileConfigurationsSection({ fileConfigurations, onChange }) {
       contains_pii: formData.contains_pii,
       data_classification: formData.data_classification || null,
       quality_rule_ids: formData.quality_rule_ids || [],
+      quality_rule_assignments: formData.quality_rule_assignments || {},
       archive_password: isArchiveType(formData.file_type) ? (formData.archive_password || '') : '',
       has_header: formData.has_header,
       header_definition: formData.header_definition
@@ -315,6 +338,7 @@ function FileConfigurationsSection({ fileConfigurations, onChange }) {
       contains_pii: false,
       data_classification: '',
       quality_rule_ids: [],
+      quality_rule_assignments: {},
       archive_password: '',
       has_header: true,
       header_definition: null
@@ -336,6 +360,7 @@ function FileConfigurationsSection({ fileConfigurations, onChange }) {
       contains_pii: config.contains_pii || false,
       data_classification: config.data_classification || '',
       quality_rule_ids: config.quality_rule_ids || [],
+      quality_rule_assignments: config.quality_rule_assignments || {},
       archive_password: config.archive_password || '',
       has_archive_password: config.has_archive_password || false,
       has_header: config.has_header !== undefined ? config.has_header : true,
@@ -370,6 +395,7 @@ function FileConfigurationsSection({ fileConfigurations, onChange }) {
       contains_pii: formData.contains_pii,
       data_classification: formData.data_classification || null,
       quality_rule_ids: formData.quality_rule_ids || [],
+      quality_rule_assignments: formData.quality_rule_assignments || {},
       archive_password: isArchiveType(formData.file_type) ? (formData.archive_password || '') : '',
       has_header: formData.has_header,
       header_definition: formData.header_definition
@@ -388,6 +414,7 @@ function FileConfigurationsSection({ fileConfigurations, onChange }) {
       contains_pii: false,
       data_classification: '',
       quality_rule_ids: [],
+      quality_rule_assignments: {},
       archive_password: '',
       has_header: true,
       header_definition: null
@@ -424,6 +451,7 @@ function FileConfigurationsSection({ fileConfigurations, onChange }) {
       contains_pii: false,
       data_classification: '',
       quality_rule_ids: [],
+      quality_rule_assignments: {},
       archive_password: '',
       has_header: true,
       header_definition: null
@@ -437,10 +465,50 @@ function FileConfigurationsSection({ fileConfigurations, onChange }) {
 
   const handleQualityRuleToggle = (ruleId) => {
     const currentRules = formData.quality_rule_ids || [];
-    const newRules = currentRules.includes(ruleId)
+    const isRemoving = currentRules.includes(ruleId);
+    const newRules = isRemoving
       ? currentRules.filter(id => id !== ruleId)
       : [...currentRules, ruleId];
-    setFormData({ ...formData, quality_rule_ids: newRules });
+    
+    const newAssignments = { ...formData.quality_rule_assignments };
+    if (isRemoving) {
+      delete newAssignments[ruleId];
+    }
+    
+    setFormData({ ...formData, quality_rule_ids: newRules, quality_rule_assignments: newAssignments });
+  };
+
+  const handleColumnAssignment = (ruleId, columnName, isAdding) => {
+    const currentAssignments = formData.quality_rule_assignments || {};
+    const currentColumns = currentAssignments[ruleId] || [];
+    
+    const newColumns = isAdding
+      ? [...currentColumns, columnName]
+      : currentColumns.filter(c => c !== columnName);
+    
+    setFormData({
+      ...formData,
+      quality_rule_assignments: {
+        ...currentAssignments,
+        [ruleId]: newColumns
+      }
+    });
+  };
+
+  const toggleAllColumnsForRule = (ruleId) => {
+    const schemaColumns = getSchemaColumns();
+    const currentAssignments = formData.quality_rule_assignments || {};
+    const currentColumns = currentAssignments[ruleId] || [];
+    
+    const allSelected = schemaColumns.length > 0 && schemaColumns.every(c => currentColumns.includes(c.name));
+    
+    setFormData({
+      ...formData,
+      quality_rule_assignments: {
+        ...currentAssignments,
+        [ruleId]: allSelected ? [] : schemaColumns.map(c => c.name)
+      }
+    });
   };
 
   return (
@@ -603,25 +671,71 @@ function FileConfigurationsSection({ fileConfigurations, onChange }) {
                       <small className="no-rules-message">No quality rules available</small>
                     ) : (
                       <div className="quality-rules-list">
-                        {qualityRules.map(rule => (
-                          <label key={rule.id} className="quality-rule-item">
-                            <input
-                              type="checkbox"
-                              checked={(formData.quality_rule_ids || []).includes(rule.id)}
-                              onChange={() => handleQualityRuleToggle(rule.id)}
-                            />
-                            <span className="rule-name">{rule.rule_name}</span>
-                            {rule.severity && (
-                              <span className={`severity-badge severity-${rule.severity.toLowerCase()}`}>
-                                {rule.severity}
-                              </span>
-                            )}
-                          </label>
-                        ))}
+                        {qualityRules.map(rule => {
+                          const isChecked = (formData.quality_rule_ids || []).includes(rule.id);
+                          const isGeneric = isGenericRule(rule);
+                          const schemaColumns = getSchemaColumns();
+                          const assignedColumns = (formData.quality_rule_assignments || {})[rule.id] || [];
+                          
+                          return (
+                            <div key={rule.id} className={`quality-rule-item-container ${isChecked ? 'checked' : ''}`}>
+                              <label className="quality-rule-item">
+                                <input
+                                  type="checkbox"
+                                  checked={isChecked}
+                                  onChange={() => handleQualityRuleToggle(rule.id)}
+                                />
+                                <span className="rule-name">{rule.rule_name}</span>
+                                {rule.severity && (
+                                  <span className={`severity-badge severity-${rule.severity.toLowerCase()}`}>
+                                    {rule.severity}
+                                  </span>
+                                )}
+                              </label>
+                              
+                              {isChecked && isGeneric && schemaColumns.length > 0 && (
+                                <div className="column-assignment-section">
+                                  <div className="column-assignment-header">
+                                    <span className="assignment-label">Apply to columns:</span>
+                                    <button
+                                      type="button"
+                                      className="btn-select-all-columns"
+                                      onClick={() => toggleAllColumnsForRule(rule.id)}
+                                    >
+                                      {assignedColumns.length === schemaColumns.length ? 'Deselect All' : 'Select All'}
+                                    </button>
+                                  </div>
+                                  <div className="column-checkboxes">
+                                    {schemaColumns.map(col => (
+                                      <label key={col.name} className="column-checkbox">
+                                        <input
+                                          type="checkbox"
+                                          checked={assignedColumns.includes(col.name)}
+                                          onChange={(e) => handleColumnAssignment(rule.id, col.name, e.target.checked)}
+                                        />
+                                        <span className="column-name">{col.name}</span>
+                                        <span className="column-type">({col.type})</span>
+                                      </label>
+                                    ))}
+                                  </div>
+                                  {assignedColumns.length === 0 && (
+                                    <small className="no-columns-warning">Select columns to apply this rule</small>
+                                  )}
+                                </div>
+                              )}
+                              
+                              {isChecked && isGeneric && schemaColumns.length === 0 && (
+                                <div className="column-assignment-section">
+                                  <small className="no-schema-warning">Define schema fields first to assign columns</small>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
                       </div>
                     )}
                   </div>
-                  <small>Select quality rules to apply to this file</small>
+                  <small>Select quality rules to apply to this file. Generic rules can be assigned to specific columns.</small>
                 </div>
               </div>
             </div>
@@ -647,6 +761,8 @@ function FileConfigurationsSection({ fileConfigurations, onChange }) {
                   }
                 }}
                 showHeaderToggle={!isArchiveType(formData.file_type)}
+                qualityRuleAssignments={formData.quality_rule_assignments || {}}
+                qualityRules={qualityRules}
               />
             </div>
           </div>
