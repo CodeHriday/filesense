@@ -1857,63 +1857,6 @@ function FileUpload() {
               </div>
             )}
 
-            {/* Quality Rules Selection */}
-            {selectedProject && uploadType === 'adhoc' && (
-              <div className="quality-rules-section">
-                <label htmlFor="quality-rules-select" className="upload-form-label">
-                  Quality Rules (Optional):
-                </label>
-                <p className="quality-rules-desc">
-                  Select quality rules to validate this data. Rules will run during processing.
-                </p>
-                <select 
-                  id="quality-rules-select"
-                  className="gps-form-select quality-rules-select"
-                  multiple
-                  value={selectedQualityRules.map(String)}
-                  onChange={(e) => {
-                    const selected = Array.from(e.target.selectedOptions, option => parseInt(option.value));
-                    setSelectedQualityRules(selected);
-                  }}
-                  disabled={loadingQualityRules}
-                >
-                  {loadingQualityRules ? (
-                    <option disabled>Loading quality rules...</option>
-                  ) : availableQualityRules.length === 0 ? (
-                    <option disabled>No quality rules available for this project</option>
-                  ) : (
-                    availableQualityRules.map(rule => (
-                      <option key={rule.id} value={rule.id}>
-                        {rule.rule_name} - {rule.rule_type} ({rule.severity})
-                      </option>
-                    ))
-                  )}
-                </select>
-                <div className="quality-rules-hint">
-                  {selectedQualityRules.length > 0 
-                    ? `${selectedQualityRules.length} rule(s) selected` 
-                    : 'No rules selected (hold Ctrl/Cmd to select multiple)'}
-                </div>
-              </div>
-            )}
-            
-            {/* Quality Rules Display for Contract Validation (read-only) */}
-            {selectedProject && uploadType === 'contract' && selectedQualityRules.length > 0 && (
-              <div className="upload-subsection">
-                <label className="upload-form-label">Quality Rules (from agreement):</label>
-                <div className="contract-rules-box">
-                  {selectedQualityRules.map(ruleId => {
-                    const rule = availableQualityRules.find(r => r.id === ruleId);
-                    return rule ? (
-                      <div key={ruleId} className="contract-rule-item">
-                        ✓ {rule.rule_name} - {rule.rule_type} ({rule.severity})
-                      </div>
-                    ) : null;
-                  })}
-                </div>
-              </div>
-            )}
-            
             {/* Delimiter Configuration Section */}
             {selectedProject && (
               <div className="upload-subsection">
@@ -2713,45 +2656,6 @@ function FileUpload() {
                     </div>
                   )}
 
-                  {/* Quality Rules Selection */}
-                  {selectedVendorProject && (
-                    <div className="upload-subsection">
-                      <label htmlFor="quality-rules-select-drop" className="upload-form-label">
-                        Quality Rules (Optional):
-                      </label>
-                      <p className="upload-field-desc">
-                        Select quality rules to validate this data. Rules will run during processing.
-                      </p>
-                      <select 
-                        id="quality-rules-select-drop"
-                        className="gps-form-select quality-rules-multiselect"
-                        multiple
-                        value={selectedQualityRules.map(String)}
-                        onChange={(e) => {
-                          const selected = Array.from(e.target.selectedOptions, option => parseInt(option.value));
-                          setSelectedQualityRules(selected);
-                        }}
-                        disabled={loadingQualityRules}
-                      >
-                        {loadingQualityRules ? (
-                          <option disabled>Loading quality rules...</option>
-                        ) : availableQualityRules.length === 0 ? (
-                          <option disabled>No quality rules available for this project</option>
-                        ) : (
-                          availableQualityRules.map(rule => (
-                            <option key={rule.id} value={rule.id}>
-                              {rule.rule_name} - {rule.rule_type} ({rule.severity})
-                            </option>
-                          ))
-                        )}
-                      </select>
-                      <div className="upload-field-hint">
-                        {selectedQualityRules.length > 0 
-                          ? `${selectedQualityRules.length} rule(s) selected` 
-                          : 'No rules selected (hold Ctrl/Cmd to select multiple)'}
-                      </div>
-                    </div>
-                  )}
                 </div>
               </div>
 
