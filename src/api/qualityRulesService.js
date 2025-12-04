@@ -84,3 +84,27 @@ export const getProjects = async () => {
     throw error;
   }
 };
+
+export const getFileQualityRules = async (fileId) => {
+  try {
+    const encodedFileId = encodeURIComponent(fileId);
+    const response = await axios.get(`${API_URL}/files/${encodedFileId}/quality-rules`);
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching file quality rules:', error);
+    throw error;
+  }
+};
+
+export const assignFileQualityRules = async (fileId, ruleIds) => {
+  try {
+    const encodedFileId = encodeURIComponent(fileId);
+    const response = await axios.post(`${API_URL}/files/${encodedFileId}/quality-rules`, {
+      rule_ids: ruleIds
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error assigning quality rules to file:', error);
+    throw error;
+  }
+};

@@ -8,6 +8,7 @@ import ErrorModal from '../components/ErrorModal';
 import SchemaHistoryTab from '../components/SchemaHistoryTab';
 import AIDQSuggestionsTab from '../components/AIDQSuggestionsTab';
 import { getFileDetails, getFileProfile, getFilePreview } from '../api/fileService';
+import { getFileQualityRules, assignFileQualityRules } from '../api/qualityRulesService';
 import { formatBytes, formatDate, getTimeSince, formatNumber, formatDecimal } from '../utils/formatters';
 import { useAuth } from '../context/AuthContext';
 import '../styles/global-page-styles.css';
@@ -812,6 +813,13 @@ function DataProfile() {
   const [columnDQAssignments, setColumnDQAssignments] = useState({});
   const [schemaBuilderLoading, setSchemaBuilderLoading] = useState(false);
 
+  // File Quality Rules assignment state
+  const [fileAvailableRules, setFileAvailableRules] = useState([]);
+  const [fileAssignedRules, setFileAssignedRules] = useState([]);
+  const [selectedRuleIds, setSelectedRuleIds] = useState([]);
+  const [rulesLoading, setRulesLoading] = useState(false);
+  const [rulesSaving, setRulesSaving] = useState(false);
+
   // Helper functions for column type checking
   const isNumericColumn = (column) => {
     const numericTypes = ['integer', 'decimal', 'number', 'float', 'int64', 'float64', 'int32', 'float32'];
@@ -1079,6 +1087,45 @@ function DataProfile() {
     }
   };
 
+  const fetchFileQualityRulesData = async () => {
+    try {
+      setRulesLoading(true);
+      const data = await getFileQualityRules(fileId);
+      setFileAvailableRules(data.available || []);
+      setFileAssignedRules(data.assigned || []);
+      setSelectedRuleIds((data.assigned || []).map(r => r.id));
+    } catch (err) {
+      console.error('Error fetching file quality rules:', err);
+    } finally {
+      setRulesLoading(false);
+    }
+  };
+
+  const handleSaveFileRules = async () => {
+    try {
+      setRulesSaving(true);
+      await assignFileQualityRules(fileId, selectedRuleIds);
+      setFileAssignedRules(fileAvailableRules.filter(r => selectedRuleIds.includes(r.id)));
+      // Refresh violations data after saving rules
+      await fetchQualityViolations();
+    } catch (err) {
+      console.error('Error saving file quality rules:', err);
+      setErrorMessage('Failed to save quality rules');
+    } finally {
+      setRulesSaving(false);
+    }
+  };
+
+  const handleRuleToggle = (ruleId) => {
+    setSelectedRuleIds(prev => {
+      if (prev.includes(ruleId)) {
+        return prev.filter(id => id !== ruleId);
+      } else {
+        return [...prev, ruleId];
+      }
+    });
+  };
+
   const handleColumnRuleToggle = (columnName, ruleId) => {
     setColumnDQAssignments(prev => {
       const columnRules = prev[columnName] || [];
@@ -1150,9 +1197,14 @@ function DataProfile() {
   };
 
   useEffect(() => {
-    // Fetch quality violations when quality-rules tab is active
-    if (activeTab === 'quality-rules' && !qualityViolations) {
-      fetchQualityViolations();
+    // Fetch quality violations and file quality rules when quality-rules tab is active
+    if (activeTab === 'quality-rules') {
+      if (!qualityViolations) {
+        fetchQualityViolations();
+      }
+      if (fileAvailableRules.length === 0) {
+        fetchFileQualityRulesData();
+      }
     }
     // Fetch generic rules when schema-builder tab is active
     if (activeTab === 'schema-builder' && availableGenericRules.length === 0) {
@@ -2055,7 +2107,95 @@ function DataProfile() {
   };
 
   const renderQualityRulesTab = () => {
-    if (qualityLoading) {
+    const RULE_TYPE_LABELS = {
+      'null_check': 'Null Check',
+      'duplicate_check': 'Duplicate Check',
+      'email_validity': 'Email Validity',
+      'phone_validity': 'Phone Validity',
+      'column_completeness': 'Completeness',
+      'date_format': 'Date Format',
+      'timestamp_format': 'Timestamp Format'
+    };
+
+    const hasUnsavedChanges = JSON.stringify(selectedRuleIds.sort()) !== 
+      JSON.stringify(fileAssignedRules.map(r => r.id).sort());
+
+    const renderRuleAssignmentSection = () => (
+      <div className="gps-card" style={{ marginBottom: '16px' }}>
+        <div className="gps-card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <h3 className="gps-card-title" style={{ margin: 0, fontSize: '12px' }}>Assign Quality Rules</h3>
+            <p style={{ margin: '4px 0 0 0', fontSize: '10px', color: '#64748b' }}>
+              Select quality rules to apply to this file
+            </p>
+          </div>
+          <button 
+            className="btn btn-primary" 
+            onClick={handleSaveFileRules}
+            disabled={rulesSaving || !hasUnsavedChanges}
+            style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', padding: '8px 16px' }}
+          >
+            {rulesSaving ? 'Saving...' : 'Save Rules'}
+          </button>
+        </div>
+        <div className="gps-card-body" style={{ padding: '16px' }}>
+          {rulesLoading ? (
+            <div style={{ textAlign: 'center', padding: '20px' }}>
+              <LoadingSpinner />
+            </div>
+          ) : fileAvailableRules.length === 0 ? (
+            <p style={{ color: '#64748b', fontSize: '11px', margin: 0 }}>No quality rules available</p>
+          ) : (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+              {fileAvailableRules.map(rule => {
+                const isSelected = selectedRuleIds.includes(rule.id);
+                return (
+                  <button
+                    key={rule.id}
+                    onClick={() => handleRuleToggle(rule.id)}
+                    style={{
+                      padding: '6px 12px',
+                      fontSize: '10px',
+                      fontFamily: 'Inter, sans-serif',
+                      fontWeight: 500,
+                      border: isSelected ? 'none' : '1px solid #e2e8f0',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      backgroundColor: isSelected ? '#025043' : '#f8fafc',
+                      color: isSelected ? 'white' : '#475569',
+                      transition: 'all 0.2s ease',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px'
+                    }}
+                    title={rule.description || rule.rule_name}
+                  >
+                    {isSelected && <FiCheckCircle size={12} />}
+                    {RULE_TYPE_LABELS[rule.rule_type] || rule.rule_name}
+                    <span style={{ 
+                      fontSize: '9px', 
+                      opacity: 0.8,
+                      backgroundColor: isSelected ? 'rgba(255,255,255,0.2)' : '#e2e8f0',
+                      padding: '2px 6px',
+                      borderRadius: '4px'
+                    }}>
+                      {rule.severity}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+          {hasUnsavedChanges && (
+            <p style={{ fontSize: '10px', color: '#f59e0b', marginTop: '12px', marginBottom: 0 }}>
+              You have unsaved changes. Click "Save Rules" to apply them.
+            </p>
+          )}
+        </div>
+      </div>
+    );
+
+    if (qualityLoading && rulesLoading) {
       return (
         <div style={{ padding: '40px', textAlign: 'center' }}>
           <LoadingSpinner />
@@ -2065,9 +2205,12 @@ function DataProfile() {
 
     if (!qualityViolations) {
       return (
-        <div className="empty-state">
-          <FiCheckCircle size={48} style={{ marginBottom: '16px', opacity: 0.5 }} />
-          <p>Loading quality rule data...</p>
+        <div className="quality-rules-tab">
+          {renderRuleAssignmentSection()}
+          <div className="empty-state">
+            <FiCheckCircle size={48} style={{ marginBottom: '16px', opacity: 0.5 }} />
+            <p>Loading quality rule data...</p>
+          </div>
         </div>
       );
     }
@@ -2092,12 +2235,17 @@ function DataProfile() {
 
     if (applied_rules.length === 0) {
       return (
-        <div className="gps-empty-state">
-          <FiAlertTriangle size={48} style={{ marginBottom: '16px', opacity: 0.5 }} />
-          <p>No quality rules configured</p>
-          <p style={{ fontSize: '10px', color: '#94a3b8' }}>
-            Configure quality rules in the Quality Rules page to validate your data
-          </p>
+        <div className="quality-rules-tab">
+          {renderRuleAssignmentSection()}
+          <div className="gps-card">
+            <div className="gps-card-body" style={{ textAlign: 'center', padding: '40px' }}>
+              <FiAlertTriangle size={48} style={{ marginBottom: '16px', opacity: 0.5, color: '#94a3b8' }} />
+              <p style={{ fontSize: '12px', color: '#475569', margin: 0 }}>No quality rules applied to this file</p>
+              <p style={{ fontSize: '10px', color: '#94a3b8', marginTop: '8px' }}>
+                Select rules above and click "Save Rules" to run quality checks
+              </p>
+            </div>
+          </div>
         </div>
       );
     }
@@ -2105,6 +2253,7 @@ function DataProfile() {
     if (violations.length === 0) {
       return (
         <div className="quality-rules-tab">
+          {renderRuleAssignmentSection()}
           <div className="gps-card" style={{ marginBottom: '16px' }}>
             <div className="gps-card-body" style={{ textAlign: 'center', padding: '24px' }}>
               <FiCheckCircle size={32} style={{ color: '#16a34a', marginBottom: '8px' }} />
@@ -2148,6 +2297,7 @@ function DataProfile() {
 
     return (
       <div className="quality-rules-tab">
+        {renderRuleAssignmentSection()}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
           <div className="gps-card">
             <div className="gps-card-body" style={{ padding: '16px' }}>

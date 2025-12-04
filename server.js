@@ -5125,6 +5125,106 @@ app.get('/api/files/:fileId/quality-violations', async (req, res) => {
   }
 });
 
+// Get quality rules assigned to a file
+app.get('/api/files/:fileId/quality-rules', authenticateToken, async (req, res) => {
+  try {
+    const { fileId } = req.params;
+    
+    // Get file to check if it exists
+    const fileResult = await dbPool.query('SELECT file_id, project_id FROM files WHERE file_id = $1', [fileId]);
+    if (fileResult.rows.length === 0) {
+      return res.status(404).json({ error: 'File not found' });
+    }
+    
+    // Get assigned rules
+    const assignedResult = await dbPool.query(`
+      SELECT qr.id, qr.rule_name, qr.rule_type, qr.severity, qr.description, qr.enabled, fqr.assigned_at
+      FROM file_quality_rules fqr
+      JOIN quality_rules qr ON fqr.quality_rule_id = qr.id
+      WHERE fqr.file_id = $1
+      ORDER BY qr.rule_name
+    `, [fileId]);
+    
+    // Get available generic rules
+    const availableResult = await dbPool.query(`
+      SELECT id, rule_name, rule_type, severity, description, enabled
+      FROM quality_rules
+      WHERE (project_id IS NULL OR project_id = $1)
+        AND enabled = true
+      ORDER BY rule_name
+    `, [fileResult.rows[0].project_id]);
+    
+    res.json({
+      assigned: assignedResult.rows,
+      available: availableResult.rows
+    });
+  } catch (err) {
+    console.error('Error fetching file quality rules:', err);
+    res.status(500).json({ error: 'Failed to fetch file quality rules' });
+  }
+});
+
+// Assign quality rules to a file
+app.post('/api/files/:fileId/quality-rules', authenticateToken, async (req, res) => {
+  try {
+    const { fileId } = req.params;
+    const { rule_ids } = req.body;
+    
+    if (!Array.isArray(rule_ids)) {
+      return res.status(400).json({ error: 'rule_ids must be an array' });
+    }
+    
+    // Check if file exists
+    const fileResult = await dbPool.query('SELECT file_id FROM files WHERE file_id = $1', [fileId]);
+    if (fileResult.rows.length === 0) {
+      return res.status(404).json({ error: 'File not found' });
+    }
+    
+    // Start transaction
+    const client = await dbPool.connect();
+    try {
+      await client.query('BEGIN');
+      
+      // Remove existing rule assignments
+      await client.query('DELETE FROM file_quality_rules WHERE file_id = $1', [fileId]);
+      
+      // Insert new rule assignments
+      if (rule_ids.length > 0) {
+        const values = rule_ids.map((ruleId, idx) => `($1, $${idx + 2}, NOW())`).join(', ');
+        await client.query(
+          `INSERT INTO file_quality_rules (file_id, quality_rule_id, assigned_at) VALUES ${values}`,
+          [fileId, ...rule_ids]
+        );
+      }
+      
+      await client.query('COMMIT');
+      
+      // Return updated assignments
+      const assignedResult = await dbPool.query(`
+        SELECT qr.id, qr.rule_name, qr.rule_type, qr.severity, qr.description
+        FROM file_quality_rules fqr
+        JOIN quality_rules qr ON fqr.quality_rule_id = qr.id
+        WHERE fqr.file_id = $1
+        ORDER BY qr.rule_name
+      `, [fileId]);
+      
+      res.json({
+        success: true,
+        message: `${rule_ids.length} quality rule(s) assigned to file`,
+        assigned: assignedResult.rows
+      });
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    console.error('Error assigning quality rules to file:', err);
+    res.status(500).json({ error: 'Failed to assign quality rules to file' });
+  }
+});
+
 // File Ownership API endpoints
 
 // Get file ownership
