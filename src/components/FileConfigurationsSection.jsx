@@ -33,7 +33,8 @@ function FileConfigurationsSection({ fileConfigurations, onChange }) {
 
   const GENERIC_RULE_TYPES = [
     'null_check', 'duplicate_check', 'email_validity', 'phone_validity',
-    'column_completeness', 'date_format', 'timestamp_format'
+    'column_completeness', 'date_format', 'timestamp_format',
+    'uniqueness', 'isna_check', 'numeric_only_string', 'special_character_presence'
   ];
 
   const isGenericRule = (rule) => GENERIC_RULE_TYPES.includes(rule.rule_type);
@@ -50,6 +51,51 @@ function FileConfigurationsSection({ fileConfigurations, onChange }) {
       }
     } catch (e) {}
     return [];
+  };
+
+  const parseSchemaQualityRules = (schemaText, availableRules) => {
+    if (!schemaText || !schemaText.trim() || !availableRules || availableRules.length === 0) {
+      return { ruleIds: [], assignments: {} };
+    }
+    
+    try {
+      const parsed = JSON.parse(schemaText);
+      if (!Array.isArray(parsed)) return { ruleIds: [], assignments: {} };
+      
+      const ruleIds = new Set();
+      const assignments = {};
+      
+      parsed.forEach(field => {
+        if (!field.name || !field.quality_rules || !Array.isArray(field.quality_rules)) return;
+        
+        field.quality_rules.forEach(ruleNameOrType => {
+          const ruleNameLower = ruleNameOrType.toLowerCase();
+          const ruleNameUnderscore = ruleNameLower.replace(/_/g, ' ');
+          
+          const matchedRule = availableRules.find(r => {
+            if (r.rule_type === ruleNameOrType) return true;
+            if (!r.rule_name) return false;
+            const ruleName = r.rule_name.toLowerCase();
+            return ruleName.replace(/\s+/g, '_') === ruleNameLower || ruleName === ruleNameUnderscore;
+          });
+          
+          if (matchedRule) {
+            ruleIds.add(matchedRule.id);
+            if (!assignments[matchedRule.id]) {
+              assignments[matchedRule.id] = [];
+            }
+            if (!assignments[matchedRule.id].includes(field.name)) {
+              assignments[matchedRule.id].push(field.name);
+            }
+          }
+        });
+      });
+      
+      return { ruleIds: Array.from(ruleIds), assignments };
+    } catch (e) {
+      console.error('Error parsing schema quality rules:', e);
+      return { ruleIds: [], assignments: {} };
+    }
   };
 
   const FILE_TYPES = [
@@ -270,6 +316,34 @@ function FileConfigurationsSection({ fileConfigurations, onChange }) {
   useEffect(() => {
     fetchQualityRules();
   }, []);
+
+  const [lastParsedSchema, setLastParsedSchema] = useState('');
+  
+  useEffect(() => {
+    if (formData.schema && formData.schema !== lastParsedSchema && qualityRules.length > 0) {
+      const { ruleIds, assignments } = parseSchemaQualityRules(formData.schema, qualityRules);
+      
+      if (ruleIds.length > 0) {
+        const existingRuleIds = formData.quality_rule_ids || [];
+        const existingAssignments = formData.quality_rule_assignments || {};
+        
+        const mergedRuleIds = [...new Set([...existingRuleIds, ...ruleIds])];
+        const mergedAssignments = { ...existingAssignments };
+        
+        Object.entries(assignments).forEach(([ruleId, columns]) => {
+          const existing = mergedAssignments[ruleId] || [];
+          mergedAssignments[ruleId] = [...new Set([...existing, ...columns])];
+        });
+        
+        setFormData(prev => ({
+          ...prev,
+          quality_rule_ids: mergedRuleIds,
+          quality_rule_assignments: mergedAssignments
+        }));
+        setLastParsedSchema(formData.schema);
+      }
+    }
+  }, [formData.schema, qualityRules]);
 
   const fetchQualityRules = async () => {
     try {
