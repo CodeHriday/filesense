@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { FiFileText, FiCalendar, FiBarChart2, FiDownload, FiTable, FiCopy, FiEdit2, FiUser, FiClock, FiCheckCircle, FiAlertTriangle, FiXCircle, FiGitBranch, FiZap } from 'react-icons/fi';
+import { FiFileText, FiCalendar, FiBarChart2, FiDownload, FiTable, FiCopy, FiEdit2, FiUser, FiClock, FiCheckCircle, FiAlertTriangle, FiXCircle, FiGitBranch, FiZap, FiPlay } from 'react-icons/fi';
 import Card from '../components/Card';
 import LoadingSpinner from '../components/LoadingSpinner';
 import FilePreview from '../components/FilePreview';
@@ -824,6 +824,7 @@ function DataProfile() {
   const [expandedRuleId, setExpandedRuleId] = useState(null);
   const [ruleColumnAssignments, setRuleColumnAssignments] = useState({}); // { ruleId: [columnNames] }
   const [savedRuleColumnAssignments, setSavedRuleColumnAssignments] = useState({}); // Tracks persisted state for change detection
+  const [rulesRunning, setRulesRunning] = useState(false); // Running quality rule validation
 
   // Helper functions for column type checking
   const isNumericColumn = (column) => {
@@ -1178,6 +1179,27 @@ function DataProfile() {
       setErrorMessage('Failed to save quality rules');
     } finally {
       setRulesSaving(false);
+    }
+  };
+  
+  const handleRunQualityRules = async () => {
+    try {
+      setRulesRunning(true);
+      const encodedFileId = encodeURIComponent(fileId);
+      const response = await axios.post(`/api/files/${encodedFileId}/quality-rules/run`);
+      
+      if (response.data.success) {
+        // Refresh violations data to show updated results
+        await fetchQualityViolations();
+      } else {
+        setErrorMessage(response.data.message || 'Failed to run quality rules');
+      }
+    } catch (err) {
+      console.error('Error running quality rules:', err);
+      const message = err.response?.data?.message || err.response?.data?.error || 'Failed to run quality rules';
+      setErrorMessage(message);
+    } finally {
+      setRulesRunning(false);
     }
   };
 
@@ -2258,14 +2280,26 @@ function DataProfile() {
                 Click a rule to select columns, then save to apply
               </p>
             </div>
-            <button 
-              className="btn btn-primary" 
-              onClick={handleSaveFileRules}
-              disabled={rulesSaving || !hasUnsavedChanges}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '11px', padding: '8px 16px' }}
-            >
-              {rulesSaving ? 'Saving...' : 'Save Rules'}
-            </button>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button 
+                className="btn btn-secondary" 
+                onClick={handleRunQualityRules}
+                disabled={rulesRunning || hasUnsavedChanges || fileAssignedRules.length === 0}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '11px', padding: '8px 16px' }}
+                title={hasUnsavedChanges ? 'Save rules first before running' : 'Run quality rules against file data'}
+              >
+                <FiPlay size={12} />
+                {rulesRunning ? 'Running...' : 'Run Rules'}
+              </button>
+              <button 
+                className="btn btn-primary" 
+                onClick={handleSaveFileRules}
+                disabled={rulesSaving || !hasUnsavedChanges}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '11px', padding: '8px 16px' }}
+              >
+                {rulesSaving ? 'Saving...' : 'Save Rules'}
+              </button>
+            </div>
           </div>
           <div className="gps-card-body" style={{ padding: '16px' }}>
             {rulesLoading ? (
