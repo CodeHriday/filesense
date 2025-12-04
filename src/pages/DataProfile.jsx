@@ -2642,6 +2642,72 @@ function DataProfile() {
       );
     };
 
+    // Render Applied Quality Rules section (shown below Assign Quality Rules)
+    const renderAppliedRulesSection = () => {
+      if (!qualityViolations || !qualityViolations.applied_rules || qualityViolations.applied_rules.length === 0) {
+        return null;
+      }
+      
+      const rules = qualityViolations.applied_rules;
+      
+      return (
+        <div className="gps-card" style={{ marginBottom: '16px' }}>
+          <div className="gps-card-header">
+            <h3 className="gps-card-title" style={{ fontSize: '12px' }}>Applied Quality Rules</h3>
+          </div>
+          <div className="gps-card-body" style={{ padding: 0 }}>
+            <div className="gps-table-container" style={{ maxHeight: '200px', overflowY: 'auto' }}>
+              <table className="gps-table">
+                <thead style={{ position: 'sticky', top: 0, backgroundColor: '#f8fafc' }}>
+                  <tr>
+                    <th>Rule Name</th>
+                    <th>Type</th>
+                    <th>Target Columns</th>
+                    <th>Severity</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rules.map((rule, idx) => (
+                    <tr key={idx}>
+                      <td><span style={{ fontWeight: '500', fontSize: '10px' }}>{rule.rule_name}</span></td>
+                      <td><span className="gps-badge gps-badge--secondary" style={{ fontSize: '9px' }}>{rule.rule_type}</span></td>
+                      <td>
+                        {rule.target_columns && rule.target_columns.length > 0 ? (
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                            {rule.target_columns.slice(0, 3).map((col, i) => (
+                              <span key={i} className="gps-badge gps-badge--info" style={{ fontSize: '9px' }}>{col}</span>
+                            ))}
+                            {rule.target_columns.length > 3 && (
+                              <span className="gps-badge gps-badge--secondary" style={{ fontSize: '9px' }} title={rule.target_columns.join(', ')}>
+                                +{rule.target_columns.length - 3} more
+                              </span>
+                            )}
+                          </div>
+                        ) : (
+                          <span style={{ fontSize: '10px', color: '#94a3b8' }}>All columns</span>
+                        )}
+                      </td>
+                      <td><span className={`gps-badge gps-badge--${rule.severity === 'critical' ? 'danger' : rule.severity === 'high' ? 'danger' : 'warning'}`} style={{ fontSize: '9px' }}>{rule.severity}</span></td>
+                      <td>
+                        {rule.status === null ? (
+                          <span className="gps-badge gps-badge--secondary" style={{ fontSize: '9px' }}>Not Run</span>
+                        ) : rule.status === 'passed' ? (
+                          <span className="gps-badge gps-badge--success" style={{ fontSize: '9px' }}><FiCheckCircle size={10} style={{ marginRight: '4px' }} /> Passed</span>
+                        ) : (
+                          <span className="gps-badge gps-badge--danger" style={{ fontSize: '9px' }}><FiXCircle size={10} style={{ marginRight: '4px' }} /> Failed ({rule.violation_count})</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      );
+    };
+
     if (qualityLoading && rulesLoading) {
       return (
         <div style={{ padding: '40px', textAlign: 'center' }}>
@@ -2684,6 +2750,7 @@ function DataProfile() {
       return (
         <div className="quality-rules-tab">
           {renderRuleAssignmentSection()}
+          {renderAppliedRulesSection()}
           <div className="gps-card">
             <div className="gps-card-body" style={{ textAlign: 'center', padding: '40px' }}>
               <FiAlertTriangle size={48} style={{ marginBottom: '16px', opacity: 0.5, color: '#94a3b8' }} />
@@ -2701,64 +2768,12 @@ function DataProfile() {
       return (
         <div className="quality-rules-tab">
           {renderRuleAssignmentSection()}
-          <div className="gps-card" style={{ marginBottom: '16px' }}>
+          {renderAppliedRulesSection()}
+          <div className="gps-card">
             <div className="gps-card-body" style={{ textAlign: 'center', padding: '24px' }}>
               <FiCheckCircle size={32} style={{ color: '#16a34a', marginBottom: '8px' }} />
               <div style={{ fontSize: '14px', fontWeight: '600', color: '#16a34a' }}>All Quality Rules Passed!</div>
               <div style={{ fontSize: '10px', color: '#666' }}>{summary.total_rules_applied} rules applied</div>
-            </div>
-          </div>
-          
-          <div className="gps-card">
-            <div className="gps-card-header">
-              <h3 className="gps-card-title">Applied Quality Rules</h3>
-            </div>
-            <div className="gps-card-body">
-              <div className="gps-table-container">
-                <table className="gps-table">
-                  <thead>
-                    <tr>
-                      <th>Rule Name</th>
-                      <th>Type</th>
-                      <th>Target Columns</th>
-                      <th>Severity</th>
-                      <th>Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {applied_rules.map((rule, idx) => (
-                      <tr key={idx}>
-                        <td><span style={{ fontWeight: '500' }}>{rule.rule_name}</span></td>
-                        <td><span className="gps-badge gps-badge--secondary" style={{ fontSize: '9px' }}>{rule.rule_type}</span></td>
-                        <td>
-                          {rule.target_columns && rule.target_columns.length > 0 ? (
-                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
-                              {rule.target_columns.slice(0, 3).map((col, i) => (
-                                <span key={i} className="gps-badge gps-badge--info" style={{ fontSize: '9px' }}>{col}</span>
-                              ))}
-                              {rule.target_columns.length > 3 && (
-                                <span className="gps-badge gps-badge--secondary" style={{ fontSize: '9px' }} title={rule.target_columns.join(', ')}>
-                                  +{rule.target_columns.length - 3} more
-                                </span>
-                              )}
-                            </div>
-                          ) : (
-                            <span style={{ fontSize: '10px', color: '#94a3b8' }}>All columns</span>
-                          )}
-                        </td>
-                        <td><span className={`gps-badge gps-badge--${rule.severity === 'critical' ? 'danger' : rule.severity === 'high' ? 'danger' : 'warning'}`} style={{ fontSize: '9px' }}>{rule.severity}</span></td>
-                        <td>
-                          {rule.status === 'passed' ? (
-                            <span className="gps-badge gps-badge--success" style={{ fontSize: '9px' }}><FiCheckCircle size={10} style={{ marginRight: '4px' }} /> Passed</span>
-                          ) : (
-                            <span className="gps-badge gps-badge--danger" style={{ fontSize: '9px' }}><FiXCircle size={10} style={{ marginRight: '4px' }} /> Failed ({rule.violation_count})</span>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
             </div>
           </div>
         </div>
@@ -2768,6 +2783,7 @@ function DataProfile() {
     return (
       <div className="quality-rules-tab">
         {renderRuleAssignmentSection()}
+        {renderAppliedRulesSection()}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
           <div className="gps-card">
             <div className="gps-card-body" style={{ padding: '16px' }}>
@@ -2870,62 +2886,6 @@ function DataProfile() {
               <div style={{ marginLeft: 'auto', fontSize: '10px', color: '#666' }}>
                 Showing {filteredViolations.length} of {violations.length} violations
               </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Applied Quality Rules Table - Always visible */}
-        <div className="gps-card" style={{ marginBottom: '16px' }}>
-          <div className="gps-card-header">
-            <h3 className="gps-card-title" style={{ fontSize: '12px' }}>Applied Quality Rules</h3>
-          </div>
-          <div className="gps-card-body" style={{ padding: 0 }}>
-            <div className="gps-table-container" style={{ maxHeight: '200px', overflowY: 'auto' }}>
-              <table className="gps-table">
-                <thead style={{ position: 'sticky', top: 0, backgroundColor: '#f8fafc' }}>
-                  <tr>
-                    <th>Rule Name</th>
-                    <th>Type</th>
-                    <th>Target Columns</th>
-                    <th>Severity</th>
-                    <th>Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {applied_rules.map((rule, idx) => (
-                    <tr key={idx}>
-                      <td><span style={{ fontWeight: '500', fontSize: '10px' }}>{rule.rule_name}</span></td>
-                      <td><span className="gps-badge gps-badge--secondary" style={{ fontSize: '9px' }}>{rule.rule_type}</span></td>
-                      <td>
-                        {rule.target_columns && rule.target_columns.length > 0 ? (
-                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
-                            {rule.target_columns.slice(0, 3).map((col, i) => (
-                              <span key={i} className="gps-badge gps-badge--info" style={{ fontSize: '9px' }}>{col}</span>
-                            ))}
-                            {rule.target_columns.length > 3 && (
-                              <span className="gps-badge gps-badge--secondary" style={{ fontSize: '9px' }} title={rule.target_columns.join(', ')}>
-                                +{rule.target_columns.length - 3} more
-                              </span>
-                            )}
-                          </div>
-                        ) : (
-                          <span style={{ fontSize: '10px', color: '#94a3b8' }}>All columns</span>
-                        )}
-                      </td>
-                      <td><span className={`gps-badge gps-badge--${rule.severity === 'critical' ? 'danger' : rule.severity === 'high' ? 'danger' : 'warning'}`} style={{ fontSize: '9px' }}>{rule.severity}</span></td>
-                      <td>
-                        {rule.status === null ? (
-                          <span className="gps-badge gps-badge--secondary" style={{ fontSize: '9px' }}>Not Run</span>
-                        ) : rule.status === 'passed' ? (
-                          <span className="gps-badge gps-badge--success" style={{ fontSize: '9px' }}><FiCheckCircle size={10} style={{ marginRight: '4px' }} /> Passed</span>
-                        ) : (
-                          <span className="gps-badge gps-badge--danger" style={{ fontSize: '9px' }}><FiXCircle size={10} style={{ marginRight: '4px' }} /> Failed ({rule.violation_count})</span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
             </div>
           </div>
         </div>
