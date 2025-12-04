@@ -1082,9 +1082,9 @@ def profile_vendor_file(file_path, filename, password=None, fixed_width_schema=N
             'details': duplicate_data
         })
     
-    # Generate preview data (first 100 rows)
+    # Generate preview data (up to 10,000 rows for quality validation)
     preview_data = []
-    preview_limit = min(100, len(df))
+    preview_limit = min(10000, len(df))
     for idx in range(preview_limit):
         row_dict = {}
         for col in df.columns:

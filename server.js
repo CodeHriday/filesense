@@ -5165,13 +5165,12 @@ app.post('/api/files/:fileId/quality-rules/run', authenticateToken, async (req, 
       });
     }
     
-    // Get file preview data (cached file content)
+    // Get file preview data (cached file content) - process ALL rows for complete quality validation
     const previewResult = await dbPool.query(`
       SELECT row_number, row_data
       FROM file_preview_data
       WHERE file_id = $1
       ORDER BY row_number
-      LIMIT 1000
     `, [fileId]);
     
     if (previewResult.rows.length === 0) {
@@ -5611,7 +5610,7 @@ app.post('/api/files/:fileId/quality-rules/revalidate', authenticateToken, uploa
             columnNames = headers.map(h => h.trim());
           })
           .on('data', (data) => {
-            if (results.length < 1000) { // Limit to 1000 rows for preview
+            if (results.length < 10000) {
               results.push(data);
             }
           })
@@ -5651,7 +5650,7 @@ app.post('/api/files/:fileId/quality-rules/revalidate', authenticateToken, uploa
         columnNames = Object.keys(dataArray[0]);
       }
       
-      for (let i = 0; i < Math.min(dataArray.length, 1000); i++) {
+      for (let i = 0; i < Math.min(dataArray.length, 10000); i++) {
         parsedRows.push({ row_number: i + 1, row_data: dataArray[i] });
       }
     } else {

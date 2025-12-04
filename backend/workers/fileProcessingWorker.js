@@ -1879,9 +1879,9 @@ print(json.dumps(result))
   }
 
   /**
-   * Save preview data (100 rows) to database
+   * Save preview data to database (up to 10,000 rows for quality validation)
    * @param {string} fileId - Unique file identifier
-   * @param {Array} previewRows - Array of row objects (max 100)
+   * @param {Array} previewRows - Array of row objects
    */
   async savePreviewData(fileId, previewRows) {
     try {
@@ -1890,18 +1890,29 @@ print(json.dumps(result))
         rowCount: previewRows.length
       });
 
-      // Limit to 100 rows
-      const limitedRows = previewRows.slice(0, 100);
+      // Limit to 10,000 rows for performance/storage balance
+      const maxRows = 10000;
+      const limitedRows = previewRows.slice(0, maxRows);
 
-      // Insert each row into file_preview_data table
-      for (let i = 0; i < limitedRows.length; i++) {
-        await this.dbPool.query(
-          `INSERT INTO file_preview_data (file_id, row_number, row_data)
-           VALUES ($1, $2, $3)
-           ON CONFLICT (file_id, row_number) 
-           DO UPDATE SET row_data = EXCLUDED.row_data`,
-          [fileId, i + 1, JSON.stringify(limitedRows[i])]
-        );
+      // Use batch inserts for efficiency
+      const batchSize = 100;
+      for (let i = 0; i < limitedRows.length; i += batchSize) {
+        const batch = limitedRows.slice(i, i + batchSize);
+        const values = batch.map((_, idx) => {
+          const base = idx * 3;
+          return `($${base + 1}, $${base + 2}, $${base + 3})`;
+        });
+        
+        const params = batch.flatMap((row, idx) => [
+          fileId, i + idx + 1, JSON.stringify(row)
+        ]);
+        
+        await this.dbPool.query(`
+          INSERT INTO file_preview_data (file_id, row_number, row_data)
+          VALUES ${values.join(', ')}
+          ON CONFLICT (file_id, row_number) 
+          DO UPDATE SET row_data = EXCLUDED.row_data
+        `, params);
       }
 
       this.logger.info('Preview data saved successfully', {
@@ -1914,7 +1925,6 @@ print(json.dumps(result))
         error: error.message,
         stack: error.stack
       });
-      // Don't throw - preview data failure shouldn't fail the job
     }
   }
 
