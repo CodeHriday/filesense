@@ -541,30 +541,35 @@ body.high-contrast .save-btn {
 
 /* Contact Panels - Side by side layout */
 .contact-panels-container {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 20px;
+  display: flex !important;
+  flex-direction: row !important;
+  gap: 16px;
   margin-top: 16px;
+  width: 100%;
 }
 
 .contact-panel {
+  flex: 1;
+  min-width: 0;
   background: #f8f9fa;
   border: 1px solid #e5e7eb;
   border-radius: 8px;
-  padding: 16px;
+  padding: 14px;
 }
 
 .contact-panel-title {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   color: #374151;
-  margin: 0 0 12px 0;
-  padding-bottom: 8px;
+  margin: 0 0 10px 0;
+  padding-bottom: 6px;
   border-bottom: 1px solid #e5e7eb;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
 }
 
 .contact-panel .form-group {
-  margin-bottom: 12px;
+  margin-bottom: 10px;
 }
 
 .contact-panel .form-group:last-child {
@@ -572,22 +577,22 @@ body.high-contrast .save-btn {
 }
 
 .contact-panel label {
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 500;
   color: #4b5563;
-  margin-bottom: 4px;
+  margin-bottom: 3px;
   display: block;
 }
 
 .contact-panel input,
 .contact-panel select {
-  font-size: 13px;
-  padding: 8px 10px;
+  font-size: 12px;
+  padding: 6px 8px;
 }
 
-/* Responsive - stack panels on smaller screens */
-@media (max-width: 900px) {
+/* Responsive - stack panels only on very small screens */
+@media (max-width: 600px) {
   .contact-panels-container {
-    grid-template-columns: 1fr;
+    flex-direction: column !important;
   }
 }
