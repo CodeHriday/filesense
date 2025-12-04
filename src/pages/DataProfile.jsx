@@ -1089,7 +1089,8 @@ function DataProfile() {
       const response = await axios.get('/api/quality-rules');
       const genericRules = response.data.filter(rule => 
         ['null_check', 'duplicate_check', 'email_validity', 'phone_validity', 
-         'column_completeness', 'date_format', 'timestamp_format', 'uniqueness', 'isna_check'].includes(rule.rule_type)
+         'column_completeness', 'date_format', 'timestamp_format', 'uniqueness', 'isna_check',
+         'numeric_only_string', 'special_character_presence'].includes(rule.rule_type)
       );
       setAvailableGenericRules(genericRules);
     } catch (err) {
@@ -1112,7 +1113,8 @@ function DataProfile() {
       // Filter to only include generic column-level rules
       const genericRules = availableRules.filter(rule => 
         ['null_check', 'duplicate_check', 'email_validity', 'phone_validity', 
-         'column_completeness', 'date_format', 'timestamp_format', 'uniqueness', 'isna_check'].includes(rule.rule_type)
+         'column_completeness', 'date_format', 'timestamp_format', 'uniqueness', 'isna_check',
+         'numeric_only_string', 'special_character_presence'].includes(rule.rule_type)
       );
       setAvailableGenericRules(genericRules);
       
