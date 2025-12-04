@@ -2243,7 +2243,7 @@ function DataProfile() {
       return (
         <div className="gps-card" style={{ marginBottom: '16px' }}>
           <div className="gps-card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div style={{ flex: 1 }}>
+            <div>
               <h3 className="gps-card-title" style={{ margin: 0, fontSize: '12px' }}>Assign Quality Rules</h3>
               <p style={{ margin: '4px 0 0 0', fontSize: '10px', color: '#64748b' }}>
                 Click a rule to select columns, then save to apply
@@ -2253,7 +2253,7 @@ function DataProfile() {
               className="btn btn-primary" 
               onClick={handleSaveFileRules}
               disabled={rulesSaving || !hasUnsavedChanges}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '11px', padding: '8px 16px', flexShrink: 0, width: 'auto' }}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '11px', padding: '8px 16px' }}
             >
               {rulesSaving ? 'Saving...' : 'Save Rules'}
             </button>
