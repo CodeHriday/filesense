@@ -5321,6 +5321,35 @@ app.post('/api/files/:fileId/quality-rules/run', authenticateToken, async (req, 
             case 'duplicate_check':
               // Duplicate check handled separately after row iteration
               break;
+              
+            case 'isna_check':
+              // Check for blank, whitespace-only, or common placeholder values
+              if (cellValue !== null && cellValue !== undefined) {
+                const strValue = String(cellValue).trim();
+                // List of common NA/placeholder values (case-insensitive)
+                const naValues = ['na', 'n/a', 'none', 'null', '-', '--', '.', '...', 
+                                  'empty', 'blank', 'unknown', 'undefined', 'nil', 
+                                  '#n/a', '#na', 'nan', '', ' '];
+                const normalizedValue = strValue.toLowerCase();
+                
+                // Check if value is empty, whitespace-only, or matches common NA patterns
+                if (strValue === '' || strValue.match(/^\s+$/) || naValues.includes(normalizedValue)) {
+                  isViolation = true;
+                  expectedValue = 'Valid non-empty value (not NA, None, blank, etc.)';
+                  violationDetails = { 
+                    reason: 'Invalid NA/placeholder value detected', 
+                    value: cellValue,
+                    detected_pattern: strValue === '' ? 'empty string' : 
+                                      strValue.match(/^\s+$/) ? 'whitespace only' : normalizedValue
+                  };
+                }
+              } else {
+                // null/undefined also counts as ISNA violation
+                isViolation = true;
+                expectedValue = 'Valid non-empty value (not NA, None, blank, etc.)';
+                violationDetails = { reason: 'Value is null or undefined' };
+              }
+              break;
           }
           
           if (isViolation) {
@@ -5791,6 +5820,35 @@ app.post('/api/files/:fileId/quality-rules/revalidate', authenticateToken, uploa
                   expectedValue = 'Valid timestamp format';
                   violationDetails = { reason: 'Invalid timestamp format', value: cellValue };
                 }
+              }
+              break;
+              
+            case 'isna_check':
+              // Check for blank, whitespace-only, or common placeholder values
+              if (cellValue !== null && cellValue !== undefined) {
+                const strValue = String(cellValue).trim();
+                // List of common NA/placeholder values (case-insensitive)
+                const naValues = ['na', 'n/a', 'none', 'null', '-', '--', '.', '...', 
+                                  'empty', 'blank', 'unknown', 'undefined', 'nil', 
+                                  '#n/a', '#na', 'nan', '', ' '];
+                const normalizedValue = strValue.toLowerCase();
+                
+                // Check if value is empty, whitespace-only, or matches common NA patterns
+                if (strValue === '' || strValue.match(/^\s+$/) || naValues.includes(normalizedValue)) {
+                  isViolation = true;
+                  expectedValue = 'Valid non-empty value (not NA, None, blank, etc.)';
+                  violationDetails = { 
+                    reason: 'Invalid NA/placeholder value detected', 
+                    value: cellValue,
+                    detected_pattern: strValue === '' ? 'empty string' : 
+                                      strValue.match(/^\s+$/) ? 'whitespace only' : normalizedValue
+                  };
+                }
+              } else {
+                // null/undefined also counts as ISNA violation
+                isViolation = true;
+                expectedValue = 'Valid non-empty value (not NA, None, blank, etc.)';
+                violationDetails = { reason: 'Value is null or undefined' };
               }
               break;
           }

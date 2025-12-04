@@ -1089,7 +1089,7 @@ function DataProfile() {
       const response = await axios.get('/api/quality-rules');
       const genericRules = response.data.filter(rule => 
         ['null_check', 'duplicate_check', 'email_validity', 'phone_validity', 
-         'column_completeness', 'date_format', 'timestamp_format'].includes(rule.rule_type)
+         'column_completeness', 'date_format', 'timestamp_format', 'uniqueness', 'isna_check'].includes(rule.rule_type)
       );
       setAvailableGenericRules(genericRules);
     } catch (err) {
@@ -1112,7 +1112,7 @@ function DataProfile() {
       // Filter to only include generic column-level rules
       const genericRules = availableRules.filter(rule => 
         ['null_check', 'duplicate_check', 'email_validity', 'phone_validity', 
-         'column_completeness', 'date_format', 'timestamp_format'].includes(rule.rule_type)
+         'column_completeness', 'date_format', 'timestamp_format', 'uniqueness', 'isna_check'].includes(rule.rule_type)
       );
       setAvailableGenericRules(genericRules);
       
@@ -1213,7 +1213,7 @@ function DataProfile() {
   const handleRefreshRules = async () => {
     try {
       setRefreshingRules(true);
-      await fetchFileQualityRules();
+      await fetchFileQualityRulesData();
     } catch (err) {
       console.error('Error refreshing rules:', err);
       setErrorMessage('Failed to refresh rules');
