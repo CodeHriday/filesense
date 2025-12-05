@@ -98,15 +98,48 @@ function generateSchemaHash(schema) {
 }
 
 /**
- * Normalize type names for comparison.
- * Treats 'object' and 'string' as equivalent since pandas uses 'object' dtype for string columns.
- * @param {string} type - Column type
+ * Normalize pandas/numpy types to standard DB types.
+ * This handles both display normalization and type equivalence.
+ * @param {string} type - Column type (pandas, numpy, or DB type)
  * @returns {string} - Normalized type
  */
 function normalizeType(type) {
   const t = (type || 'string').toLowerCase().trim();
-  // Object dtype in pandas is essentially string type
-  if (t === 'object') return 'string';
+  
+  // String types (pandas uses 'object' for strings)
+  if (t === 'object' || t === 'str' || t === 'string' || t === 'text' || t === 'varchar') {
+    return 'string';
+  }
+  
+  // Integer types (pandas uses int64, numpy uses various int sizes)
+  if (t === 'int64' || t === 'int32' || t === 'int16' || t === 'int8' || 
+      t === 'integer' || t === 'int' || t === 'bigint' || t === 'smallint') {
+    return 'int';
+  }
+  
+  // Float types (pandas uses float64)
+  if (t === 'float64' || t === 'float32' || t === 'float16' || 
+      t === 'float' || t === 'double' || t === 'decimal' || t === 'numeric' || t === 'real') {
+    return 'float';
+  }
+  
+  // Boolean types
+  if (t === 'bool' || t === 'boolean') {
+    return 'boolean';
+  }
+  
+  // Date/time types
+  if (t === 'datetime64[ns]' || t === 'datetime64' || t === 'datetime' || 
+      t === 'timestamp' || t === 'timestamptz') {
+    return 'datetime';
+  }
+  if (t === 'date') {
+    return 'date';
+  }
+  if (t === 'time' || t === 'timedelta64[ns]' || t === 'timedelta64' || t === 'timedelta') {
+    return 'time';
+  }
+  
   return t;
 }
 
