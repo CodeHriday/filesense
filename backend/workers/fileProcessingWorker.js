@@ -232,7 +232,9 @@ class FileProcessingWorker {
    * Process a single file upload job
    */
   async processJob(jobId, job) {
-    const { fileId, filePath, originalName, fileSize, fileType, userId, fileHash, projectId, subProjectId, qualityRuleIds, agreementId, isVendorFile, delimiter, headerConfig, fixedWidthSchema, archivePassword } = job.data;
+    const { fileId, filePath, originalName, fileSize, fileType, userId, fileHash, projectId, subProjectId, qualityRuleIds, agreementId, isVendorFile, delimiter, headerConfig, fixedWidthSchema } = job.data;
+    // Extract archivePassword separately with let since we may need to reassign it from vault lookup
+    let archivePassword = job.data.archivePassword;
     const startTime = Date.now();
     
     // Get retry information from job options (BullMQ)
@@ -319,22 +321,64 @@ class FileProcessingWorker {
         
         // Three password flows: 
         // 1. ad-hoc (from job.data)
-        // 2. vendor agreement (from vault with entityType='vendor_agreement')
+        // 2. vendor agreement file schema (from vault with entityType='vendor_agreement_file_schema')
         // 3. file-specific (from vault with entityType='file')
         if (!archivePassword) {
           // No password in job.data, try retrieving from vault
           try {
-            // First, try to get password from vendor agreement (if agreementId is available)
+            // First, try to get password from vendor agreement file schema (if agreementId is available)
             if (agreementId) {
-              archivePassword = await this.passwordVaultService.retrievePassword(
-                'vendor_agreement', 
-                agreementId.toString(), 
-                userId
+              // Find the file schema that matches the filename pattern for this agreement
+              const schemaResult = await this.dbPool.query(
+                `SELECT id, file_name_pattern 
+                 FROM vendor_agreement_file_schemas 
+                 WHERE vendor_agreement_id = $1 AND is_active = true
+                 ORDER BY priority ASC`,
+                [agreementId]
               );
-              if (archivePassword) {
-                this.logger.info('Archive password retrieved from vendor agreement vault', { 
+              
+              // Find a schema that matches the uploaded filename
+              let matchedSchemaId = null;
+              for (const schema of schemaResult.rows) {
+                const pattern = schema.file_name_pattern;
+                // Convert glob pattern to regex (simple conversion for common patterns)
+                const regexPattern = pattern
+                  .replace(/\./g, '\\.')
+                  .replace(/\*/g, '.*')
+                  .replace(/\?/g, '.');
+                const regex = new RegExp(`^${regexPattern}$`, 'i');
+                if (regex.test(originalName)) {
+                  matchedSchemaId = schema.id;
+                  this.logger.info('Matched file schema for password lookup', { 
+                    fileId, 
+                    agreementId,
+                    schemaId: matchedSchemaId,
+                    pattern: schema.file_name_pattern,
+                    filename: originalName
+                  });
+                  break;
+                }
+              }
+              
+              // Retrieve password using the matched schema ID
+              if (matchedSchemaId) {
+                archivePassword = await this.passwordVaultService.retrievePassword(
+                  'vendor_agreement_file_schema', 
+                  matchedSchemaId.toString(), 
+                  userId
+                );
+                if (archivePassword) {
+                  this.logger.info('Archive password retrieved from vendor agreement file schema vault', { 
+                    fileId, 
+                    agreementId,
+                    schemaId: matchedSchemaId
+                  });
+                }
+              } else {
+                this.logger.info('No matching file schema found for password lookup', { 
                   fileId, 
-                  agreementId 
+                  agreementId,
+                  filename: originalName
                 });
               }
             }
