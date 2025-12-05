@@ -23,7 +23,16 @@ function FileDropzone({ onFileDrop, onBatchFileDrop, acceptedFileTypes = ['.csv'
       '.tar': 'application/x-tar',
       '.gz': 'application/gzip,application/x-gzip',
       '.zip': 'application/zip,application/x-zip-compressed',
-      '.7z': 'application/x-7z-compressed'
+      '.7z': 'application/x-7z-compressed',
+      '.avro': 'application/avro,application/x-avro,application/octet-stream',
+      '.dat': 'application/octet-stream',
+      '.sas7bdat': 'application/x-sas-data,application/octet-stream',
+      '.xpt': 'application/x-sas-xport,application/octet-stream',
+      '.parquet': 'application/vnd.apache.parquet,application/x-parquet,application/octet-stream',
+      '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      '.csv': 'text/csv,text/plain',
+      '.json': 'application/json',
+      '.xml': 'text/xml,application/xml'
     };
     
     const acceptParts = [];

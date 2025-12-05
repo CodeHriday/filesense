@@ -631,7 +631,7 @@ function VendorFileUpload() {
               <FileDropzone 
                 key={`drop-${dropzoneKey}`}
                 onFileDrop={handleDropFile}
-                acceptedFileTypes={['.csv', '.json', '.parquet', '.xlsx', '.xml']}
+                acceptedFileTypes={['.csv', '.json', '.parquet', '.xlsx', '.xml', '.zip', '.tar', '.tar.gz', '.tgz', '.tar.bz2', '.tbz2', '.gz', '.7z', '.sas7bdat', '.xpt', '.avro', '.dat']}
                 maxSizeMB={50}
                 multiple={false}
                 virusScan={uploadedFile?.virusScan}
