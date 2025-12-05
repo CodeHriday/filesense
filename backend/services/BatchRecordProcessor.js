@@ -78,6 +78,17 @@ class BatchRecordProcessor {
           throw new Error(`Unsupported file type: ${fileType}`);
       }
 
+      // Validate that file contains data rows (not just headers or empty)
+      if (result.totalRecords === 0) {
+        const errorMessage = `File contains no data rows. The file may be empty or contain only headers. At least one data row is required for processing.`;
+        systemLogger.warn('Empty file rejected', {
+          fileId: uploadFile.file_id,
+          filename: uploadFile.original_filename,
+          fileType
+        });
+        throw new Error(errorMessage);
+      }
+
       // Mark file as completed with final metrics
       await this.uploadBatchService.updateFileStatus(uploadFile.file_id, {
         status: 'completed',

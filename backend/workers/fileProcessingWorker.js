@@ -133,6 +133,14 @@ class FileProcessingWorker {
       };
     }
     
+    // Empty file - no data rows (general case from BatchRecordProcessor)
+    if (message.includes('no data rows') || (message.includes('empty') && message.includes('headers'))) {
+      return {
+        reasonCode: 'empty_file',
+        actionableMessage: 'File contains no data rows. It may be empty or contain only headers. Please upload a file with at least one data record.'
+      };
+    }
+    
     // Vendor file validation failed - empty file
     if (message.includes('vendor file validation') && message.includes('empty')) {
       return {
