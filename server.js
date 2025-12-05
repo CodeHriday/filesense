@@ -2743,7 +2743,7 @@ app.post('/api/files/drop', authenticateToken, uploadLimiter, upload.single('fil
             va.drop_location_path,
             va.schema as agreement_schema,
             va.file_name as expected_file_pattern,
-            v.name as vendor_name
+            v.vendor_name
           FROM storage_connections sc
           JOIN vendor_agreements va ON va.vendor_connection_id = sc.connection_id
           JOIN vendors v ON v.id = va.vendor_id
@@ -2766,7 +2766,7 @@ app.post('/api/files/drop', authenticateToken, uploadLimiter, upload.single('fil
           // Provide specific error message for debugging
           // Check if agreement exists but vendor doesn't match
           const agreementCheck = await dbPool.query(`
-            SELECT va.vendor_id, v.name as vendor_name, 
+            SELECT va.vendor_id, v.vendor_name, 
                    va.primary_contact_email, va.secondary_contact_email
             FROM vendor_agreements va
             JOIN vendors v ON v.id = va.vendor_id
