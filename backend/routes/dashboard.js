@@ -1610,64 +1610,64 @@ router.get('/metric-trends', dashboardCacheMiddleware, async (req, res) => {
       if (granularity === 'daily') {
         if (isAdmin && !projectId) {
           healthQuery = `
-            SELECT DATE(pm.created_at) as date, 
+            SELECT DATE(pm.profiled_at) as date, 
                    ROUND(AVG(COALESCE(pm.completeness_score, 0) + COALESCE(pm.validity_score, 0)) / 2, 1) as avg_health
             FROM profiling_metrics pm
-            WHERE pm.created_at >= CURRENT_DATE - INTERVAL '15 days'
-            GROUP BY DATE(pm.created_at)
-            ORDER BY DATE(pm.created_at)
+            WHERE pm.profiled_at >= CURRENT_DATE - INTERVAL '15 days'
+            GROUP BY DATE(pm.profiled_at)
+            ORDER BY DATE(pm.profiled_at)
           `;
         } else if (isAdmin && projectId) {
           healthQuery = `
-            SELECT DATE(pm.created_at) as date, 
+            SELECT DATE(pm.profiled_at) as date, 
                    ROUND(AVG(COALESCE(pm.completeness_score, 0) + COALESCE(pm.validity_score, 0)) / 2, 1) as avg_health
             FROM profiling_metrics pm
             INNER JOIN files f ON pm.file_id = f.file_id
-            WHERE pm.created_at >= CURRENT_DATE - INTERVAL '15 days'
+            WHERE pm.profiled_at >= CURRENT_DATE - INTERVAL '15 days'
             AND f.project_id = $1
-            GROUP BY DATE(pm.created_at)
-            ORDER BY DATE(pm.created_at)
+            GROUP BY DATE(pm.profiled_at)
+            ORDER BY DATE(pm.profiled_at)
           `;
           queryParams = [projectId];
         } else {
           healthQuery = `
-            SELECT DATE(pm.created_at) as date, 
+            SELECT DATE(pm.profiled_at) as date, 
                    ROUND(AVG(COALESCE(pm.completeness_score, 0) + COALESCE(pm.validity_score, 0)) / 2, 1) as avg_health
             FROM profiling_metrics pm
             INNER JOIN files f ON pm.file_id = f.file_id
-            WHERE pm.created_at >= CURRENT_DATE - INTERVAL '15 days'
+            WHERE pm.profiled_at >= CURRENT_DATE - INTERVAL '15 days'
             AND f.project_id IN (SELECT project_id FROM get_user_projects($1))
             ${projectId ? 'AND f.project_id = $2' : ''}
-            GROUP BY DATE(pm.created_at)
-            ORDER BY DATE(pm.created_at)
+            GROUP BY DATE(pm.profiled_at)
+            ORDER BY DATE(pm.profiled_at)
           `;
           queryParams = projectId ? [userId, projectId] : [userId];
         }
       } else if (granularity === 'weekly') {
         healthQuery = `
-          SELECT DATE_TRUNC('week', pm.created_at)::date as date,
+          SELECT DATE_TRUNC('week', pm.profiled_at)::date as date,
                  ROUND(AVG(COALESCE(pm.completeness_score, 0) + COALESCE(pm.validity_score, 0)) / 2, 1) as avg_health
           FROM profiling_metrics pm
           ${(!isAdmin || projectId) ? 'INNER JOIN files f ON pm.file_id = f.file_id' : ''}
-          WHERE pm.created_at >= CURRENT_DATE - INTERVAL '16 weeks'
+          WHERE pm.profiled_at >= CURRENT_DATE - INTERVAL '16 weeks'
           ${!isAdmin ? 'AND f.project_id IN (SELECT project_id FROM get_user_projects($1))' : ''}
           ${projectId ? `AND f.project_id = ${isAdmin ? '$1' : '$2'}` : ''}
-          GROUP BY DATE_TRUNC('week', pm.created_at)
-          ORDER BY DATE_TRUNC('week', pm.created_at)
+          GROUP BY DATE_TRUNC('week', pm.profiled_at)
+          ORDER BY DATE_TRUNC('week', pm.profiled_at)
           LIMIT 16
         `;
         queryParams = isAdmin ? (projectId ? [projectId] : []) : (projectId ? [userId, projectId] : [userId]);
       } else if (granularity === 'monthly') {
         healthQuery = `
-          SELECT DATE_TRUNC('month', pm.created_at)::date as date,
+          SELECT DATE_TRUNC('month', pm.profiled_at)::date as date,
                  ROUND(AVG(COALESCE(pm.completeness_score, 0) + COALESCE(pm.validity_score, 0)) / 2, 1) as avg_health
           FROM profiling_metrics pm
           ${(!isAdmin || projectId) ? 'INNER JOIN files f ON pm.file_id = f.file_id' : ''}
-          WHERE pm.created_at >= CURRENT_DATE - INTERVAL '16 months'
+          WHERE pm.profiled_at >= CURRENT_DATE - INTERVAL '16 months'
           ${!isAdmin ? 'AND f.project_id IN (SELECT project_id FROM get_user_projects($1))' : ''}
           ${projectId ? `AND f.project_id = ${isAdmin ? '$1' : '$2'}` : ''}
-          GROUP BY DATE_TRUNC('month', pm.created_at)
-          ORDER BY DATE_TRUNC('month', pm.created_at)
+          GROUP BY DATE_TRUNC('month', pm.profiled_at)
+          ORDER BY DATE_TRUNC('month', pm.profiled_at)
           LIMIT 16
         `;
         queryParams = isAdmin ? (projectId ? [projectId] : []) : (projectId ? [userId, projectId] : [userId]);
