@@ -212,7 +212,7 @@ function compareSchemas(schema1, schema2) {
     }
   });
   
-  // Find modified columns (same name, different type or index)
+  // Find modified columns (same name, different type)
   // Note: 'object' and 'string' types are treated as equivalent (pandas uses 'object' for strings)
   schema1.columns.forEach(col1 => {
     const col2 = schema2Map.get(col1.name);
@@ -227,12 +227,30 @@ function compareSchemas(schema1, schema2) {
           changeType: 'type_change'
         });
       }
-      if (col1.index !== col2.index) {
-        differences.isIdentical = false;
-        differences.reorderedColumns = true;
-      }
+      // Note: We no longer compare stored index values as they can differ
+      // between contract schemas (0-based) and file schemas (1-based or undefined).
+      // Column order is preserved by array position, so matching column names
+      // and equivalent types is sufficient for contract validation.
     }
   });
+  
+  // Detect actual column reordering by comparing array positions (not stored index values)
+  // Only flag if columns exist in different positions in both arrays
+  if (!differences.columnCountMismatch && 
+      differences.addedColumns.length === 0 && 
+      differences.removedColumns.length === 0) {
+    const schema1Names = schema1.columns.map(c => c.name);
+    const schema2Names = schema2.columns.map(c => c.name);
+    
+    for (let i = 0; i < schema1Names.length; i++) {
+      const posInSchema2 = schema2Names.indexOf(schema1Names[i]);
+      if (posInSchema2 !== -1 && posInSchema2 !== i) {
+        differences.reorderedColumns = true;
+        // Column reordering is informational only - doesn't affect schema validity
+        break;
+      }
+    }
+  }
   
   return differences;
 }
