@@ -133,6 +133,38 @@ class FileProcessingWorker {
       };
     }
     
+    // Vendor file validation failed - empty file
+    if (message.includes('vendor file validation') && message.includes('empty')) {
+      return {
+        reasonCode: 'empty_file',
+        actionableMessage: 'File is empty or contains no data. Please upload a file with at least one data record.'
+      };
+    }
+    
+    // Vendor file validation failed - header only
+    if (message.includes('vendor file validation') && (message.includes('header row') || message.includes('no data records'))) {
+      return {
+        reasonCode: 'header_only_file',
+        actionableMessage: 'File contains only a header row with no data records. Please upload a file with data content.'
+      };
+    }
+    
+    // Vendor file validation failed - header issues
+    if (message.includes('vendor file validation') && message.includes('header issue')) {
+      return {
+        reasonCode: 'header_validation_failed',
+        actionableMessage: 'File has header format issues (missing headers, multiple header rows, or header-data mismatch). Please verify the file structure.'
+      };
+    }
+    
+    // Generic vendor file validation failure
+    if (message.includes('vendor file validation')) {
+      return {
+        reasonCode: 'vendor_validation_failed',
+        actionableMessage: error.message.replace('Vendor file validation failed:\n', '')
+      };
+    }
+    
     // Format conversion failed
     if (message.includes('conversion') || message.includes('transform') || message.includes('format')) {
       return {
@@ -283,21 +315,43 @@ class FileProcessingWorker {
       }
       
       if (isArchive) {
-        this.logger.info('Archive file detected, checking for password', { fileId, fileExtension });
+        this.logger.info('Archive file detected, checking for password', { fileId, fileExtension, agreementId });
         
-        // Two password flows: ad-hoc (from job.data) or vendor agreement (from vault)
+        // Three password flows: 
+        // 1. ad-hoc (from job.data)
+        // 2. vendor agreement (from vault with entityType='vendor_agreement')
+        // 3. file-specific (from vault with entityType='file')
         if (!archivePassword) {
-          // No password in job.data, try retrieving from vault (vendor agreement flow)
+          // No password in job.data, try retrieving from vault
           try {
-            archivePassword = await this.passwordVaultService.retrievePassword('file', fileId, userId);
-            if (archivePassword) {
-              this.logger.info('Archive password retrieved from vault (vendor agreement)', { fileId });
-            } else {
-              this.logger.info('No password found for archive (processing without password)', { fileId });
+            // First, try to get password from vendor agreement (if agreementId is available)
+            if (agreementId) {
+              archivePassword = await this.passwordVaultService.retrievePassword(
+                'vendor_agreement', 
+                agreementId.toString(), 
+                userId
+              );
+              if (archivePassword) {
+                this.logger.info('Archive password retrieved from vendor agreement vault', { 
+                  fileId, 
+                  agreementId 
+                });
+              }
+            }
+            
+            // If no vendor agreement password, try file-specific password
+            if (!archivePassword) {
+              archivePassword = await this.passwordVaultService.retrievePassword('file', fileId, userId);
+              if (archivePassword) {
+                this.logger.info('Archive password retrieved from file vault', { fileId });
+              } else {
+                this.logger.info('No password found for archive (processing without password)', { fileId, agreementId });
+              }
             }
           } catch (passwordError) {
             this.logger.warn('Failed to retrieve archive password from vault', { 
               fileId, 
+              agreementId,
               error: passwordError.message 
             });
             // Continue without password - file might not be encrypted
@@ -499,6 +553,56 @@ class FileProcessingWorker {
         });
 
         await this.queue.updateProgress(jobId, 70);
+
+        // Step 2.6: Vendor file validation - fail upload on critical data quality issues
+        if (isVendorFile) {
+          const validationErrors = [];
+          
+          // Check for empty file (0 rows including header)
+          if (!fileInfo.row_count && fileInfo.row_count !== 0) {
+            validationErrors.push('File could not be parsed - unable to determine row count');
+          } else if (fileInfo.row_count === 0 && (!fileInfo.schema || fileInfo.schema.length === 0)) {
+            validationErrors.push('File is completely empty (no header or data rows)');
+          } else if (fileInfo.row_count === 0 && fileInfo.schema && fileInfo.schema.length > 0) {
+            validationErrors.push('File contains only a header row with no data records');
+          }
+          
+          // Check for critical header issues (only for non-fixed-width files)
+          if (!fixedWidthSchema && headerValidation.issues && headerValidation.issues.length > 0) {
+            const criticalIssues = headerValidation.issues.filter(issue => 
+              issue.severity === 'critical' || 
+              issue.type === 'multiple_headers' ||
+              issue.type === 'missing_headers' ||
+              issue.type === 'header_data_mismatch'
+            );
+            
+            if (criticalIssues.length > 0) {
+              criticalIssues.forEach(issue => {
+                validationErrors.push(`Header issue: ${issue.description || issue.type}`);
+              });
+            }
+          }
+          
+          // If validation errors exist, fail the vendor file upload
+          if (validationErrors.length > 0) {
+            const errorMessage = `Vendor file validation failed:\n- ${validationErrors.join('\n- ')}`;
+            this.logger.error('Vendor file validation failed', {
+              fileId,
+              agreementId,
+              validationErrors,
+              rowCount: fileInfo.row_count,
+              columnCount: fileInfo.schema?.length || 0
+            });
+            throw new Error(errorMessage);
+          }
+          
+          this.logger.info('Vendor file validation passed', { 
+            fileId, 
+            agreementId,
+            rowCount: fileInfo.row_count,
+            columnCount: fileInfo.schema?.length || 0
+          });
+        }
 
         // Step 3: Detect duplicate rows
         await this.updateProcessingStep(fileId, 'duplicates');
