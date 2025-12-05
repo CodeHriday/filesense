@@ -1089,6 +1089,12 @@ const VendorAgreements = () => {
           console.log('Starting file configurations bulk save...', fileConfigurations.length, 'configurations');
           
           // Prepare file schemas for bulk save
+          // Debug: Log each config's archive_password
+          console.log('=== DEBUG: File configurations before mapping ===');
+          fileConfigurations.forEach((config, idx) => {
+            console.log(`Config ${idx}: pattern=${config.file_name_pattern}, archive_password=${config.archive_password ? config.archive_password.substring(0, 3) + '***' : 'EMPTY'}, has_archive_password=${config.has_archive_password}`);
+          });
+          
           const fileSchemas = fileConfigurations.map(config => ({
             file_name_pattern: config.file_name_pattern,
             file_description: config.file_description || '',
@@ -1103,6 +1109,11 @@ const VendorAgreements = () => {
             has_header: config.has_header !== undefined ? config.has_header : true,
             header_definition: config.header_definition || null
           }));
+          
+          console.log('=== DEBUG: File schemas being sent ===');
+          fileSchemas.forEach((schema, idx) => {
+            console.log(`Schema ${idx}: pattern=${schema.file_name_pattern}, archive_password=${schema.archive_password ? schema.archive_password.substring(0, 3) + '***' : 'EMPTY'}`);
+          });
           
           // Use bulk replace endpoint (deletes all existing and creates new ones in one transaction)
           const bulkResponse = await axios.put(`/api/vendor-agreements/${agreementId}/file-schemas`, {
