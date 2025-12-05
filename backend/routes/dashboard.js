@@ -10,7 +10,9 @@ const dashboardCacheMiddleware = createCacheMiddleware({
     const path = req.path || req.route?.path || 'unknown';
     const days = req.query?.days || '';
     const projectId = req.query?.project_id || 'all';
-    return `dashboard:${path}:user:${userId}:roles:${roles}:days:${days}:project:${projectId}`;
+    const metric = req.query?.metric || 'all';
+    const granularity = req.query?.granularity || 'daily';
+    return `dashboard:${path}:user:${userId}:roles:${roles}:days:${days}:project:${projectId}:metric:${metric}:granularity:${granularity}`;
   },
   shouldCache: (req, res) => res.statusCode === 200
 });
@@ -1823,13 +1825,16 @@ router.get('/metric-trends', dashboardCacheMiddleware, async (req, res) => {
       if (granularity === 'daily') {
         if (isAdmin && !projectId) {
           govQuery = `
-            SELECT DATE(cgta.assigned_at) as date,
-                   COUNT(DISTINCT cgta.file_id) as tagged_files,
-                   (SELECT COUNT(DISTINCT file_id) FROM files WHERE created_at <= DATE(cgta.assigned_at)) as total_files
-            FROM column_governance_tag_assignments cgta
-            WHERE cgta.assigned_at >= CURRENT_DATE - INTERVAL '15 days'
-            GROUP BY DATE(cgta.assigned_at)
-            ORDER BY DATE(cgta.assigned_at)
+            WITH daily_tags AS (
+              SELECT DATE(cgta.assigned_at) as date,
+                     COUNT(DISTINCT cgta.file_id) as tagged_files
+              FROM column_governance_tag_assignments cgta
+              WHERE cgta.assigned_at >= CURRENT_DATE - INTERVAL '15 days'
+              GROUP BY DATE(cgta.assigned_at)
+            )
+            SELECT date, tagged_files
+            FROM daily_tags
+            ORDER BY date
           `;
         } else {
           govQuery = `
