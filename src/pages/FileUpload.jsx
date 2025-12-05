@@ -1609,7 +1609,68 @@ function FileUpload() {
         {/* Project and Owner Section - Combined */}
         {!isProcessing && activeTab === 'upload-profile' && hasWritePermission('file') && (
           <div className="upload-form-section">
-            {/* Upload Type Selection */}
+            {/* Row 1: Project, Sub-Project */}
+            <div className="upload-form-row upload-form-row--compact">
+              {/* Project Selection */}
+              <div className="upload-form-field upload-form-field--flex">
+                <label htmlFor="project-select" className="upload-form-label">
+                  Project: <span className="required-indicator">*</span>
+                </label>
+                <select 
+                  id="project-select"
+                  className="gps-form-select gps-form-select--compact"
+                  value={selectedProject || ''}
+                  onChange={(e) => setSelectedProject(Number(e.target.value))}
+                  disabled={loadingProjects}
+                >
+                  {loadingProjects ? (
+                    <option>Loading projects...</option>
+                  ) : projects.length === 0 ? (
+                    <option>No projects available</option>
+                  ) : (
+                    <>
+                      <option value="">Select a project...</option>
+                      {projects.map(project => (
+                        <option key={project.id} value={project.id}>
+                          {project.name}
+                        </option>
+                      ))}
+                    </>
+                  )}
+                </select>
+              </div>
+
+              {/* Sub-Project Selection */}
+              <div className="upload-form-field upload-form-field--flex">
+                <label htmlFor="sub-project-select" className="upload-form-label">Sub-Project:</label>
+                <select 
+                  id="sub-project-select"
+                  className="gps-form-select gps-form-select--compact"
+                  value={selectedSubProject || ''}
+                  onChange={(e) => setSelectedSubProject(e.target.value ? Number(e.target.value) : null)}
+                  disabled={!selectedProject || loadingSubProjects || subProjects.length === 0}
+                >
+                  {loadingSubProjects ? (
+                    <option>Loading...</option>
+                  ) : !selectedProject ? (
+                    <option value="">Select project first</option>
+                  ) : subProjects.length === 0 ? (
+                    <option value="">None available</option>
+                  ) : (
+                    <>
+                      <option value="">None (use parent project)</option>
+                      {subProjects.map(subProject => (
+                        <option key={subProject.id} value={subProject.id}>
+                          {subProject.name}
+                        </option>
+                      ))}
+                    </>
+                  )}
+                </select>
+              </div>
+            </div>
+
+            {/* Row 2: Upload Type Selection */}
             <div className="upload-type-section">
               <label className="upload-form-label">Upload Type:</label>
               <div className="upload-type-options">
@@ -1642,41 +1703,45 @@ function FileUpload() {
               </div>
             </div>
 
-            {/* Row 1: Project, File Delimiter, Archive Password */}
+            {/* Row 3: Vendor Agreement (contract mode only), File Type, Archive Password */}
             <div className="upload-form-row upload-form-row--compact">
-              {/* Project Selection */}
-              <div className="upload-form-field upload-form-field--flex">
-                <label htmlFor="project-select" className="upload-form-label">
-                  Project: <span className="required-indicator">*</span>
-                </label>
-                <select 
-                  id="project-select"
-                  className="gps-form-select gps-form-select--compact"
-                  value={selectedProject || ''}
-                  onChange={(e) => setSelectedProject(Number(e.target.value))}
-                  disabled={loadingProjects}
-                >
-                  {loadingProjects ? (
-                    <option>Loading projects...</option>
-                  ) : projects.length === 0 ? (
-                    <option>No projects available</option>
-                  ) : (
-                    <>
-                      <option value="">Select a project...</option>
-                      {projects.map(project => (
-                        <option key={project.id} value={project.id}>
-                          {project.name}
-                        </option>
-                      ))}
-                    </>
-                  )}
-                </select>
-              </div>
+              {/* Vendor Agreement - only shown in contract mode */}
+              {uploadType === 'contract' && (
+                <div className="upload-form-field upload-form-field--flex">
+                  <label htmlFor="vendor-agreement-select" className="upload-form-label">
+                    Vendor Agreement: <span className="required-indicator">*</span>
+                  </label>
+                  <select 
+                    id="vendor-agreement-select"
+                    className="gps-form-select gps-form-select--compact"
+                    value={selectedAgreement || ''}
+                    onChange={(e) => setSelectedAgreement(e.target.value)}
+                    disabled={!selectedProject || loadingAgreements}
+                  >
+                    {loadingAgreements ? (
+                      <option>Loading...</option>
+                    ) : !selectedProject ? (
+                      <option value="">Select project first</option>
+                    ) : vendorAgreements.length === 0 ? (
+                      <option value="">No agreements available</option>
+                    ) : (
+                      <>
+                        <option value="">Select an agreement...</option>
+                        {vendorAgreements.map(agreement => (
+                          <option key={agreement.id} value={agreement.id}>
+                            {agreement.vendor_name} - {agreement.agreement_code}
+                          </option>
+                        ))}
+                      </>
+                    )}
+                  </select>
+                </div>
+              )}
 
-              {/* File Delimiter */}
+              {/* File Type (formerly File Delimiter) */}
               <div className="upload-form-field upload-form-field--flex">
                 <label htmlFor="delimiter-select-inline" className="upload-form-label">
-                  File Delimiter:
+                  File Type:
                 </label>
                 <select 
                   id="delimiter-select-inline"
@@ -1725,8 +1790,59 @@ function FileUpload() {
               </div>
             </div>
 
-            {/* Row 2: Header Configuration, File Owner */}
+            {/* Row 4: Expected File Pattern (contract mode only), Header Configuration, File Owner */}
             <div className="upload-form-row upload-form-row--compact">
+              {/* Expected File Pattern - only shown in contract mode with agreement selected */}
+              {uploadType === 'contract' && (
+                <div className="upload-form-field upload-form-field--flex">
+                  <label htmlFor="file-pattern-select" className="upload-form-label">
+                    Expected File Pattern:
+                  </label>
+                  <select 
+                    id="file-pattern-select"
+                    className={`gps-form-select gps-form-select--compact ${autoMatchedPattern ? 'pattern-auto-matched' : ''}`}
+                    value={selectedFilePattern || ''}
+                    onChange={(e) => {
+                      const patternId = e.target.value ? parseInt(e.target.value) : null;
+                      setSelectedFilePattern(patternId);
+                      setAutoMatchedPattern(null);
+                      
+                      if (patternId) {
+                        const pattern = agreementFilePatterns.find(p => p.id === patternId);
+                        if (pattern) {
+                          setSelectedAgreementSchema(pattern);
+                          if (pattern.quality_rule_ids && Array.isArray(pattern.quality_rule_ids)) {
+                            setSelectedQualityRules(pattern.quality_rule_ids);
+                          } else {
+                            setSelectedQualityRules([]);
+                          }
+                        }
+                      } else {
+                        setSelectedAgreementSchema(null);
+                        setSelectedQualityRules([]);
+                      }
+                    }}
+                    disabled={!selectedAgreement || agreementFilePatterns.length === 0}
+                  >
+                    {!selectedAgreement ? (
+                      <option value="">Select agreement first</option>
+                    ) : agreementFilePatterns.length === 0 ? (
+                      <option value="">No patterns defined</option>
+                    ) : (
+                      <>
+                        <option value="">Auto-match on drop...</option>
+                        {agreementFilePatterns.map(pattern => (
+                          <option key={pattern.id} value={pattern.id}>
+                            {pattern.file_name_pattern}
+                            {autoMatchedPattern === pattern.id ? ' ✓' : ''}
+                          </option>
+                        ))}
+                      </>
+                    )}
+                  </select>
+                </div>
+              )}
+
               {/* Header Configuration */}
               <div className="upload-form-field upload-form-field--flex">
                 <label className="upload-form-label">Header Configuration:</label>
@@ -1758,35 +1874,6 @@ function FileUpload() {
                 </button>
               </div>
             </div>
-
-            {/* Sub-Project Selection (shown only when project has sub-projects) */}
-            {selectedProject && subProjects.length > 0 && (
-              <div className="upload-form-row upload-form-row--compact">
-                <div className="upload-form-field upload-form-field--flex">
-                  <label htmlFor="sub-project-select" className="upload-form-label">Sub-Project:</label>
-                  <select 
-                    id="sub-project-select"
-                    className="gps-form-select gps-form-select--compact"
-                    value={selectedSubProject || ''}
-                    onChange={(e) => setSelectedSubProject(e.target.value ? Number(e.target.value) : null)}
-                    disabled={loadingSubProjects}
-                  >
-                    {loadingSubProjects ? (
-                      <option>Loading sub-projects...</option>
-                    ) : (
-                      <>
-                        <option value="">None (use parent project)</option>
-                        {subProjects.map(subProject => (
-                          <option key={subProject.id} value={subProject.id}>
-                            {subProject.name}
-                          </option>
-                        ))}
-                      </>
-                    )}
-                  </select>
-                </div>
-              </div>
-            )}
 
             {/* Custom Delimiter Input (shown when custom is selected) */}
             {delimiterType === 'custom' && (
@@ -1826,125 +1913,41 @@ function FileUpload() {
               </div>
             )}
 
-            {/* Vendor Agreement Selection (Contract Validation Mode) */}
-            {selectedProject && uploadType === 'contract' && (
+            {/* Schema Preview (Contract Validation Mode) */}
+            {selectedProject && uploadType === 'contract' && selectedAgreementSchema && selectedAgreementSchema.schema && (
               <div className="upload-subsection">
-                <label htmlFor="vendor-agreement-select" className="upload-form-label">
-                  Vendor Agreement: <span className="required-indicator">*</span>
-                </label>
-                <p className="upload-field-desc">
-                  Select the vendor agreement to validate the uploaded file against its defined schema and governance rules.
-                </p>
-                <select 
-                  id="vendor-agreement-select"
-                  className="gps-form-select"
-                  value={selectedAgreement || ''}
-                  onChange={(e) => setSelectedAgreement(e.target.value)}
-                  disabled={loadingAgreements}
-                >
-                  {loadingAgreements ? (
-                    <option>Loading agreements...</option>
-                  ) : vendorAgreements.length === 0 ? (
-                    <option>No vendor agreements available for this project</option>
-                  ) : (
-                    <>
-                      <option value="">Select an agreement...</option>
-                      {vendorAgreements.map(agreement => (
-                        <option key={agreement.id} value={agreement.id}>
-                          {agreement.vendor_name} - {agreement.agreement_code}
-                        </option>
-                      ))}
-                    </>
-                  )}
-                </select>
-                
-                {/* File Pattern Selection (Optional - shows after agreement selected) */}
-                {selectedAgreement && agreementFilePatterns.length > 0 && (
-                  <div className="upload-subsection-inner">
-                    <label htmlFor="file-pattern-select" className="upload-form-label">
-                      Expected File Pattern: <span className="upload-radio-hint">(Optional - auto-matches when file is dropped)</span>
-                    </label>
-                    <select 
-                      id="file-pattern-select"
-                      className={`gps-form-select ${autoMatchedPattern ? 'pattern-auto-matched' : ''}`}
-                      value={selectedFilePattern || ''}
-                      onChange={(e) => {
-                        const patternId = e.target.value ? parseInt(e.target.value) : null;
-                        setSelectedFilePattern(patternId);
-                        
-                        // Clear auto-match state when user manually changes selection
-                        setAutoMatchedPattern(null);
-                        
-                        if (patternId) {
-                          const pattern = agreementFilePatterns.find(p => p.id === patternId);
-                          if (pattern) {
-                            setSelectedAgreementSchema(pattern);
-                            if (pattern.quality_rule_ids && Array.isArray(pattern.quality_rule_ids)) {
-                              setSelectedQualityRules(pattern.quality_rule_ids);
-                            } else {
-                              setSelectedQualityRules([]);
-                            }
-                          }
-                        } else {
-                          setSelectedAgreementSchema(null);
-                          setSelectedQualityRules([]);
-                        }
-                      }}
-                    >
-                      <option value="">Select a file name pattern...</option>
-                      {agreementFilePatterns.map(pattern => (
-                        <option key={pattern.id} value={pattern.id}>
-                          {pattern.file_name_pattern}
-                          {pattern.file_description ? ` - ${pattern.file_description}` : ''}
-                          {autoMatchedPattern === pattern.id ? ' ✓ (Auto-matched)' : ''}
-                        </option>
-                      ))}
-                    </select>
-                    <div className={`pattern-status ${autoMatchedPattern ? 'pattern-status--success' : selectedFilePattern ? 'pattern-status--info' : 'pattern-status--warning'}`}>
-                      {autoMatchedPattern 
-                        ? '✓ Pattern auto-matched based on your file. You can override if needed.' 
-                        : selectedFilePattern
-                          ? 'Pattern selected manually. Drop a file to auto-match.'
-                          : '⚠️ No pattern selected. Drop a file to auto-match, or manually select a pattern above.'}
-                    </div>
-                  </div>
-                )}
-                
-                {/* Schema Preview */}
-                {selectedAgreementSchema && selectedAgreementSchema.schema && (
-                  <div className="agreement-schema-preview">
-                    <div className="agreement-schema-title">Expected Schema:</div>
-                    <div className="agreement-columns">
-                      {Array.isArray(selectedAgreementSchema.schema) && selectedAgreementSchema.schema.map((col, idx) => {
-                        const columnName = col.column_name || col.name;
-                        const dataType = col.data_type || col.type;
-                        
-                        return (
-                          <span key={idx} className="agreement-column-chip">
-                            {columnName} <span className="data-type">({dataType})</span>
-                          </span>
-                        );
-                      })}
-                    </div>
-                    
-                    {/* Governance Info */}
-                    <div className="agreement-tags">
-                      {selectedAgreementSchema.contains_pii && (
-                        <span className="agreement-tag agreement-tag--pii">🔒 Contains PII</span>
-                      )}
-                      {selectedAgreementSchema.data_classification && (
-                        <span className="agreement-tag agreement-tag--classification">
-                          {selectedAgreementSchema.data_classification}
+                <div className="agreement-schema-preview">
+                  <div className="agreement-schema-title">Expected Schema:</div>
+                  <div className="agreement-columns">
+                    {Array.isArray(selectedAgreementSchema.schema) && selectedAgreementSchema.schema.map((col, idx) => {
+                      const columnName = col.column_name || col.name;
+                      const dataType = col.data_type || col.type;
+                      
+                      return (
+                        <span key={idx} className="agreement-column-chip">
+                          {columnName} <span className="data-type">({dataType})</span>
                         </span>
-                      )}
-                      {selectedAgreementSchema.file_type && (
-                        <span className="agreement-tag agreement-tag--filetype">
-                          {selectedAgreementSchema.file_type.toUpperCase()}
-                        </span>
-                      )}
-                    </div>
+                      );
+                    })}
                   </div>
-                )}
+                  
+                  {/* Governance Info */}
+                  <div className="agreement-tags">
+                    {selectedAgreementSchema.contains_pii && (
+                      <span className="agreement-tag agreement-tag--pii">🔒 Contains PII</span>
+                    )}
+                    {selectedAgreementSchema.data_classification && (
+                      <span className="agreement-tag agreement-tag--classification">
+                        {selectedAgreementSchema.data_classification}
+                      </span>
+                    )}
+                    {selectedAgreementSchema.file_type && (
+                      <span className="agreement-tag agreement-tag--filetype">
+                        {selectedAgreementSchema.file_type.toUpperCase()}
+                      </span>
+                    )}
+                  </div>
+                </div>
               </div>
             )}
 
