@@ -36,6 +36,20 @@ function SchemaHistoryTab({ fileId }) {
     }
   };
 
+  // Normalize type names - treat 'object' and 'string' as equivalent since
+  // pandas uses 'object' dtype for string columns
+  const normalizeType = (type) => {
+    const t = (type || 'string').toLowerCase().trim();
+    // Object dtype in pandas is essentially string type
+    if (t === 'object') return 'string';
+    return t;
+  };
+
+  // Check if two types are considered equivalent
+  const typesAreEquivalent = (type1, type2) => {
+    return normalizeType(type1) === normalizeType(type2);
+  };
+
   const computeComparison = (currentSchema, previousSchema) => {
     if (!currentSchema?.columns || !previousSchema?.columns) {
       return { hasChanges: false };
@@ -61,7 +75,9 @@ function SchemaHistoryTab({ fileId }) {
     currentCols.forEach((currentCol, currentIdx) => {
       const previousCol = previousCols.find(p => p.name === currentCol.name);
       if (previousCol) {
-        if (previousCol.type !== currentCol.type) {
+        // Only flag type mismatch if types are NOT equivalent
+        // (object and string are considered equivalent)
+        if (!typesAreEquivalent(previousCol.type, currentCol.type)) {
           modifiedColumns.push({
             name: currentCol.name,
             previousType: previousCol.type,

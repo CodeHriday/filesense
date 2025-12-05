@@ -98,6 +98,29 @@ function generateSchemaHash(schema) {
 }
 
 /**
+ * Normalize type names for comparison.
+ * Treats 'object' and 'string' as equivalent since pandas uses 'object' dtype for string columns.
+ * @param {string} type - Column type
+ * @returns {string} - Normalized type
+ */
+function normalizeType(type) {
+  const t = (type || 'string').toLowerCase().trim();
+  // Object dtype in pandas is essentially string type
+  if (t === 'object') return 'string';
+  return t;
+}
+
+/**
+ * Check if two column types are considered equivalent
+ * @param {string} type1 - First type
+ * @param {string} type2 - Second type
+ * @returns {boolean} - True if types are equivalent
+ */
+function typesAreEquivalent(type1, type2) {
+  return normalizeType(type1) === normalizeType(type2);
+}
+
+/**
  * Compare two schemas and return differences
  * @param {Object} schema1 - First schema
  * @param {Object} schema2 - Second schema
@@ -157,10 +180,12 @@ function compareSchemas(schema1, schema2) {
   });
   
   // Find modified columns (same name, different type or index)
+  // Note: 'object' and 'string' types are treated as equivalent (pandas uses 'object' for strings)
   schema1.columns.forEach(col1 => {
     const col2 = schema2Map.get(col1.name);
     if (col2) {
-      if (col1.type !== col2.type) {
+      // Only flag as type mismatch if types are NOT equivalent
+      if (!typesAreEquivalent(col1.type, col2.type)) {
         differences.isIdentical = false;
         differences.modifiedColumns.push({
           name: col1.name,

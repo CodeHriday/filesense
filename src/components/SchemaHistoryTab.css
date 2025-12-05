@@ -461,7 +461,7 @@
 }
 
 .position-change {
-  font-size: 0.75rem;
+  font-size: 10px;
   color: #6b7280;
   white-space: nowrap;
 }
@@ -471,28 +471,29 @@
   flex-direction: column;
   align-items: center;
   text-align: center;
-  padding: 40px 20px;
+  padding: 30px 16px;
   color: #6b7280;
 }
 
 .no-changes h4 {
-  margin: 15px 0 8px 0;
-  font-size: 1.1rem;
+  margin: 12px 0 6px 0;
+  font-size: 12px;
+  font-weight: 600;
   color: #111827;
 }
 
 .no-changes p {
-  margin: 0 0 20px 0;
-  font-size: 0.9rem;
+  margin: 0 0 16px 0;
+  font-size: 10px;
 }
 
 /* Validation Alert Styles */
 .validation-alert-error {
   background: #fef2f2;
   border: 2px solid #ef4444;
-  border-radius: 8px;
-  padding: 16px;
-  margin-bottom: 20px;
+  border-radius: 6px;
+  padding: 12px;
+  margin-bottom: 16px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -502,16 +503,17 @@
 
 .validation-alert-error svg {
   color: #ef4444;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 
 .validation-alert-error p {
-  margin: 4px 0;
-  font-size: 0.9rem;
+  margin: 3px 0;
+  font-size: 10px;
 }
 
 .validation-alert-error p strong {
-  font-size: 1rem;
+  font-size: 11px;
+  font-weight: 600;
   color: #7f1d1d;
 }
 
@@ -714,7 +716,7 @@
   font-size: 12px;
   font-weight: 600;
   color: #333;
-  text-transform: uppercase;
+  text-transform: none;
 }
 
 .compare-actions {
@@ -865,7 +867,7 @@
   font-size: 11px;
   font-weight: 600;
   color: #025043;
-  text-transform: uppercase;
+  text-transform: none;
   margin-bottom: 4px;
 }
 
@@ -903,8 +905,8 @@
   font-weight: 600;
   text-align: left;
   color: #475569;
-  font-size: 9px;
-  text-transform: uppercase;
+  font-size: 10px;
+  text-transform: capitalize;
   border-bottom: 1px solid #e2e8f0;
   z-index: 1;
 }
