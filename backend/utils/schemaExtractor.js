@@ -333,10 +333,35 @@ async function extractSchemaViaConversion(filePath, ext, archivePassword = null)
     }
     
     // Convert metadata.columns to schema format
-    const schema = response.data.metadata.columns.map(col => ({
-      name: col.name,
-      type: col.data_type || 'string'
-    }));
+    // Note: Python profile_api.py returns columns as a list of column name strings (line 1275)
+    // e.g. ['customer_key', 'customer_id', 'first_name', ...]
+    // We also check column_profiles for richer type information if available
+    const columns = response.data.metadata.columns;
+    const columnProfiles = response.data.column_profiles || [];
+    
+    // Build a map of column name -> type from column_profiles for richer type info
+    const typeMap = {};
+    columnProfiles.forEach(profile => {
+      if (profile && profile.name) {
+        typeMap[profile.name] = profile.type || 'string';
+      }
+    });
+    
+    const schema = columns.map(col => {
+      // Handle both string column names and object column formats
+      if (typeof col === 'string') {
+        return {
+          name: col,
+          type: typeMap[col] || 'string'
+        };
+      } else if (col && typeof col === 'object') {
+        return {
+          name: col.name || col.column_name || String(col),
+          type: col.type || col.data_type || typeMap[col.name] || 'string'
+        };
+      }
+      return { name: String(col), type: 'string' };
+    });
     
     return schema;
     
