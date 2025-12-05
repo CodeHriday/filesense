@@ -1815,7 +1815,7 @@ router.get('/metric-trends', dashboardCacheMiddleware, async (req, res) => {
       }));
     }
 
-    // Governance Coverage Trend
+    // Governance Coverage Trend - using column_governance_tag_assignments with assigned_at
     if (metricType === 'all' || metricType === 'governanceCoverage') {
       let govQuery;
       let queryParams = [];
@@ -1823,53 +1823,53 @@ router.get('/metric-trends', dashboardCacheMiddleware, async (req, res) => {
       if (granularity === 'daily') {
         if (isAdmin && !projectId) {
           govQuery = `
-            SELECT DATE(ft.created_at) as date,
-                   COUNT(DISTINCT ft.file_id) as tagged_files,
-                   (SELECT COUNT(DISTINCT file_id) FROM files WHERE created_at <= DATE(ft.created_at)) as total_files
-            FROM file_governance_tags ft
-            WHERE ft.created_at >= CURRENT_DATE - INTERVAL '15 days'
-            GROUP BY DATE(ft.created_at)
-            ORDER BY DATE(ft.created_at)
+            SELECT DATE(cgta.assigned_at) as date,
+                   COUNT(DISTINCT cgta.file_id) as tagged_files,
+                   (SELECT COUNT(DISTINCT file_id) FROM files WHERE created_at <= DATE(cgta.assigned_at)) as total_files
+            FROM column_governance_tag_assignments cgta
+            WHERE cgta.assigned_at >= CURRENT_DATE - INTERVAL '15 days'
+            GROUP BY DATE(cgta.assigned_at)
+            ORDER BY DATE(cgta.assigned_at)
           `;
         } else {
           govQuery = `
-            SELECT DATE(ft.created_at) as date,
-                   COUNT(DISTINCT ft.file_id) as tagged_files
-            FROM file_governance_tags ft
-            INNER JOIN files f ON ft.file_id = f.file_id
-            WHERE ft.created_at >= CURRENT_DATE - INTERVAL '15 days'
+            SELECT DATE(cgta.assigned_at) as date,
+                   COUNT(DISTINCT cgta.file_id) as tagged_files
+            FROM column_governance_tag_assignments cgta
+            INNER JOIN files f ON cgta.file_id = f.file_id
+            WHERE cgta.assigned_at >= CURRENT_DATE - INTERVAL '15 days'
             ${!isAdmin ? 'AND f.project_id IN (SELECT project_id FROM get_user_projects($1))' : ''}
             ${projectId ? `AND f.project_id = ${isAdmin ? '$1' : '$2'}` : ''}
-            GROUP BY DATE(ft.created_at)
-            ORDER BY DATE(ft.created_at)
+            GROUP BY DATE(cgta.assigned_at)
+            ORDER BY DATE(cgta.assigned_at)
           `;
           queryParams = isAdmin ? (projectId ? [projectId] : []) : (projectId ? [userId, projectId] : [userId]);
         }
       } else if (granularity === 'weekly') {
         govQuery = `
-          SELECT DATE_TRUNC('week', ft.created_at)::date as date,
-                 COUNT(DISTINCT ft.file_id) as tagged_files
-          FROM file_governance_tags ft
-          ${(!isAdmin || projectId) ? 'INNER JOIN files f ON ft.file_id = f.file_id' : ''}
-          WHERE ft.created_at >= CURRENT_DATE - INTERVAL '16 weeks'
+          SELECT DATE_TRUNC('week', cgta.assigned_at)::date as date,
+                 COUNT(DISTINCT cgta.file_id) as tagged_files
+          FROM column_governance_tag_assignments cgta
+          ${(!isAdmin || projectId) ? 'INNER JOIN files f ON cgta.file_id = f.file_id' : ''}
+          WHERE cgta.assigned_at >= CURRENT_DATE - INTERVAL '16 weeks'
           ${!isAdmin ? 'AND f.project_id IN (SELECT project_id FROM get_user_projects($1))' : ''}
           ${projectId ? `AND f.project_id = ${isAdmin ? '$1' : '$2'}` : ''}
-          GROUP BY DATE_TRUNC('week', ft.created_at)
-          ORDER BY DATE_TRUNC('week', ft.created_at)
+          GROUP BY DATE_TRUNC('week', cgta.assigned_at)
+          ORDER BY DATE_TRUNC('week', cgta.assigned_at)
           LIMIT 16
         `;
         queryParams = isAdmin ? (projectId ? [projectId] : []) : (projectId ? [userId, projectId] : [userId]);
       } else if (granularity === 'monthly') {
         govQuery = `
-          SELECT DATE_TRUNC('month', ft.created_at)::date as date,
-                 COUNT(DISTINCT ft.file_id) as tagged_files
-          FROM file_governance_tags ft
-          ${(!isAdmin || projectId) ? 'INNER JOIN files f ON ft.file_id = f.file_id' : ''}
-          WHERE ft.created_at >= CURRENT_DATE - INTERVAL '16 months'
+          SELECT DATE_TRUNC('month', cgta.assigned_at)::date as date,
+                 COUNT(DISTINCT cgta.file_id) as tagged_files
+          FROM column_governance_tag_assignments cgta
+          ${(!isAdmin || projectId) ? 'INNER JOIN files f ON cgta.file_id = f.file_id' : ''}
+          WHERE cgta.assigned_at >= CURRENT_DATE - INTERVAL '16 months'
           ${!isAdmin ? 'AND f.project_id IN (SELECT project_id FROM get_user_projects($1))' : ''}
           ${projectId ? `AND f.project_id = ${isAdmin ? '$1' : '$2'}` : ''}
-          GROUP BY DATE_TRUNC('month', ft.created_at)
-          ORDER BY DATE_TRUNC('month', ft.created_at)
+          GROUP BY DATE_TRUNC('month', cgta.assigned_at)
+          ORDER BY DATE_TRUNC('month', cgta.assigned_at)
           LIMIT 16
         `;
         queryParams = isAdmin ? (projectId ? [projectId] : []) : (projectId ? [userId, projectId] : [userId]);
