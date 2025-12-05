@@ -313,6 +313,64 @@
   color: var(--exec-text-muted);
 }
 
+/* Interactive KPI Cards */
+.kpi-card.interactive {
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.kpi-card.interactive:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  border-color: #025043;
+}
+
+.kpi-card.interactive:active {
+  transform: translateY(-1px);
+}
+
+/* Interactive Health Metrics */
+.health-metric.interactive {
+  cursor: pointer;
+  padding: 6px 8px;
+  border-radius: 6px;
+  transition: background-color 0.2s ease;
+}
+
+.health-metric.interactive:hover {
+  background-color: rgba(255, 255, 255, 0.15);
+}
+
+/* Trend Icons */
+.trend-icon {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  margin-left: 4px;
+  vertical-align: middle;
+}
+
+.trend-icon.up {
+  color: #10B981;
+}
+
+.trend-icon.down {
+  color: #EF4444;
+}
+
+.trend-icon.neutral {
+  color: #9CA3AF;
+}
+
+.kpi-label .trend-icon {
+  font-size: 12px;
+}
+
+.health-metric .trend-icon {
+  font-size: 11px;
+  margin-left: 2px;
+}
+
 /* Charts Grid */
 .executive-dashboard .charts-grid {
   display: grid;

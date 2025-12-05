@@ -1,0 +1,279 @@
+.metric-trend-popup {
+  position: fixed;
+  z-index: 1000;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  border: 1px solid #E5E7EB;
+  padding: 12px;
+  width: 280px;
+  animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.popup-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #E5E7EB;
+}
+
+.popup-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #1F2937;
+  font-family: 'Inter', sans-serif;
+}
+
+.popup-trend {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.popup-trend.trend-up {
+  color: #059669;
+  background: #D1FAE5;
+}
+
+.popup-trend.trend-down {
+  color: #DC2626;
+  background: #FEE2E2;
+}
+
+.popup-trend.trend-neutral {
+  color: #6B7280;
+  background: #F3F4F6;
+}
+
+.popup-chart {
+  height: 80px;
+  margin-bottom: 8px;
+}
+
+.popup-footer {
+  text-align: center;
+}
+
+.popup-hint {
+  font-size: 10px;
+  color: #9CA3AF;
+  font-style: italic;
+}
+
+.loading-spinner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #6B7280;
+  font-size: 12px;
+}
+
+.loading-spinner.small {
+  font-size: 10px;
+}
+
+.no-data {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #9CA3AF;
+  font-size: 12px;
+}
+
+.no-data.small {
+  font-size: 10px;
+}
+
+.metric-trend-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.metric-trend-modal {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.2);
+  width: 90%;
+  max-width: 800px;
+  max-height: 90vh;
+  overflow: hidden;
+  animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid #E5E7EB;
+  background: #F9FAFB;
+}
+
+.modal-header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #1F2937;
+  font-family: 'Inter', sans-serif;
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  font-size: 24px;
+  color: #6B7280;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+  transition: color 0.2s;
+}
+
+.modal-close:hover {
+  color: #1F2937;
+}
+
+.modal-controls {
+  padding: 16px 20px;
+  border-bottom: 1px solid #E5E7EB;
+}
+
+.granularity-tabs {
+  display: flex;
+  gap: 8px;
+}
+
+.granularity-tab {
+  padding: 8px 16px;
+  font-size: 12px;
+  font-weight: 500;
+  font-family: 'Inter', sans-serif;
+  color: #6B7280;
+  background: #F3F4F6;
+  border: 1px solid #E5E7EB;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.granularity-tab:hover {
+  background: #E5E7EB;
+  color: #374151;
+}
+
+.granularity-tab.active {
+  background: #025043;
+  color: white;
+  border-color: #025043;
+}
+
+.modal-summary {
+  display: flex;
+  gap: 24px;
+  padding: 16px 20px;
+  background: #F9FAFB;
+  border-bottom: 1px solid #E5E7EB;
+}
+
+.summary-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.stat-label {
+  font-size: 11px;
+  font-weight: 500;
+  color: #6B7280;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.stat-value {
+  font-size: 18px;
+  font-weight: 600;
+  color: #1F2937;
+}
+
+.stat-value.trend-up {
+  color: #059669;
+}
+
+.stat-value.trend-down {
+  color: #DC2626;
+}
+
+.stat-value.trend-neutral {
+  color: #6B7280;
+}
+
+.modal-chart-container {
+  padding: 20px;
+  height: 350px;
+}
+
+@media (max-width: 640px) {
+  .metric-trend-modal {
+    width: 95%;
+    max-height: 85vh;
+  }
+
+  .granularity-tabs {
+    flex-wrap: wrap;
+  }
+
+  .granularity-tab {
+    flex: 1;
+    min-width: 100px;
+    text-align: center;
+  }
+
+  .modal-summary {
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+
+  .summary-stat {
+    flex: 1;
+    min-width: 80px;
+  }
+
+  .modal-chart-container {
+    height: 280px;
+  }
+}

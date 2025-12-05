@@ -1478,4 +1478,472 @@ router.get('/quality-violations-trend', dashboardCacheMiddleware, async (req, re
   }
 });
 
+/**
+ * GET /api/dashboard/metric-trends
+ * Get historical trend data for headline metrics (15-day daily + aggregated weekly/monthly for last 16 instances)
+ * Supports: dataHealth, totalFiles, vendorCompliance, governanceCoverage, criticalAlerts, jobSuccess
+ */
+router.get('/metric-trends', dashboardCacheMiddleware, async (req, res) => {
+  const pool = req.app.locals.pool || req.app.get('db');
+  
+  if (!req.user || !req.user.id) {
+    return res.status(401).json({ error: 'Authentication required' });
+  }
+
+  try {
+    const userId = parseInt(req.user.id, 10);
+    const userRoles = req.user.roles || [];
+    const isAdmin = userRoles.includes('Admin');
+    const metricType = req.query.metric || 'all';
+    const granularity = req.query.granularity || 'daily';
+    const projectId = req.query.project_id ? parseInt(req.query.project_id, 10) : null;
+    
+    const trends = {};
+    
+    // Helper to generate date series for last N days
+    const generateDateSeries = (days) => {
+      const dates = [];
+      for (let i = days - 1; i >= 0; i--) {
+        const date = new Date();
+        date.setDate(date.getDate() - i);
+        dates.push(date.toISOString().split('T')[0]);
+      }
+      return dates;
+    };
+
+    // Total Files Trend - files uploaded per day
+    if (metricType === 'all' || metricType === 'totalFiles') {
+      let filesQuery;
+      let queryParams = [];
+      
+      if (granularity === 'daily') {
+        if (isAdmin && !projectId) {
+          filesQuery = `
+            SELECT DATE(created_at) as date, COUNT(*) as count
+            FROM files
+            WHERE created_at >= CURRENT_DATE - INTERVAL '15 days'
+            GROUP BY DATE(created_at)
+            ORDER BY DATE(created_at)
+          `;
+        } else if (isAdmin && projectId) {
+          filesQuery = `
+            SELECT DATE(created_at) as date, COUNT(*) as count
+            FROM files
+            WHERE created_at >= CURRENT_DATE - INTERVAL '15 days'
+            AND project_id = $1
+            GROUP BY DATE(created_at)
+            ORDER BY DATE(created_at)
+          `;
+          queryParams = [projectId];
+        } else {
+          filesQuery = `
+            SELECT DATE(f.created_at) as date, COUNT(*) as count
+            FROM files f
+            WHERE f.created_at >= CURRENT_DATE - INTERVAL '15 days'
+            AND f.project_id IN (SELECT project_id FROM get_user_projects($1))
+            ${projectId ? 'AND f.project_id = $2' : ''}
+            GROUP BY DATE(f.created_at)
+            ORDER BY DATE(f.created_at)
+          `;
+          queryParams = projectId ? [userId, projectId] : [userId];
+        }
+      } else if (granularity === 'weekly') {
+        if (isAdmin && !projectId) {
+          filesQuery = `
+            SELECT DATE_TRUNC('week', created_at)::date as date, COUNT(*) as count
+            FROM files
+            WHERE created_at >= CURRENT_DATE - INTERVAL '16 weeks'
+            GROUP BY DATE_TRUNC('week', created_at)
+            ORDER BY DATE_TRUNC('week', created_at)
+            LIMIT 16
+          `;
+        } else {
+          filesQuery = `
+            SELECT DATE_TRUNC('week', f.created_at)::date as date, COUNT(*) as count
+            FROM files f
+            WHERE f.created_at >= CURRENT_DATE - INTERVAL '16 weeks'
+            ${isAdmin ? '' : 'AND f.project_id IN (SELECT project_id FROM get_user_projects($1))'}
+            ${projectId ? `AND f.project_id = ${isAdmin ? '$1' : '$2'}` : ''}
+            GROUP BY DATE_TRUNC('week', f.created_at)
+            ORDER BY DATE_TRUNC('week', f.created_at)
+            LIMIT 16
+          `;
+          queryParams = isAdmin ? (projectId ? [projectId] : []) : (projectId ? [userId, projectId] : [userId]);
+        }
+      } else if (granularity === 'monthly') {
+        if (isAdmin && !projectId) {
+          filesQuery = `
+            SELECT DATE_TRUNC('month', created_at)::date as date, COUNT(*) as count
+            FROM files
+            WHERE created_at >= CURRENT_DATE - INTERVAL '16 months'
+            GROUP BY DATE_TRUNC('month', created_at)
+            ORDER BY DATE_TRUNC('month', created_at)
+            LIMIT 16
+          `;
+        } else {
+          filesQuery = `
+            SELECT DATE_TRUNC('month', f.created_at)::date as date, COUNT(*) as count
+            FROM files f
+            WHERE f.created_at >= CURRENT_DATE - INTERVAL '16 months'
+            ${isAdmin ? '' : 'AND f.project_id IN (SELECT project_id FROM get_user_projects($1))'}
+            ${projectId ? `AND f.project_id = ${isAdmin ? '$1' : '$2'}` : ''}
+            GROUP BY DATE_TRUNC('month', f.created_at)
+            ORDER BY DATE_TRUNC('month', f.created_at)
+            LIMIT 16
+          `;
+          queryParams = isAdmin ? (projectId ? [projectId] : []) : (projectId ? [userId, projectId] : [userId]);
+        }
+      }
+      
+      const filesResult = await pool.query(filesQuery, queryParams);
+      trends.totalFiles = filesResult.rows.map(row => ({
+        date: typeof row.date === 'string' ? row.date : row.date.toISOString().split('T')[0],
+        value: parseInt(row.count || 0)
+      }));
+    }
+
+    // Data Health Trend - average quality score per day from profiling_metrics
+    if (metricType === 'all' || metricType === 'dataHealth') {
+      let healthQuery;
+      let queryParams = [];
+      
+      if (granularity === 'daily') {
+        if (isAdmin && !projectId) {
+          healthQuery = `
+            SELECT DATE(pm.created_at) as date, 
+                   ROUND(AVG(COALESCE(pm.completeness_score, 0) + COALESCE(pm.validity_score, 0)) / 2, 1) as avg_health
+            FROM profiling_metrics pm
+            WHERE pm.created_at >= CURRENT_DATE - INTERVAL '15 days'
+            GROUP BY DATE(pm.created_at)
+            ORDER BY DATE(pm.created_at)
+          `;
+        } else if (isAdmin && projectId) {
+          healthQuery = `
+            SELECT DATE(pm.created_at) as date, 
+                   ROUND(AVG(COALESCE(pm.completeness_score, 0) + COALESCE(pm.validity_score, 0)) / 2, 1) as avg_health
+            FROM profiling_metrics pm
+            INNER JOIN files f ON pm.file_id = f.file_id
+            WHERE pm.created_at >= CURRENT_DATE - INTERVAL '15 days'
+            AND f.project_id = $1
+            GROUP BY DATE(pm.created_at)
+            ORDER BY DATE(pm.created_at)
+          `;
+          queryParams = [projectId];
+        } else {
+          healthQuery = `
+            SELECT DATE(pm.created_at) as date, 
+                   ROUND(AVG(COALESCE(pm.completeness_score, 0) + COALESCE(pm.validity_score, 0)) / 2, 1) as avg_health
+            FROM profiling_metrics pm
+            INNER JOIN files f ON pm.file_id = f.file_id
+            WHERE pm.created_at >= CURRENT_DATE - INTERVAL '15 days'
+            AND f.project_id IN (SELECT project_id FROM get_user_projects($1))
+            ${projectId ? 'AND f.project_id = $2' : ''}
+            GROUP BY DATE(pm.created_at)
+            ORDER BY DATE(pm.created_at)
+          `;
+          queryParams = projectId ? [userId, projectId] : [userId];
+        }
+      } else if (granularity === 'weekly') {
+        healthQuery = `
+          SELECT DATE_TRUNC('week', pm.created_at)::date as date,
+                 ROUND(AVG(COALESCE(pm.completeness_score, 0) + COALESCE(pm.validity_score, 0)) / 2, 1) as avg_health
+          FROM profiling_metrics pm
+          ${(!isAdmin || projectId) ? 'INNER JOIN files f ON pm.file_id = f.file_id' : ''}
+          WHERE pm.created_at >= CURRENT_DATE - INTERVAL '16 weeks'
+          ${!isAdmin ? 'AND f.project_id IN (SELECT project_id FROM get_user_projects($1))' : ''}
+          ${projectId ? `AND f.project_id = ${isAdmin ? '$1' : '$2'}` : ''}
+          GROUP BY DATE_TRUNC('week', pm.created_at)
+          ORDER BY DATE_TRUNC('week', pm.created_at)
+          LIMIT 16
+        `;
+        queryParams = isAdmin ? (projectId ? [projectId] : []) : (projectId ? [userId, projectId] : [userId]);
+      } else if (granularity === 'monthly') {
+        healthQuery = `
+          SELECT DATE_TRUNC('month', pm.created_at)::date as date,
+                 ROUND(AVG(COALESCE(pm.completeness_score, 0) + COALESCE(pm.validity_score, 0)) / 2, 1) as avg_health
+          FROM profiling_metrics pm
+          ${(!isAdmin || projectId) ? 'INNER JOIN files f ON pm.file_id = f.file_id' : ''}
+          WHERE pm.created_at >= CURRENT_DATE - INTERVAL '16 months'
+          ${!isAdmin ? 'AND f.project_id IN (SELECT project_id FROM get_user_projects($1))' : ''}
+          ${projectId ? `AND f.project_id = ${isAdmin ? '$1' : '$2'}` : ''}
+          GROUP BY DATE_TRUNC('month', pm.created_at)
+          ORDER BY DATE_TRUNC('month', pm.created_at)
+          LIMIT 16
+        `;
+        queryParams = isAdmin ? (projectId ? [projectId] : []) : (projectId ? [userId, projectId] : [userId]);
+      }
+      
+      const healthResult = await pool.query(healthQuery, queryParams);
+      trends.dataHealth = healthResult.rows.map(row => ({
+        date: typeof row.date === 'string' ? row.date : row.date.toISOString().split('T')[0],
+        value: parseFloat(row.avg_health || 0)
+      }));
+    }
+
+    // Job Success Rate Trend
+    if (metricType === 'all' || metricType === 'jobSuccess') {
+      let jobQuery;
+      let queryParams = [];
+      
+      if (granularity === 'daily') {
+        if (isAdmin && !projectId) {
+          jobQuery = `
+            SELECT DATE(created_at) as date,
+                   COUNT(*) FILTER (WHERE status = 'completed') as completed,
+                   COUNT(*) as total
+            FROM transformation_jobs
+            WHERE created_at >= CURRENT_DATE - INTERVAL '15 days'
+            GROUP BY DATE(created_at)
+            ORDER BY DATE(created_at)
+          `;
+        } else {
+          jobQuery = `
+            SELECT DATE(tj.created_at) as date,
+                   COUNT(*) FILTER (WHERE tj.status = 'completed') as completed,
+                   COUNT(*) as total
+            FROM transformation_jobs tj
+            WHERE tj.created_at >= CURRENT_DATE - INTERVAL '15 days'
+            ${!isAdmin ? 'AND tj.project_id IN (SELECT project_id FROM get_user_projects($1))' : ''}
+            ${projectId ? `AND tj.project_id = ${isAdmin ? '$1' : '$2'}` : ''}
+            GROUP BY DATE(tj.created_at)
+            ORDER BY DATE(tj.created_at)
+          `;
+          queryParams = isAdmin ? (projectId ? [projectId] : []) : (projectId ? [userId, projectId] : [userId]);
+        }
+      } else if (granularity === 'weekly') {
+        jobQuery = `
+          SELECT DATE_TRUNC('week', tj.created_at)::date as date,
+                 COUNT(*) FILTER (WHERE tj.status = 'completed') as completed,
+                 COUNT(*) as total
+          FROM transformation_jobs tj
+          WHERE tj.created_at >= CURRENT_DATE - INTERVAL '16 weeks'
+          ${!isAdmin ? 'AND tj.project_id IN (SELECT project_id FROM get_user_projects($1))' : ''}
+          ${projectId ? `AND tj.project_id = ${isAdmin ? '$1' : '$2'}` : ''}
+          GROUP BY DATE_TRUNC('week', tj.created_at)
+          ORDER BY DATE_TRUNC('week', tj.created_at)
+          LIMIT 16
+        `;
+        queryParams = isAdmin ? (projectId ? [projectId] : []) : (projectId ? [userId, projectId] : [userId]);
+      } else if (granularity === 'monthly') {
+        jobQuery = `
+          SELECT DATE_TRUNC('month', tj.created_at)::date as date,
+                 COUNT(*) FILTER (WHERE tj.status = 'completed') as completed,
+                 COUNT(*) as total
+          FROM transformation_jobs tj
+          WHERE tj.created_at >= CURRENT_DATE - INTERVAL '16 months'
+          ${!isAdmin ? 'AND tj.project_id IN (SELECT project_id FROM get_user_projects($1))' : ''}
+          ${projectId ? `AND tj.project_id = ${isAdmin ? '$1' : '$2'}` : ''}
+          GROUP BY DATE_TRUNC('month', tj.created_at)
+          ORDER BY DATE_TRUNC('month', tj.created_at)
+          LIMIT 16
+        `;
+        queryParams = isAdmin ? (projectId ? [projectId] : []) : (projectId ? [userId, projectId] : [userId]);
+      }
+      
+      const jobResult = await pool.query(jobQuery, queryParams);
+      trends.jobSuccess = jobResult.rows.map(row => ({
+        date: typeof row.date === 'string' ? row.date : row.date.toISOString().split('T')[0],
+        value: row.total > 0 ? Math.round((parseInt(row.completed || 0) / parseInt(row.total)) * 100) : 0,
+        completed: parseInt(row.completed || 0),
+        total: parseInt(row.total || 0)
+      }));
+    }
+
+    // Critical Alerts Trend
+    if (metricType === 'all' || metricType === 'criticalAlerts') {
+      let alertQuery;
+      let queryParams = [];
+      
+      if (granularity === 'daily') {
+        if (isAdmin && !projectId) {
+          alertQuery = `
+            SELECT DATE(created_at) as date, COUNT(*) as count
+            FROM anomalies
+            WHERE created_at >= CURRENT_DATE - INTERVAL '15 days'
+            AND severity IN ('critical', 'high')
+            GROUP BY DATE(created_at)
+            ORDER BY DATE(created_at)
+          `;
+        } else {
+          alertQuery = `
+            SELECT DATE(a.created_at) as date, COUNT(*) as count
+            FROM anomalies a
+            INNER JOIN files f ON a.file_id = f.file_id
+            WHERE a.created_at >= CURRENT_DATE - INTERVAL '15 days'
+            AND a.severity IN ('critical', 'high')
+            ${!isAdmin ? 'AND f.project_id IN (SELECT project_id FROM get_user_projects($1))' : ''}
+            ${projectId ? `AND f.project_id = ${isAdmin ? '$1' : '$2'}` : ''}
+            GROUP BY DATE(a.created_at)
+            ORDER BY DATE(a.created_at)
+          `;
+          queryParams = isAdmin ? (projectId ? [projectId] : []) : (projectId ? [userId, projectId] : [userId]);
+        }
+      } else if (granularity === 'weekly') {
+        alertQuery = `
+          SELECT DATE_TRUNC('week', a.created_at)::date as date, COUNT(*) as count
+          FROM anomalies a
+          ${(!isAdmin || projectId) ? 'INNER JOIN files f ON a.file_id = f.file_id' : ''}
+          WHERE a.created_at >= CURRENT_DATE - INTERVAL '16 weeks'
+          AND a.severity IN ('critical', 'high')
+          ${!isAdmin ? 'AND f.project_id IN (SELECT project_id FROM get_user_projects($1))' : ''}
+          ${projectId ? `AND f.project_id = ${isAdmin ? '$1' : '$2'}` : ''}
+          GROUP BY DATE_TRUNC('week', a.created_at)
+          ORDER BY DATE_TRUNC('week', a.created_at)
+          LIMIT 16
+        `;
+        queryParams = isAdmin ? (projectId ? [projectId] : []) : (projectId ? [userId, projectId] : [userId]);
+      } else if (granularity === 'monthly') {
+        alertQuery = `
+          SELECT DATE_TRUNC('month', a.created_at)::date as date, COUNT(*) as count
+          FROM anomalies a
+          ${(!isAdmin || projectId) ? 'INNER JOIN files f ON a.file_id = f.file_id' : ''}
+          WHERE a.created_at >= CURRENT_DATE - INTERVAL '16 months'
+          AND a.severity IN ('critical', 'high')
+          ${!isAdmin ? 'AND f.project_id IN (SELECT project_id FROM get_user_projects($1))' : ''}
+          ${projectId ? `AND f.project_id = ${isAdmin ? '$1' : '$2'}` : ''}
+          GROUP BY DATE_TRUNC('month', a.created_at)
+          ORDER BY DATE_TRUNC('month', a.created_at)
+          LIMIT 16
+        `;
+        queryParams = isAdmin ? (projectId ? [projectId] : []) : (projectId ? [userId, projectId] : [userId]);
+      }
+      
+      const alertResult = await pool.query(alertQuery, queryParams);
+      trends.criticalAlerts = alertResult.rows.map(row => ({
+        date: typeof row.date === 'string' ? row.date : row.date.toISOString().split('T')[0],
+        value: parseInt(row.count || 0)
+      }));
+    }
+
+    // Governance Coverage Trend
+    if (metricType === 'all' || metricType === 'governanceCoverage') {
+      let govQuery;
+      let queryParams = [];
+      
+      if (granularity === 'daily') {
+        if (isAdmin && !projectId) {
+          govQuery = `
+            SELECT DATE(ft.created_at) as date,
+                   COUNT(DISTINCT ft.file_id) as tagged_files,
+                   (SELECT COUNT(DISTINCT file_id) FROM files WHERE created_at <= DATE(ft.created_at)) as total_files
+            FROM file_governance_tags ft
+            WHERE ft.created_at >= CURRENT_DATE - INTERVAL '15 days'
+            GROUP BY DATE(ft.created_at)
+            ORDER BY DATE(ft.created_at)
+          `;
+        } else {
+          govQuery = `
+            SELECT DATE(ft.created_at) as date,
+                   COUNT(DISTINCT ft.file_id) as tagged_files
+            FROM file_governance_tags ft
+            INNER JOIN files f ON ft.file_id = f.file_id
+            WHERE ft.created_at >= CURRENT_DATE - INTERVAL '15 days'
+            ${!isAdmin ? 'AND f.project_id IN (SELECT project_id FROM get_user_projects($1))' : ''}
+            ${projectId ? `AND f.project_id = ${isAdmin ? '$1' : '$2'}` : ''}
+            GROUP BY DATE(ft.created_at)
+            ORDER BY DATE(ft.created_at)
+          `;
+          queryParams = isAdmin ? (projectId ? [projectId] : []) : (projectId ? [userId, projectId] : [userId]);
+        }
+      } else if (granularity === 'weekly') {
+        govQuery = `
+          SELECT DATE_TRUNC('week', ft.created_at)::date as date,
+                 COUNT(DISTINCT ft.file_id) as tagged_files
+          FROM file_governance_tags ft
+          ${(!isAdmin || projectId) ? 'INNER JOIN files f ON ft.file_id = f.file_id' : ''}
+          WHERE ft.created_at >= CURRENT_DATE - INTERVAL '16 weeks'
+          ${!isAdmin ? 'AND f.project_id IN (SELECT project_id FROM get_user_projects($1))' : ''}
+          ${projectId ? `AND f.project_id = ${isAdmin ? '$1' : '$2'}` : ''}
+          GROUP BY DATE_TRUNC('week', ft.created_at)
+          ORDER BY DATE_TRUNC('week', ft.created_at)
+          LIMIT 16
+        `;
+        queryParams = isAdmin ? (projectId ? [projectId] : []) : (projectId ? [userId, projectId] : [userId]);
+      } else if (granularity === 'monthly') {
+        govQuery = `
+          SELECT DATE_TRUNC('month', ft.created_at)::date as date,
+                 COUNT(DISTINCT ft.file_id) as tagged_files
+          FROM file_governance_tags ft
+          ${(!isAdmin || projectId) ? 'INNER JOIN files f ON ft.file_id = f.file_id' : ''}
+          WHERE ft.created_at >= CURRENT_DATE - INTERVAL '16 months'
+          ${!isAdmin ? 'AND f.project_id IN (SELECT project_id FROM get_user_projects($1))' : ''}
+          ${projectId ? `AND f.project_id = ${isAdmin ? '$1' : '$2'}` : ''}
+          GROUP BY DATE_TRUNC('month', ft.created_at)
+          ORDER BY DATE_TRUNC('month', ft.created_at)
+          LIMIT 16
+        `;
+        queryParams = isAdmin ? (projectId ? [projectId] : []) : (projectId ? [userId, projectId] : [userId]);
+      }
+      
+      const govResult = await pool.query(govQuery, queryParams);
+      trends.governanceCoverage = govResult.rows.map(row => ({
+        date: typeof row.date === 'string' ? row.date : row.date.toISOString().split('T')[0],
+        value: parseInt(row.tagged_files || 0)
+      }));
+    }
+
+    // Vendor Compliance Trend
+    if (metricType === 'all' || metricType === 'vendorCompliance') {
+      let vendorQuery;
+      
+      if (granularity === 'daily') {
+        vendorQuery = `
+          SELECT DATE(created_at) as date,
+                 COUNT(*) FILTER (WHERE status = 'active') as compliant,
+                 COUNT(*) as total
+          FROM vendor_agreements
+          WHERE created_at >= CURRENT_DATE - INTERVAL '15 days'
+          GROUP BY DATE(created_at)
+          ORDER BY DATE(created_at)
+        `;
+      } else if (granularity === 'weekly') {
+        vendorQuery = `
+          SELECT DATE_TRUNC('week', created_at)::date as date,
+                 COUNT(*) FILTER (WHERE status = 'active') as compliant,
+                 COUNT(*) as total
+          FROM vendor_agreements
+          WHERE created_at >= CURRENT_DATE - INTERVAL '16 weeks'
+          GROUP BY DATE_TRUNC('week', created_at)
+          ORDER BY DATE_TRUNC('week', created_at)
+          LIMIT 16
+        `;
+      } else if (granularity === 'monthly') {
+        vendorQuery = `
+          SELECT DATE_TRUNC('month', created_at)::date as date,
+                 COUNT(*) FILTER (WHERE status = 'active') as compliant,
+                 COUNT(*) as total
+          FROM vendor_agreements
+          WHERE created_at >= CURRENT_DATE - INTERVAL '16 months'
+          GROUP BY DATE_TRUNC('month', created_at)
+          ORDER BY DATE_TRUNC('month', created_at)
+          LIMIT 16
+        `;
+      }
+      
+      const vendorResult = await pool.query(vendorQuery);
+      trends.vendorCompliance = vendorResult.rows.map(row => ({
+        date: typeof row.date === 'string' ? row.date : row.date.toISOString().split('T')[0],
+        value: row.total > 0 ? Math.round((parseInt(row.compliant || 0) / parseInt(row.total)) * 100) : 100,
+        compliant: parseInt(row.compliant || 0),
+        total: parseInt(row.total || 0)
+      }));
+    }
+
+    res.json({
+      success: true,
+      trends,
+      granularity,
+      metricType,
+      projectId
+    });
+
+  } catch (error) {
+    console.error('Error fetching metric trends:', error);
+    res.status(500).json({
+      error: 'Failed to fetch metric trends',
+      details: error.message
+    });
+  }
+});
+
 module.exports = router;

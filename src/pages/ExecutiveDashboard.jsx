@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Bar, Doughnut, Line } from 'react-chartjs-2';
 import axios from 'axios';
 import {
@@ -16,6 +16,7 @@ import {
 } from 'chart.js';
 import ChartDataLabels from 'chartjs-plugin-datalabels';
 import { API_BASE_URL } from '../config';
+import MetricTrendPopup from '../components/MetricTrendPopup';
 import './ExecutiveDashboard.css';
 
 ChartJS.register(
@@ -47,6 +48,12 @@ const ExecutiveDashboard = () => {
   const [schemaDriftTrend, setSchemaDriftTrend] = useState([]);
   const [qualityViolations, setQualityViolations] = useState([]);
   const [activeQualityTab, setActiveQualityTab] = useState('all');
+  const [metricTrends, setMetricTrends] = useState({});
+  const [activePopup, setActivePopup] = useState(null);
+  const [activeModal, setActiveModal] = useState(null);
+  const [popupAnchorEl, setPopupAnchorEl] = useState(null);
+  const clickTimeoutRef = useRef(null);
+  const kpiCardRefs = useRef({});
 
   const fetchProjects = async () => {
     try {
@@ -153,6 +160,22 @@ const ExecutiveDashboard = () => {
     }
   };
 
+  const fetchMetricTrends = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const projectParam = selectedProject ? `&project_id=${selectedProject}` : '';
+      const response = await axios.get(
+        `${API_BASE_URL}/api/dashboard/metric-trends?granularity=daily${projectParam}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (response.data.success) {
+        setMetricTrends(response.data.trends);
+      }
+    } catch (err) {
+      console.error('Error fetching metric trends:', err);
+    }
+  };
+
   useEffect(() => {
     fetchProjects();
     fetchProjectHealthScores();
@@ -164,10 +187,51 @@ const ExecutiveDashboard = () => {
     fetchJobTrend();
     fetchSchemaDriftTrend();
     fetchQualityViolations();
+    fetchMetricTrends();
   }, [timeRange, selectedProject]);
 
   const handleRefresh = () => {
     fetchExecutiveMetrics(false);
+  };
+
+  const handleKpiCardClick = (metricType, metricLabel, event) => {
+    if (clickTimeoutRef.current) {
+      clearTimeout(clickTimeoutRef.current);
+      clickTimeoutRef.current = null;
+      setActivePopup(null);
+      setActiveModal({ type: metricType, label: metricLabel });
+    } else {
+      clickTimeoutRef.current = setTimeout(() => {
+        setPopupAnchorEl(event.currentTarget);
+        setActivePopup({ type: metricType, label: metricLabel });
+        clickTimeoutRef.current = null;
+      }, 200);
+    }
+  };
+
+  const handlePopupClose = () => {
+    setActivePopup(null);
+    setPopupAnchorEl(null);
+  };
+
+  const handleModalClose = () => {
+    setActiveModal(null);
+  };
+
+  const getMetricTrendDirection = (metricType) => {
+    const trends = metricTrends[metricType];
+    if (!trends || trends.length < 2) return 'neutral';
+    const first = trends[0]?.value || 0;
+    const last = trends[trends.length - 1]?.value || 0;
+    if (last > first) return 'up';
+    if (last < first) return 'down';
+    return 'neutral';
+  };
+
+  const TrendIcon = ({ direction }) => {
+    if (direction === 'up') return <span className="trend-icon up">↑</span>;
+    if (direction === 'down') return <span className="trend-icon down">↓</span>;
+    return <span className="trend-icon neutral">→</span>;
   };
 
   if (loading) {
@@ -799,20 +863,32 @@ const ExecutiveDashboard = () => {
             {getHealthLabel(overallHealth)}
           </div>
           <div className="health-breakdown">
-            <div className="health-metric">
-              <span>Data Health</span>
+            <div 
+              className="health-metric interactive"
+              onClick={(e) => handleKpiCardClick('dataHealth', 'Data Health', e)}
+            >
+              <span>Data Health <TrendIcon direction={getMetricTrendDirection('dataHealth')} /></span>
               <span>{metrics?.dataHealthIndex?.value || 0}%</span>
             </div>
-            <div className="health-metric">
-              <span>Job Success</span>
+            <div 
+              className="health-metric interactive"
+              onClick={(e) => handleKpiCardClick('jobSuccess', 'Job Success', e)}
+            >
+              <span>Job Success <TrendIcon direction={getMetricTrendDirection('jobSuccess')} /></span>
               <span>{metrics?.jobSuccessRate?.rate || 0}%</span>
             </div>
-            <div className="health-metric">
-              <span>Vendor Compliance</span>
+            <div 
+              className="health-metric interactive"
+              onClick={(e) => handleKpiCardClick('vendorCompliance', 'Vendor Compliance', e)}
+            >
+              <span>Vendor Compliance <TrendIcon direction={getMetricTrendDirection('vendorCompliance')} /></span>
               <span>{metrics?.vendorCompliance?.rate || 0}%</span>
             </div>
-            <div className="health-metric">
-              <span>Governance</span>
+            <div 
+              className="health-metric interactive"
+              onClick={(e) => handleKpiCardClick('governanceCoverage', 'Governance', e)}
+            >
+              <span>Governance <TrendIcon direction={getMetricTrendDirection('governanceCoverage')} /></span>
               <span>{metrics?.governanceCoverage?.rate || 0}%</span>
             </div>
           </div>
@@ -820,8 +896,14 @@ const ExecutiveDashboard = () => {
       </div>
 
       <div className="kpi-cards">
-        <div className="kpi-card">
-          <div className="kpi-label">Total Files</div>
+        <div 
+          className="kpi-card interactive"
+          onClick={(e) => handleKpiCardClick('totalFiles', 'Total Files', e)}
+          ref={el => kpiCardRefs.current.totalFiles = el}
+        >
+          <div className="kpi-label">
+            Total Files <TrendIcon direction={getMetricTrendDirection('totalFiles')} />
+          </div>
           <div className="kpi-value">{(metrics.totalFiles || 0).toLocaleString()}</div>
           <div className={`kpi-trend ${getTrendClass(metrics.throughputTrend?.sparkline)}`}>
             {getTrendIcon(metrics.throughputTrend?.sparkline)} 
@@ -829,32 +911,56 @@ const ExecutiveDashboard = () => {
           </div>
         </div>
 
-        <div className="kpi-card">
-          <div className="kpi-label">Data Health Index</div>
+        <div 
+          className="kpi-card interactive"
+          onClick={(e) => handleKpiCardClick('dataHealth', 'Data Health Index', e)}
+          ref={el => kpiCardRefs.current.dataHealth = el}
+        >
+          <div className="kpi-label">
+            Data Health Index <TrendIcon direction={getMetricTrendDirection('dataHealth')} />
+          </div>
           <div className="kpi-value">{metrics.dataHealthIndex?.value?.toFixed(1) || 0}%</div>
           <div className={`kpi-trend ${getStatusClass(metrics.dataHealthIndex?.status)}`}>
             {metrics.dataHealthIndex?.delta > 0 ? '+' : ''}{metrics.dataHealthIndex?.delta?.toFixed(1) || 0}% vs prev
           </div>
         </div>
 
-        <div className="kpi-card">
-          <div className="kpi-label">Vendor Compliance</div>
+        <div 
+          className="kpi-card interactive"
+          onClick={(e) => handleKpiCardClick('vendorCompliance', 'Vendor Compliance', e)}
+          ref={el => kpiCardRefs.current.vendorCompliance = el}
+        >
+          <div className="kpi-label">
+            Vendor Compliance <TrendIcon direction={getMetricTrendDirection('vendorCompliance')} />
+          </div>
           <div className="kpi-value">{metrics.vendorCompliance?.rate || 0}%</div>
           <div className={`kpi-trend ${getStatusClass(metrics.vendorCompliance?.status)}`}>
             {metrics.vendorCompliance?.compliantVendors || 0}/{metrics.vendorCompliance?.totalVendors || 0} compliant
           </div>
         </div>
 
-        <div className="kpi-card">
-          <div className="kpi-label">Governance Coverage</div>
+        <div 
+          className="kpi-card interactive"
+          onClick={(e) => handleKpiCardClick('governanceCoverage', 'Governance Coverage', e)}
+          ref={el => kpiCardRefs.current.governanceCoverage = el}
+        >
+          <div className="kpi-label">
+            Governance Coverage <TrendIcon direction={getMetricTrendDirection('governanceCoverage')} />
+          </div>
           <div className="kpi-value">{metrics.governanceCoverage?.rate || 0}%</div>
           <div className={`kpi-trend ${getStatusClass(metrics.governanceCoverage?.status)}`}>
             {(metrics.governanceCoverage?.taggedFiles || 0).toLocaleString()} files tagged
           </div>
         </div>
 
-        <div className="kpi-card">
-          <div className="kpi-label">Critical Alerts</div>
+        <div 
+          className="kpi-card interactive"
+          onClick={(e) => handleKpiCardClick('criticalAlerts', 'Critical Alerts', e)}
+          ref={el => kpiCardRefs.current.criticalAlerts = el}
+        >
+          <div className="kpi-label">
+            Critical Alerts <TrendIcon direction={getMetricTrendDirection('criticalAlerts')} />
+          </div>
           <div className="kpi-value">{metrics.criticalAlerts?.count || 0}</div>
           <div className={`kpi-trend ${getStatusClass(metrics.criticalAlerts?.status)}`}>
             {metrics.highRiskPII?.count || 0} high-risk PII
@@ -1116,6 +1222,29 @@ const ExecutiveDashboard = () => {
           </div>
         </div>
       </div>
+
+      {activePopup && (
+        <MetricTrendPopup
+          metricType={activePopup.type}
+          metricLabel={activePopup.label}
+          isOpen={true}
+          onClose={handlePopupClose}
+          anchorEl={popupAnchorEl}
+          projectId={selectedProject}
+          isModal={false}
+        />
+      )}
+
+      {activeModal && (
+        <MetricTrendPopup
+          metricType={activeModal.type}
+          metricLabel={activeModal.label}
+          isOpen={true}
+          onClose={handleModalClose}
+          projectId={selectedProject}
+          isModal={true}
+        />
+      )}
     </div>
   );
 };
