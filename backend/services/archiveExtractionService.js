@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const yauzl = require('yauzl');
+const unzipper = require('unzipper');
 const tar = require('tar-stream');
 const gunzip = require('gunzip-maybe');
 const { spawn } = require('child_process');
@@ -271,9 +272,15 @@ class ArchiveExtractionService {
   }
 
   async extractZip(archiveFilePath, outputDir, password = null) {
+    const logger = this.logger;
+    
+    // Use unzipper for password-protected ZIPs, yauzl for regular ZIPs
+    if (password) {
+      return this.extractZipWithPassword(archiveFilePath, outputDir, password);
+    }
+    
     return new Promise((resolve, reject) => {
       const extractedFiles = [];
-      const logger = this.logger;
       const openOptions = {
         lazyEntries: true
       };
@@ -305,19 +312,13 @@ class ArchiveExtractionService {
           const sanitizedName = path.basename(entry.fileName);
           const outputPath = path.join(outputDir, sanitizedName);
 
-          // Check if entry is encrypted (bit 0 of generalPurposeBitFlag)
-          const isEntryEncrypted = (entry.generalPurposeBitFlag & 0x1) !== 0;
-          
-          // Only apply decrypt options for encrypted entries
-          const openReadStreamOptions = (password && isEntryEncrypted) 
-            ? { decrypt: true, password: Buffer.from(password, 'utf-8') } 
-            : {};
-
-          zipfile.openReadStream(entry, openReadStreamOptions, (err, readStream) => {
+          zipfile.openReadStream(entry, (err, readStream) => {
             if (err) {
-              if (err.message && err.message.toLowerCase().includes('password')) {
+              // Check if entry is encrypted and we don't have password
+              const isEntryEncrypted = (entry.generalPurposeBitFlag & 0x1) !== 0;
+              if (isEntryEncrypted) {
                 zipfile.close();
-                return reject(new Error('ARCHIVE_PASSWORD_REQUIRED: Incorrect password or encrypted entry'));
+                return reject(new Error('ARCHIVE_PASSWORD_REQUIRED: Archive contains encrypted entries but no password was provided'));
               }
               logger.error('Error opening ZIP entry stream', {
                 fileName: entry.fileName,
@@ -360,6 +361,94 @@ class ArchiveExtractionService {
       };
 
       yauzl.open(archiveFilePath, openOptions, handleOpen);
+    });
+  }
+  
+  async extractZipWithPassword(archiveFilePath, outputDir, password) {
+    const logger = this.logger;
+    const extractedFiles = [];
+    
+    logger.info('Extracting password-protected ZIP with unzipper', {
+      archivePath: archiveFilePath,
+      outputDir,
+      hasPassword: !!password
+    });
+    
+    return new Promise((resolve, reject) => {
+      const readStream = fs.createReadStream(archiveFilePath);
+      
+      readStream
+        .pipe(unzipper.Parse({ password }))
+        .on('entry', async (entry) => {
+          const fileName = entry.path;
+          const type = entry.type;
+          
+          if (type === 'Directory') {
+            entry.autodrain();
+            return;
+          }
+          
+          if (fileName.includes('..') || path.isAbsolute(fileName)) {
+            logger.warn('Skipping potentially malicious path', {
+              entryName: fileName
+            });
+            entry.autodrain();
+            return;
+          }
+          
+          const sanitizedName = path.basename(fileName);
+          const outputPath = path.join(outputDir, sanitizedName);
+          
+          try {
+            const writeStream = fs.createWriteStream(outputPath);
+            
+            entry.pipe(writeStream);
+            
+            writeStream.on('finish', () => {
+              extractedFiles.push({
+                relativePath: fileName,
+                fileName: sanitizedName,
+                fullPath: outputPath,
+                originalSize: entry.vars.uncompressedSize || 0
+              });
+            });
+            
+            writeStream.on('error', (error) => {
+              logger.error('Error writing ZIP entry', {
+                fileName,
+                error: error.message
+              });
+            });
+          } catch (error) {
+            logger.error('Error extracting ZIP entry', {
+              fileName,
+              error: error.message
+            });
+            entry.autodrain();
+          }
+        })
+        .on('close', () => {
+          logger.info('Password-protected ZIP extraction completed', {
+            extractedCount: extractedFiles.length
+          });
+          resolve(extractedFiles);
+        })
+        .on('error', (error) => {
+          const errorMsg = error.message || '';
+          if (errorMsg.toLowerCase().includes('bad password') || 
+              errorMsg.toLowerCase().includes('incorrect password') ||
+              errorMsg.toLowerCase().includes('wrong password')) {
+            reject(new Error('ARCHIVE_PASSWORD_REQUIRED: Incorrect password provided'));
+          } else if (errorMsg.toLowerCase().includes('encrypted')) {
+            reject(new Error('ARCHIVE_PASSWORD_REQUIRED: Archive is encrypted but decryption failed'));
+          } else {
+            reject(new Error(`ZIP extraction error: ${errorMsg}`));
+          }
+        });
+        
+      readStream.on('error', (error) => {
+        reject(new Error(`Failed to read archive file: ${error.message}`));
+      });
     });
   }
 
