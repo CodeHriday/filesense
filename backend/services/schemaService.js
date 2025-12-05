@@ -89,9 +89,13 @@ function extractSchemaFromColumns(fileColumns) {
  */
 function generateSchemaHash(schema) {
   // Create a canonical representation of the schema
+  // IMPORTANT: We normalize types before hashing to ensure equivalent types
+  // (e.g., 'object' and 'string') produce the same hash.
+  // We also use array index as fallback if col.index is undefined.
   const canonicalSchema = schema.columns
-    .sort((a, b) => a.index - b.index)
-    .map(col => `${col.name}:${col.type}`)
+    .map((col, arrayIndex) => ({ ...col, sortIndex: col.index ?? arrayIndex }))
+    .sort((a, b) => a.sortIndex - b.sortIndex)
+    .map(col => `${col.name}:${normalizeType(col.type)}`)
     .join('|');
   
   return crypto.createHash('sha256').update(canonicalSchema).digest('hex');
@@ -482,11 +486,17 @@ async function saveSchemaSnapshot(pool, fileId, filename, schema, filePattern = 
     
     if (previousSchemaResult.rows.length > 0) {
       const previousHash = previousSchemaResult.rows[0].schema_hash;
-      if (previousHash !== schemaHash) {
+      const previousSchema = previousSchemaResult.rows[0].schema_definition;
+      const previousColumnCount = previousSchema?.columns?.length || 0;
+      
+      // Only flag as schema change if:
+      // 1. Hashes differ, AND
+      // 2. Previous schema was not empty (empty = historical extraction failure)
+      if (previousHash !== schemaHash && previousColumnCount > 0) {
         hasSchemaChange = true;
         // Compare schemas to get detailed differences
         schemaDifferences = compareSchemas(
-          previousSchemaResult.rows[0].schema_definition,
+          previousSchema,
           schema
         );
       }
