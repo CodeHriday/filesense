@@ -476,7 +476,7 @@ function SchemaHistoryTab({ fileId }) {
                     } else if (isModified) {
                       diffClass = 'row-modified';
                       const modifiedCol = contractComparison.modifiedColumns.find(c => c.name === col.name);
-                      diffBadge = <span className={getDiffBadgeClass('modified')}>Type Mismatch: Expected {modifiedCol?.previousType}, Got {modifiedCol?.currentType}</span>;
+                      diffBadge = <span className={getDiffBadgeClass('modified')}>Type Mismatch: Expected {getDisplayType(modifiedCol?.previousType)}, Got {getDisplayType(modifiedCol?.currentType)}</span>;
                     }
                     
                     return (
@@ -534,7 +534,7 @@ function SchemaHistoryTab({ fileId }) {
                         {contractComparison.removedColumns.map((col, idx) => (
                           <li key={idx} className="change-item-removed">
                             <strong>{col.name}</strong>
-                            <span className="type-badge-small">{col.previousType}</span>
+                            <span className="type-badge-small">{getDisplayType(col.previousType)}</span>
                           </li>
                         ))}
                       </ul>
@@ -552,7 +552,7 @@ function SchemaHistoryTab({ fileId }) {
                         {contractComparison.addedColumns.map((col, idx) => (
                           <li key={idx} className="change-item-added">
                             <strong>{col.name}</strong>
-                            <span className="type-badge-small">{col.currentType}</span>
+                            <span className="type-badge-small">{getDisplayType(col.currentType)}</span>
                           </li>
                         ))}
                       </ul>
@@ -571,9 +571,9 @@ function SchemaHistoryTab({ fileId }) {
                           <li key={idx} className="change-item-modified">
                             <strong>{col.name}</strong>
                             <div className="type-change">
-                              <span className="type-badge-small">Expected: {col.previousType}</span>
+                              <span className="type-badge-small">Expected: {getDisplayType(col.previousType)}</span>
                               <FiArrowRight size={12} />
-                              <span className="type-badge-small">Got: {col.currentType}</span>
+                              <span className="type-badge-small">Got: {getDisplayType(col.currentType)}</span>
                             </div>
                           </li>
                         ))}
@@ -611,7 +611,7 @@ function SchemaHistoryTab({ fileId }) {
                         {activeComparison.addedColumns.map((col, idx) => (
                           <li key={idx} className="change-item-added">
                             <strong>{col.name}</strong>
-                            <span className="type-badge-small">{col.currentType}</span>
+                            <span className="type-badge-small">{getDisplayType(col.currentType)}</span>
                           </li>
                         ))}
                       </ul>
@@ -629,7 +629,7 @@ function SchemaHistoryTab({ fileId }) {
                         {activeComparison.removedColumns.map((col, idx) => (
                           <li key={idx} className="change-item-removed">
                             <strong>{col.name}</strong>
-                            <span className="type-badge-small">{col.previousType}</span>
+                            <span className="type-badge-small">{getDisplayType(col.previousType)}</span>
                           </li>
                         ))}
                       </ul>
@@ -648,9 +648,9 @@ function SchemaHistoryTab({ fileId }) {
                           <li key={idx} className="change-item-modified">
                             <strong>{col.name}</strong>
                             <div className="type-change">
-                              <span className="type-badge-small">{col.previousType}</span>
+                              <span className="type-badge-small">{getDisplayType(col.previousType)}</span>
                               <FiArrowRight size={12} />
-                              <span className="type-badge-small">{col.currentType}</span>
+                              <span className="type-badge-small">{getDisplayType(col.currentType)}</span>
                             </div>
                           </li>
                         ))}
@@ -729,7 +729,7 @@ function SchemaHistoryTab({ fileId }) {
                     } else if (isModified) {
                       diffClass = 'row-modified';
                       const modifiedCol = activeComparison.modifiedColumns.find(c => c.name === col.name);
-                      diffBadge = <span className={getDiffBadgeClass('modified')}>Type: {modifiedCol?.previousType} → {modifiedCol?.currentType}</span>;
+                      diffBadge = <span className={getDiffBadgeClass('modified')}>Type: {getDisplayType(modifiedCol?.previousType)} → {getDisplayType(modifiedCol?.currentType)}</span>;
                     }
                     
                     return (
