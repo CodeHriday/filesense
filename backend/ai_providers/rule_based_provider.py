@@ -232,17 +232,30 @@ class RuleBasedProvider(AIProvider):
         if col_type in ['NUMERIC', 'INTEGER', 'FLOAT', 'DECIMAL']:
             if any(p in name_lower for p in ['amount', 'price', 'cost', 'total', 'qty', 'quantity']):
                 suggestions.append({
-                    "rule_name": f"{col_name.replace('_', ' ').title()} Range Validation",
-                    "rule_type": "validity",
+                    "rule_name": f"{col_name.replace('_', ' ').title()} Range Check",
+                    "rule_type": "range_check",
                     "column_name": col_name,
-                    "description": f"Validates that {col_name} is within expected range",
+                    "description": f"Validates that {col_name} is within expected numeric range",
                     "reason": "Numeric column that likely should have bounds",
                     "rule_config": {
-                        "type": "range",
                         "min": 0
                     },
                     "severity": "info"
                 })
+        
+        if 'ssn' in name_lower or 'social_security' in name_lower:
+            suggestions.append({
+                "rule_name": f"{col_name.replace('_', ' ').title()} Format Validation",
+                "rule_type": "validity_check",
+                "column_name": col_name,
+                "description": f"Validates that {col_name} matches expected format",
+                "reason": "Column appears to contain SSN which should follow ###-##-#### format",
+                "rule_config": {
+                    "pattern": r"^\d{3}-\d{2}-\d{4}$",
+                    "custom_message": "SSN must be in format ###-##-####"
+                },
+                "severity": "warning"
+            })
         
         return suggestions
     
@@ -330,16 +343,15 @@ class RuleBasedProvider(AIProvider):
         
         for field_pattern, (expected_min, expected_max) in length_sensitive_fields.items():
             if field_pattern in name_lower:
-                length_pattern = f"^.{{{expected_min},{expected_max}}}$"
                 suggestions.append({
-                    "rule_name": f"{col_name.replace('_', ' ').title()} Length Validation",
-                    "rule_type": "validity",
+                    "rule_name": f"{col_name.replace('_', ' ').title()} Length Check",
+                    "rule_type": "length_check",
                     "column_name": col_name,
                     "description": f"Validates that {col_name} has expected length ({expected_min}-{expected_max} characters)",
                     "reason": f"Column appears to be a {field_pattern.replace('_', ' ')} field with standard length requirements",
                     "rule_config": {
-                        "type": "pattern",
-                        "pattern": length_pattern
+                        "min_length": expected_min,
+                        "max_length": expected_max
                     },
                     "severity": "warning"
                 })
@@ -349,13 +361,12 @@ class RuleBasedProvider(AIProvider):
             if max_length > 100:
                 suggestions.append({
                     "rule_name": f"{col_name.replace('_', ' ').title()} Maximum Length Check",
-                    "rule_type": "validity",
+                    "rule_type": "length_check",
                     "column_name": col_name,
                     "description": f"Ensures {col_name} does not exceed maximum length",
                     "reason": f"Column has values up to {max_length} characters - may need length limit",
                     "rule_config": {
-                        "type": "pattern",
-                        "pattern": f"^.{{0,{max_length}}}$"
+                        "max_length": max_length
                     },
                     "severity": "info"
                 })

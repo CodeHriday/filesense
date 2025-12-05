@@ -151,6 +151,13 @@ class QualityValidationEngine {
         return this.validateUniqueness(rule, data, metadata);
       case 'freshness':
         return this.validateFreshness(rule, data, metadata);
+      // Generic rule types for contract/profiling modules
+      case 'validity_check':
+        return this.validateValidityCheck(rule, data, metadata);
+      case 'length_check':
+        return this.validateLengthCheck(rule, data, metadata);
+      case 'range_check':
+        return this.validateRangeCheck(rule, data, metadata);
       default:
         throw new Error(`Unsupported rule type: ${ruleType}`);
     }
@@ -821,6 +828,272 @@ class QualityValidationEngine {
     } finally {
       client.release();
     }
+  }
+
+  /**
+   * Generic validity check - validates values against patterns, datatypes, or custom rules
+   * rule_config: { 
+   *   pattern: 'regex pattern',
+   *   datatype: 'string|number|email|phone|date|boolean',
+   *   custom_message: 'Custom error message'
+   * }
+   */
+  async validateValidityCheck(rule, data, metadata) {
+    const violations = [];
+    const config = rule.rule_config || {};
+    
+    if (!rule.column_name) {
+      systemLogger.warn('validity_check rule requires column_name', { rule_id: rule.id });
+      return violations;
+    }
+    
+    data.forEach((row, rowIndex) => {
+      const value = row[rule.column_name];
+      
+      if (value === null || value === undefined || value === '') {
+        return;
+      }
+      
+      let isValid = true;
+      let violationMessage = config.custom_message || 'Value failed validity check';
+      
+      if (config.pattern) {
+        try {
+          const regex = new RegExp(config.pattern);
+          isValid = regex.test(String(value));
+          violationMessage = config.custom_message || `Value does not match pattern: ${config.pattern}`;
+        } catch (e) {
+          systemLogger.warn('Invalid regex pattern in validity_check', { pattern: config.pattern, error: e.message });
+          isValid = true;
+        }
+      } else if (config.datatype) {
+        const check = this.validateDatatype(value, config.datatype);
+        isValid = check.valid;
+        violationMessage = config.custom_message || check.message;
+      }
+      
+      if (!isValid) {
+        const primaryKeyColumn = metadata.primaryKeyColumn;
+        const primaryKeyValue = primaryKeyColumn ? String(row[primaryKeyColumn] || '') : '';
+        
+        violations.push({
+          rule_id: rule.id,
+          file_id: metadata.file_id || null,
+          job_id: metadata.job_id || null,
+          row_number: rowIndex + 1,
+          column_name: rule.column_name,
+          expected_value: 'Valid value',
+          actual_value: String(value),
+          primary_key_column: primaryKeyColumn,
+          primary_key_value: primaryKeyValue,
+          violation_details: {
+            rule_type: 'validity_check',
+            pattern: config.pattern,
+            datatype: config.datatype,
+            reason: violationMessage
+          },
+          severity: rule.severity || 'warning',
+          record_snapshot: row
+        });
+      }
+    });
+    
+    return violations;
+  }
+
+  /**
+   * Length check - validates string length within min/max bounds
+   * rule_config: { 
+   *   min_length: number,
+   *   max_length: number,
+   *   exact_length: number (optional, overrides min/max if set)
+   * }
+   */
+  async validateLengthCheck(rule, data, metadata) {
+    const violations = [];
+    const config = rule.rule_config || {};
+    
+    if (!rule.column_name) {
+      systemLogger.warn('length_check rule requires column_name', { rule_id: rule.id });
+      return violations;
+    }
+    
+    const minLength = config.min_length !== undefined ? config.min_length : null;
+    const maxLength = config.max_length !== undefined ? config.max_length : null;
+    const exactLength = config.exact_length !== undefined ? config.exact_length : null;
+    
+    data.forEach((row, rowIndex) => {
+      const value = row[rule.column_name];
+      
+      if (value === null || value === undefined) {
+        return;
+      }
+      
+      const strValue = String(value);
+      const length = strValue.length;
+      let isValid = true;
+      let violationMessage = '';
+      
+      if (exactLength !== null) {
+        if (length !== exactLength) {
+          isValid = false;
+          violationMessage = `Length must be exactly ${exactLength} characters (actual: ${length})`;
+        }
+      } else {
+        if (minLength !== null && length < minLength) {
+          isValid = false;
+          violationMessage = `Length must be at least ${minLength} characters (actual: ${length})`;
+        }
+        if (maxLength !== null && length > maxLength) {
+          isValid = false;
+          violationMessage = `Length must be at most ${maxLength} characters (actual: ${length})`;
+        }
+        if (!isValid && minLength !== null && maxLength !== null) {
+          violationMessage = `Length must be between ${minLength} and ${maxLength} characters (actual: ${length})`;
+        }
+      }
+      
+      if (!isValid) {
+        const primaryKeyColumn = metadata.primaryKeyColumn;
+        const primaryKeyValue = primaryKeyColumn ? String(row[primaryKeyColumn] || '') : '';
+        
+        violations.push({
+          rule_id: rule.id,
+          file_id: metadata.file_id || null,
+          job_id: metadata.job_id || null,
+          row_number: rowIndex + 1,
+          column_name: rule.column_name,
+          expected_value: exactLength !== null 
+            ? `Exactly ${exactLength} characters` 
+            : `${minLength || 0} - ${maxLength || 'unlimited'} characters`,
+          actual_value: `"${strValue}" (${length} characters)`,
+          primary_key_column: primaryKeyColumn,
+          primary_key_value: primaryKeyValue,
+          violation_details: {
+            rule_type: 'length_check',
+            min_length: minLength,
+            max_length: maxLength,
+            exact_length: exactLength,
+            actual_length: length,
+            reason: violationMessage
+          },
+          severity: rule.severity || 'warning',
+          record_snapshot: row
+        });
+      }
+    });
+    
+    return violations;
+  }
+
+  /**
+   * Range check - validates numeric values within min/max bounds
+   * rule_config: { 
+   *   min: number,
+   *   max: number,
+   *   exclusive_min: boolean (optional, default false),
+   *   exclusive_max: boolean (optional, default false)
+   * }
+   */
+  async validateRangeCheck(rule, data, metadata) {
+    const violations = [];
+    const config = rule.rule_config || {};
+    
+    if (!rule.column_name) {
+      systemLogger.warn('range_check rule requires column_name', { rule_id: rule.id });
+      return violations;
+    }
+    
+    const min = config.min !== undefined ? Number(config.min) : null;
+    const max = config.max !== undefined ? Number(config.max) : null;
+    const exclusiveMin = config.exclusive_min || false;
+    const exclusiveMax = config.exclusive_max || false;
+    
+    data.forEach((row, rowIndex) => {
+      const value = row[rule.column_name];
+      
+      if (value === null || value === undefined || value === '') {
+        return;
+      }
+      
+      const numValue = Number(value);
+      
+      if (isNaN(numValue)) {
+        const primaryKeyColumn = metadata.primaryKeyColumn;
+        const primaryKeyValue = primaryKeyColumn ? String(row[primaryKeyColumn] || '') : '';
+        
+        violations.push({
+          rule_id: rule.id,
+          file_id: metadata.file_id || null,
+          job_id: metadata.job_id || null,
+          row_number: rowIndex + 1,
+          column_name: rule.column_name,
+          expected_value: 'Numeric value',
+          actual_value: String(value),
+          primary_key_column: primaryKeyColumn,
+          primary_key_value: primaryKeyValue,
+          violation_details: {
+            rule_type: 'range_check',
+            reason: 'Value is not a valid number'
+          },
+          severity: rule.severity || 'warning',
+          record_snapshot: row
+        });
+        return;
+      }
+      
+      let isValid = true;
+      let violationMessage = '';
+      
+      if (min !== null) {
+        if (exclusiveMin ? numValue <= min : numValue < min) {
+          isValid = false;
+          violationMessage = `Value ${numValue} is ${exclusiveMin ? 'not greater than' : 'less than'} minimum ${min}`;
+        }
+      }
+      
+      if (max !== null) {
+        if (exclusiveMax ? numValue >= max : numValue > max) {
+          isValid = false;
+          violationMessage = `Value ${numValue} is ${exclusiveMax ? 'not less than' : 'greater than'} maximum ${max}`;
+        }
+      }
+      
+      if (!isValid && min !== null && max !== null) {
+        const minOp = exclusiveMin ? '>' : '>=';
+        const maxOp = exclusiveMax ? '<' : '<=';
+        violationMessage = `Value ${numValue} is not in range ${min} ${minOp} x ${maxOp} ${max}`;
+      }
+      
+      if (!isValid) {
+        const primaryKeyColumn = metadata.primaryKeyColumn;
+        const primaryKeyValue = primaryKeyColumn ? String(row[primaryKeyColumn] || '') : '';
+        
+        violations.push({
+          rule_id: rule.id,
+          file_id: metadata.file_id || null,
+          job_id: metadata.job_id || null,
+          row_number: rowIndex + 1,
+          column_name: rule.column_name,
+          expected_value: `${min !== null ? min : '-inf'} to ${max !== null ? max : '+inf'}`,
+          actual_value: String(numValue),
+          primary_key_column: primaryKeyColumn,
+          primary_key_value: primaryKeyValue,
+          violation_details: {
+            rule_type: 'range_check',
+            min: min,
+            max: max,
+            exclusive_min: exclusiveMin,
+            exclusive_max: exclusiveMax,
+            reason: violationMessage
+          },
+          severity: rule.severity || 'warning',
+          record_snapshot: row
+        });
+      }
+    });
+    
+    return violations;
   }
 }
 

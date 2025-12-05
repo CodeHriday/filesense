@@ -113,7 +113,13 @@ function SchemaFieldEditor({ value, onChange, fileType, hasHeader, onHasHeaderCh
     'phone_validity': 'Phone',
     'column_completeness': 'Completeness',
     'date_format': 'Date',
-    'timestamp_format': 'Timestamp'
+    'timestamp_format': 'Timestamp',
+    'validity_check': 'Validity',
+    'length_check': 'Length',
+    'range_check': 'Range',
+    'uniqueness': 'Unique',
+    'isna_check': 'NA Check',
+    'special_character_presence': 'Special Chars'
   };
 
   const getRuleDisplayLabel = (rule) => {

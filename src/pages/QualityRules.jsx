@@ -355,7 +355,10 @@ function QualityRules() {
       validity: 'Validate that data values match expected formats and ranges',
       consistency: 'Check that related data fields are logically consistent',
       uniqueness: 'Verify that values are unique (no duplicates)',
-      freshness: 'Monitor data age and detect stale information'
+      freshness: 'Monitor data age and detect stale information',
+      validity_check: 'General validity validation with pattern or datatype checks',
+      length_check: 'Validate string length within min/max bounds',
+      range_check: 'Validate numeric values within min/max bounds'
     };
     return descriptions[type] || '';
   };
@@ -608,6 +611,177 @@ function QualityRules() {
             </div>
           </div>
         );
+      
+      case 'validity_check':
+        return (
+          <div className="gps-section" style={{ marginTop: '16px', padding: '16px', backgroundColor: '#f9fafb', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+            <div className="gps-form-group">
+              <label className="gps-form-label">Pattern (Regex) - Optional</label>
+              <span className="gps-form-hint" style={{ marginTop: 0, marginBottom: '8px' }}>Regular expression pattern to validate values</span>
+              <input
+                type="text"
+                className="gps-form-input"
+                value={config.pattern || ''}
+                onChange={(e) => updateRuleConfig('pattern', e.target.value)}
+                placeholder="^[A-Z]{2}[0-9]{4}$"
+              />
+            </div>
+            
+            <div className="gps-form-group">
+              <label className="gps-form-label">Data Type - Optional</label>
+              <select
+                className="gps-form-select"
+                value={config.datatype || ''}
+                onChange={(e) => updateRuleConfig('datatype', e.target.value)}
+              >
+                <option value="">No type check</option>
+                <option value="string">Text</option>
+                <option value="number">Number</option>
+                <option value="email">Email</option>
+                <option value="phone">Phone</option>
+                <option value="date">Date</option>
+              </select>
+            </div>
+            
+            <div className="gps-form-group">
+              <label className="gps-form-label">Custom Error Message - Optional</label>
+              <input
+                type="text"
+                className="gps-form-input"
+                value={config.custom_message || ''}
+                onChange={(e) => updateRuleConfig('custom_message', e.target.value)}
+                placeholder="Value must be a valid product code"
+              />
+            </div>
+            
+            <div className="gps-form-group" style={{ marginBottom: 0 }}>
+              <label className="gps-form-label">Column Name</label>
+              <input
+                type="text"
+                className="gps-form-input"
+                value={formData.column_name}
+                onChange={(e) => setFormData({ ...formData, column_name: e.target.value })}
+                placeholder="e.g., product_code, status"
+              />
+            </div>
+          </div>
+        );
+      
+      case 'length_check':
+        return (
+          <div className="gps-section" style={{ marginTop: '16px', padding: '16px', backgroundColor: '#f9fafb', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+            <div className="gps-form-row">
+              <div className="gps-form-group">
+                <label className="gps-form-label">Minimum Length</label>
+                <input
+                  type="number"
+                  className="gps-form-input"
+                  min="0"
+                  value={config.min_length || ''}
+                  onChange={(e) => updateRuleConfig('min_length', e.target.value ? parseInt(e.target.value) : undefined)}
+                  placeholder="0"
+                />
+              </div>
+              <div className="gps-form-group">
+                <label className="gps-form-label">Maximum Length</label>
+                <input
+                  type="number"
+                  className="gps-form-input"
+                  min="0"
+                  value={config.max_length || ''}
+                  onChange={(e) => updateRuleConfig('max_length', e.target.value ? parseInt(e.target.value) : undefined)}
+                  placeholder="255"
+                />
+              </div>
+            </div>
+            
+            <div className="gps-form-group">
+              <label className="gps-form-label">Exact Length (Optional)</label>
+              <span className="gps-form-hint" style={{ marginTop: 0, marginBottom: '8px' }}>If set, overrides min/max and requires exact character count</span>
+              <input
+                type="number"
+                className="gps-form-input"
+                min="0"
+                value={config.exact_length || ''}
+                onChange={(e) => updateRuleConfig('exact_length', e.target.value ? parseInt(e.target.value) : undefined)}
+                placeholder="Leave empty to use min/max"
+              />
+            </div>
+            
+            <div className="gps-form-group" style={{ marginBottom: 0 }}>
+              <label className="gps-form-label">Column Name</label>
+              <input
+                type="text"
+                className="gps-form-input"
+                value={formData.column_name}
+                onChange={(e) => setFormData({ ...formData, column_name: e.target.value })}
+                placeholder="e.g., zip_code, phone_number"
+              />
+            </div>
+          </div>
+        );
+      
+      case 'range_check':
+        return (
+          <div className="gps-section" style={{ marginTop: '16px', padding: '16px', backgroundColor: '#f9fafb', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+            <div className="gps-form-row">
+              <div className="gps-form-group">
+                <label className="gps-form-label">Minimum Value</label>
+                <input
+                  type="number"
+                  className="gps-form-input"
+                  value={config.min !== undefined ? config.min : ''}
+                  onChange={(e) => updateRuleConfig('min', e.target.value !== '' ? parseFloat(e.target.value) : undefined)}
+                  placeholder="No minimum"
+                />
+              </div>
+              <div className="gps-form-group">
+                <label className="gps-form-label">Maximum Value</label>
+                <input
+                  type="number"
+                  className="gps-form-input"
+                  value={config.max !== undefined ? config.max : ''}
+                  onChange={(e) => updateRuleConfig('max', e.target.value !== '' ? parseFloat(e.target.value) : undefined)}
+                  placeholder="No maximum"
+                />
+              </div>
+            </div>
+            
+            <div className="gps-form-row">
+              <div className="gps-form-group">
+                <label className="gps-form-label" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <input
+                    type="checkbox"
+                    checked={config.exclusive_min || false}
+                    onChange={(e) => updateRuleConfig('exclusive_min', e.target.checked)}
+                  />
+                  Exclusive Minimum (value must be greater than min)
+                </label>
+              </div>
+              <div className="gps-form-group">
+                <label className="gps-form-label" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <input
+                    type="checkbox"
+                    checked={config.exclusive_max || false}
+                    onChange={(e) => updateRuleConfig('exclusive_max', e.target.checked)}
+                  />
+                  Exclusive Maximum (value must be less than max)
+                </label>
+              </div>
+            </div>
+            
+            <div className="gps-form-group" style={{ marginBottom: 0 }}>
+              <label className="gps-form-label">Column Name</label>
+              <input
+                type="text"
+                className="gps-form-input"
+                value={formData.column_name}
+                onChange={(e) => setFormData({ ...formData, column_name: e.target.value })}
+                placeholder="e.g., price, quantity, age"
+              />
+            </div>
+          </div>
+        );
         
       default:
         return null;
@@ -702,6 +876,9 @@ function QualityRules() {
           <option value="consistency">Consistency</option>
           <option value="uniqueness">Uniqueness</option>
           <option value="freshness">Freshness</option>
+          <option value="validity_check">Validity Check</option>
+          <option value="length_check">Length Check</option>
+          <option value="range_check">Range Check</option>
         </select>
         
         <select
@@ -924,6 +1101,9 @@ function QualityRules() {
                       <option value="consistency">Consistency</option>
                       <option value="uniqueness">Uniqueness</option>
                       <option value="freshness">Freshness</option>
+                      <option value="validity_check">Validity Check (Generic)</option>
+                      <option value="length_check">Length Check (Generic)</option>
+                      <option value="range_check">Range Check (Generic)</option>
                     </select>
                     <span className="gps-form-hint">{getRuleTypeDescription(formData.rule_type)}</span>
                   </div>
