@@ -133,3 +133,8 @@ externalPort = 3001
 
 [agent]
 integrations = ["python_openai_ai_integrations:1.0.0"]
+
+[userenv]
+
+[userenv.shared]
+ALLOWED_ORIGINS = "https://filesense-qa.blumetra.com"
