@@ -100,15 +100,19 @@ class PasswordVaultService {
       );
       
       // Audit password storage
-      if (this.auditService) {
-        await this.auditService.log({
-          userId,
-          action: 'password_vault_store',
-          resourceType: 'encrypted_password',
-          resourceId: result.rows[0].id.toString(),
-          status: 'success',
-          metadata: { entityType, entityId }
-        });
+      if (this.auditService && this.auditService.logAction) {
+        try {
+          await this.auditService.logAction({
+            userId,
+            actionType: 'password_vault_store',
+            entityType: 'encrypted_password',
+            entityId: result.rows[0].id.toString(),
+            status: 'success',
+            metadata: { entityType, entityId }
+          });
+        } catch (auditError) {
+          this.logger.warn('Audit logging failed for password store', { error: auditError.message });
+        }
       }
       
       this.logger.info('Password stored successfully', {
@@ -155,15 +159,19 @@ class PasswordVaultService {
       const password = this.decrypt(record.secret_ciphertext, record.iv);
       
       // Audit password retrieval
-      if (this.auditService && userId) {
-        await this.auditService.log({
-          userId,
-          action: 'password_vault_retrieve',
-          resourceType: 'encrypted_password',
-          resourceId: record.id.toString(),
-          status: 'success',
-          metadata: { entityType, entityId }
-        });
+      if (this.auditService && this.auditService.logAction && userId) {
+        try {
+          await this.auditService.logAction({
+            userId,
+            actionType: 'password_vault_retrieve',
+            entityType: 'encrypted_password',
+            entityId: record.id.toString(),
+            status: 'success',
+            metadata: { entityType, entityId }
+          });
+        } catch (auditError) {
+          this.logger.warn('Audit logging failed for password retrieve', { error: auditError.message });
+        }
       }
       
       this.logger.info('Password retrieved successfully', {
@@ -201,15 +209,19 @@ class PasswordVaultService {
       const deleted = result.rows.length > 0;
       
       // Audit password deletion
-      if (deleted && this.auditService) {
-        await this.auditService.log({
-          userId,
-          action: 'password_vault_delete',
-          resourceType: 'encrypted_password',
-          resourceId: result.rows[0].id.toString(),
-          status: 'success',
-          metadata: { entityType, entityId }
-        });
+      if (deleted && this.auditService && this.auditService.logAction) {
+        try {
+          await this.auditService.logAction({
+            userId,
+            actionType: 'password_vault_delete',
+            entityType: 'encrypted_password',
+            entityId: result.rows[0].id.toString(),
+            status: 'success',
+            metadata: { entityType, entityId }
+          });
+        } catch (auditError) {
+          this.logger.warn('Audit logging failed for password delete', { error: auditError.message });
+        }
       }
       
       this.logger.info(deleted ? 'Password deleted' : 'Password not found for deletion', {

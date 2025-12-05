@@ -74,26 +74,14 @@ function VendorFileUpload() {
     }
     
     try {
-      // Append timestamp to filename (format: basename_YYYYMMDDTHHMMSS.ext)
-      const timestamp = new Date().toISOString().replace(/[-:]/g, '').split('.')[0];
-      
-      const lastDotIndex = file.name.lastIndexOf('.');
-      const hasExtension = lastDotIndex > 0;
-      const baseName = hasExtension ? file.name.substring(0, lastDotIndex) : file.name;
-      const fileExtension = hasExtension ? file.name.substring(lastDotIndex) : '';
-      
-      const timestampedFilename = `${baseName}_${timestamp}${fileExtension}`;
-      
-      // Create a new File object with the timestamped name
-      const timestampedFile = new File([file], timestampedFilename, { type: file.type });
-      
-      setDiagnosticInfo(`Starting upload for ${timestampedFilename} to agreement ${agreement.agreement_code}...\n`);
+      // Upload file with original filename (no renaming)
+      setDiagnosticInfo(`Starting upload for ${file.name} to agreement ${agreement.agreement_code}...\n`);
       setUploadStatus('uploading');
       setUploadStage('uploading');
       setUploadProgress(0);
       
       const formData = new FormData();
-      formData.append('file', timestampedFile);
+      formData.append('file', file);
       
       const token = localStorage.getItem('token');
       
@@ -131,7 +119,7 @@ function VendorFileUpload() {
       
       const fileDetails = {
         fileId: response.data.fileId,
-        fileName: timestampedFilename,
+        fileName: file.name,
         fileType: file.type,
         fileSize: file.size,
         s3Location: response.data.file?.storage_location || response.data.file?.s3_location,
