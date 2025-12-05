@@ -115,7 +115,6 @@ const StepProgress = ({ currentStep, uploadProgress = null }) => {
 
       {currentStep === 'complete' && (
         <div className="step-complete-message">
-          <span className="complete-icon">🎉</span>
           <span>Processing complete!</span>
         </div>
       )}
