@@ -2140,91 +2140,105 @@ function FileUpload() {
         {/* Filename Validation Error Display */}
         {filenameValidationError && activeTab === 'upload-profile' && (
           <div style={{
-            margin: '1rem 0',
-            padding: '1.5rem',
-            background: '#fff5f5',
-            border: '2px solid #e53e3e',
-            borderRadius: '8px'
+            margin: '12px 0',
+            padding: '16px',
+            background: '#fef2f2',
+            border: '1px solid #fecaca',
+            borderRadius: '6px',
+            fontFamily: 'Inter, sans-serif'
           }}>
-            <h3 style={{ 
-              color: '#c53030', 
-              marginTop: 0, 
-              marginBottom: '1rem',
-              fontSize: '1.1rem',
-              fontWeight: 'bold'
+            <div style={{ 
+              fontSize: '12px', 
+              fontWeight: 600, 
+              color: '#991b1b', 
+              marginBottom: '8px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px'
             }}>
+              <span style={{ fontSize: '14px' }}>✕</span>
               File Pattern Validation Failed
-            </h3>
+            </div>
             
             <div style={{ 
-              background: 'white', 
-              padding: '1rem', 
+              background: '#fff',
+              padding: '10px 12px',
               borderRadius: '4px',
-              marginBottom: '1rem',
-              border: '1px solid #feb2b2'
+              marginBottom: '10px',
+              fontSize: '10px',
+              color: '#374151',
+              textAlign: 'left',
+              border: '1px solid #e5e7eb'
             }}>
               {filenameValidationError.contractCode && (
-                <div style={{ marginBottom: '0.75rem' }}>
-                  <strong style={{ color: '#2d3748', display: 'block', marginBottom: '0.25rem' }}>
-                    Contract:
-                  </strong>
-                  <span style={{ color: '#4a5568', fontSize: '0.95em' }}>
+                <div style={{ marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span style={{ fontWeight: 600, color: '#1f2937' }}>Contract:</span>
+                  <code style={{ 
+                    background: '#dbeafe', 
+                    padding: '2px 6px', 
+                    borderRadius: '3px',
+                    color: '#1e40af',
+                    fontSize: '10px',
+                    fontFamily: 'Inter, monospace'
+                  }}>
                     {filenameValidationError.contractCode}
-                  </span>
+                  </code>
                 </div>
               )}
 
-              <div style={{ marginBottom: '0.75rem' }}>
-                <strong style={{ color: '#c53030', display: 'block', marginBottom: '0.25rem' }}>
-                  Uploaded File:
-                </strong>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ fontWeight: 600, color: '#1f2937' }}>Uploaded File:</span>
                 <code style={{ 
-                  background: '#fed7d7', 
-                  padding: '4px 8px', 
+                  background: '#fee2e2', 
+                  padding: '2px 6px', 
                   borderRadius: '3px',
-                  fontSize: '0.95em',
-                  color: '#742a2a',
-                  display: 'inline-block'
+                  color: '#991b1b',
+                  fontSize: '10px',
+                  fontFamily: 'Inter, monospace'
                 }}>
                   {filenameValidationError.uploadedFile}
                 </code>
               </div>
+            </div>
 
-              <div>
-                <strong style={{ color: '#2d3748', display: 'block', marginBottom: '0.5rem' }}>
-                  Expected File Patterns ({filenameValidationError.patternCount || filenameValidationError.expectedPatterns?.length || 0}):
-                </strong>
-                <ul style={{ 
-                  margin: '0 0 0 1.5rem', 
-                  padding: 0,
-                  color: '#4a5568'
-                }}>
-                  {filenameValidationError.expectedPatterns?.map((pattern, idx) => (
-                    <li key={idx} style={{ marginBottom: '0.25rem' }}>
-                      <code style={{ 
-                        background: '#c6f6d5', 
-                        padding: '2px 6px', 
-                        borderRadius: '3px',
-                        fontSize: '0.9em',
-                        color: '#22543d'
-                      }}>
-                        {pattern}
-                      </code>
-                    </li>
-                  ))}
-                </ul>
+            <div style={{ 
+              background: '#fff',
+              padding: '10px 12px',
+              borderRadius: '4px',
+              marginBottom: '10px',
+              textAlign: 'left',
+              border: '1px solid #e5e7eb'
+            }}>
+              <div style={{ fontWeight: 600, marginBottom: '6px', color: '#1f2937', fontSize: '10px' }}>
+                Expected Filename Patterns ({filenameValidationError.patternCount || filenameValidationError.expectedPatterns?.length || 0}):
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                {filenameValidationError.expectedPatterns?.map((pattern, idx) => (
+                  <code key={idx} style={{ 
+                    background: '#d1fae5', 
+                    padding: '2px 8px', 
+                    borderRadius: '3px',
+                    fontSize: '10px',
+                    color: '#065f46',
+                    fontFamily: 'Inter, monospace'
+                  }}>
+                    {pattern}
+                  </code>
+                ))}
               </div>
             </div>
 
             <div style={{ 
-              padding: '0.75rem',
-              background: '#fffaf0',
-              border: '1px solid #f6ad55',
+              padding: '8px 12px',
+              background: '#fffbeb',
+              border: '1px solid #fde68a',
               borderRadius: '4px',
-              fontSize: '0.9rem',
-              color: '#744210'
+              fontSize: '10px',
+              color: '#92400e',
+              textAlign: 'left',
+              lineHeight: '1.4'
             }}>
-              <strong>💡 Tip: </strong>
+              <span style={{ fontWeight: 600 }}>Tip: </span>
               File patterns may include wildcards: * (matches any characters) and ? (matches single character). 
               Your filename must match at least one of the patterns listed above for this contract.
             </div>
@@ -2234,46 +2248,61 @@ function FileUpload() {
         {/* Show detailed validation error (filename pattern or schema) */}
         {validationError && !isProcessing && activeTab === 'upload-profile' && (
           <div style={{
-            margin: '1rem 0',
-            padding: '1.5rem',
+            margin: '12px 0',
+            padding: '16px',
             background: '#fef2f2',
-            border: '2px solid #ef4444',
-            borderRadius: '8px'
+            border: '1px solid #fecaca',
+            borderRadius: '6px',
+            fontFamily: 'Inter, sans-serif'
           }}>
-            <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#991b1b', marginBottom: '0.5rem' }}>
-              ❌ {validationError.error}
+            <div style={{ 
+              fontSize: '12px', 
+              fontWeight: 600, 
+              color: '#991b1b', 
+              marginBottom: '8px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px'
+            }}>
+              <span style={{ fontSize: '14px' }}>✕</span>
+              {validationError.error}
             </div>
-            <div style={{ fontSize: '0.95rem', color: '#7f1d1d', marginBottom: '1rem' }}>
+            <div style={{ fontSize: '10px', color: '#7f1d1d', marginBottom: '12px', lineHeight: '1.4' }}>
               {validationError.message}
             </div>
 
             <div style={{ 
               background: '#fff',
-              padding: '1rem',
-              borderRadius: '6px',
-              marginBottom: '1rem',
-              fontSize: '0.9rem',
+              padding: '10px 12px',
+              borderRadius: '4px',
+              marginBottom: '10px',
+              fontSize: '10px',
               color: '#374151',
-              textAlign: 'left'
+              textAlign: 'left',
+              border: '1px solid #e5e7eb'
             }}>
-              <div style={{ marginBottom: '0.75rem' }}>
-                <strong style={{ color: '#1f2937' }}>📄 Uploaded File:</strong>{' '}
+              <div style={{ marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ fontWeight: 600, color: '#1f2937' }}>Uploaded File:</span>
                 <code style={{ 
                   background: '#fee2e2', 
                   padding: '2px 6px', 
                   borderRadius: '3px',
-                  color: '#991b1b'
+                  color: '#991b1b',
+                  fontSize: '10px',
+                  fontFamily: 'Inter, monospace'
                 }}>
                   {validationError.details.uploadedFile}
                 </code>
               </div>
-              <div>
-                <strong style={{ color: '#1f2937' }}>📋 Contract Code:</strong>{' '}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ fontWeight: 600, color: '#1f2937' }}>Contract Code:</span>
                 <code style={{ 
                   background: '#dbeafe', 
                   padding: '2px 6px', 
                   borderRadius: '3px',
-                  color: '#1e40af'
+                  color: '#1e40af',
+                  fontSize: '10px',
+                  fontFamily: 'Inter, monospace'
                 }}>
                   {validationError.details.contractCode}
                 </code>
@@ -2284,140 +2313,124 @@ function FileUpload() {
             {validationError.type === 'pattern' && validationError.details.expectedPatterns && (
               <div style={{ 
                 background: '#fff',
-                padding: '1rem',
-                borderRadius: '6px',
-                marginBottom: '1rem',
-                textAlign: 'left'
+                padding: '10px 12px',
+                borderRadius: '4px',
+                marginBottom: '10px',
+                textAlign: 'left',
+                border: '1px solid #e5e7eb'
               }}>
-                <div style={{ fontWeight: 'bold', marginBottom: '0.5rem', color: '#1f2937' }}>
-                  ✅ Expected Filename Patterns:
+                <div style={{ fontWeight: 600, marginBottom: '6px', color: '#1f2937', fontSize: '10px' }}>
+                  Expected Filename Patterns:
                 </div>
-                <ul style={{ margin: '0.5rem 0', paddingLeft: '1.5rem', color: '#374151' }}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
                   {validationError.details.expectedPatterns.map((pattern, idx) => (
-                    <li key={idx} style={{ marginBottom: '0.25rem' }}>
-                      <code style={{ 
-                        background: '#c6f6d5', 
-                        padding: '2px 6px', 
-                        borderRadius: '3px',
-                        fontSize: '0.9em',
-                        color: '#22543d'
-                      }}>
-                        {pattern}
-                      </code>
-                    </li>
+                    <code key={idx} style={{ 
+                      background: '#d1fae5', 
+                      padding: '2px 8px', 
+                      borderRadius: '3px',
+                      fontSize: '10px',
+                      color: '#065f46',
+                      fontFamily: 'Inter, monospace'
+                    }}>
+                      {pattern}
+                    </code>
                   ))}
-                </ul>
+                </div>
               </div>
             )}
 
             {/* Show extraction errors (password issues, file format issues) */}
             {validationError.type === 'extraction' && (
-              <div style={{ textAlign: 'left' }}>
-                <div style={{ 
-                  background: '#fff',
-                  padding: '1rem',
-                  borderRadius: '6px',
-                  marginBottom: '1rem'
-                }}>
-                  <div style={{ fontWeight: 'bold', marginBottom: '0.5rem', color: '#991b1b' }}>
-                    ⚠️ File Processing Error:
-                  </div>
-                  <p style={{ margin: '0.5rem 0', color: '#7f1d1d', fontSize: '0.9rem' }}>
-                    {validationError.details.errorMessage || validationError.message}
-                  </p>
+              <div style={{ 
+                background: '#fff',
+                padding: '10px 12px',
+                borderRadius: '4px',
+                marginBottom: '10px',
+                textAlign: 'left',
+                border: '1px solid #fecaca'
+              }}>
+                <div style={{ fontWeight: 600, marginBottom: '6px', color: '#991b1b', fontSize: '10px' }}>
+                  File Processing Error:
                 </div>
+                <p style={{ margin: 0, color: '#7f1d1d', fontSize: '10px', lineHeight: '1.4' }}>
+                  {validationError.details.errorMessage || validationError.message}
+                </p>
               </div>
             )}
 
             {/* Show schema errors for schema validation failures */}
             {validationError.type === 'schema' && (
               <div style={{ textAlign: 'left' }}>
-                {validationError.details.errors && validationError.details.errors.length > 0 && (
-                  <div style={{ 
-                    background: '#fff',
-                    padding: '1rem',
-                    borderRadius: '6px',
-                    marginBottom: '1rem'
-                  }}>
-                    <div style={{ fontWeight: 'bold', marginBottom: '0.5rem', color: '#991b1b' }}>
-                      ⚠️ Schema Errors:
-                    </div>
-                    <ul style={{ margin: '0.5rem 0', paddingLeft: '1.5rem', color: '#7f1d1d', fontSize: '0.9rem' }}>
-                      {validationError.details.errors.map((err, idx) => (
-                        <li key={idx} style={{ marginBottom: '0.25rem' }}>{err}</li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-
                 {validationError.details.missingColumns && validationError.details.missingColumns.length > 0 && (
                   <div style={{ 
                     background: '#fff',
-                    padding: '1rem',
-                    borderRadius: '6px',
-                    marginBottom: '1rem'
+                    padding: '10px 12px',
+                    borderRadius: '4px',
+                    marginBottom: '10px',
+                    border: '1px solid #fecaca'
                   }}>
-                    <div style={{ fontWeight: 'bold', marginBottom: '0.5rem', color: '#991b1b' }}>
-                      ❌ Missing Columns:
+                    <div style={{ fontWeight: 600, marginBottom: '8px', color: '#991b1b', fontSize: '10px' }}>
+                      Missing Columns ({validationError.details.missingColumns.length}):
                     </div>
-                    <ul style={{ margin: '0.5rem 0', paddingLeft: '1.5rem', color: '#7f1d1d', fontSize: '0.9rem' }}>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
                       {validationError.details.missingColumns.map((col, idx) => (
-                        <li key={idx}>
-                          <code style={{ 
-                            background: '#fee2e2', 
-                            padding: '2px 6px', 
-                            borderRadius: '3px',
-                            color: '#991b1b'
-                          }}>
-                            {col}
-                          </code>
-                        </li>
+                        <code key={idx} style={{ 
+                          background: '#fee2e2', 
+                          padding: '2px 6px', 
+                          borderRadius: '3px',
+                          color: '#991b1b',
+                          fontSize: '10px',
+                          fontFamily: 'Inter, monospace'
+                        }}>
+                          {col}
+                        </code>
                       ))}
-                    </ul>
+                    </div>
                   </div>
                 )}
 
                 {validationError.details.extraColumns && validationError.details.extraColumns.length > 0 && (
                   <div style={{ 
                     background: '#fff',
-                    padding: '1rem',
-                    borderRadius: '6px',
-                    marginBottom: '1rem'
+                    padding: '10px 12px',
+                    borderRadius: '4px',
+                    marginBottom: '10px',
+                    border: '1px solid #fde68a'
                   }}>
-                    <div style={{ fontWeight: 'bold', marginBottom: '0.5rem', color: '#d97706' }}>
-                      ➕ Extra Columns:
+                    <div style={{ fontWeight: 600, marginBottom: '8px', color: '#92400e', fontSize: '10px' }}>
+                      Extra Columns ({validationError.details.extraColumns.length}):
                     </div>
-                    <ul style={{ margin: '0.5rem 0', paddingLeft: '1.5rem', color: '#92400e', fontSize: '0.9rem' }}>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
                       {validationError.details.extraColumns.map((col, idx) => (
-                        <li key={idx}>
-                          <code style={{ 
-                            background: '#fef3c7', 
-                            padding: '2px 6px', 
-                            borderRadius: '3px',
-                            color: '#92400e'
-                          }}>
-                            {col}
-                          </code>
-                        </li>
+                        <code key={idx} style={{ 
+                          background: '#fef3c7', 
+                          padding: '2px 6px', 
+                          borderRadius: '3px',
+                          color: '#92400e',
+                          fontSize: '10px',
+                          fontFamily: 'Inter, monospace'
+                        }}>
+                          {col}
+                        </code>
                       ))}
-                    </ul>
+                    </div>
                   </div>
                 )}
 
                 {validationError.details.warnings && validationError.details.warnings.length > 0 && (
                   <div style={{ 
                     background: '#fffbeb',
-                    padding: '1rem',
-                    borderRadius: '6px',
-                    marginBottom: '1rem',
+                    padding: '10px 12px',
+                    borderRadius: '4px',
+                    marginBottom: '10px',
                     border: '1px solid #fbbf24'
                   }}>
-                    <div style={{ fontWeight: 'bold', marginBottom: '0.5rem', color: '#92400e' }}>
-                      💡 Warnings:
+                    <div style={{ fontWeight: 600, marginBottom: '6px', color: '#92400e', fontSize: '10px' }}>
+                      Warnings:
                     </div>
-                    <ul style={{ margin: '0.5rem 0', paddingLeft: '1.5rem', color: '#78350f', fontSize: '0.9rem' }}>
+                    <ul style={{ margin: 0, paddingLeft: '16px', color: '#78350f', fontSize: '10px', lineHeight: '1.5' }}>
                       {validationError.details.warnings.map((warning, idx) => (
-                        <li key={idx} style={{ marginBottom: '0.25rem' }}>{warning}</li>
+                        <li key={idx} style={{ marginBottom: '2px' }}>{warning}</li>
                       ))}
                     </ul>
                   </div>
@@ -2428,26 +2441,36 @@ function FileUpload() {
             {/* Show hint if provided */}
             {validationError.hint && (
               <div style={{ 
-                padding: '0.75rem',
-                background: '#fffaf0',
-                border: '1px solid #f6ad55',
+                padding: '8px 12px',
+                background: '#fffbeb',
+                border: '1px solid #fde68a',
                 borderRadius: '4px',
-                fontSize: '0.9rem',
-                color: '#744210',
-                marginBottom: '1rem',
-                textAlign: 'left'
+                fontSize: '10px',
+                color: '#92400e',
+                marginBottom: '10px',
+                textAlign: 'left',
+                lineHeight: '1.4'
               }}>
-                <strong>💡 Tip: </strong>{validationError.hint}
+                <span style={{ fontWeight: 600 }}>Tip: </span>{validationError.hint}
               </div>
             )}
 
             <button 
-              className="btn btn-primary"
               onClick={() => {
                 setValidationError(null);
                 handleUploadAnother();
               }}
-              style={{ fontSize: '1rem', padding: '0.75rem 2rem' }}
+              style={{ 
+                fontSize: '10px', 
+                fontFamily: 'Inter, sans-serif',
+                fontWeight: 600,
+                padding: '8px 16px',
+                background: '#025043',
+                color: '#fff',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: 'pointer'
+              }}
             >
               Reset & Try Again
             </button>
@@ -2457,23 +2480,43 @@ function FileUpload() {
         {/* Show generic error message for non-validation errors */}
         {uploadStatus === 'error' && !validationError && !isProcessing && activeTab === 'upload-profile' && (
           <div style={{
-            margin: '1rem 0',
-            padding: '1.5rem',
+            margin: '12px 0',
+            padding: '16px',
             background: '#fef2f2',
-            border: '2px solid #ef4444',
-            borderRadius: '8px',
-            textAlign: 'center'
+            border: '1px solid #fecaca',
+            borderRadius: '6px',
+            textAlign: 'center',
+            fontFamily: 'Inter, sans-serif'
           }}>
-            <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#991b1b', marginBottom: '0.5rem' }}>
-              ❌ Upload Failed
+            <div style={{ 
+              fontSize: '12px', 
+              fontWeight: 600, 
+              color: '#991b1b', 
+              marginBottom: '8px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '6px'
+            }}>
+              <span style={{ fontSize: '14px' }}>✕</span>
+              Upload Failed
             </div>
-            <div style={{ fontSize: '0.95rem', color: '#7f1d1d', marginBottom: '1.5rem' }}>
+            <div style={{ fontSize: '10px', color: '#7f1d1d', marginBottom: '12px', lineHeight: '1.4' }}>
               There was an error uploading your file. Please try again.
             </div>
             <button 
-              className="btn btn-primary"
               onClick={handleUploadAnother}
-              style={{ fontSize: '1rem', padding: '0.75rem 2rem' }}
+              style={{ 
+                fontSize: '10px', 
+                fontFamily: 'Inter, sans-serif',
+                fontWeight: 600,
+                padding: '8px 16px',
+                background: '#025043',
+                color: '#fff',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: 'pointer'
+              }}
             >
               Reset & Try Again
             </button>
