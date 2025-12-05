@@ -141,23 +141,23 @@ function VendorFileQuality() {
       {error && <div className="error-message">{error}</div>}
 
       {/* Filters */}
-      <div className="gps-filter-row">
+      <div className="gps-filter-row" style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'center' }}>
         <input
           type="text"
           placeholder="Search by filename or file ID..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           className="gps-form-input"
-          style={{ flex: '1 1 300px', minWidth: '200px' }}
+          style={{ flex: '1 1 200px', minWidth: '150px', maxWidth: '100%' }}
         />
         
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
           <label style={{ fontSize: '10px', fontWeight: '600', color: '#374151', whiteSpace: 'nowrap' }}>File Type:</label>
           <select
             value={selectedType}
             onChange={(e) => setSelectedType(e.target.value)}
             className="gps-form-select"
-            style={{ minWidth: '100px' }}
+            style={{ minWidth: '90px' }}
           >
             <option value="all">All Types</option>
             {fileTypes.map(type => (

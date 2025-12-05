@@ -3193,10 +3193,10 @@ app.post('/api/files/drop', authenticateToken, uploadLimiter, upload.single('fil
       metadata: initialMetadata 
     });
     
-    // Log to database
+    // Log to database - include vendor_agreement_id for proper file-agreement linking
     await dbPool.query(
-      `INSERT INTO files (file_id, filename, file_type, file_size, metadata, project_id, is_vendor_file, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())`,
+      `INSERT INTO files (file_id, filename, file_type, file_size, metadata, project_id, is_vendor_file, vendor_agreement_id, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())`,
       [
         fileId,
         file.originalname,
@@ -3204,7 +3204,8 @@ app.post('/api/files/drop', authenticateToken, uploadLimiter, upload.single('fil
         file.size,
         JSON.stringify(initialMetadata),
         projectId,
-        !!connectionId // true if connectionId exists (vendor upload), false otherwise
+        !!connectionId, // true if connectionId exists (vendor upload), false otherwise
+        agreementId || null // Link to vendor agreement for proper catalog filtering
       ]
     );
     
