@@ -322,11 +322,36 @@ function extractSchemaFromXML(filePath) {
 /**
  * Extract schema from Parquet file
  * Uses dynamic import() since hyparquet is an ES module
+ * Gets column names from parquet metadata (not from data rows which may be arrays)
  */
 async function extractSchemaFromParquet(filePath) {
   try {
-    const { parquetRead } = await import('hyparquet');
+    const { parquetRead, parquetMetadataAsync } = await import('hyparquet');
     const nodeBuffer = fs.readFileSync(filePath);
+    
+    // Create Uint8Array for metadata extraction
+    const fileBytes = new Uint8Array(nodeBuffer);
+    
+    // First, get column names from parquet metadata (authoritative source)
+    const metadata = await parquetMetadataAsync(fileBytes);
+    
+    // Extract column names from schema - skip the root element
+    // Schema structure: first element is root, subsequent elements are columns
+    const columnNames = [];
+    if (metadata.schema && metadata.schema.length > 1) {
+      for (let i = 1; i < metadata.schema.length; i++) {
+        const schemaElement = metadata.schema[i];
+        if (schemaElement.name) {
+          columnNames.push(schemaElement.name);
+        }
+      }
+    }
+    
+    if (columnNames.length === 0) {
+      return [];
+    }
+    
+    // Now read data for type inference, mapping array indices to column names
     const arrayBuffer = nodeBuffer.buffer.slice(
       nodeBuffer.byteOffset,
       nodeBuffer.byteOffset + nodeBuffer.byteLength
@@ -336,15 +361,18 @@ async function extractSchemaFromParquet(filePath) {
       parquetRead({
         file: arrayBuffer,
         onComplete: (data) => {
-          if (data.length === 0) {
-            return resolve([]);
-          }
-          
           const schema = [];
-          const headers = Object.keys(data[0]);
           
-          headers.forEach(columnName => {
-            const sampleValues = data.slice(0, 100).map(row => row[columnName]).filter(v => v !== null && v !== undefined && v !== '');
+          columnNames.forEach((columnName, index) => {
+            // Get sample values - data may be array of arrays or array of objects
+            const sampleValues = data.slice(0, 100).map(row => {
+              // Handle both array and object formats
+              if (Array.isArray(row)) {
+                return row[index];
+              } else {
+                return row[columnName];
+              }
+            }).filter(v => v !== null && v !== undefined && v !== '');
             
             let type = 'string';
             if (sampleValues.length > 0) {
@@ -363,6 +391,9 @@ async function extractSchemaFromParquet(filePath) {
           });
           
           resolve(schema);
+        },
+        onError: (error) => {
+          reject(new Error(`Parquet read error: ${error.message || error}`));
         }
       });
     });
