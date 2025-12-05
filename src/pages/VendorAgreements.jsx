@@ -2521,7 +2521,14 @@ const VendorAgreements = () => {
                 {/* File Configurations Section */}
                 <FileConfigurationsSection
                   fileConfigurations={fileConfigurations}
-                  onChange={setFileConfigurations}
+                  onChange={(newConfigs) => {
+                    console.log('=== VendorAgreements: fileConfigurations onChange called ===');
+                    const zipConfig = newConfigs.find(c => c.file_type === 'zip');
+                    if (zipConfig) {
+                      console.log('ZIP config archive_password:', zipConfig.archive_password ? zipConfig.archive_password.substring(0, 3) + '***' : 'EMPTY');
+                    }
+                    setFileConfigurations(newConfigs);
+                  }}
                 />
               </form>
             </ThreeSectionModal>
