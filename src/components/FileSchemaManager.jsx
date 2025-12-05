@@ -13,7 +13,6 @@ function FileSchemaManager({ agreementId }) {
     file_name_pattern: '',
     file_description: '',
     schema: '',
-    priority: 100,
     is_active: true,
     column_metadata: {}
   });
@@ -149,7 +148,6 @@ function FileSchemaManager({ agreementId }) {
         file_name_pattern: '',
         file_description: '',
         schema: '',
-        priority: 100,
         is_active: true,
         column_metadata: {}
       });
@@ -186,7 +184,6 @@ function FileSchemaManager({ agreementId }) {
         file_name_pattern: '',
         file_description: '',
         schema: '',
-        priority: 100,
         is_active: true,
         column_metadata: {}
       });
@@ -220,7 +217,6 @@ function FileSchemaManager({ agreementId }) {
       file_name_pattern: schema.file_name_pattern,
       file_description: schema.file_description || '',
       schema: schema.schema ? JSON.stringify(schema.schema, null, 2) : '',
-      priority: schema.priority ?? 100,
       is_active: schema.is_active !== false,
       column_metadata: schema.column_metadata || {}
     });
@@ -245,7 +241,6 @@ function FileSchemaManager({ agreementId }) {
       file_name_pattern: '',
       file_description: '',
       schema: '',
-      priority: 100,
       is_active: true
     });
   };
@@ -257,7 +252,6 @@ function FileSchemaManager({ agreementId }) {
       file_name_pattern: '',
       file_description: '',
       schema: '',
-      priority: 100,
       is_active: true
     });
   };
@@ -301,8 +295,6 @@ function FileSchemaManager({ agreementId }) {
           <strong>Pattern Matching:</strong> Use glob patterns with wildcards (* and ?) to match multiple files.
           <br />
           <em>Examples:</em> customer_*.csv, order_*.xlsx, invoice_2024*.json
-          <br />
-          <strong>Priority:</strong> Lower numbers are matched first (e.g., priority 1 checked before priority 100)
         </div>
       </div>
 
@@ -317,7 +309,7 @@ function FileSchemaManager({ agreementId }) {
             </div>
 
             <div className="form-grid">
-              <div className="form-group">
+              <div className="form-group full-width">
                 <label>File Name Pattern *</label>
                 <input
                   type="text"
@@ -327,18 +319,6 @@ function FileSchemaManager({ agreementId }) {
                   required
                 />
                 <small>Use * for multiple characters, ? for single character</small>
-              </div>
-
-              <div className="form-group">
-                <label>Priority</label>
-                <input
-                  type="number"
-                  value={formData.priority}
-                  onChange={(e) => setFormData({ ...formData, priority: parseInt(e.target.value) || 0 })}
-                  min="0"
-                  step="1"
-                />
-                <small>Lower numbers are matched first (default: 100)</small>
               </div>
 
               <div className="form-group full-width">
@@ -481,9 +461,7 @@ function FileSchemaManager({ agreementId }) {
             <small>Add file schemas to support multiple file patterns with different validation rules</small>
           </div>
         ) : (
-          fileSchemas
-            .sort((a, b) => (a.priority ?? 100) - (b.priority ?? 100))
-            .map((schema) => (
+          fileSchemas.map((schema) => (
               <div
                 key={schema.id}
                 className={`schema-item ${editingId === schema.id ? 'editing' : ''} ${!schema.is_active ? 'inactive' : ''}`}
@@ -491,24 +469,13 @@ function FileSchemaManager({ agreementId }) {
                 {editingId === schema.id ? (
                   <form className="schema-edit-form" onSubmit={(e) => { e.preventDefault(); handleUpdate(schema.id); }}>
                     <div className="form-grid">
-                      <div className="form-group">
+                      <div className="form-group full-width">
                         <label>File Name Pattern *</label>
                         <input
                           type="text"
                           value={formData.file_name_pattern}
                           onChange={(e) => setFormData({ ...formData, file_name_pattern: e.target.value })}
                           required
-                        />
-                      </div>
-
-                      <div className="form-group">
-                        <label>Priority</label>
-                        <input
-                          type="number"
-                          value={formData.priority}
-                          onChange={(e) => setFormData({ ...formData, priority: parseInt(e.target.value) || 0 })}
-                          min="0"
-                          step="1"
                         />
                       </div>
 
@@ -645,7 +612,6 @@ function FileSchemaManager({ agreementId }) {
                         <div className="schema-pattern">
                           <FiFileText className="pattern-icon" />
                           <strong>{schema.file_name_pattern}</strong>
-                          <span className="priority-badge">Priority: {schema.priority ?? 100}</span>
                           {!schema.is_active && <span className="inactive-badge">Inactive</span>}
                         </div>
                         {schema.file_description && (
