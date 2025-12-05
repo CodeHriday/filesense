@@ -30,13 +30,10 @@ class VendorAgreementTemplateService {
       { field: 'file_name_pattern', label: 'File Name Pattern *', type: 'text', required: true },
       { field: 'file_description', label: 'File Description', type: 'text', required: false },
       { field: 'file_type', label: 'File Type *', type: 'dropdown', required: true, options: ['csv', 'json', 'xml', 'xlsx', 'parquet', 'fixed_width', 'binary', 'dat', 'sas7bdat', 'avro', 'zip', '7z', 'tar', 'tar.gz', 'tar.bz2'] },
-      { field: 'archive_password', label: 'Archive Password', type: 'text', required: false },
       { field: 'has_header', label: 'Has Header', type: 'boolean', required: false },
       { field: 'schema', label: 'Schema (JSON)', type: 'text', required: false },
-      { field: 'priority', label: 'Priority', type: 'number', required: false },
       { field: 'contains_pii', label: 'Contains PII', type: 'boolean', required: false },
-      { field: 'data_classification', label: 'Data Classification', type: 'dropdown', required: false, options: ['Public', 'Internal', 'Confidential', 'Highly Confidential'] },
-      { field: 'quality_rule_ids', label: 'Quality Rule IDs', type: 'text', required: false }
+      { field: 'data_classification', label: 'Data Classification', type: 'dropdown', required: false, options: ['Public', 'Internal', 'Confidential', 'Highly Confidential'] }
     ];
   }
 
@@ -188,22 +185,16 @@ class VendorAgreementTemplateService {
         return fileNum === 1 ? 'Daily customer information export' : 'Fixed-width transaction file from legacy system';
       case 'file_type':
         return fileNum === 1 ? 'csv' : 'fixed_width';
-      case 'archive_password':
-        return '';
       case 'has_header':
         return fileNum === 1 ? 'TRUE' : 'FALSE';
       case 'schema':
         return fileNum === 1 
-          ? '[{"name":"ID","type":"integer","description":"Customer ID","nullable":false,"pii":false},{"name":"Name","type":"string","description":"Customer name","nullable":true,"pii":false},{"name":"Email","type":"string","description":"Customer email","nullable":true,"pii":true}]'
-          : '[{"name":"transaction_id","type":"string","width":15,"start_position":0,"nullable":false,"pii":false},{"name":"amount","type":"float","width":12,"start_position":15,"precision":10,"scale":2,"nullable":false,"pii":false},{"name":"customer_name","type":"string","width":50,"start_position":27,"nullable":true,"pii":false},{"name":"timestamp","type":"timestamp","width":19,"start_position":77,"nullable":false,"pii":false}]';
-      case 'priority':
-        return fileNum === 1 ? '100' : '200';
+          ? '[{"name":"ID","type":"integer","description":"Customer ID","nullable":false,"pii":false,"quality_rules":["duplicate_check","uniqueness"]},{"name":"Name","type":"string","description":"Customer name","nullable":true,"pii":false,"quality_rules":["null_check"]},{"name":"Email","type":"string","description":"Customer email","nullable":true,"pii":true,"quality_rules":["email_validity","null_check"]}]'
+          : '[{"name":"transaction_id","type":"string","width":15,"start_position":0,"nullable":false,"pii":false,"quality_rules":["duplicate_check","uniqueness"]},{"name":"amount","type":"float","width":12,"start_position":15,"precision":10,"scale":2,"nullable":false,"pii":false,"quality_rules":["null_check"]},{"name":"customer_name","type":"string","width":50,"start_position":27,"nullable":true,"pii":false},{"name":"timestamp","type":"timestamp","width":19,"start_position":77,"nullable":false,"pii":false,"quality_rules":["date_format"]}]';
       case 'contains_pii':
         return fileNum === 1 ? 'TRUE' : 'FALSE';
       case 'data_classification':
         return fileNum === 1 ? 'Highly Confidential' : 'Internal';
-      case 'quality_rule_ids':
-        return fileNum === 1 ? '1,2,3' : '2,4';
       default:
         return '';
     }
@@ -237,7 +228,7 @@ class VendorAgreementTemplateService {
       [''],
       ['Overview:'],
       ['This template allows you to create vendor agreements with multiple file configurations in a single upload.'],
-      ['The template now has TWO sheets: "Agreement Info" for agreement-level details and "File Configurations" for individual files.'],
+      ['The template has TWO sheets: "Agreement Info" for agreement-level details and "File Configurations" for individual files.'],
       [''],
       ['How to Use:'],
       ['1. Agreement Info Sheet:'],
@@ -263,8 +254,7 @@ class VendorAgreementTemplateService {
       ['- Fields marked with * are required'],
       ['- For dropdown fields, use only the exact values listed below'],
       ['- For boolean fields (Contains PII), use TRUE or FALSE'],
-      ['- For Schema field, use JSON array format: [{"column_name":"Name","data_type":"string"}]'],
-      ['- Quality Rule IDs should be comma-separated numbers (e.g., 1,2,3)'],
+      ['- Quality rules are embedded in the schema JSON at the field level (see Schema section below)'],
       ['- Admin-only fields (Vendor, Project, Connections, Contacts) will be set in the creation form'],
       ['- Template upload auto-populates the form for review before submission'],
       [''],
@@ -286,20 +276,25 @@ class VendorAgreementTemplateService {
       ['File Name Pattern: Base pattern without extension, e.g., customer_data - REQUIRED'],
       ['File Description: What the file contains (optional)'],
       ['File Type: Type of file - REQUIRED. Values: csv, json, xml, xlsx, parquet, fixed_width, binary, dat, sas7bdat, avro, zip, 7z, tar, tar.gz, tar.bz2'],
-      ['Archive Password: Password for encrypted archives - ONLY allowed for archive file types (zip, 7z, tar, tar.gz, tar.bz2). Leave blank for non-archive types.'],
       ['Has Header: TRUE or FALSE - indicates if file has a header row. For fixed_width, binary, dat file types this should be FALSE.'],
+      ['Contains PII: Does file contain personally identifiable information? TRUE or FALSE (optional)'],
+      ['Data Classification: Security level (optional). Values: Public, Internal, Confidential, Highly Confidential'],
       [''],
-      ['Schema: JSON array of field definitions. Enhanced format supports all file types including fixed-width and headerless files.'],
+      ['Password-Protected Archives:'],
+      ['For password-protected archive files (zip, 7z, tar, etc.), configure the password manually in the UI after importing the template.'],
+      ['This ensures passwords are stored securely and not exposed in spreadsheet files.'],
+      [''],
+      ['Schema: JSON array of field definitions with embedded quality rules.'],
       [''],
       ['  FOR LARGE SCHEMAS (200+ fields): Use reference tokens instead of JSON - attach schema file separately after upload:'],
-      ['    @external                  - Schema will be uploaded as a separate JSON file after template import'],
-      ['    @schema:my_schema.json     - Reference a specific schema filename (upload the JSON file after import)'],
+      ['    {external}                  - Schema will be uploaded as a separate JSON file after template import'],
+      ['    {schema:my_schema.json}     - Reference a specific schema filename (upload the JSON file after import)'],
       [''],
       ['  STANDARD FORMAT (for files with headers - csv, json, xlsx, etc.):'],
-      ['  [{"name":"FieldName","type":"string","description":"Field description","nullable":true,"pii":false}]'],
+      ['  [{"name":"FieldName","type":"string","description":"Description","nullable":true,"pii":false,"quality_rules":["rule_type1","rule_type2"]}]'],
       [''],
       ['  EXTENDED FORMAT (for fixed-width, binary, dat files OR headerless files):'],
-      ['  [{"name":"FieldName","type":"string","width":10,"start_position":0,"nullable":true,"pii":false}]'],
+      ['  [{"name":"FieldName","type":"string","width":10,"start_position":0,"nullable":true,"pii":false,"quality_rules":["rule_type"]}]'],
       [''],
       ['  Available field properties:'],
       ['    - name: Field name (required)'],
@@ -307,21 +302,30 @@ class VendorAgreementTemplateService {
       ['    - description: Field description (optional)'],
       ['    - nullable: TRUE or FALSE - whether field allows null values (optional, defaults to true)'],
       ['    - pii: TRUE or FALSE - mark as personally identifiable information (optional, defaults to false)'],
+      ['    - quality_rules: Array of rule types to apply to this field (optional)'],
       ['    - width: Field width in characters - REQUIRED for fixed-width/binary/dat files (optional for others)'],
       ['    - start_position: Starting character position (0-based) - for fixed-width files (optional)'],
       ['    - precision: Number of digits for numeric types (optional)'],
       ['    - scale: Number of decimal places for numeric types (optional)'],
       [''],
-      ['  Example for CSV with header:'],
-      ['  [{"name":"ID","type":"integer","description":"Customer ID","pii":false},{"name":"Email","type":"string","pii":true}]'],
+      ['  Available quality_rules values:'],
+      ['    - null_check: Detect null or empty values'],
+      ['    - duplicate_check: Detect duplicate values'],
+      ['    - uniqueness: Ensure all values are unique'],
+      ['    - email_validity: Validate email format'],
+      ['    - phone_validity: Validate phone number format'],
+      ['    - date_format: Validate date format'],
+      ['    - timestamp_format: Validate timestamp format'],
+      ['    - column_completeness: Check column fill rate'],
+      ['    - numeric_only_string: Detect numeric strings'],
+      ['    - special_character_presence: Detect special characters'],
+      ['    - isna_check: Check for NA/NaN values'],
       [''],
-      ['  Example for fixed-width file (must specify width and start_position):'],
-      ['  [{"name":"ID","type":"integer","width":10,"start_position":0},{"name":"Name","type":"string","width":50,"start_position":10},{"name":"Amount","type":"float","width":15,"start_position":60,"precision":10,"scale":2}]'],
+      ['  Example for CSV with embedded quality rules:'],
+      ['  [{"name":"ID","type":"integer","pii":false,"quality_rules":["duplicate_check","uniqueness"]},{"name":"Email","type":"string","pii":true,"quality_rules":["email_validity","null_check"]}]'],
       [''],
-      ['Priority: Match priority (lower numbers match first). Default: 100 (optional)'],
-      ['Contains PII: Does file contain personally identifiable information? TRUE or FALSE (optional)'],
-      ['Data Classification: Security level (optional). Values: Public, Internal, Confidential, Highly Confidential'],
-      ['Quality Rule IDs: Comma-separated rule IDs, e.g., 1,2,3 (optional)'],
+      ['  Example for fixed-width file with quality rules:'],
+      ['  [{"name":"ID","type":"integer","width":10,"start_position":0,"quality_rules":["uniqueness"]},{"name":"Amount","type":"float","width":15,"start_position":10,"quality_rules":["null_check"]}]'],
       [''],
       ['Example Structure:'],
       [''],
@@ -330,9 +334,9 @@ class VendorAgreementTemplateService {
       ['  Row 4: AGR002, Analytics Team, analytics@vendor.com, Weekly, ...'],
       [''],
       ['File Configurations sheet has:'],
-      ['  Row 4: AGR001, customer_data, Customer info, csv, [...], 100, TRUE, Highly Confidential, 1,2'],
-      ['  Row 5: AGR001, transaction_log, Transactions, json, [...], 200, FALSE, Internal, 2,4'],
-      ['  Row 6: AGR002, weekly_report, Reports, xlsx, [...], 100, FALSE, Public, '],
+      ['  Row 4: AGR001, customer_data, Customer info, csv, TRUE, [schema with quality_rules], TRUE, Highly Confidential'],
+      ['  Row 5: AGR001, transaction_log, Transactions, fixed_width, FALSE, [schema], FALSE, Internal'],
+      ['  Row 6: AGR002, weekly_report, Reports, xlsx, TRUE, {external}, FALSE, Public'],
       [''],
       ['This creates 2 agreements: AGR001 with 2 files, AGR002 with 1 file.']
     ];
@@ -504,12 +508,7 @@ class VendorAgreementTemplateService {
           rowErrors.push(`Agreement ID "${agreementId}" not found in Agreement Info sheet`);
         }
 
-        // Validate archive_password only allowed for archive file types
         const fileType = fileConfig.file_type || 'csv';
-        const archivePassword = fileConfig.archive_password || '';
-        if (archivePassword && !this.ARCHIVE_FILE_TYPES.includes(fileType)) {
-          rowErrors.push(`Archive Password: Only allowed for archive file types (${this.ARCHIVE_FILE_TYPES.join(', ')}). Current file type is "${fileType}".`);
-        }
 
         // Determine has_header value - defaults to true unless explicitly false or fixed-width type
         let hasHeader = fileConfig.has_header;
@@ -529,7 +528,7 @@ class VendorAgreementTemplateService {
           (fileConfig.schema._schemaRef === true)
         );
         if (!hasHeader && !hasValidSchema && !this.ARCHIVE_FILE_TYPES.includes(fileType)) {
-          rowErrors.push(`Schema: Required when Has Header is FALSE. Provide field definitions with name, type, and width, or use @external token.`);
+          rowErrors.push(`Schema: Required when Has Header is FALSE. Provide field definitions with name, type, and width, or use {external} token.`);
         }
 
         if (rowErrors.length > 0) {
@@ -551,15 +550,12 @@ class VendorAgreementTemplateService {
             file_type: fileType,
             file_name_pattern: `${basePattern}*.${fileType}`,
             file_description: fileConfig.file_description || '',
-            archive_password: archivePassword,
             has_header: hasHeader,
             header_definition: !hasHeader && schemaArray ? schemaArray : null,
             schema: fileConfig.schema || null,
-            priority: fileConfig.priority ?? 100,
             is_active: true,
             contains_pii: fileConfig.contains_pii || false,
-            data_classification: fileConfig.data_classification || null,
-            quality_rule_ids: fileConfig.quality_rule_ids || []
+            data_classification: fileConfig.data_classification || null
           };
 
           agreements[agreementId].fileConfigurations.push(fullConfig);
@@ -606,24 +602,6 @@ class VendorAgreementTemplateService {
 
     if (!strValue) {
       return { valid: true, value: null };
-    }
-
-    // Special handling for quality_rule_ids
-    if (fieldDef.field === 'quality_rule_ids') {
-      const ids = strValue.split(',').map(id => id.trim()).filter(id => id);
-      const validIds = ids.every(id => /^\d+$/.test(id));
-      
-      if (!validIds) {
-        return {
-          valid: false,
-          error: 'Must be comma-separated numbers (e.g., 1,2,3)'
-        };
-      }
-      
-      return { 
-        valid: true, 
-        value: ids.map(id => parseInt(id, 10))
-      };
     }
 
     switch (fieldDef.type) {
@@ -677,8 +655,11 @@ class VendorAgreementTemplateService {
         // Special handling for schema field
         if (fieldDef.field === 'schema' && strValue) {
           // Check for schema reference tokens (for large schemas that don't fit in Excel cells)
-          const schemaRefPattern = /^@schema:(.+)$/i;
-          const externalRefPattern = /^@external$/i;
+          // Support both new {schema:} format and legacy @schema: format for backwards compatibility
+          const schemaRefPattern = /^\{schema:(.+)\}$/i;
+          const externalRefPattern = /^\{external\}$/i;
+          const legacySchemaRefPattern = /^@schema:(.+)$/i;
+          const legacyExternalRefPattern = /^@external$/i;
           
           if (schemaRefPattern.test(strValue)) {
             // Schema reference token - extract filename and mark as pending attachment
@@ -696,6 +677,31 @@ class VendorAgreementTemplateService {
           
           if (externalRefPattern.test(strValue)) {
             // External reference - mark as pending attachment without specific filename
+            return { 
+              valid: true, 
+              value: {
+                _schemaRef: true,
+                _refType: 'external',
+                _pendingUpload: true
+              }
+            };
+          }
+          
+          // Legacy @schema: and @external support for backwards compatibility
+          if (legacySchemaRefPattern.test(strValue)) {
+            const match = strValue.match(legacySchemaRefPattern);
+            return { 
+              valid: true, 
+              value: {
+                _schemaRef: true,
+                _refType: 'file',
+                _refFilename: match[1].trim(),
+                _pendingUpload: true
+              }
+            };
+          }
+          
+          if (legacyExternalRefPattern.test(strValue)) {
             return { 
               valid: true, 
               value: {
