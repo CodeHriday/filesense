@@ -678,7 +678,7 @@ const VendorAgreements = () => {
         contains_pii: schema.contains_pii || false,
         data_classification: schema.data_classification || '',
         quality_rule_ids: schema.quality_rule_ids || [],
-        archive_password: '',
+        archive_password: schema.has_archive_password ? '__KEEP_EXISTING__' : '',
         has_archive_password: schema.has_archive_password || false,
         has_header: schema.has_header !== undefined ? schema.has_header : true,
         header_definition: schema.header_definition || null

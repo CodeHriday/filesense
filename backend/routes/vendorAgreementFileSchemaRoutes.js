@@ -328,13 +328,33 @@ router.put('/:agreementId/file-schemas', requirePermission('vendor_agreements:wr
     
     await client.query('BEGIN');
     
-    // Get existing schema IDs to clean up their passwords
+    // Get existing schema IDs and their file patterns to preserve passwords
     const existingSchemas = await client.query(
-      'SELECT id FROM vendor_agreement_file_schemas WHERE vendor_agreement_id = $1',
+      'SELECT id, file_name_pattern FROM vendor_agreement_file_schemas WHERE vendor_agreement_id = $1',
       [agreementId]
     );
     
-    // Delete passwords for existing schemas
+    // Build a map of file_name_pattern -> password for schemas that have passwords
+    // This allows us to restore passwords for patterns that request __KEEP_EXISTING__
+    const passwordsByPattern = new Map();
+    if (passwordVaultService && existingSchemas.rows.length > 0) {
+      for (const schema of existingSchemas.rows) {
+        try {
+          const hasPassword = await passwordVaultService.hasPassword('vendor_agreement_file_schema', schema.id.toString());
+          if (hasPassword) {
+            // Retrieve the actual password so we can restore it for the new schema ID
+            const password = await passwordVaultService.getPassword('vendor_agreement_file_schema', schema.id.toString());
+            if (password) {
+              passwordsByPattern.set(schema.file_name_pattern, password);
+            }
+          }
+        } catch (error) {
+          systemLogger.warn('Error checking/retrieving schema password', { schemaId: schema.id, error: error.message });
+        }
+      }
+    }
+    
+    // Delete passwords for existing schemas (will be restored for matching patterns)
     if (passwordVaultService && existingSchemas.rows.length > 0) {
       for (const schema of existingSchemas.rows) {
         try {
@@ -351,7 +371,7 @@ router.put('/:agreementId/file-schemas', requirePermission('vendor_agreements:wr
       [agreementId]
     );
     
-    systemLogger.info('Deleted existing file schemas', { agreementId, userId: req.user.id });
+    systemLogger.info('Deleted existing file schemas', { agreementId, userId: req.user.id, preservedPasswordPatterns: Array.from(passwordsByPattern.keys()) });
     
     // Insert new file schemas and store passwords
     const createdSchemas = [];
@@ -439,11 +459,23 @@ router.put('/:agreementId/file-schemas', requirePermission('vendor_agreements:wr
       const createdSchema = result.rows[0];
       createdSchemas.push(createdSchema);
       
-      // Queue password for storage if provided
-      if (archive_password && archive_password.trim() !== '') {
+      // Queue password for storage if provided or restore from preserved passwords
+      if (archive_password === '__KEEP_EXISTING__') {
+        // Check if we have a preserved password for this file pattern
+        const preservedPassword = passwordsByPattern.get(file_name_pattern);
+        if (preservedPassword) {
+          passwordsToStore.push({
+            schemaId: createdSchema.id,
+            password: preservedPassword,
+            isRestored: true
+          });
+        }
+      } else if (archive_password && archive_password.trim() !== '') {
+        // New password provided
         passwordsToStore.push({
           schemaId: createdSchema.id,
-          password: archive_password
+          password: archive_password,
+          isRestored: false
         });
       }
     }
@@ -451,11 +483,19 @@ router.put('/:agreementId/file-schemas', requirePermission('vendor_agreements:wr
     await client.query('COMMIT');
     
     // Store passwords after commit (outside transaction for security)
+    let passwordsNewCount = 0;
+    let passwordsRestoredCount = 0;
     if (passwordVaultService && passwordsToStore.length > 0) {
       for (const item of passwordsToStore) {
         try {
           await passwordVaultService.storePassword('vendor_agreement_file_schema', item.schemaId.toString(), item.password, req.user.id);
-          systemLogger.info('Archive password stored for file schema', { schemaId: item.schemaId });
+          if (item.isRestored) {
+            passwordsRestoredCount++;
+            systemLogger.info('Archive password restored for file schema', { schemaId: item.schemaId });
+          } else {
+            passwordsNewCount++;
+            systemLogger.info('Archive password stored for file schema', { schemaId: item.schemaId });
+          }
         } catch (error) {
           systemLogger.error('Error storing archive password', { schemaId: item.schemaId, error: error.message });
         }
@@ -465,7 +505,8 @@ router.put('/:agreementId/file-schemas', requirePermission('vendor_agreements:wr
     systemLogger.info('Bulk replaced file schemas', { 
       agreementId,
       count: createdSchemas.length,
-      passwordsStored: passwordsToStore.length,
+      passwordsNew: passwordsNewCount,
+      passwordsRestored: passwordsRestoredCount,
       userId: req.user.id 
     });
     
