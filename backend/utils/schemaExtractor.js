@@ -49,6 +49,82 @@ function inferType(value) {
 }
 
 /**
+ * Normalize pandas/database data types to user-friendly display types.
+ * Maps internal types like 'object' to 'string', 'int64' to 'int', etc.
+ * This should match the Python normalize_pandas_dtype function.
+ * 
+ * @param {string} dtype - Data type string (e.g., 'object', 'int64', 'float64')
+ * @returns {string} User-friendly type name (e.g., 'string', 'int', 'float')
+ */
+function normalizeDataType(dtype) {
+  if (!dtype) return 'string';
+  
+  const dtypeLower = String(dtype).toLowerCase();
+  
+  // Type normalization mapping
+  const typeMapping = {
+    // Object/string types
+    'object': 'string',
+    'string': 'string',
+    'str': 'string',
+    'category': 'string',
+    
+    // Integer types
+    'int8': 'int',
+    'int16': 'int',
+    'int32': 'int',
+    'int64': 'int',
+    'uint8': 'int',
+    'uint16': 'int',
+    'uint32': 'int',
+    'uint64': 'int',
+    'integer': 'int',
+    'bigint': 'int',
+    
+    // Float types
+    'float16': 'float',
+    'float32': 'float',
+    'float64': 'float',
+    
+    // Decimal types (preserve precision)
+    'decimal': 'decimal',
+    'numeric': 'decimal',
+    
+    // Boolean types
+    'bool': 'boolean',
+    'boolean': 'boolean',
+    
+    // Date/time types
+    'datetime64[ns]': 'datetime',
+    'datetime64': 'datetime',
+    'datetime': 'datetime',
+    'timestamp': 'datetime',
+    'timedelta64[ns]': 'time',
+    'timedelta64': 'time',
+    'timedelta': 'time',
+    'date': 'date',
+    'time': 'time',
+  };
+  
+  // Check exact match first
+  if (typeMapping[dtypeLower]) {
+    return typeMapping[dtypeLower];
+  }
+  
+  // Check partial matches for complex types like 'datetime64[ns, UTC]'
+  if (dtypeLower.includes('datetime')) return 'datetime';
+  if (dtypeLower.includes('timestamp')) return 'datetime';
+  if (dtypeLower.includes('timedelta')) return 'time';
+  if (dtypeLower.includes('int')) return 'int';
+  if (dtypeLower.includes('float')) return 'float';
+  if (dtypeLower.includes('decimal')) return 'decimal';
+  if (dtypeLower.includes('numeric')) return 'decimal';
+  
+  // Return the original if no mapping found
+  return dtype;
+}
+
+/**
  * Extract schema from CSV file
  */
 async function extractSchemaFromCSV(filePath) {
@@ -250,11 +326,15 @@ function extractSchemaFromXML(filePath) {
 async function extractSchemaFromParquet(filePath) {
   try {
     const { parquetRead } = await import('hyparquet');
-    const buffer = fs.readFileSync(filePath);
+    const nodeBuffer = fs.readFileSync(filePath);
+    const arrayBuffer = nodeBuffer.buffer.slice(
+      nodeBuffer.byteOffset,
+      nodeBuffer.byteOffset + nodeBuffer.byteLength
+    );
     
     return new Promise((resolve, reject) => {
       parquetRead({
-        file: buffer,
+        file: arrayBuffer,
         onComplete: (data) => {
           if (data.length === 0) {
             return resolve([]);
@@ -573,5 +653,6 @@ function compareSchemas(uploadedSchema, expectedSchema) {
 module.exports = {
   extractSchema,
   compareSchemas,
-  inferType
+  inferType,
+  normalizeDataType
 };

@@ -71,6 +71,90 @@ def convert_numpy_types(obj):
     else:
         return obj
 
+def normalize_pandas_dtype(dtype_str):
+    """
+    Normalize pandas data types to user-friendly display types.
+    Maps internal pandas types like 'object' to 'string', 'int64' to 'int', etc.
+    
+    Args:
+        dtype_str: String representation of pandas dtype (e.g., 'object', 'int64', 'float64')
+    
+    Returns:
+        User-friendly type name (e.g., 'string', 'int', 'float')
+    """
+    if not dtype_str:
+        return 'string'
+    
+    dtype_lower = str(dtype_str).lower()
+    
+    # Type normalization mapping (aligned with Node.js normalizeDataType)
+    type_mapping = {
+        # Object/string types
+        'object': 'string',
+        'string': 'string',
+        'str': 'string',
+        'category': 'string',
+        
+        # Integer types
+        'int8': 'int',
+        'int16': 'int',
+        'int32': 'int',
+        'int64': 'int',
+        'uint8': 'int',
+        'uint16': 'int',
+        'uint32': 'int',
+        'uint64': 'int',
+        'integer': 'int',
+        'bigint': 'int',
+        
+        # Float types
+        'float16': 'float',
+        'float32': 'float',
+        'float64': 'float',
+        
+        # Decimal types (preserve precision)
+        'decimal': 'decimal',
+        'numeric': 'decimal',
+        
+        # Boolean types
+        'bool': 'boolean',
+        'boolean': 'boolean',
+        
+        # Date/time types
+        'datetime64[ns]': 'datetime',
+        'datetime64': 'datetime',
+        'datetime': 'datetime',
+        'timestamp': 'datetime',
+        'timedelta64[ns]': 'time',
+        'timedelta64': 'time',
+        'timedelta': 'time',
+        'date': 'date',
+        'time': 'time',
+    }
+    
+    # Check exact match first
+    if dtype_lower in type_mapping:
+        return type_mapping[dtype_lower]
+    
+    # Check partial matches for complex types like 'datetime64[ns, UTC]'
+    if 'datetime' in dtype_lower:
+        return 'datetime'
+    if 'timestamp' in dtype_lower:
+        return 'datetime'
+    if 'timedelta' in dtype_lower:
+        return 'time'
+    if 'int' in dtype_lower:
+        return 'int'
+    if 'float' in dtype_lower:
+        return 'float'
+    if 'decimal' in dtype_lower:
+        return 'decimal'
+    if 'numeric' in dtype_lower:
+        return 'decimal'
+    
+    # Return the original if no mapping found
+    return dtype_str
+
 # Database connection
 def get_db_connection():
     """Get PostgreSQL database connection"""
@@ -589,19 +673,107 @@ def parse_binary_fixed_width(file_path, schema, encoding='ascii'):
         data = f.read()
     
     file_size = len(data)
-    num_records = file_size // record_size
     
-    if file_size % record_size != 0:
+    # Detect newline characters between records
+    # Check if file has \r\n (Windows), \n (Unix), or no newlines
+    stride = record_size  # Distance between record starts (includes newline if present)
+    newline_size = 0
+    
+    # Try to detect newline by checking bytes at expected record boundaries
+    # Verify at multiple boundaries to avoid false positives from CR/LF inside record data
+    def detect_newline_at_position(pos):
+        """Detect newline type at a given position (returns 0, 1, or 2)"""
+        if pos + 2 <= file_size:
+            bytes_at_pos = data[pos:pos + 2]
+            if bytes_at_pos == b'\r\n':
+                return 2
+            elif bytes_at_pos[:1] == b'\n':
+                return 1
+            elif bytes_at_pos[:1] == b'\r':
+                return 1
+        elif pos + 1 <= file_size:
+            byte_at_pos = data[pos:pos + 1]
+            if byte_at_pos == b'\n' or byte_at_pos == b'\r':
+                return 1
+        return 0
+    
+    if file_size > record_size:
+        # Try each candidate newline size: 0 (none), 1 (LF or CR), 2 (CRLF)
+        # Pick the one that is most consistent across multiple boundaries
+        best_newline_size = 0
+        best_consistency_count = 0
+        
+        for candidate_nl in [0, 1, 2]:
+            candidate_stride = record_size + candidate_nl
+            if file_size < candidate_stride:
+                continue
+            
+            # Count how many boundaries match this newline pattern
+            consistency_count = 0
+            max_checks = min(5, max(1, file_size // candidate_stride))
+            
+            for check_idx in range(max_checks):
+                # Record N ends at check_idx * candidate_stride + record_size
+                boundary_pos = check_idx * candidate_stride + record_size
+                
+                if boundary_pos >= file_size:
+                    break  # Beyond file
+                
+                detected_nl = detect_newline_at_position(boundary_pos)
+                
+                if detected_nl == candidate_nl:
+                    consistency_count += 1
+                elif candidate_nl == 0 and detected_nl == 0:
+                    # No newline expected and none found
+                    consistency_count += 1
+                # Else: mismatch, don't count
+            
+            if consistency_count > best_consistency_count:
+                best_consistency_count = consistency_count
+                best_newline_size = candidate_nl
+        
+        newline_size = best_newline_size
+        stride = record_size + newline_size
+        
+        if best_consistency_count >= 2:
+            if newline_size == 2:
+                logger.info(f"Detected Windows-style newlines (\\r\\n) between records, verified at {best_consistency_count} boundaries, stride={stride}")
+            elif newline_size == 1:
+                logger.info(f"Detected Unix-style newlines (\\n/\\r) between records, verified at {best_consistency_count} boundaries, stride={stride}")
+            else:
+                logger.info(f"No newlines detected between records, verified at {best_consistency_count} boundaries, stride={stride}")
+        else:
+            # Low confidence - default to no newlines for safety
+            # This prevents misalignment when a single CR/LF is embedded in data
+            newline_size = 0
+            stride = record_size
+            logger.info(f"Low confidence ({best_consistency_count} match), defaulting to stride={record_size} (no newlines)")
+    
+    # Calculate number of records based on stride
+    # For files with newlines, the last record may or may not have a trailing newline
+    if newline_size > 0:
+        # Account for potential trailing newline on last record
+        effective_size = file_size
+        if data.endswith(b'\n') or data.endswith(b'\r'):
+            # Has trailing newline, all records have newlines
+            num_records = file_size // stride
+        else:
+            # No trailing newline on last record
+            num_records = (file_size + newline_size) // stride
+    else:
+        num_records = file_size // record_size
+    
+    if newline_size == 0 and file_size % record_size != 0:
         logger.warning(f"File size ({file_size}) is not evenly divisible by record size ({record_size}). "
                       f"Partial record of {file_size % record_size} bytes will be ignored.")
     
-    logger.info(f"Binary file: {file_size} bytes, {num_records} records of {record_size} bytes each")
+    logger.info(f"Binary file: {file_size} bytes, {num_records} records of {record_size} bytes each (stride={stride})")
     
     # Parse records
     records = []
     for i in range(num_records):
-        start = i * record_size
-        chunk = data[start:start + record_size]
+        start = i * stride  # Use stride instead of record_size
+        chunk = data[start:start + record_size]  # Still only read record_size bytes (excluding newline)
         
         try:
             # Unpack the record
@@ -1189,7 +1361,7 @@ def profile_vendor_file(file_path, filename, password=None, fixed_width_schema=N
         # Basic stats
         profile = {
             'name': col,
-            'type': str(col_data.dtype),
+            'type': normalize_pandas_dtype(col_data.dtype),
             'nullable': bool(col_data.isna().any()),
             'null_count': int(col_data.isna().sum()),
             'null_percentage': float((col_data.isna().sum() / len(df)) * 100) if len(df) > 0 else 0.0,

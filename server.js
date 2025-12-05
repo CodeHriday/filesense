@@ -1250,6 +1250,7 @@ app.get('/api/files/:fileId/preview',
   try {
     const { fileId } = req.params;
     const { limit = 100 } = req.query;
+    const { normalizeDataType } = require('./backend/utils/schemaExtractor');
     
     // Get file details
     const fileResult = await dbPool.query('SELECT * FROM files WHERE file_id = $1', [fileId]);
@@ -1270,7 +1271,7 @@ app.get('/api/files/:fileId/preview',
       logger.warn('No columns found in file_columns table', { fileId });
     }
     
-    const columns = columnsResult.rows.map(col => ({ name: col.column_name, type: col.column_type }));
+    const columns = columnsResult.rows.map(col => ({ name: col.column_name, type: normalizeDataType(col.column_type) }));
     
     // Get preview data from file_preview_data table
     const rowLimit = parseInt(limit) || 100;
@@ -4820,6 +4821,7 @@ app.get('/api/files/:fileId/profile',
   async (req, res) => {
   try {
     const { fileId } = req.params;
+    const { normalizeDataType } = require('./backend/utils/schemaExtractor');
     
     // Check if file exists
     const fileResult = await dbPool.query('SELECT * FROM files WHERE file_id = $1', [fileId]);
@@ -4854,7 +4856,7 @@ app.get('/api/files/:fileId/profile',
       if (isMasked || isDenied) {
         return {
           name: col.column_name,
-          type: col.column_type,
+          type: normalizeDataType(col.column_type),
           count: col.non_null_count,
           unique: col.unique_count,
           missing: col.null_count,
@@ -4881,7 +4883,7 @@ app.get('/api/files/:fileId/profile',
       // For allowed columns, return full statistics
       return {
         name: col.column_name,
-        type: col.column_type,
+        type: normalizeDataType(col.column_type),
         count: col.non_null_count,
         unique: col.unique_count,
         missing: col.null_count,
