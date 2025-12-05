@@ -81,8 +81,18 @@ Return a JSON array of suggestions. Each suggestion must have:
 - column_name: the column this rule applies to
 - description: what the rule checks
 - reason: why this rule is needed based on the profiling data
-- rule_config: JSON object with rule parameters
+- rule_config: JSON object with rule parameters (use type: "pattern" for regex validations)
 - severity: one of "critical", "error", "warning", "info"
+
+Validation types to consider:
+- null_check: Detect null or empty values (rule_type: completeness)
+- isna_check: Detect NA/N/A/NaN/NULL placeholder strings (rule_type: validity, use pattern type)
+- duplicate_check: Detect duplicate values in key columns (rule_type: uniqueness)
+- special_characters: Check for unexpected special characters (rule_type: validity, use pattern type)
+- length_check: Validate string length for fields like ZIP, phone, SSN (rule_type: validity, use pattern type)
+- email_validity: Validate email format (rule_type: validity, use pattern type)
+- date_format: Validate date formats (rule_type: validity, use pattern type)
+- range_check: Validate numeric ranges (rule_type: validity, use range type)
 
 Focus on actionable rules based on the actual data quality issues detected in the profiling."""
                 },
@@ -131,10 +141,14 @@ File: {filename}
 Columns: {json.dumps(column_summary, indent=2)}
 
 Generate appropriate data quality rules for columns that show potential issues:
-- Columns with nulls may need completeness rules
-- Columns with low unique counts may need uniqueness checks
+- Columns with nulls may need completeness rules (null_check)
+- Columns with NA/N/A/NaN values need isna_check rules
+- Columns with low unique counts may need uniqueness or duplicate_check rules
+- ID/key columns should be unique and checked for duplicates
 - Columns with specific patterns (email, phone, date) need validity rules
-- ID columns should be unique
-- Date columns should have freshness rules if they represent timestamps
+- Code fields (SKU, product codes) need special_characters validation
+- Fields with standard lengths (ZIP, phone, SSN) need length_check rules
+- Numeric columns (amount, price, quantity) need range validation
+- Date/timestamp columns should have freshness rules
 
 Return your response as a JSON object with a "suggestions" array."""

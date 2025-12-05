@@ -89,7 +89,9 @@ class BedrockProvider(AIProvider):
             "system": """You are a data quality expert. Analyze file profiling data and suggest data quality rules.
 Return a JSON object with a "suggestions" array. Each suggestion must have:
 - id, rule_name, rule_type (completeness/validity/consistency/uniqueness/freshness)
-- column_name, description, reason, rule_config, severity (critical/error/warning/info)"""
+- column_name, description, reason, rule_config (use type: "pattern" for regex), severity (critical/error/warning/info)
+
+Validation types: null_check, isna_check (NA/N/A/NaN values), duplicate_check, special_characters, length_check, email_validity, date_format, range_check"""
         })
         
         response = self._client.invoke_model(
@@ -140,7 +142,15 @@ Return a JSON object with a "suggestions" array. Each suggestion must have:
 File: {filename}
 Columns: {json.dumps(column_summary, indent=2)}
 
-Generate appropriate data quality rules for columns that show potential issues.
+Generate appropriate data quality rules for columns that show potential issues:
+- Columns with nulls need completeness rules (null_check)
+- Columns with NA/N/A/NaN values need isna_check rules
+- ID/key columns should be checked for uniqueness and duplicates (duplicate_check)
+- Code fields need special_characters validation
+- Fields with standard lengths (ZIP, phone, SSN) need length_check
+- Numeric columns need range validation
+- Date/timestamp columns need freshness rules
+
 Return your response as a JSON object with a "suggestions" array."""
     
     def _parse_response(self, response: str, file_id: str) -> List[Dict[str, Any]]:
