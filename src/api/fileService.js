@@ -173,8 +173,6 @@ export const bulkDeleteFiles = async (fileIds) => {
  */
 export const uploadFile = async (file, progressCallback, owner = null, projectId = null, replaceFileId = null, subProjectId = null, qualityRuleIds = null, agreementId = null, vendorAgreementFileSchemaId = null, fileHash = null, delimiter = null, headerConfig = null, fixedWidthSchema = null, archivePassword = null) => {
   try {
-    console.log('[DIAGNOSTIC] uploadFile called with archivePassword:', { hasPassword: !!archivePassword, length: archivePassword?.length });
-    
     const formData = new FormData();
     formData.append('files', file);
     if (owner) {
