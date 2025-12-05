@@ -963,6 +963,31 @@ const VendorAgreements = () => {
                     'Content-Type': 'multipart/form-data'
                   }
                 });
+                
+                // Save file configurations for locked agreement edit
+                const agreementIdForConfigs = selectedAgreement.id;
+                if (agreementIdForConfigs && fileConfigurations.length > 0) {
+                  try {
+                    const fileSchemas = fileConfigurations.map(config => ({
+                      file_name_pattern: config.file_name_pattern,
+                      file_description: config.file_description || '',
+                      schema: config.schema || [],
+                      priority: config.priority ?? 100,
+                      is_active: config.is_active !== false,
+                      contains_pii: config.contains_pii || false,
+                      data_classification: config.data_classification || null,
+                      file_type: config.file_type || null,
+                      quality_rule_ids: config.quality_rule_ids || [],
+                      archive_password: config.archive_password || '',
+                      has_header: config.has_header !== undefined ? config.has_header : true,
+                      header_definition: config.header_definition || null
+                    }));
+                    await axios.put(`/api/vendor-agreements/${agreementIdForConfigs}/file-schemas`, { fileSchemas });
+                  } catch (fileConfigError) {
+                    console.error('Error saving file configurations:', fileConfigError);
+                  }
+                }
+                
                 setNotificationModal({
                   isOpen: true,
                   type: 'success',
