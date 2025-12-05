@@ -240,8 +240,26 @@ router.get('/', async (req, res) => {
     const page = parseInt(req.query.page) || 1;
     const pageSize = parseInt(req.query.pageSize) || 10;
     const projectId = req.query.project_id ? parseInt(req.query.project_id) : null;
-    const vendorId = req.query.vendor_id ? parseInt(req.query.vendor_id) : null;
+    let vendorId = req.query.vendor_id ? parseInt(req.query.vendor_id) : null;
     const status = req.query.status || null;
+    const filterByMyVendor = req.query.filterByMyVendor === 'true';
+    
+    // If filterByMyVendor is true, get the user's vendor ID and use it for filtering
+    // This ensures vendor users only see agreements for their own vendor organization
+    if (filterByMyVendor && !vendorId) {
+      const { pool } = require('../config/database');
+      const vendorResult = await pool.query(
+        'SELECT id FROM vendors WHERE vendor_user_id = $1 AND status = $2',
+        [req.user.id, 'active']
+      );
+      if (vendorResult.rows.length > 0) {
+        vendorId = vendorResult.rows[0].id;
+        systemLogger.info('Filtering agreements by user vendor', { 
+          userId: req.user.id, 
+          vendorId 
+        });
+      }
+    }
     
     // Only users with approve permission can see ALL agreements (bypassing contact filtering)
     // Regular vendor users with just read permission still get filtered by their contact emails

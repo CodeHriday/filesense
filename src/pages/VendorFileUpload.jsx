@@ -29,11 +29,12 @@ function VendorFileUpload() {
   const { addToast } = useToast();
 
   // Load vendor agreements on demand
+  // Uses filterByMyVendor=true to only show agreements for the user's own vendor organization
   const loadVendorContracts = async () => {
     setLoadingAgreements(true);
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${API_BASE_URL}/api/vendor-agreements?pageSize=1000`, {
+      const response = await axios.get(`${API_BASE_URL}/api/vendor-agreements?pageSize=1000&filterByMyVendor=true`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       const agreements = response.data.agreements || [];
