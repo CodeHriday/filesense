@@ -900,47 +900,51 @@ function VendorFileUpload() {
                               gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
                               gap: '0.375rem'
                             }}>
-                              {schemaFields.map((field, idx) => (
-                                <div 
-                                  key={idx}
-                                  style={{
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '0.375rem',
-                                    padding: '0.375rem 0.5rem',
-                                    background: 'white',
-                                    border: '1px solid #e5e7eb',
-                                    borderRadius: '3px'
-                                  }}
-                                >
-                                  <span style={{
-                                    fontFamily: 'Inter, system-ui, sans-serif',
-                                    fontSize: '10px',
-                                    fontWeight: 500,
-                                    color: 'var(--gps-text-dark, #333333)'
-                                  }}>
-                                    {field.column_name}
-                                  </span>
-                                  <span style={{
-                                    fontFamily: 'Inter, system-ui, sans-serif',
-                                    fontSize: '9px',
-                                    color: '#6b7280',
-                                    background: '#f3f4f6',
-                                    padding: '1px 4px',
-                                    borderRadius: '2px',
-                                    marginLeft: 'auto'
-                                  }}>
-                                    {field.data_type}
-                                  </span>
-                                  {field.is_required && (
+                              {schemaFields.map((field, idx) => {
+                                const fieldName = field.column_name || field.name || 'Unknown';
+                                const fieldType = field.data_type || field.type || '';
+                                return (
+                                  <div 
+                                    key={idx}
+                                    style={{
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      gap: '0.375rem',
+                                      padding: '0.375rem 0.5rem',
+                                      background: 'white',
+                                      border: '1px solid #e5e7eb',
+                                      borderRadius: '3px'
+                                    }}
+                                  >
                                     <span style={{
-                                      color: 'var(--gps-danger-red, #e53e3e)',
+                                      fontFamily: 'Inter, system-ui, sans-serif',
                                       fontSize: '10px',
-                                      fontWeight: 600
-                                    }}>*</span>
-                                  )}
-                                </div>
-                              ))}
+                                      fontWeight: 500,
+                                      color: 'var(--gps-text-dark, #333333)'
+                                    }}>
+                                      {fieldName}
+                                    </span>
+                                    <span style={{
+                                      fontFamily: 'Inter, system-ui, sans-serif',
+                                      fontSize: '9px',
+                                      color: '#6b7280',
+                                      background: '#f3f4f6',
+                                      padding: '1px 4px',
+                                      borderRadius: '2px',
+                                      marginLeft: 'auto'
+                                    }}>
+                                      {fieldType}
+                                    </span>
+                                    {(field.is_required || field.required) && (
+                                      <span style={{
+                                        color: 'var(--gps-danger-red, #e53e3e)',
+                                        fontSize: '10px',
+                                        fontWeight: 600
+                                      }}>*</span>
+                                    )}
+                                  </div>
+                                );
+                              })}
                             </div>
                             {schema.data_classification && (
                               <div style={{
