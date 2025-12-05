@@ -259,51 +259,71 @@ function VendorFileUpload() {
 
       {/* Filename Validation Error Display */}
       {filenameValidationError && (
-        <div style={{
+        <div className="gps-alert gps-alert--error" style={{
           marginBottom: '1.5rem',
-          padding: '1.5rem',
-          background: '#fff5f5',
-          border: '2px solid #e53e3e',
-          borderRadius: '8px'
+          padding: '1.25rem',
+          borderRadius: '6px',
+          border: '1px solid #fecaca'
         }}>
           <h3 style={{ 
-            color: '#c53030', 
+            fontFamily: 'Inter, system-ui, sans-serif',
+            color: 'var(--gps-danger-red, #e53e3e)', 
             marginTop: 0, 
-            marginBottom: '1rem',
-            fontSize: '1.1rem',
-            fontWeight: 'bold'
+            marginBottom: '0.875rem',
+            fontSize: '13px',
+            fontWeight: 600,
+            letterSpacing: '0.01em'
           }}>
             File Pattern Validation Failed
           </h3>
           
           <div style={{ 
             background: 'white', 
-            padding: '1rem', 
+            padding: '0.875rem', 
             borderRadius: '4px',
-            marginBottom: '1rem',
-            border: '1px solid #feb2b2'
+            marginBottom: '0.875rem',
+            border: '1px solid #fecaca'
           }}>
             {filenameValidationError.contractCode && (
-              <div style={{ marginBottom: '0.75rem' }}>
-                <strong style={{ color: '#2d3748', display: 'block', marginBottom: '0.25rem' }}>
+              <div style={{ marginBottom: '0.625rem' }}>
+                <strong style={{ 
+                  fontFamily: 'Inter, system-ui, sans-serif',
+                  color: 'var(--gps-text-dark, #333333)', 
+                  display: 'block', 
+                  marginBottom: '0.25rem',
+                  fontSize: '11px',
+                  fontWeight: 600
+                }}>
                   Contract:
                 </strong>
-                <span style={{ color: '#4a5568', fontSize: '0.95em' }}>
+                <span style={{ 
+                  fontFamily: 'Inter, system-ui, sans-serif',
+                  color: 'var(--gps-text-muted, #666666)', 
+                  fontSize: '11px' 
+                }}>
                   {filenameValidationError.contractCode}
                 </span>
               </div>
             )}
 
-            <div style={{ marginBottom: '0.75rem' }}>
-              <strong style={{ color: '#c53030', display: 'block', marginBottom: '0.25rem' }}>
+            <div style={{ marginBottom: '0.625rem' }}>
+              <strong style={{ 
+                fontFamily: 'Inter, system-ui, sans-serif',
+                color: 'var(--gps-danger-red, #e53e3e)', 
+                display: 'block', 
+                marginBottom: '0.25rem',
+                fontSize: '11px',
+                fontWeight: 600
+              }}>
                 Uploaded File:
               </strong>
               <code style={{ 
-                background: '#fed7d7', 
-                padding: '4px 8px', 
+                fontFamily: 'Inter, system-ui, sans-serif',
+                background: '#fee2e2', 
+                padding: '3px 6px', 
                 borderRadius: '3px',
-                fontSize: '0.95em',
-                color: '#742a2a',
+                fontSize: '10px',
+                color: '#991b1b',
                 display: 'inline-block'
               }}>
                 {filenameValidationError.uploadedFile || `${filenameValidationError.actualBase}${filenameValidationError.actualExt}`}
@@ -311,34 +331,44 @@ function VendorFileUpload() {
             </div>
 
             <div>
-              <strong style={{ color: '#2d3748', display: 'block', marginBottom: '0.5rem' }}>
+              <strong style={{ 
+                fontFamily: 'Inter, system-ui, sans-serif',
+                color: 'var(--gps-text-dark, #333333)', 
+                display: 'block', 
+                marginBottom: '0.375rem',
+                fontSize: '11px',
+                fontWeight: 600
+              }}>
                 Expected File Patterns ({filenameValidationError.patternCount || filenameValidationError.expectedPatterns?.length || 0}):
               </strong>
               <ul style={{ 
-                margin: '0 0 0 1.5rem', 
+                margin: '0 0 0 1.25rem', 
                 padding: 0,
-                color: '#4a5568'
+                fontFamily: 'Inter, system-ui, sans-serif',
+                color: 'var(--gps-text-muted, #666666)'
               }}>
                 {filenameValidationError.expectedPatterns?.map((pattern, idx) => (
-                  <li key={idx} style={{ marginBottom: '0.25rem' }}>
+                  <li key={idx} style={{ marginBottom: '0.25rem', fontSize: '11px' }}>
                     <code style={{ 
-                      background: '#c6f6d5', 
-                      padding: '2px 6px', 
+                      fontFamily: 'Inter, system-ui, sans-serif',
+                      background: '#dcfce7', 
+                      padding: '2px 5px', 
                       borderRadius: '3px',
-                      fontSize: '0.9em',
-                      color: '#22543d'
+                      fontSize: '10px',
+                      color: '#166534'
                     }}>
                       {pattern}
                     </code>
                   </li>
                 )) || (
-                  <li>
+                  <li style={{ fontSize: '11px' }}>
                     <code style={{ 
-                      background: '#c6f6d5', 
-                      padding: '2px 6px', 
+                      fontFamily: 'Inter, system-ui, sans-serif',
+                      background: '#dcfce7', 
+                      padding: '2px 5px', 
                       borderRadius: '3px',
-                      fontSize: '0.9em',
-                      color: '#22543d'
+                      fontSize: '10px',
+                      color: '#166534'
                     }}>
                       {filenameValidationError.expectedBase}{filenameValidationError.expectedExt}
                     </code>
@@ -348,15 +378,13 @@ function VendorFileUpload() {
             </div>
           </div>
 
-          <div style={{ 
-            padding: '0.75rem',
-            background: '#fffaf0',
-            border: '1px solid #f6ad55',
+          <div className="gps-alert gps-alert--warning" style={{ 
+            padding: '0.625rem 0.75rem',
             borderRadius: '4px',
-            fontSize: '0.9rem',
-            color: '#744210'
+            fontSize: '10px',
+            fontFamily: 'Inter, system-ui, sans-serif'
           }}>
-            <strong>💡 Tip: </strong>
+            <strong style={{ fontWeight: 600 }}>Tip: </strong>
             File patterns may include wildcards: * (matches any characters) and ? (matches single character). 
             Your filename must match at least one of the patterns listed above for this contract.
           </div>
@@ -365,46 +393,55 @@ function VendorFileUpload() {
 
       {/* Schema Validation Error Display */}
       {schemaValidationError && (
-        <div style={{
+        <div className="gps-alert gps-alert--error" style={{
           marginBottom: '1.5rem',
-          padding: '1.5rem',
-          background: '#fff5f5',
-          border: '2px solid #e53e3e',
-          borderRadius: '8px'
+          padding: '1.25rem',
+          borderRadius: '6px',
+          border: '1px solid #fecaca'
         }}>
           <h3 style={{ 
-            color: '#c53030', 
+            fontFamily: 'Inter, system-ui, sans-serif',
+            color: 'var(--gps-danger-red, #e53e3e)', 
             marginTop: 0, 
-            marginBottom: '1rem',
-            fontSize: '1.1rem',
-            fontWeight: 'bold'
+            marginBottom: '0.875rem',
+            fontSize: '13px',
+            fontWeight: 600,
+            letterSpacing: '0.01em'
           }}>
             Schema Validation Failed
           </h3>
           
-          <p style={{ color: '#742a2a', marginBottom: '1rem' }}>
+          <p style={{ 
+            fontFamily: 'Inter, system-ui, sans-serif',
+            color: '#991b1b', 
+            marginBottom: '0.875rem',
+            fontSize: '11px'
+          }}>
             The uploaded file does not match the expected schema defined in the vendor agreement. Please correct the following issues:
           </p>
 
           {/* Missing Columns */}
           {schemaValidationError.missingColumns && schemaValidationError.missingColumns.length > 0 && (
-            <div style={{ marginBottom: '1rem' }}>
+            <div style={{ marginBottom: '0.875rem' }}>
               <h4 style={{ 
-                color: '#c53030', 
-                fontSize: '0.95rem', 
-                marginBottom: '0.5rem',
-                fontWeight: 'bold'
+                fontFamily: 'Inter, system-ui, sans-serif',
+                color: 'var(--gps-danger-red, #e53e3e)', 
+                fontSize: '11px', 
+                marginBottom: '0.375rem',
+                fontWeight: 600
               }}>
                 Missing Required Columns ({schemaValidationError.missingColumns.length})
               </h4>
               <ul style={{ 
-                margin: '0 0 0 1.5rem', 
+                margin: '0 0 0 1.25rem', 
                 padding: 0,
-                color: '#742a2a'
+                fontFamily: 'Inter, system-ui, sans-serif',
+                color: '#991b1b',
+                fontSize: '11px'
               }}>
                 {schemaValidationError.missingColumns.map((col, idx) => (
                   <li key={idx} style={{ marginBottom: '0.25rem' }}>
-                    <strong>{col}</strong>
+                    <strong style={{ fontWeight: 600 }}>{col}</strong>
                   </li>
                 ))}
               </ul>
@@ -413,19 +450,22 @@ function VendorFileUpload() {
 
           {/* General Errors */}
           {schemaValidationError.errors && schemaValidationError.errors.length > 0 && (
-            <div style={{ marginBottom: '1rem' }}>
+            <div style={{ marginBottom: '0.875rem' }}>
               <h4 style={{ 
-                color: '#c53030', 
-                fontSize: '0.95rem', 
-                marginBottom: '0.5rem',
-                fontWeight: 'bold'
+                fontFamily: 'Inter, system-ui, sans-serif',
+                color: 'var(--gps-danger-red, #e53e3e)', 
+                fontSize: '11px', 
+                marginBottom: '0.375rem',
+                fontWeight: 600
               }}>
                 Additional Issues
               </h4>
               <ul style={{ 
-                margin: '0 0 0 1.5rem', 
+                margin: '0 0 0 1.25rem', 
                 padding: 0,
-                color: '#742a2a'
+                fontFamily: 'Inter, system-ui, sans-serif',
+                color: '#991b1b',
+                fontSize: '11px'
               }}>
                 {schemaValidationError.errors.map((error, idx) => (
                   <li key={idx} style={{ marginBottom: '0.25rem' }}>{error}</li>
@@ -436,29 +476,30 @@ function VendorFileUpload() {
 
           {/* Warnings (informational) */}
           {schemaValidationError.warnings && schemaValidationError.warnings.length > 0 && (
-            <div style={{ 
-              marginTop: '1rem',
-              padding: '0.75rem',
-              background: '#fffaf0',
-              border: '1px solid #f6ad55',
+            <div className="gps-alert gps-alert--warning" style={{ 
+              marginTop: '0.875rem',
+              padding: '0.625rem 0.75rem',
               borderRadius: '4px'
             }}>
               <h4 style={{ 
-                color: '#c05621', 
-                fontSize: '0.9rem', 
+                fontFamily: 'Inter, system-ui, sans-serif',
+                color: '#92400e', 
+                fontSize: '11px', 
                 marginTop: 0,
-                marginBottom: '0.5rem',
-                fontWeight: 'bold'
+                marginBottom: '0.375rem',
+                fontWeight: 600
               }}>
                 Warnings
               </h4>
               <ul style={{ 
                 margin: 0, 
-                padding: '0 0 0 1.5rem',
-                color: '#744210'
+                padding: '0 0 0 1.25rem',
+                fontFamily: 'Inter, system-ui, sans-serif',
+                color: '#92400e',
+                fontSize: '10px'
               }}>
                 {schemaValidationError.warnings.map((warning, idx) => (
-                  <li key={idx} style={{ marginBottom: '0.25rem', fontSize: '0.9rem' }}>{warning}</li>
+                  <li key={idx} style={{ marginBottom: '0.25rem' }}>{warning}</li>
                 ))}
               </ul>
             </div>
@@ -469,19 +510,29 @@ function VendorFileUpload() {
       {hasWritePermission('vendor_file_quality') || hasWritePermission('file_drop') ? (
         <>
           {/* Vendor Contract and Connection Selection - Matching Drop File (S3 Direct) design */}
-          <div style={{ padding: '1rem', background: '#f8f9fa', marginBottom: '1rem', border: '1px solid #ddd', borderRadius: '8px' }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <div className="gps-card" style={{ 
+            padding: '1rem', 
+            marginBottom: '1rem', 
+            borderRadius: '6px' 
+          }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
               {/* Vendor Contract Selection */}
               <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
-                  <label htmlFor="vendor-contract-select" style={{ fontWeight: 'bold', whiteSpace: 'nowrap' }}>
-                    Vendor Contract: <span style={{ color: '#e74c3c' }}>*</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.375rem' }}>
+                  <label htmlFor="vendor-contract-select" style={{ 
+                    fontFamily: 'Inter, system-ui, sans-serif',
+                    fontWeight: 600, 
+                    whiteSpace: 'nowrap',
+                    fontSize: '11px',
+                    color: 'var(--gps-text-dark, #333333)'
+                  }}>
+                    Vendor Contract: <span style={{ color: 'var(--gps-danger-red, #e53e3e)' }}>*</span>
                   </label>
                   {!loadingAgreements && vendorAgreements.length === 0 && (
                     <button 
-                      className="btn btn-sm btn-primary"
+                      className="gps-btn gps-btn--primary gps-btn--sm"
                       onClick={loadVendorContracts}
-                      style={{ marginLeft: 'auto', flex: '0 0 auto' }}
+                      style={{ marginLeft: 'auto', flex: '0 0 auto', fontSize: '10px' }}
                     >
                       Load My Contracts
                     </button>
@@ -489,6 +540,7 @@ function VendorFileUpload() {
                 </div>
                 <select 
                   id="vendor-contract-select"
+                  className="gps-select"
                   value={selectedAgreement || ''}
                   onChange={(e) => {
                     const agreementId = Number(e.target.value);
@@ -501,7 +553,9 @@ function VendorFileUpload() {
                     width: '100%',
                     padding: '0.5rem',
                     borderRadius: '4px',
-                    border: '1px solid #ccc',
+                    border: '1px solid var(--gps-border-input, #d1d5db)',
+                    fontFamily: 'Inter, system-ui, sans-serif',
+                    fontSize: '11px',
                     cursor: 'pointer'
                   }}
                 >
@@ -529,16 +583,25 @@ function VendorFileUpload() {
                 
                 return (
                   <div>
-                    <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '0.5rem' }}>
-                      Connection: <span style={{ color: '#e74c3c' }}>*</span>
+                    <label style={{ 
+                      fontFamily: 'Inter, system-ui, sans-serif',
+                      fontWeight: 600, 
+                      display: 'block', 
+                      marginBottom: '0.375rem',
+                      fontSize: '11px',
+                      color: 'var(--gps-text-dark, #333333)'
+                    }}>
+                      Connection: <span style={{ color: 'var(--gps-danger-red, #e53e3e)' }}>*</span>
                     </label>
                     <div style={{
                       width: '100%',
                       padding: '0.5rem',
                       borderRadius: '4px',
-                      border: '1px solid #ccc',
+                      border: '1px solid var(--gps-border-input, #d1d5db)',
                       background: '#fff',
-                      color: '#333'
+                      fontFamily: 'Inter, system-ui, sans-serif',
+                      fontSize: '11px',
+                      color: 'var(--gps-text-dark, #333333)'
                     }}>
                       {agreement.vendor_connection_name || 'Vendor S3 Connection'} (S3)
                     </div>
@@ -551,19 +614,30 @@ function VendorFileUpload() {
                 const agreement = vendorAgreements.find(a => a.id === selectedAgreement);
                 return agreement?.vendor_connection_id;
               })() && (
-                <div style={{ background: 'white', padding: '0.75rem', borderRadius: '4px', border: '1px solid #e0e0e0' }}>
+                <div style={{ 
+                  background: 'white', 
+                  padding: '0.625rem 0.75rem', 
+                  borderRadius: '4px', 
+                  border: '1px solid var(--gps-border-light, #e5e7eb)' 
+                }}>
                   {(() => {
                     const agreement = vendorAgreements.find(a => a.id === selectedAgreement);
                     if (!agreement) return null;
                     return (
                       <>
-                        <div style={{ fontSize: '0.9rem', color: '#666', marginBottom: '0.5rem' }}>
-                          <strong>Default Upload Path:</strong> {selectedFolder || agreement.drop_location_path || 'root'}
+                        <div style={{ 
+                          fontFamily: 'Inter, system-ui, sans-serif',
+                          fontSize: '10px', 
+                          color: 'var(--gps-text-muted, #666666)', 
+                          marginBottom: '0.375rem' 
+                        }}>
+                          <strong style={{ fontWeight: 600 }}>Default Upload Path:</strong> {selectedFolder || agreement.drop_location_path || 'root'}
                         </div>
                         {agreement.vendor_connection_id && (
                           <button 
-                            className="btn btn-sm btn-secondary"
+                            className="gps-btn gps-btn--secondary gps-btn--sm"
                             onClick={() => setShowFolderBrowser(!showFolderBrowser)}
+                            style={{ fontSize: '10px' }}
                           >
                             {showFolderBrowser ? 'Hide' : 'Browse'} Folders
                           </button>
