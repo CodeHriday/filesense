@@ -2732,40 +2732,70 @@ app.post('/api/files/drop', authenticateToken, uploadLimiter, upload.single('fil
         
         const userEmail = userResult.rows[0].email;
         
-        // Verify connection belongs to an authorized vendor agreement where user is a contact
-        // Note: User can upload if they're listed as contact, regardless of vendor org
+        // Verify connection belongs to an authorized vendor agreement
+        // User must: 1) belong to the vendor org in the agreement, AND 2) be listed as a contact
         const authResult = await dbPool.query(`
           SELECT 
             sc.*,
             va.id as agreement_id,
+            va.vendor_id as agreement_vendor_id,
             va.project_id,
             va.drop_location_path,
             va.schema as agreement_schema,
-            va.file_name as expected_file_pattern
+            va.file_name as expected_file_pattern,
+            v.name as vendor_name
           FROM storage_connections sc
           JOIN vendor_agreements va ON va.vendor_connection_id = sc.connection_id
+          JOIN vendors v ON v.id = va.vendor_id
           WHERE sc.connection_id = $1
             AND sc.status = 'active'
+            AND va.vendor_id = $2
             AND va.approval_status = 'governance_approved'
             AND va.is_locked = true
             AND va.status = 'active'
             AND (
-              va.primary_contact_email = $2 
-              OR va.secondary_contact_email = $2
+              va.primary_contact_email = $3 
+              OR va.secondary_contact_email = $3
             )
           LIMIT 1
-        `, [connectionId, userEmail]);
+        `, [connectionId, vendorId, userEmail]);
         
         if (authResult.rows.length === 0) {
           try { fs.unlinkSync(file.path); } catch (e) {}
+          
+          // Provide specific error message for debugging
+          // Check if agreement exists but vendor doesn't match
+          const agreementCheck = await dbPool.query(`
+            SELECT va.vendor_id, v.name as vendor_name, 
+                   va.primary_contact_email, va.secondary_contact_email
+            FROM vendor_agreements va
+            JOIN vendors v ON v.id = va.vendor_id
+            WHERE va.vendor_connection_id = $1
+              AND va.approval_status = 'governance_approved'
+              AND va.is_locked = true
+              AND va.status = 'active'
+          `, [connectionId]);
+          
+          let errorDetail = 'No matching authorized agreement found';
+          if (agreementCheck.rows.length > 0) {
+            const agreement = agreementCheck.rows[0];
+            if (agreement.vendor_id !== vendorId) {
+              errorDetail = `This agreement belongs to vendor "${agreement.vendor_name}" (ID: ${agreement.vendor_id}), but you are associated with vendor ID: ${vendorId}`;
+            } else if (agreement.primary_contact_email !== userEmail && agreement.secondary_contact_email !== userEmail) {
+              errorDetail = `You (${userEmail}) are not listed as a primary or secondary contact on this agreement`;
+            }
+          }
+          
           logger.warn('Unauthorized vendor upload attempt - no access to connection', { 
             userId, 
+            userEmail,
             vendorId, 
-            connectionId 
+            connectionId,
+            errorDetail
           });
           return res.status(403).json({
             error: 'Access denied',
-            message: 'You do not have permission to upload to this connection'
+            message: errorDetail
           });
         }
         
