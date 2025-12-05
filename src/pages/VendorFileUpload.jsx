@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { FiUpload, FiCheckCircle, FiLoader, FiChevronDown, FiChevronRight, FiFile, FiDatabase } from 'react-icons/fi';
+import { FiUpload, FiCheckCircle, FiLoader, FiChevronDown, FiChevronRight, FiFile, FiDatabase, FiAlertCircle } from 'react-icons/fi';
 import FileDropzone from '../components/FileDropzone';
 import S3FolderBrowser from '../components/S3FolderBrowser';
 import StepProgress from '../components/StepProgress';
@@ -28,6 +28,7 @@ function VendorFileUpload() {
   const [fileSchemas, setFileSchemas] = useState([]);
   const [loadingSchemas, setLoadingSchemas] = useState(false);
   const [expandedSchemas, setExpandedSchemas] = useState({});
+  const [uploadingFiles, setUploadingFiles] = useState([]);
 
   const { hasWritePermission } = useAuth();
   const { addToast } = useToast();
@@ -257,7 +258,12 @@ function VendorFileUpload() {
     setUploadProgress(0);
     setSchemaValidationError(null);
     setFilenameValidationError(null);
+    setUploadingFiles([]);
   };
+  
+  const handleFilesChange = useCallback((files) => {
+    setUploadingFiles(files);
+  }, []);
 
   return (
     <div className="gps-page-container">
@@ -1016,6 +1022,86 @@ function VendorFileUpload() {
             </div>
           )}
 
+          {/* Multi-file Upload Status - displayed below progress, above dropzone */}
+          {uploadingFiles.length > 0 && (
+            <div style={{
+              marginBottom: '1rem',
+              padding: '1rem',
+              background: '#f8fafc',
+              border: '1px solid #e2e8f0',
+              borderRadius: '8px'
+            }}>
+              <h4 style={{
+                fontFamily: 'Inter, system-ui, sans-serif',
+                fontSize: '11px',
+                fontWeight: 600,
+                color: 'var(--gps-text-dark, #333)',
+                margin: '0 0 0.75rem 0'
+              }}>
+                File Processing Status
+              </h4>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                {uploadingFiles.map((file, idx) => (
+                  <div key={idx} style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '0.5rem 0.75rem',
+                    background: file.status === 'success' ? '#f0fdf4' : 
+                                file.status === 'error' ? '#fef2f2' : '#fff',
+                    border: '1px solid',
+                    borderColor: file.status === 'success' ? '#86efac' : 
+                                 file.status === 'error' ? '#fecaca' : '#e2e8f0',
+                    borderRadius: '4px'
+                  }}>
+                    <span style={{
+                      fontFamily: 'Inter, system-ui, sans-serif',
+                      fontSize: '10px',
+                      color: 'var(--gps-text-dark, #333)',
+                      fontWeight: 500,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                      maxWidth: '60%'
+                    }}>
+                      {file.name}
+                    </span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      {file.status === 'scanning' && (
+                        <>
+                          <FiLoader style={{ animation: 'spin 1s linear infinite', color: '#3b82f6', fontSize: '12px' }} />
+                          <span style={{ fontFamily: 'Inter, sans-serif', fontSize: '10px', color: '#3b82f6' }}>Scanning...</span>
+                        </>
+                      )}
+                      {file.status === 'uploading' && (
+                        <span style={{ fontFamily: 'Inter, sans-serif', fontSize: '10px', color: '#3b82f6' }}>
+                          {file.progress > 0 ? `${file.progress}%` : 'Uploading...'}
+                        </span>
+                      )}
+                      {file.status === 'success' && (
+                        <>
+                          <FiCheckCircle style={{ color: '#22c55e', fontSize: '12px' }} />
+                          <span style={{ fontFamily: 'Inter, sans-serif', fontSize: '10px', color: '#22c55e' }}>Complete</span>
+                        </>
+                      )}
+                      {file.status === 'error' && (
+                        <>
+                          <FiAlertCircle style={{ color: '#ef4444', fontSize: '12px' }} />
+                          <span style={{ fontFamily: 'Inter, sans-serif', fontSize: '10px', color: '#ef4444' }}>
+                            {file.error || 'Failed'}
+                          </span>
+                        </>
+                      )}
+                      {file.status === 'pending' && (
+                        <span style={{ fontFamily: 'Inter, sans-serif', fontSize: '10px', color: '#6b7280' }}>Waiting...</span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* File Drop Zone */}
           {selectedAgreement && (() => {
             const agreement = vendorAgreements.find(a => a.id === selectedAgreement);
@@ -1025,6 +1111,7 @@ function VendorFileUpload() {
               <FileDropzone 
                 key={`drop-${dropzoneKey}`}
                 onFileDrop={handleDropFile}
+                onFilesChange={handleFilesChange}
                 acceptedFileTypes={['.csv', '.json', '.parquet', '.xlsx', '.xml', '.zip', '.tar', '.tar.gz', '.tgz', '.tar.bz2', '.tbz2', '.gz', '.7z', '.sas7bdat', '.xpt', '.avro', '.dat']}
                 maxSizeMB={50}
                 multiple={true}

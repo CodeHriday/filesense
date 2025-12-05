@@ -3,7 +3,7 @@ import { flushSync } from 'react-dom';
 import { FiUpload, FiFile, FiCheckCircle, FiAlertCircle, FiLoader } from 'react-icons/fi';
 import './FileDropzone.css';
 
-function FileDropzone({ onFileDrop, onBatchFileDrop, acceptedFileTypes = ['.csv', '.json', '.parquet'], maxSizeMB = 500, multiple = false, virusScan = null, externalStatus = null }) {
+function FileDropzone({ onFileDrop, onBatchFileDrop, onFilesChange, acceptedFileTypes = ['.csv', '.json', '.parquet'], maxSizeMB = 500, multiple = false, virusScan = null, externalStatus = null }) {
   const [isDragging, setIsDragging] = useState(false);
   const [fileError, setFileError] = useState(null);
   const [uploadStatus, setUploadStatus] = useState(null);
@@ -13,6 +13,12 @@ function FileDropzone({ onFileDrop, onBatchFileDrop, acceptedFileTypes = ['.csv'
   const [processingStep, setProcessingStep] = useState(null);
   const [uploadingFiles, setUploadingFiles] = useState([]);
   const [completedFiles, setCompletedFiles] = useState([]);
+  
+  useEffect(() => {
+    if (onFilesChange && uploadingFiles.length > 0) {
+      onFilesChange(uploadingFiles);
+    }
+  }, [uploadingFiles, onFilesChange]);
   
   const getAcceptString = useCallback(() => {
     const mimeTypes = {
