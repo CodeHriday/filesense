@@ -137,4 +137,4 @@ integrations = ["python_openai_ai_integrations:1.0.0"]
 [userenv]
 
 [userenv.shared]
-ALLOWED_ORIGINS = "https://filesense-qa.blumetra.com,https://*.replit.dev,https://*.replit.app"
+ALLOWED_ORIGINS = "http://localhost:5000,http://localhost:3000,https://*.replit.dev,https://*.replit.app,http://filesense-qa.blumetra.com,https://filesense-qa.blumetra.com,http://filesense.blumetra.com,https://filesense.blumetra.com"
