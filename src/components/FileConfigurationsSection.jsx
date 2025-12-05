@@ -461,6 +461,12 @@ function FileConfigurationsSection({ fileConfigurations, onChange }) {
       return;
     }
 
+    // Debug logging for password handling
+    console.log('=== FileConfigurationsSection handleUpdate ===');
+    console.log('formData.file_type:', formData.file_type);
+    console.log('isArchiveType:', isArchiveType(formData.file_type));
+    console.log('formData.archive_password:', formData.archive_password ? formData.archive_password.substring(0, 3) + '***' : 'EMPTY');
+
     const updatedConfig = {
       ...fileConfigurations[editingIndex],
       file_name_pattern_base: formData.file_name_pattern_base.trim(),
@@ -478,6 +484,8 @@ function FileConfigurationsSection({ fileConfigurations, onChange }) {
       has_header: formData.has_header,
       header_definition: formData.header_definition
     };
+    
+    console.log('updatedConfig.archive_password:', updatedConfig.archive_password ? updatedConfig.archive_password.substring(0, 3) + '***' : 'EMPTY');
 
     const updated = [...fileConfigurations];
     updated[editingIndex] = updatedConfig;
