@@ -2857,6 +2857,7 @@ app.post('/api/files/drop', authenticateToken, uploadLimiter, upload.single('fil
       
       // Parse connection config
       const config = typeof connection.config === 'string' ? JSON.parse(connection.config) : connection.config;
+      const bucketName = config.bucket || config.bucket_name || config.gcp_bucket || config.container_name || '';
       
       // Normalize and validate folder path to prevent directory traversal
       let normalizedFolder = folder || '';
@@ -2876,6 +2877,18 @@ app.post('/api/files/drop', authenticateToken, uploadLimiter, upload.single('fil
             message: 'Folder path contains invalid characters'
           });
         }
+      }
+      
+      // Strip bucket name from folder path if it starts with the bucket name
+      // This fixes the case where folder browser returns paths like "bucketname/subfolder"
+      if (bucketName && normalizedFolder.startsWith(bucketName)) {
+        const stripped = normalizedFolder.substring(bucketName.length).replace(/^\/+/, '');
+        logger.info('Stripped bucket prefix from folder path', {
+          originalFolder: normalizedFolder,
+          bucketName,
+          strippedFolder: stripped
+        });
+        normalizedFolder = stripped;
       }
       
       // Build upload path: connection.path + folder + filename
