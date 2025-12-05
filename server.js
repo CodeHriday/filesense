@@ -2664,6 +2664,49 @@ app.post('/api/files/drop', authenticateToken, uploadLimiter, upload.single('fil
       });
     }
     
+    // Validate file has data rows (not empty or header-only)
+    // This check happens BEFORE uploading to cloud storage to fail fast
+    try {
+      const { validateFileHasData } = require('./backend/utils/fileDataValidator');
+      const dataValidation = await validateFileHasData(file.path, file.originalname);
+      
+      if (!dataValidation.valid) {
+        // File is empty or has no data rows - reject immediately
+        try { fs.unlinkSync(file.path); } catch (e) {}
+        
+        logger.warn('Empty file rejected during upload', {
+          fileId,
+          filename: file.originalname,
+          userId,
+          errorCode: dataValidation.errorCode,
+          message: dataValidation.message
+        });
+        
+        return res.status(400).json({
+          error: 'Empty file rejected',
+          message: dataValidation.message,
+          details: {
+            errorCode: dataValidation.errorCode,
+            filename: file.originalname
+          },
+          hint: 'Please ensure your file contains at least one data record, not just headers.'
+        });
+      }
+      
+      logger.info('File data validation passed', {
+        fileId,
+        filename: file.originalname,
+        message: dataValidation.message
+      });
+    } catch (validationError) {
+      logger.error('File data validation error', {
+        fileId,
+        filename: file.originalname,
+        error: validationError.message
+      });
+      // Allow upload to continue if validation fails unexpectedly
+    }
+    
     // Check if vendor uploaded with specific connection (already declared earlier)
     const folder = req.query.folder || '';
     
