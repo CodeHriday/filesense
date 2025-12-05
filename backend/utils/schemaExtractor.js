@@ -329,11 +329,16 @@ async function extractSchemaFromParquet(filePath) {
     const { parquetRead, parquetMetadataAsync } = await import('hyparquet');
     const nodeBuffer = fs.readFileSync(filePath);
     
-    // Create Uint8Array for metadata extraction
-    const fileBytes = new Uint8Array(nodeBuffer);
+    // Create a proper ArrayBuffer from the Node.js Buffer
+    // Node.js Buffer's .buffer is a shared ArrayBuffer, we need to slice the exact portion
+    const arrayBuffer = nodeBuffer.buffer.slice(
+      nodeBuffer.byteOffset,
+      nodeBuffer.byteOffset + nodeBuffer.byteLength
+    );
     
     // First, get column names from parquet metadata (authoritative source)
-    const metadata = await parquetMetadataAsync(fileBytes);
+    // parquetMetadataAsync expects an ArrayBuffer
+    const metadata = await parquetMetadataAsync(arrayBuffer);
     
     // Extract column names from schema - skip the root element
     // Schema structure: first element is root, subsequent elements are columns
@@ -352,11 +357,6 @@ async function extractSchemaFromParquet(filePath) {
     }
     
     // Now read data for type inference, mapping array indices to column names
-    const arrayBuffer = nodeBuffer.buffer.slice(
-      nodeBuffer.byteOffset,
-      nodeBuffer.byteOffset + nodeBuffer.byteLength
-    );
-    
     return new Promise((resolve, reject) => {
       parquetRead({
         file: arrayBuffer,
