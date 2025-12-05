@@ -295,9 +295,13 @@ async function extractSchemaFromParquet(filePath) {
  * These formats are first converted to temporary CSV/Parquet, then schema is extracted
  * @param {string} filePath - Path to the file
  * @param {string} ext - File extension
- * @param {string|null} archivePassword - Password for encrypted archives (optional)
+ * @param {Object} options - Additional options
+ * @param {string|null} options.archivePassword - Password for encrypted archives
+ * @param {Object|null} options.fixedWidthSchema - Fixed-width column schema for .dat files
+ * @param {Object|null} options.headerConfig - Header configuration (hasHeader, etc.)
  */
-async function extractSchemaViaConversion(filePath, ext, archivePassword = null) {
+async function extractSchemaViaConversion(filePath, ext, options = {}) {
+  const { archivePassword = null, fixedWidthSchema = null, headerConfig = null } = options;
   try {
     // Call Python profiling service to convert file to temporary CSV/Parquet
     const fileId = `schema_extract_${Date.now()}`;
@@ -312,6 +316,16 @@ async function extractSchemaViaConversion(filePath, ext, archivePassword = null)
     // Include password for encrypted archives
     if (archivePassword) {
       requestBody.password = archivePassword;
+    }
+    
+    // Include fixed-width schema for .dat files
+    if (fixedWidthSchema) {
+      requestBody.fixed_width_schema = fixedWidthSchema;
+    }
+    
+    // Include header configuration
+    if (headerConfig) {
+      requestBody.header_config = headerConfig;
     }
     
     const response = await axios.post('http://localhost:8000/api/vendor-profile', requestBody, {
@@ -402,9 +416,11 @@ function mimeTypeToExtension(mimeType) {
  * @param {string} fileType - MIME type or file extension
  * @param {Object} options - Additional options
  * @param {string|null} options.archivePassword - Password for encrypted archives
+ * @param {Object|null} options.fixedWidthSchema - Fixed-width column schema for .dat files
+ * @param {Object|null} options.headerConfig - Header configuration (hasHeader, etc.)
  */
 async function extractSchema(filePath, fileType, options = {}) {
-  const { archivePassword = null } = options;
+  const { archivePassword = null, fixedWidthSchema = null, headerConfig = null } = options;
   let ext;
   const filename = path.basename(filePath);
   
@@ -459,7 +475,7 @@ async function extractSchema(filePath, fileType, options = {}) {
     case 'xpt':
     case 'avro':
     case 'dat':
-      return await extractSchemaViaConversion(filePath, ext, archivePassword);
+      return await extractSchemaViaConversion(filePath, ext, { archivePassword, fixedWidthSchema, headerConfig });
     
     default:
       throw new Error(`Unsupported file type: ${ext}`);

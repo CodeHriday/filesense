@@ -1990,11 +1990,16 @@ app.post('/api/files/upload', authenticateToken, invalidateCache('cache:*:*files
                   schemaId: matchedSchema.schema_id,
                   userId: req.user.id,
                   expectedColumnCount: expectedSchema.length,
-                  hasArchivePassword: !!archivePassword
+                  hasArchivePassword: !!archivePassword,
+                  hasFixedWidthSchema: !!fixedWidthSchema
                 });
                 
-                // Extract schema from uploaded file (pass archive password for encrypted archives)
-                const uploadedSchema = await extractSchema(file.path, file.mimetype, { archivePassword });
+                // Extract schema from uploaded file (pass archive password and fixed-width schema)
+                const uploadedSchema = await extractSchema(file.path, file.mimetype, { 
+                  archivePassword, 
+                  fixedWidthSchema,
+                  headerConfig 
+                });
                 
                 // Compare schemas
                 const validationResult = compareSchemas(uploadedSchema, expectedSchema);
