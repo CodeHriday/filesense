@@ -1098,7 +1098,10 @@ const VendorAgreements = () => {
             contains_pii: config.contains_pii || false,
             data_classification: config.data_classification || null,
             file_type: config.file_type || null,
-            quality_rule_ids: config.quality_rule_ids || []
+            quality_rule_ids: config.quality_rule_ids || [],
+            archive_password: config.archive_password || '',
+            has_header: config.has_header !== undefined ? config.has_header : true,
+            header_definition: config.header_definition || null
           }));
           
           // Use bulk replace endpoint (deletes all existing and creates new ones in one transaction)
