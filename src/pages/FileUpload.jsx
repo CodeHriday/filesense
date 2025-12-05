@@ -2018,69 +2018,71 @@ function FileUpload() {
                         <span className="fixed-width-header-width">Width (bytes)</span>
                         <span className="fixed-width-header-action"></span>
                       </div>
-                      {fixedWidthSchema.map((column, index) => (
-                        <div key={index} className="fixed-width-column-row">
-                          <input 
-                            type="text"
-                            value={column.name}
-                            onChange={(e) => {
-                              const newSchema = [...fixedWidthSchema];
-                              newSchema[index].name = e.target.value;
-                              setFixedWidthSchema(newSchema);
-                            }}
-                            placeholder="Column Name"
-                            className="fixed-width-column-input"
-                          />
-                          <select
-                            value={column.type || 'string'}
-                            onChange={(e) => {
-                              const newSchema = [...fixedWidthSchema];
-                              const newType = e.target.value;
-                              newSchema[index].type = newType;
-                              const typeWidths = {
-                                'uint8': 1, 'int8': 1,
-                                'uint16': 2, 'int16': 2,
-                                'uint32': 4, 'int32': 4, 'float32': 4,
-                                'uint64': 8, 'int64': 8, 'float64': 8
-                              };
-                              if (typeWidths[newType]) {
-                                newSchema[index].width = typeWidths[newType].toString();
-                              } else if (newType === 'string') {
-                                newSchema[index].width = '';
-                              }
-                              setFixedWidthSchema(newSchema);
-                            }}
-                            className="fixed-width-type-select"
-                          >
-                            {binaryColumnTypes.map(t => (
-                              <option key={t.value} value={t.value}>{t.label}</option>
-                            ))}
-                          </select>
-                          <input 
-                            type="number"
-                            value={column.width}
-                            onChange={(e) => {
-                              const newSchema = [...fixedWidthSchema];
-                              newSchema[index].width = e.target.value;
-                              setFixedWidthSchema(newSchema);
-                            }}
-                            placeholder={column.type && column.type !== 'string' ? 'Fixed' : 'Width'}
-                            min="1"
-                            className="fixed-width-width-input"
-                            disabled={column.type && column.type !== 'string'}
-                          />
-                          <button 
-                            type="button"
-                            onClick={() => {
-                              const newSchema = fixedWidthSchema.filter((_, i) => i !== index);
-                              setFixedWidthSchema(newSchema.length > 0 ? newSchema : [{ name: '', width: '', type: 'string' }]);
-                            }}
-                            className="fixed-width-remove-btn"
-                          >
-                            Remove
-                          </button>
-                        </div>
-                      ))}
+                      <div className="fixed-width-columns-scroll">
+                        {fixedWidthSchema.map((column, index) => (
+                          <div key={index} className="fixed-width-column-row">
+                            <input 
+                              type="text"
+                              value={column.name}
+                              onChange={(e) => {
+                                const newSchema = [...fixedWidthSchema];
+                                newSchema[index].name = e.target.value;
+                                setFixedWidthSchema(newSchema);
+                              }}
+                              placeholder="Column Name"
+                              className="fixed-width-column-input"
+                            />
+                            <select
+                              value={column.type || 'string'}
+                              onChange={(e) => {
+                                const newSchema = [...fixedWidthSchema];
+                                const newType = e.target.value;
+                                newSchema[index].type = newType;
+                                const typeWidths = {
+                                  'uint8': 1, 'int8': 1,
+                                  'uint16': 2, 'int16': 2,
+                                  'uint32': 4, 'int32': 4, 'float32': 4,
+                                  'uint64': 8, 'int64': 8, 'float64': 8
+                                };
+                                if (typeWidths[newType]) {
+                                  newSchema[index].width = typeWidths[newType].toString();
+                                } else if (newType === 'string') {
+                                  newSchema[index].width = '';
+                                }
+                                setFixedWidthSchema(newSchema);
+                              }}
+                              className="fixed-width-type-select"
+                            >
+                              {binaryColumnTypes.map(t => (
+                                <option key={t.value} value={t.value}>{t.label}</option>
+                              ))}
+                            </select>
+                            <input 
+                              type="number"
+                              value={column.width}
+                              onChange={(e) => {
+                                const newSchema = [...fixedWidthSchema];
+                                newSchema[index].width = e.target.value;
+                                setFixedWidthSchema(newSchema);
+                              }}
+                              placeholder={column.type && column.type !== 'string' ? 'Fixed' : 'Width'}
+                              min="1"
+                              className="fixed-width-width-input"
+                              disabled={column.type && column.type !== 'string'}
+                            />
+                            <button 
+                              type="button"
+                              onClick={() => {
+                                const newSchema = fixedWidthSchema.filter((_, i) => i !== index);
+                                setFixedWidthSchema(newSchema.length > 0 ? newSchema : [{ name: '', width: '', type: 'string' }]);
+                              }}
+                              className="fixed-width-remove-btn"
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        ))}
+                      </div>
                       
                       <button 
                         type="button"
