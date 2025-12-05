@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { FiUpload, FiCheckCircle, FiLoader } from 'react-icons/fi';
 import FileDropzone from '../components/FileDropzone';
 import S3FolderBrowser from '../components/S3FolderBrowser';
+import StepProgress from '../components/StepProgress';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { API_BASE_URL } from '../config';
@@ -113,12 +114,19 @@ function VendorFileUpload() {
           const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
           setUploadProgress(percentCompleted);
           
+          // When upload reaches 100%, transition to scanning stage
+          if (percentCompleted === 100) {
+            setUploadStage('scanning');
+          }
+          
           if (progressHandler) {
             progressHandler(progressEvent);
           }
         }
       });
       
+      // Move to complete stage on successful response
+      setUploadStage('complete');
       setDiagnosticInfo(prev => prev + `Upload successful: ${JSON.stringify(response.data, null, 2)}\n`);
       
       const fileDetails = {
@@ -136,9 +144,8 @@ function VendorFileUpload() {
       const virusScan = response.data.virusScan;
       
       if (virusScan && virusScan.scanned && virusScan.clean) {
-        // File passed virus scan
+        // File passed virus scan - keep 'complete' stage visible
         setUploadStatus('success');
-        setUploadStage(null);
         setShowSuccessNotification(true);
         
         const scanMessage = virusScan.skipped 
@@ -152,7 +159,7 @@ function VendorFileUpload() {
           detail: { fileId: fileDetails.fileId, fileName: fileDetails.fileName }
         }));
         
-        // Hide notification after 8 seconds
+        // Hide notification after 8 seconds, but keep progress bar visible
         setTimeout(() => {
           setShowSuccessNotification(false);
         }, 8000);
@@ -164,9 +171,8 @@ function VendorFileUpload() {
         addToast('error', 'Upload Failed', 'File failed virus scan.');
         
       } else {
-        // No virus scan data or scan failed - treat as success with warning
+        // No virus scan data or scan failed - treat as success with warning, keep 'complete' stage visible
         setUploadStatus('success');
-        setUploadStage(null);
         setShowSuccessNotification(true);
         addToast('warning', 'Upload Complete', virusScan?.message || 'File uploaded but virus scan status is unknown.');
         
@@ -590,36 +596,19 @@ function VendorFileUpload() {
             </div>
           </div>
 
-          {/* Upload Progress Indicator */}
-          {uploadStage === 'uploading' && (
+          {/* Upload Progress Indicator - 3-step progress bar */}
+          {uploadStage && (
             <div style={{
               marginBottom: '1rem',
               padding: '1rem',
-              background: '#e3f2fd',
-              border: '1px solid #2196f3',
+              background: '#f8fafc',
+              border: '1px solid #e2e8f0',
               borderRadius: '8px'
             }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem' }}>
-                <FiLoader style={{ animation: 'spin 1s linear infinite', fontSize: '1.2rem', color: '#2196f3' }} />
-                <strong style={{ color: '#1976d2' }}>
-                  Uploading... {uploadProgress}%
-                </strong>
-              </div>
-              
-              <div style={{
-                width: '100%',
-                height: '8px',
-                background: '#bbdefb',
-                borderRadius: '4px',
-                overflow: 'hidden'
-              }}>
-                <div style={{
-                  width: `${uploadProgress}%`,
-                  height: '100%',
-                  background: '#2196f3',
-                  transition: 'width 0.3s ease'
-                }} />
-              </div>
+              <StepProgress 
+                currentStep={uploadStage} 
+                uploadProgress={uploadStage === 'uploading' ? uploadProgress : null}
+              />
             </div>
           )}
 
