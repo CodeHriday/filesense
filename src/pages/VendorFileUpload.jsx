@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { FiUpload, FiCheckCircle, FiLoader } from 'react-icons/fi';
+import { FiUpload, FiCheckCircle, FiLoader, FiChevronDown, FiChevronRight, FiFile, FiDatabase } from 'react-icons/fi';
 import FileDropzone from '../components/FileDropzone';
 import S3FolderBrowser from '../components/S3FolderBrowser';
 import StepProgress from '../components/StepProgress';
@@ -25,9 +25,48 @@ function VendorFileUpload() {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [schemaValidationError, setSchemaValidationError] = useState(null);
   const [filenameValidationError, setFilenameValidationError] = useState(null);
+  const [fileSchemas, setFileSchemas] = useState([]);
+  const [loadingSchemas, setLoadingSchemas] = useState(false);
+  const [expandedSchemas, setExpandedSchemas] = useState({});
 
   const { hasWritePermission } = useAuth();
   const { addToast } = useToast();
+
+  // Load file schemas when an agreement is selected
+  useEffect(() => {
+    const loadFileSchemas = async () => {
+      if (!selectedAgreement) {
+        setFileSchemas([]);
+        setExpandedSchemas({});
+        return;
+      }
+      
+      setLoadingSchemas(true);
+      try {
+        const token = localStorage.getItem('token');
+        const response = await axios.get(
+          `${API_BASE_URL}/api/vendor-agreements/${selectedAgreement}/file-schemas`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        setFileSchemas(response.data.fileSchemas || []);
+      } catch (error) {
+        console.error('Error loading file schemas:', error);
+        setFileSchemas([]);
+      } finally {
+        setLoadingSchemas(false);
+      }
+    };
+    
+    loadFileSchemas();
+  }, [selectedAgreement]);
+
+  // Toggle schema expansion
+  const toggleSchemaExpansion = (schemaId) => {
+    setExpandedSchemas(prev => ({
+      ...prev,
+      [schemaId]: !prev[schemaId]
+    }));
+  };
 
   // Load vendor agreements on demand
   // Uses filterByMyVendor=true to only show agreements for the user's own vendor organization
@@ -701,6 +740,261 @@ function VendorFileUpload() {
               )}
             </div>
           </div>
+
+          {/* Expected Files and Schema Reference */}
+          {selectedAgreement && fileSchemas.length > 0 && (
+            <div className="gps-card" style={{ 
+              padding: '1rem', 
+              marginBottom: '1rem', 
+              borderRadius: '6px' 
+            }}>
+              <div style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '0.5rem', 
+                marginBottom: '0.75rem' 
+              }}>
+                <FiDatabase style={{ 
+                  color: 'var(--gps-primary, #2563eb)', 
+                  fontSize: '14px' 
+                }} />
+                <h3 style={{ 
+                  fontFamily: 'Inter, system-ui, sans-serif',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  color: 'var(--gps-text-dark, #333333)',
+                  margin: 0
+                }}>
+                  Expected Files for This Contract
+                </h3>
+                <span style={{
+                  fontFamily: 'Inter, system-ui, sans-serif',
+                  fontSize: '10px',
+                  color: 'var(--gps-text-muted, #666666)',
+                  background: '#f3f4f6',
+                  padding: '2px 6px',
+                  borderRadius: '10px'
+                }}>
+                  {fileSchemas.length} file pattern{fileSchemas.length !== 1 ? 's' : ''}
+                </span>
+              </div>
+              
+              {loadingSchemas ? (
+                <div style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '0.5rem',
+                  padding: '0.75rem',
+                  color: 'var(--gps-text-muted, #666666)',
+                  fontFamily: 'Inter, system-ui, sans-serif',
+                  fontSize: '11px'
+                }}>
+                  <FiLoader className="spin" />
+                  Loading file schemas...
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  {fileSchemas.map((schema) => {
+                    const isExpanded = expandedSchemas[schema.id];
+                    let schemaFields = [];
+                    try {
+                      schemaFields = typeof schema.schema === 'string' 
+                        ? JSON.parse(schema.schema) 
+                        : schema.schema || [];
+                    } catch (e) {
+                      schemaFields = [];
+                    }
+                    
+                    return (
+                      <div 
+                        key={schema.id}
+                        style={{
+                          border: '1px solid var(--gps-border-light, #e5e7eb)',
+                          borderRadius: '4px',
+                          overflow: 'hidden'
+                        }}
+                      >
+                        <div 
+                          onClick={() => toggleSchemaExpansion(schema.id)}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.5rem',
+                            padding: '0.625rem 0.75rem',
+                            background: isExpanded ? '#f8fafc' : '#fff',
+                            cursor: 'pointer',
+                            transition: 'background 0.15s ease'
+                          }}
+                        >
+                          {isExpanded ? (
+                            <FiChevronDown style={{ color: 'var(--gps-text-muted, #666666)', fontSize: '12px', flexShrink: 0 }} />
+                          ) : (
+                            <FiChevronRight style={{ color: 'var(--gps-text-muted, #666666)', fontSize: '12px', flexShrink: 0 }} />
+                          )}
+                          <FiFile style={{ color: 'var(--gps-primary, #2563eb)', fontSize: '12px', flexShrink: 0 }} />
+                          <code style={{
+                            fontFamily: 'Inter, system-ui, sans-serif',
+                            fontSize: '11px',
+                            fontWeight: 600,
+                            color: 'var(--gps-text-dark, #333333)',
+                            background: '#e0e7ff',
+                            padding: '2px 6px',
+                            borderRadius: '3px'
+                          }}>
+                            {schema.file_name_pattern}
+                          </code>
+                          {schema.file_type && (
+                            <span style={{
+                              fontFamily: 'Inter, system-ui, sans-serif',
+                              fontSize: '9px',
+                              color: '#6366f1',
+                              background: '#eef2ff',
+                              padding: '2px 5px',
+                              borderRadius: '3px',
+                              textTransform: 'uppercase'
+                            }}>
+                              {schema.file_type}
+                            </span>
+                          )}
+                          {schema.has_archive_password && (
+                            <span style={{
+                              fontFamily: 'Inter, system-ui, sans-serif',
+                              fontSize: '9px',
+                              color: '#059669',
+                              background: '#d1fae5',
+                              padding: '2px 5px',
+                              borderRadius: '3px'
+                            }}>
+                              Password Protected
+                            </span>
+                          )}
+                          <span style={{
+                            fontFamily: 'Inter, system-ui, sans-serif',
+                            fontSize: '10px',
+                            color: 'var(--gps-text-muted, #666666)',
+                            marginLeft: 'auto'
+                          }}>
+                            {schemaFields.length} field{schemaFields.length !== 1 ? 's' : ''}
+                          </span>
+                        </div>
+                        
+                        {isExpanded && schemaFields.length > 0 && (
+                          <div style={{
+                            padding: '0.75rem',
+                            background: '#fafafa',
+                            borderTop: '1px solid var(--gps-border-light, #e5e7eb)'
+                          }}>
+                            {schema.file_description && (
+                              <p style={{
+                                fontFamily: 'Inter, system-ui, sans-serif',
+                                fontSize: '10px',
+                                color: 'var(--gps-text-muted, #666666)',
+                                margin: '0 0 0.75rem 0',
+                                fontStyle: 'italic'
+                              }}>
+                                {schema.file_description}
+                              </p>
+                            )}
+                            <div style={{
+                              display: 'grid',
+                              gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
+                              gap: '0.375rem'
+                            }}>
+                              {schemaFields.map((field, idx) => (
+                                <div 
+                                  key={idx}
+                                  style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '0.375rem',
+                                    padding: '0.375rem 0.5rem',
+                                    background: 'white',
+                                    border: '1px solid #e5e7eb',
+                                    borderRadius: '3px'
+                                  }}
+                                >
+                                  <span style={{
+                                    fontFamily: 'Inter, system-ui, sans-serif',
+                                    fontSize: '10px',
+                                    fontWeight: 500,
+                                    color: 'var(--gps-text-dark, #333333)'
+                                  }}>
+                                    {field.column_name}
+                                  </span>
+                                  <span style={{
+                                    fontFamily: 'Inter, system-ui, sans-serif',
+                                    fontSize: '9px',
+                                    color: '#6b7280',
+                                    background: '#f3f4f6',
+                                    padding: '1px 4px',
+                                    borderRadius: '2px',
+                                    marginLeft: 'auto'
+                                  }}>
+                                    {field.data_type}
+                                  </span>
+                                  {field.is_required && (
+                                    <span style={{
+                                      color: 'var(--gps-danger-red, #e53e3e)',
+                                      fontSize: '10px',
+                                      fontWeight: 600
+                                    }}>*</span>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                            {schema.data_classification && (
+                              <div style={{
+                                marginTop: '0.625rem',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.5rem'
+                              }}>
+                                <span style={{
+                                  fontFamily: 'Inter, system-ui, sans-serif',
+                                  fontSize: '9px',
+                                  color: 'var(--gps-text-muted, #666666)'
+                                }}>
+                                  Classification:
+                                </span>
+                                <span style={{
+                                  fontFamily: 'Inter, system-ui, sans-serif',
+                                  fontSize: '9px',
+                                  color: schema.data_classification === 'Highly Confidential' ? '#dc2626' :
+                                         schema.data_classification === 'Confidential' ? '#ea580c' :
+                                         schema.data_classification === 'Internal' ? '#ca8a04' : '#059669',
+                                  background: schema.data_classification === 'Highly Confidential' ? '#fef2f2' :
+                                              schema.data_classification === 'Confidential' ? '#fff7ed' :
+                                              schema.data_classification === 'Internal' ? '#fefce8' : '#f0fdf4',
+                                  padding: '2px 6px',
+                                  borderRadius: '3px',
+                                  fontWeight: 500
+                                }}>
+                                  {schema.data_classification}
+                                </span>
+                                {schema.contains_pii && (
+                                  <span style={{
+                                    fontFamily: 'Inter, system-ui, sans-serif',
+                                    fontSize: '9px',
+                                    color: '#dc2626',
+                                    background: '#fef2f2',
+                                    padding: '2px 6px',
+                                    borderRadius: '3px',
+                                    fontWeight: 500
+                                  }}>
+                                    Contains PII
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Upload Progress Indicator - 3-step progress bar */}
           {uploadStage && (
