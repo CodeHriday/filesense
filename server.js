@@ -2732,7 +2732,8 @@ app.post('/api/files/drop', authenticateToken, uploadLimiter, upload.single('fil
         
         const userEmail = userResult.rows[0].email;
         
-        // Verify connection belongs to an authorized vendor agreement
+        // Verify connection belongs to an authorized vendor agreement where user is a contact
+        // Note: User can upload if they're listed as contact, regardless of vendor org
         const authResult = await dbPool.query(`
           SELECT 
             sc.*,
@@ -2745,16 +2746,15 @@ app.post('/api/files/drop', authenticateToken, uploadLimiter, upload.single('fil
           JOIN vendor_agreements va ON va.vendor_connection_id = sc.connection_id
           WHERE sc.connection_id = $1
             AND sc.status = 'active'
-            AND va.vendor_id = $2
             AND va.approval_status = 'governance_approved'
             AND va.is_locked = true
             AND va.status = 'active'
             AND (
-              va.primary_contact_email = $3 
-              OR va.secondary_contact_email = $3
+              va.primary_contact_email = $2 
+              OR va.secondary_contact_email = $2
             )
           LIMIT 1
-        `, [connectionId, vendorId, userEmail]);
+        `, [connectionId, userEmail]);
         
         if (authResult.rows.length === 0) {
           try { fs.unlinkSync(file.path); } catch (e) {}
