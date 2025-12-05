@@ -305,7 +305,13 @@ class ArchiveExtractionService {
           const sanitizedName = path.basename(entry.fileName);
           const outputPath = path.join(outputDir, sanitizedName);
 
-          const openReadStreamOptions = password ? { decrypt: true, password: Buffer.from(password, 'utf-8') } : {};
+          // Check if entry is encrypted (bit 0 of generalPurposeBitFlag)
+          const isEntryEncrypted = (entry.generalPurposeBitFlag & 0x1) !== 0;
+          
+          // Only apply decrypt options for encrypted entries
+          const openReadStreamOptions = (password && isEntryEncrypted) 
+            ? { decrypt: true, password: Buffer.from(password, 'utf-8') } 
+            : {};
 
           zipfile.openReadStream(entry, openReadStreamOptions, (err, readStream) => {
             if (err) {
