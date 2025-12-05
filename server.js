@@ -2891,11 +2891,43 @@ app.post('/api/files/drop', authenticateToken, uploadLimiter, upload.single('fil
         normalizedFolder = stripped;
       }
       
-      // Build upload path: connection.path + folder + filename
+      // Build upload path: folder (if provided) or connection.path + filename
+      // When folder is explicitly provided (from vendor agreement's drop_location_path),
+      // use it directly as the complete path within the bucket
       const connPath = connection.path || '';
-      uploadPath = [connPath, normalizedFolder, file.originalname]
+      let folderPath;
+      
+      if (normalizedFolder) {
+        // Folder was explicitly provided - use it directly
+        // Check if normalizedFolder already starts with or equals connPath to avoid duplication
+        const cleanConnPath = connPath.replace(/^\/+|\/+$/g, '');
+        if (cleanConnPath && normalizedFolder.startsWith(cleanConnPath)) {
+          // normalizedFolder already contains the connection path, use as-is
+          folderPath = normalizedFolder;
+        } else if (cleanConnPath && normalizedFolder === cleanConnPath) {
+          // They're the same, just use one
+          folderPath = normalizedFolder;
+        } else {
+          // Folder doesn't overlap with connPath, use folder directly
+          // (folder from vendor agreement takes precedence over connection.path)
+          folderPath = normalizedFolder;
+        }
+      } else {
+        // No folder provided - fall back to connection.path
+        folderPath = connPath;
+      }
+      
+      uploadPath = [folderPath, file.originalname]
         .filter(p => p) // Remove empty strings
         .join('/').replace(/\/+/g, '/'); // Remove double slashes
+      
+      logger.info('Upload path constructed', {
+        connPath,
+        normalizedFolder,
+        folderPath,
+        uploadPath,
+        filename: file.originalname
+      });
       
       // Prepare dropConfig object from connection
       dropConfig = {
