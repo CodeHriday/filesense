@@ -1203,18 +1203,24 @@ function FileUpload() {
       // Normalize error payload (axios errors may be unwrapped by interceptor)
       const errorPayload = error?.response?.data || error;
       
-      // Check for contract validation errors (filename pattern OR schema validation)
+      // Check for contract validation errors (filename pattern, schema validation, or schema extraction)
       const isFilePatternError = errorPayload?.error === 'File pattern validation failed';
       const isSchemaError = errorPayload?.error === 'Schema validation failed';
+      const isSchemaExtractionError = errorPayload?.error === 'Schema validation error';
       
-      if ((isFilePatternError || isSchemaError) && errorPayload?.details) {
+      if ((isFilePatternError || isSchemaError || isSchemaExtractionError) && (errorPayload?.details || errorPayload?.message)) {
+        // Determine error type for display
+        let errorType = 'schema';
+        if (isFilePatternError) errorType = 'pattern';
+        else if (isSchemaExtractionError) errorType = 'extraction';
+        
         // Store unified validation error with type and full details
         setValidationError({
-          type: isFilePatternError ? 'pattern' : 'schema',
+          type: errorType,
           error: errorPayload.error,
           message: errorPayload.message,
-          hint: errorPayload.hint,
-          details: errorPayload.details
+          hint: errorPayload.hint || (isSchemaExtractionError ? 'For password-protected archives, ensure you have entered the correct archive password.' : null),
+          details: errorPayload.details || { errorMessage: errorPayload.message }
         });
         
         setDiagnosticInfo(prev => prev + `${errorPayload.error}: ${errorPayload.message}\n`);
@@ -2301,6 +2307,25 @@ function FileUpload() {
                     </li>
                   ))}
                 </ul>
+              </div>
+            )}
+
+            {/* Show extraction errors (password issues, file format issues) */}
+            {validationError.type === 'extraction' && (
+              <div style={{ textAlign: 'left' }}>
+                <div style={{ 
+                  background: '#fff',
+                  padding: '1rem',
+                  borderRadius: '6px',
+                  marginBottom: '1rem'
+                }}>
+                  <div style={{ fontWeight: 'bold', marginBottom: '0.5rem', color: '#991b1b' }}>
+                    ⚠️ File Processing Error:
+                  </div>
+                  <p style={{ margin: '0.5rem 0', color: '#7f1d1d', fontSize: '0.9rem' }}>
+                    {validationError.details.errorMessage || validationError.message}
+                  </p>
+                </div>
               </div>
             )}
 

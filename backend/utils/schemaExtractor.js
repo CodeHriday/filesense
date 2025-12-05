@@ -293,22 +293,42 @@ async function extractSchemaFromParquet(filePath) {
 /**
  * Extract schema from special formats (archives, SAS, Avro, DAT) via Python profiling service
  * These formats are first converted to temporary CSV/Parquet, then schema is extracted
+ * @param {string} filePath - Path to the file
+ * @param {string} ext - File extension
+ * @param {string|null} archivePassword - Password for encrypted archives (optional)
  */
-async function extractSchemaViaConversion(filePath, ext) {
+async function extractSchemaViaConversion(filePath, ext, archivePassword = null) {
   try {
     // Call Python profiling service to convert file to temporary CSV/Parquet
     const fileId = `schema_extract_${Date.now()}`;
     const filename = path.basename(filePath);
     
-    const response = await axios.post('http://localhost:8000/api/vendor-profile', {
+    const requestBody = {
       file_id: fileId,
       local_file_path: filePath,
       filename: filename
-    }, {
+    };
+    
+    // Include password for encrypted archives
+    if (archivePassword) {
+      requestBody.password = archivePassword;
+    }
+    
+    const response = await axios.post('http://localhost:8000/api/vendor-profile', requestBody, {
       timeout: 120000
     });
     
     if (!response.data || !response.data.metadata || !response.data.metadata.columns) {
+      // Check for specific error messages from Python service
+      if (response.data && response.data.issues && response.data.issues.length > 0) {
+        const errorMessages = response.data.issues
+          .filter(issue => issue.type === 'error')
+          .map(issue => issue.message)
+          .join('; ');
+        if (errorMessages) {
+          throw new Error(errorMessages);
+        }
+      }
       throw new Error(`Python profiling service did not return column metadata for ${ext} file`);
     }
     
@@ -353,8 +373,13 @@ function mimeTypeToExtension(mimeType) {
 
 /**
  * Main function to extract schema based on file type
+ * @param {string} filePath - Path to the file
+ * @param {string} fileType - MIME type or file extension
+ * @param {Object} options - Additional options
+ * @param {string|null} options.archivePassword - Password for encrypted archives
  */
-async function extractSchema(filePath, fileType) {
+async function extractSchema(filePath, fileType, options = {}) {
+  const { archivePassword = null } = options;
   let ext;
   const filename = path.basename(filePath);
   
@@ -409,7 +434,7 @@ async function extractSchema(filePath, fileType) {
     case 'xpt':
     case 'avro':
     case 'dat':
-      return await extractSchemaViaConversion(filePath, ext);
+      return await extractSchemaViaConversion(filePath, ext, archivePassword);
     
     default:
       throw new Error(`Unsupported file type: ${ext}`);

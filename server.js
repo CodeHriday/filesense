@@ -1989,11 +1989,12 @@ app.post('/api/files/upload', authenticateToken, invalidateCache('cache:*:*files
                   agreementId,
                   schemaId: matchedSchema.schema_id,
                   userId: req.user.id,
-                  expectedColumnCount: expectedSchema.length
+                  expectedColumnCount: expectedSchema.length,
+                  hasArchivePassword: !!archivePassword
                 });
                 
-                // Extract schema from uploaded file
-                const uploadedSchema = await extractSchema(file.path, file.mimetype);
+                // Extract schema from uploaded file (pass archive password for encrypted archives)
+                const uploadedSchema = await extractSchema(file.path, file.mimetype, { archivePassword });
                 
                 // Compare schemas
                 const validationResult = compareSchemas(uploadedSchema, expectedSchema);
@@ -2915,11 +2916,12 @@ app.post('/api/files/drop', authenticateToken, uploadLimiter, upload.single('fil
         logger.info('Starting schema validation for vendor upload', { 
           fileId, 
           filename: file.originalname,
-          userId 
+          userId,
+          hasArchivePassword: !!archivePassword
         });
         
-        // Extract schema from uploaded file
-        const uploadedSchema = await extractSchema(file.path, file.mimetype);
+        // Extract schema from uploaded file (pass archive password for encrypted archives)
+        const uploadedSchema = await extractSchema(file.path, file.mimetype, { archivePassword });
         
         // Parse agreement schema (it's stored as JSON)
         const expectedSchema = typeof agreementSchema === 'string' 
