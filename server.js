@@ -11195,12 +11195,25 @@ async function startServer() {
     // Create HTTP server for both Express and Socket.IO
     const httpServer = http.createServer(app);
     
-    // Initialize Socket.IO with CORS settings
+    // Initialize Socket.IO with CORS settings (using same allowedOrigins as Express CORS)
     const io = new Server(httpServer, {
       cors: {
-        origin: process.env.NODE_ENV === 'production' 
-          ? [process.env.FRONTEND_URL || 'https://*.replit.app'] 
-          : ['http://localhost:5000', 'http://localhost:5173', 'http://127.0.0.1:5173'],
+        origin: function (origin, callback) {
+          if (!origin) return callback(null, true);
+          const isAllowed = allowedOrigins.some(allowedOrigin => {
+            if (allowedOrigin.includes('*')) {
+              const { globToRegex } = require('./backend/utils/regexValidator');
+              try {
+                const regex = globToRegex(allowedOrigin);
+                return regex.test(origin);
+              } catch (error) {
+                return false;
+              }
+            }
+            return allowedOrigin === origin;
+          });
+          callback(null, isAllowed);
+        },
         methods: ['GET', 'POST'],
         credentials: true
       }
