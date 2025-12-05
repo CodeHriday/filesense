@@ -1752,6 +1752,9 @@ function FileUpload() {
                     if (e.target.value !== 'custom') {
                       setCustomDelimiter('');
                     }
+                    if (e.target.value === 'fixed-width') {
+                      setHasHeader(false);
+                    }
                   }}
                 >
                   <option value="none">Auto-detect</option>
