@@ -272,9 +272,10 @@ class BatchRecordProcessor {
 
   /**
    * Process Parquet file
+   * Uses dynamic import() since hyparquet is an ES module
    */
   async processParquet(uploadFile, filePath, options) {
-    const { parquetRead } = require('hyparquet');
+    const { parquetRead } = await import('hyparquet');
     const fileHandle = fs.openSync(filePath, 'r');
     const records = [];
     let totalRecords = 0;

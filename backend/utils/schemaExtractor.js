@@ -245,10 +245,11 @@ function extractSchemaFromXML(filePath) {
 
 /**
  * Extract schema from Parquet file
+ * Uses dynamic import() since hyparquet is an ES module
  */
 async function extractSchemaFromParquet(filePath) {
   try {
-    const { parquetRead } = require('hyparquet');
+    const { parquetRead } = await import('hyparquet');
     const buffer = fs.readFileSync(filePath);
     
     return new Promise((resolve, reject) => {
