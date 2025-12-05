@@ -231,15 +231,59 @@ function VendorFileUpload() {
 
       {/* Success Notification */}
       {showSuccessNotification && uploadedFile && (
-        <div className="success-notification">
-          <div className="notification-content">
-            <FiCheckCircle className="notification-icon" />
-            <div className="notification-text">
-              <strong>File uploaded successfully!</strong>
-              <p>Your file has been uploaded to S3 storage.</p>
+        <div className="gps-alert gps-alert--success" style={{
+          marginBottom: '1.5rem',
+          padding: '1.25rem',
+          borderRadius: '6px',
+          border: '1px solid var(--gps-success-green, #38a169)',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: '1rem'
+        }}>
+          <div style={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: '0.75rem' 
+          }}>
+            <FiCheckCircle style={{ 
+              color: 'var(--gps-success-green, #38a169)', 
+              fontSize: '24px',
+              flexShrink: 0
+            }} />
+            <div>
+              <strong style={{ 
+                fontFamily: 'Inter, system-ui, sans-serif',
+                fontSize: '13px',
+                fontWeight: 600,
+                color: '#166534',
+                display: 'block',
+                marginBottom: '0.25rem'
+              }}>
+                File Uploaded Successfully!
+              </strong>
+              <p style={{ 
+                fontFamily: 'Inter, system-ui, sans-serif',
+                fontSize: '11px',
+                color: '#166534',
+                margin: 0
+              }}>
+                Your file has been uploaded to S3 storage.
+              </p>
             </div>
           </div>
-          <Link to="/vendor-file-quality" className="notification-link">
+          <Link 
+            to="/vendor-file-quality" 
+            className="gps-btn gps-btn--primary"
+            style={{ 
+              fontFamily: 'Inter, system-ui, sans-serif',
+              fontSize: '11px',
+              padding: '0.5rem 1rem',
+              textDecoration: 'none',
+              whiteSpace: 'nowrap'
+            }}
+          >
             View in Vendor File Catalog →
           </Link>
         </div>
