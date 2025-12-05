@@ -306,6 +306,15 @@ router.put('/:agreementId/file-schemas', requirePermission('vendor_agreements:wr
     const { agreementId } = req.params;
     const { fileSchemas } = req.body;
     
+    // IMMEDIATE console.log for debugging
+    console.log('=== BULK FILE SCHEMAS PUT ===');
+    console.log('Agreement ID:', agreementId);
+    console.log('File schemas count:', fileSchemas?.length);
+    console.log('Schemas with passwords:', JSON.stringify(fileSchemas?.filter(s => s.archive_password && s.archive_password !== '').map(s => ({
+      pattern: s.file_name_pattern,
+      pwd: s.archive_password?.substring(0, 3) + '***' // show first 3 chars only
+    }))));
+    
     // Debug logging for password handling
     systemLogger.info('Bulk replace file schemas - incoming data', {
       agreementId,
