@@ -442,6 +442,31 @@ async function extractSchema(filePath, fileType, options = {}) {
 }
 
 /**
+ * Normalize a schema column to a standard format { name, type }
+ * Handles various input formats from different sources
+ */
+function normalizeSchemaColumn(col) {
+  if (!col) return null;
+  
+  // If it's a string, treat it as the column name
+  if (typeof col === 'string') {
+    return { name: col, type: 'string' };
+  }
+  
+  // If it's an object, extract name from various possible fields
+  if (typeof col === 'object') {
+    const name = col.name || col.column_name || col.columnName || col.field || col.fieldName;
+    const type = col.type || col.data_type || col.dataType || 'string';
+    
+    if (name) {
+      return { name: String(name), type: String(type) };
+    }
+  }
+  
+  return null;
+}
+
+/**
  * Compare two schemas and return validation result
  * Only validates column names (case-insensitive), not types
  */
@@ -454,12 +479,34 @@ function compareSchemas(uploadedSchema, expectedSchema) {
     extraColumns: []
   };
   
+  // Validate inputs
+  if (!Array.isArray(uploadedSchema)) {
+    result.valid = false;
+    result.errors.push('Uploaded schema is not in expected array format');
+    return result;
+  }
+  
+  if (!Array.isArray(expectedSchema)) {
+    result.valid = false;
+    result.errors.push('Expected schema is not in expected array format');
+    return result;
+  }
+  
+  // Normalize both schemas to handle different formats
+  const normalizedUploaded = uploadedSchema
+    .map(normalizeSchemaColumn)
+    .filter(col => col !== null);
+  
+  const normalizedExpected = expectedSchema
+    .map(normalizeSchemaColumn)
+    .filter(col => col !== null);
+  
   // Create maps for easy lookup (case-insensitive)
-  const uploadedMap = new Map(uploadedSchema.map(col => [col.name.toLowerCase(), col]));
-  const expectedMap = new Map(expectedSchema.map(col => [col.name.toLowerCase(), col]));
+  const uploadedMap = new Map(normalizedUploaded.map(col => [col.name.toLowerCase(), col]));
+  const expectedMap = new Map(normalizedExpected.map(col => [col.name.toLowerCase(), col]));
   
   // Check for missing required columns (case-insensitive)
-  expectedSchema.forEach(expectedCol => {
+  normalizedExpected.forEach(expectedCol => {
     const uploadedCol = uploadedMap.get(expectedCol.name.toLowerCase());
     
     if (!uploadedCol) {
@@ -471,7 +518,7 @@ function compareSchemas(uploadedSchema, expectedSchema) {
   });
   
   // Check for extra columns (warning only)
-  uploadedSchema.forEach(uploadedCol => {
+  normalizedUploaded.forEach(uploadedCol => {
     if (!expectedMap.has(uploadedCol.name.toLowerCase())) {
       result.extraColumns.push(uploadedCol.name);
       result.warnings.push(`Extra column found: ${uploadedCol.name} (will be ignored)`);
