@@ -169,6 +169,10 @@ function FileConfigurationsSection({ fileConfigurations, onChange }) {
       if (schemaUploadRefs.current[configIndex]) {
         schemaUploadRefs.current[configIndex].value = '';
       }
+      const updateKey = `update-${configIndex}`;
+      if (schemaUploadRefs.current[updateKey]) {
+        schemaUploadRefs.current[updateKey].value = '';
+      }
     }
   };
 
@@ -947,10 +951,40 @@ function FileConfigurationsSection({ fileConfigurations, onChange }) {
                           )}
                         </div>
                       ) : (
-                        <details>
-                          <summary>View Schema ({Array.isArray(config.schema) ? config.schema.length : 0} fields)</summary>
-                          <pre>{JSON.stringify(config.schema, null, 2)}</pre>
-                        </details>
+                        <div className="schema-view-row">
+                          <details>
+                            <summary>View Schema ({Array.isArray(config.schema) ? config.schema.length : 0} fields)</summary>
+                            <pre>{JSON.stringify(config.schema, null, 2)}</pre>
+                          </details>
+                          <div className="schema-update-controls">
+                            <input
+                              type="file"
+                              accept=".json"
+                              ref={el => schemaUploadRefs.current[`update-${index}`] = el}
+                              onChange={(e) => handleSchemaFileUpload(index, e)}
+                              style={{ display: 'none' }}
+                              id={`schema-update-${index}`}
+                            />
+                            <button
+                              type="button"
+                              className="btn-upload-schema"
+                              onClick={() => schemaUploadRefs.current[`update-${index}`]?.click()}
+                              disabled={schemaUploadLoading[index]}
+                              title="Upload new schema"
+                            >
+                              {schemaUploadLoading[index] ? (
+                                <>Uploading...</>
+                              ) : (
+                                <><FiUpload /> Upload Schema</>
+                              )}
+                            </button>
+                          </div>
+                          {schemaUploadError[index] && (
+                            <div className="schema-upload-error">
+                              <FiAlertCircle /> {schemaUploadError[index]}
+                            </div>
+                          )}
+                        </div>
                       )}
                     </div>
                   )}
