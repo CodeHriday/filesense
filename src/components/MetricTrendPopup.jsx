@@ -142,14 +142,72 @@ const MetricTrendPopup = ({
 
   if (!isOpen) return null;
 
-  const popupPosition = anchorEl ? {
-    top: anchorEl.getBoundingClientRect().bottom + 8,
-    left: anchorEl.getBoundingClientRect().left
-  } : { top: '50%', left: '50%' };
+  const getPopupPosition = () => {
+    if (!anchorEl) return { top: '50%', left: '50%', transform: 'translate(-50%, -50%)' };
+    
+    const rect = anchorEl.getBoundingClientRect();
+    const popupWidth = 280;
+    const popupHeight = 160;
+    const margin = 8;
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    
+    let top, left;
+    
+    const spaceBelow = viewportHeight - rect.bottom;
+    const spaceAbove = rect.top;
+    
+    if (spaceBelow >= popupHeight + margin) {
+      top = rect.bottom + margin;
+    } else if (spaceAbove >= popupHeight + margin) {
+      top = rect.top - popupHeight - margin;
+    } else {
+      top = Math.max(margin, Math.min(viewportHeight - popupHeight - margin, rect.top + rect.height / 2 - popupHeight / 2));
+    }
+    
+    const centerLeft = rect.left + rect.width / 2 - popupWidth / 2;
+    left = Math.max(margin, Math.min(viewportWidth - popupWidth - margin, centerLeft));
+    
+    return { top: `${top}px`, left: `${left}px` };
+  };
+
+  const popupPosition = getPopupPosition();
+
+  const getModalPosition = () => {
+    if (!anchorEl) return {};
+    
+    const rect = anchorEl.getBoundingClientRect();
+    const modalWidth = 800;
+    const modalHeight = 500;
+    const margin = 40;
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    
+    let top = rect.bottom + margin;
+    if (top + modalHeight > viewportHeight - margin) {
+      top = Math.max(margin, rect.top - modalHeight - margin);
+    }
+    if (top + modalHeight > viewportHeight - margin) {
+      top = Math.max(margin, (viewportHeight - modalHeight) / 2);
+    }
+    
+    const centerLeft = rect.left + rect.width / 2 - modalWidth / 2;
+    const left = Math.max(margin, Math.min(viewportWidth - modalWidth - margin, centerLeft));
+    
+    return { 
+      top: `${top}px`, 
+      left: `${left}px`,
+      transform: 'none',
+      alignItems: 'flex-start',
+      justifyContent: 'flex-start'
+    };
+  };
 
   if (isModal) {
+    const modalContainerStyle = anchorEl ? getModalPosition() : {};
+    
     return (
-      <div className="metric-trend-modal-overlay" onClick={onClose}>
+      <div className={`metric-trend-modal-overlay ${anchorEl ? 'positioned' : ''}`} onClick={onClose} style={modalContainerStyle}>
         <div className="metric-trend-modal" onClick={(e) => e.stopPropagation()} ref={popupRef}>
           <div className="modal-header">
             <h3>{metricLabel} Trend</h3>

@@ -52,6 +52,7 @@ const ExecutiveDashboard = () => {
   const [activePopup, setActivePopup] = useState(null);
   const [activeModal, setActiveModal] = useState(null);
   const [popupAnchorEl, setPopupAnchorEl] = useState(null);
+  const [modalAnchorEl, setModalAnchorEl] = useState(null);
   const clickTimeoutRef = useRef(null);
   const kpiCardRefs = useRef({});
 
@@ -199,6 +200,7 @@ const ExecutiveDashboard = () => {
       clearTimeout(clickTimeoutRef.current);
       clickTimeoutRef.current = null;
       setActivePopup(null);
+      setModalAnchorEl(event.currentTarget);
       setActiveModal({ type: metricType, label: metricLabel });
     } else {
       clickTimeoutRef.current = setTimeout(() => {
@@ -216,6 +218,7 @@ const ExecutiveDashboard = () => {
 
   const handleModalClose = () => {
     setActiveModal(null);
+    setModalAnchorEl(null);
   };
 
   const getMetricTrendDirection = (metricType) => {
@@ -1241,6 +1244,7 @@ const ExecutiveDashboard = () => {
           metricLabel={activeModal.label}
           isOpen={true}
           onClose={handleModalClose}
+          anchorEl={modalAnchorEl}
           projectId={selectedProject}
           isModal={true}
         />

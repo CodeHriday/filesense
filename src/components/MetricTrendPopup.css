@@ -114,6 +114,11 @@
   animation: fadeIn 0.2s ease-out;
 }
 
+.metric-trend-modal-overlay.positioned {
+  align-items: flex-start;
+  justify-content: flex-start;
+}
+
 .metric-trend-modal {
   background: white;
   border-radius: 12px;
