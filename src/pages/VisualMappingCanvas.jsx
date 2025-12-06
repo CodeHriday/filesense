@@ -543,12 +543,20 @@ const VisualMappingCanvasContent = () => {
       
       // Expression: output schema comes from fieldMappings
       if (node.type === 'expression' && config.fieldMappings) {
-        // Get upstream schema first
+        // Get upstream schema first and deduplicate
         const upstreamEdges = edges.filter(e => e.target === nodeId);
-        let upstreamSchema = [];
+        let upstreamSchemaRaw = [];
         upstreamEdges.forEach(edge => {
-          upstreamSchema = [...upstreamSchema, ...getNodeOutputSchema(edge.source)];
+          upstreamSchemaRaw = [...upstreamSchemaRaw, ...getNodeOutputSchema(edge.source)];
         });
+        // Deduplicate by column name
+        const upstreamSchemaMap = new Map();
+        upstreamSchemaRaw.forEach(col => {
+          if (!upstreamSchemaMap.has(col.name)) {
+            upstreamSchemaMap.set(col.name, col);
+          }
+        });
+        const upstreamSchema = Array.from(upstreamSchemaMap.values());
         
         // Map to output columns based on field mappings
         const outputSchema = config.fieldMappings.map(mapping => {
@@ -570,10 +578,18 @@ const VisualMappingCanvasContent = () => {
       // RDM Lookup: handles both dataset joins and crosswalk lookups
       if (node.type === 'rdmLookup') {
         const upstreamEdges = edges.filter(e => e.target === nodeId);
-        let inputSchema = [];
+        let inputSchemaRaw = [];
         upstreamEdges.forEach(edge => {
-          inputSchema = [...inputSchema, ...getNodeOutputSchema(edge.source)];
+          inputSchemaRaw = [...inputSchemaRaw, ...getNodeOutputSchema(edge.source)];
         });
+        // Deduplicate input schema by column name
+        const inputSchemaMap = new Map();
+        inputSchemaRaw.forEach(col => {
+          if (!inputSchemaMap.has(col.name)) {
+            inputSchemaMap.set(col.name, col);
+          }
+        });
+        const inputSchema = Array.from(inputSchemaMap.values());
         
         // For dataset join: combine input schema with dataset columns from outputSchema
         if (config.lookupType === 'dataset' && config.outputSchema) {
@@ -584,8 +600,16 @@ const VisualMappingCanvasContent = () => {
             description: col.description || '',
             contains_pii: col.contains_pii || col.isPii || false
           }));
-          const combinedSchema = [...inputSchema, ...datasetCols];
-          console.log(`getCumulativeSchema: RDM Lookup (dataset) node ${nodeId} output schema:`, combinedSchema.length, 'columns (', inputSchema.length, 'input +', datasetCols.length, 'dataset)');
+          // Combine and deduplicate (input columns take precedence)
+          const combinedMap = new Map();
+          inputSchema.forEach(col => combinedMap.set(col.name, col));
+          datasetCols.forEach(col => {
+            if (!combinedMap.has(col.name)) {
+              combinedMap.set(col.name, col);
+            }
+          });
+          const combinedSchema = Array.from(combinedMap.values());
+          console.log(`getCumulativeSchema: RDM Lookup (dataset) node ${nodeId} output schema:`, combinedSchema.length, 'unique columns (', inputSchema.length, 'input +', datasetCols.length, 'dataset)');
           return combinedSchema;
         }
         
@@ -599,8 +623,16 @@ const VisualMappingCanvasContent = () => {
               description: col.description || '',
               contains_pii: col.contains_pii || col.isPii || false
             }));
-            const combinedSchema = [...inputSchema, ...crosswalkCols];
-            console.log(`getCumulativeSchema: RDM Lookup (crosswalk) node ${nodeId} output schema:`, combinedSchema.length, 'columns (', inputSchema.length, 'input +', crosswalkCols.length, 'crosswalk)');
+            // Combine and deduplicate (input columns take precedence)
+            const combinedMap = new Map();
+            inputSchema.forEach(col => combinedMap.set(col.name, col));
+            crosswalkCols.forEach(col => {
+              if (!combinedMap.has(col.name)) {
+                combinedMap.set(col.name, col);
+              }
+            });
+            const combinedSchema = Array.from(combinedMap.values());
+            console.log(`getCumulativeSchema: RDM Lookup (crosswalk) node ${nodeId} output schema:`, combinedSchema.length, 'unique columns (', inputSchema.length, 'input +', crosswalkCols.length, 'crosswalk)');
             return combinedSchema;
           } else {
             // No crosswalk columns mapped, pass through input schema
@@ -634,8 +666,17 @@ const VisualMappingCanvasContent = () => {
       schema = [...schema, ...getNodeOutputSchema(edge.source)];
     });
     
-    console.log('getCumulativeSchema: Final schema:', schema);
-    return schema;
+    // Deduplicate schema by column name, preserving first occurrence
+    const uniqueSchemaMap = new Map();
+    schema.forEach(col => {
+      if (!uniqueSchemaMap.has(col.name)) {
+        uniqueSchemaMap.set(col.name, col);
+      }
+    });
+    const uniqueSchema = Array.from(uniqueSchemaMap.values());
+    
+    console.log('getCumulativeSchema: Final schema (deduplicated):', uniqueSchema.length, 'columns from', schema.length, 'total');
+    return uniqueSchema;
   }, [nodes, edges, configNodeId]);
   
   const addNode = (type, label) => {
