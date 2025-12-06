@@ -374,6 +374,11 @@ router.post('/:id/execute', async (req, res) => {
     // Create a temporary transformation mapping for this execution
     // This will be cleaned up after execution completes
     const tempMappingId = `vm-${id}-${Date.now()}`;
+    
+    // Handle source exclusivity constraint: either source_connection_id OR vendor_agreement_id, not both
+    const vendorAgreementId = transformationMapping.vendor_agreement_id || null;
+    const sourceConnectionId = vendorAgreementId ? null : transformationMapping.source_connection_id;
+    
     const transformResult = await pool.query(
       `INSERT INTO transformation_mappings (
         mapping_id, mapping_name, description, project_id, sub_project_id,
@@ -393,7 +398,7 @@ router.post('/:id/execute', async (req, res) => {
         transformationMapping.description || mapping.description,
         transformationMapping.project_id || mapping.project_id,
         transformationMapping.sub_project_id || mapping.sub_project_id,
-        transformationMapping.source_connection_id,
+        sourceConnectionId,
         transformationMapping.source_file_path,
         transformationMapping.source_file_pattern || '*',
         transformationMapping.target_connection_id,
@@ -409,7 +414,7 @@ router.post('/:id/execute', async (req, res) => {
         transformationMapping.violation_handling || 'continue',
         req.user.id,
         id,
-        transformationMapping.vendor_agreement_id || null
+        vendorAgreementId
       ]
     );
     
