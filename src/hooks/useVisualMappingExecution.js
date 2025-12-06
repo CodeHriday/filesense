@@ -43,6 +43,19 @@ export const useVisualMappingExecution = () => {
           ...data.metadata
         }
       }));
+      
+      // If a node failed, add to execution logs and set error state
+      // Note: Do NOT set executionComplete here - let execution_complete event handle that
+      if (data.status === 'failed') {
+        const errorMessage = data.error || data.metadata?.error || `Node ${data.nodeId} failed`;
+        setExecutionLogs(prev => [...prev, {
+          timestamp: data.timestamp || new Date().toISOString(),
+          level: 'ERROR',
+          message: errorMessage,
+          nodeId: data.nodeId
+        }]);
+        setExecutionError(errorMessage);
+      }
     });
 
     socketInstance.on('edge_row_count', (data) => {

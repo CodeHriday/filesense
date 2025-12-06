@@ -894,6 +894,7 @@ const VisualMappingCanvasContent = () => {
       resetExecution(); // Clear previous execution state
       setIsExecuting(true);
       setError(null);
+      setSuccess(null); // Clear previous success message
       
       // Generate execution ID and subscribe to WebSocket BEFORE starting execution
       const executionId = generateExecutionId();
@@ -917,19 +918,23 @@ const VisualMappingCanvasContent = () => {
     }
   };
   
-  // Handle execution completion or error
+  // Handle execution completion (only show success if no error)
   useEffect(() => {
-    if (executionComplete) {
+    if (executionComplete && !executionError) {
       setIsExecuting(false);
       setSuccess('Execution completed successfully!');
       setTimeout(() => setCurrentExecutionId(null), 5000); // Clear execution ID after 5 seconds
     }
-  }, [executionComplete]);
+  }, [executionComplete, executionError]);
   
   useEffect(() => {
     if (executionError) {
       setIsExecuting(false);
-      setError(`Execution failed: ${executionError.message}`);
+      // Handle both string and object error formats
+      const errorMessage = typeof executionError === 'string' 
+        ? executionError 
+        : executionError.message || 'Unknown error';
+      setError(`Execution failed: ${errorMessage}`);
       setTimeout(() => setCurrentExecutionId(null), 5000);
     }
   }, [executionError]);
@@ -956,16 +961,19 @@ const VisualMappingCanvasContent = () => {
   
   // Update node classes with execution status
   useEffect(() => {
-    if (!isExecuting) return;
+    // Apply node statuses whenever they change (including when execution fails)
+    if (Object.keys(nodeStatuses).length === 0) return;
     
     setNodes((nds) => 
       nds.map((node) => {
         const status = nodeStatuses[node.id];
+        // Remove any existing status class before adding new one
+        const baseClassName = (node.className || '').replace(/\s*status-\w+/g, '').trim();
         const statusClass = status ? getNodeStatusClass(status.status) : '';
         
         return {
           ...node,
-          className: `${node.className || ''} ${statusClass}`.trim(),
+          className: `${baseClassName} ${statusClass}`.trim(),
           data: {
             ...node.data,
             executionStatus: status,
@@ -974,7 +982,7 @@ const VisualMappingCanvasContent = () => {
         };
       })
     );
-  }, [nodeStatuses, isExecuting]);
+  }, [nodeStatuses]);
   
   // Update edges with row counts
   useEffect(() => {

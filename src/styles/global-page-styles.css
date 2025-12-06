@@ -537,7 +537,7 @@
   background: var(--gps-bg-white);
   border: 1px solid var(--gps-border-light);
   border-radius: var(--gps-radius-md);
-  overflow: hidden;
+  overflow-x: auto;
 }
 
 /* ============================================
