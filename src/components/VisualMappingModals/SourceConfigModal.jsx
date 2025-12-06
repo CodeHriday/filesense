@@ -30,6 +30,9 @@ const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
   const [schema, setSchema] = useState(null);
   const [schemaLoading, setSchemaLoading] = useState(false);
   
+  // Track the pending vendor agreement ID that needs to be processed after agreements load
+  const pendingVendorAgreementRef = useRef(null);
+  
   // Initialize state from initialConfig when modal opens
   useEffect(() => {
     if (isOpen) {
@@ -50,6 +53,9 @@ const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
       
       // Track if this is reopening with saved data
       hasSavedFilePatternRef.current = !!(initialConfig.filePattern && initialConfig.filePattern !== '*.csv');
+      
+      // Track if we have a pending vendor agreement to process after agreements load
+      pendingVendorAgreementRef.current = initialConfig.vendorAgreementId || null;
       
       fetchConnections();
       fetchVendorAgreements();
@@ -109,60 +115,86 @@ const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
     }
   };
   
-  // Auto-populate when vendor agreement is selected
+  // Process vendor agreement - either from state change or after agreements load
+  const processVendorAgreement = (agreementId, agreements) => {
+    const agreement = agreements.find(va => va.id === parseInt(agreementId));
+    if (!agreement) return;
+    
+    console.log('Auto-populating from vendor agreement:', agreement);
+    
+    // Auto-populate connection - inject into connections list if missing
+    if (agreement.vendor_connection_id) {
+      const connectionIdStr = String(agreement.vendor_connection_id);
+      setConnectionId(connectionIdStr);
+      
+      // Check if connection exists in list, if not add it
+      setConnections(prev => {
+        const connectionExists = prev.some(c => 
+          String(c.id || c.connection_id) === connectionIdStr
+        );
+        if (!connectionExists && agreement.vendor_connection_name) {
+          return [...prev, {
+            id: connectionIdStr,
+            connection_id: connectionIdStr,
+            name: agreement.vendor_connection_name,
+            connection_type: 'S3',
+            type: 'S3'
+          }];
+        }
+        return prev;
+      });
+    }
+    
+    // Auto-populate file path
+    if (agreement.drop_location_path) {
+      setFilePath(agreement.drop_location_path);
+    }
+    
+    // Auto-populate file owner using primary_contact_name
+    if (agreement.primary_contact_name) {
+      // Create a synthetic ID based on the contact name
+      const syntheticId = `contact_${agreement.id}`;
+      setSourceFileOwnerId(syntheticId);
+      
+      // Inject primary contact into datastewards list
+      setDatastewards(prev => {
+        const ownerExists = prev.some(ds => String(ds.id) === syntheticId);
+        if (!ownerExists) {
+          return [...prev, {
+            id: syntheticId,
+            username: agreement.primary_contact_name,
+            full_name: agreement.primary_contact_name,
+            email: agreement.primary_contact_email || ''
+          }];
+        }
+        return prev;
+      });
+    }
+    
+    // Fetch agreement files (pass existing selection to preserve it)
+    const fileIdToPreserve = selectedFileId || initialConfig.agreementFileId;
+    fetchAgreementFiles(agreement.id, fileIdToPreserve);
+  };
+  
+  // Handle pending vendor agreement after vendorAgreements loads
   useEffect(() => {
+    if (pendingVendorAgreementRef.current && vendorAgreements.length > 0) {
+      const pendingId = pendingVendorAgreementRef.current;
+      pendingVendorAgreementRef.current = null; // Clear pending to prevent re-processing
+      console.log('Processing pending vendor agreement after load:', pendingId);
+      processVendorAgreement(pendingId, vendorAgreements);
+    }
+  }, [vendorAgreements]);
+  
+  // Auto-populate when vendor agreement is selected by user (not from initialConfig)
+  useEffect(() => {
+    // Skip if this is a pending agreement from initialConfig - it will be handled by the other useEffect
+    if (pendingVendorAgreementRef.current === vendorAgreementId) {
+      return;
+    }
+    
     if (vendorAgreementId && vendorAgreements.length > 0) {
-      const agreement = vendorAgreements.find(va => va.id === parseInt(vendorAgreementId));
-      if (agreement) {
-        console.log('Auto-populating from vendor agreement:', agreement);
-        
-        // Auto-populate connection - inject into connections list if missing
-        if (agreement.vendor_connection_id) {
-          const connectionIdStr = String(agreement.vendor_connection_id);
-          setConnectionId(connectionIdStr);
-          
-          // Check if connection exists in list, if not add it
-          const connectionExists = connections.some(c => 
-            String(c.id || c.connection_id) === connectionIdStr
-          );
-          if (!connectionExists && agreement.vendor_connection_name) {
-            setConnections(prev => [...prev, {
-              id: connectionIdStr,
-              connection_id: connectionIdStr,
-              name: agreement.vendor_connection_name,
-              connection_type: 'S3',
-              type: 'S3'
-            }]);
-          }
-        }
-        
-        // Auto-populate file path
-        if (agreement.drop_location_path) {
-          setFilePath(agreement.drop_location_path);
-        }
-        
-        // Auto-populate file owner using primary_contact_name
-        if (agreement.primary_contact_name) {
-          // Create a synthetic ID based on the contact name
-          const syntheticId = `contact_${agreement.id}`;
-          setSourceFileOwnerId(syntheticId);
-          
-          // Inject primary contact into datastewards list
-          const ownerExists = datastewards.some(ds => String(ds.id) === syntheticId);
-          if (!ownerExists) {
-            setDatastewards(prev => [...prev, {
-              id: syntheticId,
-              username: agreement.primary_contact_name,
-              full_name: agreement.primary_contact_name,
-              email: agreement.primary_contact_email || ''
-            }]);
-          }
-        }
-        
-        // Fetch agreement files (pass existing selection to preserve it)
-        const fileIdToPreserve = selectedFileId || initialConfig.agreementFileId;
-        fetchAgreementFiles(agreement.id, fileIdToPreserve);
-      }
+      processVendorAgreement(vendorAgreementId, vendorAgreements);
     } else if (!vendorAgreementId) {
       // ONLY clear when vendorAgreementId is explicitly empty (user deselected)
       // Do NOT clear when vendorAgreements is still loading (empty array but vendorAgreementId is set)
@@ -171,7 +203,7 @@ const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
       setSchema(null);
     }
     // When vendorAgreementId is set but vendorAgreements hasn't loaded yet, do nothing - wait for it to load
-  }, [vendorAgreementId, vendorAgreements, connections, datastewards]);
+  }, [vendorAgreementId, vendorAgreements]);
   
   // Update file pattern, file type, and password status when selected file changes
   // BUT NEVER overwrite pattern if we have a saved pattern
