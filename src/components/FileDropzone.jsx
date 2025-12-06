@@ -156,7 +156,10 @@ function FileDropzone({ onFileDrop, onBatchFileDrop, onFilesChange, acceptedFile
       })
       .catch(err => {
         console.error('Upload error:', err);
-        setFileError(err.message || 'Failed to upload file');
+        // Extract error message from server response, or fall back to Axios error message
+        const serverMessage = err.response?.data?.message || err.response?.data?.error;
+        const errorMessage = serverMessage || err.message || 'Failed to upload file';
+        setFileError(errorMessage);
         setUploadStatus('error');
         setProcessingStep(null);
         // Rethrow to allow caller to handle the error
@@ -234,10 +237,13 @@ function FileDropzone({ onFileDrop, onBatchFileDrop, onFilesChange, acceptedFile
           } catch (err) {
             console.error('Batch upload error:', err);
             setUploadStatus('error');
-            setFileError(err.message || 'Batch upload failed');
-            // Mark all pending files as errors
+            // Extract error message from server response
+            const serverMessage = err.response?.data?.message || err.response?.data?.error;
+            const errorMessage = serverMessage || err.message || 'Batch upload failed';
+            setFileError(errorMessage);
+            // Mark all pending files as errors with server message
             setUploadingFiles(prev => prev.map(f => 
-              f.status === 'pending' ? { ...f, status: 'error', error: 'Upload failed' } : f
+              f.status === 'pending' ? { ...f, status: 'error', error: serverMessage || 'Upload failed' } : f
             ));
           }
         } else {
@@ -287,8 +293,11 @@ function FileDropzone({ onFileDrop, onBatchFileDrop, onFilesChange, acceptedFile
             setCompletedFiles(prev => [...prev, file.name]);
             successCount++;
           } catch (err) {
+            // Extract error message from server response
+            const serverMessage = err.response?.data?.message || err.response?.data?.error;
+            const errorMessage = serverMessage || err.message || 'Upload failed';
             setUploadingFiles(prev => prev.map(f => 
-              f.name === file.name ? { ...f, status: 'error', error: err.message } : f
+              f.name === file.name ? { ...f, status: 'error', error: errorMessage } : f
             ));
             errorCount++;
           }
@@ -391,10 +400,13 @@ function FileDropzone({ onFileDrop, onBatchFileDrop, onFilesChange, acceptedFile
           } catch (err) {
             console.error('Batch upload error:', err);
             setUploadStatus('error');
-            setFileError(err.message || 'Batch upload failed');
-            // Mark all pending files as errors
+            // Extract error message from server response
+            const serverMessage = err.response?.data?.message || err.response?.data?.error;
+            const errorMessage = serverMessage || err.message || 'Batch upload failed';
+            setFileError(errorMessage);
+            // Mark all pending files as errors with server message
             setUploadingFiles(prev => prev.map(f => 
-              f.status === 'pending' ? { ...f, status: 'error', error: 'Upload failed' } : f
+              f.status === 'pending' ? { ...f, status: 'error', error: serverMessage || 'Upload failed' } : f
             ));
           }
         } else {
@@ -444,8 +456,11 @@ function FileDropzone({ onFileDrop, onBatchFileDrop, onFilesChange, acceptedFile
             setCompletedFiles(prev => [...prev, file.name]);
             successCount++;
           } catch (err) {
+            // Extract error message from server response
+            const serverMessage = err.response?.data?.message || err.response?.data?.error;
+            const errorMessage = serverMessage || err.message || 'Upload failed';
             setUploadingFiles(prev => prev.map(f => 
-              f.name === file.name ? { ...f, status: 'error', error: err.message } : f
+              f.name === file.name ? { ...f, status: 'error', error: errorMessage } : f
             ));
             errorCount++;
           }
