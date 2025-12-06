@@ -1069,6 +1069,58 @@
   font-size: 10px;
 }
 
+/* Inline DQ Rule Tags in Table */
+.dq-rules-inline-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+}
+
+.dq-rule-inline-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  background-color: #dbeafe;
+  color: #1e40af;
+  border-radius: 4px;
+  font-size: 9px;
+  font-weight: 500;
+  font-family: 'Inter', sans-serif;
+  white-space: nowrap;
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dq-rule-inline-tag:hover {
+  background-color: #bfdbfe;
+}
+
+.dq-rule-inline-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 12px;
+  height: 12px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: #3b82f6;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  border-radius: 50%;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.dq-rule-inline-remove:hover {
+  background-color: #ef4444;
+  color: white;
+}
+
 /* DQ Rule Assignment Panel Modal */
 .dq-rule-panel-modal .modal-content.dq-rule-panel-content {
   width: 900px;

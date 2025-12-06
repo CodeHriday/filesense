@@ -120,6 +120,22 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
     setPiiColumns(new Set(initialPiiColumns || []));
   }, [initialPiiColumns]);
   
+  // Fetch DQ rules on mount if there are existing assignments (so rule names are available)
+  useEffect(() => {
+    const hasAssignments = Object.keys(initialDqRuleAssignments || {}).length > 0;
+    if (hasAssignments && availableDqRules.length === 0) {
+      const loadRules = async () => {
+        try {
+          const response = await axios.get('/api/quality-rules?limit=100');
+          setAvailableDqRules(response.data?.rules || []);
+        } catch (error) {
+          console.error('Error fetching DQ rules on mount:', error);
+        }
+      };
+      loadRules();
+    }
+  }, []);
+  
   // Auto-populate PII columns from schema on initial load
   useEffect(() => {
     if (schema && schema.length > 0 && initialPiiColumns.length === 0) {
@@ -1013,7 +1029,7 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
                   <th style={{ width: '60px', textAlign: 'center' }} title="Mark as PII (Personally Identifiable Information)">
                     <FiLock /> PII
                   </th>
-                  <th style={{ width: '80px', textAlign: 'center' }} title="Data Quality Rules assigned to this field">
+                  <th style={{ width: '200px', textAlign: 'left' }} title="Data Quality Rules assigned to this field">
                     <FiShield /> DQ Rules
                   </th>
                   <th style={{ width: '80px' }}>Actions</th>
@@ -1043,16 +1059,25 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
                         style={{ cursor: 'pointer' }}
                       />
                     </td>
-                    <td style={{ textAlign: 'center' }} className="dq-rules-cell">
+                    <td className="dq-rules-cell" onClick={handleOpenDqRulePanel} style={{ cursor: 'pointer' }} title="Click to manage DQ rules">
                       {getDqRuleCount(mapping.target_field) > 0 ? (
-                        <span 
-                          className="dq-rule-badge" 
-                          title={`${getDqRuleCount(mapping.target_field)} DQ rule(s) assigned`}
-                          onClick={handleOpenDqRulePanel}
-                          style={{ cursor: 'pointer' }}
-                        >
-                          {getDqRuleCount(mapping.target_field)}
-                        </span>
+                        <div className="dq-rules-inline-tags">
+                          {(dqRuleAssignments[mapping.target_field] || []).map(ruleId => (
+                            <span key={ruleId} className="dq-rule-inline-tag">
+                              {getRuleName(ruleId)}
+                              <button
+                                className="dq-rule-inline-remove"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleRemoveDqAssignment(mapping.target_field, ruleId);
+                                }}
+                                title="Remove rule"
+                              >
+                                ×
+                              </button>
+                            </span>
+                          ))}
+                        </div>
                       ) : (
                         <span className="dq-rule-empty">-</span>
                       )}
