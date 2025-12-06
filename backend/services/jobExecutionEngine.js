@@ -1980,6 +1980,42 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
           await fs.promises.rm(extractionDir, { recursive: true, force: true }).catch(() => {});
         }
         
+        // Apply RDM enrichment to archive transformed rows (if enabled)
+        // This adds columns from RDM dataset joins and crosswalk lookups
+        if (mapping.rdm_lookup_enabled && allTransformedRows.length > 0) {
+          await logJobExecution(pool, jobId, 'info', `Applying RDM enrichment to archive data`, {
+            inputRows: allTransformedRows.length,
+            hasDatasetJoin: !!mapping.rdm_dataset_config,
+            hasCrosswalkLookup: !!mapping.rdm_crosswalk_config
+          });
+          
+          try {
+            const { applyRDMLookups } = require('./rdmLookupProcessor');
+            const enrichedRows = applyRDMLookups(allTransformedRows, mapping, rdmContext);
+            
+            // Log column count before/after enrichment
+            const columnsBefore = allTransformedRows.length > 0 ? Object.keys(allTransformedRows[0]).length : 0;
+            const columnsAfter = enrichedRows.length > 0 ? Object.keys(enrichedRows[0]).length : 0;
+            
+            // Replace with enriched data
+            allTransformedRows.length = 0;
+            allTransformedRows.push(...enrichedRows);
+            
+            await logJobExecution(pool, jobId, 'info', `RDM enrichment complete for archive`, {
+              outputRows: allTransformedRows.length,
+              columnsBefore,
+              columnsAfter
+            });
+            
+            console.log(`[JOB-EXECUTION-ENGINE] Archive RDM enrichment: ${columnsBefore} columns -> ${columnsAfter} columns`);
+          } catch (rdmError) {
+            await logJobExecution(pool, jobId, 'error', `RDM enrichment failed for archive: ${rdmError.message}`, {
+              error: rdmError.stack
+            });
+            throw new Error(`RDM enrichment failed: ${rdmError.message}`);
+          }
+        }
+        
         // Upload transformed data to target (if not dry run) - IMPORTANT: Must happen before return
         console.log(`[JOB-EXECUTION-ENGINE] Archive S3 upload check - dryRun: ${dryRun}, rows: ${allTransformedRows.length}, targetConnectionId: ${mapping.target_connection_id}`);
         

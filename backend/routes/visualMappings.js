@@ -381,18 +381,23 @@ router.post('/:id/execute', async (req, res) => {
     const vendorAgreementId = transformationMapping.vendor_agreement_id || null;
     const sourceConnectionId = vendorAgreementId ? null : transformationMapping.source_connection_id;
     
+    // Determine if RDM lookups are enabled (check for RDM lookup nodes or configs)
+    const hasRdmConfig = !!(transformationMapping.rdm_dataset_config || transformationMapping.rdm_crosswalk_config);
+    const hasRdmNodes = mapping.graph_data?.nodes?.some(n => n.type === 'rdmLookup') || false;
+    const rdmLookupEnabled = hasRdmConfig || hasRdmNodes;
+    
     const transformResult = await pool.query(
       `INSERT INTO transformation_mappings (
         mapping_id, mapping_name, description, project_id, sub_project_id,
         source_connection_id, file_path, source_file_pattern,
         target_connection_id, target_file_path, target_file_name, target_file_format,
         field_mappings, variables, pii_columns,
-        rdm_dataset_config, rdm_crosswalk_config,
+        rdm_lookup_enabled, rdm_dataset_config, rdm_crosswalk_config,
         schema_drift_handling, violation_handling,
         created_by, is_visual_mapping, visual_mapping_id, is_temporary,
         vendor_agreement_id
       ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, true, $21, true, $22
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, true, $22, true, $23
       ) RETURNING id`,
       [
         tempMappingId,
@@ -410,6 +415,7 @@ router.post('/:id/execute', async (req, res) => {
         JSON.stringify(transformationMapping.field_mappings || []),
         JSON.stringify(transformationMapping.variables || {}),
         JSON.stringify(transformationMapping.pii_columns || []),
+        rdmLookupEnabled,
         transformationMapping.rdm_dataset_config ? JSON.stringify(transformationMapping.rdm_dataset_config) : null,
         transformationMapping.rdm_crosswalk_config ? JSON.stringify(transformationMapping.rdm_crosswalk_config) : null,
         transformationMapping.schema_drift_handling || 'warn',
@@ -422,7 +428,7 @@ router.post('/:id/execute', async (req, res) => {
     
     const transformationDbId = transformResult.rows[0].id;
     
-    console.log(`[VISUAL-MAPPING-EXECUTE] Temp mapping created: ${tempMappingId}, DB ID: ${transformationDbId}`);
+    console.log(`[VISUAL-MAPPING-EXECUTE] Temp mapping created: ${tempMappingId}, DB ID: ${transformationDbId}, rdmLookupEnabled: ${rdmLookupEnabled}`);
     
     // Use jobExecutionEngine to execute with transformation_mappings table (uses mapping_id string, not numeric id)
     const { executeTransformationJob } = require('../services/jobExecutionEngine');
