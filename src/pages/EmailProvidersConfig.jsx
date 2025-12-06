@@ -727,7 +727,7 @@ export const EmailProvidersConfig = () => {
             onClick={handleAddDomain}
             disabled={!newDomain.trim() || addingDomain}
             className="btn-primary"
-            style={{ display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap' }}
+            style={{ display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap', flex: '0 0 auto', width: 'auto' }}
           >
             <FiPlus size={14} />
             {addingDomain ? 'Adding...' : 'Add Domain'}

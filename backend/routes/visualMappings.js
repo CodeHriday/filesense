@@ -123,6 +123,9 @@ router.get('/:id', async (req, res) => {
     if (typeof mapping.canvas_state === 'string') {
       mapping.canvas_state = JSON.parse(mapping.canvas_state);
     }
+    if (typeof mapping.notification_settings === 'string') {
+      mapping.notification_settings = JSON.parse(mapping.notification_settings);
+    }
     if (mapping.project_id) {
       const { getUserProjects } = require('../middleware/requireProjectAccess');
       const userProjects = await getUserProjects(req.user.id);
@@ -150,7 +153,7 @@ router.get('/:id', async (req, res) => {
  */
 router.post('/', async (req, res) => {
   try {
-    const { name, description, graph_data, canvas_state, project_id, sub_project_id } = req.body;
+    const { name, description, graph_data, canvas_state, project_id, sub_project_id, notification_settings } = req.body;
 
     if (!name || !graph_data) {
       return res.status(400).json({ error: 'Name and graph_data are required' });
@@ -165,8 +168,8 @@ router.post('/', async (req, res) => {
     }
 
     const result = await pool.query(
-      `INSERT INTO visual_mapping_defs (name, description, graph_data, canvas_state, project_id, sub_project_id, created_by)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
+      `INSERT INTO visual_mapping_defs (name, description, graph_data, canvas_state, project_id, sub_project_id, created_by, notification_settings)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        RETURNING *`,
       [
         name, 
@@ -175,7 +178,8 @@ router.post('/', async (req, res) => {
         JSON.stringify(canvas_state || { zoom: 1, position: [0, 0] }), 
         project_id || null, 
         sub_project_id || null, 
-        req.user.id
+        req.user.id,
+        notification_settings ? JSON.stringify(notification_settings) : null
       ]
     );
 
@@ -203,7 +207,7 @@ router.post('/', async (req, res) => {
 router.put('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, description, graph_data, canvas_state, project_id, sub_project_id } = req.body;
+    const { name, description, graph_data, canvas_state, project_id, sub_project_id, notification_settings } = req.body;
 
     if (!name || !graph_data) {
       return res.status(400).json({ error: 'Name and graph_data are required' });
@@ -220,8 +224,8 @@ router.put('/:id', async (req, res) => {
     const result = await pool.query(
       `UPDATE visual_mapping_defs
        SET name = $1, description = $2, graph_data = $3, canvas_state = $4, 
-           project_id = $5, sub_project_id = $6, updated_at = CURRENT_TIMESTAMP
-       WHERE id = $7 AND is_active = true
+           project_id = $5, sub_project_id = $6, notification_settings = $7, updated_at = CURRENT_TIMESTAMP
+       WHERE id = $8 AND is_active = true
        RETURNING *`,
       [
         name, 
@@ -230,6 +234,7 @@ router.put('/:id', async (req, res) => {
         JSON.stringify(canvas_state || { zoom: 1, position: [0, 0] }),
         project_id || null, 
         sub_project_id || null, 
+        notification_settings ? JSON.stringify(notification_settings) : null,
         id
       ]
     );

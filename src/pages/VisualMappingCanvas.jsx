@@ -296,6 +296,17 @@ const VisualMappingCanvasContent = () => {
   const [projects, setProjects] = useState([]);
   const [subProjects, setSubProjects] = useState([]);
   
+  // Notification settings
+  const [notificationSettings, setNotificationSettings] = useState({
+    enabled: false,
+    emailConnectionId: null,
+    recipients: '',
+    notifyOnSuccess: true,
+    notifyOnFailure: true
+  });
+  const [emailConnections, setEmailConnections] = useState([]);
+  const [showNotificationSettings, setShowNotificationSettings] = useState(false);
+  
   // Palette panel visibility
   const [showPalette, setShowPalette] = useState(true);
   const [showConfig, setShowConfig] = useState(true);
@@ -391,6 +402,19 @@ const VisualMappingCanvasContent = () => {
     fetchProjects();
   }, []);
   
+  // Load email connections for notifications
+  useEffect(() => {
+    const fetchEmailConnections = async () => {
+      try {
+        const response = await axios.get('/api/email-connections');
+        setEmailConnections(response.data.connections || response.data || []);
+      } catch (error) {
+        console.error('Error fetching email connections:', error);
+      }
+    };
+    fetchEmailConnections();
+  }, []);
+  
   // Load subprojects when project changes
   useEffect(() => {
     const fetchSubProjects = async () => {
@@ -424,6 +448,11 @@ const VisualMappingCanvasContent = () => {
         setMappingDescription(mapping.description || '');
         setProjectId(mapping.project_id);
         setSubProjectId(mapping.sub_project_id);
+        
+        // Restore notification settings if present
+        if (mapping.notification_settings) {
+          setNotificationSettings(mapping.notification_settings);
+        }
         
         if (mapping.graph_data && mapping.graph_data.nodes) {
           const loadedNodes = mapping.graph_data.nodes.map(node => ({
@@ -794,7 +823,8 @@ const VisualMappingCanvasContent = () => {
           })),
           edges
         },
-        canvas_state: canvasState
+        canvas_state: canvasState,
+        notification_settings: notificationSettings.enabled ? notificationSettings : null
       };
       
       if (isEditMode) {
@@ -1124,6 +1154,108 @@ const VisualMappingCanvasContent = () => {
                         ))}
                       </select>
                     </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Notification Settings Section */}
+            <div className="visual-mapping-sidebar-section">
+              <div 
+                className="visual-mapping-sidebar-header" 
+                onClick={() => setShowNotificationSettings(!showNotificationSettings)}
+              >
+                <h3>Notification Settings</h3>
+                {showNotificationSettings ? <FaChevronUp /> : <FaChevronDown />}
+              </div>
+              {showNotificationSettings && (
+                <div className="visual-mapping-sidebar-content">
+                  <div className="visual-mapping-form-group">
+                    <label className="checkbox-label" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <input 
+                        type="checkbox"
+                        checked={notificationSettings.enabled}
+                        onChange={(e) => setNotificationSettings({
+                          ...notificationSettings,
+                          enabled: e.target.checked
+                        })}
+                        style={{ width: 'auto' }}
+                      />
+                      Enable Email Notifications
+                    </label>
+                  </div>
+                  
+                  {notificationSettings.enabled && (
+                    <>
+                      <div className="visual-mapping-form-group">
+                        <label>Email Provider</label>
+                        <select
+                          value={notificationSettings.emailConnectionId || ''}
+                          onChange={(e) => setNotificationSettings({
+                            ...notificationSettings,
+                            emailConnectionId: e.target.value || null
+                          })}
+                          className="visual-mapping-select"
+                        >
+                          <option value="">Select Provider</option>
+                          {emailConnections.map(conn => (
+                            <option key={conn.connection_id} value={conn.connection_id}>
+                              {conn.name}
+                            </option>
+                          ))}
+                        </select>
+                        {emailConnections.length === 0 && (
+                          <span style={{ fontSize: '10px', color: '#6b7280', marginTop: '4px', display: 'block' }}>
+                            No email providers configured. Add one in Admin &gt; Email Providers.
+                          </span>
+                        )}
+                      </div>
+                      
+                      <div className="visual-mapping-form-group">
+                        <label>Recipients</label>
+                        <input 
+                          type="text"
+                          value={notificationSettings.recipients}
+                          onChange={(e) => setNotificationSettings({
+                            ...notificationSettings,
+                            recipients: e.target.value
+                          })}
+                          placeholder="email1@example.com, email2@example.com"
+                          className="visual-mapping-input"
+                        />
+                        <span style={{ fontSize: '10px', color: '#6b7280', marginTop: '4px', display: 'block' }}>
+                          Comma-separated email addresses
+                        </span>
+                      </div>
+                      
+                      <div className="visual-mapping-form-group">
+                        <label style={{ marginBottom: '8px', display: 'block' }}>Notify When</label>
+                        <label className="checkbox-label" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                          <input 
+                            type="checkbox"
+                            checked={notificationSettings.notifyOnSuccess}
+                            onChange={(e) => setNotificationSettings({
+                              ...notificationSettings,
+                              notifyOnSuccess: e.target.checked
+                            })}
+                            style={{ width: 'auto' }}
+                          />
+                          Job Completes Successfully
+                        </label>
+                        <label className="checkbox-label" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <input 
+                            type="checkbox"
+                            checked={notificationSettings.notifyOnFailure}
+                            onChange={(e) => setNotificationSettings({
+                              ...notificationSettings,
+                              notifyOnFailure: e.target.checked
+                            })}
+                            style={{ width: 'auto' }}
+                          />
+                          Job Fails
+                        </label>
+                      </div>
+                    </>
                   )}
                 </div>
               )}
