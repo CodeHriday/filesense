@@ -120,11 +120,6 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
     setPiiColumns(new Set(initialPiiColumns || []));
   }, [initialPiiColumns]);
   
-  // Sync DQ rule assignments from prop
-  useEffect(() => {
-    setDqRuleAssignments(initialDqRuleAssignments || {});
-  }, [initialDqRuleAssignments]);
-  
   // Auto-populate PII columns from schema on initial load
   useEffect(() => {
     if (schema && schema.length > 0 && initialPiiColumns.length === 0) {
@@ -992,7 +987,7 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
           <div className="target-panel-header">
             <h4>Target Fields</h4>
             <div className="target-panel-actions">
-              <button className="btn btn-secondary btn-xs" onClick={handleOpenDqRulePanel} title="Assign Data Quality rules to target columns" style={{ fontSize: '10px', fontFamily: 'Inter', padding: '0.125rem 0.25rem', gap: '0.125rem' }}>
+              <button className="btn btn-primary btn-xs" onClick={handleOpenDqRulePanel} title="Assign Data Quality rules to target columns" style={{ fontSize: '10px', fontFamily: 'Inter', padding: '0.125rem 0.25rem', gap: '0.125rem' }}>
                 <FiShield /> Assign DQ Rule
               </button>
               <button className="btn btn-primary btn-xs" onClick={handleAddNewColumn} title="Add a new calculated column" style={{ fontSize: '10px', fontFamily: 'Inter', padding: '0.125rem 0.25rem', gap: '0.125rem' }}>
