@@ -376,74 +376,115 @@ class ArchiveExtractionService {
   async extractZipWithPassword(archiveFilePath, outputDir, password) {
     const logger = this.logger;
     
-    logger.info('Extracting password-protected ZIP with 7-Zip (supports AES-256)', {
+    logger.info('Extracting password-protected ZIP with pyzipper (supports AES-256)', {
       archivePath: archiveFilePath,
       outputDir,
       hasPassword: !!password
     });
     
-    // Use 7-Zip for password-protected ZIPs because it supports both 
-    // ZipCrypto (legacy) and AES-256 encryption, whereas unzipper only
-    // supports ZipCrypto and fails with "invalid block type" on AES-256
-    const sevenZip = require('node-7z-archive');
-    
+    // Use Python's pyzipper for password-protected ZIPs because it supports both 
+    // ZipCrypto (legacy) and AES-256 encryption, which is the proven working approach
+    // used by the file processing worker and Flask profile API
     return new Promise((resolve, reject) => {
-      const options = password ? { password } : {};
-      const extractStream = sevenZip.extractFull(archiveFilePath, outputDir, options);
       const extractedFiles = [];
+      
+      // Python script to extract password-protected ZIP using pyzipper
+      const pythonScript = `
+import sys
+import json
+import os
+import pyzipper
 
-      extractStream.on('data', (data) => {
-        logger.debug('7z ZIP extraction progress', { file: data.file });
+archive_path = sys.argv[1]
+output_dir = sys.argv[2]
+password = sys.argv[3] if len(sys.argv) > 3 and sys.argv[3] != '__NO_PASSWORD__' else None
+
+try:
+    extracted = []
+    with pyzipper.AESZipFile(archive_path, 'r') as archive:
+        for member_info in archive.infolist():
+            if member_info.is_dir():
+                continue
+            
+            member_name = os.path.basename(member_info.filename)
+            if not member_name or '..' in member_info.filename:
+                continue
+            
+            safe_path = os.path.join(output_dir, member_name)
+            
+            with archive.open(member_info, pwd=password.encode() if password else None) as source:
+                with open(safe_path, 'wb') as target:
+                    target.write(source.read())
+            
+            extracted.append({
+                'relativePath': member_info.filename,
+                'fileName': member_name,
+                'fullPath': safe_path,
+                'originalSize': member_info.file_size
+            })
+    
+    print(json.dumps({'success': True, 'files': extracted}))
+except RuntimeError as e:
+    if 'password' in str(e).lower() or 'Bad password' in str(e):
+        print(json.dumps({'success': False, 'error': 'ARCHIVE_PASSWORD_REQUIRED: Incorrect password provided'}))
+    else:
+        print(json.dumps({'success': False, 'error': str(e)}))
+except Exception as e:
+    print(json.dumps({'success': False, 'error': str(e)}))
+`;
+
+      const pythonProcess = spawn('python3', [
+        '-c', pythonScript,
+        archiveFilePath,
+        outputDir,
+        password || '__NO_PASSWORD__'
+      ]);
+      
+      let stdout = '';
+      let stderr = '';
+      
+      pythonProcess.stdout.on('data', (data) => {
+        stdout += data.toString();
       });
-
-      extractStream.on('end', async () => {
+      
+      pythonProcess.stderr.on('data', (data) => {
+        stderr += data.toString();
+      });
+      
+      pythonProcess.on('close', (code) => {
+        if (code !== 0) {
+          logger.error('Python ZIP extraction failed', { code, stderr });
+          reject(new Error(`ZIP extraction error: ${stderr || 'Unknown error'}`));
+          return;
+        }
+        
         try {
-          const files = await fs.promises.readdir(outputDir);
+          const result = JSON.parse(stdout.trim());
           
-          for (const file of files) {
-            // Skip directory traversal attempts
-            if (file.includes('..') || path.isAbsolute(file)) {
-              logger.warn('Skipping potentially malicious path', {
-                entryName: file
-              });
-              continue;
+          if (!result.success) {
+            const errorMsg = result.error || 'Unknown error';
+            if (errorMsg.includes('ARCHIVE_PASSWORD_REQUIRED')) {
+              reject(new Error(errorMsg));
+            } else {
+              reject(new Error(`ZIP extraction error: ${errorMsg}`));
             }
-            
-            const filePath = path.join(outputDir, file);
-            const stats = await fs.promises.stat(filePath);
-            
-            if (stats.isFile()) {
-              extractedFiles.push({
-                relativePath: file,
-                fileName: file,
-                fullPath: filePath,
-                originalSize: stats.size
-              });
-            }
+            return;
           }
           
           logger.info('Password-protected ZIP extraction completed', {
-            extractedCount: extractedFiles.length
+            extractedCount: result.files.length
           });
           
-          resolve(extractedFiles);
-        } catch (error) {
-          reject(new Error(`Failed to read extracted ZIP files: ${error.message}`));
+          resolve(result.files);
+        } catch (parseError) {
+          logger.error('Failed to parse Python output', { stdout, stderr });
+          reject(new Error(`ZIP extraction error: Failed to parse extraction result`));
         }
       });
-
-      extractStream.on('error', (error) => {
-        const errorMsg = error.message || '';
-        if (errorMsg.toLowerCase().includes('wrong password') ||
-            errorMsg.toLowerCase().includes('bad password') ||
-            errorMsg.toLowerCase().includes('incorrect password')) {
-          reject(new Error('ARCHIVE_PASSWORD_REQUIRED: Incorrect password provided'));
-        } else if (errorMsg.toLowerCase().includes('password') || 
-                   errorMsg.toLowerCase().includes('encrypted')) {
-          reject(new Error('ARCHIVE_PASSWORD_REQUIRED: Archive is encrypted but decryption failed'));
-        } else {
-          reject(new Error(`ZIP extraction error: ${errorMsg}`));
-        }
+      
+      pythonProcess.on('error', (error) => {
+        logger.error('Failed to spawn Python process', { error: error.message });
+        reject(new Error(`ZIP extraction error: ${error.message}`));
       });
     });
   }
