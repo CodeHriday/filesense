@@ -46,6 +46,8 @@ async function validateCSVHasData(filePath) {
     
     let lineCount = 0;
     let hasContent = false;
+    let headerRow = null;
+    let firstDataRow = null;
     
     rl.on('line', (line) => {
       const trimmed = line.trim();
@@ -53,14 +55,12 @@ async function validateCSVHasData(filePath) {
         lineCount++;
         if (lineCount === 1) {
           hasContent = true;
+          headerRow = trimmed;
+        } else if (lineCount === 2) {
+          firstDataRow = trimmed;
         }
-        if (lineCount >= 2) {
+        if (lineCount >= 3) {
           rl.close();
-          resolve({
-            valid: true,
-            message: 'CSV file contains data rows',
-            dataRows: true
-          });
         }
       }
     });
@@ -78,6 +78,25 @@ async function validateCSVHasData(filePath) {
           message: 'File contains only a header row with no data records. Please upload a file with at least one data record.',
           errorCode: 'header_only_file'
         });
+      } else {
+        // Check for duplicate/multiple headers (first data row looks like header)
+        // Note: We only block on "duplicate headers" which is reliably detectable
+        // "No headers" detection is handled as a warning during profiling since
+        // it requires more sophisticated analysis to avoid false positives
+        const headerCheck = checkForDuplicateHeaders(headerRow, firstDataRow);
+        if (headerCheck.isDuplicate) {
+          resolve({
+            valid: false,
+            message: 'File appears to have multiple header rows. The first data row contains column names instead of data values. Please remove duplicate headers and re-upload.',
+            errorCode: 'multiple_headers'
+          });
+        } else {
+          resolve({
+            valid: true,
+            message: 'CSV file contains data rows',
+            dataRows: true
+          });
+        }
       }
     });
     
@@ -85,6 +104,59 @@ async function validateCSVHasData(filePath) {
       reject(error);
     });
   });
+}
+
+function checkForDuplicateHeaders(headerRow, firstDataRow) {
+  if (!headerRow || !firstDataRow) {
+    return { isDuplicate: false };
+  }
+  
+  // Parse CSV rows (handles quoted fields properly)
+  const parseRow = (row) => {
+    const values = [];
+    let current = '';
+    let inQuotes = false;
+    
+    for (let i = 0; i < row.length; i++) {
+      const char = row[i];
+      if (char === '"' && (i === 0 || row[i-1] !== '\\')) {
+        inQuotes = !inQuotes;
+      } else if (char === ',' && !inQuotes) {
+        values.push(current.trim().replace(/^["']|["']$/g, ''));
+        current = '';
+      } else {
+        current += char;
+      }
+    }
+    values.push(current.trim().replace(/^["']|["']$/g, ''));
+    return values;
+  };
+  
+  const headers = parseRow(headerRow);
+  const dataValues = parseRow(firstDataRow);
+  
+  if (headers.length === 0 || dataValues.length === 0) {
+    return { isDuplicate: false };
+  }
+  
+  // DUPLICATE HEADERS CHECK: First data row matches header names exactly
+  // Only check if values are IDENTICAL to headers (case-insensitive)
+  let exactMatchCount = 0;
+  for (let i = 0; i < Math.min(headers.length, dataValues.length); i++) {
+    const h = headers[i].toLowerCase().trim();
+    const d = dataValues[i].toLowerCase().trim();
+    if (h === d && h.length > 0) {
+      exactMatchCount++;
+    }
+  }
+  
+  // If >60% of values match headers EXACTLY, it's a duplicate header row
+  const matchRatio = exactMatchCount / Math.min(headers.length, dataValues.length);
+  if (matchRatio >= 0.6) {
+    return { isDuplicate: true };
+  }
+  
+  return { isDuplicate: false };
 }
 
 async function validateJSONHasData(filePath) {
@@ -248,5 +320,6 @@ module.exports = {
   validateCSVHasData,
   validateJSONHasData,
   validateExcelHasData,
-  validateXMLHasData
+  validateXMLHasData,
+  checkForDuplicateHeaders
 };

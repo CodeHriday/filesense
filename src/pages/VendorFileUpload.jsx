@@ -55,6 +55,7 @@ function VendorFileUpload() {
   const [loadingSchemas, setLoadingSchemas] = useState(false);
   const [expandedSchemas, setExpandedSchemas] = useState({});
   const [uploadingFiles, setUploadingFiles] = useState([]);
+  const [schemaWarnings, setSchemaWarnings] = useState([]);
 
   const { hasWritePermission } = useAuth();
   const { addToast } = useToast();
@@ -194,6 +195,17 @@ function VendorFileUpload() {
       
       setUploadedFile(fileDetails);
       
+      // Capture schema warnings from profiling (non-blocking issues like extra/missing columns)
+      if (response.data.schemaWarnings && response.data.schemaWarnings.length > 0) {
+        setSchemaWarnings(response.data.schemaWarnings);
+        // Show toast for schema warnings
+        response.data.schemaWarnings.forEach(warning => {
+          addToast('warning', 'Schema Warning', warning.message);
+        });
+      } else {
+        setSchemaWarnings([]);
+      }
+      
       // Process immediate virus scan result (scan is synchronous)
       const virusScan = response.data.virusScan;
       
@@ -285,6 +297,7 @@ function VendorFileUpload() {
     setSchemaValidationError(null);
     setFilenameValidationError(null);
     setUploadingFiles([]);
+    setSchemaWarnings([]);
   };
   
   const handleFilesChange = useCallback((files) => {
@@ -1143,6 +1156,37 @@ function VendorFileUpload() {
                 virusScan={uploadedFile?.virusScan}
                 externalStatus={uploadStatus}
               />
+              
+              {/* Schema Warnings Banner */}
+              {uploadStatus === 'success' && schemaWarnings.length > 0 && (
+                <div style={{
+                  marginTop: '1rem',
+                  padding: '0.75rem 1rem',
+                  backgroundColor: '#fff3cd',
+                  border: '1px solid #ffc107',
+                  borderRadius: '6px',
+                  color: '#856404'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', marginBottom: '0.5rem' }}>
+                    <span style={{ fontWeight: '600', fontSize: '14px' }}>Schema Warnings Detected</span>
+                  </div>
+                  <ul style={{ margin: 0, paddingLeft: '1.25rem', fontSize: '13px' }}>
+                    {schemaWarnings.map((warning, idx) => (
+                      <li key={idx} style={{ marginBottom: '0.25rem' }}>
+                        <strong>{warning.type?.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}:</strong> {warning.message}
+                        {warning.recommendation && (
+                          <div style={{ fontSize: '12px', color: '#6c757d', marginTop: '2px' }}>
+                            {warning.recommendation}
+                          </div>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                  <div style={{ marginTop: '0.5rem', fontSize: '12px', fontStyle: 'italic' }}>
+                    Note: File was uploaded successfully. These warnings are for your awareness.
+                  </div>
+                </div>
+              )}
               
               {/* Reset button */}
               {(uploadStatus === 'success' || uploadStatus === 'error') && (

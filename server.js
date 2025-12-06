@@ -3542,6 +3542,22 @@ app.post('/api/files/drop', authenticateToken, uploadLimiter, upload.single('fil
       }
     }
     
+    // Extract schema warnings from profiling for display (non-blocking issues)
+    let schemaWarnings = [];
+    if (profileData && profileData.issues) {
+      // Filter for schema-related warnings (not blocking errors)
+      schemaWarnings = profileData.issues.filter(issue => {
+        const issueType = issue.issue_type || issue.type || '';
+        // Include schema drift warnings but exclude header structure errors (already blocked)
+        return ['missing_headers', 'orphan_headers', 'extra_columns', 'schema_drift', 'missing_columns'].includes(issueType);
+      }).map(issue => ({
+        type: issue.issue_type || issue.type,
+        severity: issue.severity || 'medium',
+        message: issue.message || issue.description,
+        recommendation: issue.recommendation
+      }));
+    }
+    
     res.json({
       success: true,
       fileId,
@@ -3554,7 +3570,9 @@ app.post('/api/files/drop', authenticateToken, uploadLimiter, upload.single('fil
         provider: provider,
         key: storageKey
       },
-      virusScan: virusScanResult
+      virusScan: virusScanResult,
+      schemaWarnings: schemaWarnings.length > 0 ? schemaWarnings : undefined,
+      hasWarnings: schemaWarnings.length > 0
     });
     
   } catch (error) {
