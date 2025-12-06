@@ -1781,9 +1781,13 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
                 </div>
               </div>
             </div>
-            <div className="modal-footer">
-              <button className="btn btn-secondary" onClick={() => setShowDqRulePanel(false)}>
-                Close
+            <div className="modal-footer" style={{ justifyContent: 'flex-end' }}>
+              <button 
+                className="btn btn-primary dq-save-btn" 
+                onClick={() => setShowDqRulePanel(false)}
+                style={{ minWidth: 'auto', padding: '0.375rem 1rem' }}
+              >
+                Save
               </button>
             </div>
           </div>

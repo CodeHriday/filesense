@@ -1226,3 +1226,15 @@
   background: #f3f4f6;
   color: #ef4444;
 }
+
+/* DQ Panel Save Button */
+.dq-save-btn {
+  font-size: 10px;
+  font-family: 'Inter', sans-serif;
+  font-weight: 500;
+  color: white !important;
+}
+
+.dq-save-btn:hover {
+  color: white !important;
+}
