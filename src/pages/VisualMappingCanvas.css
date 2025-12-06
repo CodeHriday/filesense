@@ -604,6 +604,17 @@
 }
 
 /* React Flow Overrides */
+.react-flow__node {
+  visibility: visible !important;
+  opacity: 1 !important;
+  pointer-events: all !important;
+}
+
+.react-flow__node .visual-mapping-node {
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
 .react-flow__node.selected .visual-mapping-node {
   border-color: #025043;
 }
