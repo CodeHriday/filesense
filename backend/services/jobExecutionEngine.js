@@ -21,6 +21,224 @@ const alertAggregationWorker = require('./AlertAggregationWorker');
 const visualMappingWS = require('./visualMappingWebSocket');
 const crypto = require('crypto');
 
+// Archive file type constants
+const ARCHIVE_EXTENSIONS = ['zip', '7z', 'tar', 'gz', 'tgz', 'bz2', 'tar.gz', 'tar.bz2'];
+const FIXED_WIDTH_EXTENSIONS = ['dat', 'fixed_width', 'txt'];
+
+/**
+ * Check if a file extension indicates an archive file
+ * @param {string} filename - The filename to check
+ * @returns {boolean} - True if file is an archive
+ */
+function isArchiveFile(filename) {
+  if (!filename) return false;
+  const lower = filename.toLowerCase();
+  return ARCHIVE_EXTENSIONS.some(ext => lower.endsWith(`.${ext}`));
+}
+
+/**
+ * Get password for an archive from the vendor agreement password vault
+ * @param {Object} pool - Database connection pool
+ * @param {number} vendorAgreementId - Vendor agreement ID
+ * @param {string} filename - Source filename to match
+ * @returns {Promise<string|null>} - Decrypted password or null
+ */
+async function getArchivePasswordFromVault(pool, vendorAgreementId, filename) {
+  try {
+    // First, find the file schema that matches this filename
+    const schemaResult = await pool.query(`
+      SELECT vafs.id, vafs.file_name_pattern, vafs.archive_password_id
+      FROM vendor_agreement_file_schemas vafs
+      WHERE vafs.vendor_agreement_id = $1 AND vafs.is_active = true
+      ORDER BY vafs.priority ASC NULLS LAST
+    `, [vendorAgreementId]);
+    
+    if (schemaResult.rows.length === 0) {
+      return null;
+    }
+    
+    // Find matching schema by pattern
+    let matchedSchema = null;
+    for (const schema of schemaResult.rows) {
+      const pattern = schema.file_name_pattern;
+      if (!pattern) continue;
+      
+      // Convert file pattern to regex (e.g., *.csv -> .*\.csv)
+      const regexPattern = pattern
+        .replace(/\./g, '\\.')
+        .replace(/\*/g, '.*')
+        .replace(/\?/g, '.');
+      
+      const regex = new RegExp(`^${regexPattern}$`, 'i');
+      if (regex.test(filename)) {
+        matchedSchema = schema;
+        break;
+      }
+    }
+    
+    if (!matchedSchema) {
+      // Use first schema as fallback
+      matchedSchema = schemaResult.rows[0];
+    }
+    
+    // Look up password in encrypted_passwords table
+    const passwordResult = await pool.query(`
+      SELECT ep.secret_ciphertext, ep.iv
+      FROM encrypted_passwords ep
+      WHERE ep.entity_type = 'vendor_agreement_file_schema' 
+      AND ep.entity_id = $1
+    `, [matchedSchema.id.toString()]);
+    
+    if (passwordResult.rows.length === 0) {
+      // Also try looking up by vendor agreement ID
+      const agreementPasswordResult = await pool.query(`
+        SELECT ep.secret_ciphertext, ep.iv
+        FROM encrypted_passwords ep
+        WHERE ep.entity_type = 'vendor_agreement' 
+        AND ep.entity_id = $1
+      `, [vendorAgreementId.toString()]);
+      
+      if (agreementPasswordResult.rows.length === 0) {
+        return null;
+      }
+      
+      // Decrypt the password
+      const PasswordVaultService = require('./passwordVaultService');
+      const vaultService = new PasswordVaultService(pool, null, systemLogger);
+      return vaultService.decrypt(
+        agreementPasswordResult.rows[0].secret_ciphertext,
+        agreementPasswordResult.rows[0].iv
+      );
+    }
+    
+    // Decrypt the password
+    const PasswordVaultService = require('./passwordVaultService');
+    const vaultService = new PasswordVaultService(pool, null, systemLogger);
+    return vaultService.decrypt(
+      passwordResult.rows[0].secret_ciphertext,
+      passwordResult.rows[0].iv
+    );
+  } catch (error) {
+    systemLogger.error('Failed to get archive password from vault', {
+      vendorAgreementId,
+      filename,
+      error: error.message
+    });
+    return null;
+  }
+}
+
+/**
+ * Get fixed-width schema from vendor agreement for headerless file parsing
+ * @param {Object} pool - Database connection pool
+ * @param {number} vendorAgreementId - Vendor agreement ID
+ * @param {string} filename - Source filename to match
+ * @returns {Promise<Object|null>} - Schema with has_header and header_definition
+ */
+async function getFixedWidthSchemaFromAgreement(pool, vendorAgreementId, filename) {
+  try {
+    const result = await pool.query(`
+      SELECT vafs.id, vafs.file_name_pattern, vafs.has_header, vafs.header_definition,
+             vafs.file_type, vafs.schema
+      FROM vendor_agreement_file_schemas vafs
+      WHERE vafs.vendor_agreement_id = $1 AND vafs.is_active = true
+      ORDER BY vafs.priority ASC NULLS LAST
+    `, [vendorAgreementId]);
+    
+    if (result.rows.length === 0) {
+      return null;
+    }
+    
+    // Find matching schema by pattern
+    let matchedSchema = null;
+    for (const schema of result.rows) {
+      const pattern = schema.file_name_pattern;
+      if (!pattern) continue;
+      
+      const regexPattern = pattern
+        .replace(/\./g, '\\.')
+        .replace(/\*/g, '.*')
+        .replace(/\?/g, '.');
+      
+      const regex = new RegExp(`^${regexPattern}$`, 'i');
+      if (regex.test(filename)) {
+        matchedSchema = schema;
+        break;
+      }
+    }
+    
+    if (!matchedSchema) {
+      matchedSchema = result.rows[0];
+    }
+    
+    // Parse header_definition if it's a string
+    let headerDef = matchedSchema.header_definition;
+    if (typeof headerDef === 'string') {
+      try {
+        headerDef = JSON.parse(headerDef);
+      } catch (e) {
+        headerDef = null;
+      }
+    }
+    
+    return {
+      schemaId: matchedSchema.id,
+      fileType: matchedSchema.file_type,
+      hasHeader: matchedSchema.has_header !== false,
+      headerDefinition: headerDef,
+      schema: matchedSchema.schema
+    };
+  } catch (error) {
+    systemLogger.error('Failed to get fixed-width schema from agreement', {
+      vendorAgreementId,
+      filename,
+      error: error.message
+    });
+    return null;
+  }
+}
+
+/**
+ * Parse a fixed-width file buffer using column positions from schema
+ * @param {Buffer} buffer - File buffer
+ * @param {Array} columns - Column definitions with name, width, start_position
+ * @param {Object} options - Parsing options
+ * @returns {Object} - Parsed rows and metadata
+ */
+function parseFixedWidthBuffer(buffer, columns, options = {}) {
+  const { hasHeader = false } = options;
+  const content = buffer.toString('utf8');
+  const lines = content.split(/\r?\n/).filter(line => line.trim().length > 0);
+  
+  const rows = [];
+  const startIndex = hasHeader ? 1 : 0;
+  
+  // Sort columns by start_position
+  const sortedColumns = [...columns].sort((a, b) => 
+    (a.start_position || 0) - (b.start_position || 0)
+  );
+  
+  for (let i = startIndex; i < lines.length; i++) {
+    const line = lines[i];
+    const row = {};
+    
+    for (const col of sortedColumns) {
+      const start = col.start_position || 0;
+      const width = col.width || 10;
+      const value = line.substring(start, start + width).trim();
+      row[col.name] = value;
+    }
+    
+    rows.push(row);
+  }
+  
+  return {
+    rows,
+    rowCount: rows.length,
+    columns: sortedColumns.map(c => c.name)
+  };
+}
+
 /**
  * Replace dynamic placeholders in file name with actual values
  * @param {string} fileName - File name with placeholders
@@ -1562,7 +1780,82 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
     });
     
     // Step 2: Determine file type from filename
-    const fileExtension = file.filename.split('.').pop().toLowerCase();
+    let fileExtension = file.filename.split('.').pop().toLowerCase();
+    
+    // Step 2.1: Check if this is an archive file - archives need special handling
+    if (isArchiveFile(file.filename)) {
+      await logJobExecution(pool, jobId, 'info', `Detected archive file: ${file.filename}`, {
+        extension: fileExtension,
+        hasVendorAgreement: !!mapping.vendor_agreement_id
+      });
+      
+      // For vendor agreement mappings, look for extracted archive contents
+      if (mapping.vendor_agreement_id) {
+        // Check if archive has already been extracted - look for archive_members
+        const archiveMembersResult = await pool.query(`
+          SELECT am.id, am.logical_name, am.original_name, am.file_format, am.file_size_bytes
+          FROM archive_members am
+          JOIN files f ON am.parent_file_id = f.id
+          WHERE f.original_filename = $1 
+          AND am.extraction_status = 'completed'
+          ORDER BY am.id
+        `, [file.filename]);
+        
+        if (archiveMembersResult.rows.length > 0) {
+          // Archive already extracted - this should be handled at the job level
+          // For now, skip the archive and let the caller know
+          await logJobExecution(pool, jobId, 'warn', 
+            `Archive ${file.filename} has ${archiveMembersResult.rows.length} extracted members. ` +
+            `Please configure the source to use extracted files instead of the archive.`
+          );
+          throw new Error(
+            `Archive file detected: ${file.filename}. ` +
+            `This archive has ${archiveMembersResult.rows.length} extracted files. ` +
+            `Please update the source configuration to target the extracted contents, ` +
+            `or ensure extracted files are available in the source location.`
+          );
+        } else {
+          // Archive not yet extracted - provide helpful error
+          const password = await getArchivePasswordFromVault(pool, mapping.vendor_agreement_id, file.filename);
+          const hasPassword = !!password;
+          
+          throw new Error(
+            `Archive file detected: ${file.filename}. ` +
+            `Archive extraction must be completed before ETL processing. ` +
+            `Password configured: ${hasPassword ? 'Yes' : 'No'}. ` +
+            `Please upload the archive through the file upload workflow to trigger extraction.`
+          );
+        }
+      } else {
+        throw new Error(
+          `Unsupported file type: ${fileExtension}. ` +
+          `Archive files (ZIP, TAR, 7z) require a vendor agreement with password configuration. ` +
+          `Supported data file types: CSV, JSON, XLSX, XLS, Parquet, XML, DAT (fixed-width).`
+        );
+      }
+    }
+    
+    // Step 2.2: Check for fixed-width/headerless files that need schema from vendor agreement
+    let fixedWidthSchema = null;
+    const isFixedWidthType = FIXED_WIDTH_EXTENSIONS.includes(fileExtension);
+    
+    if (mapping.vendor_agreement_id && (isFixedWidthType || fileExtension === 'csv')) {
+      // Get schema from vendor agreement to check if it's headerless
+      fixedWidthSchema = await getFixedWidthSchemaFromAgreement(
+        pool, 
+        mapping.vendor_agreement_id, 
+        file.filename
+      );
+      
+      if (fixedWidthSchema) {
+        await logJobExecution(pool, jobId, 'info', `Found vendor agreement schema for file`, {
+          filename: file.filename,
+          fileType: fixedWidthSchema.fileType,
+          hasHeader: fixedWidthSchema.hasHeader,
+          hasHeaderDefinition: !!fixedWidthSchema.headerDefinition
+        });
+      }
+    }
     
     // Step 2.5: Fetch governance metadata from vendor agreement (if applicable)
     let governance = null;
@@ -1603,7 +1896,89 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
     
     let parseResult;
     
-    if (fileExtension === 'csv') {
+    // Check if this is a fixed-width file that needs special parsing
+    const isFixedWidth = fixedWidthSchema && 
+      (fixedWidthSchema.fileType === 'fixed_width' || 
+       fixedWidthSchema.fileType === 'dat' || 
+       fixedWidthSchema.fileType === 'binary');
+    
+    // Check if this is a headerless CSV that needs column names from schema
+    const isHeaderlessCSV = fileExtension === 'csv' && 
+      fixedWidthSchema && 
+      fixedWidthSchema.hasHeader === false;
+    
+    if (isFixedWidth && fixedWidthSchema.headerDefinition) {
+      // Parse fixed-width file using schema from vendor agreement
+      await logJobExecution(pool, jobId, 'info', `Parsing fixed-width file using vendor agreement schema`, {
+        filename: file.filename,
+        columnCount: fixedWidthSchema.headerDefinition.length,
+        hasHeader: fixedWidthSchema.hasHeader
+      });
+      
+      const fixedResult = parseFixedWidthBuffer(
+        fileBuffer,
+        fixedWidthSchema.headerDefinition,
+        { hasHeader: fixedWidthSchema.hasHeader }
+      );
+      
+      // Convert field mappings and variables to expected format (same as other parsers)
+      const convertedMappings = convertFieldMappings(mapping.field_mappings);
+      const convertedVariables = convertVariables(mapping.variables);
+      
+      // Transform the parsed rows using the same pipeline as CSV/JSON
+      const transformedFixedRows = [];
+      const sourceRows = []; // Track source rows for profiling
+      let fixedRowsFailed = 0;
+      const MAX_SOURCE_ROWS_FOR_PROFILING = 1000;
+      
+      for (let i = 0; i < fixedResult.rows.length; i++) {
+        const row = fixedResult.rows[i];
+        
+        // Capture source rows for profiling
+        if (i < MAX_SOURCE_ROWS_FOR_PROFILING) {
+          sourceRows.push({...row});
+        }
+        
+        try {
+          const transformedRow = transformRow(row, convertedMappings, convertedVariables, rdmContext);
+          if (transformedRow && Object.keys(transformedRow).length > 0) {
+            transformedFixedRows.push(transformedRow);
+          }
+        } catch (err) {
+          fixedRowsFailed++;
+          systemLogger.warn('Fixed-width row transformation error', {
+            rowNumber: i + 1,
+            error: err.message
+          });
+        }
+      }
+      
+      parseResult = {
+        rowsRead: fixedResult.rowCount,
+        rowsWritten: transformedFixedRows.length,
+        rowsFailed: fixedRowsFailed,
+        transformedRows: transformedFixedRows,
+        sourceRows // Include for profiling
+      };
+    } else if (isHeaderlessCSV && fixedWidthSchema.headerDefinition) {
+      // Parse headerless CSV using column names from vendor agreement
+      await logJobExecution(pool, jobId, 'info', `Parsing headerless CSV using vendor agreement schema`, {
+        filename: file.filename,
+        columnCount: fixedWidthSchema.headerDefinition.length
+      });
+      
+      // Pass column names to CSV parser
+      const columnNames = fixedWidthSchema.headerDefinition.map(col => col.name);
+      parseResult = await parseAndTransformCSV(
+        fileBuffer, 
+        mapping.field_mappings,
+        mapping.variables,
+        jobId, 
+        pool,
+        rdmContext,
+        { headers: columnNames, skipFirstRow: false }
+      );
+    } else if (fileExtension === 'csv') {
       parseResult = await parseAndTransformCSV(
         fileBuffer, 
         mapping.field_mappings,
@@ -1648,8 +2023,18 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
         pool,
         rdmContext
       );
+    } else if (FIXED_WIDTH_EXTENSIONS.includes(fileExtension)) {
+      // Fixed-width file without vendor agreement schema
+      throw new Error(
+        `Fixed-width file detected: ${file.filename}. ` +
+        `Fixed-width files require a vendor agreement with column definitions (width, start_position). ` +
+        `Please configure a vendor agreement with the file schema.`
+      );
     } else {
-      throw new Error(`Unsupported file type: ${fileExtension}. Supported types: CSV, JSON, XLSX, XLS, Parquet, XML`);
+      throw new Error(
+        `Unsupported file type: ${fileExtension}. ` +
+        `Supported types: CSV, JSON, XLSX, XLS, Parquet, XML, DAT (fixed-width with vendor agreement).`
+      );
     }
     
     // Extract results from parseResult
@@ -2685,9 +3070,19 @@ function convertVariables(dbVariables) {
 
 /**
  * Parse CSV and apply transformations
+ * @param {Buffer} buffer - File buffer
+ * @param {Array} fieldMappings - Field mappings
+ * @param {Object} variables - Variables
+ * @param {string} jobId - Job ID
+ * @param {Object} pool - Database pool
+ * @param {Object} rdmContext - RDM context
+ * @param {Object} options - Additional options
+ * @param {Array} options.headers - Custom column headers for headerless files
+ * @param {boolean} options.skipFirstRow - Whether to skip first row (default true for files with headers)
  */
-async function parseAndTransformCSV(buffer, fieldMappings, variables, jobId, pool, rdmContext = {}) {
+async function parseAndTransformCSV(buffer, fieldMappings, variables, jobId, pool, rdmContext = {}, options = {}) {
   return new Promise((resolve, reject) => {
+    const { headers: customHeaders = null, skipFirstRow = true } = options;
     const transformedRows = [];
     const sourceRows = []; // Capture source rows for profiling
     let rowsRead = 0;
@@ -2702,8 +3097,20 @@ async function parseAndTransformCSV(buffer, fieldMappings, variables, jobId, poo
     
     const stream = Readable.from(buffer);
     
+    // Configure CSV parser options
+    const csvOptions = {};
+    if (customHeaders) {
+      // Use custom headers for headerless files
+      csvOptions.headers = customHeaders;
+      csvOptions.skipLines = skipFirstRow ? 0 : 0; // Don't skip any lines for headerless files
+      systemLogger.info('CSV parsing with custom headers', {
+        headers: customHeaders,
+        headerCount: customHeaders.length
+      });
+    }
+    
     stream
-      .pipe(csv())
+      .pipe(csv(csvOptions))
       .on('data', (row) => {
         rowsRead++;
         

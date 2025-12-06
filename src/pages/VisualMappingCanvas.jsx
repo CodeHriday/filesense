@@ -328,7 +328,11 @@ const VisualMappingCanvasContent = () => {
   
   // Console panel state
   const [showConsole, setShowConsole] = useState(false);
+  const [consolePanelHeight, setConsolePanelHeight] = useState(200);
+  const [isResizingConsole, setIsResizingConsole] = useState(false);
   const consoleRef = useRef(null);
+  const resizeStartY = useRef(0);
+  const resizeStartHeight = useRef(0);
   
   // WebSocket hook for real-time execution updates
   const {
@@ -1056,6 +1060,36 @@ const VisualMappingCanvasContent = () => {
     }
   }, [executionLogs, showConsole]);
   
+  // Console panel resize handlers
+  const handleConsoleResizeStart = useCallback((e) => {
+    e.preventDefault();
+    setIsResizingConsole(true);
+    resizeStartY.current = e.clientY;
+    resizeStartHeight.current = consolePanelHeight;
+  }, [consolePanelHeight]);
+  
+  const handleConsoleResizeMove = useCallback((e) => {
+    if (!isResizingConsole) return;
+    const delta = resizeStartY.current - e.clientY;
+    const newHeight = Math.min(Math.max(resizeStartHeight.current + delta, 100), 600);
+    setConsolePanelHeight(newHeight);
+  }, [isResizingConsole]);
+  
+  const handleConsoleResizeEnd = useCallback(() => {
+    setIsResizingConsole(false);
+  }, []);
+  
+  useEffect(() => {
+    if (isResizingConsole) {
+      window.addEventListener('mousemove', handleConsoleResizeMove);
+      window.addEventListener('mouseup', handleConsoleResizeEnd);
+      return () => {
+        window.removeEventListener('mousemove', handleConsoleResizeMove);
+        window.removeEventListener('mouseup', handleConsoleResizeEnd);
+      };
+    }
+  }, [isResizingConsole, handleConsoleResizeMove, handleConsoleResizeEnd]);
+  
   // Open console when execution starts
   useEffect(() => {
     if (isExecuting) {
@@ -1568,7 +1602,15 @@ const VisualMappingCanvasContent = () => {
       
       {/* Console Panel */}
       {showConsole && (
-        <div className="visual-mapping-console-panel">
+        <div 
+          className={`visual-mapping-console-panel ${isResizingConsole ? 'resizing' : ''}`}
+          style={{ height: consolePanelHeight }}
+        >
+          <div 
+            className="visual-mapping-console-resize-handle"
+            onMouseDown={handleConsoleResizeStart}
+            title="Drag to resize"
+          />
           <div className="visual-mapping-console-header">
             <div className="visual-mapping-console-title">
               <FaTerminal className="visual-mapping-console-icon" />
