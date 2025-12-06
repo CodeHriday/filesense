@@ -240,8 +240,24 @@ function applyRDMLookups(transformedRows, mapping, rdmContext) {
   }
 
   // Check for array-based configs (visual mapping format) or single configs (legacy format)
-  const datasetConfigs = mapping.rdm_dataset_configs || (mapping.rdm_dataset_config ? [mapping.rdm_dataset_config] : []);
-  const crosswalkConfigs = mapping.rdm_crosswalk_configs || (mapping.rdm_crosswalk_config ? [mapping.rdm_crosswalk_config] : []);
+  // Handle case where singular columns may contain arrays (visual mapping format stores arrays in singular columns)
+  let datasetConfigs = mapping.rdm_dataset_configs || [];
+  if (mapping.rdm_dataset_config) {
+    if (Array.isArray(mapping.rdm_dataset_config)) {
+      datasetConfigs = [...datasetConfigs, ...mapping.rdm_dataset_config];
+    } else {
+      datasetConfigs = [...datasetConfigs, mapping.rdm_dataset_config];
+    }
+  }
+  
+  let crosswalkConfigs = mapping.rdm_crosswalk_configs || [];
+  if (mapping.rdm_crosswalk_config) {
+    if (Array.isArray(mapping.rdm_crosswalk_config)) {
+      crosswalkConfigs = [...crosswalkConfigs, ...mapping.rdm_crosswalk_config];
+    } else {
+      crosswalkConfigs = [...crosswalkConfigs, mapping.rdm_crosswalk_config];
+    }
+  }
 
   systemLogger.info('Starting RDM enrichment phase', {
     inputRows: transformedRows.length,
