@@ -1949,11 +1949,14 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
           await fs.promises.unlink(extractedFile.fullPath).catch(() => {});
         }
         
-        // Clean up temp archive
+        // Clean up temp archive file
         await fs.promises.unlink(tempArchivePath).catch(() => {});
         
-        // Clean up extraction temp directory if it exists
-        if (extractionResult.files.length > 0) {
+        // Clean up extraction temp directory (returned by extraction service when caller is responsible)
+        if (extractionResult.tempDir) {
+          await fs.promises.rm(extractionResult.tempDir, { recursive: true, force: true }).catch(() => {});
+        } else if (extractionResult.files.length > 0) {
+          // Fallback: derive from first file path
           const extractionDir = require('path').dirname(extractionResult.files[0].fullPath);
           await fs.promises.rm(extractionDir, { recursive: true, force: true }).catch(() => {});
         }

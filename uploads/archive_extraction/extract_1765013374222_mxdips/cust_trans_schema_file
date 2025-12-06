@@ -1,0 +1,100 @@
+{
+  "fact_transaction.parquet": [
+    {"name": "transaction_line_id", "type": "bigint", "nullable": false, "pii": false},
+    {"name": "transaction_id", "type": "string", "width": 15, "nullable": false, "pii": false},
+    {"name": "date_key", "type": "int", "nullable": false, "pii": false},
+    {"name": "time_key", "type": "int", "nullable": false, "pii": false},
+    {"name": "store_key", "type": "int", "nullable": false, "pii": false},
+    {"name": "product_key", "type": "int", "nullable": false, "pii": false},
+    {"name": "customer_key", "type": "int", "nullable": true, "pii": false},
+    {"name": "staff_key", "type": "int", "nullable": false, "pii": false},
+    {"name": "promotion_key", "type": "int", "nullable": true, "pii": false},
+    {"name": "quantity_sold", "type": "int", "nullable": false, "pii": false},
+    {"name": "gross_unit_price", "type": "decimal", "precision": 10, "scale": 2, "nullable": false, "pii": false},
+    {"name": "net_unit_price", "type": "decimal", "precision": 10, "scale": 2, "nullable": false, "pii": false},
+    {"name": "line_gross_amount", "type": "decimal", "precision": 12, "scale": 2, "nullable": false, "pii": false},
+    {"name": "line_discount_amount", "type": "decimal", "precision": 12, "scale": 2, "nullable": false, "pii": false},
+    {"name": "line_net_amount", "type": "decimal", "precision": 12, "scale": 2, "nullable": false, "pii": false},
+    {"name": "cost_of_goods_sold", "type": "decimal", "precision": 12, "scale": 2, "nullable": false, "pii": false},
+    {"name": "gross_margin_amount", "type": "decimal", "precision": 12, "scale": 2, "nullable": false, "pii": false}
+  ],
+  "dim_date.csv": [
+    {"name": "date_key", "type": "int", "nullable": false, "pii": false},
+    {"name": "full_date", "type": "string", "width": 10, "nullable": false, "pii": false},
+    {"name": "day", "type": "int", "nullable": false, "pii": false},
+    {"name": "month", "type": "int", "nullable": false, "pii": false},
+    {"name": "month_name", "type": "string", "width": 15, "nullable": false, "pii": false},
+    {"name": "quarter", "type": "int", "nullable": false, "pii": false},
+    {"name": "year", "type": "int", "nullable": false, "pii": false},
+    {"name": "is_weekend", "type": "boolean", "nullable": false, "pii": false},
+    {"name": "is_holiday", "type": "boolean", "nullable": false, "pii": false},
+    {"name": "fiscal_year", "type": "int", "nullable": false, "pii": false},
+    {"name": "fiscal_quarter", "type": "int", "nullable": false, "pii": false},
+    {"name": "fiscal_period", "type": "string", "width": 7, "nullable": false, "pii": false}
+  ],
+  "dim_time.csv": [
+    {"name": "time_key", "type": "int", "nullable": false, "pii": false},
+    {"name": "hh24_mi_ss", "type": "string", "width": 8, "nullable": false, "pii": false},
+    {"name": "hour", "type": "int", "nullable": false, "pii": false},
+    {"name": "minute", "type": "int", "nullable": false, "pii": false},
+    {"name": "second", "type": "int", "nullable": false, "pii": false},
+    {"name": "time_of_day_bucket", "type": "string", "width": 10, "nullable": false, "pii": false}
+  ],
+  "dim_product.json": [
+    {"name": "product_key", "type": "int", "nullable": false, "pii": false},
+    {"name": "product_sku", "type": "string", "width": 15, "nullable": false, "pii": false},
+    {"name": "product_name", "type": "string", "width": 50, "nullable": false, "pii": false},
+    {"name": "brand", "type": "string", "width": 30, "nullable": true, "pii": false},
+    {"name": "category", "type": "string", "width": 20, "nullable": false, "pii": false},
+    {"name": "subcategory", "type": "string", "width": 20, "nullable": false, "pii": false},
+    {"name": "size", "type": "string", "width": 10, "nullable": true, "pii": false},
+    {"name": "color", "type": "string", "width": 10, "nullable": true, "pii": false},
+    {"name": "package_type", "type": "string", "width": 15, "nullable": false, "pii": false},
+    {"name": "is_perishable", "type": "boolean", "nullable": false, "pii": false},
+    {"name": "is_private_label", "type": "boolean", "nullable": false, "pii": false}
+  ],
+  "dim_store.dat": [
+    {"name": "store_key", "type": "int", "start_position": 0, "width": 5, "nullable": false, "pii": false},
+    {"name": "store_id", "type": "string", "start_position": 5, "width": 10, "nullable": false, "pii": false},
+    {"name": "store_name", "type": "string", "start_position": 15, "width": 30, "nullable": false, "pii": false},
+    {"name": "store_type", "type": "string", "start_position": 45, "width": 15, "nullable": false, "pii": false},
+    {"name": "region", "type": "string", "start_position": 60, "width": 15, "nullable": false, "pii": false},
+    {"name": "country", "type": "string", "start_position": 75, "width": 3, "nullable": false, "pii": false},
+    {"name": "state", "type": "string", "start_position": 78, "width": 3, "nullable": false, "pii": false},
+    {"name": "city", "type": "string", "start_position": 81, "width": 20, "nullable": false, "pii": false},
+    {"name": "timezone", "type": "string", "start_position": 101, "width": 25, "nullable": false, "pii": false}
+  ],
+  "dim_customer.csv": [
+    {"name": "customer_key", "type": "int", "nullable": false, "pii": false},
+    {"name": "customer_id", "type": "string", "width": 20, "nullable": true, "pii": false},
+    {"name": "first_name", "type": "string", "width": 30, "nullable": false, "pii": false},
+    {"name": "last_name", "type": "string", "width": 30, "nullable": true, "pii": false},
+    {"name": "gender", "type": "string", "width": 1, "nullable": false, "pii": false},
+    {"name": "date_of_birth", "type": "string", "width": 10, "nullable": false, "pii": false},
+    {"name": "loyalty_tier", "type": "string", "width": 10, "nullable": false, "pii": false},
+    {"name": "signup_date", "type": "string", "width": 10, "nullable": false, "pii": false},
+    {"name": "email", "type": "string", "width": 50, "nullable": false, "pii": true},
+    {"name": "phone", "type": "string", "width": 20, "nullable": true, "pii": true},
+    {"name": "home_country", "type": "string", "width": 3, "nullable": false, "pii": false},
+    {"name": "home_region", "type": "string", "width": 3, "nullable": false, "pii": false},
+    {"name": "home_city", "type": "string", "width": 30, "nullable": false, "pii": false}
+  ],
+  "dim_staff.xml": [
+    {"name": "staff_key", "type": "int", "nullable": false, "pii": false},
+    {"name": "staff_id", "type": "string", "width": 20, "nullable": false, "pii": false},
+    {"name": "staff_name", "type": "string", "width": 50, "nullable": false, "pii": false},
+    {"name": "role", "type": "string", "width": 20, "nullable": false, "pii": false},
+    {"name": "employment_start_date", "type": "string", "width": 10, "nullable": false, "pii": false},
+    {"name": "employment_end_date", "type": "string", "width": 10, "nullable": false, "pii": false},
+    {"name": "home_store_key", "type": "int", "nullable": false, "pii": false}
+  ],
+  "dim_promotion.xlsx": [
+    {"name": "promotion_key", "type": "int", "nullable": false, "pii": false},
+    {"name": "promo_code", "type": "string", "width": 20, "nullable": false, "pii": false},
+    {"name": "promo_description", "type": "string", "width": 100, "nullable": true, "pii": false},
+    {"name": "promo_type", "type": "string", "width": 20, "nullable": false, "pii": false},
+    {"name": "start_date", "type": "string", "width": 10, "nullable": false, "pii": false},
+    {"name": "end_date", "type": "string", "width": 10, "nullable": false, "pii": false},
+    {"name": "is_member_only", "type": "string", "width": 5, "nullable": false, "pii": false}
+  ]
+}

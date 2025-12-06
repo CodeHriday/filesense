@@ -259,7 +259,8 @@ class ArchiveExtractionService {
       return {
         success: true,
         extractedCount: processedFiles.length,
-        files: processedFiles
+        files: processedFiles,
+        tempDir: archiveFileId ? null : tempDir  // Return temp dir for caller cleanup when no file ID
       };
 
     } catch (error) {
@@ -279,8 +280,16 @@ class ArchiveExtractionService {
       throw error;
 
     } finally {
+      this.logger.info('Archive extraction finally block entered', {
+        tempDir,
+        tempDirExists: tempDir ? fs.existsSync(tempDir) : false,
+        archiveFileId,
+        willCleanup: !!archiveFileId
+      });
+      
       if (tempDir && fs.existsSync(tempDir)) {
         if (archiveFileId) {
+          this.logger.info('Cleaning up temp directory (has archiveFileId)', { tempDir, archiveFileId });
           await fs.promises.rm(tempDir, { recursive: true, force: true }).catch((err) => {
             this.logger.error('Failed to cleanup temp directory', {
               tempDir,
@@ -288,8 +297,9 @@ class ArchiveExtractionService {
             });
           });
         } else {
-          this.logger.info('Skipping temp directory cleanup - caller is responsible for cleanup (direct connection processing)', {
-            tempDir
+          this.logger.info('SKIPPING temp directory cleanup - caller is responsible (archiveFileId is null)', {
+            tempDir,
+            filesInDir: await fs.promises.readdir(tempDir).catch(() => [])
           });
         }
       }
@@ -405,6 +415,8 @@ class ArchiveExtractionService {
       const extractedFiles = [];
       
       // Python script to extract password-protected ZIP using pyzipper
+      // IMPORTANT: Uses unique prefixes to avoid filename collisions when ZIP contains
+      // multiple files with the same basename in different directories
       const pythonScript = `
 import sys
 import json
@@ -417,6 +429,9 @@ password = sys.argv[3] if len(sys.argv) > 3 and sys.argv[3] != '__NO_PASSWORD__'
 
 try:
     extracted = []
+    file_counter = 0
+    basename_counts = {}  # Track how many times each basename appears
+    
     with pyzipper.AESZipFile(archive_path, 'r') as archive:
         for member_info in archive.infolist():
             if member_info.is_dir():
@@ -426,7 +441,20 @@ try:
             if not member_name or '..' in member_info.filename:
                 continue
             
-            safe_path = os.path.join(output_dir, member_name)
+            # Skip macOS resource fork files
+            if member_name.startswith('._') or '__MACOSX' in member_info.filename:
+                continue
+            
+            # Create unique filename to avoid collisions
+            # If same basename appears multiple times, add a counter prefix
+            if member_name in basename_counts:
+                basename_counts[member_name] += 1
+                unique_name = f"{basename_counts[member_name]}_{member_name}"
+            else:
+                basename_counts[member_name] = 0
+                unique_name = member_name
+            
+            safe_path = os.path.join(output_dir, unique_name)
             
             with archive.open(member_info, pwd=password.encode() if password else None) as source:
                 with open(safe_path, 'wb') as target:
@@ -434,10 +462,11 @@ try:
             
             extracted.append({
                 'relativePath': member_info.filename,
-                'fileName': member_name,
+                'fileName': unique_name,
                 'fullPath': safe_path,
                 'originalSize': member_info.file_size
             })
+            file_counter += 1
     
     print(json.dumps({'success': True, 'files': extracted}))
 except RuntimeError as e:
