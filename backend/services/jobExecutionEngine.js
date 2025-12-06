@@ -1952,6 +1952,12 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
         // Clean up temp archive
         await fs.promises.unlink(tempArchivePath).catch(() => {});
         
+        // Clean up extraction temp directory if it exists
+        if (extractionResult.files.length > 0) {
+          const extractionDir = require('path').dirname(extractionResult.files[0].fullPath);
+          await fs.promises.rm(extractionDir, { recursive: true, force: true }).catch(() => {});
+        }
+        
         // Return aggregated results from all extracted files
         return {
           rowsRead: totalRowsRead,

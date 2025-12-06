@@ -280,12 +280,18 @@ class ArchiveExtractionService {
 
     } finally {
       if (tempDir && fs.existsSync(tempDir)) {
-        await fs.promises.rm(tempDir, { recursive: true, force: true }).catch((err) => {
-          this.logger.error('Failed to cleanup temp directory', {
-            tempDir,
-            error: err.message
+        if (archiveFileId) {
+          await fs.promises.rm(tempDir, { recursive: true, force: true }).catch((err) => {
+            this.logger.error('Failed to cleanup temp directory', {
+              tempDir,
+              error: err.message
+            });
           });
-        });
+        } else {
+          this.logger.info('Skipping temp directory cleanup - caller is responsible for cleanup (direct connection processing)', {
+            tempDir
+          });
+        }
       }
     }
   }
