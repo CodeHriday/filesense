@@ -809,7 +809,32 @@ router.get('/:id/files', checkAgreementAccess, async (req, res) => {
       [agreementId]
     );
     
-    res.json({ files: result.rows });
+    // Check password status for each file schema (only if vault is available)
+    let passwordVaultService = null;
+    if (process.env.VAULT_ENCRYPTION_KEY) {
+      try {
+        passwordVaultService = new PasswordVaultService(pool, null, systemLogger);
+      } catch (error) {
+        systemLogger.warn('Password vault service not available for file schema password check', { error: error.message });
+      }
+    }
+    
+    const filesWithPasswordStatus = await Promise.all(result.rows.map(async (file) => {
+      let hasArchivePassword = false;
+      if (passwordVaultService) {
+        try {
+          hasArchivePassword = await passwordVaultService.hasPassword('vendor_agreement_file_schema', file.id.toString());
+        } catch (error) {
+          systemLogger.warn('Error checking password status for file schema', { fileId: file.id, error: error.message });
+        }
+      }
+      return {
+        ...file,
+        has_archive_password: hasArchivePassword
+      };
+    }));
+    
+    res.json({ files: filesWithPasswordStatus });
     
   } catch (error) {
     systemLogger.error('Error in GET /api/vendor-agreements/:id/files', { error: error.message });

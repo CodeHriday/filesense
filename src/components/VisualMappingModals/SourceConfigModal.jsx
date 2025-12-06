@@ -21,6 +21,8 @@ const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
   const [datastewards, setDatastewards] = useState([]);
   const [agreementFiles, setAgreementFiles] = useState([]);
   const [selectedFileId, setSelectedFileId] = useState('');
+  const [selectedFileType, setSelectedFileType] = useState('');
+  const [hasArchivePassword, setHasArchivePassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [matchingFiles, setMatchingFiles] = useState([]);
   const [fileBrowserOpen, setFileBrowserOpen] = useState(false);
@@ -41,6 +43,10 @@ const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
       setSourceFileOwnerId(initialConfig.sourceFileOwnerId || '');
       setSchemaDriftHandling(initialConfig.schemaDriftHandling || 'none');
       setSelectedFileId(initialConfig.agreementFileId || '');
+      
+      // Restore file type and password status from saved config
+      setSelectedFileType(initialConfig.schemaMetadata?.file_type || initialConfig.selectedFileType || '');
+      setHasArchivePassword(initialConfig.hasArchivePassword || false);
       
       // Track if this is reopening with saved data
       hasSavedFilePatternRef.current = !!(initialConfig.filePattern && initialConfig.filePattern !== '*.csv');
@@ -68,7 +74,9 @@ const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
         filePattern: initialConfig.filePattern,
         selectedFileId: initialConfig.agreementFileId,
         hasSchema: !!initialConfig.schema,
-        schemaLength: initialConfig.schema?.length
+        schemaLength: initialConfig.schema?.length,
+        fileType: initialConfig.schemaMetadata?.file_type,
+        hasPassword: initialConfig.hasArchivePassword
       });
     }
   }, [isOpen]);
@@ -165,22 +173,36 @@ const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
     // When vendorAgreementId is set but vendorAgreements hasn't loaded yet, do nothing - wait for it to load
   }, [vendorAgreementId, vendorAgreements, connections, datastewards]);
   
-  // Update file pattern when selected file changes
-  // BUT NEVER overwrite if we have a saved pattern
+  // Update file pattern, file type, and password status when selected file changes
+  // BUT NEVER overwrite pattern if we have a saved pattern
   useEffect(() => {
-    // Skip if we're reopening with saved data
-    if (hasSavedFilePatternRef.current) {
-      console.log('Skipping filePattern update from selectedFileId - has saved pattern');
-      return;
-    }
-    
     if (selectedFileId && agreementFiles.length > 0) {
       const selectedFile = agreementFiles.find(f => String(f.id) === selectedFileId);
-      if (selectedFile && selectedFile.file_name) {
-        console.log('Updating filePattern from selectedFileId:', selectedFile.file_name);
-        setFilePattern(selectedFile.file_name);
+      if (selectedFile) {
+        // Update file type and password status from fresh API data
+        setSelectedFileType(selectedFile.file_type || '');
+        setHasArchivePassword(selectedFile.has_archive_password || false);
+        
+        // Update file pattern (only if not reopening with saved data)
+        if (!hasSavedFilePatternRef.current && selectedFile.file_name) {
+          console.log('Updating filePattern from selectedFileId:', selectedFile.file_name);
+          setFilePattern(selectedFile.file_name);
+        }
+        
+        console.log('File selected from agreement:', {
+          fileId: selectedFileId,
+          fileType: selectedFile.file_type,
+          hasPassword: selectedFile.has_archive_password,
+          fileName: selectedFile.file_name
+        });
       }
+    } else if (!selectedFileId) {
+      // Only clear file-specific state when no file is explicitly selected
+      // Do NOT clear when agreementFiles is still loading (empty array but selectedFileId is set)
+      setSelectedFileType('');
+      setHasArchivePassword(false);
     }
+    // When selectedFileId is set but agreementFiles hasn't loaded yet, keep the restored values from initialConfig
   }, [selectedFileId, agreementFiles]);
   
   // Fetch schema when agreement file is selected
@@ -337,6 +359,9 @@ const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
       agreementFileId: selectedFileId || null,
       agreementFileName: selectedFile?.file_name || null,
       agreementFileDescription: selectedFile?.file_description || null,
+      // Include file type and password status for restoration (only save hasArchivePassword when true)
+      selectedFileType: selectedFileType || null,
+      hasArchivePassword: hasArchivePassword === true ? true : undefined,
       // Include schema for downstream propagation
       schema: schema?.columns || [],
       schemaMetadata: schema ? {
@@ -521,6 +546,25 @@ const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
               </div>
             )}
             
+            {/* File Type - shown when vendor contract is selected */}
+            {showFileDropdown && (
+              <div className="vm-form-group vm-form-group-no-margin" style={{ minWidth: '100px', maxWidth: '120px' }}>
+                <label>File Type</label>
+                <input
+                  type="text"
+                  value={selectedFileType ? selectedFileType.toUpperCase() : '-'}
+                  readOnly
+                  className="vm-input"
+                  style={{ 
+                    backgroundColor: '#f8f9fa', 
+                    cursor: 'default',
+                    fontWeight: 500,
+                    textAlign: 'center'
+                  }}
+                />
+              </div>
+            )}
+            
             <div className="vm-form-group vm-form-group-no-margin vm-form-group-browse">
               <label>&nbsp;</label>
               <button 
@@ -532,6 +576,62 @@ const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
               </button>
             </div>
           </div>
+          
+          {/* File Type Indicators - shown below file path row when applicable */}
+          {showFileDropdown && selectedFileId && (selectedFileType || hasArchivePassword) && (
+            <div style={{ 
+              display: 'flex', 
+              flexWrap: 'wrap',
+              gap: '0.75rem', 
+              marginTop: '0.5rem',
+              marginBottom: '0.5rem'
+            }}>
+              {/* Password Protected indicator for archive files */}
+              {hasArchivePassword && ['zip', '7z', 'tar', 'gz'].some(ext => 
+                selectedFileType?.toLowerCase() === ext || filePattern?.toLowerCase().endsWith(`.${ext}`)
+              ) && (
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.375rem',
+                  padding: '0.375rem 0.75rem',
+                  background: '#fef3c7',
+                  border: '1px solid #f59e0b',
+                  borderRadius: '4px',
+                  fontSize: '10px',
+                  fontFamily: 'Inter, system-ui, sans-serif',
+                  color: '#92400e'
+                }}>
+                  <span style={{ fontSize: '12px' }}>🔒</span>
+                  <span style={{ fontWeight: 500 }}>Password Protected</span>
+                  <span style={{ color: '#b45309' }}>- Password configured in contract</span>
+                </div>
+              )}
+              
+              {/* Fixed-Width Schema indicator */}
+              {['dat', 'bdat'].some(ext => 
+                selectedFileType?.toLowerCase() === ext || 
+                filePattern?.toLowerCase().endsWith(`.${ext}`)
+              ) && schema && schema.source === 'agreement' && (
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.375rem',
+                  padding: '0.375rem 0.75rem',
+                  background: '#dbeafe',
+                  border: '1px solid #3b82f6',
+                  borderRadius: '4px',
+                  fontSize: '10px',
+                  fontFamily: 'Inter, system-ui, sans-serif',
+                  color: '#1e40af'
+                }}>
+                  <span style={{ fontSize: '12px' }}>📋</span>
+                  <span style={{ fontWeight: 500 }}>Fixed-Width Schema</span>
+                  <span style={{ color: '#1d4ed8' }}>- {schema.columns?.length || 0} columns from contract</span>
+                </div>
+              )}
+            </div>
+          )}
           
           {/* Row 4: Schema Drift Handling (full width) */}
           <div className="vm-form-group">
