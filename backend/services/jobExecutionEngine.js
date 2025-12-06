@@ -1970,6 +1970,60 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
           await fs.promises.rm(extractionDir, { recursive: true, force: true }).catch(() => {});
         }
         
+        // Upload transformed data to target (if not dry run) - IMPORTANT: Must happen before return
+        if (!dryRun && allTransformedRows.length > 0 && mapping.target_connection_id) {
+          const outputFormat = (mapping.target_file_format || mapping.output_format || 'csv').toLowerCase().trim();
+          
+          await logJobExecution(pool, jobId, 'info', 
+            `Uploading transformed data to target`, {
+            target_connection_id: mapping.target_connection_id,
+            rows: allTransformedRows.length,
+            output_format: outputFormat
+          });
+          
+          // Generate output filename with correct extension
+          let outputFilename;
+          if (mapping.target_file_name) {
+            outputFilename = replacePlaceholders(mapping.target_file_name);
+            if (!outputFilename.endsWith(`.${outputFormat}`)) {
+              outputFilename = `${outputFilename.replace(/\.[^/.]+$/, '')}.${outputFormat}`;
+            }
+          } else {
+            outputFilename = generateOutputFilename(file.filename.replace(/\.(zip|tar|gz|bz2|7z)$/i, ''), mapping.mapping_name, outputFormat);
+          }
+          
+          // Prepend target file path if specified
+          if (mapping.target_file_path) {
+            const normalizedPath = mapping.target_file_path.replace(/^\//, '').replace(/\/$/, '');
+            outputFilename = normalizedPath ? `${normalizedPath}/${outputFilename}` : outputFilename;
+          }
+          
+          // Convert transformed rows to specified output format
+          const outputBuffer = await convertToFormat(allTransformedRows, outputFormat);
+          
+          await logJobExecution(pool, jobId, 'info', 
+            `Converted data to ${outputFormat.toUpperCase()} format`, {
+            buffer_size: outputBuffer.length
+          });
+          
+          // Upload to target connection
+          const uploadResult = await uploadFileToConnection(
+            pool,
+            mapping.target_connection_id,
+            outputFilename,
+            outputBuffer
+          );
+          
+          await logJobExecution(pool, jobId, 'info', 
+            `Data uploaded to target: ${uploadResult.location}`
+          );
+        } else if (!dryRun && allTransformedRows.length > 0 && !mapping.target_connection_id) {
+          await logJobExecution(pool, jobId, 'warn', 
+            `No target connection configured - skipping S3 upload`, {
+            rows: allTransformedRows.length
+          });
+        }
+        
         // Return aggregated results from all extracted files
         return {
           rowsRead: totalRowsRead,

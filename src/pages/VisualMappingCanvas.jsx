@@ -459,14 +459,21 @@ const VisualMappingCanvasContent = () => {
         }
         
         if (mapping.graph_data && mapping.graph_data.nodes) {
-          const loadedNodes = mapping.graph_data.nodes.map(node => ({
-            ...node,
-            data: {
-              ...node.data,
-              nodeId: node.id,
-              onConfigure: handleNodeConfigure
-            }
-          }));
+          const loadedNodes = mapping.graph_data.nodes.map(node => {
+            // Strip transient ReactFlow UI flags that shouldn't persist
+            const { hidden, selected, dragging, resizing, ...cleanNode } = node;
+            return {
+              ...cleanNode,
+              // Ensure hidden is explicitly false to prevent rendering issues
+              hidden: false,
+              data: {
+                ...cleanNode.data,
+                nodeId: cleanNode.id,
+                onConfigure: handleNodeConfigure
+              }
+            };
+          });
+          console.log('Loaded nodes from database:', loadedNodes.map(n => ({ id: n.id, type: n.type, hidden: n.hidden })));
           setNodes(loadedNodes);
           setEdges(mapping.graph_data.edges || []);
         }
