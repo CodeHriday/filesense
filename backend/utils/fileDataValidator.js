@@ -87,7 +87,7 @@ async function validateCSVHasData(filePath) {
         if (headerCheck.isDuplicate) {
           resolve({
             valid: false,
-            message: 'File appears to have multiple header rows. The first data row contains column names instead of data values. Please remove duplicate headers and re-upload.',
+            message: 'File appears to have no or multiple header rows. The first data row should contain only one column names instead of data values. Please fix the file and re-upload.',
             errorCode: 'multiple_headers'
           });
         } else {
