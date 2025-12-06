@@ -12,6 +12,7 @@
 const { pool, query } = require('../config/database');
 const EmailProviderFactory = require('./email/EmailProviderFactory');
 const ConnectionService = require('./ConnectionService');
+const EmailDomainValidationService = require('./EmailDomainValidationService');
 const { systemLogger } = require('../utils/logger');
 const { createCredentialsSummary } = require('../utils/credentialSanitizer');
 
@@ -251,6 +252,29 @@ class NotificationService {
    */
   async sendWithProvider(provider, emailData) {
     try {
+      // Validate email domains before sending
+      const recipients = Array.isArray(emailData.to) ? emailData.to : [emailData.to];
+      const validationResult = await EmailDomainValidationService.validateEmails(recipients);
+      
+      if (!validationResult.valid) {
+        const invalidEmailsList = validationResult.invalidEmails
+          .map(e => `${e.email} (${e.reason})`)
+          .join(', ');
+        
+        systemLogger?.error('Email domain validation failed', {
+          providerId: provider.id,
+          invalidEmails: validationResult.invalidEmails,
+          allowedDomains: validationResult.allowedDomains
+        });
+        
+        return {
+          success: false,
+          error: `Email domain not allowed: ${invalidEmailsList}`,
+          domainValidationFailed: true,
+          invalidEmails: validationResult.invalidEmails
+        };
+      }
+      
       // Create adapter instance
       const adapter = EmailProviderFactory.createAdapter(provider.type, provider.config);
 

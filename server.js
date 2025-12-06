@@ -4751,6 +4751,7 @@ const { up: addSLAMonitoringToVendorAgreements } = require('./backend/migrations
 const { addVendorSLAToAlertScope } = require('./backend/migrations/addVendorSLAToAlertScope');
 const enterprisePerformanceOptimizations = require('./backend/migrations/enterprisePerformanceOptimizations');
 const { addProjectToVisualWorkflows } = require('./backend/migrations/addProjectToVisualWorkflows');
+const { createAllowedEmailDomains } = require('./backend/migrations/createAllowedEmailDomains');
 
 // Run schema migrations asynchronously with tracking to prevent re-running
 (async () => {
@@ -4799,6 +4800,7 @@ const { addProjectToVisualWorkflows } = require('./backend/migrations/addProject
     await migrationTracker.runOnce('addVendorSLAToAlertScope', () => addVendorSLAToAlertScope(dbPool));
     await migrationTracker.runOnce('addProjectToVisualWorkflows', () => addProjectToVisualWorkflows(dbPool));
     await migrationTracker.runOnce('enterprisePerformanceOptimizations', () => enterprisePerformanceOptimizations(dbPool));
+    await migrationTracker.runOnce('createAllowedEmailDomains', () => createAllowedEmailDomains(dbPool));
     
     console.log('🎉 All migrations completed successfully');
   } catch (err) {
@@ -11364,6 +11366,11 @@ console.log('Added alert policy routes');
 const emailConnectionRoutes = require('./backend/routes/emailConnectionRoutes');
 app.use('/api/email-connections', authenticateToken, emailConnectionRoutes);
 console.log('Added email connection routes');
+
+// Allowed email domains routes (admin only)
+const allowedEmailDomainsRoutes = require('./backend/routes/allowedEmailDomainsRoutes');
+app.use('/api/allowed-email-domains', authenticateToken, requireAdmin, allowedEmailDomainsRoutes);
+console.log('Added allowed email domains routes');
 
 // Alert history routes
 const alertHistoryRoutes = require('./backend/routes/alertHistoryRoutes');

@@ -34,6 +34,13 @@ export const EmailProvidersConfig = () => {
   const [editMode, setEditMode] = useState(false);
   const [editingConnection, setEditingConnection] = useState(null);
 
+  const [allowedDomains, setAllowedDomains] = useState([]);
+  const [newDomain, setNewDomain] = useState('');
+  const [newDomainDescription, setNewDomainDescription] = useState('');
+  const [addingDomain, setAddingDomain] = useState(false);
+  const [showDomainDeleteModal, setShowDomainDeleteModal] = useState(false);
+  const [domainToDelete, setDomainToDelete] = useState(null);
+
   const [formData, setFormData] = useState({
     name: '',
     provider_type: 'smtp',
@@ -47,7 +54,75 @@ export const EmailProvidersConfig = () => {
 
   useEffect(() => {
     loadConnections();
+    loadAllowedDomains();
   }, []);
+
+  const loadAllowedDomains = async () => {
+    try {
+      const response = await axios.get('/api/allowed-email-domains');
+      if (response.data.success) {
+        setAllowedDomains(response.data.domains || []);
+      }
+    } catch (err) {
+      console.error('Failed to load allowed domains:', err);
+    }
+  };
+
+  const handleAddDomain = async () => {
+    if (!newDomain.trim()) return;
+    
+    setAddingDomain(true);
+    try {
+      const response = await axios.post('/api/allowed-email-domains', {
+        domain: newDomain.trim(),
+        description: newDomainDescription.trim() || null
+      });
+      
+      if (response.data.success) {
+        setAllowedDomains([...allowedDomains, response.data.domain]);
+        setNewDomain('');
+        setNewDomainDescription('');
+      }
+    } catch (err) {
+      showError(err.response?.data?.error || 'Failed to add domain');
+    } finally {
+      setAddingDomain(false);
+    }
+  };
+
+  const handleDeleteDomainClick = (domain) => {
+    setDomainToDelete(domain);
+    setShowDomainDeleteModal(true);
+  };
+
+  const handleConfirmDeleteDomain = async () => {
+    if (!domainToDelete) return;
+    
+    try {
+      await axios.delete(`/api/allowed-email-domains/${domainToDelete.id}`);
+      setAllowedDomains(allowedDomains.filter(d => d.id !== domainToDelete.id));
+      setShowDomainDeleteModal(false);
+      setDomainToDelete(null);
+    } catch (err) {
+      showError(err.response?.data?.error || 'Failed to delete domain');
+    }
+  };
+
+  const handleToggleDomainStatus = async (domain) => {
+    try {
+      const response = await axios.put(`/api/allowed-email-domains/${domain.id}`, {
+        is_active: !domain.is_active
+      });
+      
+      if (response.data.success) {
+        setAllowedDomains(allowedDomains.map(d => 
+          d.id === domain.id ? response.data.domain : d
+        ));
+      }
+    } catch (err) {
+      showError(err.response?.data?.error || 'Failed to update domain');
+    }
+  };
 
   const loadConnections = async () => {
     try {
@@ -605,6 +680,134 @@ export const EmailProvidersConfig = () => {
         </table>
       </div>
 
+      <div className="gps-section-divider" style={{ margin: '32px 0', borderTop: '1px solid #e2e8f0' }} />
+
+      <div className="gps-section">
+        <div className="gps-section-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+          <div>
+            <h3 style={{ fontFamily: 'Inter, sans-serif', fontSize: '14px', fontWeight: '600', color: '#025043', margin: 0 }}>Allowed Email Domains</h3>
+            <p style={{ fontFamily: 'Inter, sans-serif', fontSize: '11px', color: '#6b7280', margin: '4px 0 0 0' }}>
+              Configure which email domains are allowed to receive notifications. If no domains are configured, all domains are allowed.
+            </p>
+          </div>
+        </div>
+
+        <div className="gps-add-domain-form" style={{ display: 'flex', gap: '12px', marginBottom: '16px', flexWrap: 'wrap' }}>
+          <input
+            type="text"
+            value={newDomain}
+            onChange={(e) => setNewDomain(e.target.value)}
+            placeholder="example.com"
+            style={{ 
+              flex: '1 1 200px', 
+              maxWidth: '200px',
+              padding: '8px 12px', 
+              border: '1px solid #e2e8f0', 
+              borderRadius: '4px',
+              fontFamily: 'Inter, sans-serif',
+              fontSize: '12px'
+            }}
+          />
+          <input
+            type="text"
+            value={newDomainDescription}
+            onChange={(e) => setNewDomainDescription(e.target.value)}
+            placeholder="Description (optional)"
+            style={{ 
+              flex: '2 1 250px', 
+              maxWidth: '300px',
+              padding: '8px 12px', 
+              border: '1px solid #e2e8f0', 
+              borderRadius: '4px',
+              fontFamily: 'Inter, sans-serif',
+              fontSize: '12px'
+            }}
+          />
+          <button
+            onClick={handleAddDomain}
+            disabled={!newDomain.trim() || addingDomain}
+            className="btn-primary"
+            style={{ display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap' }}
+          >
+            <FiPlus size={14} />
+            {addingDomain ? 'Adding...' : 'Add Domain'}
+          </button>
+        </div>
+
+        {allowedDomains.length === 0 ? (
+          <div style={{ 
+            padding: '24px', 
+            textAlign: 'center', 
+            color: '#6b7280', 
+            backgroundColor: '#f9fafb', 
+            borderRadius: '6px',
+            fontFamily: 'Inter, sans-serif',
+            fontSize: '12px'
+          }}>
+            No allowed domains configured. All email domains are currently permitted.
+          </div>
+        ) : (
+          <div className="gps-table-container">
+            <table className="gps-table">
+              <thead>
+                <tr>
+                  <th>Domain</th>
+                  <th>Description</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {allowedDomains.map((domain) => (
+                  <tr key={domain.id}>
+                    <td>
+                      <span style={{ fontWeight: '500' }}>{domain.domain}</span>
+                    </td>
+                    <td>
+                      <span style={{ color: '#6b7280' }}>{domain.description || '-'}</span>
+                    </td>
+                    <td>
+                      <span 
+                        className={`status-badge ${domain.is_active ? 'status-badge--success' : 'status-badge--inactive'}`}
+                        style={{
+                          display: 'inline-block',
+                          padding: '2px 8px',
+                          borderRadius: '4px',
+                          fontSize: '10px',
+                          fontWeight: '600',
+                          backgroundColor: domain.is_active ? '#dcfce7' : '#f3f4f6',
+                          color: domain.is_active ? '#166534' : '#6b7280'
+                        }}
+                      >
+                        {domain.is_active ? 'Active' : 'Inactive'}
+                      </span>
+                    </td>
+                    <td>
+                      <div className="table-actions">
+                        <button
+                          onClick={() => handleToggleDomainStatus(domain)}
+                          className="gps-action-btn gps-action-btn--secondary"
+                          title={domain.is_active ? 'Deactivate' : 'Activate'}
+                        >
+                          {domain.is_active ? <FiX size={14} /> : <FiCheck size={14} />}
+                        </button>
+                        <button
+                          onClick={() => handleDeleteDomainClick(domain)}
+                          className="gps-action-btn gps-action-btn--danger"
+                          title="Delete Domain"
+                        >
+                          <FiTrash2 size={14} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
       <ThreeSectionModal
         isOpen={showCreateModal}
         onClose={() => {
@@ -709,6 +912,21 @@ export const EmailProvidersConfig = () => {
         title="Delete Email Provider"
         message={<>Are you sure you want to delete the email provider <strong>"{connectionToDelete?.name}"</strong>?</>}
         subMessage="This action cannot be undone."
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="danger"
+      />
+
+      <ConfirmationModal
+        isOpen={showDomainDeleteModal}
+        onClose={() => {
+          setShowDomainDeleteModal(false);
+          setDomainToDelete(null);
+        }}
+        onConfirm={handleConfirmDeleteDomain}
+        title="Delete Email Domain"
+        message={<>Are you sure you want to delete the domain <strong>"{domainToDelete?.domain}"</strong>?</>}
+        subMessage="Emails will no longer be allowed to this domain."
         confirmText="Delete"
         cancelText="Cancel"
         variant="danger"
