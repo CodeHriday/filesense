@@ -103,12 +103,32 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
   const [piiColumns, setPiiColumns] = useState(new Set(initialPiiColumns || []));
   
   // DQ Rule Assignment state
-  const [dqRuleAssignments, setDqRuleAssignments] = useState(initialDqRuleAssignments || {});
+  // Data structure: { columnName: [{ ruleId, errorAction, applyTo }] }
+  // Legacy format support: { columnName: [ruleId, ruleId, ...] } - converted on load
+  const [dqRuleAssignments, setDqRuleAssignments] = useState(() => {
+    // Normalize legacy format (array of IDs) to new format (array of objects)
+    const initial = initialDqRuleAssignments || {};
+    const normalized = {};
+    Object.entries(initial).forEach(([col, rules]) => {
+      if (Array.isArray(rules)) {
+        normalized[col] = rules.map(r => {
+          if (typeof r === 'object' && r.ruleId !== undefined) {
+            return r; // Already in new format
+          }
+          // Legacy format: just a rule ID number
+          return { ruleId: r, errorAction: 'log_continue', applyTo: 'etl_job' };
+        });
+      }
+    });
+    return normalized;
+  });
   const [showDqRulePanel, setShowDqRulePanel] = useState(false);
   const [availableDqRules, setAvailableDqRules] = useState([]);
   const [selectedColumns, setSelectedColumns] = useState(new Set());
   const [selectedRules, setSelectedRules] = useState(new Set());
   const [dqRulesLoading, setDqRulesLoading] = useState(false);
+  const [selectedErrorAction, setSelectedErrorAction] = useState('log_continue');
+  const lastReportedDqAssignmentsRef = useRef(null);
 
   // Sync variables from prop to local state (always sync, including empty arrays)
   useEffect(() => {
@@ -119,6 +139,31 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
   useEffect(() => {
     setPiiColumns(new Set(initialPiiColumns || []));
   }, [initialPiiColumns]);
+  
+  // Sync DQ rule assignments from prop and normalize legacy format
+  // Skip if the change originated from within this component (prevents circular updates)
+  useEffect(() => {
+    const initial = initialDqRuleAssignments || {};
+    
+    // Check if this is a round-trip from our own update by comparing with last reported value
+    if (lastReportedDqAssignmentsRef.current === initial) {
+      return; // Skip - this is our own update coming back
+    }
+    
+    const normalized = {};
+    Object.entries(initial).forEach(([col, rules]) => {
+      if (Array.isArray(rules)) {
+        normalized[col] = rules.map(r => {
+          if (typeof r === 'object' && r.ruleId !== undefined) {
+            return r; // Already in new format
+          }
+          // Legacy format: just a rule ID number
+          return { ruleId: r, errorAction: 'log_continue', applyTo: 'etl_job' };
+        });
+      }
+    });
+    setDqRuleAssignments(normalized);
+  }, [initialDqRuleAssignments]);
   
   // Fetch DQ rules on mount if there are existing assignments (so rule names are available)
   useEffect(() => {
@@ -250,8 +295,14 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
         newAssignments[columnName] = [];
       }
       selectedRules.forEach(ruleId => {
-        if (!newAssignments[columnName].includes(ruleId)) {
-          newAssignments[columnName].push(ruleId);
+        // Check if rule already assigned to this column
+        const existingRule = newAssignments[columnName].find(r => r.ruleId === ruleId);
+        if (!existingRule) {
+          newAssignments[columnName].push({
+            ruleId,
+            errorAction: selectedErrorAction,
+            applyTo: 'etl_job'
+          });
         }
       });
     });
@@ -259,6 +310,7 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
     setDqRuleAssignments(newAssignments);
     setSelectedColumns(new Set());
     setSelectedRules(new Set());
+    lastReportedDqAssignmentsRef.current = newAssignments;
     onMappingsChange(mappings, variables, Array.from(piiColumns), newAssignments);
   };
   
@@ -266,12 +318,26 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
   const handleRemoveDqAssignment = (columnName, ruleId) => {
     const newAssignments = { ...dqRuleAssignments };
     if (newAssignments[columnName]) {
-      newAssignments[columnName] = newAssignments[columnName].filter(id => id !== ruleId);
+      newAssignments[columnName] = newAssignments[columnName].filter(r => r.ruleId !== ruleId);
       if (newAssignments[columnName].length === 0) {
         delete newAssignments[columnName];
       }
     }
     setDqRuleAssignments(newAssignments);
+    lastReportedDqAssignmentsRef.current = newAssignments;
+    onMappingsChange(mappings, variables, Array.from(piiColumns), newAssignments);
+  };
+  
+  // Update error action for a specific rule assignment
+  const handleUpdateDqErrorAction = (columnName, ruleId, newErrorAction) => {
+    const newAssignments = { ...dqRuleAssignments };
+    if (newAssignments[columnName]) {
+      newAssignments[columnName] = newAssignments[columnName].map(r => 
+        r.ruleId === ruleId ? { ...r, errorAction: newErrorAction } : r
+      );
+    }
+    setDqRuleAssignments(newAssignments);
+    lastReportedDqAssignmentsRef.current = newAssignments;
     onMappingsChange(mappings, variables, Array.from(piiColumns), newAssignments);
   };
   
@@ -284,6 +350,20 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
   // Get count of DQ rules for a column
   const getDqRuleCount = (columnName) => {
     return dqRuleAssignments[columnName]?.length || 0;
+  };
+  
+  // Get error action label for display
+  const getErrorActionLabel = (errorAction) => {
+    switch (errorAction) {
+      case 'log_abort': return 'Abort';
+      case 'log_continue': return 'Continue';
+      default: return 'Continue';
+    }
+  };
+  
+  // Get error action style class
+  const getErrorActionClass = (errorAction) => {
+    return errorAction === 'log_abort' ? 'error-action-abort' : 'error-action-continue';
   };
 
   const buildExpression = (mapping) => {
@@ -347,8 +427,10 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
   const handleClearMapping = () => {
     setMappings([]);
     setSelectedSource(new Set());
-    setDqRuleAssignments({});
-    onMappingsChange([], variables, Array.from(piiColumns), {});
+    const emptyAssignments = {};
+    setDqRuleAssignments(emptyAssignments);
+    lastReportedDqAssignmentsRef.current = emptyAssignments;
+    onMappingsChange([], variables, Array.from(piiColumns), emptyAssignments);
   };
 
   const handleRemoveMapping = (sourceField) => {
@@ -366,6 +448,7 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
     setMappings(newMappings);
     setSelectedSource(newSelected);
     setDqRuleAssignments(newDqAssignments);
+    lastReportedDqAssignmentsRef.current = newDqAssignments;
     onMappingsChange(newMappings, variables, Array.from(piiColumns), newDqAssignments);
   };
 
@@ -389,6 +472,7 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
     
     setMappings(newMappings);
     setDqRuleAssignments(newDqAssignments);
+    lastReportedDqAssignmentsRef.current = newDqAssignments;
     onMappingsChange(newMappings, variables, Array.from(piiColumns), newDqAssignments);
   };
 
@@ -1062,14 +1146,17 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
                     <td className="dq-rules-cell" onClick={handleOpenDqRulePanel} style={{ cursor: 'pointer' }} title="Click to manage DQ rules">
                       {getDqRuleCount(mapping.target_field) > 0 ? (
                         <div className="dq-rules-inline-tags">
-                          {(dqRuleAssignments[mapping.target_field] || []).map(ruleId => (
-                            <span key={ruleId} className="dq-rule-inline-tag">
-                              {getRuleName(ruleId)}
+                          {(dqRuleAssignments[mapping.target_field] || []).map(ruleAssignment => (
+                            <span key={ruleAssignment.ruleId} className={`dq-rule-inline-tag ${getErrorActionClass(ruleAssignment.errorAction)}`}>
+                              {getRuleName(ruleAssignment.ruleId)}
+                              <span className="dq-rule-action-badge" title={`On failure: ${getErrorActionLabel(ruleAssignment.errorAction)}`}>
+                                {ruleAssignment.errorAction === 'log_abort' ? '!' : ''}
+                              </span>
                               <button
                                 className="dq-rule-inline-remove"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  handleRemoveDqAssignment(mapping.target_field, ruleId);
+                                  handleRemoveDqAssignment(mapping.target_field, ruleAssignment.ruleId);
                                 }}
                                 title="Remove rule"
                               >
@@ -1759,6 +1846,17 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
                     )}
                   </div>
                   <div className="dq-panel-section-actions">
+                    <div className="dq-error-action-selector">
+                      <label style={{ fontSize: '10px', fontFamily: 'Inter', marginRight: '6px' }}>On Failure:</label>
+                      <select
+                        value={selectedErrorAction}
+                        onChange={(e) => setSelectedErrorAction(e.target.value)}
+                        style={{ fontSize: '10px', fontFamily: 'Inter', padding: '2px 4px' }}
+                      >
+                        <option value="log_continue">Log & Continue</option>
+                        <option value="log_abort">Log & Abort Job</option>
+                      </select>
+                    </div>
                     <button 
                       className="btn btn-primary btn-sm"
                       onClick={handleAddDqAssignments}
@@ -1777,16 +1875,27 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
                     {Object.keys(dqRuleAssignments).length === 0 ? (
                       <div className="dq-panel-empty">No DQ rules assigned yet. Select columns and rules, then click Add.</div>
                     ) : (
-                      Object.entries(dqRuleAssignments).map(([columnName, ruleIds]) => (
+                      Object.entries(dqRuleAssignments).map(([columnName, ruleAssignments]) => (
                         <div key={columnName} className="dq-assignment-group">
                           <div className="dq-assignment-column">{columnName}</div>
                           <div className="dq-assignment-rules">
-                            {ruleIds.map(ruleId => (
-                              <div key={ruleId} className="dq-assignment-rule">
-                                <span>{getRuleName(ruleId)}</span>
+                            {ruleAssignments.map(ruleAssignment => (
+                              <div key={ruleAssignment.ruleId} className="dq-assignment-rule">
+                                <span className="dq-assignment-rule-name">{getRuleName(ruleAssignment.ruleId)}</span>
+                                <select
+                                  className="dq-assignment-action-select"
+                                  value={ruleAssignment.errorAction}
+                                  onChange={(e) => handleUpdateDqErrorAction(columnName, ruleAssignment.ruleId, e.target.value)}
+                                  onClick={(e) => e.stopPropagation()}
+                                  title="Action on failure"
+                                  style={{ fontSize: '9px', fontFamily: 'Inter', padding: '1px 2px', marginRight: '4px' }}
+                                >
+                                  <option value="log_continue">Continue</option>
+                                  <option value="log_abort">Abort</option>
+                                </select>
                                 <button 
                                   className="btn-icon-tiny"
-                                  onClick={() => handleRemoveDqAssignment(columnName, ruleId)}
+                                  onClick={() => handleRemoveDqAssignment(columnName, ruleAssignment.ruleId)}
                                   title="Remove this rule"
                                 >
                                   <FiX size={10} />

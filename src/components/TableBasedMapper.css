@@ -1121,6 +1121,51 @@
   color: white;
 }
 
+/* Error Action Badge in inline tags */
+.dq-rule-action-badge {
+  font-size: 8px;
+  font-weight: 700;
+  color: #dc2626;
+  margin-left: -2px;
+}
+
+/* Error action styling for inline tags */
+.dq-rule-inline-tag.error-action-abort {
+  background-color: #fee2e2;
+  color: #991b1b;
+  border: 1px solid #fca5a5;
+}
+
+.dq-rule-inline-tag.error-action-abort:hover {
+  background-color: #fecaca;
+}
+
+.dq-rule-inline-tag.error-action-continue {
+  background-color: #dbeafe;
+  color: #1e40af;
+}
+
+/* Error action selector in assignment panel */
+.dq-error-action-selector {
+  display: flex;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.dq-assignment-action-select {
+  border: 1px solid #d1d5db;
+  border-radius: 3px;
+  background: white;
+  cursor: pointer;
+}
+
+.dq-assignment-rule-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* DQ Rule Assignment Panel Modal */
 .dq-rule-panel-modal .modal-content.dq-rule-panel-content {
   width: 900px;
