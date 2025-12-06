@@ -103,9 +103,12 @@ function FileConfigurationsSection({ fileConfigurations, onChange }) {
     { value: 'json', label: 'JSON' },
     { value: 'xml', label: 'XML' },
     { value: 'parquet', label: 'Parquet' },
-    { value: 'fixed_width', label: 'Fixed Width' },
-    { value: 'binary', label: 'Binary' },
-    { value: 'dat', label: 'DAT File' },
+    { value: 'dat', label: 'Fixed Width (.dat)' },
+    { value: 'bin', label: 'Binary (.bin)' },
+    { value: 'bdat', label: 'Fixed Width Binary (.bdat)' },
+    // Legacy values - kept for backwards compatibility with existing data
+    { value: 'fixed_width', label: 'Fixed Width (.dat)', legacy: true },
+    { value: 'binary', label: 'Binary (.bin)', legacy: true },
     { value: 'sas7bdat', label: 'SAS Dataset' },
     { value: 'avro', label: 'Avro' },
     { value: 'zip', label: 'ZIP Archive' },
@@ -114,9 +117,16 @@ function FileConfigurationsSection({ fileConfigurations, onChange }) {
     { value: 'tar.gz', label: 'TAR.GZ Archive' },
     { value: 'tar.bz2', label: 'TAR.BZ2 Archive' }
   ];
+  
+  // Map legacy values to preferred new values when creating new configs
+  const LEGACY_TYPE_MAP = {
+    'fixed_width': 'dat',
+    'binary': 'bin'
+  };
 
   const ARCHIVE_FILE_TYPES = ['zip', '7z', 'tar', 'tar.gz', 'tar.bz2'];
-  const FIXED_WIDTH_TYPES = ['fixed_width', 'binary', 'dat'];
+  // Include legacy values for backwards compatibility with existing data
+  const FIXED_WIDTH_TYPES = ['dat', 'bin', 'bdat', 'fixed_width', 'binary'];
   
   const isArchiveType = (fileType) => ARCHIVE_FILE_TYPES.includes(fileType);
   const isFixedWidthType = (fileType) => FIXED_WIDTH_TYPES.includes(fileType);
@@ -645,9 +655,12 @@ function FileConfigurationsSection({ fileConfigurations, onChange }) {
                   setFormData({ ...formData, ...updates });
                 }}
               >
-                {FILE_TYPES.map(type => (
-                  <option key={type.value} value={type.value}>{type.label}</option>
-                ))}
+                {FILE_TYPES
+                  .filter(type => !type.legacy || type.value === formData.file_type)
+                  .map(type => (
+                    <option key={type.value} value={type.value}>{type.label}</option>
+                  ))
+                }
               </select>
             </div>
 

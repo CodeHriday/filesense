@@ -86,9 +86,14 @@ function FileUpload() {
   const [filenameValidationError, setFilenameValidationError] = useState(null);
   const [validationError, setValidationError] = useState(null); // Unified contract validation error state
   
-  // Delimiter configuration states
-  const [delimiterType, setDelimiterType] = useState('none'); // 'comma', 'pipe', 'tab', 'semicolon', 'custom', 'none', 'fixed-width'
+  // Delimiter/File type configuration states
+  const [delimiterType, setDelimiterType] = useState('none'); // 'comma', 'pipe', 'tab', 'semicolon', 'custom', 'none', 'dat', 'bin', 'bdat'
   const [customDelimiter, setCustomDelimiter] = useState(''); // For multi-character delimiters like '~^'
+  
+  // Fixed-width file types that require schema definition
+  // Include legacy values for backwards compatibility with existing data
+  const FIXED_WIDTH_TYPES = ['dat', 'bin', 'bdat', 'fixed_width', 'binary'];
+  const isFixedWidthType = (type) => FIXED_WIDTH_TYPES.includes(type);
   
   // Header configuration states
   const [hasHeader, setHasHeader] = useState(true); // Whether file has a header row
@@ -469,7 +474,7 @@ function FileUpload() {
   
   // Helper function to get the actual delimiter value
   const getDelimiterValue = () => {
-    if (delimiterType === 'none' || delimiterType === 'fixed-width') {
+    if (delimiterType === 'none' || isFixedWidthType(delimiterType)) {
       return null; // No delimiter specified - let backend auto-detect or use fixed-width
     }
     
@@ -490,7 +495,7 @@ function FileUpload() {
   // Helper function to build header configuration object
   const getHeaderConfig = () => {
     // Fixed-width files define headers in their schema, not separately
-    if (delimiterType === 'fixed-width') {
+    if (isFixedWidthType(delimiterType)) {
       return null;
     }
     
@@ -516,7 +521,7 @@ function FileUpload() {
   
   // Helper function to build fixed-width schema object
   const getFixedWidthSchema = () => {
-    if (delimiterType !== 'fixed-width') {
+    if (!isFixedWidthType(delimiterType)) {
       return null; // Not a fixed-width file
     }
     
@@ -1752,7 +1757,7 @@ function FileUpload() {
                     if (e.target.value !== 'custom') {
                       setCustomDelimiter('');
                     }
-                    if (e.target.value === 'fixed-width') {
+                    if (isFixedWidthType(e.target.value)) {
                       setHasHeader(false);
                     }
                   }}
@@ -1763,7 +1768,12 @@ function FileUpload() {
                   <option value="tab">Tab (\t)</option>
                   <option value="semicolon">Semicolon (;)</option>
                   <option value="custom">Custom...</option>
-                  <option value="fixed-width">Fixed-Width</option>
+                  <option value="dat">Fixed Width (.dat)</option>
+                  <option value="bin">Binary (.bin)</option>
+                  <option value="bdat">Fixed Width Binary (.bdat)</option>
+                  {/* Legacy values - only shown when currently selected (for backwards compatibility) */}
+                  {delimiterType === 'fixed_width' && <option value="fixed_width">Fixed Width (.dat)</option>}
+                  {delimiterType === 'binary' && <option value="binary">Binary (.bin)</option>}
                 </select>
               </div>
 
@@ -1898,7 +1908,7 @@ function FileUpload() {
             )}
 
             {/* Column Names Input (shown when hasHeader is false) */}
-            {!hasHeader && delimiterType !== 'fixed-width' && (
+            {!hasHeader && !isFixedWidthType(delimiterType) && (
               <div className="upload-form-row upload-form-row--compact">
                 <div className="upload-form-field" style={{ flex: 1 }}>
                   <label htmlFor="column-names-input" className="upload-form-label">
@@ -1954,8 +1964,8 @@ function FileUpload() {
               </div>
             )}
 
-            {/* Fixed-Width Schema Builder - shown only when fixed-width is selected */}
-            {selectedProject && delimiterType === 'fixed-width' && (
+            {/* Fixed-Width Schema Builder - shown only when fixed-width file type is selected */}
+            {selectedProject && isFixedWidthType(delimiterType) && (
               <div className="upload-subsection">
                 {/* Fixed-Width Schema Builder */}
                   <div className="fixed-width-section">
