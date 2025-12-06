@@ -917,7 +917,8 @@ const VisualMappingCanvasContent = () => {
       setSuccess(`Execution started - monitoring real-time progress`);
     } catch (error) {
       console.error('Error executing mapping:', error);
-      setError(error.response?.data?.error || 'Failed to execute mapping');
+      setSuccess(null); // Clear any success message from WebSocket events
+      setError(error.response?.data?.error || 'Failed to execute visual mapping');
       setIsExecuting(false);
     }
   };

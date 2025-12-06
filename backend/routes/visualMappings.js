@@ -424,27 +424,37 @@ router.post('/:id/execute', async (req, res) => {
     const { executeTransformationJob } = require('../services/jobExecutionEngine');
     try {
       // Pass visualMappingExecutionId and graph node information for WebSocket status updates
+      // skipInternalCleanup: true - we need to update visual_mapping_executions before cleanup
       const jobResult = await executeTransformationJob(pool, tempMappingId, req.user.id, {
         visualMappingExecutionId: executionId,
         visualMappingNodes: mapping.graph_data.nodes,
         visualMappingEdges: mapping.graph_data.edges,
         nodeExecutionMap: transformationMapping.node_execution_map,
-        executionOrder: compilationResult.executionOrder
+        executionOrder: compilationResult.executionOrder,
+        skipInternalCleanup: true
       });
       
       // Update execution record with job ID (jobExecutionEngine returns jobId in camelCase)
+      // Must happen BEFORE cleanup since transformation_id references the temp mapping
       await pool.query(
         `UPDATE visual_mapping_executions 
-         SET job_id = $1, status = 'running', transformation_id = $2
+         SET job_id = $1, status = 'completed', transformation_id = $2, completed_at = NOW()
          WHERE execution_id = $3`,
         [jobResult.jobId, transformationDbId, executionId]
       );
       
-      // Schedule cleanup of temporary transformation mapping after job completes
-      // (This would be handled by a job completion webhook/callback)
+      // Now safe to clean up temporary transformation mapping
+      await pool.query(
+        `DELETE FROM transformation_mappings WHERE mapping_id = $1 AND is_temporary = true`,
+        [tempMappingId]
+      );
+      systemLogger.info('Temporary transformation mapping cleaned up after execution', {
+        mappingId: tempMappingId,
+        executionId
+      });
       
       res.json({
-        message: 'Visual mapping execution started',
+        message: 'Visual mapping execution completed',
         execution_id: executionId,
         mapping_id: id,
         job_id: jobResult.jobId,

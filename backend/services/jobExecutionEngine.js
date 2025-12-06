@@ -1272,7 +1272,9 @@ async function executeTransformationJob(pool, mappingId, userId, options = {}) {
     }
     
     // Cleanup temporary transformation mapping if this was a visual mapping execution
-    if (mapping.is_temporary && mapping.is_visual_mapping) {
+    // Skip if caller will handle cleanup (e.g., to update visual_mapping_executions first)
+    const skipInternalCleanup = options.skipInternalCleanup === true;
+    if (mapping.is_temporary && mapping.is_visual_mapping && !skipInternalCleanup) {
       try {
         await pool.query(
           'DELETE FROM transformation_mappings WHERE mapping_id = $1 AND is_temporary = true',
@@ -1289,6 +1291,13 @@ async function executeTransformationJob(pool, mappingId, userId, options = {}) {
           error: cleanupError.message
         });
       }
+    } else if (skipInternalCleanup) {
+      systemLogger.info('Skipping internal cleanup - caller will handle', {
+        mappingId,
+        jobId,
+        isTemporary: mapping.is_temporary,
+        isVisualMapping: mapping.is_visual_mapping
+      });
     }
     
     // Emit alert event (fire-and-forget, non-blocking)
