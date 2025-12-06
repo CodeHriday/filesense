@@ -438,10 +438,22 @@ const VisualMappingCanvasContent = () => {
     fetchSubProjects();
   }, [projectId]);
   
+  // Track if mapping has been loaded to prevent re-fetches
+  const mappingLoadedRef = useRef(false);
+  
   // Load existing mapping if in edit mode
   useEffect(() => {
     const fetchMapping = async () => {
       if (!isEditMode) return;
+      
+      // Prevent duplicate fetches - only load once per mappingId
+      if (mappingLoadedRef.current) {
+        // Only apply viewport if instance is now ready
+        if (reactFlowInstance) {
+          // Viewport restoration handled separately below
+        }
+        return;
+      }
       
       setLoading(true);
       try {
@@ -478,6 +490,9 @@ const VisualMappingCanvasContent = () => {
           setEdges(mapping.graph_data.edges || []);
         }
         
+        // Mark as loaded to prevent re-fetches
+        mappingLoadedRef.current = true;
+        
         if (mapping.canvas_state && reactFlowInstance) {
           reactFlowInstance.setViewport({
             x: mapping.canvas_state.position?.[0] || 0,
@@ -495,6 +510,11 @@ const VisualMappingCanvasContent = () => {
     
     fetchMapping();
   }, [mappingId, isEditMode, reactFlowInstance]);
+  
+  // Reset the loaded flag when mappingId changes (switching to different mapping)
+  useEffect(() => {
+    mappingLoadedRef.current = false;
+  }, [mappingId]);
   
   const handleSaveNodeConfig = useCallback((config) => {
     setNodes((nds) =>

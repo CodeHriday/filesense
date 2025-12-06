@@ -533,6 +533,30 @@ class VisualMappingCompiler {
             }
             break;
             
+          case 'rdmLookup':
+            // Handle unified rdmLookup node type
+            if (config.lookupType === 'dataset') {
+              // Build rdmDatasetConfig from node config
+              result.rdmDatasetConfig = {
+                dataset_id: config.datasetId,
+                dataset_name: config.datasetName,
+                source_column: config.sourceColumn,
+                dataset_column: config.datasetColumn,
+                join_type: config.joinType || 'left'
+              };
+            } else if (config.lookupType === 'crosswalk') {
+              // Build rdmCrosswalkConfig from node config
+              result.rdmCrosswalkConfig = {
+                crosswalk_id: config.crosswalkId,
+                crosswalk_name: config.crosswalkName,
+                source_column: config.sourceColumn,
+                target_column: config.targetColumn,
+                no_match_behavior: config.noMatchBehavior || 'keep_source',
+                default_value: config.defaultValue || null
+              };
+            }
+            break;
+            
           case 'rdmDataset':
             result.rdmDatasetConfig = config.rdmConfig;
             break;

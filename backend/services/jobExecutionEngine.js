@@ -1991,15 +1991,17 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
           
           try {
             const { applyRDMLookups } = require('./rdmLookupProcessor');
+            
+            // Log column count before enrichment
+            const columnsBefore = allTransformedRows.length > 0 ? Object.keys(allTransformedRows[0]).length : 0;
+            
             const enrichedRows = applyRDMLookups(allTransformedRows, mapping, rdmContext);
             
-            // Log column count before/after enrichment
-            const columnsBefore = allTransformedRows.length > 0 ? Object.keys(allTransformedRows[0]).length : 0;
+            // Log column count after enrichment
             const columnsAfter = enrichedRows.length > 0 ? Object.keys(enrichedRows[0]).length : 0;
             
-            // Replace with enriched data
-            allTransformedRows.length = 0;
-            allTransformedRows.push(...enrichedRows);
+            // Replace with enriched data - use splice to maintain array reference
+            allTransformedRows.splice(0, allTransformedRows.length, ...enrichedRows);
             
             await logJobExecution(pool, jobId, 'info', `RDM enrichment complete for archive`, {
               outputRows: allTransformedRows.length,
