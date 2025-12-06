@@ -720,7 +720,7 @@ const VisualMappingCanvasContent = () => {
     // Check for at least one target node
     const targetNodes = nodes.filter(n => n.type === 'targetRules');
     if (targetNodes.length === 0) {
-      errors.push('At least one Target Rules node is required');
+      errors.push('At least one Target Config node is required');
     }
     
     // Check each source node is configured
@@ -1352,10 +1352,10 @@ const VisualMappingCanvasContent = () => {
                   <div className="visual-mapping-palette-section">
                     <h4>Output</h4>
                     <button 
-                      onClick={() => addNode('targetRules', 'Target Rules')}
+                      onClick={() => addNode('targetRules', 'Target Config')}
                       className="visual-mapping-palette-item"
                     >
-                      <FaCheckCircle /> Target Rules
+                      <FaCheckCircle /> Target Config
                     </button>
                   </div>
                 </div>
