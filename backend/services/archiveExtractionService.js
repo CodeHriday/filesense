@@ -375,88 +375,75 @@ class ArchiveExtractionService {
   
   async extractZipWithPassword(archiveFilePath, outputDir, password) {
     const logger = this.logger;
-    const extractedFiles = [];
     
-    logger.info('Extracting password-protected ZIP with unzipper', {
+    logger.info('Extracting password-protected ZIP with 7-Zip (supports AES-256)', {
       archivePath: archiveFilePath,
       outputDir,
       hasPassword: !!password
     });
     
+    // Use 7-Zip for password-protected ZIPs because it supports both 
+    // ZipCrypto (legacy) and AES-256 encryption, whereas unzipper only
+    // supports ZipCrypto and fails with "invalid block type" on AES-256
+    const sevenZip = require('node-7z-archive');
+    
     return new Promise((resolve, reject) => {
-      const readStream = fs.createReadStream(archiveFilePath);
-      
-      readStream
-        .pipe(unzipper.Parse({ password }))
-        .on('entry', async (entry) => {
-          const fileName = entry.path;
-          const type = entry.type;
+      const options = password ? { password } : {};
+      const extractStream = sevenZip.extractFull(archiveFilePath, outputDir, options);
+      const extractedFiles = [];
+
+      extractStream.on('data', (data) => {
+        logger.debug('7z ZIP extraction progress', { file: data.file });
+      });
+
+      extractStream.on('end', async () => {
+        try {
+          const files = await fs.promises.readdir(outputDir);
           
-          if (type === 'Directory') {
-            entry.autodrain();
-            return;
-          }
-          
-          if (fileName.includes('..') || path.isAbsolute(fileName)) {
-            logger.warn('Skipping potentially malicious path', {
-              entryName: fileName
-            });
-            entry.autodrain();
-            return;
-          }
-          
-          const sanitizedName = path.basename(fileName);
-          const outputPath = path.join(outputDir, sanitizedName);
-          
-          try {
-            const writeStream = fs.createWriteStream(outputPath);
+          for (const file of files) {
+            // Skip directory traversal attempts
+            if (file.includes('..') || path.isAbsolute(file)) {
+              logger.warn('Skipping potentially malicious path', {
+                entryName: file
+              });
+              continue;
+            }
             
-            entry.pipe(writeStream);
+            const filePath = path.join(outputDir, file);
+            const stats = await fs.promises.stat(filePath);
             
-            writeStream.on('finish', () => {
+            if (stats.isFile()) {
               extractedFiles.push({
-                relativePath: fileName,
-                fileName: sanitizedName,
-                fullPath: outputPath,
-                originalSize: entry.vars.uncompressedSize || 0
+                relativePath: file,
+                fileName: file,
+                fullPath: filePath,
+                originalSize: stats.size
               });
-            });
-            
-            writeStream.on('error', (error) => {
-              logger.error('Error writing ZIP entry', {
-                fileName,
-                error: error.message
-              });
-            });
-          } catch (error) {
-            logger.error('Error extracting ZIP entry', {
-              fileName,
-              error: error.message
-            });
-            entry.autodrain();
+            }
           }
-        })
-        .on('close', () => {
+          
           logger.info('Password-protected ZIP extraction completed', {
             extractedCount: extractedFiles.length
           });
+          
           resolve(extractedFiles);
-        })
-        .on('error', (error) => {
-          const errorMsg = error.message || '';
-          if (errorMsg.toLowerCase().includes('bad password') || 
-              errorMsg.toLowerCase().includes('incorrect password') ||
-              errorMsg.toLowerCase().includes('wrong password')) {
-            reject(new Error('ARCHIVE_PASSWORD_REQUIRED: Incorrect password provided'));
-          } else if (errorMsg.toLowerCase().includes('encrypted')) {
-            reject(new Error('ARCHIVE_PASSWORD_REQUIRED: Archive is encrypted but decryption failed'));
-          } else {
-            reject(new Error(`ZIP extraction error: ${errorMsg}`));
-          }
-        });
-        
-      readStream.on('error', (error) => {
-        reject(new Error(`Failed to read archive file: ${error.message}`));
+        } catch (error) {
+          reject(new Error(`Failed to read extracted ZIP files: ${error.message}`));
+        }
+      });
+
+      extractStream.on('error', (error) => {
+        const errorMsg = error.message || '';
+        if (errorMsg.toLowerCase().includes('wrong password') ||
+            errorMsg.toLowerCase().includes('bad password') ||
+            errorMsg.toLowerCase().includes('incorrect password')) {
+          reject(new Error('ARCHIVE_PASSWORD_REQUIRED: Incorrect password provided'));
+        } else if (errorMsg.toLowerCase().includes('password') || 
+                   errorMsg.toLowerCase().includes('encrypted')) {
+          reject(new Error('ARCHIVE_PASSWORD_REQUIRED: Archive is encrypted but decryption failed'));
+        } else {
+          reject(new Error(`ZIP extraction error: ${errorMsg}`));
+        }
       });
     });
   }
