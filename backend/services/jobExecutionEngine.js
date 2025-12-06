@@ -50,8 +50,9 @@ function isArchiveFile(filename) {
 async function getArchivePasswordFromVault(pool, vendorAgreementId, filename) {
   try {
     // First, find the file schema that matches this filename
+    // Note: Passwords are stored in encrypted_passwords table with entity_type='vendor_agreement_file_schema'
     const schemaResult = await pool.query(`
-      SELECT vafs.id, vafs.file_name_pattern, vafs.archive_password_id
+      SELECT vafs.id, vafs.file_name_pattern
       FROM vendor_agreement_file_schemas vafs
       WHERE vafs.vendor_agreement_id = $1 AND vafs.is_active = true
       ORDER BY vafs.priority ASC NULLS LAST
