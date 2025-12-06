@@ -280,11 +280,15 @@ function replacePlaceholders(fileName) {
  */
 async function createJob(pool, mappingId, userId, options = {}) {
   try {
+    console.log(`[JOB-EXECUTION-ENGINE] createJob called with mappingId: ${mappingId}`);
+    
     // Get mapping details
     const mappingResult = await pool.query(
       'SELECT * FROM transformation_mappings WHERE mapping_id = $1',
       [mappingId]
     );
+    
+    console.log(`[JOB-EXECUTION-ENGINE] Mapping query returned ${mappingResult.rows.length} rows`);
     
     if (mappingResult.rows.length === 0) {
       throw new Error(`Mapping not found: ${mappingId}`);
@@ -293,6 +297,8 @@ async function createJob(pool, mappingId, userId, options = {}) {
     const mapping = mappingResult.rows[0];
     const jobId = `JOB-${Date.now()}-${uuidv4().substring(0, 8)}`;
     const correlationId = jobId; // Use jobId as correlation ID for source/target file linking
+    
+    console.log(`[JOB-EXECUTION-ENGINE] Creating job ${jobId} for mapping ${mappingId}`);
     
     const result = await pool.query(`
       INSERT INTO transformation_jobs (
@@ -314,7 +320,11 @@ async function createJob(pool, mappingId, userId, options = {}) {
       correlationId
     ]);
     
+    console.log(`[JOB-EXECUTION-ENGINE] Job inserted, result rows: ${result.rows.length}`);
+    
     const transformationJobDbId = result.rows[0].id; // Get database ID for linking to audit
+    
+    console.log(`[JOB-EXECUTION-ENGINE] Job created with DB ID: ${transformationJobDbId}`);
     
     systemLogger.info('Transformation job created', { 
       jobId, 
@@ -1971,8 +1981,12 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
         }
         
         // Upload transformed data to target (if not dry run) - IMPORTANT: Must happen before return
+        console.log(`[JOB-EXECUTION-ENGINE] Archive S3 upload check - dryRun: ${dryRun}, rows: ${allTransformedRows.length}, targetConnectionId: ${mapping.target_connection_id}`);
+        
         if (!dryRun && allTransformedRows.length > 0 && mapping.target_connection_id) {
           const outputFormat = (mapping.target_file_format || mapping.output_format || 'csv').toLowerCase().trim();
+          
+          console.log(`[JOB-EXECUTION-ENGINE] Starting S3 upload for archive with ${allTransformedRows.length} rows`);
           
           await logJobExecution(pool, jobId, 'info', 
             `Uploading transformed data to target`, {
@@ -2014,15 +2028,22 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
             outputBuffer
           );
           
+          console.log(`[JOB-EXECUTION-ENGINE] S3 upload completed: ${uploadResult.location}`);
+          
           await logJobExecution(pool, jobId, 'info', 
             `Data uploaded to target: ${uploadResult.location}`
           );
         } else if (!dryRun && allTransformedRows.length > 0 && !mapping.target_connection_id) {
+          console.log(`[JOB-EXECUTION-ENGINE] No target connection configured - skipping S3 upload`);
           await logJobExecution(pool, jobId, 'warn', 
             `No target connection configured - skipping S3 upload`, {
             rows: allTransformedRows.length
           });
+        } else {
+          console.log(`[JOB-EXECUTION-ENGINE] Skipping S3 upload - dryRun: ${dryRun}, rows: ${allTransformedRows.length}`);
         }
+        
+        console.log(`[JOB-EXECUTION-ENGINE] Archive processing complete, returning results`);
         
         // Return aggregated results from all extracted files
         return {

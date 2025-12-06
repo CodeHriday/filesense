@@ -305,6 +305,8 @@ router.post('/:id/execute', async (req, res) => {
     const { id } = req.params;
     const { execution_id: clientExecutionId } = req.body;
     
+    console.log(`[VISUAL-MAPPING-EXECUTE] Starting execution for mapping ${id}`);
+    
     // Get the mapping
     const mappingResult = await pool.query(
       'SELECT * FROM visual_mapping_defs WHERE id = $1 AND is_active = true',
@@ -420,9 +422,12 @@ router.post('/:id/execute', async (req, res) => {
     
     const transformationDbId = transformResult.rows[0].id;
     
+    console.log(`[VISUAL-MAPPING-EXECUTE] Temp mapping created: ${tempMappingId}, DB ID: ${transformationDbId}`);
+    
     // Use jobExecutionEngine to execute with transformation_mappings table (uses mapping_id string, not numeric id)
     const { executeTransformationJob } = require('../services/jobExecutionEngine');
     try {
+      console.log(`[VISUAL-MAPPING-EXECUTE] Calling executeTransformationJob with mappingId: ${tempMappingId}`);
       // Pass visualMappingExecutionId and graph node information for WebSocket status updates
       // skipInternalCleanup: true - we need to update visual_mapping_executions before cleanup
       const jobResult = await executeTransformationJob(pool, tempMappingId, req.user.id, {
@@ -433,6 +438,8 @@ router.post('/:id/execute', async (req, res) => {
         executionOrder: compilationResult.executionOrder,
         skipInternalCleanup: true
       });
+      
+      console.log(`[VISUAL-MAPPING-EXECUTE] executeTransformationJob returned:`, JSON.stringify(jobResult, null, 2));
       
       // Update execution record with job ID (jobExecutionEngine returns jobId in camelCase)
       // Must happen BEFORE cleanup since transformation_id references the temp mapping
