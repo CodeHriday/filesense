@@ -3173,6 +3173,10 @@ app.post('/api/files/drop', authenticateToken, uploadLimiter, upload.single('fil
       }
     }
     
+    // Store computed fixed-width schema outside profiling block for job queue access
+    let dropFixedWidthSchema = null;
+    let dropHeaderConfig = null;
+    
     // Profile file locally BEFORE uploading (for connection-based uploads only)
     if (connectionId) {
       try {
@@ -3207,11 +3211,13 @@ app.post('/api/files/drop', authenticateToken, uploadLimiter, upload.single('fil
               }));
               
               profilingRequestBody.fixed_width_schema = { columns: fixedWidthColumns };
+              dropFixedWidthSchema = { columns: fixedWidthColumns }; // Store for job queue
               
               // Also pass has_header info
               profilingRequestBody.header_config = {
                 has_header: vendorAgreementMatchedPattern.has_header === true || vendorAgreementMatchedPattern.has_header === 'true'
               };
+              dropHeaderConfig = profilingRequestBody.header_config; // Store for job queue
               
               logger.info('Using vendor agreement schema for fixed-width profiling', {
                 fileId,
@@ -3445,14 +3451,22 @@ app.post('/api/files/drop', authenticateToken, uploadLimiter, upload.single('fil
       provider,
       isVendorFile: !!connectionId,
       qualityRuleIds: mergedQualityRuleIds,
-      agreementId: agreementId || null
+      agreementId: agreementId || null,
+      fixedWidthSchema: dropFixedWidthSchema,
+      headerConfig: dropHeaderConfig
     }, {
       attempts: 3,
       backoff: { type: 'exponential', delay: 5000 },
       timeout: 1800000 // 30 minutes for large files
     });
     
-    logger.info('Drop file processing job queued', { fileId, jobId, isVendorFile: !!connectionId });
+    logger.info('Drop file processing job queued', { 
+      fileId, 
+      jobId, 
+      isVendorFile: !!connectionId,
+      hasFixedWidthSchema: !!dropFixedWidthSchema,
+      fixedWidthColumnCount: dropFixedWidthSchema?.columns?.length || 0
+    });
     
     // Note: Local file cleanup will be handled by the worker after profiling
     
