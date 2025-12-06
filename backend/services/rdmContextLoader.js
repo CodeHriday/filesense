@@ -5,8 +5,15 @@ const { systemLogger } = require('../utils/logger');
  * Load RDM context for a transformation job
  * Analyzes field mappings, variables, and dedicated RDM configs to determine which RDM resources are needed,
  * then pre-fetches and prepares them for use during transformation
+ * 
+ * @param {Array} fieldMappings - Field mappings that may contain RDM transformations
+ * @param {Array} variables - Variables that may contain RDM transformations
+ * @param {Object|null} rdmDatasetConfig - Single dataset config (legacy/backward compatibility)
+ * @param {Object|null} rdmCrosswalkConfig - Single crosswalk config (legacy/backward compatibility)
+ * @param {Array} rdmDatasetConfigs - Array of dataset configs (visual mapping format)
+ * @param {Array} rdmCrosswalkConfigs - Array of crosswalk configs (visual mapping format)
  */
-async function loadRDMContext(fieldMappings = [], variables = [], rdmDatasetConfig = null, rdmCrosswalkConfig = null) {
+async function loadRDMContext(fieldMappings = [], variables = [], rdmDatasetConfig = null, rdmCrosswalkConfig = null, rdmDatasetConfigs = [], rdmCrosswalkConfigs = []) {
   const context = {
     rdm: {
       crosswalks: {},
@@ -20,7 +27,26 @@ async function loadRDMContext(fieldMappings = [], variables = [], rdmDatasetConf
   }
   
   try {
-    const rdmRequirements = analyzeRDMRequirements(fieldMappings, variables, rdmDatasetConfig, rdmCrosswalkConfig);
+    // Merge singular configs with array configs for backward compatibility
+    const allDatasetConfigs = [...(rdmDatasetConfigs || [])];
+    const allCrosswalkConfigs = [...(rdmCrosswalkConfigs || [])];
+    
+    // Add singular configs if not already in arrays
+    if (rdmDatasetConfig && rdmDatasetConfig.dataset_id) {
+      const alreadyExists = allDatasetConfigs.some(c => c.dataset_id === rdmDatasetConfig.dataset_id);
+      if (!alreadyExists) {
+        allDatasetConfigs.push(rdmDatasetConfig);
+      }
+    }
+    if (rdmCrosswalkConfig && rdmCrosswalkConfig.crosswalk_id) {
+      const alreadyExists = allCrosswalkConfigs.some(c => c.crosswalk_id === rdmCrosswalkConfig.crosswalk_id);
+      if (!alreadyExists) {
+        allCrosswalkConfigs.push(rdmCrosswalkConfig);
+      }
+    }
+    
+    // Use extended analyzer to handle all configs
+    const rdmRequirements = analyzeRDMRequirementsExtended(fieldMappings, variables, allDatasetConfigs, allCrosswalkConfigs);
     
     if (rdmRequirements.crosswalkIds.length === 0 && rdmRequirements.datasetIds.length === 0) {
       return context; // No RDM resources needed

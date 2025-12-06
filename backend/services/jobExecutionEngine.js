@@ -674,8 +674,11 @@ async function executeTransformationJob(pool, mappingId, userId, options = {}) {
     
     try {
       // Parse RDM configs if they're stored as JSON strings
+      // Support both singular (legacy) and plural (visual mapping) formats
       let rdmDatasetConfig = mapping.rdm_dataset_config;
       let rdmCrosswalkConfig = mapping.rdm_crosswalk_config;
+      let rdmDatasetConfigs = mapping.rdm_dataset_configs || [];
+      let rdmCrosswalkConfigs = mapping.rdm_crosswalk_configs || [];
       
       if (typeof rdmDatasetConfig === 'string') {
         rdmDatasetConfig = JSON.parse(rdmDatasetConfig);
@@ -683,9 +686,20 @@ async function executeTransformationJob(pool, mappingId, userId, options = {}) {
       if (typeof rdmCrosswalkConfig === 'string') {
         rdmCrosswalkConfig = JSON.parse(rdmCrosswalkConfig);
       }
+      if (typeof rdmDatasetConfigs === 'string') {
+        rdmDatasetConfigs = JSON.parse(rdmDatasetConfigs);
+      }
+      if (typeof rdmCrosswalkConfigs === 'string') {
+        rdmCrosswalkConfigs = JSON.parse(rdmCrosswalkConfigs);
+      }
+      
+      // Check if any RDM configs are present
+      const hasRdmConfigs = rdmDatasetConfig || rdmCrosswalkConfig || 
+                            (rdmDatasetConfigs && rdmDatasetConfigs.length > 0) || 
+                            (rdmCrosswalkConfigs && rdmCrosswalkConfigs.length > 0);
       
       // Emit running status for RDM lookup nodes
-      if (hasRdmNodes && (rdmDatasetConfig || rdmCrosswalkConfig)) {
+      if (hasRdmNodes && hasRdmConfigs) {
         nodesByType.rdmLookup.forEach(nodeId => {
           emitNodeStatus(nodeId, 'running', { phase: 'loading_rdm_context' });
         });
@@ -695,7 +709,9 @@ async function executeTransformationJob(pool, mappingId, userId, options = {}) {
         mapping.field_mappings || [], 
         mapping.variables || [],
         rdmDatasetConfig,
-        rdmCrosswalkConfig
+        rdmCrosswalkConfig,
+        rdmDatasetConfigs,
+        rdmCrosswalkConfigs
       );
       
       const hasRDMData = Object.keys(rdmContext.rdm?.crosswalks || {}).length > 0 || 
