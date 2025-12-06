@@ -176,28 +176,24 @@ const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
     fetchAgreementFiles(agreement.id, fileIdToPreserve);
   };
   
-  // Handle pending vendor agreement after vendorAgreements loads
+  // Single unified useEffect to handle vendor agreement processing
+  // This prevents the race condition where two useEffects would both call processVendorAgreement
   useEffect(() => {
+    // Case 1: We have a pending agreement from initialConfig that needs processing
     if (pendingVendorAgreementRef.current && vendorAgreements.length > 0) {
       const pendingId = pendingVendorAgreementRef.current;
       pendingVendorAgreementRef.current = null; // Clear pending to prevent re-processing
       console.log('Processing pending vendor agreement after load:', pendingId);
       processVendorAgreement(pendingId, vendorAgreements);
-    }
-  }, [vendorAgreements]);
-  
-  // Auto-populate when vendor agreement is selected by user (not from initialConfig)
-  useEffect(() => {
-    // Skip if this is a pending agreement from initialConfig - it will be handled by the other useEffect
-    if (pendingVendorAgreementRef.current === vendorAgreementId) {
-      return;
+      return; // Exit early - we've handled the pending agreement
     }
     
-    if (vendorAgreementId && vendorAgreements.length > 0) {
+    // Case 2: User manually selected a vendor agreement (not from initialConfig)
+    // Only run if there's no pending ref (meaning initialConfig was already processed or didn't have one)
+    if (pendingVendorAgreementRef.current === null && vendorAgreementId && vendorAgreements.length > 0) {
       processVendorAgreement(vendorAgreementId, vendorAgreements);
     } else if (!vendorAgreementId) {
-      // ONLY clear when vendorAgreementId is explicitly empty (user deselected)
-      // Do NOT clear when vendorAgreements is still loading (empty array but vendorAgreementId is set)
+      // Case 3: User deselected vendor agreement - clear related state
       setAgreementFiles([]);
       setSelectedFileId('');
       setSchema(null);
@@ -559,7 +555,7 @@ const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
                 >
                   <option value="">Select File</option>
                   {agreementFiles.map(file => (
-                    <option key={file.id} value={file.id}>
+                    <option key={file.id} value={String(file.id)}>
                       {file.file_name}
                     </option>
                   ))}
