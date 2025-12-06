@@ -85,6 +85,7 @@ const SourceConfigNode = ({ data }) => {
 
 const ExpressionNode = ({ data }) => {
   const statusBadge = data.statusBadge;
+  console.log('ExpressionNode rendering with data:', data?.label);
   
   return (
     <div className="visual-mapping-node visual-mapping-node-expression" title={data.config?.description || ''}>
@@ -126,6 +127,7 @@ const ExpressionNode = ({ data }) => {
 
 const RdmLookupNode = ({ data }) => {
   const statusBadge = data.statusBadge;
+  console.log('RdmLookupNode rendering with data:', data?.label);
   const lookupType = data.config?.lookupType;
   const resourceName = lookupType === 'dataset' ? data.config?.datasetName : data.config?.crosswalkName;
   const lookupTypeLabel = lookupType === 'dataset' ? 'Dataset Join' : 'Crosswalk';
@@ -175,6 +177,7 @@ const RdmLookupNode = ({ data }) => {
 
 const TargetRulesNode = ({ data }) => {
   const statusBadge = data.statusBadge;
+  console.log('TargetRulesNode rendering with data:', data?.label);
   
   return (
     <div className="visual-mapping-node visual-mapping-node-target" title={data.config?.description || ''}>
