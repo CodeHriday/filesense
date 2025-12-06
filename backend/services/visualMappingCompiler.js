@@ -78,7 +78,10 @@ class VisualMappingCompiler {
         violation_handling: compiledSteps.violationHandling || 'log_continue',
         quality_rule_ids: compiledSteps.qualityRuleIds || [],
         enable_anomaly_detection: compiledSteps.enableAnomalyDetection || false,
-        node_execution_map: executionOrder.executionMap
+        node_execution_map: executionOrder.executionMap,
+        vendor_agreement_id: compiledSteps.vendorAgreementId || null,
+        vendor_agreement_name: compiledSteps.vendorAgreementName || null,
+        agreement_file_id: compiledSteps.agreementFileId || null
       };
       
       systemLogger.info('Visual mapping compiled successfully', {
@@ -513,6 +516,9 @@ class VisualMappingCompiler {
             result.sourceFilePath = config.filePath;
             result.sourceFilePattern = config.filePattern;
             result.schemaDriftHandling = config.schemaDriftHandling;
+            result.vendorAgreementId = config.vendorAgreementId || null;
+            result.vendorAgreementName = config.vendorAgreementName || null;
+            result.agreementFileId = config.agreementFileId || null;
             break;
             
           case 'expression':

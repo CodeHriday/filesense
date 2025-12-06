@@ -20,6 +20,10 @@ const { loadRDMContext } = require('./rdmContextLoader');
 const alertAggregationWorker = require('./AlertAggregationWorker');
 const visualMappingWS = require('./visualMappingWebSocket');
 const crypto = require('crypto');
+const ArchiveExtractionService = require('./archiveExtractionService');
+const fs = require('fs');
+const path = require('path');
+const os = require('os');
 
 // Archive file type constants
 const ARCHIVE_EXTENSIONS = ['zip', '7z', 'tar', 'gz', 'tgz', 'bz2', 'tar.gz', 'tar.bz2'];
@@ -1789,48 +1793,188 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
         hasVendorAgreement: !!mapping.vendor_agreement_id
       });
       
-      // For vendor agreement mappings, look for extracted archive contents
-      if (mapping.vendor_agreement_id) {
-        // Check if archive has already been extracted - look for archive_members
-        const archiveMembersResult = await pool.query(`
-          SELECT am.id, am.logical_name, am.original_name, am.file_format, am.file_size_bytes
-          FROM archive_members am
-          JOIN files f ON am.parent_file_id = f.id
-          WHERE f.original_filename = $1 
-          AND am.extraction_status = 'completed'
-          ORDER BY am.id
-        `, [file.filename]);
-        
-        if (archiveMembersResult.rows.length > 0) {
-          // Archive already extracted - this should be handled at the job level
-          // For now, skip the archive and let the caller know
-          await logJobExecution(pool, jobId, 'warn', 
-            `Archive ${file.filename} has ${archiveMembersResult.rows.length} extracted members. ` +
-            `Please configure the source to use extracted files instead of the archive.`
-          );
-          throw new Error(
-            `Archive file detected: ${file.filename}. ` +
-            `This archive has ${archiveMembersResult.rows.length} extracted files. ` +
-            `Please update the source configuration to target the extracted contents, ` +
-            `or ensure extracted files are available in the source location.`
-          );
-        } else {
-          // Archive not yet extracted - provide helpful error
-          const password = await getArchivePasswordFromVault(pool, mapping.vendor_agreement_id, file.filename);
-          const hasPassword = !!password;
-          
-          throw new Error(
-            `Archive file detected: ${file.filename}. ` +
-            `Archive extraction must be completed before ETL processing. ` +
-            `Password configured: ${hasPassword ? 'Yes' : 'No'}. ` +
-            `Please upload the archive through the file upload workflow to trigger extraction.`
-          );
-        }
-      } else {
+      // Archives require a vendor agreement with password configuration
+      if (!mapping.vendor_agreement_id) {
         throw new Error(
           `Unsupported file type: ${fileExtension}. ` +
           `Archive files (ZIP, TAR, 7z) require a vendor agreement with password configuration. ` +
           `Supported data file types: CSV, JSON, XLSX, XLS, Parquet, XML, DAT (fixed-width).`
+        );
+      }
+      
+      // Get password from vendor agreement vault
+      const archivePassword = await getArchivePasswordFromVault(pool, mapping.vendor_agreement_id, file.filename);
+      
+      await logJobExecution(pool, jobId, 'info', `Archive password lookup completed`, {
+        hasPassword: !!archivePassword,
+        filename: file.filename
+      });
+      
+      // Write archive buffer to temp file for extraction
+      const tempDir = os.tmpdir();
+      const tempArchivePath = path.join(tempDir, `archive_${Date.now()}_${path.basename(file.filename)}`);
+      
+      try {
+        await fs.promises.writeFile(tempArchivePath, fileBuffer);
+        
+        await logJobExecution(pool, jobId, 'info', `Starting archive extraction`, {
+          filename: file.filename,
+          tempPath: tempArchivePath,
+          size: fileBuffer.length
+        });
+        
+        // Create virus scan service mock (extraction service requires it)
+        const virusScanService = {
+          scanFile: async (filePath) => ({ isInfected: false, skipped: true, viruses: [] })
+        };
+        
+        // Create extraction service instance
+        const archiveExtractionService = new ArchiveExtractionService(pool, virusScanService, systemLogger);
+        
+        // Extract archive with password (if available)
+        const extractionResult = await archiveExtractionService.extractArchive(
+          tempArchivePath,
+          null, // We don't have a file ID in the files table yet
+          archivePassword,
+          null // userId
+        );
+        
+        await logJobExecution(pool, jobId, 'info', `Archive extracted successfully`, {
+          filename: file.filename,
+          extractedCount: extractionResult.extractedCount,
+          files: extractionResult.files.map(f => f.fileName)
+        });
+        
+        // Process each extracted file through the transformation pipeline
+        let totalRowsRead = 0;
+        let totalRowsWritten = 0;
+        let totalRowsFailed = 0;
+        const allTransformedRows = [];
+        const allSourceRows = [];
+        
+        for (const extractedFile of extractionResult.files) {
+          const extractedBuffer = await fs.promises.readFile(extractedFile.fullPath);
+          const extractedExtension = extractedFile.fileName.split('.').pop().toLowerCase();
+          
+          await logJobExecution(pool, jobId, 'info', `Processing extracted file: ${extractedFile.fileName}`, {
+            extension: extractedExtension,
+            size: extractedBuffer.length
+          });
+          
+          // Skip nested archives or unsupported files
+          if (isArchiveFile(extractedFile.fileName)) {
+            await logJobExecution(pool, jobId, 'warn', `Skipping nested archive: ${extractedFile.fileName}`);
+            continue;
+          }
+          
+          // Process the extracted file based on its type
+          let extractedParseResult = null;
+          
+          try {
+            if (extractedExtension === 'csv') {
+              extractedParseResult = await parseAndTransformCSV(
+                extractedBuffer, 
+                mapping.field_mappings,
+                mapping.variables,
+                jobId, 
+                pool,
+                rdmContext
+              );
+            } else if (extractedExtension === 'json') {
+              extractedParseResult = await parseAndTransformJSON(
+                extractedBuffer, 
+                mapping.field_mappings,
+                mapping.variables,
+                jobId, 
+                pool,
+                rdmContext
+              );
+            } else if (extractedExtension === 'xlsx' || extractedExtension === 'xls') {
+              extractedParseResult = await parseAndTransformXLSX(
+                extractedBuffer, 
+                mapping.field_mappings,
+                mapping.variables,
+                jobId, 
+                pool,
+                rdmContext
+              );
+            } else if (extractedExtension === 'xml') {
+              extractedParseResult = await parseAndTransformXML(
+                extractedBuffer, 
+                mapping.field_mappings,
+                mapping.variables,
+                jobId, 
+                pool,
+                rdmContext
+              );
+            } else if (extractedExtension === 'parquet') {
+              extractedParseResult = await parseAndTransformParquet(
+                extractedBuffer, 
+                mapping.field_mappings,
+                mapping.variables,
+                jobId, 
+                pool,
+                rdmContext
+              );
+            } else {
+              await logJobExecution(pool, jobId, 'warn', `Skipping unsupported file type: ${extractedFile.fileName}`);
+              continue;
+            }
+            
+            if (extractedParseResult) {
+              totalRowsRead += extractedParseResult.rowsRead || 0;
+              totalRowsWritten += extractedParseResult.rowsWritten || 0;
+              totalRowsFailed += extractedParseResult.rowsFailed || 0;
+              
+              if (extractedParseResult.transformedRows) {
+                allTransformedRows.push(...extractedParseResult.transformedRows);
+              }
+              if (extractedParseResult.sourceRows) {
+                allSourceRows.push(...extractedParseResult.sourceRows.slice(0, 100));
+              }
+            }
+            
+            await logJobExecution(pool, jobId, 'info', `Processed extracted file: ${extractedFile.fileName}`, {
+              rowsRead: extractedParseResult?.rowsRead || 0,
+              rowsWritten: extractedParseResult?.rowsWritten || 0
+            });
+            
+          } catch (extractedErr) {
+            await logJobExecution(pool, jobId, 'error', `Error processing extracted file ${extractedFile.fileName}: ${extractedErr.message}`);
+            totalRowsFailed++;
+          }
+          
+          // Clean up extracted file
+          await fs.promises.unlink(extractedFile.fullPath).catch(() => {});
+        }
+        
+        // Clean up temp archive
+        await fs.promises.unlink(tempArchivePath).catch(() => {});
+        
+        // Return aggregated results from all extracted files
+        return {
+          rowsRead: totalRowsRead,
+          rowsWritten: totalRowsWritten,
+          rowsFailed: totalRowsFailed,
+          transformedRows: allTransformedRows,
+          sourceRows: allSourceRows.slice(0, 1000),
+          archiveExtraction: {
+            extractedCount: extractionResult.extractedCount,
+            files: extractionResult.files.map(f => f.fileName)
+          }
+        };
+        
+      } catch (extractionError) {
+        // Clean up temp file on error
+        await fs.promises.unlink(tempArchivePath).catch(() => {});
+        
+        await logJobExecution(pool, jobId, 'error', `Archive extraction failed: ${extractionError.message}`, {
+          filename: file.filename
+        });
+        
+        throw new Error(
+          `Failed to extract archive ${file.filename}: ${extractionError.message}. ` +
+          `Ensure the password is correctly configured in the vendor agreement.`
         );
       }
     }

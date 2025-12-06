@@ -382,9 +382,10 @@ router.post('/:id/execute', async (req, res) => {
         field_mappings, variables, pii_columns,
         rdm_dataset_config, rdm_crosswalk_config,
         schema_drift_handling, violation_handling,
-        created_by, is_visual_mapping, visual_mapping_id, is_temporary
+        created_by, is_visual_mapping, visual_mapping_id, is_temporary,
+        vendor_agreement_id
       ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, true, $21, true
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, true, $21, true, $22
       ) RETURNING id`,
       [
         tempMappingId,
@@ -407,7 +408,8 @@ router.post('/:id/execute', async (req, res) => {
         transformationMapping.schema_drift_handling || 'warn',
         transformationMapping.violation_handling || 'continue',
         req.user.id,
-        id
+        id,
+        transformationMapping.vendor_agreement_id || null
       ]
     );
     
