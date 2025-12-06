@@ -202,28 +202,38 @@ class ArchiveExtractionService {
           const checksum = await this.calculateChecksum(extractedFile.fullPath);
           const fileStats = await fs.promises.stat(extractedFile.fullPath);
 
-          const fileRecord = await this.createFileRecord(
-            archiveFileId,
-            extractedFile.relativePath,
-            extractedFile.fullPath,
-            checksum,
-            fileStats.size,
-            i,
-            userId
-          );
+          let fileId = null;
+          
+          if (archiveFileId) {
+            const fileRecord = await this.createFileRecord(
+              archiveFileId,
+              extractedFile.relativePath,
+              extractedFile.fullPath,
+              checksum,
+              fileStats.size,
+              i,
+              userId
+            );
+            fileId = fileRecord.id;
+            
+            this.logger.info('Extracted file processed with database record', {
+              archiveFileId,
+              fileName: extractedFile.relativePath,
+              fileId
+            });
+          } else {
+            this.logger.info('Extracted file processed without database record (direct connection processing)', {
+              fileName: extractedFile.relativePath,
+              fullPath: extractedFile.fullPath
+            });
+          }
 
           processedFiles.push({
             ...extractedFile,
-            fileId: fileRecord.id,
+            fileId,
             checksum,
             size: fileStats.size,
             virusScanPassed: true
-          });
-
-          this.logger.info('Extracted file processed successfully', {
-            archiveFileId,
-            fileName: extractedFile.relativePath,
-            fileId: fileRecord.id
           });
 
         } catch (error) {
