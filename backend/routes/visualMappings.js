@@ -432,12 +432,12 @@ router.post('/:id/execute', async (req, res) => {
         executionOrder: compilationResult.executionOrder
       });
       
-      // Update execution record with job ID
+      // Update execution record with job ID (jobExecutionEngine returns jobId in camelCase)
       await pool.query(
         `UPDATE visual_mapping_executions 
          SET job_id = $1, status = 'running', transformation_id = $2
          WHERE execution_id = $3`,
-        [jobResult.job_id, transformationDbId, executionId]
+        [jobResult.jobId, transformationDbId, executionId]
       );
       
       // Schedule cleanup of temporary transformation mapping after job completes
@@ -447,7 +447,7 @@ router.post('/:id/execute', async (req, res) => {
         message: 'Visual mapping execution started',
         execution_id: executionId,
         mapping_id: id,
-        job_id: jobResult.job_id,
+        job_id: jobResult.jobId,
         transformation_id: transformationDbId
       });
     } catch (execError) {
