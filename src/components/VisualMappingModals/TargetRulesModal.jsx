@@ -142,7 +142,7 @@ const TargetRulesModal = ({ isOpen, onClose, onSave, initialConfig = {}, project
     <div className="vm-modal-overlay" onClick={onClose}>
       <div className="vm-modal vm-modal-large" onClick={(e) => e.stopPropagation()}>
         <div className="vm-modal-header">
-          <h2>Target Rules Configuration</h2>
+          <h2>Target Configuration</h2>
           <button onClick={onClose} className="vm-modal-close">×</button>
         </div>
         
@@ -278,52 +278,6 @@ const TargetRulesModal = ({ isOpen, onClose, onSave, initialConfig = {}, project
             <small className="vm-help-text">
               Data stewards assigned to this project
             </small>
-          </div>
-          
-          <h3 className="vm-section-title">Quality Rules</h3>
-          
-          {/* Row 2: Quality Rules + Violation Handling */}
-          <div className="vm-form-row-two-cols">
-            <div className="vm-form-group">
-              <label>Quality Rules</label>
-              <select
-                multiple
-                value={selectedQualityRules.map(String)}
-                onChange={(e) => {
-                  const selected = Array.from(e.target.selectedOptions, option => parseInt(option.value));
-                  setSelectedQualityRules(selected);
-                }}
-                className="vm-select vm-select-multiple"
-                size="5"
-              >
-                {qualityRules.length === 0 && (
-                  <option disabled>No quality rules defined for this project</option>
-                )}
-                {qualityRules.map(rule => (
-                  <option key={rule.id} value={rule.id}>
-                    {rule.rule_name} - {rule.rule_type}
-                  </option>
-                ))}
-              </select>
-              <small className="vm-help-text">
-                Hold Ctrl/Cmd to select multiple rules
-              </small>
-            </div>
-            
-            <div className="vm-form-group">
-              <label>Violation Handling</label>
-              <select
-                value={violationHandling}
-                onChange={(e) => setViolationHandling(e.target.value)}
-                className="vm-select"
-              >
-                <option value="log_continue">Log and Continue</option>
-                <option value="log_abort">Log and Abort</option>
-              </select>
-              <small className="vm-help-text">
-                How to handle quality rule violations
-              </small>
-            </div>
           </div>
           
           <h3 className="vm-section-title">Anomaly Detection</h3>
