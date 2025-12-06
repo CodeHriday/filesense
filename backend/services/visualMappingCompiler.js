@@ -57,6 +57,11 @@ class VisualMappingCompiler {
       }
       
       // Step 4: Build final transformation mapping
+      // Check if any RDM lookups are configured
+      const hasRDMLookups = (compiledSteps.rdmDatasetConfigs && compiledSteps.rdmDatasetConfigs.length > 0) ||
+                            (compiledSteps.rdmCrosswalkConfigs && compiledSteps.rdmCrosswalkConfigs.length > 0) ||
+                            compiledSteps.rdmDatasetConfig || compiledSteps.rdmCrosswalkConfig;
+      
       const transformationMapping = {
         name: name || 'Visual Mapping',
         description: description || '',
@@ -72,8 +77,11 @@ class VisualMappingCompiler {
         field_mappings: compiledSteps.fieldMappings || [],
         variables: compiledSteps.variables || [],
         pii_columns: compiledSteps.piiColumns || [],
+        rdm_lookup_enabled: hasRDMLookups,
         rdm_dataset_config: compiledSteps.rdmDatasetConfig,
         rdm_crosswalk_config: compiledSteps.rdmCrosswalkConfig,
+        rdm_dataset_configs: compiledSteps.rdmDatasetConfigs || [],
+        rdm_crosswalk_configs: compiledSteps.rdmCrosswalkConfigs || [],
         schema_drift_handling: compiledSteps.schemaDriftHandling || 'none',
         violation_handling: compiledSteps.violationHandling || 'log_continue',
         quality_rule_ids: compiledSteps.qualityRuleIds || [],
@@ -536,24 +544,59 @@ class VisualMappingCompiler {
           case 'rdmLookup':
             // Handle unified rdmLookup node type
             if (config.lookupType === 'dataset') {
+              // Extract join keys from joinKeys array (visual mapping format) or direct fields
+              let sourceColumn = config.sourceColumn;
+              let datasetColumn = config.datasetColumn;
+              
+              // Visual mapping stores join keys in joinKeys array
+              if (config.joinKeys && config.joinKeys.length > 0) {
+                sourceColumn = config.joinKeys[0].source_column || sourceColumn;
+                datasetColumn = config.joinKeys[0].dataset_column || datasetColumn;
+              }
+              
               // Build rdmDatasetConfig from node config
-              result.rdmDatasetConfig = {
+              // Initialize array if not exists (supports multiple dataset joins)
+              if (!result.rdmDatasetConfigs) {
+                result.rdmDatasetConfigs = [];
+              }
+              
+              result.rdmDatasetConfigs.push({
                 dataset_id: config.datasetId,
                 dataset_name: config.datasetName,
-                source_column: config.sourceColumn,
-                dataset_column: config.datasetColumn,
-                join_type: config.joinType || 'left'
-              };
+                source_column: sourceColumn,
+                dataset_column: datasetColumn,
+                join_type: config.joinType || 'left',
+                column_mappings: config.columnMappings || []
+              });
+              
+              // For backward compatibility, also set rdmDatasetConfig to first one
+              if (!result.rdmDatasetConfig) {
+                result.rdmDatasetConfig = result.rdmDatasetConfigs[0];
+              }
             } else if (config.lookupType === 'crosswalk') {
+              // Extract source/target columns from visual mapping format
+              let sourceColumn = config.sourceColumn;
+              let targetColumn = config.targetColumn || config.outputColumn;
+              
               // Build rdmCrosswalkConfig from node config
-              result.rdmCrosswalkConfig = {
+              // Initialize array if not exists (supports multiple crosswalk lookups)
+              if (!result.rdmCrosswalkConfigs) {
+                result.rdmCrosswalkConfigs = [];
+              }
+              
+              result.rdmCrosswalkConfigs.push({
                 crosswalk_id: config.crosswalkId,
                 crosswalk_name: config.crosswalkName,
-                source_column: config.sourceColumn,
-                target_column: config.targetColumn,
+                source_column: sourceColumn,
+                target_column: targetColumn,
                 no_match_behavior: config.noMatchBehavior || 'keep_source',
                 default_value: config.defaultValue || null
-              };
+              });
+              
+              // For backward compatibility, also set rdmCrosswalkConfig to first one
+              if (!result.rdmCrosswalkConfig) {
+                result.rdmCrosswalkConfig = result.rdmCrosswalkConfigs[0];
+              }
             }
             break;
             

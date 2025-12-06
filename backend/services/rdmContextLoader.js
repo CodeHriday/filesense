@@ -165,6 +165,64 @@ function analyzeRDMRequirements(fieldMappings = [], variables = [], rdmDatasetCo
 }
 
 /**
+ * Extended version of analyzeRDMRequirements that handles array-based configs
+ * Used by visual mappings which may have multiple RDM lookups
+ */
+function analyzeRDMRequirementsExtended(fieldMappings = [], variables = [], rdmDatasetConfigs = [], rdmCrosswalkConfigs = []) {
+  const crosswalkIds = new Set();
+  const datasetIds = new Set();
+  
+  // Helper to extract RDM IDs from legacy transformations (backward compatibility)
+  const extractRDMIds = (transformations = []) => {
+    transformations.forEach(transform => {
+      if (transform.type === 'rdm_crosswalk_lookup' && transform.params?.rdmCrosswalkId) {
+        crosswalkIds.add(transform.params.rdmCrosswalkId);
+      }
+      if (transform.type === 'rdm_dataset_join' && transform.params?.rdmDatasetId) {
+        datasetIds.add(transform.params.rdmDatasetId);
+      }
+    });
+  };
+  
+  // Check field mappings (legacy rdm_ transformations)
+  fieldMappings.forEach(mapping => {
+    if (mapping.transformations) {
+      extractRDMIds(mapping.transformations);
+    }
+  });
+  
+  // Check variables (legacy rdm_ transformations)
+  variables.forEach(variable => {
+    if (variable.transformations) {
+      extractRDMIds(variable.transformations);
+    }
+  });
+  
+  // Check array of RDM dataset configs (visual mapping format)
+  if (Array.isArray(rdmDatasetConfigs)) {
+    rdmDatasetConfigs.forEach(config => {
+      if (config && config.dataset_id) {
+        datasetIds.add(config.dataset_id);
+      }
+    });
+  }
+  
+  // Check array of RDM crosswalk configs (visual mapping format)
+  if (Array.isArray(rdmCrosswalkConfigs)) {
+    rdmCrosswalkConfigs.forEach(config => {
+      if (config && config.crosswalk_id) {
+        crosswalkIds.add(config.crosswalk_id);
+      }
+    });
+  }
+  
+  return {
+    crosswalkIds: Array.from(crosswalkIds),
+    datasetIds: Array.from(datasetIds)
+  };
+}
+
+/**
  * Rebuild dataset map with specific join field
  * Called when we know the actual join field from transformation params
  */
@@ -188,5 +246,6 @@ function rebuildDatasetMap(datasetContext, joinField) {
 module.exports = {
   loadRDMContext,
   analyzeRDMRequirements,
+  analyzeRDMRequirementsExtended,
   rebuildDatasetMap
 };

@@ -438,22 +438,23 @@ const VisualMappingCanvasContent = () => {
     fetchSubProjects();
   }, [projectId]);
   
-  // Track if mapping has been loaded to prevent re-fetches
-  const mappingLoadedRef = useRef(false);
+  // Track if mapping has been loaded and its ID to prevent re-fetches
+  const mappingLoadedRef = useRef({ loaded: false, mappingId: null });
+  // Store canvas state to restore viewport later
+  const pendingCanvasStateRef = useRef(null);
   
-  // Load existing mapping if in edit mode
+  // Load existing mapping if in edit mode - only depends on mappingId and isEditMode
   useEffect(() => {
     const fetchMapping = async () => {
       if (!isEditMode) return;
       
       // Prevent duplicate fetches - only load once per mappingId
-      if (mappingLoadedRef.current) {
-        // Only apply viewport if instance is now ready
-        if (reactFlowInstance) {
-          // Viewport restoration handled separately below
-        }
+      if (mappingLoadedRef.current.loaded && mappingLoadedRef.current.mappingId === mappingId) {
         return;
       }
+      
+      // Mark as loading immediately to prevent race conditions
+      mappingLoadedRef.current = { loaded: true, mappingId };
       
       setLoading(true);
       try {
@@ -490,31 +491,35 @@ const VisualMappingCanvasContent = () => {
           setEdges(mapping.graph_data.edges || []);
         }
         
-        // Mark as loaded to prevent re-fetches
-        mappingLoadedRef.current = true;
-        
-        if (mapping.canvas_state && reactFlowInstance) {
-          reactFlowInstance.setViewport({
-            x: mapping.canvas_state.position?.[0] || 0,
-            y: mapping.canvas_state.position?.[1] || 0,
-            zoom: mapping.canvas_state.zoom || 1
-          });
+        // Store canvas state for viewport restoration once reactFlowInstance is ready
+        if (mapping.canvas_state) {
+          pendingCanvasStateRef.current = mapping.canvas_state;
         }
       } catch (error) {
         console.error('Error loading visual mapping:', error);
         setError('Failed to load visual mapping');
+        // Reset loaded flag on error so user can retry
+        mappingLoadedRef.current = { loaded: false, mappingId: null };
       } finally {
         setLoading(false);
       }
     };
     
     fetchMapping();
-  }, [mappingId, isEditMode, reactFlowInstance]);
+  }, [mappingId, isEditMode]);
   
-  // Reset the loaded flag when mappingId changes (switching to different mapping)
+  // Restore viewport when reactFlowInstance becomes available
   useEffect(() => {
-    mappingLoadedRef.current = false;
-  }, [mappingId]);
+    if (reactFlowInstance && pendingCanvasStateRef.current) {
+      const canvasState = pendingCanvasStateRef.current;
+      reactFlowInstance.setViewport({
+        x: canvasState.position?.[0] || 0,
+        y: canvasState.position?.[1] || 0,
+        zoom: canvasState.zoom || 1
+      });
+      pendingCanvasStateRef.current = null;
+    }
+  }, [reactFlowInstance]);
   
   const handleSaveNodeConfig = useCallback((config) => {
     setNodes((nds) =>

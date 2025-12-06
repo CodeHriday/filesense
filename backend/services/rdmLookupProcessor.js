@@ -200,7 +200,33 @@ function applyRDMCrosswalkLookup(transformedRows, crosswalkConfig, rdmContext) {
 }
 
 /**
- * Apply all RDM lookups in sequence: dataset join first, then crosswalk lookup
+ * Rebuild dataset map with specific join field
+ * Ensures the map is keyed by the correct column for the join operation
+ */
+function rebuildDatasetMapForJoin(datasetContext, joinField) {
+  if (!datasetContext || !datasetContext.data) {
+    return;
+  }
+  
+  const map = new Map();
+  datasetContext.data.forEach(row => {
+    if (row[joinField] !== undefined) {
+      const key = String(row[joinField]).toLowerCase();
+      map.set(key, row);
+    }
+  });
+  
+  datasetContext.map = map;
+  datasetContext.keyField = joinField;
+  
+  systemLogger.info('Rebuilt dataset map for join field', {
+    joinField,
+    mapSize: map.size
+  });
+}
+
+/**
+ * Apply all RDM lookups in sequence: dataset joins first, then crosswalk lookups
  * This is the main entry point for RDM enrichment
  * 
  * @param {Array} transformedRows - Array of records after field transformations
@@ -213,22 +239,38 @@ function applyRDMLookups(transformedRows, mapping, rdmContext) {
     return transformedRows; // RDM lookups not enabled
   }
 
+  // Check for array-based configs (visual mapping format) or single configs (legacy format)
+  const datasetConfigs = mapping.rdm_dataset_configs || (mapping.rdm_dataset_config ? [mapping.rdm_dataset_config] : []);
+  const crosswalkConfigs = mapping.rdm_crosswalk_configs || (mapping.rdm_crosswalk_config ? [mapping.rdm_crosswalk_config] : []);
+
   systemLogger.info('Starting RDM enrichment phase', {
     inputRows: transformedRows.length,
-    hasDatasetJoin: !!mapping.rdm_dataset_config,
-    hasCrosswalkLookup: !!mapping.rdm_crosswalk_config
+    datasetJoinCount: datasetConfigs.length,
+    crosswalkLookupCount: crosswalkConfigs.length,
+    hasDatasetJoin: datasetConfigs.length > 0,
+    hasCrosswalkLookup: crosswalkConfigs.length > 0
   });
 
   let enrichedRows = transformedRows;
 
-  // Step 1: Apply dataset join (if configured)
-  if (mapping.rdm_dataset_config) {
-    enrichedRows = applyRDMDatasetJoin(enrichedRows, mapping.rdm_dataset_config, rdmContext);
+  // Step 1: Apply all dataset joins in sequence
+  for (const datasetConfig of datasetConfigs) {
+    if (datasetConfig && datasetConfig.dataset_id) {
+      // Rebuild the dataset map with the correct join field before joining
+      const datasetContext = rdmContext.rdm?.datasets?.[datasetConfig.dataset_id];
+      if (datasetContext && datasetConfig.dataset_column) {
+        rebuildDatasetMapForJoin(datasetContext, datasetConfig.dataset_column);
+      }
+      
+      enrichedRows = applyRDMDatasetJoin(enrichedRows, datasetConfig, rdmContext);
+    }
   }
 
-  // Step 2: Apply crosswalk lookup (if configured)
-  if (mapping.rdm_crosswalk_config) {
-    enrichedRows = applyRDMCrosswalkLookup(enrichedRows, mapping.rdm_crosswalk_config, rdmContext);
+  // Step 2: Apply all crosswalk lookups in sequence
+  for (const crosswalkConfig of crosswalkConfigs) {
+    if (crosswalkConfig && crosswalkConfig.crosswalk_id) {
+      enrichedRows = applyRDMCrosswalkLookup(enrichedRows, crosswalkConfig, rdmContext);
+    }
   }
 
   systemLogger.info('RDM enrichment phase completed', {
