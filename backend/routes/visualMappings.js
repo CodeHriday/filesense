@@ -441,13 +441,13 @@ router.post('/:id/execute', async (req, res) => {
       
       console.log(`[VISUAL-MAPPING-EXECUTE] executeTransformationJob returned:`, JSON.stringify(jobResult, null, 2));
       
-      // Update execution record with job ID (jobExecutionEngine returns jobId in camelCase)
+      // Update execution record with job ID and row counts (jobExecutionEngine returns jobId in camelCase)
       // Must happen BEFORE cleanup since transformation_id references the temp mapping
       await pool.query(
         `UPDATE visual_mapping_executions 
-         SET job_id = $1, status = 'completed', transformation_id = $2, completed_at = NOW()
-         WHERE execution_id = $3`,
-        [jobResult.jobId, transformationDbId, executionId]
+         SET job_id = $1, status = 'completed', transformation_id = $2, rows_processed = $3, completed_at = NOW()
+         WHERE execution_id = $4`,
+        [jobResult.jobId, transformationDbId, jobResult.rowsWritten || 0, executionId]
       );
       
       // Now safe to clean up temporary transformation mapping
