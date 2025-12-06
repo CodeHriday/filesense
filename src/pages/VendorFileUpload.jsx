@@ -10,6 +10,32 @@ import { API_BASE_URL } from '../config';
 import axios from 'axios';
 import '../styles/VendorFileUpload.css';
 
+// Map file type values to friendly display labels
+const FILE_TYPE_LABELS = {
+  'csv': 'CSV',
+  'xlsx': 'Excel (XLSX)',
+  'json': 'JSON',
+  'xml': 'XML',
+  'parquet': 'Parquet',
+  'dat': 'Fixed Width (.dat)',
+  'bin': 'Binary (.bin)',
+  'bdat': 'Fixed Width Binary (.bdat)',
+  'fixed_width': 'Fixed Width (.dat)',
+  'binary': 'Binary (.bin)',
+  'sas7bdat': 'SAS Dataset',
+  'avro': 'Avro',
+  'zip': 'ZIP Archive',
+  '7z': '7z Archive',
+  'tar': 'TAR Archive',
+  'tar.gz': 'TAR.GZ Archive',
+  'tar.bz2': 'TAR.BZ2 Archive'
+};
+
+const getFileTypeLabel = (fileType) => {
+  if (!fileType) return '';
+  return FILE_TYPE_LABELS[fileType] || fileType.toUpperCase();
+};
+
 function VendorFileUpload() {
   const [uploadStatus, setUploadStatus] = useState(null);
   const [uploadedFile, setUploadedFile] = useState(null);
@@ -856,10 +882,9 @@ function VendorFileUpload() {
                               color: '#6366f1',
                               background: '#eef2ff',
                               padding: '2px 5px',
-                              borderRadius: '3px',
-                              textTransform: 'uppercase'
+                              borderRadius: '3px'
                             }}>
-                              {schema.file_type}
+                              {getFileTypeLabel(schema.file_type)}
                             </span>
                           )}
                           {schema.has_archive_password && (

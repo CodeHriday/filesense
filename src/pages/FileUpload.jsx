@@ -15,6 +15,32 @@ import { API_BASE_URL } from '../config';
 import axios from 'axios';
 import './FileUpload.css';
 
+// Map file type values to friendly display labels
+const FILE_TYPE_LABELS = {
+  'csv': 'CSV',
+  'xlsx': 'Excel (XLSX)',
+  'json': 'JSON',
+  'xml': 'XML',
+  'parquet': 'Parquet',
+  'dat': 'Fixed Width (.dat)',
+  'bin': 'Binary (.bin)',
+  'bdat': 'Fixed Width Binary (.bdat)',
+  'fixed_width': 'Fixed Width (.dat)',
+  'binary': 'Binary (.bin)',
+  'sas7bdat': 'SAS Dataset',
+  'avro': 'Avro',
+  'zip': 'ZIP Archive',
+  '7z': '7z Archive',
+  'tar': 'TAR Archive',
+  'tar.gz': 'TAR.GZ Archive',
+  'tar.bz2': 'TAR.BZ2 Archive'
+};
+
+const getFileTypeLabel = (fileType) => {
+  if (!fileType) return '';
+  return FILE_TYPE_LABELS[fileType] || fileType.toUpperCase();
+};
+
 function FileUpload() {
   const [uploadStatus, setUploadStatus] = useState(null);
   const [uploadedFile, setUploadedFile] = useState(null);
@@ -2042,7 +2068,7 @@ function FileUpload() {
                     )}
                     {selectedAgreementSchema.file_type && (
                       <span className="agreement-tag agreement-tag--filetype">
-                        {selectedAgreementSchema.file_type.toUpperCase()}
+                        {getFileTypeLabel(selectedAgreementSchema.file_type)}
                       </span>
                     )}
                   </div>

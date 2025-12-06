@@ -1900,6 +1900,9 @@ app.post('/api/files/upload', authenticateToken, invalidateCache('cache:*:*files
     
     // CRITICAL: Validate filenames and schemas against vendor agreement BEFORE any processing
     // This applies when contract validation mode is enabled (agreementId provided)
+    // Store matched schemas per file for fixed-width processing (declared outside block for accessibility)
+    const fileMatchedSchemas = new Map();
+    
     if (agreementId) {
       const { matchesPattern } = require('./src/utils/patternMatching');
       const { extractSchema, compareSchemas } = require('./backend/utils/schemaExtractor');
@@ -1909,7 +1912,9 @@ app.post('/api/files/upload', authenticateToken, invalidateCache('cache:*:*files
           vafs.id as schema_id,
           vafs.file_name_pattern,
           vafs.file_description,
+          vafs.file_type,
           vafs.schema,
+          vafs.has_header,
           va.agreement_code
         FROM vendor_agreement_file_schemas vafs
         JOIN vendor_agreements va ON vafs.vendor_agreement_id = va.id
@@ -1930,6 +1935,7 @@ app.post('/api/files/upload', authenticateToken, invalidateCache('cache:*:*files
           for (const schema of schemaResult.rows) {
             if (matchesPattern(filename, schema.file_name_pattern)) {
               matchedSchema = schema;
+              fileMatchedSchemas.set(filename, schema); // Store for later profiling
               break;
             }
           }
@@ -2206,6 +2212,58 @@ app.post('/api/files/upload', authenticateToken, invalidateCache('cache:*:*files
           }
         }
         
+        // For fixed-width files, use agreement schema if no explicit schema was provided
+        let effectiveFixedWidthSchema = fixedWidthSchema;
+        let effectiveHeaderConfig = headerConfig;
+        const matchedPatternSchema = fileMatchedSchemas?.get(file.originalname);
+        
+        if (matchedPatternSchema && !fixedWidthSchema) {
+          const isFixedWidthFile = ['dat', 'bdat'].includes(fileType) || 
+            (matchedPatternSchema.file_type && 
+             ['dat', 'fixed_width', 'bdat', 'binary_fixed_width'].includes(matchedPatternSchema.file_type));
+          
+          if (isFixedWidthFile && matchedPatternSchema.schema) {
+            try {
+              // Parse agreement schema (stored as JSON in database)
+              const agreementSchema = typeof matchedPatternSchema.schema === 'string' 
+                ? JSON.parse(matchedPatternSchema.schema) 
+                : matchedPatternSchema.schema;
+              
+              // Convert to fixed_width_schema format: { columns: [{name, width, type}] }
+              if (Array.isArray(agreementSchema) && agreementSchema.length > 0) {
+                const fixedWidthColumns = agreementSchema.map(field => ({
+                  name: field.name || field.column_name || `col_${agreementSchema.indexOf(field) + 1}`,
+                  width: field.width || field.length || 10,
+                  type: field.type || field.data_type || 'string'
+                }));
+                
+                effectiveFixedWidthSchema = { columns: fixedWidthColumns };
+                
+                // Also use has_header from matched pattern if not provided
+                if (!headerConfig) {
+                  effectiveHeaderConfig = {
+                    hasHeader: matchedPatternSchema.has_header === true || matchedPatternSchema.has_header === 'true'
+                  };
+                }
+                
+                logger.info('Using vendor agreement schema for fixed-width processing', {
+                  fileId,
+                  filename: file.originalname,
+                  schemaId: matchedPatternSchema.schema_id,
+                  columnCount: fixedWidthColumns.length,
+                  hasHeader: effectiveHeaderConfig?.hasHeader
+                });
+              }
+            } catch (schemaParseError) {
+              logger.warn('Failed to parse vendor agreement schema for fixed-width file', {
+                fileId,
+                filename: file.originalname,
+                error: schemaParseError.message
+              });
+            }
+          }
+        }
+        
         // Add job to processing queue (non-blocking)
         const jobId = await queue.addJob('file-processing', {
           fileId,
@@ -2220,8 +2278,8 @@ app.post('/api/files/upload', authenticateToken, invalidateCache('cache:*:*files
           qualityRuleIds: mergedQualityRuleIds,
           agreementId,
           delimiter,
-          headerConfig,
-          fixedWidthSchema,
+          headerConfig: effectiveHeaderConfig,
+          fixedWidthSchema: effectiveFixedWidthSchema,
           archivePassword
         }, {
           attempts: 3,
@@ -2239,7 +2297,10 @@ app.post('/api/files/upload', authenticateToken, invalidateCache('cache:*:*files
           projectId,
           subProjectId,
           qualityRuleIds,
-          filename: file.originalname
+          filename: file.originalname,
+          hasFixedWidthSchema: !!effectiveFixedWidthSchema,
+          fixedWidthColumnCount: effectiveFixedWidthSchema?.columns?.length || 0,
+          hasHeaderConfig: !!effectiveHeaderConfig
         });
         
         results.push({
@@ -2530,6 +2591,9 @@ app.post('/api/files/drop', authenticateToken, uploadLimiter, upload.single('fil
     const connectionId = req.query.connectionId;
     const agreementId = req.query.agreementId;
     
+    // Track matched pattern for later use in profiling (declared outside block for accessibility)
+    let vendorAgreementMatchedPattern = null;
+    
     if (connectionId && agreementId) {
       // Fetch vendor agreement file schemas for this SPECIFIC agreement
       const { matchesPattern } = require('./src/utils/patternMatching');
@@ -2539,6 +2603,9 @@ app.post('/api/files/drop', authenticateToken, uploadLimiter, upload.single('fil
           vafs.id as schema_id,
           vafs.file_name_pattern,
           vafs.file_description,
+          vafs.file_type,
+          vafs.schema,
+          vafs.has_header,
           va.agreement_code
         FROM vendor_agreement_file_schemas vafs
         JOIN vendor_agreements va ON vafs.vendor_agreement_id = va.id
@@ -2557,6 +2624,7 @@ app.post('/api/files/drop', authenticateToken, uploadLimiter, upload.single('fil
         for (const schema of schemaResult.rows) {
           if (matchesPattern(filename, schema.file_name_pattern)) {
             matchedPattern = schema;
+            vendorAgreementMatchedPattern = schema; // Store for profiling
             break;
           }
         }
@@ -3110,12 +3178,59 @@ app.post('/api/files/drop', authenticateToken, uploadLimiter, upload.single('fil
       try {
         logger.info('Starting vendor file profiling on local file', { fileId, connectionId, userId, filePath: file.path });
         
-        // Call Python profiling service with local file path
-        const profileResponse = await axios.post('http://localhost:8000/api/vendor-profile', {
+        // Build profiling request body
+        const profilingRequestBody = {
           file_id: fileId,
           local_file_path: file.path,
           filename: file.originalname
-        }, {
+        };
+        
+        // For fixed-width files (.dat, .bdat), convert vendor agreement schema to fixed_width_schema format
+        const fileExtension = (file.originalname || '').split('.').pop()?.toLowerCase();
+        const isFixedWidthFile = ['dat', 'bdat'].includes(fileExtension) || 
+          (vendorAgreementMatchedPattern?.file_type && 
+           ['dat', 'fixed_width', 'bdat', 'binary_fixed_width'].includes(vendorAgreementMatchedPattern.file_type));
+        
+        if (isFixedWidthFile && vendorAgreementMatchedPattern?.schema) {
+          try {
+            // Parse agreement schema (stored as JSON in database)
+            const agreementSchema = typeof vendorAgreementMatchedPattern.schema === 'string' 
+              ? JSON.parse(vendorAgreementMatchedPattern.schema) 
+              : vendorAgreementMatchedPattern.schema;
+            
+            // Convert to fixed_width_schema format: { columns: [{name, width, type}] }
+            if (Array.isArray(agreementSchema) && agreementSchema.length > 0) {
+              const fixedWidthColumns = agreementSchema.map(field => ({
+                name: field.name || field.column_name || `col_${agreementSchema.indexOf(field) + 1}`,
+                width: field.width || field.length || 10,
+                type: field.type || field.data_type || 'string'
+              }));
+              
+              profilingRequestBody.fixed_width_schema = { columns: fixedWidthColumns };
+              
+              // Also pass has_header info
+              profilingRequestBody.header_config = {
+                has_header: vendorAgreementMatchedPattern.has_header === true || vendorAgreementMatchedPattern.has_header === 'true'
+              };
+              
+              logger.info('Using vendor agreement schema for fixed-width profiling', {
+                fileId,
+                filename: file.originalname,
+                schemaId: vendorAgreementMatchedPattern.schema_id,
+                columnCount: fixedWidthColumns.length,
+                hasHeader: profilingRequestBody.header_config.has_header
+              });
+            }
+          } catch (schemaParseError) {
+            logger.warn('Failed to parse vendor agreement schema for fixed-width file', {
+              fileId,
+              error: schemaParseError.message
+            });
+          }
+        }
+        
+        // Call Python profiling service with local file path
+        const profileResponse = await axios.post('http://localhost:8000/api/vendor-profile', profilingRequestBody, {
           timeout: 120000 // 2 minute timeout for profiling
         });
         
