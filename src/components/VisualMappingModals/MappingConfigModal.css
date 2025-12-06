@@ -227,12 +227,13 @@
   margin-bottom: 16px;
 }
 
-/* File Path Row - Three columns with individual labels */
+/* File Path Row - Four columns with Browse button inline */
 .vm-form-row-file-path {
   display: grid;
-  grid-template-columns: 2fr 1fr auto;
+  grid-template-columns: 2fr 1fr auto auto;
   gap: 12px;
   margin-bottom: 16px;
+  align-items: end;
 }
 
 .vm-form-group-no-margin {
@@ -242,10 +243,12 @@
 .vm-form-group-browse {
   display: flex;
   flex-direction: column;
+  width: fit-content;
 }
 
 .vm-btn-browse {
   flex-shrink: 0;
+  width: fit-content;
   background: #025043;
   color: white;
   font-family: 'Inter', sans-serif;
