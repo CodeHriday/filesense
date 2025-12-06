@@ -120,18 +120,27 @@ class ArchiveExtractionService {
         throw new Error(`Archive size ${(fileStats.size / 1024 / 1024).toFixed(2)} MB exceeds maximum limit of 25 MB`);
       }
 
-      extractionRecord = await this.createExtractionRecord(
-        archiveFileId,
-        archiveInfo.archiveType,
-        archiveInfo.isEncrypted || false
-      );
+      // Only create extraction record if we have a file_id (from files table)
+      // Visual mapping executions may not have a file_id when processing directly from connections
+      if (archiveFileId) {
+        extractionRecord = await this.createExtractionRecord(
+          archiveFileId,
+          archiveInfo.archiveType,
+          archiveInfo.isEncrypted || false
+        );
+      } else {
+        this.logger.info('Skipping extraction record creation - no file_id provided (direct connection processing)', {
+          archiveType: archiveInfo.archiveType,
+          isEncrypted: archiveInfo.isEncrypted || false
+        });
+      }
 
       tempDir = path.join(EXTRACTION_TEMP_DIR, `extract_${Date.now()}_${Math.random().toString(36).substring(7)}`);
       await fs.promises.mkdir(tempDir, { recursive: true });
 
       this.logger.info('Starting archive extraction', {
         archiveFileId,
-        extractionId: extractionRecord.id,
+        extractionId: extractionRecord?.id || null,
         archiveType: archiveInfo.archiveType,
         tempDir
       });
