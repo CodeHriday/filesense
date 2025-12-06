@@ -7,6 +7,10 @@ const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
   // Use ref to track if we have a saved file pattern - this won't trigger re-renders
   const hasSavedFilePatternRef = useRef(false);
   
+  // Track whether the modal has been initialized from initialConfig
+  // This prevents the vendor agreement useEffect from clearing state before hydration completes
+  const hasInitializedRef = useRef(false);
+  
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [connectionId, setConnectionId] = useState('');
@@ -84,6 +88,12 @@ const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
         fileType: initialConfig.schemaMetadata?.file_type,
         hasPassword: initialConfig.hasArchivePassword
       });
+      
+      // Mark as initialized AFTER all state is set - this prevents premature clearing
+      hasInitializedRef.current = true;
+    } else {
+      // Reset initialization flag when modal closes
+      hasInitializedRef.current = false;
     }
   }, [isOpen]);
   
@@ -179,6 +189,13 @@ const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
   // Single unified useEffect to handle vendor agreement processing
   // This prevents the race condition where two useEffects would both call processVendorAgreement
   useEffect(() => {
+    // CRITICAL: Don't run this effect until the modal has been initialized from initialConfig
+    // This prevents premature clearing of state before hydration completes
+    if (!hasInitializedRef.current) {
+      console.log('Skipping vendor agreement effect - modal not yet initialized');
+      return;
+    }
+    
     // Case 1: We have a pending agreement from initialConfig that needs processing
     if (pendingVendorAgreementRef.current && vendorAgreements.length > 0) {
       const pendingId = pendingVendorAgreementRef.current;
@@ -192,8 +209,9 @@ const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
     // Only run if there's no pending ref (meaning initialConfig was already processed or didn't have one)
     if (pendingVendorAgreementRef.current === null && vendorAgreementId && vendorAgreements.length > 0) {
       processVendorAgreement(vendorAgreementId, vendorAgreements);
-    } else if (!vendorAgreementId) {
+    } else if (!vendorAgreementId && vendorAgreements.length > 0) {
       // Case 3: User deselected vendor agreement - clear related state
+      // Only run if vendorAgreements has loaded (to avoid clearing on initial mount)
       setAgreementFiles([]);
       setSelectedFileId('');
       setSchema(null);
