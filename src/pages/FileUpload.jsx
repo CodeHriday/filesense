@@ -125,6 +125,83 @@ function FileUpload() {
   const [schemaUploadError, setSchemaUploadError] = useState('');
   const [schemaUploadSuccess, setSchemaUploadSuccess] = useState('');
   
+  // Apply configuration from a contract pattern to the upload form
+  const applyPatternConfig = (pattern) => {
+    if (!pattern) return;
+    
+    // Map file_type to delimiterType
+    if (pattern.file_type) {
+      const fileType = pattern.file_type;
+      
+      // Fixed-width types map directly to delimiterType
+      if (isFixedWidthType(fileType)) {
+        setDelimiterType(fileType);
+        setHasHeader(false); // Fixed-width files don't have headers
+      } else {
+        // Map file types to delimiter types
+        const delimiterMapping = {
+          'csv': 'comma',
+          'comma': 'comma',
+          'pipe': 'pipe',
+          'tab': 'tab',
+          'semicolon': 'semicolon',
+          'custom': 'custom',
+          // Non-delimited types use auto-detect
+          'json': 'none',
+          'xml': 'none',
+          'xlsx': 'none',
+          'parquet': 'none',
+          'avro': 'none',
+          'sas7bdat': 'none',
+          'zip': 'none',
+          '7z': 'none',
+          'tar': 'none',
+          'tar.gz': 'none',
+          'tar.bz2': 'none'
+        };
+        
+        const mappedDelimiter = delimiterMapping[fileType] || 'none';
+        setDelimiterType(mappedDelimiter);
+        
+        // Apply has_header from pattern (if explicitly set)
+        if (pattern.has_header !== undefined) {
+          setHasHeader(pattern.has_header);
+        } else {
+          setHasHeader(true); // Default to true for delimited files
+        }
+        
+        // Apply custom delimiter if file type is 'custom' and pattern has a delimiter value
+        if (fileType === 'custom' && pattern.delimiter) {
+          setCustomDelimiter(pattern.delimiter);
+        }
+      }
+    }
+    
+    // Apply archive password if configured (passwords are fetched separately for security)
+    // Don't clear archive password if pattern doesn't have one - user may have entered it manually
+    if (pattern.has_archive_password && !archivePassword) {
+      // Pattern expects a password but none entered - could show a hint
+      // The actual password is encrypted and not sent from server for security
+    }
+    
+    // Apply fixed-width schema from pattern
+    if (isFixedWidthType(pattern.file_type) && pattern.schema) {
+      try {
+        const schemaFields = Array.isArray(pattern.schema) ? pattern.schema : pattern.schema.fields;
+        if (schemaFields && schemaFields.length > 0) {
+          const columns = schemaFields.map(field => ({
+            name: field.name || '',
+            width: field.width ? String(field.width) : '',
+            type: field.type || 'string'
+          }));
+          setFixedWidthSchema(columns.length > 0 ? columns : [{ name: '', width: '', type: 'string' }]);
+        }
+      } catch (e) {
+        console.error('Error parsing pattern schema:', e);
+      }
+    }
+  };
+  
   // Auto-match file pattern when file is selected (contract validation mode)
   const autoMatchFilePattern = (filename) => {
     if (!filename || agreementFilePatterns.length === 0) {
@@ -142,6 +219,9 @@ function FileUpload() {
         if (pattern.quality_rule_ids && Array.isArray(pattern.quality_rule_ids)) {
           setSelectedQualityRules(pattern.quality_rule_ids);
         }
+        
+        // Auto-populate upload configuration from matched pattern
+        applyPatternConfig(pattern);
         
         return pattern;
       }
@@ -1829,10 +1909,16 @@ function FileUpload() {
                           } else {
                             setSelectedQualityRules([]);
                           }
+                          // Auto-populate upload configuration from selected pattern
+                          applyPatternConfig(pattern);
                         }
                       } else {
                         setSelectedAgreementSchema(null);
                         setSelectedQualityRules([]);
+                        // Reset to defaults when no pattern selected
+                        setDelimiterType('none');
+                        setHasHeader(true);
+                        setFixedWidthSchema([{ name: '', width: '', type: 'string' }]);
                       }
                     }}
                     disabled={!selectedAgreement || agreementFilePatterns.length === 0}
