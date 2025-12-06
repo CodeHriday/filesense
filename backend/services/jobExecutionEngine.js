@@ -693,6 +693,17 @@ async function executeTransformationJob(pool, mappingId, userId, options = {}) {
         rdmCrosswalkConfigs = JSON.parse(rdmCrosswalkConfigs);
       }
       
+      // Handle case where singular config columns contain arrays (visual mapping format)
+      // This happens when arrays are stored in rdm_dataset_config/rdm_crosswalk_config columns
+      if (Array.isArray(rdmDatasetConfig)) {
+        rdmDatasetConfigs = [...rdmDatasetConfigs, ...rdmDatasetConfig];
+        rdmDatasetConfig = null; // Clear singular, we've moved to plural
+      }
+      if (Array.isArray(rdmCrosswalkConfig)) {
+        rdmCrosswalkConfigs = [...rdmCrosswalkConfigs, ...rdmCrosswalkConfig];
+        rdmCrosswalkConfig = null; // Clear singular, we've moved to plural
+      }
+      
       // Check if any RDM configs are present
       const hasRdmConfigs = rdmDatasetConfig || rdmCrosswalkConfig || 
                             (rdmDatasetConfigs && rdmDatasetConfigs.length > 0) || 

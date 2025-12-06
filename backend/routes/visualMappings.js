@@ -382,9 +382,22 @@ router.post('/:id/execute', async (req, res) => {
     const sourceConnectionId = vendorAgreementId ? null : transformationMapping.source_connection_id;
     
     // Determine if RDM lookups are enabled (check for RDM lookup nodes or configs)
-    const hasRdmConfig = !!(transformationMapping.rdm_dataset_config || transformationMapping.rdm_crosswalk_config);
+    // Use plural arrays (rdm_dataset_configs/rdm_crosswalk_configs) when available for multi-node support
+    const hasRdmConfigArrays = (transformationMapping.rdm_dataset_configs?.length > 0) || 
+                                (transformationMapping.rdm_crosswalk_configs?.length > 0);
+    const hasRdmConfig = hasRdmConfigArrays || 
+                         !!(transformationMapping.rdm_dataset_config || transformationMapping.rdm_crosswalk_config);
     const hasRdmNodes = mapping.graph_data?.nodes?.some(n => n.type === 'rdmLookup') || false;
     const rdmLookupEnabled = hasRdmConfig || hasRdmNodes;
+    
+    // Prepare RDM configs for storage - use plural arrays if available, fall back to singular
+    // Store as arrays to support multiple RDM lookup nodes
+    const rdmDatasetConfigsToStore = transformationMapping.rdm_dataset_configs?.length > 0 
+      ? transformationMapping.rdm_dataset_configs 
+      : (transformationMapping.rdm_dataset_config ? [transformationMapping.rdm_dataset_config] : null);
+    const rdmCrosswalkConfigsToStore = transformationMapping.rdm_crosswalk_configs?.length > 0 
+      ? transformationMapping.rdm_crosswalk_configs 
+      : (transformationMapping.rdm_crosswalk_config ? [transformationMapping.rdm_crosswalk_config] : null);
     
     const transformResult = await pool.query(
       `INSERT INTO transformation_mappings (
@@ -416,8 +429,8 @@ router.post('/:id/execute', async (req, res) => {
         JSON.stringify(transformationMapping.variables || {}),
         JSON.stringify(transformationMapping.pii_columns || []),
         rdmLookupEnabled,
-        transformationMapping.rdm_dataset_config ? JSON.stringify(transformationMapping.rdm_dataset_config) : null,
-        transformationMapping.rdm_crosswalk_config ? JSON.stringify(transformationMapping.rdm_crosswalk_config) : null,
+        rdmDatasetConfigsToStore ? JSON.stringify(rdmDatasetConfigsToStore) : null,
+        rdmCrosswalkConfigsToStore ? JSON.stringify(rdmCrosswalkConfigsToStore) : null,
         transformationMapping.schema_drift_handling || 'warn',
         transformationMapping.violation_handling || 'continue',
         req.user.id,
