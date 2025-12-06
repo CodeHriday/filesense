@@ -8,6 +8,7 @@ const ExpressionModal = ({ isOpen, onClose, onSave, initialConfig = {}, schema =
   const [fieldMappings, setFieldMappings] = useState(initialConfig.fieldMappings || []);
   const [variables, setVariables] = useState(initialConfig.variables || []);
   const [piiColumns, setPiiColumns] = useState(initialConfig.piiColumns || []);
+  const [dqRuleAssignments, setDqRuleAssignments] = useState(initialConfig.dqRuleAssignments || {});
   
   const handleSave = () => {
     const config = {
@@ -16,17 +17,20 @@ const ExpressionModal = ({ isOpen, onClose, onSave, initialConfig = {}, schema =
       fieldMappings,
       variables,
       piiColumns,
+      dqRuleAssignments,
       mappingCount: fieldMappings.length,
-      variableCount: variables.length
+      variableCount: variables.length,
+      dqRuleCount: Object.keys(dqRuleAssignments).length
     };
     onSave(config);
     onClose();
   };
   
-  const handleMappingsChange = (mappings, vars, pii) => {
+  const handleMappingsChange = (mappings, vars, pii, dqAssignments) => {
     setFieldMappings(mappings);
     setVariables(vars || []);
     setPiiColumns(pii || []);
+    setDqRuleAssignments(dqAssignments || {});
   };
   
   if (!isOpen) return null;
@@ -68,6 +72,7 @@ const ExpressionModal = ({ isOpen, onClose, onSave, initialConfig = {}, schema =
             fieldMappings={fieldMappings}
             variables={variables}
             piiColumns={piiColumns}
+            dqRuleAssignments={dqRuleAssignments}
             onMappingsChange={handleMappingsChange}
           />
         </div>

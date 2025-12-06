@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { FiCheck, FiArrowRight, FiTrash2, FiEdit2, FiX, FiPlus, FiChevronDown, FiChevronUp, FiChevronRight, FiLock } from 'react-icons/fi';
+import axios from 'axios';
+import { FiCheck, FiArrowRight, FiTrash2, FiEdit2, FiX, FiPlus, FiChevronDown, FiChevronUp, FiChevronRight, FiLock, FiShield } from 'react-icons/fi';
 import './TableBasedMapper.css';
 
 const TRANSFORMATION_OPTIONS = [
@@ -67,7 +68,7 @@ const TRANSFORMATION_OPTIONS = [
   }
 ];
 
-const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables = [], piiColumns: initialPiiColumns = [], onMappingsChange }) => {
+const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables = [], piiColumns: initialPiiColumns = [], dqRuleAssignments: initialDqRuleAssignments = {}, onMappingsChange }) => {
   const [selectedSource, setSelectedSource] = useState(new Set());
   const [mappings, setMappings] = useState([]);
   const [editingExpression, setEditingExpression] = useState(null);
@@ -100,6 +101,14 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
   
   // PII tagging state
   const [piiColumns, setPiiColumns] = useState(new Set(initialPiiColumns || []));
+  
+  // DQ Rule Assignment state
+  const [dqRuleAssignments, setDqRuleAssignments] = useState(initialDqRuleAssignments || {});
+  const [showDqRulePanel, setShowDqRulePanel] = useState(false);
+  const [availableDqRules, setAvailableDqRules] = useState([]);
+  const [selectedColumns, setSelectedColumns] = useState(new Set());
+  const [selectedRules, setSelectedRules] = useState(new Set());
+  const [dqRulesLoading, setDqRulesLoading] = useState(false);
 
   // Sync variables from prop to local state (always sync, including empty arrays)
   useEffect(() => {
@@ -111,6 +120,11 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
     setPiiColumns(new Set(initialPiiColumns || []));
   }, [initialPiiColumns]);
   
+  // Sync DQ rule assignments from prop
+  useEffect(() => {
+    setDqRuleAssignments(initialDqRuleAssignments || {});
+  }, [initialDqRuleAssignments]);
+  
   // Auto-populate PII columns from schema on initial load
   useEffect(() => {
     if (schema && schema.length > 0 && initialPiiColumns.length === 0) {
@@ -121,7 +135,7 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
       if (piiFieldsFromSchema.length > 0) {
         const newPiiSet = new Set(piiFieldsFromSchema);
         setPiiColumns(newPiiSet);
-        onMappingsChange(mappings, variables, Array.from(newPiiSet));
+        onMappingsChange(mappings, variables, Array.from(newPiiSet), dqRuleAssignments);
       }
     }
   }, [schema]);
@@ -165,7 +179,100 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
       newPiiColumns.add(targetField);
     }
     setPiiColumns(newPiiColumns);
-    onMappingsChange(mappings, variables, Array.from(newPiiColumns));
+    onMappingsChange(mappings, variables, Array.from(newPiiColumns), dqRuleAssignments);
+  };
+  
+  // Fetch available DQ rules from API
+  const fetchDqRules = async () => {
+    setDqRulesLoading(true);
+    try {
+      const response = await axios.get('/api/quality-rules?limit=100');
+      setAvailableDqRules(response.data?.rules || []);
+    } catch (error) {
+      console.error('Error fetching DQ rules:', error);
+      setAvailableDqRules([]);
+    } finally {
+      setDqRulesLoading(false);
+    }
+  };
+  
+  // Open DQ Rule Assignment Panel
+  const handleOpenDqRulePanel = () => {
+    setShowDqRulePanel(true);
+    setSelectedColumns(new Set());
+    setSelectedRules(new Set());
+    fetchDqRules();
+  };
+  
+  // Toggle column selection in DQ panel
+  const toggleColumnSelection = (columnName) => {
+    const newSelection = new Set(selectedColumns);
+    if (newSelection.has(columnName)) {
+      newSelection.delete(columnName);
+    } else {
+      newSelection.add(columnName);
+    }
+    setSelectedColumns(newSelection);
+  };
+  
+  // Toggle rule selection in DQ panel
+  const toggleRuleSelection = (ruleId) => {
+    const newSelection = new Set(selectedRules);
+    if (newSelection.has(ruleId)) {
+      newSelection.delete(ruleId);
+    } else {
+      newSelection.add(ruleId);
+    }
+    setSelectedRules(newSelection);
+  };
+  
+  // Add DQ rule assignments (bulk assign selected rules to selected columns)
+  const handleAddDqAssignments = () => {
+    if (selectedColumns.size === 0 || selectedRules.size === 0) {
+      return;
+    }
+    
+    const newAssignments = { ...dqRuleAssignments };
+    
+    selectedColumns.forEach(columnName => {
+      if (!newAssignments[columnName]) {
+        newAssignments[columnName] = [];
+      }
+      selectedRules.forEach(ruleId => {
+        if (!newAssignments[columnName].includes(ruleId)) {
+          newAssignments[columnName].push(ruleId);
+        }
+      });
+    });
+    
+    setDqRuleAssignments(newAssignments);
+    setSelectedColumns(new Set());
+    setSelectedRules(new Set());
+    onMappingsChange(mappings, variables, Array.from(piiColumns), newAssignments);
+  };
+  
+  // Remove a specific rule from a column
+  const handleRemoveDqAssignment = (columnName, ruleId) => {
+    const newAssignments = { ...dqRuleAssignments };
+    if (newAssignments[columnName]) {
+      newAssignments[columnName] = newAssignments[columnName].filter(id => id !== ruleId);
+      if (newAssignments[columnName].length === 0) {
+        delete newAssignments[columnName];
+      }
+    }
+    setDqRuleAssignments(newAssignments);
+    onMappingsChange(mappings, variables, Array.from(piiColumns), newAssignments);
+  };
+  
+  // Get rule name by ID
+  const getRuleName = (ruleId) => {
+    const rule = availableDqRules.find(r => r.id === ruleId);
+    return rule ? rule.rule_name : `Rule #${ruleId}`;
+  };
+  
+  // Get count of DQ rules for a column
+  const getDqRuleCount = (columnName) => {
+    return dqRuleAssignments[columnName]?.length || 0;
   };
 
   const buildExpression = (mapping) => {
@@ -196,7 +303,7 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
       newSelected.delete(fieldName);
       const newMappings = mappings.filter(m => m.source_field !== fieldName);
       setMappings(newMappings);
-      onMappingsChange(newMappings, variables, Array.from(piiColumns));
+      onMappingsChange(newMappings, variables, Array.from(piiColumns), dqRuleAssignments);
     } else {
       newSelected.add(fieldName);
       const newMapping = {
@@ -207,7 +314,7 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
       };
       const newMappings = [...mappings, newMapping];
       setMappings(newMappings);
-      onMappingsChange(newMappings, variables, Array.from(piiColumns));
+      onMappingsChange(newMappings, variables, Array.from(piiColumns), dqRuleAssignments);
     }
     
     setSelectedSource(newSelected);
@@ -223,31 +330,55 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
     
     setMappings(newMappings);
     setSelectedSource(new Set(schema.map(f => f.name)));
-    onMappingsChange(newMappings, variables, Array.from(piiColumns));
+    onMappingsChange(newMappings, variables, Array.from(piiColumns), dqRuleAssignments);
   };
 
   const handleClearMapping = () => {
     setMappings([]);
     setSelectedSource(new Set());
-    onMappingsChange([], variables, Array.from(piiColumns));
+    setDqRuleAssignments({});
+    onMappingsChange([], variables, Array.from(piiColumns), {});
   };
 
   const handleRemoveMapping = (sourceField) => {
+    const mapping = mappings.find(m => m.source_field === sourceField);
+    const targetField = mapping?.target_field;
     const newMappings = mappings.filter(m => m.source_field !== sourceField);
     const newSelected = new Set(selectedSource);
     newSelected.delete(sourceField);
     
+    const newDqAssignments = { ...dqRuleAssignments };
+    if (targetField && newDqAssignments[targetField]) {
+      delete newDqAssignments[targetField];
+    }
+    
     setMappings(newMappings);
     setSelectedSource(newSelected);
-    onMappingsChange(newMappings, variables, Array.from(piiColumns));
+    setDqRuleAssignments(newDqAssignments);
+    onMappingsChange(newMappings, variables, Array.from(piiColumns), newDqAssignments);
   };
 
   const handleTargetNameChange = (sourceField, newTargetName) => {
+    const oldMapping = mappings.find(m => m.source_field === sourceField);
+    const oldTargetName = oldMapping?.target_field;
+    
+    if (oldTargetName === newTargetName) {
+      return;
+    }
+    
     const newMappings = mappings.map(m => 
       m.source_field === sourceField ? { ...m, target_field: newTargetName } : m
     );
+    
+    const newDqAssignments = { ...dqRuleAssignments };
+    if (oldTargetName && newDqAssignments[oldTargetName] && newTargetName) {
+      newDqAssignments[newTargetName] = newDqAssignments[oldTargetName];
+      delete newDqAssignments[oldTargetName];
+    }
+    
     setMappings(newMappings);
-    onMappingsChange(newMappings, variables, Array.from(piiColumns));
+    setDqRuleAssignments(newDqAssignments);
+    onMappingsChange(newMappings, variables, Array.from(piiColumns), newDqAssignments);
   };
 
   const handleEditExpression = (sourceField) => {
@@ -276,7 +407,7 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
     });
 
     setMappings(newMappings);
-    onMappingsChange(newMappings, variables, Array.from(piiColumns));
+    onMappingsChange(newMappings, variables, Array.from(piiColumns), dqRuleAssignments);
     setEditingExpression(null);
   };
 
@@ -357,7 +488,7 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
 
     const newMappings = [...mappings, newMapping];
     setMappings(newMappings);
-    onMappingsChange(newMappings, variables, Array.from(piiColumns));
+    onMappingsChange(newMappings, variables, Array.from(piiColumns), dqRuleAssignments);
     setAddingNewColumn(false);
   };
 
@@ -600,7 +731,7 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
     setVariables(newVariables);
     setAddingVariable(false);
     setNewVariable({ name: '', expression: '' });
-    onMappingsChange(mappings, newVariables, Array.from(piiColumns));
+    onMappingsChange(mappings, newVariables, Array.from(piiColumns), dqRuleAssignments);
   };
 
   const handleEditVariable = (variable) => {
@@ -633,13 +764,13 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
 
     setVariables(updatedVariables);
     setEditingVariable(null);
-    onMappingsChange(mappings, updatedVariables, Array.from(piiColumns));
+    onMappingsChange(mappings, updatedVariables, Array.from(piiColumns), dqRuleAssignments);
   };
 
   const handleDeleteVariable = (variableId) => {
     const newVariables = variables.filter(v => v.id !== variableId);
     setVariables(newVariables);
-    onMappingsChange(mappings, newVariables, Array.from(piiColumns));
+    onMappingsChange(mappings, newVariables, Array.from(piiColumns), dqRuleAssignments);
   };
 
   const handleMoveVariableUp = (index) => {
@@ -647,7 +778,7 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
     const newVariables = [...variables];
     [newVariables[index - 1], newVariables[index]] = [newVariables[index], newVariables[index - 1]];
     setVariables(newVariables);
-    onMappingsChange(mappings, newVariables, Array.from(piiColumns));
+    onMappingsChange(mappings, newVariables, Array.from(piiColumns), dqRuleAssignments);
   };
 
   const handleMoveVariableDown = (index) => {
@@ -655,7 +786,7 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
     const newVariables = [...variables];
     [newVariables[index], newVariables[index + 1]] = [newVariables[index + 1], newVariables[index]];
     setVariables(newVariables);
-    onMappingsChange(mappings, newVariables, Array.from(piiColumns));
+    onMappingsChange(mappings, newVariables, Array.from(piiColumns), dqRuleAssignments);
   };
 
   const handleVariableTransformationChange = (value) => {
@@ -860,9 +991,14 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
         <div className="target-panel">
           <div className="target-panel-header">
             <h4>Target Fields</h4>
-            <button className="btn btn-primary btn-xs" onClick={handleAddNewColumn} title="Add a new calculated column" style={{ fontSize: '10px', fontFamily: 'Inter', padding: '0.125rem 0.25rem', gap: '0.125rem' }}>
-              <FiPlus /> Add New Column
-            </button>
+            <div className="target-panel-actions">
+              <button className="btn btn-secondary btn-xs" onClick={handleOpenDqRulePanel} title="Assign Data Quality rules to target columns" style={{ fontSize: '10px', fontFamily: 'Inter', padding: '0.125rem 0.25rem', gap: '0.125rem' }}>
+                <FiShield /> Assign DQ Rule
+              </button>
+              <button className="btn btn-primary btn-xs" onClick={handleAddNewColumn} title="Add a new calculated column" style={{ fontSize: '10px', fontFamily: 'Inter', padding: '0.125rem 0.25rem', gap: '0.125rem' }}>
+                <FiPlus /> Add New Column
+              </button>
+            </div>
           </div>
           <div className="field-search">
             <input
@@ -881,6 +1017,9 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
                   <th style={{ width: '200px' }}>Name</th>
                   <th style={{ width: '60px', textAlign: 'center' }} title="Mark as PII (Personally Identifiable Information)">
                     <FiLock /> PII
+                  </th>
+                  <th style={{ width: '80px', textAlign: 'center' }} title="Data Quality Rules assigned to this field">
+                    <FiShield /> DQ Rules
                   </th>
                   <th style={{ width: '80px' }}>Actions</th>
                   <th>Expression</th>
@@ -909,6 +1048,20 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
                         style={{ cursor: 'pointer' }}
                       />
                     </td>
+                    <td style={{ textAlign: 'center' }} className="dq-rules-cell">
+                      {getDqRuleCount(mapping.target_field) > 0 ? (
+                        <span 
+                          className="dq-rule-badge" 
+                          title={`${getDqRuleCount(mapping.target_field)} DQ rule(s) assigned`}
+                          onClick={handleOpenDqRulePanel}
+                          style={{ cursor: 'pointer' }}
+                        >
+                          {getDqRuleCount(mapping.target_field)}
+                        </span>
+                      ) : (
+                        <span className="dq-rule-empty">-</span>
+                      )}
+                    </td>
                     <td className="actions-cell">
                       {!mapping.is_custom && <FiArrowRight className="arrow-icon" title="Mapped from source" />}
                       {mapping.is_custom && <span className="custom-badge" title="Custom column">Custom</span>}
@@ -936,7 +1089,7 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
                 ))}
                 {filteredMappings.length === 0 && (
                   <tr>
-                    <td colSpan="5" className="no-mappings">
+                    <td colSpan="6" className="no-mappings">
                       No field mappings. Select source fields from the left panel or click Automap.
                     </td>
                   </tr>
@@ -1525,9 +1678,122 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
         </div>
       )}
 
+      {/* DQ Rule Assignment Panel Modal */}
+      {showDqRulePanel && (
+        <div className="expression-editor-modal dq-rule-panel-modal">
+          <div className="modal-overlay" onClick={() => setShowDqRulePanel(false)}></div>
+          <div className="modal-content dq-rule-panel-content">
+            <div className="modal-header">
+              <h4>Assign Data Quality Rules</h4>
+              <button className="btn-close" onClick={() => setShowDqRulePanel(false)}>
+                <FiX />
+              </button>
+            </div>
+            <div className="modal-body dq-rule-panel-body">
+              <div className="dq-panel-grid">
+                {/* Left Panel: Target Columns */}
+                <div className="dq-panel-section">
+                  <div className="dq-panel-section-header">Target Columns</div>
+                  <div className="dq-panel-section-content">
+                    {mappings.length === 0 ? (
+                      <div className="dq-panel-empty">No target columns available. Create field mappings first.</div>
+                    ) : (
+                      mappings.map(mapping => (
+                        <div key={mapping.target_field} className="dq-panel-item">
+                          <input
+                            type="checkbox"
+                            id={`col-${mapping.target_field}`}
+                            checked={selectedColumns.has(mapping.target_field)}
+                            onChange={() => toggleColumnSelection(mapping.target_field)}
+                          />
+                          <label htmlFor={`col-${mapping.target_field}`}>{mapping.target_field}</label>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+
+                {/* Center Panel: Available DQ Rules */}
+                <div className="dq-panel-section">
+                  <div className="dq-panel-section-header">Available DQ Rules</div>
+                  <div className="dq-panel-section-content">
+                    {dqRulesLoading ? (
+                      <div className="dq-panel-loading">Loading rules...</div>
+                    ) : availableDqRules.length === 0 ? (
+                      <div className="dq-panel-empty">No DQ rules available. Create rules in the Quality Rules page.</div>
+                    ) : (
+                      availableDqRules.map(rule => (
+                        <div key={rule.id} className="dq-panel-item">
+                          <input
+                            type="checkbox"
+                            id={`rule-${rule.id}`}
+                            checked={selectedRules.has(rule.id)}
+                            onChange={() => toggleRuleSelection(rule.id)}
+                          />
+                          <label htmlFor={`rule-${rule.id}`}>
+                            <span className="dq-rule-name">{rule.rule_name}</span>
+                            <span className="dq-rule-type">({rule.rule_type})</span>
+                          </label>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                  <div className="dq-panel-section-actions">
+                    <button 
+                      className="btn btn-primary btn-sm"
+                      onClick={handleAddDqAssignments}
+                      disabled={selectedColumns.size === 0 || selectedRules.size === 0}
+                      style={{ fontSize: '10px', fontFamily: 'Inter' }}
+                    >
+                      <FiPlus /> Add Assignment
+                    </button>
+                  </div>
+                </div>
+
+                {/* Right Panel: Current Assignments */}
+                <div className="dq-panel-section">
+                  <div className="dq-panel-section-header">Current Assignments</div>
+                  <div className="dq-panel-section-content">
+                    {Object.keys(dqRuleAssignments).length === 0 ? (
+                      <div className="dq-panel-empty">No DQ rules assigned yet. Select columns and rules, then click Add.</div>
+                    ) : (
+                      Object.entries(dqRuleAssignments).map(([columnName, ruleIds]) => (
+                        <div key={columnName} className="dq-assignment-group">
+                          <div className="dq-assignment-column">{columnName}</div>
+                          <div className="dq-assignment-rules">
+                            {ruleIds.map(ruleId => (
+                              <div key={ruleId} className="dq-assignment-rule">
+                                <span>{getRuleName(ruleId)}</span>
+                                <button 
+                                  className="btn-icon-tiny"
+                                  onClick={() => handleRemoveDqAssignment(columnName, ruleId)}
+                                  title="Remove this rule"
+                                >
+                                  <FiX size={10} />
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-secondary" onClick={() => setShowDqRulePanel(false)}>
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="mapping-summary">
         <p>{mappings.length} field(s) mapped</p>
         {variables.length > 0 && <p>{variables.length} variable(s) defined</p>}
+        {Object.keys(dqRuleAssignments).length > 0 && <p>{Object.keys(dqRuleAssignments).length} column(s) with DQ rules</p>}
       </div>
     </div>
   );
