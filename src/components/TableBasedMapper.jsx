@@ -967,7 +967,7 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
       <div className="mapper-header">
         <h3>Field Mapping Parameter Details</h3>
         <div className="mapper-actions">
-          <button className="btn btn-secondary btn-xs" onClick={handleClearMapping} style={{ fontSize: '10px', fontFamily: 'Inter', padding: '0.125rem 0.25rem' }}>
+          <button className="btn btn-primary btn-xs" onClick={handleClearMapping} style={{ fontSize: '10px', fontFamily: 'Inter', padding: '0.125rem 0.25rem' }}>
             Clear Mapping
           </button>
           <button className="btn btn-primary btn-xs" onClick={handleAutomap} style={{ fontSize: '10px', fontFamily: 'Inter', padding: '0.125rem 0.25rem' }}>
