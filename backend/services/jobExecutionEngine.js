@@ -186,6 +186,34 @@ async function getFixedWidthSchemaFromAgreement(pool, vendorAgreementId, filenam
       }
     }
     
+    // Fallback: Use schema column if header_definition is empty/null
+    // The schema column contains the column definitions with width and start_position
+    if (!headerDef || (Array.isArray(headerDef) && headerDef.length === 0)) {
+      let schemaDef = matchedSchema.schema;
+      if (typeof schemaDef === 'string') {
+        try {
+          schemaDef = JSON.parse(schemaDef);
+        } catch (e) {
+          schemaDef = null;
+        }
+      }
+      // Use schema as header definition if it has column definitions with width/start_position
+      if (Array.isArray(schemaDef) && schemaDef.length > 0) {
+        // Check if schema contains fixed-width column definitions
+        const hasFixedWidthInfo = schemaDef.some(col => 
+          col.width !== undefined || col.start_position !== undefined
+        );
+        if (hasFixedWidthInfo) {
+          headerDef = schemaDef;
+          systemLogger.info('Using schema column as header definition for fixed-width file', {
+            vendorAgreementId,
+            filename,
+            columnCount: schemaDef.length
+          });
+        }
+      }
+    }
+    
     return {
       schemaId: matchedSchema.id,
       fileType: matchedSchema.file_type,
