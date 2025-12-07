@@ -564,7 +564,15 @@ const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
                 <label>Select File from Agreement</label>
                 <select
                   value={selectedFileId}
-                  onChange={(e) => setSelectedFileId(e.target.value)}
+                  onChange={(e) => {
+                    const newFileId = e.target.value;
+                    setSelectedFileId(newFileId);
+                    // Reset saved pattern flag when user explicitly selects a different file
+                    // This allows filePattern to update to the newly selected file
+                    if (newFileId) {
+                      hasSavedFilePatternRef.current = false;
+                    }
+                  }}
                   className="vm-select"
                 >
                   <option value="">Select File</option>
