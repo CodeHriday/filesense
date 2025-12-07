@@ -4,6 +4,126 @@ const pool = require('../db');
 const { systemLogger } = require('../utils/logger');
 const visualMappingCompiler = require('../services/visualMappingCompiler');
 const { v4: uuidv4 } = require('uuid');
+const EmailProviderFactory = require('../services/email/EmailProviderFactory');
+const emailComposer = require('../services/EmailComposer');
+
+/**
+ * Send email notification for visual mapping execution
+ * @param {Object} mapping - Visual mapping with notification_settings
+ * @param {Object} jobResult - Execution result { status, jobId, message, rowsWritten, etc }
+ * @param {string} executionId - Execution ID for tracking
+ */
+async function sendVisualMappingNotification(mapping, jobResult, executionId) {
+  try {
+    // Parse notification settings if needed
+    let notificationSettings = mapping.notification_settings;
+    if (typeof notificationSettings === 'string') {
+      notificationSettings = JSON.parse(notificationSettings);
+    }
+    
+    // Check if notifications are enabled
+    if (!notificationSettings?.enabled) {
+      return;
+    }
+    
+    const isSuccess = jobResult.status === 'completed';
+    const shouldNotify = (isSuccess && notificationSettings.notifyOnSuccess) || 
+                         (!isSuccess && notificationSettings.notifyOnFailure);
+    
+    if (!shouldNotify) {
+      systemLogger.debug('Skipping notification - condition not met', {
+        isSuccess,
+        notifyOnSuccess: notificationSettings.notifyOnSuccess,
+        notifyOnFailure: notificationSettings.notifyOnFailure
+      });
+      return;
+    }
+    
+    // Get email connection details
+    const emailConnectionId = notificationSettings.emailConnectionId;
+    if (!emailConnectionId) {
+      systemLogger.warn('No email connection configured for visual mapping notification', {
+        mappingId: mapping.id
+      });
+      return;
+    }
+    
+    // Fetch email connection from database
+    const connectionResult = await pool.query(
+      `SELECT * FROM email_connections WHERE id = $1`,
+      [emailConnectionId]
+    );
+    
+    if (connectionResult.rows.length === 0) {
+      systemLogger.error('Email connection not found for visual mapping notification', {
+        emailConnectionId,
+        mappingId: mapping.id
+      });
+      return;
+    }
+    
+    const emailConnection = connectionResult.rows[0];
+    
+    // Parse credentials
+    let credentials = emailConnection.credentials;
+    if (typeof credentials === 'string') {
+      credentials = JSON.parse(credentials);
+    }
+    
+    // Create email adapter
+    const adapter = EmailProviderFactory.createAdapter(emailConnection.provider_type, credentials);
+    
+    // Compose email using EmailComposer
+    const emailContent = await emailComposer.composeJobAlert({
+      job: {
+        name: mapping.name,
+        id: executionId,
+        project_name: mapping.project_name || 'Visual Mapping'
+      },
+      status: jobResult.status,
+      error: jobResult.message || jobResult.error_message,
+      duration: jobResult.duration || null,
+      recordsProcessed: jobResult.rowsWritten || 0,
+      qualityViolations: 0
+    });
+    
+    // Parse recipients
+    const recipients = notificationSettings.recipients
+      ? notificationSettings.recipients.split(',').map(r => r.trim()).filter(r => r)
+      : [];
+    
+    if (recipients.length === 0) {
+      systemLogger.warn('No recipients configured for visual mapping notification', {
+        mappingId: mapping.id
+      });
+      return;
+    }
+    
+    // Send email
+    const result = await adapter.send({
+      from: credentials.from_email || credentials.sender_email || 'noreply@filesense.app',
+      to: recipients,
+      subject: emailContent.subject,
+      html: emailContent.html,
+      text: emailContent.text
+    });
+    
+    systemLogger.info('Visual mapping notification sent', {
+      mappingId: mapping.id,
+      executionId,
+      status: jobResult.status,
+      recipients: recipients.length,
+      success: result.success
+    });
+    
+  } catch (error) {
+    systemLogger.error('Failed to send visual mapping notification', {
+      mappingId: mapping.id,
+      executionId,
+      error: error.message
+    });
+  }
+}
 
 /**
  * GET /api/visual-mappings
@@ -307,9 +427,12 @@ router.post('/:id/execute', async (req, res) => {
     
     console.log(`[VISUAL-MAPPING-EXECUTE] Starting execution for mapping ${id}`);
     
-    // Get the mapping
+    // Get the mapping with project name for notification emails
     const mappingResult = await pool.query(
-      'SELECT * FROM visual_mapping_defs WHERE id = $1 AND is_active = true',
+      `SELECT vm.*, p.name as project_name 
+       FROM visual_mapping_defs vm
+       LEFT JOIN projects p ON vm.project_id = p.id
+       WHERE vm.id = $1 AND vm.is_active = true`,
       [id]
     );
     
@@ -479,6 +602,13 @@ router.post('/:id/execute', async (req, res) => {
         executionId
       });
       
+      // Send email notification on success (non-blocking)
+      // Ensure status is set for notification logic
+      const successResult = { ...jobResult, status: 'completed' };
+      sendVisualMappingNotification(mapping, successResult, executionId).catch(err => {
+        systemLogger.error('Failed to send success notification', { error: err.message });
+      });
+      
       res.json({
         message: 'Visual mapping execution completed',
         execution_id: executionId,
@@ -500,6 +630,16 @@ router.post('/:id/execute', async (req, res) => {
         `DELETE FROM transformation_mappings WHERE mapping_id = $1 AND is_temporary = true`,
         [tempMappingId]
       );
+      
+      // Send email notification on failure (non-blocking)
+      sendVisualMappingNotification(mapping, { 
+        status: 'failed', 
+        message: execError.message,
+        jobId: null,
+        rowsWritten: 0 
+      }, executionId).catch(err => {
+        systemLogger.error('Failed to send failure notification', { error: err.message });
+      });
       
       throw execError;
     }
