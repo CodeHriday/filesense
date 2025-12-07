@@ -15,7 +15,7 @@ import ReactFlow, {
 import 'reactflow/dist/style.css';
 import './WorkflowBuilder.css';
 import axios from 'axios';
-import { FaSave, FaPlay, FaClock, FaPlus, FaTrash, FaSearch, FaTimes } from 'react-icons/fa';
+import { FaSave, FaPlay, FaClock, FaPlus, FaTrash, FaSearch, FaTimes, FaTerminal, FaChevronUp, FaChevronDown } from 'react-icons/fa';
 
 // Start node - decorative circle with output only
 const StartNode = ({ data }) => {
@@ -143,6 +143,25 @@ const WorkflowBuilderContent = () => {
   
   // Schedule modal
   const [showScheduleModal, setShowScheduleModal] = useState(false);
+  
+  // Execution console
+  const [showConsole, setShowConsole] = useState(false);
+  const [consoleLogs, setConsoleLogs] = useState([]);
+  const [isExecuting, setIsExecuting] = useState(false);
+  const consoleRef = useRef(null);
+  
+  // Helper to add log entry
+  const addConsoleLog = (message, level = 'info') => {
+    const timestamp = new Date().toLocaleTimeString();
+    setConsoleLogs(prev => [...prev, { timestamp, message, level }]);
+  };
+  
+  // Auto-scroll console to bottom when new logs arrive
+  useEffect(() => {
+    if (consoleRef.current) {
+      consoleRef.current.scrollTop = consoleRef.current.scrollHeight;
+    }
+  }, [consoleLogs]);
   
   // Wait for canvas container to be measured before allowing layout
   useEffect(() => {
@@ -476,7 +495,14 @@ const WorkflowBuilderContent = () => {
     
     try {
       setError(null);
-      setSuccess('Workflow execution started...');
+      setIsExecuting(true);
+      setShowConsole(true);
+      setConsoleLogs([]);
+      
+      addConsoleLog(`Starting workflow execution: ${workflowName}`, 'info');
+      addConsoleLog(`Workflow ID: ${workflowId}`, 'info');
+      addConsoleLog(`Total nodes: ${nodes.length}`, 'info');
+      addConsoleLog('-------------------------------------------', 'info');
       
       const token = localStorage.getItem('token');
       const response = await axios.post(`/api/visual-workflows/${workflowId}/execute`, {}, {
@@ -484,6 +510,23 @@ const WorkflowBuilderContent = () => {
       });
       
       const result = response.data;
+      
+      // Log execution results to console
+      if (result.summary?.nodeStatuses) {
+        Object.entries(result.summary.nodeStatuses).forEach(([nodeId, status]) => {
+          const node = nodes.find(n => n.id === nodeId);
+          const nodeName = node?.data?.label || nodeId;
+          if (status.skipped) {
+            addConsoleLog(`[SKIP] ${nodeName}: ${status.reason || 'Decorative node'}`, 'info');
+          } else if (status.success) {
+            addConsoleLog(`[SUCCESS] ${nodeName}: Execution completed`, 'success');
+          } else {
+            addConsoleLog(`[FAILED] ${nodeName}: ${status.error || 'Unknown error'}`, 'error');
+          }
+        });
+      }
+      
+      addConsoleLog('-------------------------------------------', 'info');
       
       // Store execution status for visual feedback
       setExecutionStatus(result.summary?.nodeStatuses || {});
@@ -499,7 +542,7 @@ const WorkflowBuilderContent = () => {
                 ...node,
                 data: {
                   ...node.data,
-                  executionStatus: nodeStatus.status,
+                  executionStatus: nodeStatus.skipped ? 'skipped' : nodeStatus.status,
                   executionError: nodeStatus.error
                 }
               };
@@ -510,15 +553,26 @@ const WorkflowBuilderContent = () => {
       }
       
       if (result.success) {
-        setSuccess(`Workflow executed successfully! ${result.summary.successCount}/${result.summary.totalNodes} nodes completed.`);
+        const msg = `Workflow executed successfully! ${result.summary.successCount}/${result.summary.totalNodes} nodes completed.`;
+        setSuccess(msg);
+        addConsoleLog(msg, 'success');
       } else {
-        setError(`Workflow execution completed with errors: ${result.summary.failedCount}/${result.summary.totalNodes} nodes failed.`);
+        const msg = `Workflow execution completed with errors: ${result.summary.failedCount}/${result.summary.totalNodes} nodes failed.`;
+        setError(msg);
+        addConsoleLog(msg, 'error');
       }
+      
+      addConsoleLog(`Execution ID: ${result.executionId}`, 'info');
+      addConsoleLog('Execution complete.', 'info');
       
       setTimeout(() => setSuccess(null), 5000);
     } catch (err) {
       console.error('Failed to execute workflow:', err);
-      setError(err.response?.data?.error || 'Failed to execute workflow');
+      const errorMsg = err.response?.data?.error || 'Failed to execute workflow';
+      setError(errorMsg);
+      addConsoleLog(`[ERROR] ${errorMsg}`, 'error');
+    } finally {
+      setIsExecuting(false);
     }
   };
   
@@ -897,9 +951,56 @@ const WorkflowBuilderContent = () => {
             ⚙️ Settings
           </button>
         )}
+      </div>
+      
+      {/* Execution Console Panel */}
+      <div className={`workflow-builder-console ${showConsole ? 'workflow-builder-console-open' : ''}`}>
+        <div 
+          className="workflow-builder-console-header"
+          onClick={() => setShowConsole(!showConsole)}
+        >
+          <div className="workflow-builder-console-title">
+            <FaTerminal />
+            <span>Execution Console</span>
+            {isExecuting && <span className="workflow-builder-console-executing">Running...</span>}
+          </div>
+          <div className="workflow-builder-console-actions">
+            <button 
+              className="workflow-builder-console-clear-btn"
+              onClick={(e) => {
+                e.stopPropagation();
+                setConsoleLogs([]);
+              }}
+              title="Clear console"
+            >
+              Clear
+            </button>
+            {showConsole ? <FaChevronDown /> : <FaChevronUp />}
+          </div>
+        </div>
+        {showConsole && (
+          <div className="workflow-builder-console-content" ref={consoleRef}>
+            {consoleLogs.length === 0 ? (
+              <div className="workflow-builder-console-empty">
+                No execution logs. Click Execute to run the workflow.
+              </div>
+            ) : (
+              consoleLogs.map((log, index) => (
+                <div 
+                  key={index} 
+                  className={`workflow-builder-console-line workflow-builder-console-${log.level}`}
+                >
+                  <span className="workflow-builder-console-timestamp">[{log.timestamp}]</span>
+                  <span className="workflow-builder-console-message">{log.message}</span>
+                </div>
+              ))
+            )}
+          </div>
+        )}
+      </div>
         
-        {/* Schedule Modal */}
-        {showScheduleModal && (
+      {/* Schedule Modal */}
+      {showScheduleModal && (
           <div className="workflow-builder-modal-overlay" onClick={() => setShowScheduleModal(false)}>
             <div className="workflow-builder-modal" onClick={(e) => e.stopPropagation()}>
               <div className="workflow-builder-modal-header">
@@ -950,7 +1051,6 @@ const WorkflowBuilderContent = () => {
             </div>
           </div>
         )}
-      </div>
     </div>
   );
 };

@@ -254,6 +254,24 @@ class VisualWorkflowExecutor {
     const assetId = data?.assetId;
     const assetType = data?.assetType || type; // Support both assetType and type fields
 
+    // Handle decorative Start/Stop nodes - they have no execution logic
+    if (assetType === 'start' || assetType === 'stop' || type === 'start' || type === 'stop') {
+      systemLogger.info('Skipping decorative node (no execution needed)', {
+        workflowId: this.workflowId,
+        nodeId: node.id,
+        type,
+        assetType,
+        label: data?.label
+      });
+      this.executionResults.set(node.id, {
+        success: true,
+        type: assetType || type,
+        skipped: true,
+        reason: 'Decorative node - no execution required'
+      });
+      return;
+    }
+
     if (!assetId) {
       const error = `Node ${node.id} missing asset ID`;
       systemLogger.error('Node validation failed', { 
@@ -342,13 +360,69 @@ class VisualWorkflowExecutor {
   }
 
   async executeMapping(mappingId) {
+    // First, try to find as a visual mapping (from visual_mapping_defs)
+    // These are the mappings shown in the workflow builder sidebar
+    const visualMappingResult = await pool.query(
+      'SELECT * FROM visual_mapping_defs WHERE id = $1 AND is_active = true',
+      [mappingId]
+    );
+
+    if (visualMappingResult.rows.length > 0) {
+      // It's a visual mapping - execute using the visual mapping execution flow
+      const visualMapping = visualMappingResult.rows[0];
+      
+      systemLogger.info('Executing visual mapping from workflow', {
+        workflowId: this.workflowId,
+        visualMappingId: mappingId,
+        visualMappingName: visualMapping.name
+      });
+      
+      // Import the visual mapping compiler and execute
+      const visualMappingCompiler = require('./visualMappingCompiler');
+      const { executeMapping } = require('./jobExecutionEngine');
+      
+      // Parse graph data if needed
+      let graphData = visualMapping.graph_data;
+      if (typeof graphData === 'string') {
+        graphData = JSON.parse(graphData);
+      }
+      visualMapping.graph_data = graphData;
+      
+      // Compile the visual mapping
+      const compilationResult = visualMappingCompiler.compile(visualMapping);
+      
+      if (!compilationResult.success) {
+        throw new Error(`Visual mapping compilation failed: ${compilationResult.errors?.join(', ') || 'Unknown error'}`);
+      }
+      
+      // Execute the compiled mapping
+      const executionResult = await executeMapping(
+        pool,
+        compilationResult,
+        this.userId,
+        {
+          visualWorkflowExecutionId: this.executionDbId,
+          workflowMappingId: mappingId
+        }
+      );
+      
+      return {
+        success: true,
+        type: 'visual_mapping',
+        assetId: mappingId,
+        assetName: visualMapping.name,
+        result: executionResult
+      };
+    }
+    
+    // Fall back to transformation_mappings table (legacy mappings)
     const mappingResult = await pool.query(
       'SELECT * FROM transformation_mappings WHERE mapping_id = $1',
       [mappingId]
     );
 
     if (mappingResult.rows.length === 0) {
-      throw new Error(`Mapping ${mappingId} not found`);
+      throw new Error(`Mapping ${mappingId} not found in visual_mapping_defs or transformation_mappings`);
     }
 
     const mapping = mappingResult.rows[0];
