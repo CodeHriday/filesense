@@ -307,10 +307,11 @@ const WorkflowBuilderContent = () => {
       // Determine node properties based on asset type
       let nodeId, nodeLabel, assetId, assetType;
       
-      if (assetData.assetType === 'mapping_job') {
-        nodeId = `job-${assetData.mapping_id}-${Date.now()}`;
-        nodeLabel = assetData.mapping_name;
-        assetId = assetData.mapping_id;
+      if (assetData.assetType === 'mapping_job' || assetData.assetType === 'visual_mapping') {
+        // Support both 'mapping_job' (legacy) and 'visual_mapping' (current sidebar) asset types
+        nodeId = `job-${assetData.mapping_id || assetData.id}-${Date.now()}`;
+        nodeLabel = assetData.mapping_name || assetData.name;
+        assetId = assetData.mapping_id || assetData.id;
         assetType = 'job'; // Use 'job' for backend executor compatibility
       } else if (assetData.assetType === 'job_group') {
         nodeId = `group-${assetData.id}-${Date.now()}`;
