@@ -436,8 +436,8 @@ const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
   const showSchemaTab = schema !== null;
   
   return (
-    <div className="vm-modal-overlay" onClick={onClose}>
-      <div className="vm-modal vm-modal-large" onClick={(e) => e.stopPropagation()}>
+    <div className="vm-modal-overlay">
+      <div className="vm-modal vm-modal-large">
         <div className="vm-modal-header">
           <h2>Source Configuration</h2>
           <button onClick={onClose} className="vm-modal-close">×</button>

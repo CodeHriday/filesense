@@ -112,8 +112,8 @@ const FileBrowserModal = ({ isOpen, onClose, onSelect, connectionId, connectionN
   if (!isOpen) return null;
   
   return (
-    <div className="vm-modal-overlay" onClick={onClose}>
-      <div className="vm-modal vm-modal-large vm-file-browser-modal" onClick={(e) => e.stopPropagation()}>
+    <div className="vm-modal-overlay">
+      <div className="vm-modal vm-modal-large vm-file-browser-modal">
         <div className="vm-modal-header">
           <h2>Browse Files - {connectionName}</h2>
           <button onClick={onClose} className="vm-modal-close">×</button>

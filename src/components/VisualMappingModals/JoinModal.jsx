@@ -228,8 +228,8 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
   if (!isOpen) return null;
 
   return (
-    <div className="vm-modal-overlay" onClick={onClose}>
-      <div className="vm-modal vm-modal-large" onClick={(e) => e.stopPropagation()}>
+    <div className="vm-modal-overlay">
+      <div className="vm-modal vm-modal-large">
         <div className="vm-modal-header">
           <h2>Join Configuration</h2>
           <button onClick={onClose} className="vm-modal-close">×</button>

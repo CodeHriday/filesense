@@ -346,8 +346,8 @@ const RdmLookupModal = ({ isOpen, onClose, onSave, initialConfig = {}, cumulativ
   if (!isOpen) return null;
   
   return (
-    <div className="vm-modal-overlay" onClick={onClose}>
-      <div className="vm-modal vm-modal-fullscreen" onClick={(e) => e.stopPropagation()}>
+    <div className="vm-modal-overlay">
+      <div className="vm-modal vm-modal-fullscreen">
         <div className="vm-modal-header">
           <h2>RDM Lookup Configuration</h2>
           <button onClick={onClose} className="vm-modal-close">×</button>

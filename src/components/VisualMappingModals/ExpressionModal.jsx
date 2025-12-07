@@ -36,8 +36,8 @@ const ExpressionModal = ({ isOpen, onClose, onSave, initialConfig = {}, schema =
   if (!isOpen) return null;
   
   return (
-    <div className="vm-modal-overlay" onClick={onClose}>
-      <div className="vm-modal vm-modal-fullscreen" onClick={(e) => e.stopPropagation()}>
+    <div className="vm-modal-overlay">
+      <div className="vm-modal vm-modal-fullscreen">
         <div className="vm-modal-header">
           <h2>Expression Configuration</h2>
           <button onClick={onClose} className="vm-modal-close">×</button>
