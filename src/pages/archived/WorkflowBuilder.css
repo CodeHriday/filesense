@@ -112,7 +112,7 @@
 
 /* Asset Palette */
 .workflow-builder-palette {
-  width: 280px;
+  width: 224px;
   background: white;
   border-right: 1px solid #e0e0e0;
   display: flex;
@@ -289,7 +289,7 @@
 
 /* Configuration Panel */
 .workflow-builder-config {
-  width: 300px;
+  width: 240px;
   background: white;
   border-left: 1px solid #e0e0e0;
   display: flex;
