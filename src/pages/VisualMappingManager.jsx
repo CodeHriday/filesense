@@ -4,15 +4,14 @@ import axios from 'axios';
 import './VisualMappingManager.css';
 import { 
   FaPlus, 
-  FaEdit, 
-  FaTrash, 
-  FaPlay, 
   FaClock, 
   FaSearch,
   FaFilter,
   FaHistory,
-  FaCopy
+  FaCopy,
+  FaPlayCircle
 } from 'react-icons/fa';
+import { FiEdit2, FiTrash2 } from 'react-icons/fi';
 
 const VisualMappingManager = () => {
   const navigate = useNavigate();
