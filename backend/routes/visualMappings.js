@@ -690,9 +690,10 @@ router.post('/:id/execute', async (req, res) => {
         rdm_lookup_enabled, rdm_dataset_config, rdm_crosswalk_config,
         schema_drift_handling, violation_handling,
         created_by, is_visual_mapping, visual_mapping_id, is_temporary,
-        vendor_agreement_id
+        vendor_agreement_id,
+        source_catalog, join_specs, has_multi_source_join, primary_source_node_id
       ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, true, $22, true, $23
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, true, $22, true, $23, $24, $25, $26, $27
       ) RETURNING id`,
       [
         tempMappingId,
@@ -717,13 +718,23 @@ router.post('/:id/execute', async (req, res) => {
         transformationMapping.violation_handling || 'continue',
         req.user.id,
         id,
-        vendorAgreementId
+        vendorAgreementId,
+        JSON.stringify(transformationMapping.source_catalog || []),
+        JSON.stringify(transformationMapping.join_specs || []),
+        transformationMapping.has_multi_source_join || false,
+        transformationMapping.primary_source_node_id || null
       ]
     );
     
     const transformationDbId = transformResult.rows[0].id;
     
     console.log(`[VISUAL-MAPPING-EXECUTE] Temp mapping created: ${tempMappingId}, DB ID: ${transformationDbId}, rdmLookupEnabled: ${rdmLookupEnabled}`);
+    console.log(`[VISUAL-MAPPING-EXECUTE] Multi-source join config:`, {
+      has_multi_source_join: transformationMapping.has_multi_source_join,
+      source_catalog_length: transformationMapping.source_catalog?.length || 0,
+      join_specs_length: transformationMapping.join_specs?.length || 0,
+      primary_source_node_id: transformationMapping.primary_source_node_id
+    });
     
     // Use jobExecutionEngine to execute with transformation_mappings table (uses mapping_id string, not numeric id)
     const { executeTransformationJob } = require('../services/jobExecutionEngine');
