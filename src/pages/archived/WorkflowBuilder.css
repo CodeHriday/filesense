@@ -646,3 +646,83 @@
   min-width: 140px;
   justify-content: center;
 }
+
+/* Start Node - Decorative circle */
+.workflow-start-node {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+  border: 3px solid #15803d;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3);
+  font-family: 'Inter', sans-serif;
+  position: relative;
+}
+
+.workflow-start-node-label {
+  color: white;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.workflow-start-node-handle {
+  width: 10px;
+  height: 10px;
+  background: #15803d;
+  border: 2px solid white;
+}
+
+/* Stop Node - Decorative circle */
+.workflow-stop-node {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  border: 3px solid #b91c1c;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+  font-family: 'Inter', sans-serif;
+  position: relative;
+}
+
+.workflow-stop-node-label {
+  color: white;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.workflow-stop-node-handle {
+  width: 10px;
+  height: 10px;
+  background: #b91c1c;
+  border: 2px solid white;
+}
+
+/* Control node palette items */
+.workflow-builder-palette-control-start,
+.workflow-builder-palette-control-stop {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.workflow-builder-palette-control-icon {
+  font-size: 16px;
+}
+
+.workflow-builder-palette-start-icon {
+  color: #22c55e;
+}
+
+.workflow-builder-palette-stop-icon {
+  color: #ef4444;
+}

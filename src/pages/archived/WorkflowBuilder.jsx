@@ -17,6 +17,36 @@ import './WorkflowBuilder.css';
 import axios from 'axios';
 import { FaSave, FaPlay, FaClock, FaPlus, FaTrash, FaSearch, FaTimes } from 'react-icons/fa';
 
+// Start node - decorative circle with output only
+const StartNode = ({ data }) => {
+  return (
+    <div className="workflow-start-node">
+      <span className="workflow-start-node-label">Start</span>
+      <Handle 
+        type="source" 
+        position={Position.Right} 
+        id="output"
+        className="workflow-start-node-handle"
+      />
+    </div>
+  );
+};
+
+// Stop node - decorative circle with input only
+const StopNode = ({ data }) => {
+  return (
+    <div className="workflow-stop-node">
+      <Handle 
+        type="target" 
+        position={Position.Left} 
+        id="input"
+        className="workflow-stop-node-handle"
+      />
+      <span className="workflow-stop-node-label">Stop</span>
+    </div>
+  );
+};
+
 // Custom node component for ETL mapping jobs
 const JobNode = ({ data }) => {
   // Determine node class based on execution status
@@ -66,7 +96,9 @@ const JobNode = ({ data }) => {
 };
 
 const nodeTypes = {
-  job: JobNode
+  job: JobNode,
+  start: StartNode,
+  stop: StopNode
 };
 
 const WorkflowBuilderContent = () => {
@@ -305,7 +337,7 @@ const WorkflowBuilderContent = () => {
       });
       
       // Determine node properties based on asset type
-      let nodeId, nodeLabel, assetId, assetType;
+      let nodeId, nodeLabel, assetId, assetType, nodeType;
       
       if (assetData.assetType === 'mapping_job' || assetData.assetType === 'visual_mapping') {
         // Support both 'mapping_job' (legacy) and 'visual_mapping' (current sidebar) asset types
@@ -313,23 +345,40 @@ const WorkflowBuilderContent = () => {
         nodeLabel = assetData.mapping_name || assetData.name;
         assetId = assetData.mapping_id || assetData.id;
         assetType = 'job'; // Use 'job' for backend executor compatibility
+        nodeType = 'job';
       } else if (assetData.assetType === 'job_group') {
         nodeId = `group-${assetData.id}-${Date.now()}`;
         nodeLabel = assetData.name;
         assetId = assetData.id;
         assetType = 'mapping_group'; // Use 'mapping_group' for backend executor compatibility
+        nodeType = 'job';
       } else if (assetData.assetType === 'workflow') {
         nodeId = `workflow-${assetData.id}-${Date.now()}`;
         nodeLabel = assetData.name;
         assetId = assetData.id;
         assetType = 'workflow';
+        nodeType = 'job';
+      } else if (assetData.assetType === 'start') {
+        // Decorative start node - no execution logic
+        nodeId = `start-${Date.now()}`;
+        nodeLabel = 'Start';
+        assetId = null;
+        assetType = 'start';
+        nodeType = 'start';
+      } else if (assetData.assetType === 'stop') {
+        // Decorative stop node - no execution logic
+        nodeId = `stop-${Date.now()}`;
+        nodeLabel = 'Stop';
+        assetId = null;
+        assetType = 'stop';
+        nodeType = 'stop';
       } else {
         return; // Unknown asset type
       }
       
       const newNode = {
         id: nodeId,
-        type: 'job',
+        type: nodeType,
         position,
         data: {
           label: nodeLabel,
@@ -680,6 +729,34 @@ const WorkflowBuilderContent = () => {
                     )}
                   </div>
                 )}
+              </div>
+              
+              {/* Section 4: Control Nodes */}
+              <div className="workflow-builder-palette-section">
+                <div className="workflow-builder-palette-section-header">
+                  <span className="workflow-builder-palette-section-toggle">▼</span>
+                  <span className="workflow-builder-palette-section-title">
+                    CONTROL NODES
+                  </span>
+                </div>
+                <div className="workflow-builder-palette-section-items">
+                  <div
+                    className="workflow-builder-palette-item workflow-builder-palette-control-start"
+                    draggable
+                    onDragStart={(e) => onDragStart(e, { assetType: 'start' })}
+                  >
+                    <span className="workflow-builder-palette-control-icon workflow-builder-palette-start-icon">●</span>
+                    Start Node
+                  </div>
+                  <div
+                    className="workflow-builder-palette-item workflow-builder-palette-control-stop"
+                    draggable
+                    onDragStart={(e) => onDragStart(e, { assetType: 'stop' })}
+                  >
+                    <span className="workflow-builder-palette-control-icon workflow-builder-palette-stop-icon">●</span>
+                    Stop Node
+                  </div>
+                </div>
               </div>
             </div>
           </div>
