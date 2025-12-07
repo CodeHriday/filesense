@@ -149,7 +149,7 @@ export const APP_FEATURES = [
   { 
     id: 'mapping_group', 
     name: 'Mapping Job Groups', 
-    category: 'Job Design', 
+    category: 'Archived', 
     supportsExecute: true,
     icon: FiLayers,
     route: '/mapping-groups',
