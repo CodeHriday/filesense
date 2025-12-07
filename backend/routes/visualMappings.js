@@ -48,9 +48,9 @@ async function sendVisualMappingNotification(mapping, jobResult, executionId) {
       return;
     }
     
-    // Fetch email connection from database
+    // Fetch email connection from storage_connections table (email connections are stored there)
     const connectionResult = await pool.query(
-      `SELECT * FROM email_connections WHERE id = $1`,
+      `SELECT connection_id, type, name, config, status FROM storage_connections WHERE connection_id = $1`,
       [emailConnectionId]
     );
     
@@ -64,14 +64,31 @@ async function sendVisualMappingNotification(mapping, jobResult, executionId) {
     
     const emailConnection = connectionResult.rows[0];
     
-    // Parse credentials
-    let credentials = emailConnection.credentials;
-    if (typeof credentials === 'string') {
-      credentials = JSON.parse(credentials);
+    // Check if connection is active
+    if (emailConnection.status !== 'active') {
+      systemLogger.warn('Email connection is not active for visual mapping notification', {
+        emailConnectionId,
+        status: emailConnection.status,
+        mappingId: mapping.id
+      });
+      return;
     }
     
-    // Create email adapter
-    const adapter = EmailProviderFactory.createAdapter(emailConnection.provider_type, credentials);
+    // Parse config (credentials are stored in config column)
+    let config = emailConnection.config;
+    if (typeof config === 'string') {
+      config = JSON.parse(config);
+    }
+    
+    systemLogger.debug('Sending visual mapping notification', {
+      mappingId: mapping.id,
+      emailConnectionId,
+      providerType: emailConnection.type,
+      recipientCount: notificationSettings.recipients?.split(',').length || 0
+    });
+    
+    // Create email adapter using the connection type and config
+    const adapter = EmailProviderFactory.createAdapter(emailConnection.type, config);
     
     // Compose email using EmailComposer
     const emailContent = await emailComposer.composeJobAlert({
@@ -99,9 +116,10 @@ async function sendVisualMappingNotification(mapping, jobResult, executionId) {
       return;
     }
     
-    // Send email
+    // Send email (config may have 'from', 'from_email', or 'sender_email' depending on provider)
+    const fromEmail = config.from || config.from_email || config.sender_email || 'noreply@filesense.app';
     const result = await adapter.send({
-      from: credentials.from_email || credentials.sender_email || 'noreply@filesense.app',
+      from: fromEmail,
       to: recipients,
       subject: emailContent.subject,
       html: emailContent.html,
