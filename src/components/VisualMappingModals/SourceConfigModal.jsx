@@ -383,6 +383,12 @@ const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
     const selectedOwner = datastewards.find(ds => String(ds.id) === String(sourceFileOwnerId));
     const selectedFile = agreementFiles.find(f => String(f.id) === selectedFileId);
     
+    // Derive filePattern from selected agreement file if available, otherwise use state
+    // This ensures we always use the correct pattern even if state update hasn't propagated
+    const effectiveFilePattern = (selectedFile && selectedFile.file_name) 
+      ? selectedFile.file_name 
+      : filePattern;
+    
     const config = {
       name,
       description,
@@ -390,7 +396,7 @@ const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
       connectionName: selectedConnection?.name || '',
       connectionType: selectedConnection?.connection_type || selectedConnection?.type || '',
       filePath,
-      filePattern,
+      filePattern: effectiveFilePattern,
       vendorAgreementId,
       vendorAgreementName: selectedAgreement?.agreement_name || selectedAgreement?.agreement_code || '',
       sourceFileOwnerId,
