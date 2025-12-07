@@ -1791,7 +1791,11 @@ const VisualMappingCanvasContent = () => {
               if (!node) return [];
               const config = node.data?.config || {};
               if (node.type === 'sourceConfig' && config.schema) {
-                return config.schema.map(col => ({ name: col.name || col, type: col.type || 'STRING' }));
+                return config.schema.map(col => {
+                  const colName = typeof col === 'string' ? col : (col.name || col.column_name || '');
+                  const colType = (typeof col === 'object' && col !== null) ? (col.type || col.data_type || 'STRING') : 'STRING';
+                  return { name: colName, type: colType };
+                });
               }
               if (node.type === 'expression' && config.fieldMappings) {
                 return config.fieldMappings.map(m => ({ name: m.targetField, type: 'STRING' }));
@@ -1836,7 +1840,11 @@ const VisualMappingCanvasContent = () => {
               if (!node) return [];
               const config = node.data?.config || {};
               if (node.type === 'sourceConfig' && config.schema) {
-                return config.schema.map(col => ({ name: col.name || col, type: col.type || 'STRING' }));
+                return config.schema.map(col => {
+                  const colName = typeof col === 'string' ? col : (col.name || col.column_name || '');
+                  const colType = (typeof col === 'object' && col !== null) ? (col.type || col.data_type || 'STRING') : 'STRING';
+                  return { name: colName, type: colType };
+                });
               }
               if (node.type === 'expression' && config.fieldMappings) {
                 return config.fieldMappings.map(m => ({ name: m.targetField, type: 'STRING' }));
