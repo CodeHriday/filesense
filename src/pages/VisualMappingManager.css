@@ -264,42 +264,90 @@
   color: #033830;
 }
 
-/* Actions */
+/* Actions - Standardized icon buttons matching global application style */
 .visual-mapping-manager-actions {
   display: flex;
-  gap: 6px;
+  gap: 4px;
   justify-content: flex-start;
 }
 
 .visual-mapping-manager-action-btn {
-  background: none;
-  border: 1px solid #cbd5e0;
-  color: #025043;
-  padding: 4px 8px;
-  border-radius: 4px;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  padding: 6px;
   cursor: pointer;
-  font-size: 12px;
-  transition: all 0.2s;
-  display: flex;
+  transition: all 0.2s ease;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
+  color: #6c757d;
+}
+
+.visual-mapping-manager-action-btn svg {
+  width: 14px;
+  height: 14px;
 }
 
 .visual-mapping-manager-action-btn:hover {
-  background: #025043;
-  color: white;
-  border-color: #025043;
+  background-color: rgba(0, 0, 0, 0.04);
+  transform: translateY(-1px);
 }
 
+/* Edit button - blue */
+.visual-mapping-manager-action-btn-edit {
+  color: #1a73e8;
+}
+
+.visual-mapping-manager-action-btn-edit:hover {
+  background-color: #e8f0fe;
+}
+
+/* Run/Play button - green */
+.visual-mapping-manager-action-btn-run {
+  color: #137333;
+}
+
+.visual-mapping-manager-action-btn-run:hover {
+  background-color: #e6f4ea;
+}
+
+/* History button - gray */
+.visual-mapping-manager-action-btn-history {
+  color: #6c757d;
+}
+
+.visual-mapping-manager-action-btn-history:hover {
+  background-color: #e9ecef;
+}
+
+/* Clone button - teal */
+.visual-mapping-manager-action-btn-clone {
+  color: #025043;
+}
+
+.visual-mapping-manager-action-btn-clone:hover {
+  background-color: #e0f2ef;
+}
+
+/* Delete button - red */
 .visual-mapping-manager-action-btn-danger {
-  color: #e53e3e;
-  border-color: #e53e3e;
+  color: #d93025;
 }
 
 .visual-mapping-manager-action-btn-danger:hover {
-  background: #e53e3e;
-  color: white;
-  border-color: #e53e3e;
+  background-color: #fce8e6;
+}
+
+.visual-mapping-manager-action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  color: #9ca3af !important;
+}
+
+.visual-mapping-manager-action-btn:disabled:hover {
+  background-color: transparent !important;
+  transform: none !important;
 }
 
 /* Modal */

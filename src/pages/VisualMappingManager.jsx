@@ -385,28 +385,28 @@ const VisualMappingManager = () => {
                     <td className="visual-mapping-manager-actions">
                       <button
                         onClick={() => handleEdit(mapping.id)}
-                        className="visual-mapping-manager-action-btn"
+                        className="visual-mapping-manager-action-btn visual-mapping-manager-action-btn-edit"
                         title="Edit"
                       >
                         <FaEdit />
                       </button>
                       <button
                         onClick={() => handleExecute(mapping.id)}
-                        className="visual-mapping-manager-action-btn"
+                        className="visual-mapping-manager-action-btn visual-mapping-manager-action-btn-run"
                         title="Run"
                       >
                         <FaPlay />
                       </button>
                       <button
                         onClick={() => handleShowHistory(mapping.id)}
-                        className="visual-mapping-manager-action-btn"
+                        className="visual-mapping-manager-action-btn visual-mapping-manager-action-btn-history"
                         title="Execution History"
                       >
                         <FaHistory />
                       </button>
                       <button
                         onClick={() => handleClone(mapping.id, mapping.name)}
-                        className="visual-mapping-manager-action-btn"
+                        className="visual-mapping-manager-action-btn visual-mapping-manager-action-btn-clone"
                         title="Clone"
                       >
                         <FaCopy />
