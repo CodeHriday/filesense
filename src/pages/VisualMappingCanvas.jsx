@@ -418,15 +418,39 @@ const VisualMappingCanvasContent = () => {
     }
     
     // Validate target node input limit
-    // All nodes can only have 1 incoming connection (except source nodes which have 0)
+    // All nodes can only have 1 incoming connection (except source nodes which have 0, and join nodes which have 2)
     if (targetType === 'sourceConfig') {
       return { valid: false, reason: 'Source nodes cannot have incoming connections' };
     }
     
-    if (targetIncomingCount >= 1) {
+    // Special handling for Join nodes - they accept exactly 2 inputs (leftInput and rightInput handles)
+    if (targetType === 'join') {
+      const targetHandle = connection.targetHandle;
+      
+      // Check if this specific handle already has a connection
+      const handleAlreadyConnected = currentEdges.some(
+        e => e.target === target && e.targetHandle === targetHandle
+      );
+      
+      if (handleAlreadyConnected) {
+        const handleLabel = targetHandle === 'leftInput' ? 'Left input' : 'Right input';
+        return { 
+          valid: false, 
+          reason: `${handleLabel} of Join node already has a connection` 
+        };
+      }
+      
+      // Join node can have at most 2 incoming connections total
+      if (targetIncomingCount >= 2) {
+        return { 
+          valid: false, 
+          reason: 'Join node already has both inputs connected' 
+        };
+      }
+    } else if (targetIncomingCount >= 1) {
       return { 
         valid: false, 
-        reason: `${targetType === 'targetRules' ? 'Target' : targetType === 'expression' ? 'Expression' : targetType === 'rdmLookup' ? 'RDM Lookup' : targetType === 'join' ? 'Join' : 'This'} node already has an incoming connection` 
+        reason: `${targetType === 'targetRules' ? 'Target' : targetType === 'expression' ? 'Expression' : targetType === 'rdmLookup' ? 'RDM Lookup' : 'This'} node already has an incoming connection` 
       };
     }
     
