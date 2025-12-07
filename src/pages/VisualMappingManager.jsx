@@ -8,10 +8,9 @@ import {
   FaSearch,
   FaFilter,
   FaHistory,
-  FaCopy,
-  FaPlayCircle
+  FaCopy
 } from 'react-icons/fa';
-import { FiEdit2, FiTrash2 } from 'react-icons/fi';
+import { FiEdit2, FiTrash2, FiPlay } from 'react-icons/fi';
 
 const VisualMappingManager = () => {
   const navigate = useNavigate();
@@ -314,7 +313,7 @@ const VisualMappingManager = () => {
               {selectedMappings.size} selected
             </span>
             <button onClick={handleBulkExecute} className="visual-mapping-manager-bulk-btn">
-              <FaPlayCircle /> Run Selected
+              <FiPlay /> Run Selected
             </button>
             <button onClick={handleBulkDelete} className="visual-mapping-manager-bulk-btn visual-mapping-manager-bulk-btn-danger">
               <FiTrash2 /> Delete Selected
@@ -394,7 +393,7 @@ const VisualMappingManager = () => {
                         className="visual-mapping-manager-action-btn visual-mapping-manager-action-btn-run"
                         title="Run"
                       >
-                        <FaPlayCircle />
+                        <FiPlay />
                       </button>
                       <button
                         onClick={() => handleShowHistory(mapping.id)}
