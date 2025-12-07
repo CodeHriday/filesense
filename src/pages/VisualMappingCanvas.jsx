@@ -1331,18 +1331,18 @@ const VisualMappingCanvasContent = () => {
       
       {/* Close Confirmation Modal */}
       {showCloseConfirm && (
-        <div className="visual-mapping-modal-overlay" onClick={(e) => e.stopPropagation()}>
-          <div className="visual-mapping-modal visual-mapping-modal-sm">
-            <div className="visual-mapping-modal-header">
-              <h3>Unsaved Changes</h3>
-              <button className="visual-mapping-modal-close" onClick={() => setShowCloseConfirm(false)}>×</button>
+        <div className="vm-modal-overlay">
+          <div className="vm-modal" style={{ maxWidth: '450px' }}>
+            <div className="vm-modal-header">
+              <h2>Unsaved Changes</h2>
+              <button className="vm-modal-close" onClick={() => setShowCloseConfirm(false)}>×</button>
             </div>
-            <div className="visual-mapping-modal-body">
-              <p>You have unsaved changes. Do you want to save before closing?</p>
+            <div className="vm-modal-body">
+              <p style={{ fontFamily: 'Inter', fontSize: '12px', margin: 0 }}>You have unsaved changes. Do you want to save before closing?</p>
             </div>
-            <div className="visual-mapping-modal-footer">
+            <div className="vm-modal-footer">
               <button 
-                className="visual-mapping-toolbar-btn"
+                className="vm-btn vm-btn-secondary"
                 onClick={() => {
                   setShowCloseConfirm(false);
                   navigate('/visual-mappings/manage');
@@ -1351,7 +1351,7 @@ const VisualMappingCanvasContent = () => {
                 Discard Changes
               </button>
               <button 
-                className="visual-mapping-toolbar-btn visual-mapping-toolbar-btn-primary"
+                className="vm-btn vm-btn-primary"
                 onClick={async () => {
                   const saveResult = await saveMapping();
                   if (saveResult) {
