@@ -349,6 +349,7 @@ const VisualMappingCanvasContent = () => {
     resetExecution,
     clearLogs,
     loadLogs,
+    getCurrentLogs,
     isConnected,
     subscribeToExecution,
     generateExecutionId
@@ -1080,28 +1081,42 @@ const VisualMappingCanvasContent = () => {
       setIsExecuting(false);
       setSuccess('Execution completed successfully!');
       
-      // Save execution logs to database
-      if (executionLogs.length > 0) {
-        axios.post(`/api/visual-mappings/executions/${currentExecutionId}/logs`, {
-          logs: executionLogs
-        }).catch(err => console.error('Failed to save execution logs:', err));
-      }
+      // Save execution logs to database with a small delay to ensure all logs are captured
+      const saveLogsTimeout = setTimeout(() => {
+        const logs = getCurrentLogs();
+        if (logs.length > 0) {
+          axios.post(`/api/visual-mappings/executions/${currentExecutionId}/logs`, {
+            logs
+          }).then(() => {
+            console.log('Execution logs saved:', logs.length, 'entries');
+          }).catch(err => console.error('Failed to save execution logs:', err));
+        }
+      }, 500); // Small delay to ensure all WebSocket logs are received
       
       setTimeout(() => setCurrentExecutionId(null), 5000); // Clear execution ID after 5 seconds
+      
+      return () => clearTimeout(saveLogsTimeout);
     }
-  }, [executionComplete, executionError, currentExecutionId, executionLogs]);
+  }, [executionComplete, executionError, currentExecutionId, getCurrentLogs]);
   
   // Save logs on execution error as well
   useEffect(() => {
     if (executionError && currentExecutionId) {
-      // Save execution logs to database even on failure
-      if (executionLogs.length > 0) {
-        axios.post(`/api/visual-mappings/executions/${currentExecutionId}/logs`, {
-          logs: executionLogs
-        }).catch(err => console.error('Failed to save execution logs:', err));
-      }
+      // Save execution logs to database even on failure, with delay
+      const saveLogsTimeout = setTimeout(() => {
+        const logs = getCurrentLogs();
+        if (logs.length > 0) {
+          axios.post(`/api/visual-mappings/executions/${currentExecutionId}/logs`, {
+            logs
+          }).then(() => {
+            console.log('Execution logs saved on error:', logs.length, 'entries');
+          }).catch(err => console.error('Failed to save execution logs:', err));
+        }
+      }, 500);
+      
+      return () => clearTimeout(saveLogsTimeout);
     }
-  }, [executionError, currentExecutionId, executionLogs]);
+  }, [executionError, currentExecutionId, getCurrentLogs]);
   
   useEffect(() => {
     if (executionError) {

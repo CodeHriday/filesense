@@ -12,6 +12,7 @@ export const useVisualMappingExecution = () => {
   const [currentExecutionId, setCurrentExecutionId] = useState(null);
   const [executionLogs, setExecutionLogs] = useState([]);
   const socketRef = useRef(null);
+  const logsRef = useRef([]);
 
   // Initialize socket connection on mount
   useEffect(() => {
@@ -48,12 +49,17 @@ export const useVisualMappingExecution = () => {
       // Note: Do NOT set executionComplete here - let execution_complete event handle that
       if (data.status === 'failed') {
         const errorMessage = data.error || data.metadata?.error || `Node ${data.nodeId} failed`;
-        setExecutionLogs(prev => [...prev, {
+        const logEntry = {
           timestamp: data.timestamp || new Date().toISOString(),
           level: 'ERROR',
           message: errorMessage,
           nodeId: data.nodeId
-        }]);
+        };
+        setExecutionLogs(prev => {
+          const newLogs = [...prev, logEntry];
+          logsRef.current = newLogs;
+          return newLogs;
+        });
         setExecutionError(errorMessage);
       }
     });
@@ -89,12 +95,17 @@ export const useVisualMappingExecution = () => {
     // Listen for execution logs
     socketInstance.on('execution_log', (data) => {
       console.log('Execution log:', data);
-      setExecutionLogs(prev => [...prev, {
+      const logEntry = {
         timestamp: data.timestamp || new Date().toISOString(),
         level: data.level || 'INFO',
         message: data.message,
         details: data.details
-      }]);
+      };
+      setExecutionLogs(prev => {
+        const newLogs = [...prev, logEntry];
+        logsRef.current = newLogs;
+        return newLogs;
+      });
     });
 
     socketRef.current = socketInstance;
@@ -161,19 +172,27 @@ export const useVisualMappingExecution = () => {
     setExecutionComplete(false);
     setExecutionError(null);
     setExecutionLogs([]);
+    logsRef.current = [];
     unsubscribeFromExecution();
   }, [unsubscribeFromExecution]);
 
   // Clear logs separately
   const clearLogs = useCallback(() => {
     setExecutionLogs([]);
+    logsRef.current = [];
   }, []);
 
   // Load logs from previous executions
   const loadLogs = useCallback((logs) => {
     if (Array.isArray(logs)) {
       setExecutionLogs(logs);
+      logsRef.current = logs;
     }
+  }, []);
+
+  // Get current logs from ref (for use when saving to database)
+  const getCurrentLogs = useCallback(() => {
+    return logsRef.current;
   }, []);
 
   // Generate a UUID for execution ID
@@ -195,6 +214,7 @@ export const useVisualMappingExecution = () => {
     resetExecution,
     clearLogs,
     loadLogs,
+    getCurrentLogs,
     isConnected,
     subscribeToExecution,
     unsubscribeFromExecution,
