@@ -155,6 +155,9 @@ async function getFixedWidthSchemaFromAgreement(pool, vendorAgreementId, filenam
     }
     
     // Find matching schema by pattern
+    // Extract basename from filename (may include path like "fisher/dim_store.dat")
+    const basename = filename.includes('/') ? filename.split('/').pop() : filename;
+    
     let matchedSchema = null;
     for (const schema of result.rows) {
       const pattern = schema.file_name_pattern;
@@ -166,13 +169,47 @@ async function getFixedWidthSchemaFromAgreement(pool, vendorAgreementId, filenam
         .replace(/\?/g, '.');
       
       const regex = new RegExp(`^${regexPattern}$`, 'i');
-      if (regex.test(filename)) {
+      // Match against basename (e.g., "dim_store.dat") not full path
+      if (regex.test(basename)) {
         matchedSchema = schema;
+        systemLogger.info('Matched vendor agreement schema pattern', {
+          vendorAgreementId,
+          filename,
+          basename,
+          pattern,
+          schemaId: schema.id
+        });
         break;
       }
     }
     
     if (!matchedSchema) {
+      // No pattern match found, check if any schema's file_type matches the file extension
+      const fileExtension = basename.split('.').pop()?.toLowerCase();
+      for (const schema of result.rows) {
+        if (schema.file_type === fileExtension || 
+            (schema.file_type === 'dat' && fileExtension === 'dat') ||
+            (schema.file_type === 'fixed_width' && ['dat', 'txt'].includes(fileExtension))) {
+          matchedSchema = schema;
+          systemLogger.info('Matched vendor agreement schema by file type', {
+            vendorAgreementId,
+            filename,
+            basename,
+            fileType: schema.file_type,
+            schemaId: schema.id
+          });
+          break;
+        }
+      }
+    }
+    
+    if (!matchedSchema) {
+      systemLogger.warn('No matching schema pattern found, using first available', {
+        vendorAgreementId,
+        filename,
+        basename,
+        availablePatterns: result.rows.map(r => r.file_name_pattern)
+      });
       matchedSchema = result.rows[0];
     }
     
