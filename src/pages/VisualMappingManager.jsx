@@ -314,10 +314,10 @@ const VisualMappingManager = () => {
               {selectedMappings.size} selected
             </span>
             <button onClick={handleBulkExecute} className="visual-mapping-manager-bulk-btn">
-              <FaPlay /> Run Selected
+              <FaPlayCircle /> Run Selected
             </button>
             <button onClick={handleBulkDelete} className="visual-mapping-manager-bulk-btn visual-mapping-manager-bulk-btn-danger">
-              <FaTrash /> Delete Selected
+              <FiTrash2 /> Delete Selected
             </button>
           </div>
         )}
@@ -387,14 +387,14 @@ const VisualMappingManager = () => {
                         className="visual-mapping-manager-action-btn visual-mapping-manager-action-btn-edit"
                         title="Edit"
                       >
-                        <FaEdit />
+                        <FiEdit2 />
                       </button>
                       <button
                         onClick={() => handleExecute(mapping.id)}
                         className="visual-mapping-manager-action-btn visual-mapping-manager-action-btn-run"
                         title="Run"
                       >
-                        <FaPlay />
+                        <FaPlayCircle />
                       </button>
                       <button
                         onClick={() => handleShowHistory(mapping.id)}
@@ -415,7 +415,7 @@ const VisualMappingManager = () => {
                         className="visual-mapping-manager-action-btn visual-mapping-manager-action-btn-danger"
                         title="Delete"
                       >
-                        <FaTrash />
+                        <FiTrash2 />
                       </button>
                     </td>
                   </tr>
