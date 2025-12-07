@@ -10,9 +10,10 @@ export const useVisualMappingExecution = () => {
   const [executionError, setExecutionError] = useState(null);
   const [isConnected, setIsConnected] = useState(false);
   const [currentExecutionId, setCurrentExecutionId] = useState(null);
-  const [executionLogs, setExecutionLogs] = useState([]);
+  const [executionRuns, setExecutionRuns] = useState([]); // Array of run objects: {id, name, startedAt, logs[], status}
+  const [currentRunId, setCurrentRunId] = useState(null);
   const socketRef = useRef(null);
-  const logsRef = useRef([]);
+  const runsRef = useRef([]);
 
   // Initialize socket connection on mount
   useEffect(() => {
@@ -55,10 +56,20 @@ export const useVisualMappingExecution = () => {
           message: errorMessage,
           nodeId: data.nodeId
         };
-        setExecutionLogs(prev => {
-          const newLogs = [...prev, logEntry];
-          logsRef.current = newLogs;
-          return newLogs;
+        // Add log to current run (find by currentRunId, fallback to newest)
+        setExecutionRuns(prev => {
+          if (prev.length === 0) return prev;
+          // Find the run that's still active (running or just completed)
+          const runIndex = prev.findIndex(r => r.status === 'running') !== -1 
+            ? prev.findIndex(r => r.status === 'running') 
+            : 0; // Fallback to newest run for late-arriving logs
+          const updated = [...prev];
+          updated[runIndex] = {
+            ...updated[runIndex],
+            logs: [...updated[runIndex].logs, logEntry]
+          };
+          runsRef.current = updated;
+          return updated;
         });
         setExecutionError(errorMessage);
       }
@@ -101,10 +112,19 @@ export const useVisualMappingExecution = () => {
         message: data.message,
         details: data.details
       };
-      setExecutionLogs(prev => {
-        const newLogs = [...prev, logEntry];
-        logsRef.current = newLogs;
-        return newLogs;
+      // Add log to current run (find by running status, fallback to newest)
+      setExecutionRuns(prev => {
+        if (prev.length === 0) return prev;
+        const runIndex = prev.findIndex(r => r.status === 'running') !== -1 
+          ? prev.findIndex(r => r.status === 'running') 
+          : 0; // Fallback to newest run for late-arriving logs
+        const updated = [...prev];
+        updated[runIndex] = {
+          ...updated[runIndex],
+          logs: [...updated[runIndex].logs, logEntry]
+        };
+        runsRef.current = updated;
+        return updated;
       });
     });
 
@@ -171,28 +191,81 @@ export const useVisualMappingExecution = () => {
     setExecutionProgress(null);
     setExecutionComplete(false);
     setExecutionError(null);
-    setExecutionLogs([]);
-    logsRef.current = [];
+    // Don't clear runs, just reset the current execution state
     unsubscribeFromExecution();
   }, [unsubscribeFromExecution]);
 
-  // Clear logs separately
+  // Clear all runs
   const clearLogs = useCallback(() => {
-    setExecutionLogs([]);
-    logsRef.current = [];
+    setExecutionRuns([]);
+    runsRef.current = [];
   }, []);
 
-  // Load logs from previous executions
+  // Start a new execution run (keeps last 10 runs)
+  const startNewRun = useCallback((runName) => {
+    const runId = `run-${Date.now()}`;
+    const newRun = {
+      id: runId,
+      name: runName || 'Unnamed Mapping',
+      startedAt: new Date().toLocaleString(),
+      logs: [],
+      status: 'running'
+    };
+    setCurrentRunId(runId);
+    setExecutionRuns(prev => {
+      const updated = [newRun, ...prev];
+      const trimmed = updated.slice(0, 10); // Keep only last 10 runs
+      runsRef.current = trimmed;
+      return trimmed;
+    });
+    return runId;
+  }, []);
+
+  // Update current run status (find by running status, fallback to newest)
+  const updateRunStatus = useCallback((status) => {
+    setExecutionRuns(prev => {
+      if (prev.length === 0) return prev;
+      const runIndex = prev.findIndex(r => r.status === 'running') !== -1 
+        ? prev.findIndex(r => r.status === 'running') 
+        : 0; // Fallback to newest run
+      const updated = [...prev];
+      updated[runIndex] = { ...updated[runIndex], status };
+      runsRef.current = updated;
+      return updated;
+    });
+  }, []);
+
+  // Load logs from previous executions (for loading persisted runs)
+  // Adds loaded run to history without reordering, enforces 10-run cap
   const loadLogs = useCallback((logs) => {
-    if (Array.isArray(logs)) {
-      setExecutionLogs(logs);
-      logsRef.current = logs;
+    if (Array.isArray(logs) && logs.length > 0) {
+      // If loading flat logs, wrap them in a run for compatibility
+      const run = {
+        id: `loaded-${Date.now()}`,
+        name: 'Loaded Run',
+        startedAt: new Date().toLocaleString(),
+        logs: logs,
+        status: 'completed'
+      };
+      setExecutionRuns(prev => {
+        // Add loaded run to history, maintain chronological order (newest first)
+        const updated = [run, ...prev];
+        const trimmed = updated.slice(0, 10); // Enforce 10-run cap
+        runsRef.current = trimmed;
+        return trimmed;
+      });
     }
   }, []);
 
   // Get current logs from ref (for use when saving to database)
+  // Finds the most recently completed run's logs, or the running run's logs
   const getCurrentLogs = useCallback(() => {
-    return logsRef.current;
+    if (runsRef.current.length === 0) return [];
+    // First try to find a running run
+    const runningRun = runsRef.current.find(r => r.status === 'running');
+    if (runningRun) return runningRun.logs;
+    // Otherwise return the first run's logs (most recent completed)
+    return runsRef.current[0].logs;
   }, []);
 
   // Generate a UUID for execution ID
@@ -210,7 +283,9 @@ export const useVisualMappingExecution = () => {
     executionProgress,
     executionComplete,
     executionError,
-    executionLogs,
+    executionRuns,
+    startNewRun,
+    updateRunStatus,
     resetExecution,
     clearLogs,
     loadLogs,

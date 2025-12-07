@@ -1028,6 +1028,61 @@
   background: rgba(251, 211, 141, 0.1);
 }
 
+/* Execution Run Grouping */
+.visual-mapping-console-run {
+  margin-bottom: 8px;
+}
+
+.visual-mapping-console-run-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  background: #2a2a2a;
+  border-radius: 4px;
+  margin-bottom: 4px;
+  font-size: 11px;
+}
+
+.visual-mapping-console-run-running {
+  border-left: 3px solid #fbbf24;
+}
+
+.visual-mapping-console-run-success {
+  border-left: 3px solid #4ec9b0;
+}
+
+.visual-mapping-console-run-failed {
+  border-left: 3px solid #f14c4c;
+}
+
+.visual-mapping-console-run-indicator {
+  font-size: 12px;
+}
+
+.visual-mapping-console-run-name {
+  font-weight: 600;
+  color: #ddd;
+  flex: 1;
+}
+
+.visual-mapping-console-run-time {
+  color: #888;
+  font-size: 10px;
+}
+
+.visual-mapping-console-run-logs {
+  padding-left: 12px;
+  border-left: 1px solid #333;
+  margin-left: 8px;
+}
+
+.visual-mapping-console-run-separator {
+  height: 1px;
+  background: #333;
+  margin: 12px 0;
+}
+
 /* Adjust content area when console is visible */
 .visual-mapping-content.console-visible {
   height: calc(100% - 248px);

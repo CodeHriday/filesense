@@ -345,7 +345,9 @@ const VisualMappingCanvasContent = () => {
     executionProgress,
     executionComplete,
     executionError,
-    executionLogs,
+    executionRuns,
+    startNewRun,
+    updateRunStatus,
     resetExecution,
     clearLogs,
     loadLogs,
@@ -1074,6 +1076,9 @@ const VisualMappingCanvasContent = () => {
       setError(null);
       setSuccess(null); // Clear previous success message
       
+      // Start a new execution run (keeps last 10 runs)
+      startNewRun(mappingName || 'Unnamed Mapping');
+      
       // Generate execution ID and subscribe to WebSocket BEFORE starting execution
       const executionId = generateExecutionId();
       console.log('Generated execution ID:', executionId);
@@ -1102,6 +1107,7 @@ const VisualMappingCanvasContent = () => {
     if (executionComplete && !executionError && currentExecutionId) {
       setIsExecuting(false);
       setSuccess('Execution completed successfully!');
+      updateRunStatus('success');
       
       // Save execution logs to database with a small delay to ensure all logs are captured
       const saveLogsTimeout = setTimeout(() => {
@@ -1119,7 +1125,7 @@ const VisualMappingCanvasContent = () => {
       
       return () => clearTimeout(saveLogsTimeout);
     }
-  }, [executionComplete, executionError, currentExecutionId, getCurrentLogs]);
+  }, [executionComplete, executionError, currentExecutionId, getCurrentLogs, updateRunStatus]);
   
   // Save logs on execution error as well
   useEffect(() => {
@@ -1143,6 +1149,7 @@ const VisualMappingCanvasContent = () => {
   useEffect(() => {
     if (executionError) {
       setIsExecuting(false);
+      updateRunStatus('failed');
       // Handle both string and object error formats
       const errorMessage = typeof executionError === 'string' 
         ? executionError 
@@ -1150,7 +1157,7 @@ const VisualMappingCanvasContent = () => {
       setError(`Execution failed: ${errorMessage}`);
       setTimeout(() => setCurrentExecutionId(null), 5000);
     }
-  }, [executionError]);
+  }, [executionError, updateRunStatus]);
   
   // Auto-dismiss success message after 5 seconds
   useEffect(() => {
@@ -1258,16 +1265,16 @@ const VisualMappingCanvasContent = () => {
     setTimeout(() => setSuccess(null), 2000);
   }, [resetExecution, clearLogs, setNodes, setEdges]);
   
-  // Auto-scroll console to bottom when new logs arrive or console opens
+  // Auto-scroll console to top when new run starts or logs are added
   useEffect(() => {
-    if (consoleRef.current && showConsole) {
+    if (consoleRef.current && showConsole && executionRuns.length > 0) {
       requestAnimationFrame(() => {
         if (consoleRef.current) {
-          consoleRef.current.scrollTop = consoleRef.current.scrollHeight;
+          consoleRef.current.scrollTop = 0;
         }
       });
     }
-  }, [executionLogs, showConsole]);
+  }, [executionRuns, showConsole]);
   
   // Console panel resize handlers
   const handleConsoleResizeStart = useCallback((e) => {
@@ -1894,8 +1901,8 @@ const VisualMappingCanvasContent = () => {
             <div className="visual-mapping-console-title">
               <FaTerminal className="visual-mapping-console-icon" />
               <span>Execution Logs</span>
-              {executionLogs.length > 0 && (
-                <span className="visual-mapping-console-count">({executionLogs.length})</span>
+              {executionRuns.length > 0 && (
+                <span className="visual-mapping-console-count">({executionRuns.length} runs)</span>
               )}
             </div>
             <div className="visual-mapping-console-actions">
@@ -1916,28 +1923,44 @@ const VisualMappingCanvasContent = () => {
             </div>
           </div>
           <div className="visual-mapping-console-body" ref={consoleRef}>
-            {executionLogs.length === 0 ? (
+            {executionRuns.length === 0 ? (
               <div className="visual-mapping-console-empty">
                 No execution logs yet. Run the mapping to see logs here.
               </div>
             ) : (
-              executionLogs.map((log, index) => {
-                const timestamp = new Date(log.timestamp).toLocaleTimeString('en-US', {
-                  hour: '2-digit',
-                  minute: '2-digit',
-                  second: '2-digit',
-                  hour12: true
-                });
-                return (
-                  <div key={index} className={`visual-mapping-console-log log-${log.level.toLowerCase()}`}>
-                    <span className="visual-mapping-console-timestamp">[{timestamp}]</span>
-                    <span className={`visual-mapping-console-level level-${log.level.toLowerCase()}`}>
-                      [{log.level}]
+              executionRuns.map((run, runIndex) => (
+                <div key={run.id} className="visual-mapping-console-run">
+                  <div className={`visual-mapping-console-run-header visual-mapping-console-run-${run.status}`}>
+                    <span className="visual-mapping-console-run-indicator">
+                      {run.status === 'running' ? '⏳' : run.status === 'success' ? '✓' : '✗'}
                     </span>
-                    <span className="visual-mapping-console-message">{log.message}</span>
+                    <span className="visual-mapping-console-run-name">{run.name}</span>
+                    <span className="visual-mapping-console-run-time">{run.startedAt}</span>
                   </div>
-                );
-              })
+                  <div className="visual-mapping-console-run-logs">
+                    {run.logs.map((log, logIndex) => {
+                      const timestamp = new Date(log.timestamp).toLocaleTimeString('en-US', {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        second: '2-digit',
+                        hour12: true
+                      });
+                      return (
+                        <div key={logIndex} className={`visual-mapping-console-log log-${log.level.toLowerCase()}`}>
+                          <span className="visual-mapping-console-timestamp">[{timestamp}]</span>
+                          <span className={`visual-mapping-console-level level-${log.level.toLowerCase()}`}>
+                            [{log.level}]
+                          </span>
+                          <span className="visual-mapping-console-message">{log.message}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {runIndex < executionRuns.length - 1 && (
+                    <div className="visual-mapping-console-run-separator" />
+                  )}
+                </div>
+              ))
             )}
           </div>
         </div>

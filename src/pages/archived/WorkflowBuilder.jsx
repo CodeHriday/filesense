@@ -144,9 +144,10 @@ const WorkflowBuilderContent = () => {
   // Schedule modal
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   
-  // Execution console
+  // Execution console - stores up to 10 runs with newest on top
   const [showConsole, setShowConsole] = useState(false);
-  const [consoleLogs, setConsoleLogs] = useState([]);
+  const [executionRuns, setExecutionRuns] = useState([]); // Array of run objects
+  const [currentRunId, setCurrentRunId] = useState(null);
   const [isExecuting, setIsExecuting] = useState(false);
   const [consoleHeight, setConsoleHeight] = useState(250);
   const consoleRef = useRef(null);
@@ -154,18 +155,60 @@ const WorkflowBuilderContent = () => {
   const startY = useRef(0);
   const startHeight = useRef(0);
   
-  // Helper to add log entry
-  const addConsoleLog = (message, level = 'info') => {
-    const timestamp = new Date().toLocaleTimeString();
-    setConsoleLogs(prev => [...prev, { timestamp, message, level }]);
+  // Helper to start a new execution run
+  const startNewRun = (runName) => {
+    const runId = `run-${Date.now()}`;
+    const newRun = {
+      id: runId,
+      name: runName,
+      startedAt: new Date().toLocaleString(),
+      logs: [],
+      status: 'running'
+    };
+    setCurrentRunId(runId);
+    setExecutionRuns(prev => {
+      const updated = [newRun, ...prev];
+      return updated.slice(0, 10); // Keep only last 10 runs
+    });
+    return runId;
   };
   
-  // Auto-scroll console to bottom when new logs arrive
+  // Helper to add log entry to current run (find by running status, fallback to newest)
+  const addConsoleLog = (message, level = 'info') => {
+    const timestamp = new Date().toLocaleTimeString();
+    setExecutionRuns(prev => {
+      if (prev.length === 0) return prev;
+      const runIndex = prev.findIndex(r => r.status === 'running') !== -1 
+        ? prev.findIndex(r => r.status === 'running') 
+        : 0; // Fallback to newest run for late-arriving logs
+      const updated = [...prev];
+      updated[runIndex] = {
+        ...updated[runIndex],
+        logs: [...updated[runIndex].logs, { timestamp, message, level }]
+      };
+      return updated;
+    });
+  };
+  
+  // Helper to update run status (find by running status, fallback to newest)
+  const updateRunStatus = (status) => {
+    setExecutionRuns(prev => {
+      if (prev.length === 0) return prev;
+      const runIndex = prev.findIndex(r => r.status === 'running') !== -1 
+        ? prev.findIndex(r => r.status === 'running') 
+        : 0; // Fallback to newest run
+      const updated = [...prev];
+      updated[runIndex] = { ...updated[runIndex], status };
+      return updated;
+    });
+  };
+  
+  // Auto-scroll console to top when new run starts or logs are added
   useEffect(() => {
-    if (consoleRef.current) {
-      consoleRef.current.scrollTop = consoleRef.current.scrollHeight;
+    if (consoleRef.current && executionRuns.length > 0) {
+      consoleRef.current.scrollTop = 0;
     }
-  }, [consoleLogs]);
+  }, [executionRuns]);
   
   // Console resize handlers
   const handleConsoleResizeStart = (e) => {
@@ -553,7 +596,9 @@ const WorkflowBuilderContent = () => {
       setError(null);
       setIsExecuting(true);
       setShowConsole(true);
-      setConsoleLogs([]);
+      
+      // Start a new execution run (keeps last 10 runs)
+      startNewRun(workflowName);
       
       addConsoleLog(`Starting workflow execution: ${workflowName}`, 'info');
       addConsoleLog(`Workflow ID: ${workflowId}`, 'info');
@@ -612,10 +657,12 @@ const WorkflowBuilderContent = () => {
         const msg = `Workflow executed successfully! ${result.summary.successCount}/${result.summary.totalNodes} nodes completed.`;
         setSuccess(msg);
         addConsoleLog(msg, 'success');
+        updateRunStatus('success');
       } else {
         const msg = `Workflow execution completed with errors: ${result.summary.failedCount}/${result.summary.totalNodes} nodes failed.`;
         setError(msg);
         addConsoleLog(msg, 'error');
+        updateRunStatus('failed');
       }
       
       addConsoleLog(`Execution ID: ${result.executionId}`, 'info');
@@ -627,6 +674,7 @@ const WorkflowBuilderContent = () => {
       const errorMsg = err.response?.data?.error || 'Failed to execute workflow';
       setError(errorMsg);
       addConsoleLog(`[ERROR] ${errorMsg}`, 'error');
+      updateRunStatus('failed');
     } finally {
       setIsExecuting(false);
     }
@@ -686,7 +734,7 @@ const WorkflowBuilderContent = () => {
             onClick={() => setShowConsole(!showConsole)}
             title={showConsole ? 'Hide console' : 'Show console'}
           >
-            <FaTerminal /> Console {consoleLogs.length > 0 && <span className="workflow-builder-console-badge">{consoleLogs.length}</span>}
+            <FaTerminal /> Console {executionRuns.length > 0 && <span className="workflow-builder-console-badge">{executionRuns.length}</span>}
           </button>
           <button 
             className="workflow-builder-btn workflow-builder-btn-close"
@@ -1007,7 +1055,7 @@ const WorkflowBuilderContent = () => {
               className="workflow-builder-console-clear-btn"
               onClick={(e) => {
                 e.stopPropagation();
-                setConsoleLogs([]);
+                setExecutionRuns([]);
               }}
               title="Clear console"
             >
@@ -1022,18 +1070,34 @@ const WorkflowBuilderContent = () => {
             ref={consoleRef}
             style={{ height: `${consoleHeight - 48}px` }}
           >
-            {consoleLogs.length === 0 ? (
+            {executionRuns.length === 0 ? (
               <div className="workflow-builder-console-empty">
                 No execution logs. Click Execute to run the workflow.
               </div>
             ) : (
-              consoleLogs.map((log, index) => (
-                <div 
-                  key={index} 
-                  className={`workflow-builder-console-line workflow-builder-console-${log.level}`}
-                >
-                  <span className="workflow-builder-console-timestamp">[{log.timestamp}]</span>
-                  <span className="workflow-builder-console-message">{log.message}</span>
+              executionRuns.map((run, runIndex) => (
+                <div key={run.id} className="workflow-builder-console-run">
+                  <div className={`workflow-builder-console-run-header workflow-builder-console-run-${run.status}`}>
+                    <span className="workflow-builder-console-run-indicator">
+                      {run.status === 'running' ? '⏳' : run.status === 'success' ? '✓' : '✗'}
+                    </span>
+                    <span className="workflow-builder-console-run-name">{run.name}</span>
+                    <span className="workflow-builder-console-run-time">{run.startedAt}</span>
+                  </div>
+                  <div className="workflow-builder-console-run-logs">
+                    {run.logs.map((log, logIndex) => (
+                      <div 
+                        key={logIndex} 
+                        className={`workflow-builder-console-line workflow-builder-console-${log.level}`}
+                      >
+                        <span className="workflow-builder-console-timestamp">[{log.timestamp}]</span>
+                        <span className="workflow-builder-console-message">{log.message}</span>
+                      </div>
+                    ))}
+                  </div>
+                  {runIndex < executionRuns.length - 1 && (
+                    <div className="workflow-builder-console-run-separator" />
+                  )}
                 </div>
               ))
             )}
