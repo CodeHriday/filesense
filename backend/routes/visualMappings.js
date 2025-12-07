@@ -601,13 +601,18 @@ router.post('/:id/execute', async (req, res) => {
       
       console.log(`[VISUAL-MAPPING-EXECUTE] executeTransformationJob returned:`, JSON.stringify(jobResult, null, 2));
       
+      // Determine the actual execution status from the job result
+      // The job engine may return status: 'failed' without throwing an error
+      const actualStatus = jobResult.status || 'completed';
+      const isFailed = actualStatus === 'failed';
+      
       // Update execution record with job ID and row counts (jobExecutionEngine returns jobId in camelCase)
       // Must happen BEFORE cleanup since transformation_id references the temp mapping
       await pool.query(
         `UPDATE visual_mapping_executions 
-         SET job_id = $1, status = 'completed', transformation_id = $2, rows_processed = $3, completed_at = NOW()
-         WHERE execution_id = $4`,
-        [jobResult.jobId, transformationDbId, jobResult.rowsWritten || 0, executionId]
+         SET job_id = $1, status = $2, transformation_id = $3, rows_processed = $4, error_message = $5, completed_at = NOW()
+         WHERE execution_id = $6`,
+        [jobResult.jobId, actualStatus, transformationDbId, jobResult.rowsWritten || 0, isFailed ? jobResult.message : null, executionId]
       );
       
       // Now safe to clean up temporary transformation mapping
@@ -620,19 +625,20 @@ router.post('/:id/execute', async (req, res) => {
         executionId
       });
       
-      // Send email notification on success (non-blocking)
-      // Ensure status is set for notification logic
-      const successResult = { ...jobResult, status: 'completed' };
-      sendVisualMappingNotification(mapping, successResult, executionId).catch(err => {
-        systemLogger.error('Failed to send success notification', { error: err.message });
+      // Send email notification (non-blocking)
+      // Use the actual status from job result, don't override
+      sendVisualMappingNotification(mapping, jobResult, executionId).catch(err => {
+        systemLogger.error('Failed to send notification', { error: err.message, status: actualStatus });
       });
       
       res.json({
-        message: 'Visual mapping execution completed',
+        message: isFailed ? 'Visual mapping execution failed' : 'Visual mapping execution completed',
         execution_id: executionId,
         mapping_id: id,
         job_id: jobResult.jobId,
-        transformation_id: transformationDbId
+        transformation_id: transformationDbId,
+        status: actualStatus,
+        error: isFailed ? jobResult.message : undefined
       });
     } catch (execError) {
       // Update execution status to failed
