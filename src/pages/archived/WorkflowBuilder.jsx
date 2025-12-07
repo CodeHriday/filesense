@@ -753,42 +753,7 @@ const WorkflowBuilderContent = () => {
                 )}
               </div>
               
-              {/* Section 2: Job Groups */}
-              <div className="workflow-builder-palette-section">
-                <div 
-                  className="workflow-builder-palette-section-header"
-                  onClick={() => setShowJobGroups(!showJobGroups)}
-                >
-                  <span className="workflow-builder-palette-section-toggle">
-                    {showJobGroups ? '▼' : '▶'}
-                  </span>
-                  <span className="workflow-builder-palette-section-title">
-                    JOB GROUPS ({filteredJobGroups.length})
-                  </span>
-                </div>
-                {showJobGroups && (
-                  <div className="workflow-builder-palette-section-items">
-                    {filteredJobGroups.length === 0 ? (
-                      <div className="workflow-builder-palette-empty">
-                        {searchQuery ? 'No matches' : 'No job groups'}
-                      </div>
-                    ) : (
-                      filteredJobGroups.map(group => (
-                        <div
-                          key={group.id}
-                          className="workflow-builder-palette-item"
-                          draggable
-                          onDragStart={(e) => onDragStart(e, { ...group, assetType: 'job_group' })}
-                        >
-                          {group.name}
-                        </div>
-                      ))
-                    )}
-                  </div>
-                )}
-              </div>
-              
-              {/* Section 3: Workflows */}
+              {/* Section 2: Workflows */}
               <div className="workflow-builder-palette-section">
                 <div 
                   className="workflow-builder-palette-section-header"

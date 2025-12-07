@@ -160,7 +160,7 @@ export const APP_FEATURES = [
     name: 'Visual Workflows', 
     category: 'Job Design', 
     supportsExecute: true,
-    icon: FiGrid,
+    icon: FiGitBranch,
     route: '/workflow-manager',
     showInSidebar: true
   },

@@ -34,15 +34,15 @@
 
 .workflow-builder-header-actions {
   display: flex;
-  gap: 12px;
+  gap: 8px;
 }
 
 .workflow-builder-btn {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 8px 16px;
-  font-size: 12px;
+  gap: 4px;
+  padding: 6px 10px;
+  font-size: 11px;
   font-weight: 500;
   border: none;
   border-radius: 4px;
@@ -112,7 +112,7 @@
 
 /* Asset Palette */
 .workflow-builder-palette {
-  width: 224px;
+  width: 200px;
   background: white;
   border-right: 1px solid #e0e0e0;
   display: flex;
@@ -289,7 +289,7 @@
 
 /* Configuration Panel */
 .workflow-builder-config {
-  width: 240px;
+  width: 215px;
   background: white;
   border-left: 1px solid #e0e0e0;
   display: flex;
