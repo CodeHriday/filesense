@@ -753,7 +753,7 @@ const WorkflowBuilderContent = () => {
                     {showJobs ? '▼' : '▶'}
                   </span>
                   <span className="workflow-builder-palette-section-title">
-                    VISUAL MAPPINGS ({filteredJobs.length})
+                    Visual Mappings ({filteredJobs.length})
                   </span>
                 </div>
                 {showJobs && (
@@ -788,7 +788,7 @@ const WorkflowBuilderContent = () => {
                     {showWorkflows ? '▼' : '▶'}
                   </span>
                   <span className="workflow-builder-palette-section-title">
-                    WORKFLOWS ({filteredWorkflows.length})
+                    Workflows ({filteredWorkflows.length})
                   </span>
                 </div>
                 {showWorkflows && (
@@ -818,7 +818,7 @@ const WorkflowBuilderContent = () => {
                 <div className="workflow-builder-palette-section-header">
                   <span className="workflow-builder-palette-section-toggle">▼</span>
                   <span className="workflow-builder-palette-section-title">
-                    CONTROL NODES
+                    Control Nodes
                   </span>
                 </div>
                 <div className="workflow-builder-palette-section-items">

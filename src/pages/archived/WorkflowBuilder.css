@@ -214,10 +214,9 @@
 
 .workflow-builder-palette-section-title {
   font-family: 'Inter', sans-serif;
-  font-size: 8px;
+  font-size: 10px;
   font-weight: 600;
-  color: #333;
-  letter-spacing: 0.5px;
+  color: #555;
 }
 
 .workflow-builder-palette-section-items {
@@ -326,10 +325,8 @@
   display: block;
   font-size: 11px;
   font-weight: 600;
-  color: #333;
+  color: #555;
   margin-bottom: 6px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
 }
 
 .workflow-builder-input,
