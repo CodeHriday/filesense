@@ -1037,13 +1037,11 @@ const VisualMappingCanvasContent = () => {
   };
   
   const executeMapping = async () => {
-    // If new mapping or has unsaved changes, save first
-    if (!isEditMode || hasUnsavedChanges) {
-      setSuccess('Saving mapping before execution...');
-      const saveResult = await saveMapping();
-      if (!saveResult) {
-        return; // Save failed, error already set
-      }
+    // Always save the mapping before execution to ensure latest state is persisted
+    setSuccess('Saving mapping before execution...');
+    const saveResult = await saveMapping();
+    if (!saveResult) {
+      return; // Save failed, error already set
     }
     
     try {
