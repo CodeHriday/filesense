@@ -441,7 +441,8 @@ router.delete('/:id', async (req, res) => {
 router.post('/:id/execute', async (req, res) => {
   try {
     const { id } = req.params;
-    const { execution_id: clientExecutionId } = req.body;
+    // Handle empty request body (when executing from list page without WebSocket tracking)
+    const clientExecutionId = req.body?.execution_id;
     
     console.log(`[VISUAL-MAPPING-EXECUTE] Starting execution for mapping ${id}`);
     
