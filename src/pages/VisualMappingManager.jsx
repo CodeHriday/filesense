@@ -10,7 +10,8 @@ import {
   FaClock, 
   FaSearch,
   FaFilter,
-  FaHistory
+  FaHistory,
+  FaCopy
 } from 'react-icons/fa';
 
 const VisualMappingManager = () => {
@@ -121,6 +122,22 @@ const VisualMappingManager = () => {
     } catch (error) {
       console.error('Error deleting mapping:', error);
       setError(error.response?.data?.error || 'Failed to delete mapping');
+    }
+  };
+  
+  const handleClone = async (mappingId, mappingName) => {
+    try {
+      const response = await axios.post(`/api/visual-mappings/${mappingId}/clone`);
+      if (response.data.success && response.data.mapping?.id) {
+        setSuccess(`Cloned "${mappingName}" successfully`);
+        // Navigate to the new cloned mapping for editing
+        navigate(`/visual-mappings/${response.data.mapping.id}`);
+      } else {
+        setError(response.data.error || 'Failed to clone mapping');
+      }
+    } catch (error) {
+      console.error('Error cloning mapping:', error);
+      setError(error.response?.data?.error || 'Failed to clone mapping');
     }
   };
   
@@ -386,6 +403,13 @@ const VisualMappingManager = () => {
                         title="Execution History"
                       >
                         <FaHistory />
+                      </button>
+                      <button
+                        onClick={() => handleClone(mapping.id, mapping.name)}
+                        className="visual-mapping-manager-action-btn"
+                        title="Clone"
+                      >
+                        <FaCopy />
                       </button>
                       <button
                         onClick={() => handleDelete(mapping.id, mapping.name)}

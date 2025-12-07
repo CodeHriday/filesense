@@ -435,6 +435,146 @@ router.delete('/:id', async (req, res) => {
 });
 
 /**
+ * POST /api/visual-mappings/:id/clone
+ * Clone a visual mapping with a new name
+ */
+router.post('/:id/clone', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name: customName } = req.body;
+    
+    // Get the original mapping
+    const originalResult = await pool.query(
+      `SELECT * FROM visual_mapping_defs WHERE id = $1 AND is_active = true`,
+      [id]
+    );
+    
+    if (originalResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Visual mapping not found' });
+    }
+    
+    const original = originalResult.rows[0];
+    
+    // Parse graph_data if stored as string
+    let graphData = original.graph_data;
+    if (typeof graphData === 'string') {
+      graphData = JSON.parse(graphData);
+    }
+    
+    // Generate ID mapping for nodes (old ID -> new ID)
+    // FIRST PASS: Build complete nodeIdMap before any replacements
+    const nodeIdMap = {};
+    const timestamp = Date.now();
+    
+    graphData.nodes.forEach((node, index) => {
+      const newId = `${node.type}-${timestamp}-${index}`;
+      nodeIdMap[node.id] = newId;
+    });
+    
+    // Helper function to replace all node ID references in an object
+    const replaceNodeIds = (obj) => {
+      let objStr = JSON.stringify(obj);
+      // Sort by ID length descending to prevent partial replacements
+      const sortedEntries = Object.entries(nodeIdMap).sort((a, b) => b[0].length - a[0].length);
+      sortedEntries.forEach(([oldId, newId]) => {
+        const regex = new RegExp(oldId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g');
+        objStr = objStr.replace(regex, newId);
+      });
+      return JSON.parse(objStr);
+    };
+    
+    // Replace all node ID references in the ENTIRE graph_data object first
+    // This catches all metadata including selection state, console settings, etc.
+    const fullyRemappedGraphData = replaceNodeIds(graphData);
+    
+    // SECOND PASS: Ensure node IDs and data.nodeId are explicitly set correctly
+    fullyRemappedGraphData.nodes = fullyRemappedGraphData.nodes.map((node, index) => {
+      const originalNode = graphData.nodes[index];
+      const newId = nodeIdMap[originalNode.id];
+      // Ensure the node's own ID is set correctly
+      node.id = newId;
+      if (node.data) {
+        node.data.nodeId = newId;
+      }
+      return node;
+    });
+    
+    // Ensure edges have correct source/target and proper ReactFlow edge ID format
+    fullyRemappedGraphData.edges = fullyRemappedGraphData.edges.map((edge, index) => {
+      const originalEdge = graphData.edges[index];
+      const newSource = nodeIdMap[originalEdge.source] || edge.source;
+      const newTarget = nodeIdMap[originalEdge.target] || edge.target;
+      // Use handles (which may have been remapped by replaceNodeIds)
+      const sourceHandle = edge.sourceHandle || 'output';
+      const targetHandle = edge.targetHandle || 'input';
+      // Maintain ReactFlow edge ID format with proper delimiters
+      const newEdgeId = `reactflow__edge-${timestamp}-${newSource}__${sourceHandle}--${newTarget}__${targetHandle}`;
+      
+      edge.id = newEdgeId;
+      edge.source = newSource;
+      edge.target = newTarget;
+      
+      return edge;
+    });
+    
+    // Generate new name
+    const newName = customName || `(Copy) ${original.name}`;
+    
+    // Parse canvas_state if stored as string
+    let canvasState = original.canvas_state;
+    if (typeof canvasState === 'string') {
+      canvasState = JSON.parse(canvasState);
+    }
+    
+    // Parse notification_settings if stored as string
+    let notificationSettings = original.notification_settings;
+    if (typeof notificationSettings === 'string') {
+      notificationSettings = JSON.parse(notificationSettings);
+    }
+    
+    // Insert the cloned mapping
+    const result = await pool.query(
+      `INSERT INTO visual_mapping_defs (
+        name, description, graph_data, canvas_state, 
+        project_id, sub_project_id, created_by, notification_settings,
+        execution_count, is_active
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 0, true)
+      RETURNING *`,
+      [
+        newName,
+        original.description || '',
+        JSON.stringify(fullyRemappedGraphData),
+        JSON.stringify(canvasState || { zoom: 1, position: [0, 0] }),
+        original.project_id,
+        original.sub_project_id,
+        req.user.id,
+        notificationSettings ? JSON.stringify(notificationSettings) : null
+      ]
+    );
+    
+    systemLogger.info('Cloned visual mapping', {
+      originalMappingId: id,
+      newMappingId: result.rows[0].id,
+      newName,
+      userId: req.user.id
+    });
+    
+    res.status(201).json({
+      success: true,
+      mapping: result.rows[0],
+      message: `Successfully cloned "${original.name}" as "${newName}"`
+    });
+  } catch (error) {
+    systemLogger.error('Failed to clone visual mapping', {
+      error: error.message,
+      mappingId: req.params.id,
+      userId: req.user.id
+    });
+    res.status(500).json({ error: 'Failed to clone visual mapping' });
+  }
+});
+
+/**
  * POST /api/visual-mappings/:id/execute
  * Execute a visual mapping
  */
