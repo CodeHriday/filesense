@@ -1345,6 +1345,8 @@ async function executeTransformationJob(pool, mappingId, userId, options = {}) {
     // Step 2.5: Multi-Source Join Preparation
     // Load secondary source files into memory lookup tables for join enrichment
     let joinLookupTables = {};
+    // Track row counts per source node for accurate edge display (needs to be in outer scope for callback access)
+    const sourceRowCounts = {};
     const hasMultiSourceJoin = mapping.has_multi_source_join && 
                                 mapping.source_catalog && mapping.source_catalog.length > 1 &&
                                 mapping.join_specs && mapping.join_specs.length > 0;
@@ -1447,6 +1449,9 @@ async function executeTransformationJob(pool, mappingId, userId, options = {}) {
             }
           }
           
+          // Track this source's row count for accurate edge display
+          sourceRowCounts[source.nodeId] = rows.length;
+          
           emitNodeStatus(source.nodeId, 'completed', { rowsLoaded: rows.length });
           
         } catch (loadError) {
@@ -1496,9 +1501,26 @@ async function executeTransformationJob(pool, mappingId, userId, options = {}) {
           const currentRowsRead = totalRowsRead + progressData.rowsRead;
           
           // Emit edge row counts immediately after transformation completes
+          // Use per-source counts for secondary sources (lookup tables), primary source count for primary, output count for others
           if (visualMappingEdges && Array.isArray(visualMappingEdges)) {
+            const primarySourceNodeId = mapping.primary_source_node_id;
+            
             visualMappingEdges.forEach(edge => {
-              visualMappingWS.emitEdgeRowCount(visualExecutionId, edge.id, edge.source, edge.target, currentRowsWritten);
+              let edgeRowCount;
+              
+              // Check if this edge comes from a secondary source (lookup table)
+              if (sourceRowCounts && sourceRowCounts[edge.source] !== undefined) {
+                // Use the secondary source's actual row count
+                edgeRowCount = sourceRowCounts[edge.source];
+              } else if (edge.source === primarySourceNodeId) {
+                // Edge from primary source - use primary source row count
+                edgeRowCount = currentRowsRead;
+              } else {
+                // Edge from transformation/join/target nodes - use output count
+                edgeRowCount = currentRowsWritten;
+              }
+              
+              visualMappingWS.emitEdgeRowCount(visualExecutionId, edge.id, edge.source, edge.target, edgeRowCount);
             });
           }
           
@@ -1558,9 +1580,23 @@ async function executeTransformationJob(pool, mappingId, userId, options = {}) {
         
         // Edge row counts already emitted by onTransformComplete callback (before profiling)
         // This secondary emission serves as a final confirmation after all processing completes
+        // Use per-source counts for secondary sources (lookup tables)
         if (visualExecutionId && visualMappingEdges && Array.isArray(visualMappingEdges)) {
+          const primarySourceNodeId = mapping.primary_source_node_id;
+          
           visualMappingEdges.forEach(edge => {
-            visualMappingWS.emitEdgeRowCount(visualExecutionId, edge.id, edge.source, edge.target, totalRowsWritten);
+            let edgeRowCount;
+            
+            // Check if this edge comes from a secondary source (lookup table)
+            if (sourceRowCounts && sourceRowCounts[edge.source] !== undefined) {
+              edgeRowCount = sourceRowCounts[edge.source];
+            } else if (edge.source === primarySourceNodeId) {
+              edgeRowCount = totalRowsRead;
+            } else {
+              edgeRowCount = totalRowsWritten;
+            }
+            
+            visualMappingWS.emitEdgeRowCount(visualExecutionId, edge.id, edge.source, edge.target, edgeRowCount);
           });
         }
         
@@ -1647,9 +1683,23 @@ async function executeTransformationJob(pool, mappingId, userId, options = {}) {
       await new Promise(resolve => setImmediate(resolve));
       
       // Final edge row count confirmation (already sent by callback, this is just a redundant final update)
+      // Use per-source counts for secondary sources (lookup tables)
       if (visualMappingEdges && Array.isArray(visualMappingEdges)) {
+        const primarySourceNodeId = mapping.primary_source_node_id;
+        
         visualMappingEdges.forEach(edge => {
-          visualMappingWS.emitEdgeRowCount(visualExecutionId, edge.id, edge.source, edge.target, totalRowsWritten);
+          let edgeRowCount;
+          
+          // Check if this edge comes from a secondary source (lookup table)
+          if (sourceRowCounts && sourceRowCounts[edge.source] !== undefined) {
+            edgeRowCount = sourceRowCounts[edge.source];
+          } else if (edge.source === primarySourceNodeId) {
+            edgeRowCount = totalRowsRead;
+          } else {
+            edgeRowCount = totalRowsWritten;
+          }
+          
+          visualMappingWS.emitEdgeRowCount(visualExecutionId, edge.id, edge.source, edge.target, edgeRowCount);
         });
       }
       
