@@ -282,7 +282,7 @@ router.get('/executive-metrics', dashboardCacheMiddleware, async (req, res) => {
       prevCount = parseInt(prevThroughput.rows[0]?.count || 0);
 
       const jobsResult = await pool.query(`
-        SELECT COUNT(DISTINCT mapping_name) FILTER (WHERE status = 'completed') as completed, COUNT(DISTINCT mapping_name) as total
+        SELECT COUNT(*) FILTER (WHERE status = 'completed') as completed, COUNT(*) as total
         FROM transformation_jobs tj WHERE tj.created_at >= $1
       `, [rangeStart]);
       completedJobs = parseInt(jobsResult.rows[0]?.completed || 0);
@@ -449,7 +449,7 @@ router.get('/executive-metrics', dashboardCacheMiddleware, async (req, res) => {
       prevCount = parseInt(prevThroughput.rows[0]?.count || 0);
 
       const jobsResult = await pool.query(`
-        SELECT COUNT(DISTINCT mapping_name) FILTER (WHERE status = 'completed') as completed, COUNT(DISTINCT mapping_name) as total
+        SELECT COUNT(*) FILTER (WHERE status = 'completed') as completed, COUNT(*) as total
         FROM transformation_jobs tj WHERE tj.created_at >= $1 AND tj.project_id = $2
       `, [rangeStart, projectId]);
       completedJobs = parseInt(jobsResult.rows[0]?.completed || 0);
@@ -575,7 +575,7 @@ router.get('/executive-metrics', dashboardCacheMiddleware, async (req, res) => {
       prevCount = parseInt(prevThroughput.rows[0]?.count || 0);
 
       const jobsResult = await pool.query(`
-        SELECT COUNT(DISTINCT mapping_name) FILTER (WHERE status = 'completed') as completed, COUNT(DISTINCT mapping_name) as total
+        SELECT COUNT(*) FILTER (WHERE status = 'completed') as completed, COUNT(*) as total
         FROM transformation_jobs tj WHERE tj.created_at >= $1 
         AND tj.project_id IN (SELECT project_id FROM get_user_projects($2))
       `, [rangeStart, userId]);
@@ -708,7 +708,7 @@ router.get('/executive-metrics', dashboardCacheMiddleware, async (req, res) => {
       prevCount = parseInt(prevThroughput.rows[0]?.count || 0);
 
       const jobsResult = await pool.query(`
-        SELECT COUNT(DISTINCT mapping_name) FILTER (WHERE status = 'completed') as completed, COUNT(DISTINCT mapping_name) as total
+        SELECT COUNT(*) FILTER (WHERE status = 'completed') as completed, COUNT(*) as total
         FROM transformation_jobs tj WHERE tj.created_at >= $1 
         AND tj.project_id = $2 AND tj.project_id IN (SELECT project_id FROM get_user_projects($3))
       `, [rangeStart, projectId, userId]);
