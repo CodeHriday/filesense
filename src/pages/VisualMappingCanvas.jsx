@@ -32,7 +32,8 @@ import {
   FaChevronLeft,
   FaChevronRight,
   FaRedo,
-  FaTerminal
+  FaTerminal,
+  FaExclamationTriangle
 } from 'react-icons/fa';
 import SourceConfigModal from '../components/VisualMappingModals/SourceConfigModal';
 import ExpressionModal from '../components/VisualMappingModals/ExpressionModal';
@@ -375,7 +376,87 @@ const VisualMappingCanvasContent = () => {
     }
   }, []);
   
-  const onConnect = useCallback((params) => setEdges((eds) => addEdge(params, eds)), [setEdges]);
+  // Connection validation: enforce single in/out link per node
+  // Source nodes: 1 output only, no inputs
+  // Target nodes: 1 input only, no outputs
+  // Expression/RDM/Join nodes: 1 input and 1 output only
+  const isValidConnection = useCallback((connection, currentEdges) => {
+    const { source, target } = connection;
+    
+    // Find node types
+    const sourceNode = nodes.find(n => n.id === source);
+    const targetNode = nodes.find(n => n.id === target);
+    
+    if (!sourceNode || !targetNode) {
+      return { valid: false, reason: 'Invalid nodes' };
+    }
+    
+    const sourceType = sourceNode.type;
+    const targetType = targetNode.type;
+    
+    // Count existing connections for source node (outgoing)
+    const sourceOutgoingCount = currentEdges.filter(e => e.source === source).length;
+    
+    // Count existing connections for target node (incoming)
+    const targetIncomingCount = currentEdges.filter(e => e.target === target).length;
+    
+    // Validate source node output limit
+    // All nodes can only have 1 outgoing connection
+    if (sourceOutgoingCount >= 1) {
+      return { 
+        valid: false, 
+        reason: `${sourceType === 'sourceConfig' ? 'Source' : sourceType === 'expression' ? 'Expression' : sourceType === 'rdmLookup' ? 'RDM Lookup' : sourceType === 'join' ? 'Join' : 'This'} node already has an outgoing connection` 
+      };
+    }
+    
+    // Validate target node input limit
+    // All nodes can only have 1 incoming connection (except source nodes which have 0)
+    if (targetType === 'sourceConfig') {
+      return { valid: false, reason: 'Source nodes cannot have incoming connections' };
+    }
+    
+    if (targetIncomingCount >= 1) {
+      return { 
+        valid: false, 
+        reason: `${targetType === 'targetRules' ? 'Target' : targetType === 'expression' ? 'Expression' : targetType === 'rdmLookup' ? 'RDM Lookup' : targetType === 'join' ? 'Join' : 'This'} node already has an incoming connection` 
+      };
+    }
+    
+    // Prevent self-connections
+    if (source === target) {
+      return { valid: false, reason: 'Cannot connect a node to itself' };
+    }
+    
+    // Prevent duplicate connections
+    const duplicateExists = currentEdges.some(e => e.source === source && e.target === target);
+    if (duplicateExists) {
+      return { valid: false, reason: 'Connection already exists' };
+    }
+    
+    return { valid: true };
+  }, [nodes]);
+  
+  // Connection rejection message state
+  const [connectionError, setConnectionError] = useState(null);
+  
+  // Clear connection error after 3 seconds
+  useEffect(() => {
+    if (connectionError) {
+      const timer = setTimeout(() => setConnectionError(null), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [connectionError]);
+  
+  const onConnect = useCallback((params) => {
+    setEdges((eds) => {
+      const validation = isValidConnection(params, eds);
+      if (!validation.valid) {
+        setConnectionError(validation.reason);
+        return eds; // Don't add the edge
+      }
+      return addEdge(params, eds);
+    });
+  }, [setEdges, isValidConnection]);
   
   // Wait for canvas container to be ready
   useEffect(() => {
@@ -1178,6 +1259,14 @@ const VisualMappingCanvasContent = () => {
       
       {error && <div className="visual-mapping-error">{error}</div>}
       {success && <div className="visual-mapping-success">{success}</div>}
+      
+      {/* Connection validation error toast */}
+      {connectionError && (
+        <div className="visual-mapping-connection-error">
+          <FaExclamationTriangle style={{ marginRight: '8px' }} />
+          {connectionError}
+        </div>
+      )}
       
       {/* Validation Errors Panel */}
       {showValidationErrors && validationErrors.length > 0 && (

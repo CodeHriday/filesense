@@ -136,6 +136,38 @@
   border-left: 3px solid #38a169;
 }
 
+/* Connection validation error toast */
+.visual-mapping-connection-error {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #fed7d7;
+  color: #9b2c2c;
+  padding: 12px 20px;
+  border-radius: 6px;
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  animation: slideUp 0.3s ease-out;
+  border: 1px solid #fc8181;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
 /* Validation Errors Panel */
 .visual-mapping-validation-panel {
   background: #fff5f5;
