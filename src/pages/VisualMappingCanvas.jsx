@@ -16,7 +16,6 @@ import './VisualMappingCanvas.css';
 import axios from 'axios';
 import { 
   FaSave, 
-  FaPlay, 
   FaClock, 
   FaPlus, 
   FaTrash, 
@@ -35,6 +34,7 @@ import {
   FaTerminal,
   FaExclamationTriangle
 } from 'react-icons/fa';
+import { FiPlay } from 'react-icons/fi';
 import SourceConfigModal from '../components/VisualMappingModals/SourceConfigModal';
 import ExpressionModal from '../components/VisualMappingModals/ExpressionModal';
 import RdmLookupModal from '../components/VisualMappingModals/RdmLookupModal';
@@ -1357,7 +1357,7 @@ const VisualMappingCanvasContent = () => {
             <FaTerminal /> Console
           </button>
           <button onClick={executeMapping} disabled={!isEditMode || isExecuting} className="visual-mapping-toolbar-btn visual-mapping-toolbar-btn-success">
-            <FaPlay /> {isExecuting ? 'Running...' : 'Run'}
+            <FiPlay /> {isExecuting ? 'Running...' : 'Run'}
           </button>
         </div>
       </div>
