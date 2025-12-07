@@ -74,6 +74,15 @@
   background: #f0f9f7;
 }
 
+.workflow-builder-btn-close {
+  background: #6b7280;
+  color: white;
+}
+
+.workflow-builder-btn-close:hover:not(:disabled) {
+  background: #4b5563;
+}
+
 /* Alerts */
 .workflow-builder-alert {
   padding: 12px 24px;

@@ -15,7 +15,7 @@ import ReactFlow, {
 import 'reactflow/dist/style.css';
 import './WorkflowBuilder.css';
 import axios from 'axios';
-import { FaSave, FaPlay, FaClock, FaPlus, FaTrash, FaSearch } from 'react-icons/fa';
+import { FaSave, FaPlay, FaClock, FaPlus, FaTrash, FaSearch, FaTimes } from 'react-icons/fa';
 
 // Custom node component for ETL mapping jobs
 const JobNode = ({ data }) => {
@@ -348,16 +348,16 @@ const WorkflowBuilderContent = () => {
     event.dataTransfer.dropEffect = 'move';
   }, []);
   
-  // Save workflow
-  const saveWorkflow = async () => {
+  // Save workflow - returns true on success, false on failure
+  const saveWorkflow = async (skipScheduleModal = false) => {
     if (!workflowName.trim()) {
       setError('Please enter a workflow name');
-      return;
+      return false;
     }
     
     if (!projectId) {
       setError('Please select a project');
-      return;
+      return false;
     }
     
     setSaving(true);
@@ -404,11 +404,15 @@ const WorkflowBuilderContent = () => {
       setSuccess('Workflow saved successfully');
       setTimeout(() => setSuccess(null), 3000);
       
-      // Show schedule modal after successful save
-      setShowScheduleModal(true);
+      // Show schedule modal after successful save (unless skipped for close action)
+      if (!skipScheduleModal) {
+        setShowScheduleModal(true);
+      }
+      return true;
     } catch (err) {
       console.error('Failed to save workflow:', err);
       setError(err.response?.data?.error || 'Failed to save workflow');
+      return false;
     } finally {
       setSaving(false);
     }
@@ -517,6 +521,19 @@ const WorkflowBuilderContent = () => {
             disabled={!workflowId}
           >
             <FaPlay /> Execute
+          </button>
+          <button 
+            className="workflow-builder-btn workflow-builder-btn-close"
+            onClick={async () => {
+              const saved = await saveWorkflow(true);
+              if (saved) {
+                navigate('/workflow-manager');
+              }
+            }}
+            disabled={saving}
+            title="Save and close"
+          >
+            <FaTimes /> Close
           </button>
         </div>
       </div>
