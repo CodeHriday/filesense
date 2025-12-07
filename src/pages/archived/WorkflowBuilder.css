@@ -736,13 +736,48 @@
   background: #1e1e1e;
   border-top: 2px solid #333;
   z-index: 1000;
-  transition: max-height 0.3s ease;
-  max-height: 40px;
+  height: 40px;
   font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  display: flex;
+  flex-direction: column;
 }
 
 .workflow-builder-console-open {
-  max-height: 250px;
+  height: auto;
+}
+
+.workflow-builder-console-resize-handle {
+  position: absolute;
+  top: -4px;
+  left: 0;
+  right: 0;
+  height: 8px;
+  cursor: ns-resize;
+  background: transparent;
+  z-index: 10;
+}
+
+.workflow-builder-console-resize-handle:hover,
+.workflow-builder-console-resize-handle:active {
+  background: linear-gradient(to bottom, rgba(59, 130, 246, 0.5), transparent);
+}
+
+.workflow-builder-console-resize-handle::before {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 40px;
+  height: 4px;
+  background: #555;
+  border-radius: 2px;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.workflow-builder-console-resize-handle:hover::before {
+  opacity: 1;
 }
 
 .workflow-builder-console-header {
@@ -802,7 +837,7 @@
 }
 
 .workflow-builder-console-content {
-  height: 200px;
+  flex: 1;
   overflow-y: auto;
   padding: 8px 16px;
   background: #1e1e1e;

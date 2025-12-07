@@ -148,7 +148,11 @@ const WorkflowBuilderContent = () => {
   const [showConsole, setShowConsole] = useState(false);
   const [consoleLogs, setConsoleLogs] = useState([]);
   const [isExecuting, setIsExecuting] = useState(false);
+  const [consoleHeight, setConsoleHeight] = useState(250);
   const consoleRef = useRef(null);
+  const isResizingConsole = useRef(false);
+  const startY = useRef(0);
+  const startHeight = useRef(0);
   
   // Helper to add log entry
   const addConsoleLog = (message, level = 'info') => {
@@ -162,6 +166,33 @@ const WorkflowBuilderContent = () => {
       consoleRef.current.scrollTop = consoleRef.current.scrollHeight;
     }
   }, [consoleLogs]);
+  
+  // Console resize handlers
+  const handleConsoleResizeStart = (e) => {
+    e.preventDefault();
+    isResizingConsole.current = true;
+    startY.current = e.clientY;
+    startHeight.current = consoleHeight;
+    document.addEventListener('mousemove', handleConsoleResizeMove);
+    document.addEventListener('mouseup', handleConsoleResizeEnd);
+    document.body.style.cursor = 'ns-resize';
+    document.body.style.userSelect = 'none';
+  };
+  
+  const handleConsoleResizeMove = (e) => {
+    if (!isResizingConsole.current) return;
+    const delta = startY.current - e.clientY;
+    const newHeight = Math.max(100, Math.min(600, startHeight.current + delta));
+    setConsoleHeight(newHeight);
+  };
+  
+  const handleConsoleResizeEnd = () => {
+    isResizingConsole.current = false;
+    document.removeEventListener('mousemove', handleConsoleResizeMove);
+    document.removeEventListener('mouseup', handleConsoleResizeEnd);
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
+  };
   
   // Wait for canvas container to be measured before allowing layout
   useEffect(() => {
@@ -961,7 +992,17 @@ const WorkflowBuilderContent = () => {
       </div>
       
       {/* Execution Console Panel */}
-      <div className={`workflow-builder-console ${showConsole ? 'workflow-builder-console-open' : ''}`}>
+      <div 
+        className={`workflow-builder-console ${showConsole ? 'workflow-builder-console-open' : ''}`}
+        style={showConsole ? { height: `${consoleHeight}px` } : undefined}
+      >
+        {showConsole && (
+          <div 
+            className="workflow-builder-console-resize-handle"
+            onMouseDown={handleConsoleResizeStart}
+            title="Drag to resize"
+          />
+        )}
         <div 
           className="workflow-builder-console-header"
           onClick={() => setShowConsole(!showConsole)}
@@ -986,7 +1027,11 @@ const WorkflowBuilderContent = () => {
           </div>
         </div>
         {showConsole && (
-          <div className="workflow-builder-console-content" ref={consoleRef}>
+          <div 
+            className="workflow-builder-console-content" 
+            ref={consoleRef}
+            style={{ height: `${consoleHeight - 48}px` }}
+          >
             {consoleLogs.length === 0 ? (
               <div className="workflow-builder-console-empty">
                 No execution logs. Click Execute to run the workflow.
