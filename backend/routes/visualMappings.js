@@ -441,7 +441,7 @@ router.delete('/:id', async (req, res) => {
 router.post('/:id/clone', async (req, res) => {
   try {
     const { id } = req.params;
-    const { name: customName } = req.body;
+    const customName = req.body?.name;
     
     // Get the original mapping
     const originalResult = await pool.query(
