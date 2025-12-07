@@ -626,6 +626,13 @@ const WorkflowBuilderContent = () => {
             <FaPlay /> Execute
           </button>
           <button 
+            className={`workflow-builder-btn workflow-builder-btn-console ${showConsole ? 'active' : ''}`}
+            onClick={() => setShowConsole(!showConsole)}
+            title={showConsole ? 'Hide console' : 'Show console'}
+          >
+            <FaTerminal /> Console {consoleLogs.length > 0 && <span className="workflow-builder-console-badge">{consoleLogs.length}</span>}
+          </button>
+          <button 
             className="workflow-builder-btn workflow-builder-btn-close"
             onClick={async () => {
               const saved = await saveWorkflow(true);

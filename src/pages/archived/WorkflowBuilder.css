@@ -847,3 +847,36 @@
 .workflow-builder-console-warn .workflow-builder-console-message {
   color: #fbbf24;
 }
+
+/* Console Toggle Button */
+.workflow-builder-btn-console {
+  background: #2d2d2d;
+  color: #ccc;
+  border: 1px solid #444;
+}
+
+.workflow-builder-btn-console:hover {
+  background: #3d3d3d;
+  color: #fff;
+}
+
+.workflow-builder-btn-console.active {
+  background: #3b82f6;
+  color: #fff;
+  border-color: #3b82f6;
+}
+
+.workflow-builder-console-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  margin-left: 6px;
+  font-size: 10px;
+  font-weight: 600;
+  background: #ef4444;
+  color: #fff;
+  border-radius: 9px;
+}

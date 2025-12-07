@@ -377,9 +377,8 @@ class VisualWorkflowExecutor {
         visualMappingName: visualMapping.name
       });
       
-      // Import the visual mapping compiler and execute
+      // Import the visual mapping compiler
       const visualMappingCompiler = require('./visualMappingCompiler');
-      const { executeMapping } = require('./jobExecutionEngine');
       
       // Parse graph data if needed
       let graphData = visualMapping.graph_data;
@@ -395,23 +394,113 @@ class VisualWorkflowExecutor {
         throw new Error(`Visual mapping compilation failed: ${compilationResult.errors?.join(', ') || 'Unknown error'}`);
       }
       
-      // Execute the compiled mapping
-      const executionResult = await executeMapping(
-        pool,
-        compilationResult,
-        this.userId,
-        {
-          visualWorkflowExecutionId: this.executionDbId,
-          workflowMappingId: mappingId
-        }
+      // Extract the compiled transformation mapping
+      const transformationMapping = compilationResult.transformationMapping;
+      
+      // Create a temporary transformation mapping for execution (same flow as route handler)
+      const tempMappingId = `vm-${mappingId}-${Date.now()}`;
+      
+      // Handle source exclusivity constraint
+      const vendorAgreementId = transformationMapping.vendor_agreement_id || null;
+      const sourceConnectionId = vendorAgreementId ? null : transformationMapping.source_connection_id;
+      
+      // Determine RDM lookup settings
+      const hasRdmConfigArrays = (transformationMapping.rdm_dataset_configs?.length > 0) || 
+                                  (transformationMapping.rdm_crosswalk_configs?.length > 0);
+      const hasRdmConfig = hasRdmConfigArrays || 
+                           !!(transformationMapping.rdm_dataset_config || transformationMapping.rdm_crosswalk_config);
+      const hasRdmNodes = visualMapping.graph_data?.nodes?.some(n => n.type === 'rdmLookup') || false;
+      const rdmLookupEnabled = hasRdmConfig || hasRdmNodes;
+      
+      // Prepare RDM configs for storage
+      const rdmDatasetConfigsToStore = transformationMapping.rdm_dataset_configs?.length > 0 
+        ? transformationMapping.rdm_dataset_configs 
+        : (transformationMapping.rdm_dataset_config ? [transformationMapping.rdm_dataset_config] : null);
+      const rdmCrosswalkConfigsToStore = transformationMapping.rdm_crosswalk_configs?.length > 0 
+        ? transformationMapping.rdm_crosswalk_configs 
+        : (transformationMapping.rdm_crosswalk_config ? [transformationMapping.rdm_crosswalk_config] : null);
+      
+      // Insert temporary transformation mapping
+      const transformResult = await pool.query(
+        `INSERT INTO transformation_mappings (
+          mapping_id, mapping_name, description, project_id, sub_project_id,
+          source_connection_id, file_path, source_file_pattern,
+          target_connection_id, target_file_path, target_file_name, target_file_format,
+          field_mappings, variables, pii_columns,
+          rdm_lookup_enabled, rdm_dataset_config, rdm_crosswalk_config,
+          schema_drift_handling, violation_handling,
+          created_by, is_visual_mapping, visual_mapping_id, is_temporary,
+          vendor_agreement_id,
+          source_catalog, join_specs, has_multi_source_join, primary_source_node_id
+        ) VALUES (
+          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, true, $22, true, $23, $24, $25, $26, $27
+        ) RETURNING id`,
+        [
+          tempMappingId,
+          `[VM] ${transformationMapping.name || visualMapping.name}`,
+          transformationMapping.description || visualMapping.description,
+          transformationMapping.project_id || visualMapping.project_id,
+          transformationMapping.sub_project_id || visualMapping.sub_project_id,
+          sourceConnectionId,
+          transformationMapping.source_file_path,
+          transformationMapping.source_file_pattern || '*',
+          transformationMapping.target_connection_id,
+          transformationMapping.target_file_path,
+          transformationMapping.target_file_name,
+          transformationMapping.target_file_format || 'csv',
+          JSON.stringify(transformationMapping.field_mappings || []),
+          JSON.stringify(transformationMapping.variables || {}),
+          JSON.stringify(transformationMapping.pii_columns || []),
+          rdmLookupEnabled,
+          rdmDatasetConfigsToStore ? JSON.stringify(rdmDatasetConfigsToStore) : null,
+          rdmCrosswalkConfigsToStore ? JSON.stringify(rdmCrosswalkConfigsToStore) : null,
+          transformationMapping.schema_drift_handling || 'warn',
+          transformationMapping.violation_handling || 'continue',
+          this.userId,
+          mappingId,
+          vendorAgreementId,
+          JSON.stringify(transformationMapping.source_catalog || []),
+          JSON.stringify(transformationMapping.join_specs || []),
+          transformationMapping.has_multi_source_join || false,
+          transformationMapping.primary_source_node_id || null
+        ]
       );
+      
+      const transformationDbId = transformResult.rows[0].id;
+      
+      systemLogger.info('Created temp transformation mapping for workflow execution', {
+        workflowId: this.workflowId,
+        tempMappingId,
+        transformationDbId,
+        visualMappingId: mappingId
+      });
+      
+      // Execute using the job execution engine
+      let jobResult;
+      try {
+        jobResult = await executeTransformationJob(pool, tempMappingId, this.userId, {
+          visualWorkflowExecutionId: this.executionDbId,
+          visualMappingNodes: visualMapping.graph_data.nodes,
+          visualMappingEdges: visualMapping.graph_data.edges,
+          nodeExecutionMap: transformationMapping.node_execution_map,
+          executionOrder: compilationResult.executionOrder,
+          skipInternalCleanup: true
+        });
+      } finally {
+        // Always clean up temporary transformation mapping
+        await pool.query(
+          `DELETE FROM transformation_mappings WHERE mapping_id = $1 AND is_temporary = true`,
+          [tempMappingId]
+        );
+      }
       
       return {
         success: true,
         type: 'visual_mapping',
         assetId: mappingId,
         assetName: visualMapping.name,
-        result: executionResult
+        jobId: jobResult.jobId,
+        rowsWritten: jobResult.rowsWritten
       };
     }
     
