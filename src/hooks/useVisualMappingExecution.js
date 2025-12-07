@@ -169,6 +169,13 @@ export const useVisualMappingExecution = () => {
     setExecutionLogs([]);
   }, []);
 
+  // Load logs from previous executions
+  const loadLogs = useCallback((logs) => {
+    if (Array.isArray(logs)) {
+      setExecutionLogs(logs);
+    }
+  }, []);
+
   // Generate a UUID for execution ID
   const generateExecutionId = useCallback(() => {
     return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
@@ -187,6 +194,7 @@ export const useVisualMappingExecution = () => {
     executionLogs,
     resetExecution,
     clearLogs,
+    loadLogs,
     isConnected,
     subscribeToExecution,
     unsubscribeFromExecution,

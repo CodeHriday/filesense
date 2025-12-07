@@ -348,10 +348,17 @@ const VisualMappingCanvasContent = () => {
     executionLogs,
     resetExecution,
     clearLogs,
+    loadLogs,
     isConnected,
     subscribeToExecution,
     generateExecutionId
   } = useVisualMappingExecution();
+  
+  // Track unsaved changes
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [showCloseConfirm, setShowCloseConfirm] = useState(false);
+  const [previousExecutions, setPreviousExecutions] = useState([]);
+  const [selectedExecutionIndex, setSelectedExecutionIndex] = useState(0);
   
   // Configuration modal
   const [configModalOpen, setConfigModalOpen] = useState(false);
@@ -579,6 +586,25 @@ const VisualMappingCanvasContent = () => {
         if (mapping.canvas_state) {
           pendingCanvasStateRef.current = mapping.canvas_state;
         }
+        
+        // Load execution logs from last 10 runs
+        try {
+          const logsResponse = await axios.get(`/api/visual-mappings/${mappingId}/logs`);
+          if (logsResponse.data && logsResponse.data.length > 0) {
+            setPreviousExecutions(logsResponse.data);
+            // Load the most recent execution's logs
+            const mostRecentLogs = logsResponse.data[0]?.logs || [];
+            if (Array.isArray(mostRecentLogs) && mostRecentLogs.length > 0) {
+              loadLogs(mostRecentLogs);
+              setShowConsole(true);
+            }
+          }
+        } catch (logsError) {
+          console.log('No previous execution logs found', logsError);
+        }
+        
+        // Mark as clean state after initial load
+        setHasUnsavedChanges(false);
       } catch (error) {
         console.error('Error loading visual mapping:', error);
         setError('Failed to load visual mapping');
@@ -590,7 +616,7 @@ const VisualMappingCanvasContent = () => {
     };
     
     fetchMapping();
-  }, [mappingId, isEditMode]);
+  }, [mappingId, isEditMode, loadLogs]);
   
   // Restore viewport when reactFlowInstance becomes available
   useEffect(() => {
@@ -624,6 +650,7 @@ const VisualMappingCanvasContent = () => {
     setConfigModalOpen(false);
     setConfigNodeId(null);
     setConfigNodeType(null);
+    setHasUnsavedChanges(true);
   }, [configNodeId, setNodes]);
   
   const getCurrentNodeConfig = useCallback(() => {
@@ -991,23 +1018,31 @@ const VisualMappingCanvasContent = () => {
       if (isEditMode) {
         await axios.put(`/api/visual-mappings/${mappingId}`, payload);
         setSuccess('Visual mapping updated successfully');
+        setHasUnsavedChanges(false);
       } else {
         const response = await axios.post('/api/visual-mappings', payload);
         setSuccess('Visual mapping created successfully');
+        setHasUnsavedChanges(false);
         navigate(`/visual-mappings/${response.data.id}`);
       }
+      return true;
     } catch (error) {
       console.error('Error saving visual mapping:', error);
       setError(error.response?.data?.error || 'Failed to save visual mapping');
+      return false;
     } finally {
       setSaving(false);
     }
   };
   
   const executeMapping = async () => {
-    if (!isEditMode) {
-      setError('Please save the mapping before executing');
-      return;
+    // If new mapping or has unsaved changes, save first
+    if (!isEditMode || hasUnsavedChanges) {
+      setSuccess('Saving mapping before execution...');
+      const saveResult = await saveMapping();
+      if (!saveResult) {
+        return; // Save failed, error already set
+      }
     }
     
     try {
@@ -1041,12 +1076,32 @@ const VisualMappingCanvasContent = () => {
   
   // Handle execution completion (only show success if no error)
   useEffect(() => {
-    if (executionComplete && !executionError) {
+    if (executionComplete && !executionError && currentExecutionId) {
       setIsExecuting(false);
       setSuccess('Execution completed successfully!');
+      
+      // Save execution logs to database
+      if (executionLogs.length > 0) {
+        axios.post(`/api/visual-mappings/executions/${currentExecutionId}/logs`, {
+          logs: executionLogs
+        }).catch(err => console.error('Failed to save execution logs:', err));
+      }
+      
       setTimeout(() => setCurrentExecutionId(null), 5000); // Clear execution ID after 5 seconds
     }
-  }, [executionComplete, executionError]);
+  }, [executionComplete, executionError, currentExecutionId, executionLogs]);
+  
+  // Save logs on execution error as well
+  useEffect(() => {
+    if (executionError && currentExecutionId) {
+      // Save execution logs to database even on failure
+      if (executionLogs.length > 0) {
+        axios.post(`/api/visual-mappings/executions/${currentExecutionId}/logs`, {
+          logs: executionLogs
+        }).catch(err => console.error('Failed to save execution logs:', err));
+      }
+    }
+  }, [executionError, currentExecutionId, executionLogs]);
   
   useEffect(() => {
     if (executionError) {
@@ -1225,8 +1280,14 @@ const VisualMappingCanvasContent = () => {
           {mappingName && <span className="visual-mapping-name-display">: {mappingName}</span>}
         </div>
         <div className="visual-mapping-toolbar-right">
-          <button onClick={() => navigate('/visual-mappings/manage')} className="visual-mapping-toolbar-btn">
-            Back to List
+          <button onClick={() => {
+            if (hasUnsavedChanges) {
+              setShowCloseConfirm(true);
+            } else {
+              navigate('/visual-mappings/manage');
+            }
+          }} className="visual-mapping-toolbar-btn">
+            Close Mapping
           </button>
           <button onClick={deleteSelected} className="visual-mapping-toolbar-btn visual-mapping-toolbar-btn-danger">
             <FaTrash /> Delete Selected
@@ -1265,6 +1326,44 @@ const VisualMappingCanvasContent = () => {
         <div className="visual-mapping-connection-error">
           <FaExclamationTriangle style={{ marginRight: '8px' }} />
           {connectionError}
+        </div>
+      )}
+      
+      {/* Close Confirmation Modal */}
+      {showCloseConfirm && (
+        <div className="visual-mapping-modal-overlay" onClick={(e) => e.stopPropagation()}>
+          <div className="visual-mapping-modal visual-mapping-modal-sm">
+            <div className="visual-mapping-modal-header">
+              <h3>Unsaved Changes</h3>
+              <button className="visual-mapping-modal-close" onClick={() => setShowCloseConfirm(false)}>×</button>
+            </div>
+            <div className="visual-mapping-modal-body">
+              <p>You have unsaved changes. Do you want to save before closing?</p>
+            </div>
+            <div className="visual-mapping-modal-footer">
+              <button 
+                className="visual-mapping-toolbar-btn"
+                onClick={() => {
+                  setShowCloseConfirm(false);
+                  navigate('/visual-mappings/manage');
+                }}
+              >
+                Discard Changes
+              </button>
+              <button 
+                className="visual-mapping-toolbar-btn visual-mapping-toolbar-btn-primary"
+                onClick={async () => {
+                  const saveResult = await saveMapping();
+                  if (saveResult) {
+                    setShowCloseConfirm(false);
+                    navigate('/visual-mappings/manage');
+                  }
+                }}
+              >
+                Save and Close
+              </button>
+            </div>
+          </div>
         </div>
       )}
       
@@ -1320,7 +1419,7 @@ const VisualMappingCanvasContent = () => {
                     <input 
                       type="text"
                       value={mappingName}
-                      onChange={(e) => setMappingName(e.target.value)}
+                      onChange={(e) => { setMappingName(e.target.value); setHasUnsavedChanges(true); }}
                       placeholder="Enter mapping name"
                       className="visual-mapping-input"
                     />
@@ -1329,7 +1428,7 @@ const VisualMappingCanvasContent = () => {
                     <label>Description</label>
                     <textarea 
                       value={mappingDescription}
-                      onChange={(e) => setMappingDescription(e.target.value)}
+                      onChange={(e) => { setMappingDescription(e.target.value); setHasUnsavedChanges(true); }}
                       placeholder="Enter description"
                       className="visual-mapping-textarea"
                       rows="2"
@@ -1339,7 +1438,7 @@ const VisualMappingCanvasContent = () => {
                     <label>Project</label>
                     <select
                       value={projectId || ''}
-                      onChange={(e) => setProjectId(parseInt(e.target.value) || null)}
+                      onChange={(e) => { setProjectId(parseInt(e.target.value) || null); setHasUnsavedChanges(true); }}
                       className="visual-mapping-select"
                     >
                       <option value="">Select Project</option>
@@ -1353,7 +1452,7 @@ const VisualMappingCanvasContent = () => {
                       <label>Sub-Project (Optional)</label>
                       <select
                         value={subProjectId || ''}
-                        onChange={(e) => setSubProjectId(parseInt(e.target.value) || null)}
+                        onChange={(e) => { setSubProjectId(parseInt(e.target.value) || null); setHasUnsavedChanges(true); }}
                         className="visual-mapping-select"
                       >
                         <option value="">None</option>
@@ -1539,8 +1638,18 @@ const VisualMappingCanvasContent = () => {
             <ReactFlow
               nodes={nodes}
               edges={edges}
-              onNodesChange={onNodesChange}
-              onEdgesChange={onEdgesChange}
+              onNodesChange={(changes) => {
+                onNodesChange(changes);
+                // Track unsaved changes for node modifications (not just selection)
+                const hasModifications = changes.some(c => c.type !== 'select' && c.type !== 'dimensions');
+                if (hasModifications) setHasUnsavedChanges(true);
+              }}
+              onEdgesChange={(changes) => {
+                onEdgesChange(changes);
+                // Track unsaved changes for edge modifications (not just selection)
+                const hasModifications = changes.some(c => c.type !== 'select');
+                if (hasModifications) setHasUnsavedChanges(true);
+              }}
               onConnect={onConnect}
               onInit={setReactFlowInstance}
               nodeTypes={nodeTypes}

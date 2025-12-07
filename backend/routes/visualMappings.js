@@ -730,12 +730,12 @@ router.post('/:id/validate', async (req, res) => {
 
 /**
  * GET /api/visual-mappings/:id/executions
- * Get execution history for a visual mapping
+ * Get execution history for a visual mapping (last 10 runs)
  */
 router.get('/:id/executions', async (req, res) => {
   try {
     const { id } = req.params;
-    const { limit = 50, offset = 0 } = req.query;
+    const { limit = 10, offset = 0 } = req.query;
     
     const result = await pool.query(
       `SELECT 
@@ -757,6 +757,81 @@ router.get('/:id/executions', async (req, res) => {
       userId: req.user.id
     });
     res.status(500).json({ error: 'Failed to fetch execution history' });
+  }
+});
+
+/**
+ * POST /api/visual-mappings/executions/:executionId/logs
+ * Save execution logs for a specific execution
+ */
+router.post('/executions/:executionId/logs', async (req, res) => {
+  try {
+    const { executionId } = req.params;
+    const { logs } = req.body;
+    
+    if (!logs || !Array.isArray(logs)) {
+      return res.status(400).json({ error: 'Logs must be an array' });
+    }
+    
+    // Update execution with logs
+    const result = await pool.query(
+      `UPDATE visual_mapping_executions 
+       SET logs = $1
+       WHERE execution_id = $2
+       RETURNING id`,
+      [JSON.stringify(logs), executionId]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Execution not found' });
+    }
+    
+    systemLogger.info('Execution logs saved', {
+      executionId,
+      logCount: logs.length
+    });
+    
+    res.json({ success: true, logCount: logs.length });
+  } catch (error) {
+    systemLogger.error('Failed to save execution logs', {
+      error: error.message,
+      executionId: req.params.executionId
+    });
+    res.status(500).json({ error: 'Failed to save execution logs' });
+  }
+});
+
+/**
+ * GET /api/visual-mappings/:id/logs
+ * Get aggregated logs from last 10 executions for a visual mapping
+ */
+router.get('/:id/logs', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const result = await pool.query(
+      `SELECT 
+        vme.execution_id,
+        vme.status,
+        vme.created_at,
+        vme.completed_at,
+        vme.logs,
+        vme.rows_processed,
+        vme.error_message
+       FROM visual_mapping_executions vme
+       WHERE vme.mapping_id = $1
+       ORDER BY vme.created_at DESC
+       LIMIT 10`,
+      [id]
+    );
+    
+    res.json(result.rows);
+  } catch (error) {
+    systemLogger.error('Failed to fetch execution logs', {
+      error: error.message,
+      mappingId: req.params.id
+    });
+    res.status(500).json({ error: 'Failed to fetch execution logs' });
   }
 });
 
