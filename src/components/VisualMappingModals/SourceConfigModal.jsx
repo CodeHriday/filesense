@@ -313,11 +313,7 @@ const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
     setLoading(true);
     try {
       const response = await axios.get('/api/connections');
-      // Filter to only show source connections
-      const sourceConnections = (response.data || []).filter(
-        conn => !conn.connection_direction || conn.connection_direction === 'source'
-      );
-      setConnections(sourceConnections);
+      setConnections(response.data || []);
     } catch (error) {
       console.error('Error fetching connections:', error);
       setConnections([]);

@@ -48,11 +48,7 @@ const TargetRulesModal = ({ isOpen, onClose, onSave, initialConfig = {}, project
   const fetchConnections = async () => {
     try {
       const response = await axios.get('/api/connections');
-      // Filter to only show target/destination connections
-      const targetConnections = (response.data || []).filter(
-        conn => !conn.connection_direction || conn.connection_direction === 'target'
-      );
-      setConnections(targetConnections);
+      setConnections(response.data || []);
     } catch (error) {
       console.error('Error fetching connections:', error);
     }
