@@ -1295,10 +1295,10 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
               </div>
             </div>
             <div className="modal-footer">
-              <button className="btn btn-secondary" onClick={() => setEditingExpression(null)}>
+              <button className="btn btn-secondary btn-fixed-width" onClick={() => setEditingExpression(null)}>
                 Cancel
               </button>
-              <button className="btn btn-primary" onClick={handleSaveExpression}>
+              <button className="btn btn-primary btn-fixed-width" onClick={handleSaveExpression}>
                 Save Expression
               </button>
             </div>
@@ -1774,10 +1774,10 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
               </div>
             </div>
             <div className="modal-footer">
-              <button className="btn btn-secondary" onClick={() => setEditingVariable(null)}>
+              <button className="btn btn-secondary btn-fixed-width" onClick={() => setEditingVariable(null)}>
                 Cancel
               </button>
-              <button className="btn btn-primary" onClick={handleSaveEditedVariable}>
+              <button className="btn btn-primary btn-fixed-width" onClick={handleSaveEditedVariable}>
                 Save Variable
               </button>
             </div>
@@ -1788,7 +1788,7 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
       {/* DQ Rule Assignment Panel Modal */}
       {showDqRulePanel && (
         <div className="expression-editor-modal dq-rule-panel-modal">
-          <div className="modal-overlay" onClick={() => setShowDqRulePanel(false)}></div>
+          <div className="modal-overlay"></div>
           <div className="modal-content dq-rule-panel-content">
             <div className="modal-header">
               <h4>Assign Data Quality Rules</h4>
@@ -1912,9 +1912,8 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
             </div>
             <div className="modal-footer" style={{ justifyContent: 'flex-end' }}>
               <button 
-                className="btn btn-primary dq-save-btn" 
+                className="btn btn-primary btn-fixed-width" 
                 onClick={() => setShowDqRulePanel(false)}
-                style={{ minWidth: 'auto', padding: '0.375rem 1rem' }}
               >
                 Save
               </button>
