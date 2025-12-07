@@ -30,6 +30,177 @@ const ARCHIVE_EXTENSIONS = ['zip', '7z', 'tar', 'gz', 'tgz', 'bz2', 'tar.gz', 't
 const FIXED_WIDTH_EXTENSIONS = ['dat', 'fixed_width', 'txt'];
 
 /**
+ * Parse a file buffer into an array of row objects (for join lookups)
+ * @param {Buffer} buffer - File content buffer
+ * @param {string} filename - Filename for extension detection
+ * @returns {Promise<Array<Object>>} - Array of row objects
+ */
+async function parseFileToRows(buffer, filename) {
+  const rows = [];
+  const ext = filename.split('.').pop()?.toLowerCase();
+  
+  if (ext === 'csv' || ext === 'txt') {
+    // Parse CSV
+    const content = buffer.toString('utf-8');
+    const lines = content.split('\n').filter(line => line.trim());
+    
+    if (lines.length === 0) return rows;
+    
+    // Parse header
+    const headerLine = lines[0];
+    const headers = headerLine.split(',').map(h => h.trim().replace(/^["']|["']$/g, ''));
+    
+    // Parse data rows
+    for (let i = 1; i < lines.length; i++) {
+      const line = lines[i];
+      const values = [];
+      let inQuotes = false;
+      let currentValue = '';
+      
+      for (const char of line) {
+        if (char === '"' && !inQuotes) {
+          inQuotes = true;
+        } else if (char === '"' && inQuotes) {
+          inQuotes = false;
+        } else if (char === ',' && !inQuotes) {
+          values.push(currentValue.trim());
+          currentValue = '';
+        } else {
+          currentValue += char;
+        }
+      }
+      values.push(currentValue.trim());
+      
+      const row = {};
+      headers.forEach((header, idx) => {
+        row[header] = values[idx] || '';
+      });
+      rows.push(row);
+    }
+  } else if (ext === 'json') {
+    // Parse JSON
+    const content = buffer.toString('utf-8');
+    const parsed = JSON.parse(content);
+    
+    if (Array.isArray(parsed)) {
+      rows.push(...parsed);
+    } else if (parsed.data && Array.isArray(parsed.data)) {
+      rows.push(...parsed.data);
+    } else if (parsed.rows && Array.isArray(parsed.rows)) {
+      rows.push(...parsed.rows);
+    }
+  } else if (ext === 'xlsx' || ext === 'xls') {
+    // Parse Excel
+    const workbook = xlsx.read(buffer, { type: 'buffer' });
+    const sheetName = workbook.SheetNames[0];
+    const sheet = workbook.Sheets[sheetName];
+    const jsonData = xlsx.utils.sheet_to_json(sheet);
+    rows.push(...jsonData);
+  }
+  
+  return rows;
+}
+
+/**
+ * Apply join enrichment to transformed rows based on join specs and lookup tables
+ * Supports one-to-many joins (array-based lookup tables) and cascaded joins
+ * @param {Array<Object>} transformedRows - Array of transformed row objects
+ * @param {Object} joinLookupTables - Lookup tables keyed by join node ID (values are arrays)
+ * @param {Array<Object>} joinSpecs - Join specifications
+ * @param {Object} logger - Logger for debug output
+ * @returns {Array<Object>} - Enriched rows (may have more rows than input for one-to-many joins)
+ */
+function applyJoinEnrichment(transformedRows, joinLookupTables, joinSpecs, logger = null) {
+  if (!joinLookupTables || !joinSpecs || joinSpecs.length === 0) {
+    return transformedRows;
+  }
+  
+  let currentRows = [...transformedRows];
+  let matchedCount = 0;
+  let unmatchedCount = 0;
+  
+  // Apply joins in sequence (for cascaded joins)
+  for (const joinSpec of joinSpecs) {
+    const lookupKey = `${joinSpec.nodeId}_right`;
+    const lookupTable = joinLookupTables[lookupKey];
+    
+    if (!lookupTable || !joinSpec.joinKeys || joinSpec.joinKeys.length === 0) {
+      continue;
+    }
+    
+    const joinType = (joinSpec.joinType || 'INNER').toUpperCase();
+    const nextRows = [];
+    
+    for (const row of currentRows) {
+      // Build composite key from the CURRENT enriched row (supports cascaded joins)
+      const keyParts = joinSpec.joinKeys.map(jk => {
+        const columnName = jk.leftColumn || jk.left_column || jk.left;
+        return String(row[columnName] || '').trim().toLowerCase();
+      });
+      const compositeKey = keyParts.join('|');
+      
+      // Look up matching rows from right source (array-based for one-to-many support)
+      const matchedRightRows = lookupTable[compositeKey];
+      
+      if (matchedRightRows && matchedRightRows.length > 0) {
+        matchedCount += matchedRightRows.length;
+        
+        // For each matching right row, create an enriched output row
+        for (const matchedRightRow of matchedRightRows) {
+          const enrichedRow = { ...row };
+          
+          // Apply column mappings from the join node configuration
+          if (joinSpec.columnMappings && joinSpec.columnMappings.length > 0) {
+            for (const cm of joinSpec.columnMappings) {
+              const sourceCol = cm.sourceColumn || cm.source_column || cm.source;
+              const targetCol = cm.targetColumn || cm.target_column || cm.target || sourceCol;
+              
+              if (sourceCol && matchedRightRow[sourceCol] !== undefined) {
+                enrichedRow[targetCol] = matchedRightRow[sourceCol];
+              }
+            }
+          } else {
+            // If no column mappings, merge all columns from right source
+            for (const [col, value] of Object.entries(matchedRightRow)) {
+              // Prefix right columns if they conflict with left columns
+              if (enrichedRow[col] !== undefined) {
+                enrichedRow[`right_${col}`] = value;
+              } else {
+                enrichedRow[col] = value;
+              }
+            }
+          }
+          
+          nextRows.push(enrichedRow);
+        }
+      } else {
+        unmatchedCount++;
+        
+        // For LEFT/LEFT OUTER joins, keep the row with nulls for right columns
+        if (joinType === 'LEFT' || joinType === 'LEFT OUTER') {
+          nextRows.push({ ...row });
+        }
+        // INNER JOIN: Skip rows with no match (don't add to nextRows)
+      }
+    }
+    
+    // Update currentRows for the next join in the chain
+    currentRows = nextRows;
+  }
+  
+  if (logger) {
+    logger.info('Join enrichment completed', {
+      inputRows: transformedRows.length,
+      outputRows: currentRows.length,
+      matchedJoins: matchedCount,
+      unmatchedJoins: unmatchedCount
+    });
+  }
+  
+  return currentRows;
+}
+
+/**
  * Check if a file extension indicates an archive file
  * @param {string} filename - The filename to check
  * @returns {boolean} - True if file is an archive
@@ -1171,6 +1342,128 @@ async function executeTransformationJob(pool, mappingId, userId, options = {}) {
       }
     }
     
+    // Step 2.5: Multi-Source Join Preparation
+    // Load secondary source files into memory lookup tables for join enrichment
+    let joinLookupTables = {};
+    const hasMultiSourceJoin = mapping.has_multi_source_join && 
+                                mapping.source_catalog && mapping.source_catalog.length > 1 &&
+                                mapping.join_specs && mapping.join_specs.length > 0;
+    
+    if (hasMultiSourceJoin) {
+      emitLog('info', `Multi-source join detected: Loading ${mapping.source_catalog.length - 1} secondary source(s) for join enrichment`);
+      await logJobExecution(pool, jobId, 'info', 'Loading secondary source files for multi-source join', {
+        sourceCatalogCount: mapping.source_catalog.length,
+        joinSpecsCount: mapping.join_specs.length
+      });
+      
+      // Parse source_catalog and join_specs if they're JSON strings
+      let sourceCatalog = mapping.source_catalog;
+      let joinSpecs = mapping.join_specs;
+      
+      if (typeof sourceCatalog === 'string') {
+        sourceCatalog = JSON.parse(sourceCatalog);
+      }
+      if (typeof joinSpecs === 'string') {
+        joinSpecs = JSON.parse(joinSpecs);
+      }
+      
+      // Identify primary source node ID
+      const primarySourceNodeId = mapping.primary_source_node_id;
+      
+      // Load each secondary source into lookup tables
+      for (const source of sourceCatalog) {
+        if (source.nodeId === primarySourceNodeId) {
+          emitLog('info', `Skipping primary source: ${source.nodeName} (will be streamed)`);
+          continue;
+        }
+        
+        emitNodeStatus(source.nodeId, 'running', { phase: 'loading_for_join' });
+        
+        try {
+          // Build file pattern for this source
+          const sourcePattern = source.filePath 
+            ? `${source.filePath.replace(/^\//, '').replace(/\/$/, '')}/${source.filePattern}`
+            : source.filePattern;
+          
+          // Find files matching this source's pattern
+          const sourceFiles = await listAndFilterFiles(
+            pool,
+            source.connectionId,
+            sourcePattern
+          );
+          
+          if (sourceFiles.length === 0) {
+            emitLog('warn', `No files found for secondary source: ${source.nodeName} (pattern: ${sourcePattern})`);
+            emitNodeStatus(source.nodeId, 'failed', { error: 'No matching files found' });
+            continue;
+          }
+          
+          // Load the first matching file (for now, single file per source)
+          const sourceFile = sourceFiles[0];
+          emitLog('info', `Loading secondary source: ${source.nodeName} (${sourceFile.filename})`);
+          
+          // Download and parse the file
+          const fileBuffer = await downloadFileFromConnection(pool, source.connectionId, sourceFile.filename);
+          const rows = await parseFileToRows(fileBuffer, sourceFile.filename);
+          
+          // Find which join specs use this source
+          const relevantJoinSpecs = joinSpecs.filter(js => 
+            js.rightSourceNodeId === source.nodeId || js.leftSourceNodeId === source.nodeId
+          );
+          
+          // Build lookup tables for each join key combination
+          for (const joinSpec of relevantJoinSpecs) {
+            const isRightSource = joinSpec.rightSourceNodeId === source.nodeId;
+            
+            if (isRightSource && joinSpec.joinKeys && joinSpec.joinKeys.length > 0) {
+              // Build composite key lookup table with ARRAY values (supports multiple matches per key)
+              const lookupKey = `${joinSpec.nodeId}_right`;
+              joinLookupTables[lookupKey] = {};
+              
+              for (const row of rows) {
+                // Build composite key from all join keys
+                const keyParts = joinSpec.joinKeys.map(jk => {
+                  const columnName = jk.rightColumn || jk.right_column || jk.right;
+                  return String(row[columnName] || '').trim().toLowerCase();
+                });
+                const compositeKey = keyParts.join('|');
+                
+                // Store ALL matching rows in an array (supports one-to-many joins)
+                if (!joinLookupTables[lookupKey][compositeKey]) {
+                  joinLookupTables[lookupKey][compositeKey] = [];
+                }
+                joinLookupTables[lookupKey][compositeKey].push(row);
+              }
+              
+              emitLog('info', `Built lookup table for ${source.nodeName}: ${Object.keys(joinLookupTables[lookupKey]).length} unique keys`);
+              systemLogger.info('Built join lookup table', {
+                sourceNodeId: source.nodeId,
+                sourceName: source.nodeName,
+                joinNodeId: joinSpec.nodeId,
+                lookupKey,
+                uniqueKeys: Object.keys(joinLookupTables[lookupKey]).length,
+                totalRows: rows.length
+              });
+            }
+          }
+          
+          emitNodeStatus(source.nodeId, 'completed', { rowsLoaded: rows.length });
+          
+        } catch (loadError) {
+          emitLog('error', `Failed to load secondary source ${source.nodeName}: ${loadError.message}`);
+          emitNodeStatus(source.nodeId, 'failed', { error: loadError.message });
+          systemLogger.error('Failed to load secondary source for join', {
+            sourceNodeId: source.nodeId,
+            sourceName: source.nodeName,
+            error: loadError.message
+          });
+        }
+      }
+      
+      // Store join specs in mapping for use during row processing
+      mapping.parsed_join_specs = joinSpecs;
+    }
+    
     // Step 3: Process each file
     // Emit running status for expression and join nodes (transformation phase)
     nodesByType.expression.forEach(nodeId => {
@@ -1236,7 +1529,9 @@ async function executeTransformationJob(pool, mappingId, userId, options = {}) {
           transformationJobDbId, 
           userId,
           rdmContext,
-          onTransformComplete
+          onTransformComplete,
+          joinLookupTables: hasMultiSourceJoin ? joinLookupTables : null,
+          joinSpecs: hasMultiSourceJoin ? mapping.parsed_join_specs : null
         });
         
         totalRowsRead += fileResult.rowsRead;
@@ -1868,7 +2163,7 @@ function calculateColumnStatistics(rows, schema) {
  * @returns {Promise<Object>} - Processing result
  */
 async function processFile(pool, file, mapping, jobId, options = {}) {
-  const { dryRun = false, transformationJobDbId = null, userId = null, rdmContext = {}, onTransformComplete = null } = options;
+  const { dryRun = false, transformationJobDbId = null, userId = null, rdmContext = {}, onTransformComplete = null, joinLookupTables = null, joinSpecs = null } = options;
   
   let rowsRead = 0;
   let rowsWritten = 0;
@@ -2416,6 +2711,40 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
       rows_transformed: transformedRows.length,
       rows_failed: rowsFailed
     });
+    
+    // Step 3.1.5: Apply multi-source join enrichment if configured
+    if (joinLookupTables && joinSpecs && joinSpecs.length > 0) {
+      await logJobExecution(pool, jobId, 'info', `Applying multi-source join enrichment`, {
+        inputRows: transformedRows.length,
+        joinSpecCount: joinSpecs.length,
+        lookupTableCount: Object.keys(joinLookupTables).length
+      });
+      
+      try {
+        const enrichedRows = applyJoinEnrichment(transformedRows, joinLookupTables, joinSpecs, systemLogger);
+        
+        // Update row counts based on join results
+        const joinedCount = enrichedRows.length;
+        const droppedByJoin = transformedRows.length - joinedCount;
+        
+        // Replace transformedRows with enriched data
+        transformedRows.length = 0;
+        transformedRows.push(...enrichedRows);
+        
+        // Update rowsWritten to reflect join filtering
+        rowsWritten = transformedRows.length;
+        
+        await logJobExecution(pool, jobId, 'info', `Multi-source join enrichment complete`, {
+          outputRows: transformedRows.length,
+          droppedByJoin: droppedByJoin
+        });
+      } catch (joinError) {
+        await logJobExecution(pool, jobId, 'error', `Multi-source join enrichment failed: ${joinError.message}`, {
+          error: joinError.stack
+        });
+        throw new Error(`Multi-source join enrichment failed: ${joinError.message}`);
+      }
+    }
     
     // Step 3.2: Apply RDM lookups (dataset join + crosswalk) if enabled
     if (mapping.rdm_lookup_enabled) {

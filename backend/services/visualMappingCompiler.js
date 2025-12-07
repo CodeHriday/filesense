@@ -62,6 +62,10 @@ class VisualMappingCompiler {
                             (compiledSteps.rdmCrosswalkConfigs && compiledSteps.rdmCrosswalkConfigs.length > 0) ||
                             compiledSteps.rdmDatasetConfig || compiledSteps.rdmCrosswalkConfig;
       
+      // Check if this is a multi-source mapping with joins
+      const hasMultipleSources = compiledSteps.sourceCatalog && compiledSteps.sourceCatalog.length > 1;
+      const hasJoins = compiledSteps.joinSpecs && compiledSteps.joinSpecs.length > 0;
+      
       const transformationMapping = {
         name: name || 'Visual Mapping',
         description: description || '',
@@ -89,7 +93,12 @@ class VisualMappingCompiler {
         node_execution_map: executionOrder.executionMap,
         vendor_agreement_id: compiledSteps.vendorAgreementId || null,
         vendor_agreement_name: compiledSteps.vendorAgreementName || null,
-        agreement_file_id: compiledSteps.agreementFileId || null
+        agreement_file_id: compiledSteps.agreementFileId || null,
+        // Multi-source join support
+        source_catalog: compiledSteps.sourceCatalog || [],
+        join_specs: compiledSteps.joinSpecs || [],
+        primary_source_node_id: compiledSteps.primarySourceNodeId || null,
+        has_multi_source_join: hasMultipleSources && hasJoins
       };
       
       systemLogger.info('Visual mapping compiled successfully', {
@@ -499,6 +508,7 @@ class VisualMappingCompiler {
   
   /**
    * Compiles nodes into transformation configuration
+   * Enhanced to support multi-source joins with proper source cataloging
    */
   compileNodes(orderedNodeIds, nodes, edges, nodeSchemas) {
     const nodeMap = {};
@@ -510,23 +520,48 @@ class VisualMappingCompiler {
       variables: [],
       piiColumns: [],
       qualityRuleIds: [],
-      enableAnomalyDetection: false
+      enableAnomalyDetection: false,
+      // Multi-source support: collect all source configurations
+      sourceCatalog: [],
+      // Join specifications for multi-source execution
+      joinSpecs: []
     };
     
     try {
+      // First pass: Collect all sources and joins
       orderedNodeIds.forEach(nodeId => {
         const node = nodeMap[nodeId];
         const config = node.data?.config || {};
         
         switch (node.type) {
           case 'sourceConfig':
-            result.sourceConnectionId = config.connectionId;
-            result.sourceFilePath = config.filePath;
-            result.sourceFilePattern = config.filePattern;
-            result.schemaDriftHandling = config.schemaDriftHandling;
-            result.vendorAgreementId = config.vendorAgreementId || null;
-            result.vendorAgreementName = config.vendorAgreementName || null;
-            result.agreementFileId = config.agreementFileId || null;
+            // Collect each source into the catalog instead of overwriting
+            result.sourceCatalog.push({
+              nodeId: nodeId,
+              nodeName: node.data?.label || config.name || 'Source',
+              connectionId: config.connectionId,
+              connectionName: config.connectionName || '',
+              filePath: config.filePath,
+              filePattern: config.filePattern,
+              vendorAgreementId: config.vendorAgreementId || null,
+              vendorAgreementName: config.vendorAgreementName || null,
+              agreementFileId: config.agreementFileId || null,
+              schemaDriftHandling: config.schemaDriftHandling || 'none',
+              schema: config.schema || []
+            });
+            
+            // For backward compatibility, keep the FIRST source as the primary
+            // (This will be the main/driving source for JOIN processing)
+            if (!result.sourceConnectionId) {
+              result.sourceConnectionId = config.connectionId;
+              result.sourceFilePath = config.filePath;
+              result.sourceFilePattern = config.filePattern;
+              result.schemaDriftHandling = config.schemaDriftHandling;
+              result.vendorAgreementId = config.vendorAgreementId || null;
+              result.vendorAgreementName = config.vendorAgreementName || null;
+              result.agreementFileId = config.agreementFileId || null;
+              result.primarySourceNodeId = nodeId;
+            }
             break;
             
           case 'expression':
@@ -606,6 +641,68 @@ class VisualMappingCompiler {
             
           case 'rdmCrosswalk':
             result.rdmCrosswalkConfig = config.rdmConfig;
+            break;
+            
+          case 'join':
+            // Extract join specification with left/right source references
+            // Find the edges connecting to this join node
+            const leftEdge = edges.find(e => e.target === nodeId && e.targetHandle === 'leftInput');
+            const rightEdge = edges.find(e => e.target === nodeId && e.targetHandle === 'rightInput');
+            
+            // Trace back to find the source nodes for each side
+            const traceToSource = (startNodeId) => {
+              const visited = new Set();
+              let currentNodeId = startNodeId;
+              while (currentNodeId && !visited.has(currentNodeId)) {
+                visited.add(currentNodeId);
+                const currentNode = nodeMap[currentNodeId];
+                if (!currentNode) break;
+                if (currentNode.type === 'sourceConfig') {
+                  return currentNodeId;
+                }
+                // Follow the incoming edge
+                const incomingEdge = edges.find(e => e.target === currentNodeId);
+                currentNodeId = incomingEdge?.source;
+              }
+              return null;
+            };
+            
+            const leftSourceNodeId = leftEdge ? traceToSource(leftEdge.source) : null;
+            const rightSourceNodeId = rightEdge ? traceToSource(rightEdge.source) : null;
+            
+            result.joinSpecs.push({
+              nodeId: nodeId,
+              nodeName: node.data?.label || config.name || 'Join',
+              joinType: config.joinType || 'INNER',
+              joinKeys: config.joinKeys || [],
+              columnMappings: config.columnMappings || [],
+              leftInputNodeId: leftEdge?.source || null,
+              rightInputNodeId: rightEdge?.source || null,
+              leftSourceNodeId: leftSourceNodeId,
+              rightSourceNodeId: rightSourceNodeId,
+              outputSchema: config.outputSchema || []
+            });
+            
+            // For LEFT JOINs, the left source should be the primary/driving source
+            if ((config.joinType === 'LEFT' || config.joinType === 'LEFT OUTER') && leftSourceNodeId) {
+              const leftSource = result.sourceCatalog.find(s => s.nodeId === leftSourceNodeId);
+              if (leftSource && result.primarySourceNodeId !== leftSourceNodeId) {
+                // Update primary source to be the LEFT side of a LEFT JOIN
+                result.sourceConnectionId = leftSource.connectionId;
+                result.sourceFilePath = leftSource.filePath;
+                result.sourceFilePattern = leftSource.filePattern;
+                result.schemaDriftHandling = leftSource.schemaDriftHandling;
+                result.vendorAgreementId = leftSource.vendorAgreementId;
+                result.vendorAgreementName = leftSource.vendorAgreementName;
+                result.agreementFileId = leftSource.agreementFileId;
+                result.primarySourceNodeId = leftSourceNodeId;
+                
+                systemLogger.info('Updated primary source for LEFT JOIN', {
+                  primarySourceNodeId: leftSourceNodeId,
+                  filePattern: leftSource.filePattern
+                });
+              }
+            }
             break;
             
           case 'targetRules':
