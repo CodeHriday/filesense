@@ -216,13 +216,38 @@ const WorkflowBuilderContent = () => {
     return () => resizeObserver.disconnect();
   }, []);
   
-  // Load workflow if ID is in URL
+  // Load workflow if ID is in URL, or add default nodes for new workflows
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const id = params.get('id');
     if (id) {
       setWorkflowId(parseInt(id));
       loadWorkflow(parseInt(id));
+    } else {
+      // New workflow - add default Start and Stop nodes
+      const defaultNodes = [
+        {
+          id: `start-${Date.now()}`,
+          type: 'start',
+          position: { x: 100, y: 200 },
+          data: { 
+            label: 'Start',
+            assetType: 'start',
+            assetId: null
+          }
+        },
+        {
+          id: `stop-${Date.now() + 1}`,
+          type: 'stop',
+          position: { x: 600, y: 200 },
+          data: { 
+            label: 'Stop',
+            assetType: 'stop',
+            assetId: null
+          }
+        }
+      ];
+      setNodes(defaultNodes);
     }
   }, []);
   
