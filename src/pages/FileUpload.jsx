@@ -135,6 +135,9 @@ function FileUpload() {
   const [archivePassword, setArchivePassword] = useState('');
   const [showArchivePassword, setShowArchivePassword] = useState(false);
   
+  // Vendor connection selection for vendor users
+  const [selectedConnection, setSelectedConnection] = useState(null);
+  
   // Fixed-width schema file upload states
   const [schemaUploadError, setSchemaUploadError] = useState('');
   const [schemaUploadSuccess, setSchemaUploadSuccess] = useState('');
