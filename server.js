@@ -5080,23 +5080,20 @@ app.post('/api/mappings/:mappingId/execution-logs', authenticateToken, async (re
     const { mappingId } = req.params;
     const { runId, runName, startedAt, status, logs } = req.body;
     
-    console.log('POST /api/mappings/:mappingId/execution-logs - Request received');
-    console.log('  mappingId:', mappingId);
-    console.log('  runId:', runId);
-    console.log('  runName:', runName);
-    console.log('  startedAt:', startedAt);
-    console.log('  status:', status);
-    console.log('  logs count:', logs?.length || 0);
-    
     if (!runId || !runName) {
-      console.log('  ERROR: runId or runName missing');
       return res.status(400).json({ error: 'runId and runName are required' });
+    }
+    
+    // Convert mappingId to integer for the database
+    const mappingIdInt = parseInt(mappingId, 10);
+    if (isNaN(mappingIdInt)) {
+      return res.status(400).json({ error: 'Invalid mapping ID' });
     }
     
     // Check if run already exists (upsert)
     const existingRun = await dbPool.query(
       `SELECT id FROM visual_mapping_execution_logs WHERE mapping_id = $1 AND run_id = $2`,
-      [mappingId, runId]
+      [mappingIdInt, runId]
     );
     
     if (existingRun.rows.length > 0) {
@@ -5105,14 +5102,14 @@ app.post('/api/mappings/:mappingId/execution-logs', authenticateToken, async (re
         `UPDATE visual_mapping_execution_logs
          SET run_name = $1, status = $2, logs = $3
          WHERE mapping_id = $4 AND run_id = $5`,
-        [runName, status || 'completed', JSON.stringify(logs || []), mappingId, runId]
+        [runName, status || 'completed', JSON.stringify(logs || []), mappingIdInt, runId]
       );
     } else {
       // Insert new run
       await dbPool.query(
         `INSERT INTO visual_mapping_execution_logs (mapping_id, run_id, run_name, started_at, status, logs)
          VALUES ($1, $2, $3, $4, $5, $6)`,
-        [mappingId, runId, runName, startedAt ? new Date(startedAt) : new Date(), status || 'running', JSON.stringify(logs || [])]
+        [mappingIdInt, runId, runName, startedAt ? new Date(startedAt) : new Date(), status || 'running', JSON.stringify(logs || [])]
       );
       
       // Cleanup old runs - keep only last 10
@@ -5124,15 +5121,13 @@ app.post('/api/mappings/:mappingId/execution-logs', authenticateToken, async (re
            ORDER BY started_at DESC
            LIMIT 10
          )`,
-        [mappingId]
+        [mappingIdInt]
       );
     }
     
-    console.log('  SUCCESS: Execution log saved');
     res.json({ success: true, message: 'Execution log saved' });
   } catch (err) {
-    console.error('Error saving execution log:', err.message);
-    console.error('Full error:', err);
+    console.error('Error saving execution log:', err);
     res.status(500).json({ error: 'Failed to save execution log' });
   }
 });
