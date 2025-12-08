@@ -576,12 +576,11 @@ router.post('/:id/clone', async (req, res) => {
 
 /**
  * POST /api/visual-mappings/:id/execute
- * Execute a visual mapping
+ * Execute a visual mapping (runs in background for large jobs)
  */
 router.post('/:id/execute', async (req, res) => {
   try {
     const { id } = req.params;
-    // Handle empty request body (when executing from list page without WebSocket tracking)
     const clientExecutionId = req.body?.execution_id;
     
     console.log(`[VISUAL-MAPPING-EXECUTE] Starting execution for mapping ${id}`);
@@ -623,13 +622,39 @@ router.post('/:id/execute', async (req, res) => {
     // Extract the compiled transformation mapping
     const transformationMapping = compilationResult.transformationMapping;
     
-    // Use client-provided execution ID if available (for real-time WebSocket tracking)
-    // This allows the client to subscribe to updates BEFORE execution starts
+    // Check if there's already a running execution for this mapping
+    const runningCheck = await pool.query(
+      `SELECT execution_id FROM visual_mapping_executions 
+       WHERE mapping_id = $1 AND status = 'running' 
+       ORDER BY created_at DESC LIMIT 1`,
+      [id]
+    );
+    
+    if (runningCheck.rows.length > 0) {
+      return res.status(409).json({ 
+        error: 'Mapping is already executing',
+        executionId: runningCheck.rows[0].execution_id,
+        message: 'Please wait for the current execution to complete or check its status.'
+      });
+    }
+    
+    // Use client-provided execution ID if available
     const executionId = clientExecutionId || uuidv4();
     await pool.query(
       `INSERT INTO visual_mapping_executions (execution_id, mapping_id, status, triggered_by)
        VALUES ($1, $2, 'running', $3)`,
       [executionId, id, req.user.id]
+    );
+    
+    // Create initial execution log record
+    const runId = `vmrun-${Date.now()}`;
+    await pool.query(
+      `INSERT INTO visual_mapping_execution_logs 
+       (mapping_id, run_id, run_name, started_at, status, logs, execution_id)
+       VALUES ($1, $2, $3, NOW(), 'running', $4, $5)`,
+      [id, runId, mapping.name, JSON.stringify([
+        { timestamp: new Date().toISOString(), level: 'INFO', message: `Starting visual mapping execution: ${mapping.name}` }
+      ]), executionId]
     );
     
     // Update last executed timestamp and increment execution count
@@ -640,7 +665,7 @@ router.post('/:id/execute', async (req, res) => {
       [id]
     );
     
-    systemLogger.info('Visual mapping compiled successfully, starting execution', {
+    systemLogger.info('Visual mapping compiled successfully, starting background execution', {
       mappingId: id,
       executionId,
       userId: req.user.id
@@ -655,177 +680,303 @@ router.post('/:id/execute', async (req, res) => {
       return res.status(403).json({ error: 'You do not have permission to execute this visual mapping' });
     }
     
-    // Create a temporary transformation mapping for this execution
-    // This will be cleaned up after execution completes
-    const tempMappingId = `vm-${id}-${Date.now()}`;
-    
-    // Handle source exclusivity constraint: either source_connection_id OR vendor_agreement_id, not both
-    const vendorAgreementId = transformationMapping.vendor_agreement_id || null;
-    const sourceConnectionId = vendorAgreementId ? null : transformationMapping.source_connection_id;
-    
-    // Determine if RDM lookups are enabled (check for RDM lookup nodes or configs)
-    // Use plural arrays (rdm_dataset_configs/rdm_crosswalk_configs) when available for multi-node support
-    const hasRdmConfigArrays = (transformationMapping.rdm_dataset_configs?.length > 0) || 
-                                (transformationMapping.rdm_crosswalk_configs?.length > 0);
-    const hasRdmConfig = hasRdmConfigArrays || 
-                         !!(transformationMapping.rdm_dataset_config || transformationMapping.rdm_crosswalk_config);
-    const hasRdmNodes = mapping.graph_data?.nodes?.some(n => n.type === 'rdmLookup') || false;
-    const rdmLookupEnabled = hasRdmConfig || hasRdmNodes;
-    
-    // Prepare RDM configs for storage - use plural arrays if available, fall back to singular
-    // Store as arrays to support multiple RDM lookup nodes
-    const rdmDatasetConfigsToStore = transformationMapping.rdm_dataset_configs?.length > 0 
-      ? transformationMapping.rdm_dataset_configs 
-      : (transformationMapping.rdm_dataset_config ? [transformationMapping.rdm_dataset_config] : null);
-    const rdmCrosswalkConfigsToStore = transformationMapping.rdm_crosswalk_configs?.length > 0 
-      ? transformationMapping.rdm_crosswalk_configs 
-      : (transformationMapping.rdm_crosswalk_config ? [transformationMapping.rdm_crosswalk_config] : null);
-    
-    const transformResult = await pool.query(
-      `INSERT INTO transformation_mappings (
-        mapping_id, mapping_name, description, project_id, sub_project_id,
-        source_connection_id, file_path, source_file_pattern,
-        target_connection_id, target_file_path, target_file_name, target_file_format,
-        field_mappings, variables, pii_columns,
-        rdm_lookup_enabled, rdm_dataset_config, rdm_crosswalk_config,
-        schema_drift_handling, violation_handling,
-        created_by, is_visual_mapping, visual_mapping_id, is_temporary,
-        vendor_agreement_id,
-        source_catalog, join_specs, has_multi_source_join, primary_source_node_id
-      ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, true, $22, true, $23, $24, $25, $26, $27
-      ) RETURNING id`,
-      [
-        tempMappingId,
-        `[VM] ${transformationMapping.name || mapping.name}`,
-        transformationMapping.description || mapping.description,
-        transformationMapping.project_id || mapping.project_id,
-        transformationMapping.sub_project_id || mapping.sub_project_id,
-        sourceConnectionId,
-        transformationMapping.source_file_path,
-        transformationMapping.source_file_pattern || '*',
-        transformationMapping.target_connection_id,
-        transformationMapping.target_file_path,
-        transformationMapping.target_file_name,
-        transformationMapping.target_file_format || 'csv',
-        JSON.stringify(transformationMapping.field_mappings || []),
-        JSON.stringify(transformationMapping.variables || {}),
-        JSON.stringify(transformationMapping.pii_columns || []),
-        rdmLookupEnabled,
-        rdmDatasetConfigsToStore ? JSON.stringify(rdmDatasetConfigsToStore) : null,
-        rdmCrosswalkConfigsToStore ? JSON.stringify(rdmCrosswalkConfigsToStore) : null,
-        transformationMapping.schema_drift_handling || 'warn',
-        transformationMapping.violation_handling || 'continue',
-        req.user.id,
-        id,
-        vendorAgreementId,
-        JSON.stringify(transformationMapping.source_catalog || []),
-        JSON.stringify(transformationMapping.join_specs || []),
-        transformationMapping.has_multi_source_join || false,
-        transformationMapping.primary_source_node_id || null
-      ]
-    );
-    
-    const transformationDbId = transformResult.rows[0].id;
-    
-    console.log(`[VISUAL-MAPPING-EXECUTE] Temp mapping created: ${tempMappingId}, DB ID: ${transformationDbId}, rdmLookupEnabled: ${rdmLookupEnabled}`);
-    console.log(`[VISUAL-MAPPING-EXECUTE] Multi-source join config:`, {
-      has_multi_source_join: transformationMapping.has_multi_source_join,
-      source_catalog_length: transformationMapping.source_catalog?.length || 0,
-      join_specs_length: transformationMapping.join_specs?.length || 0,
-      primary_source_node_id: transformationMapping.primary_source_node_id
+    // Return immediately with execution ID
+    res.json({
+      message: 'Visual mapping execution started',
+      execution_id: executionId,
+      run_id: runId,
+      mapping_id: id,
+      mapping_name: mapping.name,
+      status: 'running',
+      async: true
     });
     
-    // Use jobExecutionEngine to execute with transformation_mappings table (uses mapping_id string, not numeric id)
-    const { executeTransformationJob } = require('../services/jobExecutionEngine');
-    try {
-      console.log(`[VISUAL-MAPPING-EXECUTE] Calling executeTransformationJob with mappingId: ${tempMappingId}`);
-      // Pass visualMappingExecutionId and graph node information for WebSocket status updates
-      // skipInternalCleanup: true - we need to update visual_mapping_executions before cleanup
-      const jobResult = await executeTransformationJob(pool, tempMappingId, req.user.id, {
-        visualMappingExecutionId: executionId,
-        visualMappingNodes: mapping.graph_data.nodes,
-        visualMappingEdges: mapping.graph_data.edges,
-        nodeExecutionMap: transformationMapping.node_execution_map,
-        executionOrder: compilationResult.executionOrder,
-        skipInternalCleanup: true
-      });
+    // Run execution in background (fire and forget)
+    setImmediate(async () => {
+      const tempMappingId = `vm-${id}-${Date.now()}`;
+      let transformationDbId = null;
       
-      console.log(`[VISUAL-MAPPING-EXECUTE] executeTransformationJob returned:`, JSON.stringify(jobResult, null, 2));
-      
-      // Determine the actual execution status from the job result
-      // The job engine may return status: 'failed' without throwing an error
-      const actualStatus = jobResult.status || 'completed';
-      const isFailed = actualStatus === 'failed';
-      
-      // Update execution record with job ID and row counts (jobExecutionEngine returns jobId in camelCase)
-      // Must happen BEFORE cleanup since transformation_id references the temp mapping
-      await pool.query(
-        `UPDATE visual_mapping_executions 
-         SET job_id = $1, status = $2, transformation_id = $3, rows_processed = $4, error_message = $5, completed_at = NOW()
-         WHERE execution_id = $6`,
-        [jobResult.jobId, actualStatus, transformationDbId, jobResult.rowsWritten || 0, isFailed ? jobResult.message : null, executionId]
-      );
-      
-      // Now safe to clean up temporary transformation mapping
-      await pool.query(
-        `DELETE FROM transformation_mappings WHERE mapping_id = $1 AND is_temporary = true`,
-        [tempMappingId]
-      );
-      systemLogger.info('Temporary transformation mapping cleaned up after execution', {
-        mappingId: tempMappingId,
-        executionId
-      });
-      
-      // Send email notification (non-blocking)
-      // Use the actual status from job result, don't override
-      sendVisualMappingNotification(mapping, jobResult, executionId).catch(err => {
-        systemLogger.error('Failed to send notification', { error: err.message, status: actualStatus });
-      });
-      
-      res.json({
-        message: isFailed ? 'Visual mapping execution failed' : 'Visual mapping execution completed',
-        execution_id: executionId,
-        mapping_id: id,
-        job_id: jobResult.jobId,
-        transformation_id: transformationDbId,
-        status: actualStatus,
-        error: isFailed ? jobResult.message : undefined
-      });
-    } catch (execError) {
-      // Update execution status to failed
-      await pool.query(
-        `UPDATE visual_mapping_executions 
-         SET status = 'failed', error_message = $1, completed_at = NOW()
-         WHERE execution_id = $2`,
-        [execError.message, executionId]
-      );
-      
-      // Clean up temporary transformation mapping on failure
-      await pool.query(
-        `DELETE FROM transformation_mappings WHERE mapping_id = $1 AND is_temporary = true`,
-        [tempMappingId]
-      );
-      
-      // Send email notification on failure (non-blocking)
-      sendVisualMappingNotification(mapping, { 
-        status: 'failed', 
-        message: execError.message,
-        jobId: null,
-        rowsWritten: 0 
-      }, executionId).catch(err => {
-        systemLogger.error('Failed to send failure notification', { error: err.message });
-      });
-      
-      throw execError;
-    }
+      try {
+        // Handle source exclusivity constraint
+        const vendorAgreementId = transformationMapping.vendor_agreement_id || null;
+        const sourceConnectionId = vendorAgreementId ? null : transformationMapping.source_connection_id;
+        
+        // Determine if RDM lookups are enabled
+        const hasRdmConfigArrays = (transformationMapping.rdm_dataset_configs?.length > 0) || 
+                                    (transformationMapping.rdm_crosswalk_configs?.length > 0);
+        const hasRdmConfig = hasRdmConfigArrays || 
+                             !!(transformationMapping.rdm_dataset_config || transformationMapping.rdm_crosswalk_config);
+        const hasRdmNodes = mapping.graph_data?.nodes?.some(n => n.type === 'rdmLookup') || false;
+        const rdmLookupEnabled = hasRdmConfig || hasRdmNodes;
+        
+        // Prepare RDM configs for storage
+        const rdmDatasetConfigsToStore = transformationMapping.rdm_dataset_configs?.length > 0 
+          ? transformationMapping.rdm_dataset_configs 
+          : (transformationMapping.rdm_dataset_config ? [transformationMapping.rdm_dataset_config] : null);
+        const rdmCrosswalkConfigsToStore = transformationMapping.rdm_crosswalk_configs?.length > 0 
+          ? transformationMapping.rdm_crosswalk_configs 
+          : (transformationMapping.rdm_crosswalk_config ? [transformationMapping.rdm_crosswalk_config] : null);
+        
+        const transformResult = await pool.query(
+          `INSERT INTO transformation_mappings (
+            mapping_id, mapping_name, description, project_id, sub_project_id,
+            source_connection_id, file_path, source_file_pattern,
+            target_connection_id, target_file_path, target_file_name, target_file_format,
+            field_mappings, variables, pii_columns,
+            rdm_lookup_enabled, rdm_dataset_config, rdm_crosswalk_config,
+            schema_drift_handling, violation_handling,
+            created_by, is_visual_mapping, visual_mapping_id, is_temporary,
+            vendor_agreement_id,
+            source_catalog, join_specs, has_multi_source_join, primary_source_node_id
+          ) VALUES (
+            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, true, $22, true, $23, $24, $25, $26, $27
+          ) RETURNING id`,
+          [
+            tempMappingId,
+            `[VM] ${transformationMapping.name || mapping.name}`,
+            transformationMapping.description || mapping.description,
+            transformationMapping.project_id || mapping.project_id,
+            transformationMapping.sub_project_id || mapping.sub_project_id,
+            sourceConnectionId,
+            transformationMapping.source_file_path,
+            transformationMapping.source_file_pattern || '*',
+            transformationMapping.target_connection_id,
+            transformationMapping.target_file_path,
+            transformationMapping.target_file_name,
+            transformationMapping.target_file_format || 'csv',
+            JSON.stringify(transformationMapping.field_mappings || []),
+            JSON.stringify(transformationMapping.variables || {}),
+            JSON.stringify(transformationMapping.pii_columns || []),
+            rdmLookupEnabled,
+            rdmDatasetConfigsToStore ? JSON.stringify(rdmDatasetConfigsToStore) : null,
+            rdmCrosswalkConfigsToStore ? JSON.stringify(rdmCrosswalkConfigsToStore) : null,
+            transformationMapping.schema_drift_handling || 'warn',
+            transformationMapping.violation_handling || 'continue',
+            req.user.id,
+            id,
+            vendorAgreementId,
+            JSON.stringify(transformationMapping.source_catalog || []),
+            JSON.stringify(transformationMapping.join_specs || []),
+            transformationMapping.has_multi_source_join || false,
+            transformationMapping.primary_source_node_id || null
+          ]
+        );
+        
+        transformationDbId = transformResult.rows[0].id;
+        
+        console.log(`[VISUAL-MAPPING-EXECUTE] Temp mapping created: ${tempMappingId}, DB ID: ${transformationDbId}`);
+        
+        // Use jobExecutionEngine to execute
+        const { executeTransformationJob } = require('../services/jobExecutionEngine');
+        const jobResult = await executeTransformationJob(pool, tempMappingId, req.user.id, {
+          visualMappingExecutionId: executionId,
+          visualMappingNodes: mapping.graph_data.nodes,
+          visualMappingEdges: mapping.graph_data.edges,
+          nodeExecutionMap: transformationMapping.node_execution_map,
+          executionOrder: compilationResult.executionOrder,
+          skipInternalCleanup: true
+        });
+        
+        console.log(`[VISUAL-MAPPING-EXECUTE] executeTransformationJob returned:`, JSON.stringify(jobResult, null, 2));
+        
+        const actualStatus = jobResult.status || 'completed';
+        const isFailed = actualStatus === 'failed';
+        
+        // Update execution record
+        await pool.query(
+          `UPDATE visual_mapping_executions 
+           SET job_id = $1, status = $2, transformation_id = $3, rows_processed = $4, error_message = $5, completed_at = NOW()
+           WHERE execution_id = $6`,
+          [jobResult.jobId, actualStatus, transformationDbId, jobResult.rowsWritten || 0, isFailed ? jobResult.message : null, executionId]
+        );
+        
+        // Update execution logs
+        const finalLogs = [
+          { timestamp: new Date().toISOString(), level: 'INFO', message: `Starting visual mapping execution: ${mapping.name}` },
+          { timestamp: new Date().toISOString(), level: 'INFO', message: `Rows processed: ${jobResult.rowsWritten || 0}` },
+          { timestamp: new Date().toISOString(), level: isFailed ? 'ERROR' : 'INFO', 
+            message: isFailed ? `Execution failed: ${jobResult.message}` : `Execution completed successfully` }
+        ];
+        
+        await pool.query(
+          `UPDATE visual_mapping_execution_logs 
+           SET status = $1, logs = $2 
+           WHERE mapping_id = $3 AND execution_id = $4`,
+          [actualStatus, JSON.stringify(finalLogs), id, executionId]
+        );
+        
+        // Clean up temporary transformation mapping
+        await pool.query(
+          `DELETE FROM transformation_mappings WHERE mapping_id = $1 AND is_temporary = true`,
+          [tempMappingId]
+        );
+        
+        // Send email notification (non-blocking)
+        sendVisualMappingNotification(mapping, jobResult, executionId).catch(err => {
+          systemLogger.error('Failed to send notification', { error: err.message });
+        });
+        
+        systemLogger.info('Background visual mapping execution completed', {
+          mappingId: id,
+          executionId,
+          status: actualStatus
+        });
+        
+      } catch (execError) {
+        systemLogger.error('Background visual mapping execution failed', {
+          mappingId: id,
+          executionId,
+          error: execError.message
+        });
+        
+        // Update execution status to failed
+        await pool.query(
+          `UPDATE visual_mapping_executions 
+           SET status = 'failed', error_message = $1, completed_at = NOW()
+           WHERE execution_id = $2`,
+          [execError.message, executionId]
+        );
+        
+        // Update execution logs with error
+        await pool.query(
+          `UPDATE visual_mapping_execution_logs 
+           SET status = 'failed', logs = $1 
+           WHERE mapping_id = $2 AND execution_id = $3`,
+          [JSON.stringify([
+            { timestamp: new Date().toISOString(), level: 'INFO', message: `Starting visual mapping execution: ${mapping.name}` },
+            { timestamp: new Date().toISOString(), level: 'ERROR', message: `Execution failed: ${execError.message}` }
+          ]), id, executionId]
+        );
+        
+        // Clean up temporary transformation mapping on failure
+        if (tempMappingId) {
+          await pool.query(
+            `DELETE FROM transformation_mappings WHERE mapping_id = $1 AND is_temporary = true`,
+            [tempMappingId]
+          ).catch(() => {});
+        }
+        
+        // Send failure notification (non-blocking)
+        sendVisualMappingNotification(mapping, { 
+          status: 'failed', 
+          message: execError.message,
+          jobId: null,
+          rowsWritten: 0 
+        }, executionId).catch(err => {
+          systemLogger.error('Failed to send failure notification', { error: err.message });
+        });
+      }
+    });
+    
   } catch (error) {
-    systemLogger.error('Failed to execute visual mapping', {
+    systemLogger.error('Failed to start visual mapping execution', {
       error: error.message,
       mappingId: req.params.id,
       userId: req.user.id
     });
     res.status(500).json({ error: 'Failed to execute visual mapping' });
+  }
+});
+
+/**
+ * GET /api/visual-mappings/:id/execution-status/:executionId
+ * Get execution status by execution ID
+ */
+router.get('/:id/execution-status/:executionId', async (req, res) => {
+  try {
+    const { id, executionId } = req.params;
+    
+    // Check execution logs table for the run
+    const logResult = await pool.query(
+      `SELECT run_id, run_name, started_at, status, logs, execution_id
+       FROM visual_mapping_execution_logs
+       WHERE mapping_id = $1 AND execution_id = $2`,
+      [id, executionId]
+    );
+    
+    if (logResult.rows.length > 0) {
+      const row = logResult.rows[0];
+      return res.json({
+        executionId: row.execution_id,
+        runId: row.run_id,
+        runName: row.run_name,
+        startedAt: row.started_at,
+        status: row.status,
+        logs: row.logs || [],
+        isComplete: row.status !== 'running'
+      });
+    }
+    
+    // Also check the visual_mapping_executions table for more details
+    const execResult = await pool.query(
+      `SELECT * FROM visual_mapping_executions
+       WHERE mapping_id = $1 AND execution_id = $2`,
+      [id, executionId]
+    );
+    
+    if (execResult.rows.length > 0) {
+      const exec = execResult.rows[0];
+      return res.json({
+        executionId: exec.execution_id,
+        status: exec.status,
+        jobId: exec.job_id,
+        rowsProcessed: exec.rows_processed,
+        errorMessage: exec.error_message,
+        completedAt: exec.completed_at,
+        isComplete: exec.status !== 'running'
+      });
+    }
+    
+    res.status(404).json({ error: 'Execution not found' });
+  } catch (error) {
+    systemLogger.error('Failed to get mapping execution status', {
+      error: error.message,
+      mappingId: req.params.id,
+      executionId: req.params.executionId,
+      userId: req.user.id
+    });
+    res.status(500).json({ error: 'Failed to get execution status' });
+  }
+});
+
+/**
+ * GET /api/visual-mappings/:id/running-execution
+ * Check for any running executions for a mapping
+ */
+router.get('/:id/running-execution', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Check execution logs for running status
+    const logResult = await pool.query(
+      `SELECT run_id, run_name, started_at, status, logs, execution_id
+       FROM visual_mapping_execution_logs
+       WHERE mapping_id = $1 AND status = 'running'
+       ORDER BY started_at DESC
+       LIMIT 1`,
+      [id]
+    );
+    
+    if (logResult.rows.length > 0) {
+      const row = logResult.rows[0];
+      return res.json({
+        hasRunningExecution: true,
+        executionId: row.execution_id,
+        runId: row.run_id,
+        runName: row.run_name,
+        startedAt: row.started_at,
+        logs: row.logs || []
+      });
+    }
+    
+    res.json({ hasRunningExecution: false });
+  } catch (error) {
+    systemLogger.error('Failed to check running mapping execution', {
+      error: error.message,
+      mappingId: req.params.id,
+      userId: req.user.id
+    });
+    res.status(500).json({ error: 'Failed to check running execution' });
   }
 });
 

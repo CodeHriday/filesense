@@ -330,6 +330,95 @@ export const useVisualMappingExecution = () => {
     }
   }, []);
 
+  // Check for running executions and resume polling if found
+  const checkRunningExecution = useCallback(async (mappingId) => {
+    if (!mappingId) return null;
+    
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`/api/visual-mappings/${mappingId}/running-execution`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data.hasRunningExecution) {
+          // Load existing logs into execution runs
+          if (data.logs && data.logs.length > 0) {
+            const existingRun = {
+              id: data.runId,
+              name: data.runName,
+              startedAt: new Date(data.startedAt).toLocaleString(),
+              logs: data.logs.map(log => ({
+                timestamp: new Date(log.timestamp).toLocaleTimeString(),
+                message: log.message,
+                level: log.level?.toLowerCase() || 'info'
+              })),
+              status: 'running'
+            };
+            setExecutionRuns(prev => {
+              const filtered = prev.filter(r => r.id !== existingRun.id);
+              const updated = [existingRun, ...filtered].slice(0, 10);
+              runsRef.current = updated;
+              return updated;
+            });
+          }
+          
+          return data;
+        }
+      }
+      return null;
+    } catch (err) {
+      console.error('Error checking running execution:', err);
+      return null;
+    }
+  }, []);
+  
+  // Poll for execution status updates (fallback when WebSocket unavailable)
+  const pollExecutionStatus = useCallback(async (mappingId, executionId) => {
+    if (!mappingId || !executionId) return null;
+    
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`/api/visual-mappings/${mappingId}/execution-status/${executionId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        
+        // Update logs in current run
+        if (data.logs && data.logs.length > 0) {
+          setExecutionRuns(prev => {
+            if (prev.length === 0) return prev;
+            const updated = [...prev];
+            updated[0] = {
+              ...updated[0],
+              logs: data.logs.map(log => ({
+                timestamp: new Date(log.timestamp).toLocaleTimeString(),
+                message: log.message,
+                level: log.level?.toLowerCase() || 'info'
+              })),
+              status: data.status
+            };
+            runsRef.current = updated;
+            return updated;
+          });
+        }
+        
+        return data;
+      }
+      return null;
+    } catch (err) {
+      console.error('Error polling execution status:', err);
+      return null;
+    }
+  }, []);
+
   // Persist completed run to backend using runsRef (avoids stale closure issues)
   // Call this after updateRunStatus to save the run with final status
   const persistCompletedRun = useCallback(async (mappingId, finalStatus) => {
@@ -406,6 +495,8 @@ export const useVisualMappingExecution = () => {
     currentExecutionId,
     saveRunToBackend,
     loadRunsFromBackend,
-    persistCompletedRun
+    persistCompletedRun,
+    checkRunningExecution,
+    pollExecutionStatus
   };
 };

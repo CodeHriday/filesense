@@ -367,7 +367,9 @@ const VisualMappingCanvasContent = () => {
     subscribeToExecution,
     generateExecutionId,
     loadRunsFromBackend,
-    persistCompletedRun
+    persistCompletedRun,
+    checkRunningExecution,
+    pollExecutionStatus
   } = useVisualMappingExecution();
   
   // Track unsaved changes
@@ -631,6 +633,31 @@ const VisualMappingCanvasContent = () => {
         try {
           await loadRunsFromBackend(mappingId);
           setShowConsole(true);
+          
+          // Check if there's a running execution to resume monitoring
+          const runningExec = await checkRunningExecution(mappingId);
+          if (runningExec && runningExec.hasRunningExecution) {
+            setIsExecuting(true);
+            setCurrentExecutionId(runningExec.executionId);
+            
+            // Start polling for updates if WebSocket is not connected
+            const pollInterval = setInterval(async () => {
+              const status = await pollExecutionStatus(mappingId, runningExec.executionId);
+              if (status && status.isComplete) {
+                clearInterval(pollInterval);
+                setIsExecuting(false);
+                if (status.status === 'success' || status.status === 'completed') {
+                  setSuccess('Execution completed successfully');
+                } else if (status.status === 'failed') {
+                  setError('Execution failed');
+                }
+                await loadRunsFromBackend(mappingId);
+              }
+            }, 2000);
+            
+            // Store interval for cleanup
+            return () => clearInterval(pollInterval);
+          }
         } catch (logsError) {
           console.log('No previous execution runs found', logsError);
         }
@@ -648,7 +675,7 @@ const VisualMappingCanvasContent = () => {
     };
     
     fetchMapping();
-  }, [mappingId, isEditMode, loadRunsFromBackend]);
+  }, [mappingId, isEditMode, loadRunsFromBackend, checkRunningExecution, pollExecutionStatus]);
   
   // Restore viewport when reactFlowInstance becomes available
   useEffect(() => {
