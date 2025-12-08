@@ -183,6 +183,7 @@ router.post('/:id/execute', async (req, res) => {
     }
     
     const { id } = req.params;
+    const { async: runAsync } = req.body; // Support async execution mode
 
     const workflowCheck = await pool.query(
       'SELECT id, name FROM visual_workflows WHERE id = $1 AND created_by = $2 AND is_active = true',
@@ -195,25 +196,224 @@ router.post('/:id/execute', async (req, res) => {
 
     systemLogger.info('Starting visual workflow execution', {
       workflowId: id,
-      userId: req.user.id
+      userId: req.user.id,
+      asyncMode: !!runAsync
     });
 
-    const result = await executeVisualWorkflow(parseInt(id), req.user.id);
+    // Check if there's already a running execution for this workflow
+    const runningCheck = await pool.query(
+      `SELECT id, execution_id FROM visual_workflow_executions 
+       WHERE workflow_id = $1 AND status = 'running' 
+       ORDER BY created_at DESC LIMIT 1`,
+      [id]
+    );
+    
+    if (runningCheck.rows.length > 0) {
+      return res.status(409).json({ 
+        error: 'Workflow is already executing',
+        executionId: runningCheck.rows[0].execution_id,
+        message: 'Please wait for the current execution to complete or check its status.'
+      });
+    }
 
+    // Create executor instance to get execution ID immediately
+    const { VisualWorkflowExecutor } = require('../services/visualWorkflowExecutor');
+    const executor = new VisualWorkflowExecutor(parseInt(id), req.user.id);
+    const executionId = executor.executionId;
+
+    // Create an initial execution log record to track this run
+    const runId = `wfrun-${Date.now()}`;
+    await pool.query(
+      `INSERT INTO visual_workflow_execution_logs 
+       (workflow_id, run_id, run_name, started_at, status, logs, execution_id)
+       VALUES ($1, $2, $3, NOW(), 'running', $4, $5)`,
+      [id, runId, workflowCheck.rows[0].name, JSON.stringify([
+        { timestamp: new Date().toISOString(), level: 'INFO', message: `Starting workflow execution: ${workflowCheck.rows[0].name}` }
+      ]), executionId]
+    );
+
+    // Run execution in background (fire and forget)
+    setImmediate(async () => {
+      try {
+        const result = await executor.execute();
+        
+        // Update the execution log with final results
+        const finalLogs = [
+          { timestamp: new Date().toISOString(), level: 'INFO', message: `Starting workflow execution: ${workflowCheck.rows[0].name}` },
+          { timestamp: new Date().toISOString(), level: 'INFO', message: `Total nodes: ${result.summary?.totalNodes || 0}` }
+        ];
+        
+        // Add node status logs
+        if (result.summary?.nodeStatuses) {
+          Object.entries(result.summary.nodeStatuses).forEach(([nodeId, status]) => {
+            if (status.skipped) {
+              finalLogs.push({ timestamp: new Date().toISOString(), level: 'INFO', message: `[SKIP] Node ${nodeId}: ${status.reason || 'Decorative node'}` });
+            } else if (status.success) {
+              finalLogs.push({ timestamp: new Date().toISOString(), level: 'INFO', message: `[SUCCESS] ${status.assetName || nodeId}: Completed` });
+            } else {
+              finalLogs.push({ timestamp: new Date().toISOString(), level: 'ERROR', message: `[FAILED] ${nodeId}: ${status.error || 'Unknown error'}` });
+            }
+          });
+        }
+        
+        finalLogs.push({ 
+          timestamp: new Date().toISOString(), 
+          level: result.success ? 'INFO' : 'ERROR', 
+          message: result.success 
+            ? `Workflow completed successfully: ${result.summary?.successCount}/${result.summary?.totalNodes} nodes` 
+            : `Workflow completed with errors: ${result.summary?.failedCount}/${result.summary?.totalNodes} failed`
+        });
+        
+        await pool.query(
+          `UPDATE visual_workflow_execution_logs 
+           SET status = $1, logs = $2 
+           WHERE workflow_id = $3 AND execution_id = $4`,
+          [result.success ? 'success' : 'failed', JSON.stringify(finalLogs), id, executionId]
+        );
+        
+        systemLogger.info('Background workflow execution completed', {
+          workflowId: id,
+          executionId,
+          success: result.success
+        });
+      } catch (error) {
+        // Update execution log with error
+        await pool.query(
+          `UPDATE visual_workflow_execution_logs 
+           SET status = 'failed', logs = $1 
+           WHERE workflow_id = $2 AND execution_id = $3`,
+          [JSON.stringify([
+            { timestamp: new Date().toISOString(), level: 'INFO', message: `Starting workflow execution: ${workflowCheck.rows[0].name}` },
+            { timestamp: new Date().toISOString(), level: 'ERROR', message: `Execution failed: ${error.message}` }
+          ]), id, executionId]
+        );
+        
+        systemLogger.error('Background workflow execution failed', {
+          workflowId: id,
+          executionId,
+          error: error.message
+        });
+      }
+    });
+
+    // Return immediately with execution ID
     res.json({
-      message: 'Visual workflow execution completed',
+      message: 'Workflow execution started',
       workflowId: id,
       workflowName: workflowCheck.rows[0].name,
-      ...result
+      executionId: executionId,
+      runId: runId,
+      status: 'running',
+      async: true
     });
 
   } catch (error) {
-    systemLogger.error('Failed to execute visual workflow', {
+    systemLogger.error('Failed to start visual workflow execution', {
       error: error.message,
       workflowId: req.params.id,
       userId: req.user.id
     });
     res.status(500).json({ error: error.message || 'Failed to execute visual workflow' });
+  }
+});
+
+// Get execution status by execution ID
+router.get('/:id/execution-status/:executionId', async (req, res) => {
+  try {
+    const { id, executionId } = req.params;
+    
+    // Check execution logs table for the run
+    const logResult = await pool.query(
+      `SELECT run_id, run_name, started_at, status, logs, execution_id
+       FROM visual_workflow_execution_logs
+       WHERE workflow_id = $1 AND execution_id = $2`,
+      [id, executionId]
+    );
+    
+    if (logResult.rows.length > 0) {
+      const row = logResult.rows[0];
+      return res.json({
+        executionId: row.execution_id,
+        runId: row.run_id,
+        runName: row.run_name,
+        startedAt: row.started_at,
+        status: row.status,
+        logs: row.logs || [],
+        isComplete: row.status !== 'running'
+      });
+    }
+    
+    // Also check the visual_workflow_executions table for more details
+    const execResult = await pool.query(
+      `SELECT * FROM visual_workflow_executions
+       WHERE workflow_id = $1 AND execution_id = $2`,
+      [id, executionId]
+    );
+    
+    if (execResult.rows.length > 0) {
+      const exec = execResult.rows[0];
+      return res.json({
+        executionId: exec.execution_id,
+        status: exec.status,
+        startTime: exec.start_time,
+        endTime: exec.end_time,
+        durationMs: exec.duration_ms,
+        totalNodes: exec.total_nodes,
+        completedNodes: exec.completed_nodes,
+        failedNodes: exec.failed_nodes,
+        summary: exec.execution_summary,
+        errorMessage: exec.error_message,
+        isComplete: exec.status !== 'running'
+      });
+    }
+    
+    res.status(404).json({ error: 'Execution not found' });
+  } catch (error) {
+    systemLogger.error('Failed to get execution status', {
+      error: error.message,
+      workflowId: req.params.id,
+      executionId: req.params.executionId,
+      userId: req.user.id
+    });
+    res.status(500).json({ error: 'Failed to get execution status' });
+  }
+});
+
+// Check for any running executions for a workflow
+router.get('/:id/running-execution', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Check execution logs for running status
+    const logResult = await pool.query(
+      `SELECT run_id, run_name, started_at, status, logs, execution_id
+       FROM visual_workflow_execution_logs
+       WHERE workflow_id = $1 AND status = 'running'
+       ORDER BY started_at DESC
+       LIMIT 1`,
+      [id]
+    );
+    
+    if (logResult.rows.length > 0) {
+      const row = logResult.rows[0];
+      return res.json({
+        hasRunningExecution: true,
+        executionId: row.execution_id,
+        runId: row.run_id,
+        runName: row.run_name,
+        startedAt: row.started_at,
+        logs: row.logs || []
+      });
+    }
+    
+    res.json({ hasRunningExecution: false });
+  } catch (error) {
+    systemLogger.error('Failed to check running execution', {
+      error: error.message,
+      workflowId: req.params.id,
+      userId: req.user.id
+    });
+    res.status(500).json({ error: 'Failed to check running execution' });
   }
 });
 

@@ -468,6 +468,9 @@ const WorkflowBuilderContent = () => {
       // Load previous execution runs from backend
       await loadRunsFromBackend(id);
       
+      // Check if there's a running execution to resume monitoring
+      await checkRunningExecution(id);
+      
       setLoading(false);
     } catch (err) {
       console.error('Failed to load workflow:', err);
@@ -640,6 +643,115 @@ const WorkflowBuilderContent = () => {
     }
   };
   
+  // Current execution tracking
+  const [currentExecutionId, setCurrentExecutionId] = useState(null);
+  const pollingIntervalRef = useRef(null);
+  
+  // Check for running execution when workflow loads
+  const checkRunningExecution = async (wfId) => {
+    if (!wfId) return;
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`/api/visual-workflows/${wfId}/running-execution`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      if (response.data.hasRunningExecution) {
+        setIsExecuting(true);
+        setShowConsole(true);
+        setCurrentExecutionId(response.data.executionId);
+        
+        // Load existing logs
+        if (response.data.logs && response.data.logs.length > 0) {
+          const existingRun = {
+            id: response.data.runId,
+            name: response.data.runName,
+            startedAt: new Date(response.data.startedAt).toLocaleString(),
+            logs: response.data.logs.map(log => ({
+              timestamp: new Date(log.timestamp).toLocaleTimeString(),
+              message: log.message,
+              level: log.level?.toLowerCase() || 'info'
+            })),
+            status: 'running'
+          };
+          setExecutionRuns(prev => {
+            const filtered = prev.filter(r => r.id !== existingRun.id);
+            return [existingRun, ...filtered].slice(0, 10);
+          });
+        }
+        
+        // Start polling for updates
+        startPollingExecution(wfId, response.data.executionId);
+      }
+    } catch (err) {
+      console.log('No running execution found:', err.message);
+    }
+  };
+  
+  // Poll for execution status updates
+  const startPollingExecution = (wfId, execId) => {
+    if (pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current);
+    }
+    
+    pollingIntervalRef.current = setInterval(async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const response = await axios.get(`/api/visual-workflows/${wfId}/execution-status/${execId}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        
+        const { status, logs, isComplete } = response.data;
+        
+        // Update logs in current run
+        if (logs && logs.length > 0) {
+          setExecutionRuns(prev => {
+            if (prev.length === 0) return prev;
+            const updated = [...prev];
+            updated[0] = {
+              ...updated[0],
+              logs: logs.map(log => ({
+                timestamp: new Date(log.timestamp).toLocaleTimeString(),
+                message: log.message,
+                level: log.level?.toLowerCase() || 'info'
+              })),
+              status: status
+            };
+            return updated;
+          });
+        }
+        
+        if (isComplete) {
+          clearInterval(pollingIntervalRef.current);
+          pollingIntervalRef.current = null;
+          setIsExecuting(false);
+          setCurrentExecutionId(null);
+          
+          if (status === 'success') {
+            setSuccess('Workflow execution completed successfully');
+            setTimeout(() => setSuccess(null), 5000);
+          } else if (status === 'failed') {
+            setError('Workflow execution failed');
+          }
+          
+          // Reload runs from backend to get final state
+          await loadRunsFromBackend(wfId);
+        }
+      } catch (err) {
+        console.error('Failed to poll execution status:', err);
+      }
+    }, 2000); // Poll every 2 seconds
+  };
+  
+  // Cleanup polling on unmount
+  useEffect(() => {
+    return () => {
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+      }
+    };
+  }, []);
+  
   // Execute workflow
   const executeWorkflow = async () => {
     if (!workflowId) {
@@ -667,7 +779,18 @@ const WorkflowBuilderContent = () => {
       
       const result = response.data;
       
-      // Log execution results to console
+      // Handle async execution - execution started in background
+      if (result.async && result.executionId) {
+        setCurrentExecutionId(result.executionId);
+        addConsoleLog(`Execution started in background (ID: ${result.executionId})`, 'info');
+        addConsoleLog('Execution will continue even if you close this page...', 'info');
+        
+        // Start polling for updates
+        startPollingExecution(workflowId, result.executionId);
+        return; // Exit early, polling will handle the rest
+      }
+      
+      // Legacy sync response handling (fallback)
       if (result.summary?.nodeStatuses) {
         Object.entries(result.summary.nodeStatuses).forEach(([nodeId, status]) => {
           const node = nodes.find(n => n.id === nodeId);
@@ -713,27 +836,34 @@ const WorkflowBuilderContent = () => {
         setSuccess(msg);
         addConsoleLog(msg, 'success');
         updateRunStatus('success');
-        persistCompletedRun(workflowId, 'success');
       } else {
         const msg = `Workflow execution completed with errors: ${result.summary.failedCount}/${result.summary.totalNodes} nodes failed.`;
         setError(msg);
         addConsoleLog(msg, 'error');
         updateRunStatus('failed');
-        persistCompletedRun(workflowId, 'failed');
       }
       
       addConsoleLog(`Execution ID: ${result.executionId}`, 'info');
       addConsoleLog('Execution complete.', 'info');
       
       setTimeout(() => setSuccess(null), 5000);
+      setIsExecuting(false);
     } catch (err) {
       console.error('Failed to execute workflow:', err);
+      
+      // Handle 409 conflict - workflow already executing
+      if (err.response?.status === 409) {
+        const { executionId } = err.response.data;
+        setCurrentExecutionId(executionId);
+        addConsoleLog('Workflow is already executing, resuming monitoring...', 'info');
+        startPollingExecution(workflowId, executionId);
+        return;
+      }
+      
       const errorMsg = err.response?.data?.error || 'Failed to execute workflow';
       setError(errorMsg);
       addConsoleLog(`[ERROR] ${errorMsg}`, 'error');
       updateRunStatus('failed');
-      persistCompletedRun(workflowId, 'failed');
-    } finally {
       setIsExecuting(false);
     }
   };
