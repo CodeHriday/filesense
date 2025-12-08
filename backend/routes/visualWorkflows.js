@@ -237,6 +237,94 @@ router.post('/validate', async (req, res) => {
   }
 });
 
+router.get('/:id/execution-logs', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const result = await pool.query(
+      `SELECT id, run_id, run_name, started_at, status, logs, created_at
+       FROM visual_workflow_execution_logs
+       WHERE workflow_id = $1
+       ORDER BY started_at DESC
+       LIMIT 10`,
+      [id]
+    );
+    
+    const runs = result.rows.map(row => ({
+      id: row.run_id,
+      name: row.run_name,
+      startedAt: row.started_at ? new Date(row.started_at).toLocaleString() : '',
+      status: row.status,
+      logs: row.logs || []
+    }));
+    
+    res.json({ runs });
+  } catch (error) {
+    systemLogger.error('Failed to fetch workflow execution logs', {
+      error: error.message,
+      workflowId: req.params.id,
+      userId: req.user.id
+    });
+    res.status(500).json({ error: 'Failed to fetch execution logs' });
+  }
+});
+
+router.post('/:id/execution-logs', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { runId, runName, startedAt, status, logs } = req.body;
+    
+    if (!runId || !runName) {
+      return res.status(400).json({ error: 'runId and runName are required' });
+    }
+    
+    const workflowIdInt = parseInt(id, 10);
+    if (isNaN(workflowIdInt)) {
+      return res.status(400).json({ error: 'Invalid workflow ID' });
+    }
+    
+    const existingRun = await pool.query(
+      `SELECT id FROM visual_workflow_execution_logs WHERE workflow_id = $1 AND run_id = $2`,
+      [workflowIdInt, runId]
+    );
+    
+    if (existingRun.rows.length > 0) {
+      await pool.query(
+        `UPDATE visual_workflow_execution_logs
+         SET run_name = $1, status = $2, logs = $3
+         WHERE workflow_id = $4 AND run_id = $5`,
+        [runName, status || 'completed', JSON.stringify(logs || []), workflowIdInt, runId]
+      );
+    } else {
+      await pool.query(
+        `INSERT INTO visual_workflow_execution_logs (workflow_id, run_id, run_name, started_at, status, logs)
+         VALUES ($1, $2, $3, $4, $5, $6)`,
+        [workflowIdInt, runId, runName, startedAt ? new Date(startedAt) : new Date(), status || 'running', JSON.stringify(logs || [])]
+      );
+      
+      await pool.query(
+        `DELETE FROM visual_workflow_execution_logs
+         WHERE workflow_id = $1 AND id NOT IN (
+           SELECT id FROM visual_workflow_execution_logs
+           WHERE workflow_id = $1
+           ORDER BY started_at DESC
+           LIMIT 10
+         )`,
+        [workflowIdInt]
+      );
+    }
+    
+    res.json({ success: true, message: 'Execution log saved' });
+  } catch (error) {
+    systemLogger.error('Failed to save workflow execution log', {
+      error: error.message,
+      workflowId: req.params.id,
+      userId: req.user.id
+    });
+    res.status(500).json({ error: 'Failed to save execution log' });
+  }
+});
+
 function validateGraph(graphData) {
   const { nodes, edges } = graphData;
 
