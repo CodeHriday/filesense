@@ -1,0 +1,1 @@
+tantivy::schema::flags::SchemaFlagList<tantivy::schema::flags::StoredFlag, tantivy::schema::flags::SchemaFlagList<tantivy::schema::flags::IndexedFlag, ()>>

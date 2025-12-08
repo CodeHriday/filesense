@@ -23,7 +23,10 @@ export default defineConfig({
         '**/venv/**',
         '**/__pycache__/**',
         '**/uploads/**',
-        '**/temp/**'
+        '**/temp/**',
+        '**/.pythonlibs/**',
+        '**/rust-log-service/**',
+        '**/.local/**'
       ]
     },
     fs: {

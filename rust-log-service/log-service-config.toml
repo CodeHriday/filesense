@@ -1,0 +1,47 @@
+# Rust Log Service Configuration
+# This file configures the high-performance log ingestion, compression, and retrieval service
+
+[server]
+host = "0.0.0.0"
+port = 9000
+
+[storage]
+# Directory for hot (active) segment storage
+data_dir = "./log-data/segments"
+# Directory for Tantivy full-text search index
+index_dir = "./log-data/index"
+# Directory for warm/cold tier archived segments
+archive_dir = "./log-data/archive"
+
+# Segment size before rotation (in MB)
+segment_size_mb = 256
+# Flush interval for in-memory buffer (in seconds)
+flush_interval_secs = 30
+# Maximum number of logs to buffer before forced flush
+max_buffer_size = 100000
+
+[compression]
+# Zstd compression level (1-22, higher = better compression, slower)
+compression_level = 6
+# Enable dictionary-based compression for better ratios on similar data
+enable_dictionary = true
+
+[retention]
+# Logs stay in hot tier (fast NVMe) for this many days
+hot_retention_days = 7
+# Logs move to warm tier (cheaper storage) after hot period
+warm_retention_days = 30
+# Logs move to cold tier (archive) after warm period
+cold_retention_days = 365
+
+[indexing]
+# Enable Bloom filters for fast job/workflow ID lookups
+enable_bloom_filters = true
+# False positive rate for Bloom filters (lower = more memory, fewer false positives)
+bloom_false_positive_rate = 0.01
+
+[query]
+# Maximum number of results per query
+max_query_results = 10000
+# Query timeout (in seconds)
+query_timeout_secs = 30
