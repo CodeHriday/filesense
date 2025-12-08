@@ -1,0 +1,1 @@
+import{j as t}from"./vendor-ui-Bc7Vbh5h.js";import"./vendor-react-CxX1lkEQ.js";/* empty css             */const i=({children:r,className:s=""})=>t.jsx("div",{className:`card ${s}`,children:r});export{i as C};
