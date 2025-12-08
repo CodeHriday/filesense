@@ -330,6 +330,62 @@ export const useVisualMappingExecution = () => {
     }
   }, []);
 
+  // Persist completed run to backend using runsRef (avoids stale closure issues)
+  // Call this after updateRunStatus to save the run with final status
+  const persistCompletedRun = useCallback(async (mappingId, finalStatus) => {
+    if (!mappingId) {
+      console.warn('persistCompletedRun: No mappingId provided');
+      return;
+    }
+    
+    const runs = runsRef.current;
+    if (!runs || runs.length === 0) {
+      console.warn('persistCompletedRun: No runs to persist');
+      return;
+    }
+    
+    // Find the run to persist - look for running status first, then fallback to first run
+    let currentRun = runs.find(r => r.status === 'running');
+    if (!currentRun) {
+      // If no running run, use the most recent (first in array)
+      currentRun = runs[0];
+    }
+    
+    if (!currentRun) {
+      console.warn('persistCompletedRun: Could not find run to persist');
+      return;
+    }
+    
+    // Create run with final status
+    const runToSave = { ...currentRun, status: finalStatus };
+    
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`/api/mappings/${mappingId}/execution-logs`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          runId: runToSave.id,
+          runName: runToSave.name,
+          startedAt: runToSave.startedAt,
+          status: runToSave.status,
+          logs: runToSave.logs
+        })
+      });
+      
+      if (response.ok) {
+        console.log('Execution run persisted to backend:', runToSave.id, 'status:', finalStatus);
+      } else {
+        console.error('Failed to persist execution run:', await response.text());
+      }
+    } catch (err) {
+      console.error('Error persisting execution run:', err);
+    }
+  }, []);
+
   return {
     nodeStatuses,
     edgeRowCounts,
@@ -349,6 +405,7 @@ export const useVisualMappingExecution = () => {
     generateExecutionId,
     currentExecutionId,
     saveRunToBackend,
-    loadRunsFromBackend
+    loadRunsFromBackend,
+    persistCompletedRun
   };
 };
