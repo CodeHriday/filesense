@@ -15,26 +15,38 @@ const pool = require('../db');
 async function validateJobAccess(jobId, user) {
   const { getUserProjects } = require('../middleware/requireProjectAccess');
   
-  // Get job's project_id via transformation mapping
-  const result = await pool.query(
-    `SELECT tm.project_id 
+  // First check if job exists
+  const jobCheck = await pool.query(
+    `SELECT tj.job_id, tj.mapping_id, tj.project_id as job_project_id
      FROM transformation_jobs tj
-     JOIN transformation_mappings tm ON tj.mapping_id = tm.mapping_id
      WHERE tj.job_id = $1`,
     [jobId]
   );
   
-  if (result.rows.length === 0) {
+  if (jobCheck.rows.length === 0) {
     const error = new Error('Job not found');
     error.status = 404;
     throw error;
   }
   
-  const jobProjectId = result.rows[0].project_id;
+  const job = jobCheck.rows[0];
+  
+  // Try to get project_id from job directly first, then from mapping if available
+  let jobProjectId = job.job_project_id;
+  
+  if (!jobProjectId && job.mapping_id) {
+    const mappingResult = await pool.query(
+      `SELECT project_id FROM transformation_mappings WHERE mapping_id = $1`,
+      [job.mapping_id]
+    );
+    if (mappingResult.rows.length > 0) {
+      jobProjectId = mappingResult.rows[0].project_id;
+    }
+  }
   
   // Check access (admins bypass)
   const isAdmin = user?.roles?.includes('Admin');
-  if (!isAdmin) {
+  if (!isAdmin && jobProjectId) {
     const userProjects = await getUserProjects(user.id);
     const projectIds = userProjects.map(p => p.id);
     
