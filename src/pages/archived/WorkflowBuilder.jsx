@@ -203,6 +203,58 @@ const WorkflowBuilderContent = () => {
     });
   };
   
+  // Load execution runs from backend
+  const loadRunsFromBackend = async (wfId) => {
+    if (!wfId) return;
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`/api/visual-workflows/${wfId}/execution-logs`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (response.data.runs && response.data.runs.length > 0) {
+        setExecutionRuns(response.data.runs);
+        setShowConsole(true);
+      }
+    } catch (err) {
+      console.log('No previous execution runs found:', err.message);
+    }
+  };
+  
+  // Persist completed run to backend
+  const persistCompletedRun = async (wfId, finalStatus) => {
+    if (!wfId) return;
+    
+    setExecutionRuns(prev => {
+      if (prev.length === 0) return prev;
+      
+      let currentRun = prev.find(r => r.status === 'running');
+      if (!currentRun) currentRun = prev[0];
+      if (!currentRun) return prev;
+      
+      const runToSave = { ...currentRun, status: finalStatus };
+      
+      const token = localStorage.getItem('token');
+      axios.post(`/api/visual-workflows/${wfId}/execution-logs`, {
+        runId: runToSave.id,
+        runName: runToSave.name,
+        startedAt: runToSave.startedAt,
+        status: runToSave.status,
+        logs: runToSave.logs
+      }, {
+        headers: { 
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      }).then(() => {
+        console.log('Workflow execution run persisted to backend:', runToSave.id);
+      }).catch(err => {
+        console.error('Failed to persist workflow execution run:', err.message);
+      });
+      
+      return prev;
+    });
+  };
+  
   // Auto-scroll console to top when new run starts or logs are added
   useEffect(() => {
     if (consoleRef.current && executionRuns.length > 0) {
@@ -412,6 +464,9 @@ const WorkflowBuilderContent = () => {
           setEdges(graphData.edges);
         }
       }
+      
+      // Load previous execution runs from backend
+      await loadRunsFromBackend(id);
       
       setLoading(false);
     } catch (err) {
@@ -658,11 +713,13 @@ const WorkflowBuilderContent = () => {
         setSuccess(msg);
         addConsoleLog(msg, 'success');
         updateRunStatus('success');
+        persistCompletedRun(workflowId, 'success');
       } else {
         const msg = `Workflow execution completed with errors: ${result.summary.failedCount}/${result.summary.totalNodes} nodes failed.`;
         setError(msg);
         addConsoleLog(msg, 'error');
         updateRunStatus('failed');
+        persistCompletedRun(workflowId, 'failed');
       }
       
       addConsoleLog(`Execution ID: ${result.executionId}`, 'info');
@@ -675,6 +732,7 @@ const WorkflowBuilderContent = () => {
       setError(errorMsg);
       addConsoleLog(`[ERROR] ${errorMsg}`, 'error');
       updateRunStatus('failed');
+      persistCompletedRun(workflowId, 'failed');
     } finally {
       setIsExecuting(false);
     }
