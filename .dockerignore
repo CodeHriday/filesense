@@ -1,27 +1,44 @@
-# Dependencies
-node_modules/
+# ===========================================
+# DOCKER IGNORE FOR DEPLOYMENT SIZE REDUCTION
+# ===========================================
+
+# Large cache directories (saves ~2.4 GB)
+.cache/
+.local/
+.upm/
+.config/
+
+# Python environment (saves ~600 MB)
 .pythonlibs/
 venv/
 __pycache__/
 *.pyc
+*.pyo
+*.egg-info/
+.eggs/
 
-# Development files
+# Node modules excluded - fresh install in container
+node_modules/
+
+# Git history (can be large)
 .git/
 .gitignore
-.env.local
-.env.development
-*.log
+.gitattributes
 
-# IDE and editor files
+# Development and IDE files
 .vscode/
 .idea/
 *.swp
 *.swo
+.env.local
+.env.development
+.env.test
 
 # Build cache
-.cache/
 .vite/
 .parcel-cache/
+.turbo/
+.next/
 
 # Test files
 *.test.js
@@ -29,39 +46,69 @@ __pycache__/
 *.spec.js
 *.spec.ts
 __tests__/
+tests/
 coverage/
+.nyc_output/
 
-# Documentation
+# Documentation (except README)
 *.md
 !README.md
 docs/
+CHANGELOG*
+LICENSE*
 
-# Temporary files
+# Temporary and data files
 temp/
 tmp/
 *.tmp
-
-# Large data files
 uploads/
 *.csv
 *.xlsx
 *.json.backup
+*.sql
+*.db
 
-# Debug assets
+# Debug and development assets
 attached_assets/
-
-# Rust service (if not needed in production)
 rust-log-service/
 
-# Local development configs
-.replit.local
-*.local
+# Source maps (large, not needed in prod)
+*.map
 
-# Package manager lock files (keep one)
+# TypeScript source (compiled JS used)
+*.ts
+!*.d.ts
+tsconfig*.json
+
+# Package manager files
 yarn.lock
 pnpm-lock.yaml
+.npmrc
+.yarnrc
+
+# Linting and formatting configs
+.eslintrc*
+.prettierrc*
+eslint.config.*
+.editorconfig
+
+# Replit specific
+.replit
+replit.nix
+.replit.local
+*.local
 
 # Miscellaneous
 .DS_Store
 Thumbs.db
 *.bak
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Large binary files
+*.so
+*.dll
+*.dylib
+*.wasm

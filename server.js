@@ -10,6 +10,7 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const rateLimit = require('express-rate-limit');
 const helmet = require('helmet');
+const compression = require('compression');
 const session = require('express-session');
 const axios = require('axios');
 const { v4: uuidv4 } = require('uuid');
@@ -169,6 +170,20 @@ app.use(helmet({
     preload: true
   },
   referrerPolicy: { policy: 'strict-origin-when-cross-origin' }
+}));
+
+// Enable gzip compression for all responses in production
+app.use(compression({
+  level: 6, // Good balance between compression ratio and CPU usage
+  threshold: 1024, // Only compress responses larger than 1KB
+  filter: (req, res) => {
+    // Don't compress if client doesn't accept gzip
+    if (req.headers['x-no-compression']) {
+      return false;
+    }
+    // Use compression filter defaults
+    return compression.filter(req, res);
+  }
 }));
 
 // CORS configuration with restricted origins
