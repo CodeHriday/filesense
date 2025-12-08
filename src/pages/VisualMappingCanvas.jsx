@@ -355,8 +355,8 @@ const VisualMappingCanvasContent = () => {
     isConnected,
     subscribeToExecution,
     generateExecutionId,
-    saveRunToBackend,
-    loadRunsFromBackend
+    loadRunsFromBackend,
+    persistCompletedRun
   } = useVisualMappingExecution();
   
   // Track unsaved changes
@@ -1103,41 +1103,22 @@ const VisualMappingCanvasContent = () => {
       setSuccess('Execution completed successfully!');
       updateRunStatus('success');
       
-      // Save execution run to database with a small delay to ensure all logs are captured
-      const saveLogsTimeout = setTimeout(() => {
-        if (mappingId && executionRuns.length > 0) {
-          // Get the current run (should be the first one with 'success' or 'running' status)
-          const currentRun = executionRuns.find(r => r.status === 'running' || r.status === 'success') || executionRuns[0];
-          if (currentRun) {
-            const runToSave = { ...currentRun, status: 'success' };
-            saveRunToBackend(mappingId, runToSave);
-            console.log('Execution run saved to backend:', currentRun.id);
-          }
-        }
-      }, 500); // Small delay to ensure all WebSocket logs are received
+      // Save execution run to database using persistCompletedRun (uses ref, avoids stale closure)
+      if (mappingId) {
+        persistCompletedRun(mappingId, 'success');
+      }
       
       setTimeout(() => setCurrentExecutionId(null), 5000); // Clear execution ID after 5 seconds
-      
-      return () => clearTimeout(saveLogsTimeout);
     }
-  }, [executionComplete, executionError, currentExecutionId, mappingId, executionRuns, saveRunToBackend, updateRunStatus]);
+  }, [executionComplete, executionError, currentExecutionId, mappingId, updateRunStatus, persistCompletedRun]);
   
   // Save logs on execution error as well
   useEffect(() => {
-    if (executionError && currentExecutionId && mappingId && executionRuns.length > 0) {
-      // Save execution run to database even on failure, with delay
-      const saveLogsTimeout = setTimeout(() => {
-        const currentRun = executionRuns.find(r => r.status === 'running' || r.status === 'failed') || executionRuns[0];
-        if (currentRun) {
-          const runToSave = { ...currentRun, status: 'failed' };
-          saveRunToBackend(mappingId, runToSave);
-          console.log('Execution run saved on error:', currentRun.id);
-        }
-      }, 500);
-      
-      return () => clearTimeout(saveLogsTimeout);
+    if (executionError && currentExecutionId && mappingId) {
+      // Save execution run to database using persistCompletedRun (uses ref, avoids stale closure)
+      persistCompletedRun(mappingId, 'failed');
     }
-  }, [executionError, currentExecutionId, mappingId, executionRuns, saveRunToBackend]);
+  }, [executionError, currentExecutionId, mappingId, persistCompletedRun]);
   
   useEffect(() => {
     if (executionError) {
