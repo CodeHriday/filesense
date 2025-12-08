@@ -5080,7 +5080,16 @@ app.post('/api/mappings/:mappingId/execution-logs', authenticateToken, async (re
     const { mappingId } = req.params;
     const { runId, runName, startedAt, status, logs } = req.body;
     
+    console.log('POST /api/mappings/:mappingId/execution-logs - Request received');
+    console.log('  mappingId:', mappingId);
+    console.log('  runId:', runId);
+    console.log('  runName:', runName);
+    console.log('  startedAt:', startedAt);
+    console.log('  status:', status);
+    console.log('  logs count:', logs?.length || 0);
+    
     if (!runId || !runName) {
+      console.log('  ERROR: runId or runName missing');
       return res.status(400).json({ error: 'runId and runName are required' });
     }
     
@@ -5119,9 +5128,11 @@ app.post('/api/mappings/:mappingId/execution-logs', authenticateToken, async (re
       );
     }
     
+    console.log('  SUCCESS: Execution log saved');
     res.json({ success: true, message: 'Execution log saved' });
   } catch (err) {
-    console.error('Error saving execution log:', err);
+    console.error('Error saving execution log:', err.message);
+    console.error('Full error:', err);
     res.status(500).json({ error: 'Failed to save execution log' });
   }
 });
