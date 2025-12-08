@@ -5043,6 +5043,89 @@ app.delete('/api/mappings/:id', async (req, res) => {
   }
 });
 
+// Visual Mapping Execution Logs - Get last 10 runs for a mapping
+app.get('/api/mappings/:mappingId/execution-logs', authenticateToken, async (req, res) => {
+  try {
+    const { mappingId } = req.params;
+    
+    // Get last 10 execution runs for this mapping
+    const result = await dbPool.query(
+      `SELECT id, run_id, run_name, started_at, status, logs, created_at
+       FROM visual_mapping_execution_logs
+       WHERE mapping_id = $1
+       ORDER BY started_at DESC
+       LIMIT 10`,
+      [mappingId]
+    );
+    
+    // Transform to frontend format
+    const runs = result.rows.map(row => ({
+      id: row.run_id,
+      name: row.run_name,
+      startedAt: row.started_at ? new Date(row.started_at).toLocaleString() : '',
+      status: row.status,
+      logs: row.logs || []
+    }));
+    
+    res.json({ runs });
+  } catch (err) {
+    console.error('Error fetching execution logs:', err);
+    res.status(500).json({ error: 'Failed to fetch execution logs' });
+  }
+});
+
+// Visual Mapping Execution Logs - Save a run
+app.post('/api/mappings/:mappingId/execution-logs', authenticateToken, async (req, res) => {
+  try {
+    const { mappingId } = req.params;
+    const { runId, runName, startedAt, status, logs } = req.body;
+    
+    if (!runId || !runName) {
+      return res.status(400).json({ error: 'runId and runName are required' });
+    }
+    
+    // Check if run already exists (upsert)
+    const existingRun = await dbPool.query(
+      `SELECT id FROM visual_mapping_execution_logs WHERE mapping_id = $1 AND run_id = $2`,
+      [mappingId, runId]
+    );
+    
+    if (existingRun.rows.length > 0) {
+      // Update existing run
+      await dbPool.query(
+        `UPDATE visual_mapping_execution_logs
+         SET run_name = $1, status = $2, logs = $3
+         WHERE mapping_id = $4 AND run_id = $5`,
+        [runName, status || 'completed', JSON.stringify(logs || []), mappingId, runId]
+      );
+    } else {
+      // Insert new run
+      await dbPool.query(
+        `INSERT INTO visual_mapping_execution_logs (mapping_id, run_id, run_name, started_at, status, logs)
+         VALUES ($1, $2, $3, $4, $5, $6)`,
+        [mappingId, runId, runName, startedAt ? new Date(startedAt) : new Date(), status || 'running', JSON.stringify(logs || [])]
+      );
+      
+      // Cleanup old runs - keep only last 10
+      await dbPool.query(
+        `DELETE FROM visual_mapping_execution_logs
+         WHERE mapping_id = $1 AND id NOT IN (
+           SELECT id FROM visual_mapping_execution_logs
+           WHERE mapping_id = $1
+           ORDER BY started_at DESC
+           LIMIT 10
+         )`,
+        [mappingId]
+      );
+    }
+    
+    res.json({ success: true, message: 'Execution log saved' });
+  } catch (err) {
+    console.error('Error saving execution log:', err);
+    res.status(500).json({ error: 'Failed to save execution log' });
+  }
+});
+
 // Dashboard settings endpoint
 app.get('/api/user/dashboard-settings', async (req, res) => {
   try {
