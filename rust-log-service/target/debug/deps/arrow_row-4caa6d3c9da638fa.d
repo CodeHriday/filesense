@@ -1,8 +1,0 @@
-/home/runner/workspace/rust-log-service/target/debug/deps/arrow_row-4caa6d3c9da638fa.d: /home/runner/workspace/.local/share/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/arrow-row-53.4.1/src/lib.rs /home/runner/workspace/.local/share/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/arrow-row-53.4.1/src/fixed.rs /home/runner/workspace/.local/share/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/arrow-row-53.4.1/src/list.rs /home/runner/workspace/.local/share/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/arrow-row-53.4.1/src/variable.rs
-
-/home/runner/workspace/rust-log-service/target/debug/deps/libarrow_row-4caa6d3c9da638fa.rmeta: /home/runner/workspace/.local/share/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/arrow-row-53.4.1/src/lib.rs /home/runner/workspace/.local/share/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/arrow-row-53.4.1/src/fixed.rs /home/runner/workspace/.local/share/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/arrow-row-53.4.1/src/list.rs /home/runner/workspace/.local/share/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/arrow-row-53.4.1/src/variable.rs
-
-/home/runner/workspace/.local/share/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/arrow-row-53.4.1/src/lib.rs:
-/home/runner/workspace/.local/share/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/arrow-row-53.4.1/src/fixed.rs:
-/home/runner/workspace/.local/share/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/arrow-row-53.4.1/src/list.rs:
-/home/runner/workspace/.local/share/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/arrow-row-53.4.1/src/variable.rs:
