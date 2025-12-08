@@ -1,31 +1,68 @@
 # ===========================================
 # DOCKER IGNORE FOR DEPLOYMENT SIZE REDUCTION
+# Target: Reduce from 8+ GiB to under limit
 # ===========================================
 
-# Large cache directories (saves ~2.4 GB)
+# ============================================
+# LARGE CACHE DIRECTORIES (saves ~2.4 GB)
+# ============================================
 .cache/
 .local/
 .upm/
 .config/
+.npm/
+.yarn/
 
-# Python environment (saves ~600 MB)
+# ============================================
+# PYTHON ENVIRONMENT (saves ~600 MB)
+# ============================================
 .pythonlibs/
 venv/
+.venv/
 __pycache__/
 *.pyc
 *.pyo
 *.egg-info/
 .eggs/
+*.whl
 
-# Node modules excluded - fresh install in container
+# ============================================
+# NODE MODULES - Fresh install in container
+# ============================================
 node_modules/
 
-# Git history (can be large)
+# ============================================
+# CLAMAV DATABASE (saves ~300 MB)
+# ============================================
+clamav-db/
+freshclam.conf
+
+# ============================================
+# ARCHIVED/UNUSED SERVICES (saves ~500+ MB)
+# ============================================
+archived_streamlit/
+data-file-observatory/
+rust-log-service/
+server/
+
+# ============================================
+# DATA AND UPLOAD DIRECTORIES
+# ============================================
+uploads/
+data/
+logs/
+dbt_project/
+
+# ============================================
+# GIT HISTORY
+# ============================================
 .git/
 .gitignore
 .gitattributes
 
-# Development and IDE files
+# ============================================
+# DEVELOPMENT/IDE FILES
+# ============================================
 .vscode/
 .idea/
 *.swp
@@ -34,81 +71,135 @@ node_modules/
 .env.development
 .env.test
 
-# Build cache
+# ============================================
+# BUILD CACHE
+# ============================================
 .vite/
 .parcel-cache/
 .turbo/
 .next/
+dist/
 
-# Test files
+# ============================================
+# TEST FILES
+# ============================================
 *.test.js
 *.test.ts
 *.spec.js
 *.spec.ts
 __tests__/
 tests/
+backend/tests/
 coverage/
 .nyc_output/
 
-# Documentation (except README)
+# ============================================
+# DOCUMENTATION
+# ============================================
 *.md
-!README.md
 docs/
 CHANGELOG*
 LICENSE*
 
-# Temporary and data files
+# ============================================
+# DATABASE FILES AND BACKUPS
+# ============================================
+*.sql
+*.db
+*.sqlite
+*.sqlite3
+database_backup.sql
+database_schema_dump.sql
+development_schema_dump.sql
+production_schema_sync.sql
+
+# ============================================
+# TEMPORARY FILES
+# ============================================
 temp/
 tmp/
 *.tmp
-uploads/
 *.csv
 *.xlsx
 *.json.backup
-*.sql
-*.db
 
-# Debug and development assets
+# ============================================
+# ATTACHED/DEBUG ASSETS
+# ============================================
 attached_assets/
-rust-log-service/
 
-# Source maps (large, not needed in prod)
+# ============================================
+# SOURCE MAPS (large, not needed in prod)
+# ============================================
 *.map
 
-# TypeScript source (compiled JS used)
-*.ts
-!*.d.ts
-tsconfig*.json
+# ============================================
+# DEVELOPMENT SCRIPTS
+# ============================================
+scripts/
+migrations/
+backfill_metrics.js
+reprofile_files.js
+test_*.js
+initBusinessProcessTables.js
 
-# Package manager files
+# ============================================
+# BACKUP FILES
+# ============================================
+*.bak
+*.backup
+*.old
+server.js.backup
+server.js.bak
+server.js.old
+server_fixed.js
+server_new.js
+server_without_processes.js
+
+# ============================================
+# PACKAGE MANAGER FILES
+# ============================================
 yarn.lock
 pnpm-lock.yaml
 .npmrc
 .yarnrc
+uv.lock
+pyproject.toml
+requirements
 
-# Linting and formatting configs
+# ============================================
+# LINTING AND FORMATTING CONFIGS
+# ============================================
 .eslintrc*
 .prettierrc*
 eslint.config.*
 .editorconfig
+tsconfig*.json
 
-# Replit specific
+# ============================================
+# REPLIT SPECIFIC
+# ============================================
 .replit
 replit.nix
+replit.md
 .replit.local
 *.local
 
-# Miscellaneous
+# ============================================
+# MISCELLANEOUS
+# ============================================
 .DS_Store
 Thumbs.db
-*.bak
 *.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# Large binary files
+# ============================================
+# LARGE BINARY FILES
+# ============================================
 *.so
 *.dll
 *.dylib
 *.wasm
+*.node
