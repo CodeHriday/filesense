@@ -207,7 +207,7 @@ export const useVisualMappingExecution = () => {
     const newRun = {
       id: runId,
       name: runName || 'Unnamed Mapping',
-      startedAt: new Date().toLocaleString(),
+      startedAt: new Date().toISOString(), // Store as ISO for database compatibility
       logs: [],
       status: 'running'
     };

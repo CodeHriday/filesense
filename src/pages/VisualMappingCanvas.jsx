@@ -279,6 +279,17 @@ const nodeTypes = {
   join: JoinNode
 };
 
+const formatRunDate = (dateStr) => {
+  if (!dateStr) return '';
+  try {
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return dateStr;
+    return date.toLocaleString();
+  } catch {
+    return dateStr;
+  }
+};
+
 const VisualMappingCanvasContent = () => {
   const navigate = useNavigate();
   const { mappingId } = useParams();
@@ -1909,7 +1920,7 @@ const VisualMappingCanvasContent = () => {
                       {run.status === 'running' ? '⏳' : run.status === 'success' ? '✓' : '✗'}
                     </span>
                     <span className="visual-mapping-console-run-name">{run.name}</span>
-                    <span className="visual-mapping-console-run-time">{run.startedAt}</span>
+                    <span className="visual-mapping-console-run-time">{formatRunDate(run.startedAt)}</span>
                   </div>
                   <div className="visual-mapping-console-run-logs">
                     {run.logs.map((log, logIndex) => {
