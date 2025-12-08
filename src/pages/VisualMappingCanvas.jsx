@@ -354,7 +354,9 @@ const VisualMappingCanvasContent = () => {
     getCurrentLogs,
     isConnected,
     subscribeToExecution,
-    generateExecutionId
+    generateExecutionId,
+    saveRunToBackend,
+    loadRunsFromBackend
   } = useVisualMappingExecution();
   
   // Track unsaved changes
@@ -614,20 +616,12 @@ const VisualMappingCanvasContent = () => {
           pendingCanvasStateRef.current = mapping.canvas_state;
         }
         
-        // Load execution logs from last 10 runs
+        // Load execution runs from backend (last 10 runs)
         try {
-          const logsResponse = await axios.get(`/api/visual-mappings/${mappingId}/logs`);
-          if (logsResponse.data && logsResponse.data.length > 0) {
-            setPreviousExecutions(logsResponse.data);
-            // Load the most recent execution's logs
-            const mostRecentLogs = logsResponse.data[0]?.logs || [];
-            if (Array.isArray(mostRecentLogs) && mostRecentLogs.length > 0) {
-              loadLogs(mostRecentLogs);
-              setShowConsole(true);
-            }
-          }
+          await loadRunsFromBackend(mappingId);
+          setShowConsole(true);
         } catch (logsError) {
-          console.log('No previous execution logs found', logsError);
+          console.log('No previous execution runs found', logsError);
         }
         
         // Mark as clean state after initial load
@@ -643,7 +637,7 @@ const VisualMappingCanvasContent = () => {
     };
     
     fetchMapping();
-  }, [mappingId, isEditMode, loadLogs]);
+  }, [mappingId, isEditMode, loadRunsFromBackend]);
   
   // Restore viewport when reactFlowInstance becomes available
   useEffect(() => {
@@ -1109,15 +1103,16 @@ const VisualMappingCanvasContent = () => {
       setSuccess('Execution completed successfully!');
       updateRunStatus('success');
       
-      // Save execution logs to database with a small delay to ensure all logs are captured
+      // Save execution run to database with a small delay to ensure all logs are captured
       const saveLogsTimeout = setTimeout(() => {
-        const logs = getCurrentLogs();
-        if (logs.length > 0) {
-          axios.post(`/api/visual-mappings/executions/${currentExecutionId}/logs`, {
-            logs
-          }).then(() => {
-            console.log('Execution logs saved:', logs.length, 'entries');
-          }).catch(err => console.error('Failed to save execution logs:', err));
+        if (mappingId && executionRuns.length > 0) {
+          // Get the current run (should be the first one with 'success' or 'running' status)
+          const currentRun = executionRuns.find(r => r.status === 'running' || r.status === 'success') || executionRuns[0];
+          if (currentRun) {
+            const runToSave = { ...currentRun, status: 'success' };
+            saveRunToBackend(mappingId, runToSave);
+            console.log('Execution run saved to backend:', currentRun.id);
+          }
         }
       }, 500); // Small delay to ensure all WebSocket logs are received
       
@@ -1125,26 +1120,24 @@ const VisualMappingCanvasContent = () => {
       
       return () => clearTimeout(saveLogsTimeout);
     }
-  }, [executionComplete, executionError, currentExecutionId, getCurrentLogs, updateRunStatus]);
+  }, [executionComplete, executionError, currentExecutionId, mappingId, executionRuns, saveRunToBackend, updateRunStatus]);
   
   // Save logs on execution error as well
   useEffect(() => {
-    if (executionError && currentExecutionId) {
-      // Save execution logs to database even on failure, with delay
+    if (executionError && currentExecutionId && mappingId && executionRuns.length > 0) {
+      // Save execution run to database even on failure, with delay
       const saveLogsTimeout = setTimeout(() => {
-        const logs = getCurrentLogs();
-        if (logs.length > 0) {
-          axios.post(`/api/visual-mappings/executions/${currentExecutionId}/logs`, {
-            logs
-          }).then(() => {
-            console.log('Execution logs saved on error:', logs.length, 'entries');
-          }).catch(err => console.error('Failed to save execution logs:', err));
+        const currentRun = executionRuns.find(r => r.status === 'running' || r.status === 'failed') || executionRuns[0];
+        if (currentRun) {
+          const runToSave = { ...currentRun, status: 'failed' };
+          saveRunToBackend(mappingId, runToSave);
+          console.log('Execution run saved on error:', currentRun.id);
         }
       }, 500);
       
       return () => clearTimeout(saveLogsTimeout);
     }
-  }, [executionError, currentExecutionId, getCurrentLogs]);
+  }, [executionError, currentExecutionId, mappingId, executionRuns, saveRunToBackend]);
   
   useEffect(() => {
     if (executionError) {
