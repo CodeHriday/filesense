@@ -277,6 +277,59 @@ export const useVisualMappingExecution = () => {
     });
   }, []);
 
+  // Save a run to backend (call after execution completes)
+  const saveRunToBackend = useCallback(async (mappingId, run) => {
+    if (!mappingId || !run) return;
+    
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`/api/mappings/${mappingId}/execution-logs`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          runId: run.id,
+          runName: run.name,
+          startedAt: run.startedAt,
+          status: run.status,
+          logs: run.logs
+        })
+      });
+      
+      if (!response.ok) {
+        console.error('Failed to save execution log:', await response.text());
+      }
+    } catch (err) {
+      console.error('Error saving execution log:', err);
+    }
+  }, []);
+
+  // Load runs from backend (call on component mount)
+  const loadRunsFromBackend = useCallback(async (mappingId) => {
+    if (!mappingId) return;
+    
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`/api/mappings/${mappingId}/execution-logs`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data.runs && data.runs.length > 0) {
+          setExecutionRuns(data.runs);
+          runsRef.current = data.runs;
+        }
+      }
+    } catch (err) {
+      console.error('Error loading execution logs:', err);
+    }
+  }, []);
+
   return {
     nodeStatuses,
     edgeRowCounts,
@@ -294,6 +347,8 @@ export const useVisualMappingExecution = () => {
     subscribeToExecution,
     unsubscribeFromExecution,
     generateExecutionId,
-    currentExecutionId
+    currentExecutionId,
+    saveRunToBackend,
+    loadRunsFromBackend
   };
 };
