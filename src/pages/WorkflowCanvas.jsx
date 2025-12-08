@@ -18,6 +18,8 @@ import MappingGroupNode from '../components/workflow-nodes/MappingGroupNode';
 import WorkflowNode from '../components/workflow-nodes/WorkflowNode';
 import WorkflowConfigModal from '../components/WorkflowConfigModal';
 import { API_BASE_URL } from '../config';
+import { useVisualWorkflowExecution } from '../hooks/useVisualWorkflowExecution';
+import { FaTerminal, FaTimes, FaTrash } from 'react-icons/fa';
 
 function WorkflowCanvas() {
   const [nodes, setNodes] = useState([]);
@@ -27,9 +29,24 @@ function WorkflowCanvas() {
   const [showConfigModal, setShowConfigModal] = useState(false);
   const [executionResult, setExecutionResult] = useState(null);
   const [isExecuting, setIsExecuting] = useState(false);
+  const [showConsole, setShowConsole] = useState(false);
+  const [consoleHeight, setConsoleHeight] = useState(250);
+  const [isResizingConsole, setIsResizingConsole] = useState(false);
   const reactFlowWrapper = useRef(null);
   const [reactFlowInstance, setReactFlowInstance] = useState(null);
   const nodesRef = useRef([]);
+  const consoleRef = useRef(null);
+  
+  const {
+    executionRuns,
+    startNewRun,
+    updateRunStatus,
+    addLogEntry,
+    resetExecution,
+    clearLogs,
+    loadRunsFromBackend,
+    persistCompletedRun
+  } = useVisualWorkflowExecution();
   
   // Memoize nodeTypes to prevent ReactFlow from losing rendering state
   const nodeTypes = useMemo(() => ({
@@ -79,6 +96,7 @@ function WorkflowCanvas() {
         setSelectedWorkflow(workflow);
         setNodes(workflow.graph_data.nodes || []);
         setEdges(workflow.graph_data.edges || []);
+        loadRunsFromBackend(workflowId);
       }
     } catch (error) {
       console.error('Failed to load workflow:', error);
@@ -255,6 +273,12 @@ function WorkflowCanvas() {
 
     setIsExecuting(true);
     setExecutionResult(null);
+    setShowConsole(true);
+    
+    resetExecution();
+    startNewRun(selectedWorkflow.name);
+    addLogEntry('INFO', `Starting workflow execution: ${selectedWorkflow.name}`);
+    addLogEntry('INFO', `Workflow contains ${nodes.length} nodes and ${edges.length} edges`);
 
     try {
       const response = await fetch(`${API_BASE_URL}/api/visual-workflows/${selectedWorkflow.id}/execute`, {
@@ -265,14 +289,34 @@ function WorkflowCanvas() {
       if (response.ok) {
         const result = await response.json();
         setExecutionResult(result);
-        alert(`Workflow executed successfully!\n${result.summary.successCount}/${result.summary.totalNodes} nodes completed`);
+        
+        addLogEntry('INFO', `Execution completed: ${result.summary.successCount}/${result.summary.totalNodes} nodes successful`);
+        
+        if (result.summary.failedCount > 0) {
+          addLogEntry('WARN', `${result.summary.failedCount} node(s) failed`);
+          if (result.summary.nodeStatuses) {
+            Object.entries(result.summary.nodeStatuses).forEach(([nodeId, status]) => {
+              if (status.status === 'failed') {
+                addLogEntry('ERROR', `Node ${nodeId}: ${status.error || 'Unknown error'}`);
+              }
+            });
+          }
+        }
+        
+        const finalStatus = result.summary.failedCount > 0 ? 'failed' : 'success';
+        updateRunStatus(finalStatus);
+        await persistCompletedRun(selectedWorkflow.id, finalStatus);
       } else {
         const error = await response.json();
-        alert(`Execution failed: ${error.error}`);
+        addLogEntry('ERROR', `Execution failed: ${error.error}`);
+        updateRunStatus('failed');
+        await persistCompletedRun(selectedWorkflow.id, 'failed');
       }
     } catch (error) {
       console.error('Failed to execute workflow:', error);
-      alert('Failed to execute workflow');
+      addLogEntry('ERROR', `Network error: ${error.message}`);
+      updateRunStatus('failed');
+      await persistCompletedRun(selectedWorkflow.id, 'failed');
     } finally {
       setIsExecuting(false);
     }
@@ -318,6 +362,48 @@ function WorkflowCanvas() {
       alert('Failed to delete workflow');
     }
   };
+
+  const handleConsoleResizeStart = useCallback((e) => {
+    e.preventDefault();
+    setIsResizingConsole(true);
+    const startY = e.clientY;
+    const startHeight = consoleHeight;
+    
+    const handleMouseMove = (moveEvent) => {
+      const deltaY = startY - moveEvent.clientY;
+      const newHeight = Math.max(100, Math.min(600, startHeight + deltaY));
+      setConsoleHeight(newHeight);
+    };
+    
+    const handleMouseUp = () => {
+      setIsResizingConsole(false);
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+    
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+  }, [consoleHeight]);
+
+  const formatRunDate = (startedAt) => {
+    if (!startedAt) return '';
+    try {
+      const date = new Date(startedAt);
+      return date.toLocaleString();
+    } catch (e) {
+      return startedAt;
+    }
+  };
+
+  useEffect(() => {
+    if (consoleRef.current && showConsole && executionRuns.length > 0) {
+      requestAnimationFrame(() => {
+        if (consoleRef.current) {
+          consoleRef.current.scrollTop = 0;
+        }
+      });
+    }
+  }, [executionRuns, showConsole]);
 
   return (
     <div className="workflow-canvas-container">
@@ -413,6 +499,79 @@ function WorkflowCanvas() {
           onSave={saveWorkflow}
           onClose={() => setShowConfigModal(false)}
         />
+      )}
+
+      {showConsole && (
+        <div 
+          className={`workflow-console-panel ${isResizingConsole ? 'resizing' : ''}`}
+          style={{ height: `${consoleHeight}px` }}
+        >
+          <div 
+            className="workflow-console-resize-handle"
+            onMouseDown={handleConsoleResizeStart}
+          />
+          <div className="workflow-console-header">
+            <div className="workflow-console-title">
+              <FaTerminal className="workflow-console-icon" />
+              <span>Execution Logs</span>
+              {executionRuns.length > 0 && (
+                <span className="workflow-console-count">({executionRuns.length} runs)</span>
+              )}
+            </div>
+            <div className="workflow-console-actions">
+              <button 
+                className="workflow-console-btn"
+                onClick={clearLogs}
+                title="Clear all logs"
+              >
+                <FaTrash />
+              </button>
+              <button 
+                className="workflow-console-btn workflow-console-close"
+                onClick={() => setShowConsole(false)}
+                title="Close console"
+              >
+                <FaTimes />
+              </button>
+            </div>
+          </div>
+          <div className="workflow-console-body" ref={consoleRef}>
+            {executionRuns.length === 0 ? (
+              <div className="workflow-console-empty">
+                No execution logs yet. Run the workflow to see logs here.
+              </div>
+            ) : (
+              executionRuns.map((run, runIndex) => (
+                <div key={run.id} className="workflow-console-run">
+                  <div className={`workflow-console-run-header workflow-console-run-${run.status}`}>
+                    <span className="workflow-console-run-indicator">
+                      {run.status === 'running' ? '\u23f3' : run.status === 'success' ? '\u2713' : '\u2717'}
+                    </span>
+                    <span className="workflow-console-run-name">{run.name}</span>
+                    <span className="workflow-console-run-time">{formatRunDate(run.startedAt)}</span>
+                  </div>
+                  <div className="workflow-console-run-logs">
+                    {run.logs.map((log, logIndex) => {
+                      const timestamp = log.timestamp ? new Date(log.timestamp).toLocaleTimeString() : '';
+                      return (
+                        <div key={logIndex} className={`workflow-console-log log-${log.level.toLowerCase()}`}>
+                          <span className="workflow-console-timestamp">[{timestamp}]</span>
+                          <span className={`workflow-console-level level-${log.level.toLowerCase()}`}>
+                            [{log.level}]
+                          </span>
+                          <span className="workflow-console-message">{log.message}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {runIndex < executionRuns.length - 1 && (
+                    <div className="workflow-console-run-separator" />
+                  )}
+                </div>
+              ))
+            )}
+          </div>
+        </div>
       )}
     </div>
   );
