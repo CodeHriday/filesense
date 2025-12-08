@@ -5,7 +5,7 @@ channel = "stable-24_05"
 packages = ["arrow-cpp", "freetype", "glibcLocales", "lcms2", "libiconv", "libimagequant", "libjpeg", "libtiff", "libwebp", "libxcrypt", "openjpeg", "pkg-config", "readstat", "tcl", "tk", "yajl", "zlib"]
 
 [deployment]
-deploymentTarget = "cloudrun"
+deploymentTarget = "gce"
 run = ["sh", "-c", "NODE_ENV=production npm run start"]
 build = ["sh", "-c", "npm run build"]
 

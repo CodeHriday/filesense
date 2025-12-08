@@ -1,7 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import ErrorBoundary from './components/ErrorBoundary';
 import { initializeAuditInterceptor } from './utils/auditInterceptor';
+
+// Loading fallback component
+const LoadingFallback = () => (
+  <div className="loading-screen" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+    <div>Loading...</div>
+  </div>
+);
 
 // External link component for BlumeETL redirect
 const BlumeETLRedirect = () => {
@@ -10,86 +17,15 @@ const BlumeETLRedirect = () => {
   }, []);
   return <div className="loading-screen">Redirecting to BlumeETL...</div>;
 };
-import Header from './components/Header';
+
+// Core components (loaded immediately)
 import Sidebar from './components/Sidebar';
 import NotificationList from './components/Notifications/NotificationList';
-import PerformanceOptimizations from './pages/PerformanceOptimizations';
-import ExecutiveDashboard from './pages/ExecutiveDashboard';
-import FileUpload from './pages/FileUpload';
-import { FileCatalog } from './pages/FileCatalog';
-import DataProfile from './pages/DataProfile';
-import QualityChecks from './pages/QualityChecks';
-import QualityReport from './pages/QualityReport';
-import QualityRules from './pages/QualityRules';
-import ErrorReview from './pages/ErrorReview';
-import Connections from './pages/Connections';
-import Mappings from './pages/Mappings';
-import MappingWizard from './pages/MappingWizard';
-import ETLJobDetails from './pages/ETLJobDetails';
-import Transform from './pages/Transform';
-import FileLineage from './pages/FileLineage';
-import LineageImpact from './pages/LineageImpact';
-import LineagePage from './pages/LineagePage';
-import Monitor from './pages/Monitor';
-import Scheduler from './pages/Scheduler';
-import Badges from './pages/Badges';
-import DataInsights from './pages/DataInsights';
-import FileInsights from './pages/FileInsights';
-import Recommendations from './pages/Recommendations';
-import DataStories from './pages/DataStories';
-import DashboardSettings from './pages/DashboardSettings';
-import Login from './pages/Login';
-import UserManagement from './pages/UserManagement';
-import RoleManagement from './pages/RoleManagement';
-import AuditTrail from './pages/AuditTrail';
-import Notifications from './pages/Notifications';
-import VendorManagement from './pages/VendorManagement';
-import VendorUserManagement from './pages/VendorUserManagement';
-import VendorRoleManagement from './pages/VendorRoleManagement';
-import VendorAgreements from './pages/VendorAgreements';
-import VendorFileUpload from './pages/VendorFileUpload';
-import VendorFileQuality from './pages/VendorFileQuality';
-import SLAMonitoring from './pages/SLAMonitoring';
-import DBTTransformations from './pages/DBTTransformations';
-import HooksDemo from './pages/HooksDemo';
-// Business Process Management imports
-import Groups from './pages/Groups';
-import BusinessProcesses from './pages/BusinessProcesses';
-import Jobs from './pages/Jobs';
-import ProcessedFileCatalog from './pages/ProcessedFileCatalog';
-// ProcessManagementWizard removed
-// ETL Orchestration imports
-import MappingGroups from './pages/MappingGroups';
-import MappingGroupForm from './pages/MappingGroupForm';
-import NStepWorkflows from './pages/NStepWorkflows';
-import ETLScheduler from './pages/ETLScheduler';
-import SchedulerForm from './pages/SchedulerForm';
-import PolicyManagement from './pages/PolicyManagement';
-import TagManagement from './pages/TagManagement';
-import ProjectManagement from './pages/ProjectManagement';
-import Projects from './pages/Projects';
-import GroupManagement from './pages/GroupManagement';
-import SystemCleanup from './pages/SystemCleanup';
-import RetentionPolicies from './pages/RetentionPolicies';
-import ArchivedFiles from './pages/ArchivedFiles';
-import Anomalies from './pages/Anomalies';
-import { AlertsConfig } from './pages/AlertsConfig';
-import { EmailProvidersConfig } from './pages/EmailProvidersConfig';
-import AlertHistory from './pages/AlertHistory';
-import { OAuth2Callback } from './pages/OAuth2Callback';
-import APITokens from './pages/APITokens';
-import APIDocumentation from './pages/APIDocumentation';
-import FailedJobs from './pages/FailedJobs';
-import WorkflowCanvas from './pages/WorkflowCanvas';
-import WorkflowCanvasFixed from './pages/WorkflowCanvasFixed';
-import WorkflowCanvasStandalone from './pages/WorkflowCanvasStandalone';
-import WorkflowTest from './pages/WorkflowTest';
-import WorkflowBuilder from './pages/archived/WorkflowBuilder';
-import WorkflowManager from './pages/WorkflowManager';
-import VisualMappingCanvas from './pages/VisualMappingCanvas';
-import VisualMappingManager from './pages/VisualMappingManager';
-import OnboardingWizard from './components/OnboardingWizard';
 import AccessibilityWidget from './components/AccessibilityWidget';
+import ToastContainer from './components/ToastContainer';
+import Login from './pages/Login';
+
+// Context providers (needed immediately)
 import { AccessibilityProvider } from './context/AccessibilityContext';
 import AuthProvider, { useAuth } from './context/AuthContext';
 import { SidebarProvider, useSidebar } from './context/SidebarContext';
@@ -97,19 +33,89 @@ import { AnnouncementProvider } from './components/accessibility';
 import { ToastProvider } from './context/ToastContext';
 import { NotificationsProvider, ModalProvider } from './hooks';
 import { NotificationProvider } from './contexts/NotificationContext';
-import ToastContainer from './components/ToastContainer';
 import { isVendorUser } from './utils/userHelpers';
+
+// Lazy-loaded page components (heavy components loaded on demand)
+const PerformanceOptimizations = lazy(() => import('./pages/PerformanceOptimizations'));
+const ExecutiveDashboard = lazy(() => import('./pages/ExecutiveDashboard'));
+const FileUpload = lazy(() => import('./pages/FileUpload'));
+const FileCatalog = lazy(() => import('./pages/FileCatalog').then(m => ({ default: m.FileCatalog })));
+const DataProfile = lazy(() => import('./pages/DataProfile'));
+const QualityChecks = lazy(() => import('./pages/QualityChecks'));
+const QualityReport = lazy(() => import('./pages/QualityReport'));
+const QualityRules = lazy(() => import('./pages/QualityRules'));
+const ErrorReview = lazy(() => import('./pages/ErrorReview'));
+const Connections = lazy(() => import('./pages/Connections'));
+const Mappings = lazy(() => import('./pages/Mappings'));
+const MappingWizard = lazy(() => import('./pages/MappingWizard'));
+const ETLJobDetails = lazy(() => import('./pages/ETLJobDetails'));
+const Transform = lazy(() => import('./pages/Transform'));
+const FileLineage = lazy(() => import('./pages/FileLineage'));
+const LineageImpact = lazy(() => import('./pages/LineageImpact'));
+const LineagePage = lazy(() => import('./pages/LineagePage'));
+const Monitor = lazy(() => import('./pages/Monitor'));
+const Scheduler = lazy(() => import('./pages/Scheduler'));
+const Badges = lazy(() => import('./pages/Badges'));
+const DataInsights = lazy(() => import('./pages/DataInsights'));
+const FileInsights = lazy(() => import('./pages/FileInsights'));
+const Recommendations = lazy(() => import('./pages/Recommendations'));
+const DataStories = lazy(() => import('./pages/DataStories'));
+const DashboardSettings = lazy(() => import('./pages/DashboardSettings'));
+const UserManagement = lazy(() => import('./pages/UserManagement'));
+const RoleManagement = lazy(() => import('./pages/RoleManagement'));
+const AuditTrail = lazy(() => import('./pages/AuditTrail'));
+const Notifications = lazy(() => import('./pages/Notifications'));
+const VendorManagement = lazy(() => import('./pages/VendorManagement'));
+const VendorUserManagement = lazy(() => import('./pages/VendorUserManagement'));
+const VendorRoleManagement = lazy(() => import('./pages/VendorRoleManagement'));
+const VendorAgreements = lazy(() => import('./pages/VendorAgreements'));
+const VendorFileUpload = lazy(() => import('./pages/VendorFileUpload'));
+const VendorFileQuality = lazy(() => import('./pages/VendorFileQuality'));
+const SLAMonitoring = lazy(() => import('./pages/SLAMonitoring'));
+const DBTTransformations = lazy(() => import('./pages/DBTTransformations'));
+const HooksDemo = lazy(() => import('./pages/HooksDemo'));
+const Groups = lazy(() => import('./pages/Groups'));
+const BusinessProcesses = lazy(() => import('./pages/BusinessProcesses'));
+const Jobs = lazy(() => import('./pages/Jobs'));
+const ProcessedFileCatalog = lazy(() => import('./pages/ProcessedFileCatalog'));
+const MappingGroups = lazy(() => import('./pages/MappingGroups'));
+const MappingGroupForm = lazy(() => import('./pages/MappingGroupForm'));
+const NStepWorkflows = lazy(() => import('./pages/NStepWorkflows'));
+const ETLScheduler = lazy(() => import('./pages/ETLScheduler'));
+const SchedulerForm = lazy(() => import('./pages/SchedulerForm'));
+const PolicyManagement = lazy(() => import('./pages/PolicyManagement'));
+const TagManagement = lazy(() => import('./pages/TagManagement'));
+const ProjectManagement = lazy(() => import('./pages/ProjectManagement'));
+const Projects = lazy(() => import('./pages/Projects'));
+const GroupManagement = lazy(() => import('./pages/GroupManagement'));
+const SystemCleanup = lazy(() => import('./pages/SystemCleanup'));
+const RetentionPolicies = lazy(() => import('./pages/RetentionPolicies'));
+const ArchivedFiles = lazy(() => import('./pages/ArchivedFiles'));
+const Anomalies = lazy(() => import('./pages/Anomalies'));
+const AlertsConfig = lazy(() => import('./pages/AlertsConfig').then(m => ({ default: m.AlertsConfig })));
+const EmailProvidersConfig = lazy(() => import('./pages/EmailProvidersConfig').then(m => ({ default: m.EmailProvidersConfig })));
+const AlertHistory = lazy(() => import('./pages/AlertHistory'));
+const OAuth2Callback = lazy(() => import('./pages/OAuth2Callback').then(m => ({ default: m.OAuth2Callback })));
+const APITokens = lazy(() => import('./pages/APITokens'));
+const APIDocumentation = lazy(() => import('./pages/APIDocumentation'));
+const FailedJobs = lazy(() => import('./pages/FailedJobs'));
+const WorkflowCanvasStandalone = lazy(() => import('./pages/WorkflowCanvasStandalone'));
+const WorkflowTest = lazy(() => import('./pages/WorkflowTest'));
+const WorkflowBuilder = lazy(() => import('./pages/archived/WorkflowBuilder'));
+const WorkflowManager = lazy(() => import('./pages/WorkflowManager'));
+const VisualMappingCanvas = lazy(() => import('./pages/VisualMappingCanvas'));
+const VisualMappingManager = lazy(() => import('./pages/VisualMappingManager'));
+
+// Styles
 import './App.css';
 import './styles/accessibility.css';
 import './styles/Login.css';
 import './styles/UserManagement.css';
 import './styles/RoleManagement.css';
 import './styles/AIPredictiveInsights.css';
-// Business Process Management styles
 import './styles/Groups.css';
 import './styles/BusinessProcesses.css';
 import './styles/Jobs.css';
-// ProcessManagementWizard styles removed
 import './styles/Transformations.css';
 import './styles/ETLOrchestration.css';
 import './styles/global-page-styles.css';
@@ -234,6 +240,7 @@ function AppContent({ showOnboarding, setShowOnboarding }) {
           <div className="main-container">
             <Sidebar />
             <main id="main-content" className={`content ${isCollapsed ? 'sidebar-collapsed' : ''} full-width`} tabIndex="-1">
+              <Suspense fallback={<LoadingFallback />}>
               <Routes>
                 <Route path="/" element={<ProtectedRoute><DashboardOrRedirect /></ProtectedRoute>} />
                 <Route path="/executive-dashboard" element={<ProtectedRoute><ExecutiveDashboard /></ProtectedRoute>} />
@@ -357,6 +364,7 @@ function AppContent({ showOnboarding, setShowOnboarding }) {
                 <Route path="/login" element={currentUser ? <Navigate to="/" replace /> : <Login />} />
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
+              </Suspense>
             </main>
           </div>
           

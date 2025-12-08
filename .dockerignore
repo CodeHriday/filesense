@@ -1,0 +1,67 @@
+# Dependencies
+node_modules/
+.pythonlibs/
+venv/
+__pycache__/
+*.pyc
+
+# Development files
+.git/
+.gitignore
+.env.local
+.env.development
+*.log
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Build cache
+.cache/
+.vite/
+.parcel-cache/
+
+# Test files
+*.test.js
+*.test.ts
+*.spec.js
+*.spec.ts
+__tests__/
+coverage/
+
+# Documentation
+*.md
+!README.md
+docs/
+
+# Temporary files
+temp/
+tmp/
+*.tmp
+
+# Large data files
+uploads/
+*.csv
+*.xlsx
+*.json.backup
+
+# Debug assets
+attached_assets/
+
+# Rust service (if not needed in production)
+rust-log-service/
+
+# Local development configs
+.replit.local
+*.local
+
+# Package manager lock files (keep one)
+yarn.lock
+pnpm-lock.yaml
+
+# Miscellaneous
+.DS_Store
+Thumbs.db
+*.bak

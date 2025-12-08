@@ -4,6 +4,32 @@ import react from '@vitejs/plugin-react';
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          // Vendor chunks - split large dependencies
+          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          'vendor-redux': ['@reduxjs/toolkit', 'react-redux', 'reselect', 'immer'],
+          'vendor-charts': ['chart.js', 'react-chartjs-2', 'chartjs-plugin-datalabels'],
+          'vendor-flow': ['reactflow', 'dagre'],
+          'vendor-dnd': ['@dnd-kit/core', '@dnd-kit/sortable', '@dnd-kit/modifiers', '@dnd-kit/utilities'],
+          'vendor-ui': ['framer-motion', 'react-icons', 'clsx'],
+          'vendor-utils': ['lodash', 'axios', 'uuid'],
+          'vendor-query': ['@tanstack/react-query'],
+        }
+      }
+    },
+    chunkSizeWarningLimit: 500,
+    sourcemap: false,
+    minify: 'terser',
+    terserOptions: {
+      compress: {
+        drop_console: true,
+        drop_debugger: true
+      }
+    }
+  },
   server: {
     host: '0.0.0.0',
     port: 5000,
