@@ -783,9 +783,9 @@ const WorkflowBuilderContent = () => {
           <button 
             className="workflow-builder-btn workflow-builder-btn-primary"
             onClick={executeWorkflow}
-            disabled={!workflowId}
+            disabled={!workflowId || isExecuting}
           >
-            <FaPlay /> Execute
+            <FaPlay /> {isExecuting ? 'Running...' : 'Execute'}
           </button>
           <button 
             className={`workflow-builder-btn workflow-builder-btn-console ${showConsole ? 'active' : ''}`}
