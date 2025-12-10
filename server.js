@@ -4155,6 +4155,15 @@ try {
   console.error('✗ Failed to register /api/bulk-profiling:', error.message);
 }
 
+// Schema validation routes (fast metadata validation)
+try {
+  const schemaValidationRoutes = require('./backend/routes/schemaValidation');
+  app.use('/api/schema-validation', authenticateToken, schemaValidationRoutes);
+  console.log('✓ Registered /api/schema-validation route');
+} catch (error) {
+  console.error('✗ Failed to register /api/schema-validation:', error.message);
+}
+
 // Transformation routes
 try {
   const transformationRoutes = require('./backend/routes/transformations');

@@ -6,6 +6,7 @@ import FileDropzone from '../components/FileDropzone';
 import DuplicateFileModal from '../components/DuplicateFileModal';
 import StepProgress from '../components/StepProgress';
 import BulkProfilingTab from '../components/BulkProfilingTab';
+import SchemaValidationTab from '../components/SchemaValidationTab';
 import { uploadFile, uploadFilesBatch, testApiConnection, checkDuplicateFile, deleteFile } from '../api/fileService';
 import { getQualityRules } from '../api/qualityRulesService';
 import { useAuth } from '../context/AuthContext';
@@ -1489,6 +1490,12 @@ function FileUpload() {
           >
             Bulk Profiling
           </button>
+          <button 
+            className={`gps-tab ${activeTab === 'schema-validation' ? 'gps-tab--active' : ''}`}
+            onClick={() => setActiveTab('schema-validation')}
+          >
+            Schema Validation
+          </button>
         </div>
         
         <div className="upload-instructions">
@@ -2477,6 +2484,11 @@ function FileUpload() {
         {/* Bulk Profiling tab */}
         {activeTab === 'bulk-profiling' && (
           <BulkProfilingTab selectedProject={selectedProject} />
+        )}
+        
+        {/* Schema Validation tab */}
+        {activeTab === 'schema-validation' && (
+          <SchemaValidationTab selectedProject={selectedProject} />
         )}
         
         {uploadStatus === 'success' && uploadedFile && activeTab === 'upload-profile' && !isProcessing && !batchResults && (
