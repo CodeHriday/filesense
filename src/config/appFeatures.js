@@ -136,13 +136,24 @@ export const APP_FEATURES = [
     showInSidebar: true
   },
   { 
-    id: 'workflow', 
+    id: 'workflow_manager', 
     name: 'Visual Workflows', 
     category: 'Job Design', 
     supportsExecute: true,
     icon: FiGitBranch,
     route: '/workflow-manager',
     showInSidebar: true
+  },
+  { 
+    id: 'workflow_builder', 
+    name: 'Workflow Builder', 
+    category: 'Job Design', 
+    parentId: 'workflow_manager',
+    isNested: true,
+    supportsExecute: true,
+    icon: null,
+    route: null,
+    showInSidebar: false
   },
   
   // Jobs and Monitoring
