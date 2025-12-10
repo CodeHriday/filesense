@@ -17,7 +17,7 @@ async function up() {
         id SERIAL PRIMARY KEY,
         job_name VARCHAR(255) NOT NULL,
         project_id INTEGER REFERENCES projects(id),
-        connection_id INTEGER REFERENCES connections(id),
+        connection_id INTEGER,
         vendor_agreement_id INTEGER REFERENCES vendor_agreements(id),
         s3_path TEXT,
         file_pattern VARCHAR(255) DEFAULT '*',

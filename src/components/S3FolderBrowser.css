@@ -3,6 +3,8 @@
   border-radius: 8px;
   background: white;
   overflow: hidden;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 10px;
 }
 
 .s3-breadcrumb {
@@ -20,8 +22,9 @@
   border: none;
   padding: 4px 8px;
   cursor: pointer;
-  color: #2196F3;
-  font-size: 14px;
+  color: #025043;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 10px;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -29,13 +32,13 @@
 }
 
 .breadcrumb-item:hover {
-  background: rgba(33, 150, 243, 0.1);
+  background: rgba(2, 80, 67, 0.1);
   border-radius: 4px;
 }
 
 .breadcrumb-separator {
   color: #999;
-  font-size: 12px;
+  font-size: 10px;
 }
 
 .s3-current-path {
@@ -45,11 +48,13 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 10px;
 }
 
 .s3-current-path strong {
   color: #333;
-  font-size: 14px;
+  font-size: 10px;
   margin-right: 8px;
 }
 
@@ -58,25 +63,26 @@
   padding: 4px 8px;
   border-radius: 4px;
   font-family: monospace;
-  font-size: 13px;
-  color: #2e7d32;
+  font-size: 10px;
+  color: #025043;
   flex: 1;
 }
 
-.s3-current-path button {
-  background: #2196F3;
+.btn-select-path {
+  background: #025043;
   color: white;
   border: none;
   padding: 6px 12px;
   border-radius: 4px;
   cursor: pointer;
-  font-size: 14px;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 10px;
   font-weight: 500;
   transition: background 0.2s;
 }
 
-.s3-current-path button:hover {
-  background: #1976D2;
+.btn-select-path:hover {
+  background: #013d33;
 }
 
 .s3-loading {
@@ -87,12 +93,19 @@
   padding: 48px 16px;
   gap: 12px;
   color: #666;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 10px;
+}
+
+.s3-loading .spinner {
+  animation: spin 1s linear infinite;
+  color: #025043;
 }
 
 .s3-loading-spinner {
   width: 40px;
   height: 40px;
-  color: #2196F3;
+  color: #025043;
   animation: spin 1s linear infinite;
 }
 
@@ -114,6 +127,7 @@
   border-bottom: 1px solid #f0f0f0;
   align-items: center;
   transition: background 0.2s;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
 .s3-folder, .s3-parent {
@@ -126,22 +140,22 @@
 
 .s3-item .icon {
   color: #FFA726;
-  font-size: 18px;
+  font-size: 16px;
 }
 
 .s3-item .file-icon {
   color: #666;
-  font-size: 11px;
+  font-size: 10px;
 }
 
 .s3-item .name {
-  font-size: 14px;
+  font-size: 10px;
   color: #333;
   font-weight: 500;
 }
 
 .s3-item .type {
-  font-size: 12px;
+  font-size: 10px;
   color: #666;
   background: #f0f0f0;
   padding: 2px 8px;
@@ -149,7 +163,7 @@
 }
 
 .s3-item .size {
-  font-size: 12px;
+  font-size: 10px;
   color: #999;
   margin-left: 12px;
 }
@@ -158,9 +172,19 @@
   padding: 48px 16px;
   text-align: center;
   color: #999;
-  font-size: 14px;
+  font-size: 10px;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
 .s3-parent .icon {
   color: #999;
+}
+
+.s3-error {
+  padding: 16px;
+  background: #ffebee;
+  color: #c62828;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 10px;
+  text-align: center;
 }
