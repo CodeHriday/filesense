@@ -24,7 +24,9 @@ const NodeDetailDrawer = ({ node, open, onClose }) => {
     setError(null);
     
     try {
-      const response = await fetchNodeDetails(node.id, node.data.type, node.data.projectId);
+      // For grouped nodes, use node.type; for regular nodes, use node.data.type
+      const nodeType = node.type === 'grouped' ? 'grouped' : (node.data?.type || node.type);
+      const response = await fetchNodeDetails(node.id, nodeType, node.data?.projectId);
       if (response.success) {
         setDetails(response.node.details);
       } else {
