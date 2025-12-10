@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { FiChevronDown, FiChevronRight, FiDownload } from 'react-icons/fi';
+import { FiChevronDown, FiChevronRight, FiDownload, FiShield, FiCheck, FiAlertTriangle } from 'react-icons/fi';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { formatBytes, formatDate } from '../utils/formatters';
 import axios from 'axios';
+import { getAuditLedgerEntries, verifyAuditLedger, exportAuditLedgerByJob, getAuditLedgerStats } from '../api/auditLedgerService';
 import '../styles/global-page-styles.css';
 import './Monitor.css';
 
@@ -19,11 +20,23 @@ function Monitor() {
   const [pageSize, setPageSize] = useState(10);
   const [totalRecords, setTotalRecords] = useState(0);
   
+  const [ledgerEntries, setLedgerEntries] = useState([]);
+  const [ledgerStats, setLedgerStats] = useState(null);
+  const [verificationResult, setVerificationResult] = useState(null);
+  const [verifying, setVerifying] = useState(false);
+  const [ledgerFilters, setLedgerFilters] = useState({
+    logLevel: '',
+    actionType: '',
+    jobId: ''
+  });
+  
   useEffect(() => {
     if (activeTab === 'file-audit') {
       fetchAuditData();
     } else if (activeTab === 'bulk-profiling') {
       fetchBulkJobs();
+    } else if (activeTab === 'audit-ledger') {
+      fetchLedgerData();
     }
   }, [currentPage, pageSize, activeTab]);
   
@@ -75,6 +88,75 @@ function Monitor() {
     } finally {
       setLoading(false);
     }
+  };
+  
+  const fetchLedgerData = async () => {
+    try {
+      setLoading(true);
+      const offset = (currentPage - 1) * pageSize;
+      
+      const filters = {
+        limit: pageSize,
+        offset: offset
+      };
+      
+      if (ledgerFilters.logLevel) filters.logLevel = ledgerFilters.logLevel;
+      if (ledgerFilters.actionType) filters.actionType = ledgerFilters.actionType;
+      if (ledgerFilters.jobId) filters.jobId = ledgerFilters.jobId;
+      
+      const [entriesResult, statsResult] = await Promise.all([
+        getAuditLedgerEntries(filters),
+        getAuditLedgerStats()
+      ]);
+      
+      setLedgerEntries(entriesResult.entries || []);
+      setTotalRecords(entriesResult.total || 0);
+      setLedgerStats(statsResult.stats || null);
+      setError(null);
+    } catch (err) {
+      console.error('Error fetching audit ledger:', err);
+      setError('Failed to load immutable audit ledger. Please try again later.');
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  const handleVerifyLedger = async () => {
+    try {
+      setVerifying(true);
+      const result = await verifyAuditLedger();
+      setVerificationResult(result);
+    } catch (err) {
+      console.error('Error verifying ledger:', err);
+      setVerificationResult({ success: false, error: err.message });
+    } finally {
+      setVerifying(false);
+    }
+  };
+  
+  const handleExportLedger = async (jobId, format) => {
+    try {
+      const blob = await exportAuditLedgerByJob(jobId, format, true);
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `audit_ledger_${jobId}.${format}`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (err) {
+      console.error('Error exporting ledger:', err);
+    }
+  };
+  
+  const handleLedgerFilterChange = (key, value) => {
+    setLedgerFilters(prev => ({ ...prev, [key]: value }));
+    setCurrentPage(1);
+  };
+  
+  const applyLedgerFilters = () => {
+    fetchLedgerData();
   };
   
   const handleTabChange = (tab) => {
@@ -230,6 +312,13 @@ function Monitor() {
           className={`gps-tab ${activeTab === 'bulk-profiling' ? 'gps-tab--active' : ''}`}
         >
           Bulk Profiling Jobs
+        </button>
+        <button
+          onClick={() => handleTabChange('audit-ledger')}
+          className={`gps-tab ${activeTab === 'audit-ledger' ? 'gps-tab--active' : ''}`}
+        >
+          <FiShield style={{ marginRight: '6px', verticalAlign: 'middle' }} />
+          Immutable Audit Ledger
         </button>
       </div>
       
@@ -583,9 +672,223 @@ function Monitor() {
           </div>
           )}
           
+          {activeTab === 'audit-ledger' && (
+          <div className="gps-table-container">
+            <div className="gps-filter-bar" style={{ marginBottom: '16px', display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <input
+                  type="text"
+                  placeholder="Filter by Job ID..."
+                  value={ledgerFilters.jobId}
+                  onChange={(e) => handleLedgerFilterChange('jobId', e.target.value)}
+                  className="gps-filter-input"
+                  style={{ width: '200px' }}
+                />
+                <select
+                  value={ledgerFilters.logLevel}
+                  onChange={(e) => handleLedgerFilterChange('logLevel', e.target.value)}
+                  className="gps-filter-select"
+                >
+                  <option value="">All Levels</option>
+                  <option value="INFO">INFO</option>
+                  <option value="WARN">WARN</option>
+                  <option value="ERROR">ERROR</option>
+                </select>
+                <button onClick={applyLedgerFilters} className="gps-btn-primary">
+                  Apply Filters
+                </button>
+              </div>
+              
+              <div style={{ marginLeft: 'auto', display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <button 
+                  onClick={handleVerifyLedger} 
+                  disabled={verifying}
+                  className="gps-btn-secondary"
+                  title="Verify the integrity of the audit chain"
+                >
+                  <FiShield style={{ marginRight: '4px' }} />
+                  {verifying ? 'Verifying...' : 'Verify Chain Integrity'}
+                </button>
+                
+                {verificationResult && (
+                  <span className={`gps-badge ${verificationResult.verified ? 'gps-badge--success' : 'gps-badge--danger'}`}>
+                    {verificationResult.verified ? (
+                      <><FiCheck style={{ marginRight: '4px' }} /> Chain Verified ({verificationResult.entriesVerified} entries)</>
+                    ) : (
+                      <><FiAlertTriangle style={{ marginRight: '4px' }} /> Chain Broken</>
+                    )}
+                  </span>
+                )}
+              </div>
+            </div>
+            
+            {ledgerStats && (
+              <div className="gps-stats-bar" style={{ marginBottom: '16px', display: 'flex', gap: '24px', padding: '12px 16px', background: '#f8fafc', borderRadius: '8px', fontSize: '12px' }}>
+                <div><strong>Total Entries:</strong> {parseInt(ledgerStats.total_entries || 0).toLocaleString()}</div>
+                <div><strong>Unique Jobs:</strong> {parseInt(ledgerStats.unique_jobs || 0).toLocaleString()}</div>
+                <div><strong>Unique Actors:</strong> {parseInt(ledgerStats.unique_actors || 0).toLocaleString()}</div>
+                <div><strong>Current Sequence:</strong> {ledgerStats.sequence?.current_sequence || 0}</div>
+              </div>
+            )}
+            
+            <div style={{ overflowX: 'auto' }}>
+              <table className="gps-table">
+                <thead>
+                  <tr>
+                    <th style={{ width: '40px' }}></th>
+                    <th>Sequence</th>
+                    <th>Timestamp</th>
+                    <th>Job ID</th>
+                    <th>Level</th>
+                    <th>Action</th>
+                    <th>Entity</th>
+                    <th>Message</th>
+                    <th>Actor</th>
+                    <th>Record Hash</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {ledgerEntries.length === 0 ? (
+                    <tr>
+                      <td colSpan="11">
+                        <div className="gps-empty-state">
+                          <FiShield style={{ fontSize: '48px', marginBottom: '16px', opacity: 0.5 }} />
+                          <p>No immutable audit ledger entries found</p>
+                          <p style={{ fontSize: '12px', opacity: 0.7 }}>Entries are automatically created when jobs execute</p>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : (
+                    ledgerEntries.map((entry) => (
+                      <React.Fragment key={entry.id}>
+                        <tr>
+                          <td>
+                            <button 
+                              className="gps-icon-btn"
+                              onClick={() => toggleRowExpansion(entry.id)}
+                              title="View entry details"
+                            >
+                              {expandedRows.has(entry.id) ? <FiChevronDown /> : <FiChevronRight />}
+                            </button>
+                          </td>
+                          <td style={{ fontFamily: 'monospace', fontSize: '11px' }}>{entry.sequence_number}</td>
+                          <td style={{ whiteSpace: 'nowrap' }}>{formatDate(entry.event_timestamp)}</td>
+                          <td style={{ maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis' }} title={entry.job_id}>
+                            {entry.job_id ? entry.job_id.substring(0, 12) + '...' : '-'}
+                          </td>
+                          <td>
+                            <span className={`gps-badge ${
+                              entry.log_level === 'ERROR' ? 'gps-badge--danger' :
+                              entry.log_level === 'WARN' ? 'gps-badge--warning' :
+                              'gps-badge--info'
+                            }`}>
+                              {entry.log_level}
+                            </span>
+                          </td>
+                          <td>{entry.action_type}</td>
+                          <td>{entry.entity_type || '-'}</td>
+                          <td style={{ maxWidth: '300px', overflow: 'hidden', textOverflow: 'ellipsis' }} title={entry.message}>
+                            {entry.message}
+                          </td>
+                          <td>{entry.actor_email || entry.actor_id || '-'}</td>
+                          <td style={{ maxWidth: '100px', overflow: 'hidden', textOverflow: 'ellipsis', fontFamily: 'monospace', fontSize: '10px' }} title={entry.record_hash}>
+                            {entry.record_hash ? entry.record_hash.substring(0, 8) + '...' : '-'}
+                          </td>
+                          <td>
+                            {entry.job_id && (
+                              <button
+                                className="gps-icon-btn"
+                                onClick={() => handleExportLedger(entry.job_id, 'json')}
+                                title="Export job audit trail"
+                              >
+                                <FiDownload />
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                        {expandedRows.has(entry.id) && (
+                          <tr className="gps-subrow">
+                            <td colSpan="11">
+                              <div className="gps-expanded-content" style={{ gridTemplateColumns: '1fr 1fr' }}>
+                                <div className="gps-expanded-section">
+                                  <h3 className="gps-expanded-section-title">Entry Details</h3>
+                                  <div className="gps-detail-grid">
+                                    <div className="gps-detail-item">
+                                      <span className="gps-detail-label">Entry ID:</span>
+                                      <span className="gps-detail-value" style={{ fontFamily: 'monospace', fontSize: '10px' }}>{entry.entry_id}</span>
+                                    </div>
+                                    <div className="gps-detail-item">
+                                      <span className="gps-detail-label">Sequence Number:</span>
+                                      <span className="gps-detail-value">{entry.sequence_number}</span>
+                                    </div>
+                                    <div className="gps-detail-item">
+                                      <span className="gps-detail-label">Correlation ID:</span>
+                                      <span className="gps-detail-value">{entry.correlation_id || '-'}</span>
+                                    </div>
+                                    <div className="gps-detail-item">
+                                      <span className="gps-detail-label">Entity Name:</span>
+                                      <span className="gps-detail-value">{entry.entity_name || '-'}</span>
+                                    </div>
+                                    <div className="gps-detail-item">
+                                      <span className="gps-detail-label">Actor IP:</span>
+                                      <span className="gps-detail-value">{entry.actor_ip || '-'}</span>
+                                    </div>
+                                    <div className="gps-detail-item">
+                                      <span className="gps-detail-label">Actor Role:</span>
+                                      <span className="gps-detail-value">{entry.actor_role || '-'}</span>
+                                    </div>
+                                  </div>
+                                </div>
+                                
+                                <div className="gps-expanded-section">
+                                  <h3 className="gps-expanded-section-title">Cryptographic Verification</h3>
+                                  <div className="gps-detail-grid">
+                                    <div className="gps-detail-item">
+                                      <span className="gps-detail-label">Previous Hash:</span>
+                                      <span className="gps-detail-value" style={{ fontFamily: 'monospace', fontSize: '10px', wordBreak: 'break-all' }}>{entry.prev_hash || 'GENESIS (First Entry)'}</span>
+                                    </div>
+                                    <div className="gps-detail-item">
+                                      <span className="gps-detail-label">Record Hash:</span>
+                                      <span className="gps-detail-value" style={{ fontFamily: 'monospace', fontSize: '10px', wordBreak: 'break-all' }}>{entry.record_hash}</span>
+                                    </div>
+                                  </div>
+                                  
+                                  {entry.payload && (
+                                    <div style={{ marginTop: '12px' }}>
+                                      <h4 className="gps-expanded-section-title" style={{ fontSize: '11px' }}>Payload Data</h4>
+                                      <pre style={{ 
+                                        background: '#f8f9fa', 
+                                        border: '1px solid #e2e8f0', 
+                                        borderRadius: '6px', 
+                                        padding: '12px', 
+                                        fontSize: '10px', 
+                                        overflow: 'auto', 
+                                        whiteSpace: 'pre-wrap',
+                                        maxHeight: '200px',
+                                        fontFamily: 'monospace'
+                                      }}>
+                                        {JSON.stringify(entry.payload, null, 2)}
+                                      </pre>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </React.Fragment>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          )}
+          
           <div className="gps-pagination-container">
             <div className="gps-results-info">
-              Showing {(activeTab === 'file-audit' ? audits.length : bulkJobs.length) > 0 ? ((currentPage - 1) * pageSize) + 1 : 0} to {Math.min(currentPage * pageSize, totalRecords)} of {totalRecords} records
+              Showing {(activeTab === 'file-audit' ? audits.length : activeTab === 'bulk-profiling' ? bulkJobs.length : ledgerEntries.length) > 0 ? ((currentPage - 1) * pageSize) + 1 : 0} to {Math.min(currentPage * pageSize, totalRecords)} of {totalRecords} records
             </div>
             
             <div className="gps-pagination-controls">
