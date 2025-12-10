@@ -44,6 +44,16 @@ async function buildLineageGraph({ rootType, rootId, projectId, depth = 3, filte
         throw new Error(`Unknown root type: ${rootType}`);
     }
     
+    // Find and add workflows that contain the mapping jobs in this graph
+    const mappingIds = nodes
+      .filter(n => n.type === 'transformation')
+      .map(n => n.metadata?.mappingId)
+      .filter(Boolean);
+    
+    if (mappingIds.length > 0) {
+      await findWorkflowsForMappings(mappingIds, projectId, nodes, edges, visited);
+    }
+    
     // Deduplicate nodes by type + label (ensures same-named mappings appear only once)
     const { deduplicatedNodes, deduplicatedEdges } = deduplicateNodes(nodes, edges);
     
@@ -588,6 +598,102 @@ async function traverseFromJob(jobId, projectId, nodes, edges, visited, depth, f
       relationship: 'OUTPUT_TO',
       label: 'outputs to'
     });
+  }
+}
+
+/**
+ * Find and add visual workflows that contain the given mapping jobs
+ * Scans visual_workflows table to find workflows where the mapping appears in graph_data nodes
+ */
+async function findWorkflowsForMappings(mappingIds, projectId, nodes, edges, visited) {
+  if (!mappingIds || mappingIds.length === 0) return;
+  
+  // Query visual_workflows to find any that contain these mappings
+  const workflowsResult = await pool.query(`
+    SELECT 
+      vw.id,
+      vw.name,
+      vw.description,
+      vw.graph_data,
+      vw.execution_mode,
+      vw.project_id,
+      vw.created_at,
+      vw.updated_at,
+      p.name as project_name
+    FROM visual_workflows vw
+    LEFT JOIN projects p ON vw.project_id = p.id
+    WHERE vw.is_active = true
+      AND ($1::integer IS NULL OR vw.project_id = $1)
+  `, [projectId]);
+  
+  for (const workflow of workflowsResult.rows) {
+    const graphData = workflow.graph_data || {};
+    const workflowNodes = graphData.nodes || [];
+    
+    // Check if any workflow node references one of our mapping IDs
+    const matchingMappingIds = [];
+    
+    for (const wfNode of workflowNodes) {
+      const assetType = wfNode.data?.assetType;
+      const assetId = wfNode.data?.assetId;
+      
+      // Check if this is a mapping job node
+      if ((assetType === 'mapping_job' || assetType === 'job') && assetId) {
+        // assetId could be a mapping_id string like "MAP-xxx" or a numeric ID
+        if (mappingIds.includes(assetId) || mappingIds.includes(String(assetId))) {
+          matchingMappingIds.push(assetId);
+        }
+      }
+    }
+    
+    if (matchingMappingIds.length > 0) {
+      const workflowNodeId = `workflow-${workflow.id}`;
+      
+      if (!visited.has(workflowNodeId)) {
+        visited.add(workflowNodeId);
+        
+        // Add workflow node
+        nodes.push({
+          id: workflowNodeId,
+          type: 'workflow',
+          label: workflow.name,
+          metadata: {
+            id: workflow.id,
+            name: workflow.name,
+            description: workflow.description,
+            executionMode: workflow.execution_mode,
+            projectId: workflow.project_id,
+            projectName: workflow.project_name,
+            createdAt: workflow.created_at,
+            updatedAt: workflow.updated_at,
+            nodeCount: workflowNodes.length,
+            edgeCount: (graphData.edges || []).length
+          }
+        });
+      }
+      
+      // Add edges from each matching mapping to the workflow
+      for (const mappingId of matchingMappingIds) {
+        const mappingNodeId = `mapping-${mappingId}`;
+        
+        // Check if this mapping node exists in our graph
+        const mappingExists = nodes.some(n => n.id === mappingNodeId);
+        if (mappingExists) {
+          const edgeId = `${mappingNodeId}-to-${workflowNodeId}`;
+          const edgeExists = edges.some(e => e.id === edgeId);
+          
+          if (!edgeExists) {
+            edges.push({
+              id: edgeId,
+              source: mappingNodeId,
+              target: workflowNodeId,
+              relationship: 'PART_OF',
+              label: 'part of'
+            });
+          }
+        }
+      }
+    }
   }
 }
 

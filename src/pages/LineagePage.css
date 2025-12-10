@@ -471,6 +471,11 @@
   border-color: #F59E0B;
 }
 
+.lineage-node-workflow {
+  border-color: #8B5CF6;
+  background: linear-gradient(145deg, #F5F3FF, #EDE9FE);
+}
+
 .lineage-node-derived {
   border-color: #8B5CF6;
   background: #F5F3FF;

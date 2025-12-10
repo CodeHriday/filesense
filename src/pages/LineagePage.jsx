@@ -36,6 +36,7 @@ import DerivedColumnNode from '../components/lineageNodes/DerivedColumnNode';
 import TargetTableNode from '../components/lineageNodes/TargetTableNode';
 import JobNode from '../components/lineageNodes/JobNode';
 import GroupedNode from '../components/lineageNodes/GroupedNode';
+import WorkflowNode from '../components/lineageNodes/WorkflowNode';
 import { FaUndo } from 'react-icons/fa';
 
 const nodeTypes = {
@@ -45,7 +46,8 @@ const nodeTypes = {
   derivedColumn: DerivedColumnNode,
   targetTable: TargetTableNode,
   job: JobNode,
-  grouped: GroupedNode
+  grouped: GroupedNode,
+  workflow: WorkflowNode
 };
 
 const LineagePageContent = () => {
@@ -856,6 +858,10 @@ const LineagePageContent = () => {
                 <div className="lineage-legend-item">
                   <span className="lineage-legend-color" style={{ background: '#F59E0B' }}></span>
                   Mapping Job
+                </div>
+                <div className="lineage-legend-item">
+                  <span className="lineage-legend-color" style={{ background: '#8B5CF6' }}></span>
+                  Workflow
                 </div>
                 <div className="lineage-legend-item">
                   <span className="lineage-legend-color" style={{ background: '#025043' }}></span>
