@@ -4239,6 +4239,15 @@ try {
   console.error('✗ Failed to register /api/file-audit:', error.message);
 }
 
+// Immutable Audit Ledger routes
+try {
+  const auditLedgerRoutes = require('./backend/routes/auditLedger');
+  app.use('/api/audit-ledger', authenticateToken, auditLedgerRoutes);
+  console.log('✓ Registered /api/audit-ledger route');
+} catch (error) {
+  console.error('✗ Failed to register /api/audit-ledger:', error.message);
+}
+
 // Dashboard routes
 try {
   const dashboardRoutes = require('./backend/routes/dashboard');

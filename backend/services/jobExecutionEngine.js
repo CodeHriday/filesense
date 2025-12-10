@@ -21,6 +21,7 @@ const alertAggregationWorker = require('./AlertAggregationWorker');
 const visualMappingWS = require('./visualMappingWebSocket');
 const crypto = require('crypto');
 const ArchiveExtractionService = require('./archiveExtractionService');
+const ImmutableAuditLedgerService = require('./ImmutableAuditLedgerService');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
@@ -587,8 +588,9 @@ async function createJob(pool, mappingId, userId, options = {}) {
  * @param {string} message - Log message
  * @param {Object} details - Additional details
  * @param {string} visualExecutionId - Optional visual mapping execution ID for WebSocket logs
+ * @param {Object} ledgerContext - Optional context for immutable audit ledger
  */
-async function logJobExecution(pool, jobId, level, message, details = {}, visualExecutionId = null) {
+async function logJobExecution(pool, jobId, level, message, details = {}, visualExecutionId = null, ledgerContext = null) {
   try {
     await pool.query(`
       INSERT INTO transformation_logs (
@@ -599,6 +601,32 @@ async function logJobExecution(pool, jobId, level, message, details = {}, visual
     // Emit log via WebSocket for visual mapping executions
     if (visualExecutionId) {
       visualMappingWS.emitExecutionLog(visualExecutionId, level, message, details);
+    }
+    
+    // Write to immutable audit ledger for regulatory compliance
+    try {
+      const ledgerService = new ImmutableAuditLedgerService(pool);
+      await ledgerService.appendEntry({
+        jobId: jobId,
+        correlationId: ledgerContext?.correlationId || details.correlationId,
+        actorId: ledgerContext?.userId?.toString(),
+        actorEmail: ledgerContext?.userEmail,
+        actorRole: ledgerContext?.userRole,
+        actionType: 'JOB_EXECUTION',
+        actionCategory: 'EXECUTION',
+        entityType: 'TRANSFORMATION_JOB',
+        entityId: jobId,
+        entityName: ledgerContext?.mappingName || details.mappingName,
+        logLevel: level.toUpperCase(),
+        message: message,
+        payload: {
+          ...details,
+          timestamp: new Date().toISOString()
+        }
+      });
+    } catch (ledgerError) {
+      // Don't fail job execution if ledger write fails, just log it
+      systemLogger.error('Error writing to audit ledger:', ledgerError);
     }
     
   } catch (error) {
