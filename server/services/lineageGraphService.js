@@ -45,13 +45,16 @@ async function buildLineageGraph({ rootType, rootId, projectId, depth = 3, filte
     }
     
     // Find and add workflows that contain the mapping jobs in this graph
-    const mappingIds = nodes
-      .filter(n => n.type === 'transformation')
-      .map(n => n.metadata?.mappingId)
-      .filter(Boolean);
+    // Collect both numeric IDs and string mapping_ids for comprehensive matching
+    const transformationNodes = nodes.filter(n => n.type === 'transformation');
+    const mappingData = transformationNodes.map(n => ({
+      id: n.metadata?.id,
+      mappingId: n.metadata?.mappingId,
+      name: n.label
+    })).filter(d => d.id || d.mappingId);
     
-    if (mappingIds.length > 0) {
-      await findWorkflowsForMappings(mappingIds, projectId, nodes, edges, visited);
+    if (mappingData.length > 0) {
+      await findWorkflowsForMappings(mappingData, projectId, nodes, edges, visited);
     }
     
     // Deduplicate nodes by type + label (ensures same-named mappings appear only once)
@@ -604,9 +607,22 @@ async function traverseFromJob(jobId, projectId, nodes, edges, visited, depth, f
 /**
  * Find and add visual workflows that contain the given mapping jobs
  * Scans visual_workflows table to find workflows where the mapping appears in graph_data nodes
+ * @param {Array} mappingData - Array of {id, mappingId, name} objects
  */
-async function findWorkflowsForMappings(mappingIds, projectId, nodes, edges, visited) {
-  if (!mappingIds || mappingIds.length === 0) return;
+async function findWorkflowsForMappings(mappingData, projectId, nodes, edges, visited) {
+  if (!mappingData || mappingData.length === 0) return;
+  
+  // Create lookup sets for fast matching
+  const numericIds = new Set(mappingData.map(d => d.id).filter(Boolean).map(id => Number(id)));
+  const stringIds = new Set(mappingData.map(d => d.mappingId).filter(Boolean));
+  const names = new Set(mappingData.map(d => d.name).filter(Boolean));
+  
+  systemLogger.info('Finding workflows for mappings', {
+    numericIdCount: numericIds.size,
+    stringIdCount: stringIds.size,
+    nameCount: names.size,
+    mappingData: mappingData
+  });
   
   // Query visual_workflows to find any that contain these mappings
   const workflowsResult = await pool.query(`
@@ -626,27 +642,51 @@ async function findWorkflowsForMappings(mappingIds, projectId, nodes, edges, vis
       AND ($1::integer IS NULL OR vw.project_id = $1)
   `, [projectId]);
   
+  systemLogger.info('Checking workflows for mapping matches', {
+    workflowCount: workflowsResult.rows.length
+  });
+  
   for (const workflow of workflowsResult.rows) {
     const graphData = workflow.graph_data || {};
     const workflowNodes = graphData.nodes || [];
     
-    // Check if any workflow node references one of our mapping IDs
-    const matchingMappingIds = [];
+    // Check if any workflow node references one of our mappings
+    const matchingMappings = [];
     
     for (const wfNode of workflowNodes) {
       const assetType = wfNode.data?.assetType;
       const assetId = wfNode.data?.assetId;
+      const assetLabel = wfNode.data?.label;
       
-      // Check if this is a mapping job node
-      if ((assetType === 'mapping_job' || assetType === 'job') && assetId) {
-        // assetId could be a mapping_id string like "MAP-xxx" or a numeric ID
-        if (mappingIds.includes(assetId) || mappingIds.includes(String(assetId))) {
-          matchingMappingIds.push(assetId);
+      // Check if this is a mapping job node (various asset types used)
+      const isMappingType = ['mapping_job', 'job', 'transformation_mapping', 'mapping'].includes(assetType);
+      
+      if (isMappingType && assetId) {
+        // Match by numeric ID
+        if (numericIds.has(Number(assetId))) {
+          matchingMappings.push({ assetId, matchType: 'numericId' });
+          continue;
+        }
+        // Match by string mapping_id
+        if (stringIds.has(String(assetId))) {
+          matchingMappings.push({ assetId, matchType: 'stringId' });
+          continue;
+        }
+        // Match by name
+        if (assetLabel && names.has(assetLabel)) {
+          matchingMappings.push({ assetId, matchType: 'name', name: assetLabel });
+          continue;
         }
       }
     }
     
-    if (matchingMappingIds.length > 0) {
+    if (matchingMappings.length > 0) {
+      systemLogger.info('Found matching workflow', {
+        workflowId: workflow.id,
+        workflowName: workflow.name,
+        matchingMappings
+      });
+      
       const workflowNodeId = `workflow-${workflow.id}`;
       
       if (!visited.has(workflowNodeId)) {
@@ -672,20 +712,25 @@ async function findWorkflowsForMappings(mappingIds, projectId, nodes, edges, vis
         });
       }
       
-      // Add edges from each matching mapping to the workflow
-      for (const mappingId of matchingMappingIds) {
-        const mappingNodeId = `mapping-${mappingId}`;
+      // Add edges from transformation nodes to the workflow
+      // Find the transformation nodes that match
+      for (const match of matchingMappings) {
+        // Find the corresponding node in our lineage graph
+        const lineageNode = nodes.find(n => 
+          n.type === 'transformation' && 
+          (n.metadata?.id === Number(match.assetId) || 
+           n.metadata?.mappingId === String(match.assetId) ||
+           n.label === match.name)
+        );
         
-        // Check if this mapping node exists in our graph
-        const mappingExists = nodes.some(n => n.id === mappingNodeId);
-        if (mappingExists) {
-          const edgeId = `${mappingNodeId}-to-${workflowNodeId}`;
+        if (lineageNode) {
+          const edgeId = `${lineageNode.id}-to-${workflowNodeId}`;
           const edgeExists = edges.some(e => e.id === edgeId);
           
           if (!edgeExists) {
             edges.push({
               id: edgeId,
-              source: mappingNodeId,
+              source: lineageNode.id,
               target: workflowNodeId,
               relationship: 'PART_OF',
               label: 'part of'
