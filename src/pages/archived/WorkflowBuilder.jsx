@@ -1280,7 +1280,7 @@ const WorkflowBuilderContent = () => {
                         className={`workflow-builder-console-line workflow-builder-console-${log.level}`}
                       >
                         <span className="workflow-builder-console-timestamp">[{log.timestamp}]</span>
-                        <span className={`workflow-builder-console-level workflow-builder-console-level-${log.level}`}>
+                        <span className={`workflow-builder-console-level workflow-builder-console-level-${log.level.toLowerCase()}`}>
                           [{log.level.toUpperCase()}]
                         </span>
                         <span className="workflow-builder-console-message">{log.message}</span>
