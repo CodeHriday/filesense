@@ -324,4 +324,339 @@ router.delete('/cache', authenticateToken, async (req, res) => {
   }
 });
 
+// ===========================================
+// SAVED LINEAGE GRAPHS CRUD ENDPOINTS
+// ===========================================
+
+const pool = require('../../backend/db');
+
+/**
+ * GET /api/lineage-graph/saved
+ * List all saved lineage graphs
+ */
+router.get('/saved', authenticateToken, async (req, res) => {
+  try {
+    const { projectId, page = 1, limit = 50 } = req.query;
+    const offset = (parseInt(page) - 1) * parseInt(limit);
+    
+    let query = `
+      SELECT 
+        vlg.id,
+        vlg.name,
+        vlg.description,
+        vlg.root_type,
+        vlg.root_id,
+        vlg.graph_config,
+        vlg.created_by,
+        vlg.created_at,
+        vlg.updated_at,
+        vlg.is_active,
+        vlg.project_id,
+        u.username as created_by_name,
+        p.name as project_name,
+        (SELECT COUNT(*) FROM jsonb_array_elements(vlg.graph_data->'nodes')) as node_count,
+        (SELECT COUNT(*) FROM jsonb_array_elements(vlg.graph_data->'edges')) as edge_count
+      FROM visual_lineage_graphs vlg
+      LEFT JOIN users u ON vlg.created_by = u.id
+      LEFT JOIN projects p ON vlg.project_id = p.id
+      WHERE vlg.is_active = true
+    `;
+    const params = [];
+    
+    if (projectId) {
+      params.push(parseInt(projectId));
+      query += ` AND vlg.project_id = $${params.length}`;
+    }
+    
+    query += ` ORDER BY vlg.updated_at DESC`;
+    
+    // Get total count
+    const countQuery = query.replace(/SELECT[\s\S]*?FROM/, 'SELECT COUNT(*) FROM').replace(/ORDER BY[\s\S]*$/, '');
+    const countResult = await pool.query(countQuery, params);
+    const total = parseInt(countResult.rows[0].count);
+    
+    // Add pagination
+    params.push(parseInt(limit), offset);
+    query += ` LIMIT $${params.length - 1} OFFSET $${params.length}`;
+    
+    const result = await pool.query(query, params);
+    
+    res.json({
+      success: true,
+      graphs: result.rows,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        totalPages: Math.ceil(total / parseInt(limit))
+      }
+    });
+    
+  } catch (error) {
+    systemLogger.error('Error listing saved lineage graphs', { error: error.message });
+    res.status(500).json({
+      success: false,
+      error: 'Failed to list saved lineage graphs',
+      details: error.message
+    });
+  }
+});
+
+/**
+ * GET /api/lineage-graph/saved/:id
+ * Get a specific saved lineage graph
+ */
+router.get('/saved/:id', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const result = await pool.query(`
+      SELECT 
+        vlg.*,
+        u.username as created_by_name,
+        p.name as project_name
+      FROM visual_lineage_graphs vlg
+      LEFT JOIN users u ON vlg.created_by = u.id
+      LEFT JOIN projects p ON vlg.project_id = p.id
+      WHERE vlg.id = $1 AND vlg.is_active = true
+    `, [id]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Saved lineage graph not found'
+      });
+    }
+    
+    res.json({
+      success: true,
+      graph: result.rows[0]
+    });
+    
+  } catch (error) {
+    systemLogger.error('Error fetching saved lineage graph', { error: error.message, id: req.params.id });
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch saved lineage graph',
+      details: error.message
+    });
+  }
+});
+
+/**
+ * POST /api/lineage-graph/saved
+ * Create a new saved lineage graph
+ */
+router.post('/saved', authenticateToken, async (req, res) => {
+  try {
+    const { name, description, rootType, rootId, graphConfig, graphData, projectId } = req.body;
+    const userId = req.user?.id;
+    
+    if (!name || !rootType || !rootId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required fields: name, rootType, rootId'
+      });
+    }
+    
+    const result = await pool.query(`
+      INSERT INTO visual_lineage_graphs 
+        (name, description, root_type, root_id, graph_config, graph_data, created_by, project_id)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      RETURNING *
+    `, [
+      name,
+      description || null,
+      rootType,
+      parseInt(rootId),
+      graphConfig || { depth: 3, includeIncidents: true },
+      graphData || { nodes: [], edges: [] },
+      userId,
+      projectId ? parseInt(projectId) : null
+    ]);
+    
+    systemLogger.info('Created saved lineage graph', { id: result.rows[0].id, name, userId });
+    
+    res.json({
+      success: true,
+      graph: result.rows[0]
+    });
+    
+  } catch (error) {
+    systemLogger.error('Error creating saved lineage graph', { error: error.message });
+    res.status(500).json({
+      success: false,
+      error: 'Failed to create saved lineage graph',
+      details: error.message
+    });
+  }
+});
+
+/**
+ * PUT /api/lineage-graph/saved/:id
+ * Update a saved lineage graph
+ */
+router.put('/saved/:id', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, description, graphConfig, graphData } = req.body;
+    
+    const updates = [];
+    const params = [id];
+    let paramIndex = 2;
+    
+    if (name !== undefined) {
+      updates.push(`name = $${paramIndex++}`);
+      params.push(name);
+    }
+    if (description !== undefined) {
+      updates.push(`description = $${paramIndex++}`);
+      params.push(description);
+    }
+    if (graphConfig !== undefined) {
+      updates.push(`graph_config = $${paramIndex++}`);
+      params.push(graphConfig);
+    }
+    if (graphData !== undefined) {
+      updates.push(`graph_data = $${paramIndex++}`);
+      params.push(graphData);
+    }
+    
+    if (updates.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'No fields to update'
+      });
+    }
+    
+    updates.push('updated_at = CURRENT_TIMESTAMP');
+    
+    const result = await pool.query(`
+      UPDATE visual_lineage_graphs 
+      SET ${updates.join(', ')}
+      WHERE id = $1 AND is_active = true
+      RETURNING *
+    `, params);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Saved lineage graph not found'
+      });
+    }
+    
+    systemLogger.info('Updated saved lineage graph', { id });
+    
+    res.json({
+      success: true,
+      graph: result.rows[0]
+    });
+    
+  } catch (error) {
+    systemLogger.error('Error updating saved lineage graph', { error: error.message, id: req.params.id });
+    res.status(500).json({
+      success: false,
+      error: 'Failed to update saved lineage graph',
+      details: error.message
+    });
+  }
+});
+
+/**
+ * DELETE /api/lineage-graph/saved/:id
+ * Soft delete a saved lineage graph
+ */
+router.delete('/saved/:id', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const result = await pool.query(`
+      UPDATE visual_lineage_graphs 
+      SET is_active = false, updated_at = CURRENT_TIMESTAMP
+      WHERE id = $1 AND is_active = true
+      RETURNING id
+    `, [id]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Saved lineage graph not found'
+      });
+    }
+    
+    systemLogger.info('Deleted saved lineage graph', { id });
+    
+    res.json({
+      success: true,
+      message: 'Lineage graph deleted successfully'
+    });
+    
+  } catch (error) {
+    systemLogger.error('Error deleting saved lineage graph', { error: error.message, id: req.params.id });
+    res.status(500).json({
+      success: false,
+      error: 'Failed to delete saved lineage graph',
+      details: error.message
+    });
+  }
+});
+
+/**
+ * POST /api/lineage-graph/saved/:id/refresh
+ * Refresh a saved lineage graph with fresh data
+ */
+router.post('/saved/:id/refresh', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Get the saved graph
+    const graphResult = await pool.query(`
+      SELECT * FROM visual_lineage_graphs WHERE id = $1 AND is_active = true
+    `, [id]);
+    
+    if (graphResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Saved lineage graph not found'
+      });
+    }
+    
+    const savedGraph = graphResult.rows[0];
+    const config = savedGraph.graph_config || { depth: 3, includeIncidents: true };
+    
+    // Build fresh graph data
+    const freshGraph = await buildLineageGraph({
+      rootType: savedGraph.root_type,
+      rootId: savedGraph.root_id,
+      projectId: savedGraph.project_id,
+      depth: config.depth || 3,
+      includeIncidents: config.includeIncidents !== false
+    });
+    
+    // Update the saved graph with fresh data
+    const updateResult = await pool.query(`
+      UPDATE visual_lineage_graphs 
+      SET graph_data = $2, updated_at = CURRENT_TIMESTAMP
+      WHERE id = $1
+      RETURNING *
+    `, [id, { nodes: freshGraph.nodes, edges: freshGraph.edges }]);
+    
+    systemLogger.info('Refreshed saved lineage graph', { id });
+    
+    res.json({
+      success: true,
+      graph: updateResult.rows[0],
+      freshData: freshGraph
+    });
+    
+  } catch (error) {
+    systemLogger.error('Error refreshing saved lineage graph', { error: error.message, id: req.params.id });
+    res.status(500).json({
+      success: false,
+      error: 'Failed to refresh saved lineage graph',
+      details: error.message
+    });
+  }
+});
+
 module.exports = router;
