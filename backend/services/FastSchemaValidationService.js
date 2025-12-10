@@ -400,13 +400,19 @@ class FastSchemaValidationService {
     const connection = result.rows[0];
     const config = connection.config || {};
     
-    // Return credentials from config jsonb column
+    // Determine connection type for decryption
+    const storageType = config.storage_type || config.provider || connection.type || 'aws';
+    
+    // Decrypt credentials before using them
+    const decryptedConfig = decryptCredentials(storageType, config);
+    
+    // Return credentials from decrypted config
     return {
       ...connection,
-      bucket: config.bucket || config.bucketName || config.bucket_name,
-      access_key_id: config.accessKeyId || config.access_key_id || config.access_key,
-      secret_access_key: config.secretAccessKey || config.secret_access_key || config.secret_key,
-      region: config.region || 'us-east-1'
+      bucket: decryptedConfig.bucket || decryptedConfig.bucketName || decryptedConfig.bucket_name || config.bucket_name,
+      access_key_id: decryptedConfig.access_key || decryptedConfig.access_key_id || decryptedConfig.accessKeyId,
+      secret_access_key: decryptedConfig.secret_key || decryptedConfig.secret_access_key || decryptedConfig.secretAccessKey,
+      region: decryptedConfig.region || config.region || 'us-east-1'
     };
   }
 
