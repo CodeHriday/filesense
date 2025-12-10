@@ -318,9 +318,9 @@ function SchemaValidationTab({ selectedProject: initialProject }) {
       const token = localStorage.getItem('token');
       const jobData = {
         jobName: `Schema Validation - ${s3Path}`,
-        projectId: selectedProject,
-        connectionId: selectedConnection,
-        vendorAgreementId: selectedAgreement,
+        projectId: parseInt(selectedProject),
+        connectionId: parseInt(selectedConnection),
+        vendorAgreementId: parseInt(selectedAgreement),
         s3Path,
         filePattern,
         recursive,
@@ -890,15 +890,62 @@ function SchemaValidationTab({ selectedProject: initialProject }) {
       )}
 
       {showBrowser && selectedConnection && (
-        <div className="gps-bulk-field" style={{ marginTop: '16px' }}>
-          <S3FolderBrowser
-            connectionId={selectedConnection}
-            initialPath={s3Path || '/'}
-            onSelectPath={(path) => {
-              setS3Path(path);
+        <div 
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
               setShowBrowser(false);
+            }
+          }}
+        >
+          <div 
+            style={{
+              backgroundColor: 'white',
+              borderRadius: '8px',
+              padding: '24px',
+              width: '90%',
+              maxWidth: '800px',
+              maxHeight: '80vh',
+              overflow: 'auto',
+              boxShadow: '0 4px 20px rgba(0, 0, 0, 0.15)'
             }}
-          />
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <h3 style={{ margin: 0, fontFamily: 'Inter, sans-serif', fontSize: '14px', fontWeight: 600 }}>Browse S3 Location</h3>
+              <button 
+                onClick={() => setShowBrowser(false)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  fontSize: '20px',
+                  cursor: 'pointer',
+                  color: '#666'
+                }}
+              >
+                &times;
+              </button>
+            </div>
+            <S3FolderBrowser
+              connectionId={selectedConnection}
+              initialPath={s3Path || '/'}
+              onSelectPath={(path) => {
+                setS3Path(path);
+                setShowBrowser(false);
+                setDiscoveredFiles([]);
+              }}
+            />
+          </div>
         </div>
       )}
 
