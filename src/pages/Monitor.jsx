@@ -246,24 +246,23 @@ function Monitor() {
                 <thead>
                   <tr>
                     <th style={{ width: '40px' }}></th>
-                    <th>Project</th>
+                    <th>Job ID</th>
                     <th>Date</th>
+                    <th>Mapping Name</th>
+                    <th>Project</th>
                     <th>File Name</th>
+                    <th>File Type</th>
+                    <th>File Size</th>
+                    <th>Encoding</th>
+                    <th>Columns</th>
+                    <th>Records</th>
                     <th>Source</th>
                     <th>Load Type</th>
-                    <th>Schedule</th>
-                    <th>Mapping Group</th>
                     <th>Workflow</th>
-                    <th>Mapping Name</th>
-                    <th>File Type</th>
-                    <th>Records</th>
+                    <th>Schedule</th>
                     <th>Status</th>
                     <th>Duration</th>
-                    <th>File Size</th>
-                    <th>Columns</th>
-                    <th>Encoding</th>
                     <th>User ID</th>
-                    <th>Correlation ID</th>
                     <th>Load Step 1 Path</th>
                     <th>Load Step 1 Records</th>
                     <th>Schema Validation</th>
@@ -273,7 +272,7 @@ function Monitor() {
                 <tbody>
                   {audits.length === 0 ? (
                     <tr>
-                      <td colSpan="23">
+                      <td colSpan="22">
                         <div className="gps-empty-state">
                           <p>No audit records found</p>
                         </div>
@@ -292,30 +291,29 @@ function Monitor() {
                               {expandedRows.has(audit.id) ? <FiChevronDown /> : <FiChevronRight />}
                             </button>
                           </td>
-                          <td>{audit.project_name || 'Default Project'}</td>
+                          <td style={{ maxWidth: '100px', overflow: 'hidden', textOverflow: 'ellipsis' }} title={audit.correlation_id}>
+                            {audit.correlation_id ? audit.correlation_id.substring(0, 8) + '...' : '-'}
+                          </td>
                           <td style={{ whiteSpace: 'nowrap' }}>{formatDate(audit.created_dt)}</td>
+                          <td>{audit.mapping_name || '-'}</td>
+                          <td>{audit.project_name || 'Default Project'}</td>
                           <td style={{ maxWidth: '150px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={audit.file_name}>{audit.file_name || '-'}</td>
+                          <td>{audit.file_type ? audit.file_type.toUpperCase() : '-'}</td>
+                          <td>{audit.file_size_bytes ? formatBytes(audit.file_size_bytes) : '-'}</td>
+                          <td>{audit.encoding || '-'}</td>
+                          <td style={{ textAlign: 'right' }}>{audit.number_of_columns || '-'}</td>
+                          <td style={{ textAlign: 'right' }}>{(audit.no_of_records_in_source || 0).toLocaleString()}</td>
                           <td>{audit.source || '-'}</td>
                           <td>{audit.load_type || '-'}</td>
-                          <td>{audit.schedule_name || '-'}</td>
-                          <td>{audit.mapping_group_name || '-'}</td>
                           <td>{audit.workflow_name || '-'}</td>
-                          <td>{audit.mapping_name || '-'}</td>
-                          <td>{audit.file_type ? audit.file_type.toUpperCase() : '-'}</td>
-                          <td style={{ textAlign: 'right' }}>{(audit.no_of_records_in_source || 0).toLocaleString()}</td>
+                          <td>{audit.schedule_name || '-'}</td>
                           <td>
                             <span className={getStatusBadgeClass(audit.status)}>
                               {audit.status || 'unknown'}
                             </span>
                           </td>
                           <td>{formatDuration(audit.processing_duration_ms)}</td>
-                          <td>{audit.file_size_bytes ? formatBytes(audit.file_size_bytes) : '-'}</td>
-                          <td style={{ textAlign: 'right' }}>{audit.number_of_columns || '-'}</td>
-                          <td>{audit.encoding || '-'}</td>
                           <td style={{ textAlign: 'right' }}>{audit.user_id || '-'}</td>
-                          <td style={{ maxWidth: '100px', overflow: 'hidden', textOverflow: 'ellipsis' }} title={audit.correlation_id}>
-                            {audit.correlation_id ? audit.correlation_id.substring(0, 8) + '...' : '-'}
-                          </td>
                           <td title={audit.load_step_1_path}>{audit.load_step_1_path || '-'}</td>
                           <td style={{ textAlign: 'right' }}>{(audit.load_step_1_rec_cnt || 0).toLocaleString()}</td>
                           <td>
@@ -337,7 +335,7 @@ function Monitor() {
                         </tr>
                         {expandedRows.has(audit.id) && (
                           <tr className="gps-subrow">
-                            <td colSpan="23">
+                            <td colSpan="22">
                               <div className="gps-expanded-content" style={{ gridTemplateColumns: '1fr 1fr 1fr' }}>
                                 <div className="gps-expanded-section">
                                   <h3 className="gps-expanded-section-title">Additional Details</h3>
