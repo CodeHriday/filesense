@@ -1193,6 +1193,16 @@ async function getNodeDetails(nodeId, nodeType, projectId) {
         `, [workflowId]);
         return workflowResult.rows[0] || null;
         
+      case 'grouped':
+        // Grouped nodes contain multiple child nodes - return summary info
+        // The nodeId format is like "group-{pattern}" or contains child IDs in metadata
+        return {
+          id: nodeId,
+          type: 'grouped',
+          is_grouped: true,
+          description: 'This is a grouped node containing multiple similar items. Click "Expand" to see individual items.'
+        };
+        
       default:
         return null;
     }
