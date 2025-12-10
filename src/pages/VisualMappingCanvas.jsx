@@ -1944,7 +1944,7 @@ const VisualMappingCanvasContent = () => {
                 <div key={run.id} className="visual-mapping-console-run">
                   <div className={`visual-mapping-console-run-header visual-mapping-console-run-${run.status}`}>
                     <span className="visual-mapping-console-run-indicator">
-                      {run.status === 'running' ? '⏳' : run.status === 'success' ? '✓' : '✗'}
+                      {run.status === 'running' ? '⏳' : (run.status === 'success' || run.status === 'completed') ? '✓' : '✗'}
                     </span>
                     <span className="visual-mapping-console-run-name">{run.name}</span>
                     <span className="visual-mapping-console-run-time">{formatRunDate(run.startedAt)}</span>

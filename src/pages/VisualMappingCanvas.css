@@ -1056,6 +1056,10 @@
   border-left: 3px solid #f14c4c;
 }
 
+.visual-mapping-console-run-completed {
+  border-left: 3px solid #4ec9b0;
+}
+
 .visual-mapping-console-run-indicator {
   font-size: 12px;
 }
@@ -1063,12 +1067,13 @@
 .visual-mapping-console-run-name {
   font-weight: 600;
   color: #ddd;
-  flex: 1;
+  margin-right: 8px;
 }
 
 .visual-mapping-console-run-time {
   color: #888;
   font-size: 10px;
+  margin-left: auto;
 }
 
 .visual-mapping-console-run-logs {
