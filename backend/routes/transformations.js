@@ -925,7 +925,12 @@ router.post('/:id/execute',
             runSchemaValidation,
             runProfilingChecks,
             dryRun,
-            existingJob: job
+            existingJob: job,
+            // Pass user context for audit logging
+            userEmail: req.user?.email,
+            userRole: req.user?.role,
+            userIp: req.ip || req.connection?.remoteAddress,
+            sessionId: req.sessionID || req.headers['x-session-id']
           });
           systemLogger.info('Transformation job completed', { 
             jobId: result.jobId, 

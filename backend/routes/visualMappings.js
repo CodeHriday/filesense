@@ -774,7 +774,12 @@ router.post('/:id/execute', async (req, res) => {
           visualMappingEdges: mapping.graph_data.edges,
           nodeExecutionMap: transformationMapping.node_execution_map,
           executionOrder: compilationResult.executionOrder,
-          skipInternalCleanup: true
+          skipInternalCleanup: true,
+          // Pass user context for audit logging
+          userEmail: req.user?.email,
+          userRole: req.user?.role,
+          userIp: req.ip || req.connection?.remoteAddress,
+          sessionId: req.sessionID || req.headers['x-session-id']
         });
         
         console.log(`[VISUAL-MAPPING-EXECUTE] executeTransformationJob returned:`, JSON.stringify(jobResult, null, 2));

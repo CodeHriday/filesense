@@ -612,6 +612,7 @@ async function logJobExecution(pool, jobId, level, message, details = {}, visual
         actorId: ledgerContext?.userId?.toString(),
         actorEmail: ledgerContext?.userEmail,
         actorRole: ledgerContext?.userRole,
+        actorIp: ledgerContext?.userIp,
         actionType: 'JOB_EXECUTION',
         actionCategory: 'EXECUTION',
         entityType: 'TRANSFORMATION_JOB',
@@ -621,6 +622,7 @@ async function logJobExecution(pool, jobId, level, message, details = {}, visual
         message: message,
         payload: {
           ...details,
+          sessionId: ledgerContext?.sessionId,
           timestamp: new Date().toISOString()
         }
       });
@@ -844,8 +846,24 @@ async function executeTransformationJob(pool, mappingId, userId, options = {}) {
     visualMappingNodes = null,        // Visual mapping graph nodes for status tracking
     visualMappingEdges = null,        // Visual mapping graph edges for row count tracking
     nodeExecutionMap = null,          // Map of node ID to execution step
-    executionOrder = null             // Ordered array of node IDs
+    executionOrder = null,            // Ordered array of node IDs
+    // User context for audit logging
+    userEmail = null,
+    userRole = null,
+    userIp = null,
+    sessionId = null
   } = options;
+  
+  // Build ledger context for audit logging throughout execution
+  const ledgerContext = {
+    userId,
+    userEmail,
+    userRole,
+    userIp,
+    sessionId,
+    correlationId: null, // Will be set from job record
+    mappingName: null    // Will be set from mapping config
+  };
   
   let job = existingJob;
   let mapping = null;
@@ -867,11 +885,18 @@ async function executeTransformationJob(pool, mappingId, userId, options = {}) {
     }
     const jobId = job.job_id;
     const transformationJobDbId = job.id; // Database ID for linking to audit
+    const correlationId = job.correlation_id || jobId;
     
-    await logJobExecution(pool, jobId, 'info', 'Job execution started', { mappingId, userId });
+    // Update ledger context with job-specific data
+    ledgerContext.correlationId = correlationId;
     
     // Get mapping configuration
     mapping = await getMappingConfig(pool, mappingId);
+    
+    // Set mapping name in ledger context
+    ledgerContext.mappingName = mapping.mapping_name;
+    
+    await logJobExecution(pool, jobId, 'info', 'Job execution started', { mappingId, userId, correlationId }, null, ledgerContext);
     
     // Track if this is a visual mapping execution
     const isVisualMapping = mapping.is_visual_mapping && mapping.visual_mapping_id;
@@ -3146,6 +3171,9 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
           transformationJobId: transformationJobDbId,
           mappingName: mapping.mapping_name,
           userId: userId,
+          userEmail: ledgerContext.userEmail,
+          ipAddress: ledgerContext.userIp,
+          sessionId: ledgerContext.sessionId,
           processingDurationMs: 0,
           status: 'success',
           createdBy: userId,
@@ -3195,9 +3223,12 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
           transformationJobId: transformationJobDbId,
           mappingName: mapping.mapping_name,
           userId: userId,
+          userEmail: ledgerContext.userEmail,
+          ipAddress: ledgerContext.userIp,
+          sessionId: ledgerContext.sessionId,
           processingDurationMs: 0,
           status: 'success',
-          createdBy: null,
+          createdBy: userId,
           fileRole: 'target',
           metadata: JSON.stringify({
             pii_columns: mapping.pii_columns || [],
@@ -3211,7 +3242,7 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
           correlationId,
           sourceFile: file.filename,
           targetFile: outputFilename
-        });
+        }, visualExecutionId, ledgerContext);
         
         // Create transformation lineage record (only if schema changed)
         try {
