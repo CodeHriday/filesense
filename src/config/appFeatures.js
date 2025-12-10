@@ -153,7 +153,7 @@ export const APP_FEATURES = [
     supportsExecute: true,
     icon: FiGrid,
     route: '/workflow-builder',
-    showInSidebar: true
+    showInSidebar: false
   },
   { 
     id: 'schedule', 
