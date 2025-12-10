@@ -1104,6 +1104,95 @@ async function getNodeDetails(nodeId, nodeType, projectId) {
         `, [jobId]);
         return jobResult.rows[0] || null;
         
+      case 'targetFile':
+        // Target files are synthetic nodes created from mapping configuration
+        // Extract file name from nodeId (format: target-file-{filename})
+        const targetFileName = nodeId.replace('target-file-', '');
+        
+        // Try to find a real file with this name first
+        const targetFileResult = await pool.query(`
+          SELECT 
+            f.*,
+            tm.mapping_name,
+            tm.target_file_format
+          FROM files f
+          LEFT JOIN transformation_mappings tm ON f.filename LIKE '%' || tm.target_file_name || '%'
+          WHERE f.filename LIKE '%' || $1 || '%'
+          ORDER BY f.created_at DESC
+          LIMIT 1
+        `, [targetFileName]);
+        
+        if (targetFileResult.rows.length > 0) {
+          return targetFileResult.rows[0];
+        }
+        
+        // Return synthetic data from the mapping configuration
+        const mappingForTargetResult = await pool.query(`
+          SELECT 
+            target_file_name,
+            target_file_format,
+            mapping_name,
+            mapping_id
+          FROM transformation_mappings
+          WHERE target_file_name = $1
+          LIMIT 1
+        `, [targetFileName]);
+        
+        if (mappingForTargetResult.rows.length > 0) {
+          const mapping = mappingForTargetResult.rows[0];
+          return {
+            filename: `${mapping.target_file_name}.${mapping.target_file_format || 'csv'}`,
+            file_format: mapping.target_file_format,
+            mapping_name: mapping.mapping_name,
+            mapping_id: mapping.mapping_id,
+            is_synthetic: true,
+            description: 'This target file will be created when the mapping is executed'
+          };
+        }
+        return null;
+        
+      case 'targetTable':
+        // Target tables are synthetic nodes
+        const targetTableName = nodeId.replace('table-', '');
+        
+        const mappingForTableResult = await pool.query(`
+          SELECT 
+            target_table_name,
+            mapping_name,
+            mapping_id
+          FROM transformation_mappings
+          WHERE target_table_name = $1
+          LIMIT 1
+        `, [targetTableName]);
+        
+        if (mappingForTableResult.rows.length > 0) {
+          const mapping = mappingForTableResult.rows[0];
+          return {
+            table_name: mapping.target_table_name,
+            mapping_name: mapping.mapping_name,
+            mapping_id: mapping.mapping_id,
+            is_synthetic: true,
+            description: 'This target table will be populated when the mapping is executed'
+          };
+        }
+        return null;
+        
+      case 'workflow':
+        // Visual workflows
+        const workflowId = nodeId.replace('workflow-', '');
+        const workflowResult = await pool.query(`
+          SELECT 
+            vw.*,
+            p.name as project_name,
+            (
+              SELECT COUNT(*) FROM jsonb_array_elements(vw.graph_data->'nodes')
+            ) as node_count
+          FROM visual_workflows vw
+          LEFT JOIN projects p ON vw.project_id = p.id
+          WHERE vw.id = $1
+        `, [workflowId]);
+        return workflowResult.rows[0] || null;
+        
       default:
         return null;
     }
