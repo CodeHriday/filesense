@@ -617,10 +617,35 @@ async function findWorkflowsForMappings(mappingData, projectId, nodes, edges, vi
   const stringIds = new Set(mappingData.map(d => d.mappingId).filter(Boolean));
   const names = new Set(mappingData.map(d => d.name).filter(Boolean));
   
+  // Extract visual mapping IDs from mapping_id format: vm-{visualMappingId}-{timestamp}
+  // This is how workflows reference mappings (by visual mapping ID)
+  const visualMappingIds = new Set();
+  for (const d of mappingData) {
+    if (d.mappingId && d.mappingId.startsWith('vm-')) {
+      const parts = d.mappingId.split('-');
+      if (parts.length >= 2) {
+        visualMappingIds.add(Number(parts[1]));
+      }
+    }
+  }
+  
+  // Also extract clean names (without [VM] prefix) for matching workflow node labels
+  const cleanNames = new Set();
+  for (const d of mappingData) {
+    if (d.name) {
+      // Remove [VM] prefix if present
+      const cleanName = d.name.replace(/^\[VM\]\s*/, '');
+      cleanNames.add(cleanName);
+    }
+  }
+  
   systemLogger.info('Finding workflows for mappings', {
     numericIdCount: numericIds.size,
     stringIdCount: stringIds.size,
     nameCount: names.size,
+    visualMappingIdCount: visualMappingIds.size,
+    visualMappingIds: Array.from(visualMappingIds),
+    cleanNames: Array.from(cleanNames),
     mappingData: mappingData
   });
   
@@ -662,7 +687,7 @@ async function findWorkflowsForMappings(mappingData, projectId, nodes, edges, vi
       const isMappingType = ['mapping_job', 'job', 'transformation_mapping', 'mapping'].includes(assetType);
       
       if (isMappingType && assetId) {
-        // Match by numeric ID
+        // Match by numeric ID (transformation_mappings.id)
         if (numericIds.has(Number(assetId))) {
           matchingMappings.push({ assetId, matchType: 'numericId' });
           continue;
@@ -672,9 +697,19 @@ async function findWorkflowsForMappings(mappingData, projectId, nodes, edges, vi
           matchingMappings.push({ assetId, matchType: 'stringId' });
           continue;
         }
-        // Match by name
+        // Match by visual mapping ID (workflows store assetId as the visual mapping ID from vm-{id}-{timestamp})
+        if (visualMappingIds.has(Number(assetId))) {
+          matchingMappings.push({ assetId, matchType: 'visualMappingId' });
+          continue;
+        }
+        // Match by name (exact match including [VM] prefix)
         if (assetLabel && names.has(assetLabel)) {
           matchingMappings.push({ assetId, matchType: 'name', name: assetLabel });
+          continue;
+        }
+        // Match by clean name (workflow might store label without [VM] prefix)
+        if (assetLabel && cleanNames.has(assetLabel)) {
+          matchingMappings.push({ assetId, matchType: 'cleanName', name: assetLabel });
           continue;
         }
       }
