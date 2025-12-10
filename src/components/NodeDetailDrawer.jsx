@@ -270,6 +270,7 @@ const NodeDetailDrawer = ({ node, open, onClose }) => {
     
     const isContract = node.data?.type === 'vendorContract';
     const isFile = node.data?.type === 'sourceFile';
+    const isTargetFile = node.data?.type === 'targetFile';
     const isTransformation = node.data?.type === 'transformation';
     const isWorkflow = node.data?.type === 'workflow';
     
@@ -367,7 +368,7 @@ const NodeDetailDrawer = ({ node, open, onClose }) => {
         )}
         
         {/* Collapsible Columns Section for source/target files */}
-        {(isFile || node.data?.type === 'targetFile') && details?.columns && details.columns.length > 0 && (
+        {(isFile || isTargetFile) && details?.columns && details.columns.length > 0 && (
           <section className="drawer-section">
             <h3 
               className="drawer-section-collapsible"
@@ -485,8 +486,8 @@ const NodeDetailDrawer = ({ node, open, onClose }) => {
           </section>
         )}
         
-        {/* Extended Details from Backend - skip for contracts, files, transformations, and workflows */}
-        {details && !isContract && !isFile && !isTransformation && !isWorkflow && (
+        {/* Extended Details from Backend - skip for contracts, files, transformations, workflows, and target files */}
+        {details && !isContract && !isFile && !isTargetFile && !isTransformation && !isWorkflow && (
           <section className="drawer-section">
             <h3>Extended Information</h3>
             <div className="drawer-metadata">

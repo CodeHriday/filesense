@@ -1157,7 +1157,8 @@ async function getNodeDetails(nodeId, nodeType, projectId) {
             target_file_name,
             target_file_format,
             mapping_name,
-            mapping_id
+            mapping_id,
+            field_mappings
           FROM transformation_mappings
           WHERE target_file_name = $1
           LIMIT 1
@@ -1165,13 +1166,38 @@ async function getNodeDetails(nodeId, nodeType, projectId) {
         
         if (mappingForTargetResult.rows.length > 0) {
           const mapping = mappingForTargetResult.rows[0];
+          
+          // Parse field_mappings to extract target columns
+          let columns = [];
+          if (mapping.field_mappings) {
+            let fieldMappings = mapping.field_mappings;
+            if (typeof fieldMappings === 'string') {
+              try {
+                fieldMappings = JSON.parse(fieldMappings);
+              } catch (e) {
+                fieldMappings = [];
+              }
+            }
+            if (Array.isArray(fieldMappings)) {
+              columns = fieldMappings.map((fm, index) => ({
+                column_name: fm.target_field || fm.targetField,
+                column_type: fm.target_type || fm.targetType || 'string',
+                column_index: index,
+                precision: fm.precision || null,
+                scale: fm.scale || null,
+                governance_tags: []
+              }));
+            }
+          }
+          
           return {
             filename: `${mapping.target_file_name}.${mapping.target_file_format || 'csv'}`,
             file_format: mapping.target_file_format,
             mapping_name: mapping.mapping_name,
             mapping_id: mapping.mapping_id,
             is_synthetic: true,
-            description: 'This target file will be created when the mapping is executed'
+            description: 'This target file will be created when the mapping is executed',
+            columns: columns
           };
         }
         return null;
