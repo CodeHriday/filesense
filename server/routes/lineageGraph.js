@@ -339,7 +339,26 @@ router.get('/saved', authenticateToken, async (req, res) => {
     const { projectId, page = 1, limit = 50 } = req.query;
     const offset = (parseInt(page) - 1) * parseInt(limit);
     
-    let query = `
+    let whereClause = `WHERE vlg.is_active = true`;
+    const params = [];
+    
+    if (projectId) {
+      params.push(parseInt(projectId));
+      whereClause += ` AND vlg.project_id = $${params.length}`;
+    }
+    
+    // Get total count first with a simple query
+    const countQuery = `
+      SELECT COUNT(*) 
+      FROM visual_lineage_graphs vlg
+      ${whereClause}
+    `;
+    const countResult = await pool.query(countQuery, params);
+    const total = parseInt(countResult.rows[0].count);
+    
+    // Main query with pagination
+    const paginationParams = [...params, parseInt(limit), offset];
+    const query = `
       SELECT 
         vlg.id,
         vlg.name,
@@ -354,32 +373,17 @@ router.get('/saved', authenticateToken, async (req, res) => {
         vlg.project_id,
         u.username as created_by_name,
         p.name as project_name,
-        (SELECT COUNT(*) FROM jsonb_array_elements(vlg.graph_data->'nodes')) as node_count,
-        (SELECT COUNT(*) FROM jsonb_array_elements(vlg.graph_data->'edges')) as edge_count
+        COALESCE(jsonb_array_length(vlg.graph_data->'nodes'), 0) as node_count,
+        COALESCE(jsonb_array_length(vlg.graph_data->'edges'), 0) as edge_count
       FROM visual_lineage_graphs vlg
       LEFT JOIN users u ON vlg.created_by = u.id
       LEFT JOIN projects p ON vlg.project_id = p.id
-      WHERE vlg.is_active = true
+      ${whereClause}
+      ORDER BY vlg.updated_at DESC
+      LIMIT $${params.length + 1} OFFSET $${params.length + 2}
     `;
-    const params = [];
     
-    if (projectId) {
-      params.push(parseInt(projectId));
-      query += ` AND vlg.project_id = $${params.length}`;
-    }
-    
-    query += ` ORDER BY vlg.updated_at DESC`;
-    
-    // Get total count
-    const countQuery = query.replace(/SELECT[\s\S]*?FROM/, 'SELECT COUNT(*) FROM').replace(/ORDER BY[\s\S]*$/, '');
-    const countResult = await pool.query(countQuery, params);
-    const total = parseInt(countResult.rows[0].count);
-    
-    // Add pagination
-    params.push(parseInt(limit), offset);
-    query += ` LIMIT $${params.length - 1} OFFSET $${params.length}`;
-    
-    const result = await pool.query(query, params);
+    const result = await pool.query(query, paginationParams);
     
     res.json({
       success: true,
