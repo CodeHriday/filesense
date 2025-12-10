@@ -122,7 +122,7 @@ class FastSchemaValidationService {
       `SELECT svj.*, 
               p.name as project_name,
               sc.name as connection_name,
-              va.name as agreement_name,
+              COALESCE(va.agreement_code, va.file_name) as agreement_name,
               v.name as vendor_name
        FROM schema_validation_jobs svj
        LEFT JOIN projects p ON svj.project_id = p.id
@@ -144,7 +144,7 @@ class FastSchemaValidationService {
       SELECT svj.*, 
              p.name as project_name,
              sc.name as connection_name,
-             va.name as agreement_name,
+             COALESCE(va.agreement_code, va.file_name) as agreement_name,
              v.name as vendor_name
       FROM schema_validation_jobs svj
       LEFT JOIN projects p ON svj.project_id = p.id
@@ -179,7 +179,7 @@ class FastSchemaValidationService {
     const result = await pool.query(
       `SELECT svj.*, 
               p.name as project_name,
-              va.name as agreement_name,
+              COALESCE(va.agreement_code, va.file_name) as agreement_name,
               v.name as vendor_name
        FROM schema_validation_jobs svj
        LEFT JOIN projects p ON svj.project_id = p.id
