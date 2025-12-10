@@ -403,9 +403,9 @@ class FastSchemaValidationService {
     // Return credentials from config jsonb column
     return {
       ...connection,
-      bucket: config.bucket || config.bucketName,
-      access_key_id: config.accessKeyId || config.access_key_id,
-      secret_access_key: config.secretAccessKey || config.secret_access_key,
+      bucket: config.bucket || config.bucketName || config.bucket_name,
+      access_key_id: config.accessKeyId || config.access_key_id || config.access_key,
+      secret_access_key: config.secretAccessKey || config.secret_access_key || config.secret_key,
       region: config.region || 'us-east-1'
     };
   }
