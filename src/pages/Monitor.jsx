@@ -238,20 +238,12 @@ function Monitor() {
     } else {
       newExpanded.add(rowId);
       
-      if (!auditLogs[rowId] && activeTab !== 'ledger') {
+      if (!auditLogs[rowId] && activeTab === 'file-audit') {
         try {
           const token = localStorage.getItem('token');
-          let response;
-          
-          if (activeTab === 'jobs') {
-            response = await axios.get(`/api/jobs/${rowId}/logs`, {
-              headers: { Authorization: `Bearer ${token}` }
-            });
-          } else {
-            response = await axios.get(`/api/file-audit/${rowId}/logs`, {
-              headers: { Authorization: `Bearer ${token}` }
-            });
-          }
+          const response = await axios.get(`/api/file-audit/${rowId}/logs`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
           setAuditLogs(prev => ({
             ...prev,
             [rowId]: response.data.logs || []
