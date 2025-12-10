@@ -144,19 +144,17 @@ export const APP_FEATURES = [
     route: '/workflow-manager',
     showInSidebar: true
   },
-  { 
-    id: 'workflow_builder', 
-    name: 'Workflow Builder', 
-    category: 'Job Design', 
-    parentId: 'workflow_manager',
-    isNested: true,
-    supportsExecute: true,
-    icon: null,
-    route: null,
-    showInSidebar: false
-  },
   
   // Jobs and Monitoring
+  { 
+    id: 'workflow_builder', 
+    name: 'Visual Workflow Builder', 
+    category: 'Job Design', 
+    supportsExecute: true,
+    icon: FiGrid,
+    route: '/workflow-builder',
+    showInSidebar: true
+  },
   { 
     id: 'schedule', 
     name: 'Job Schedules', 

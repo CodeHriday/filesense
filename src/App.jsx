@@ -36,6 +36,7 @@ import { NotificationProvider } from './contexts/NotificationContext';
 import { isVendorUser } from './utils/userHelpers';
 
 // Lazy-loaded page components (heavy components loaded on demand)
+const PerformanceOptimizations = lazy(() => import('./pages/PerformanceOptimizations'));
 const ExecutiveDashboard = lazy(() => import('./pages/ExecutiveDashboard'));
 const FileUpload = lazy(() => import('./pages/FileUpload'));
 const FileCatalog = lazy(() => import('./pages/FileCatalog').then(m => ({ default: m.FileCatalog })));
@@ -72,6 +73,7 @@ const VendorFileUpload = lazy(() => import('./pages/VendorFileUpload'));
 const VendorFileQuality = lazy(() => import('./pages/VendorFileQuality'));
 const SLAMonitoring = lazy(() => import('./pages/SLAMonitoring'));
 const DBTTransformations = lazy(() => import('./pages/DBTTransformations'));
+const HooksDemo = lazy(() => import('./pages/HooksDemo'));
 const Groups = lazy(() => import('./pages/Groups'));
 const BusinessProcesses = lazy(() => import('./pages/BusinessProcesses'));
 const Jobs = lazy(() => import('./pages/Jobs'));
@@ -97,6 +99,9 @@ const OAuth2Callback = lazy(() => import('./pages/OAuth2Callback').then(m => ({ 
 const APITokens = lazy(() => import('./pages/APITokens'));
 const APIDocumentation = lazy(() => import('./pages/APIDocumentation'));
 const FailedJobs = lazy(() => import('./pages/FailedJobs'));
+const WorkflowCanvasStandalone = lazy(() => import('./pages/WorkflowCanvasStandalone'));
+const WorkflowTest = lazy(() => import('./pages/WorkflowTest'));
+const WorkflowBuilder = lazy(() => import('./pages/archived/WorkflowBuilder'));
 const WorkflowManager = lazy(() => import('./pages/WorkflowManager'));
 const VisualMappingCanvas = lazy(() => import('./pages/VisualMappingCanvas'));
 const VisualMappingManager = lazy(() => import('./pages/VisualMappingManager'));
@@ -111,6 +116,7 @@ import './styles/AIPredictiveInsights.css';
 import './styles/Groups.css';
 import './styles/BusinessProcesses.css';
 import './styles/Jobs.css';
+import './styles/Transformations.css';
 import './styles/ETLOrchestration.css';
 import './styles/global-page-styles.css';
 
@@ -326,6 +332,7 @@ function AppContent({ showOnboarding, setShowOnboarding }) {
                 <Route path="/mapping-groups/create" element={<ProtectedRoute><MappingGroupForm /></ProtectedRoute>} />
                 <Route path="/mapping-groups/:groupId/edit" element={<ProtectedRoute><MappingGroupForm /></ProtectedRoute>} />
                 <Route path="/workflows" element={<ProtectedRoute><NStepWorkflows /></ProtectedRoute>} />
+                <Route path="/workflow-builder" element={<ProtectedRoute><WorkflowBuilder /></ProtectedRoute>} />
                 <Route path="/workflow-manager" element={<ProtectedRoute><WorkflowManager /></ProtectedRoute>} />
                 <Route path="/visual-mappings/new" element={<ProtectedRoute><VisualMappingCanvas /></ProtectedRoute>} />
                 <Route path="/visual-mappings/:mappingId" element={<ProtectedRoute><VisualMappingCanvas /></ProtectedRoute>} />
@@ -349,6 +356,11 @@ function AppContent({ showOnboarding, setShowOnboarding }) {
                 <Route path="/alert-history" element={<ProtectedRoute><AlertHistory /></ProtectedRoute>} />
                 <Route path="/email-providers" element={<ProtectedRoute><EmailProvidersConfig /></ProtectedRoute>} />
                 <Route path="/oauth2-callback" element={<OAuth2Callback />} />
+                <Route path="/workflow-canvas" element={<ProtectedRoute><WorkflowCanvasStandalone /></ProtectedRoute>} />
+                <Route path="/workflow-test" element={<ProtectedRoute><WorkflowTest /></ProtectedRoute>} />
+                {/* Development Routes */}
+                <Route path="/hooks-demo" element={<ProtectedRoute><HooksDemo /></ProtectedRoute>} />
+                <Route path="/performance-optimizations" element={<ProtectedRoute><PerformanceOptimizations /></ProtectedRoute>} />
                 <Route path="/login" element={currentUser ? <Navigate to="/" replace /> : <Login />} />
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
