@@ -44,19 +44,23 @@ async function buildLineageGraph({ rootType, rootId, projectId, depth = 3, filte
         throw new Error(`Unknown root type: ${rootType}`);
     }
     
+    // Deduplicate nodes by type + label (ensures same-named mappings appear only once)
+    const { deduplicatedNodes, deduplicatedEdges } = deduplicateNodes(nodes, edges);
+    
     // Enrich with incident data if requested
     if (includeIncidents) {
-      await enrichWithIncidents(nodes);
+      await enrichWithIncidents(deduplicatedNodes);
     }
     
     systemLogger.info('Lineage graph built successfully', {
-      nodeCount: nodes.length,
-      edgeCount: edges.length
+      originalNodeCount: nodes.length,
+      deduplicatedNodeCount: deduplicatedNodes.length,
+      edgeCount: deduplicatedEdges.length
     });
     
     return {
-      nodes,
-      edges,
+      nodes: deduplicatedNodes,
+      edges: deduplicatedEdges,
       metadata: {
         rootType,
         rootId,
@@ -70,6 +74,69 @@ async function buildLineageGraph({ rootType, rootId, projectId, depth = 3, filte
     systemLogger.error('Error building lineage graph', { error: error.message, stack: error.stack });
     throw error;
   }
+}
+
+/**
+ * Deduplicate nodes by type + label
+ * When multiple nodes have the same type and label, keep only one and redirect all edges
+ * This ensures same-named mappings/jobs appear only once in the graph
+ */
+function deduplicateNodes(nodes, edges) {
+  // Create a map of type+label -> canonical node
+  const nodesByTypeLabel = new Map();
+  const nodeIdMapping = new Map(); // oldId -> canonicalId
+  
+  for (const node of nodes) {
+    const key = `${node.type}:${node.label}`;
+    
+    if (!nodesByTypeLabel.has(key)) {
+      // First occurrence - this becomes the canonical node
+      nodesByTypeLabel.set(key, node);
+      nodeIdMapping.set(node.id, node.id);
+    } else {
+      // Duplicate - map this node's ID to the canonical node's ID
+      const canonicalNode = nodesByTypeLabel.get(key);
+      nodeIdMapping.set(node.id, canonicalNode.id);
+      
+      // Merge metadata arrays (like source files) if present
+      if (node.metadata && canonicalNode.metadata) {
+        // Merge source file references
+        if (node.metadata.sourceFiles) {
+          canonicalNode.metadata.sourceFiles = [
+            ...(canonicalNode.metadata.sourceFiles || []),
+            ...node.metadata.sourceFiles
+          ];
+        }
+      }
+    }
+  }
+  
+  // Create deduplicated nodes array
+  const deduplicatedNodes = Array.from(nodesByTypeLabel.values());
+  
+  // Update edges to point to canonical nodes and deduplicate edges
+  const edgeSet = new Set();
+  const deduplicatedEdges = [];
+  
+  for (const edge of edges) {
+    const newSource = nodeIdMapping.get(edge.source) || edge.source;
+    const newTarget = nodeIdMapping.get(edge.target) || edge.target;
+    
+    // Create a unique edge key to prevent duplicate edges
+    const edgeKey = `${newSource}->${newTarget}`;
+    
+    if (!edgeSet.has(edgeKey)) {
+      edgeSet.add(edgeKey);
+      deduplicatedEdges.push({
+        ...edge,
+        id: `${newSource}-to-${newTarget}`,
+        source: newSource,
+        target: newTarget
+      });
+    }
+  }
+  
+  return { deduplicatedNodes, deduplicatedEdges };
 }
 
 /**
