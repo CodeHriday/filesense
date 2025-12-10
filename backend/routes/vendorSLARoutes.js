@@ -37,7 +37,7 @@ router.get('/status', async (req, res) => {
         va.project_id,
         va.vendor_id,
         va.status as agreement_status,
-        v.name as vendor_name,
+        v.vendor_name as vendor_name,
         p.name as project_name,
         (
           SELECT MAX(created_at)
@@ -182,7 +182,7 @@ router.get('/violations', async (req, res) => {
         vsv.resolution_notes,
         va.agreement_code,
         va.file_name,
-        v.name as vendor_name,
+        v.vendor_name as vendor_name,
         p.name as project_name
       FROM vendor_sla_violations vsv
       LEFT JOIN vendor_agreements va ON vsv.agreement_id = va.id
