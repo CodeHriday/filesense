@@ -18,6 +18,30 @@ const fs = require('fs');
  */
 router.post('/jobs', authenticateToken, async (req, res) => {
   try {
+    const { connectionId, projectId, vendorAgreementId } = req.body;
+    
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!connectionId || typeof connectionId !== 'string' || !uuidRegex.test(connectionId)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid connection ID. Please select a valid storage connection.'
+      });
+    }
+    
+    if (!projectId || isNaN(parseInt(projectId))) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid project ID. Please select a valid project.'
+      });
+    }
+    
+    if (!vendorAgreementId || isNaN(parseInt(vendorAgreementId))) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid vendor agreement ID. Please select a valid vendor agreement.'
+      });
+    }
+    
     const jobData = {
       ...req.body,
       createdBy: req.user.id

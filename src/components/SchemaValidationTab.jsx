@@ -1,13 +1,18 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { FiFolder, FiSearch, FiPlay, FiClock, FiCheck, FiX, FiDownload, FiRefreshCw, FiFileText, FiAlertCircle } from 'react-icons/fi';
 import S3FolderBrowser from './S3FolderBrowser';
 import ErrorModal from './ErrorModal';
+import { useToast } from '../context/ToastContext';
 import './BulkProfilingTab.css';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
+const MAX_POLL_RETRIES = 5;
 
 function SchemaValidationTab({ selectedProject: initialProject }) {
+  const { addToast } = useToast();
+  const pollRetryCount = useRef(0);
+  
   const [connections, setConnections] = useState([]);
   const [projects, setProjects] = useState([]);
   const [selectedProject, setSelectedProject] = useState(initialProject || null);
@@ -31,6 +36,7 @@ function SchemaValidationTab({ selectedProject: initialProject }) {
   const [jobStatus, setJobStatus] = useState(null);
   const [pollingInterval, setPollingInterval] = useState(null);
   const [showBrowser, setShowBrowser] = useState(false);
+  const [pollingStopped, setPollingStopped] = useState(false);
   
   const [viewMode, setViewMode] = useState('create');
   const [scheduledJobs, setScheduledJobs] = useState([]);
@@ -278,9 +284,23 @@ function SchemaValidationTab({ selectedProject: initialProject }) {
         }
       );
       
+      pollRetryCount.current = 0;
       setJobStatus(response.data.job);
     } catch (err) {
       console.error('Error fetching job status:', err);
+      pollRetryCount.current += 1;
+      
+      const errorMessage = err.response?.data?.error || err.response?.data?.message || 'Failed to fetch job status';
+      
+      if (pollRetryCount.current >= MAX_POLL_RETRIES) {
+        if (pollingInterval) {
+          clearInterval(pollingInterval);
+          setPollingInterval(null);
+        }
+        setPollingStopped(true);
+        setError(`Job monitoring stopped: ${errorMessage}. Please check the job configuration and try again.`);
+        addToast('error', 'Job Monitoring Failed', `Unable to track job status after ${MAX_POLL_RETRIES} attempts. ${errorMessage}`);
+      }
     }
   };
 
@@ -313,6 +333,8 @@ function SchemaValidationTab({ selectedProject: initialProject }) {
 
     setIsCreatingJob(true);
     setError(null);
+    setPollingStopped(false);
+    pollRetryCount.current = 0;
 
     try {
       const token = localStorage.getItem('token');
@@ -348,7 +370,9 @@ function SchemaValidationTab({ selectedProject: initialProject }) {
       }
     } catch (err) {
       console.error('Error creating job:', err);
-      setError(err.response?.data?.message || 'Failed to create validation job');
+      const errorMessage = err.response?.data?.error || err.response?.data?.message || 'Failed to create validation job';
+      setError(errorMessage);
+      addToast('error', 'Job Creation Failed', errorMessage);
     } finally {
       setIsCreatingJob(false);
     }
@@ -401,6 +425,8 @@ function SchemaValidationTab({ selectedProject: initialProject }) {
     setRecursive(false);
     setSelectedAgreement('');
     setExecutionType('manual');
+    setPollingStopped(false);
+    pollRetryCount.current = 0;
     if (pollingInterval) {
       clearInterval(pollingInterval);
       setPollingInterval(null);
