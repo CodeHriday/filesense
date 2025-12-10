@@ -470,6 +470,73 @@ async function traverseFromMapping(mappingId, projectId, nodes, edges, visited, 
       relationship: 'EXECUTED_BY',
       label: 'executed by'
     });
+  } else {
+    // No job execution - create target node from mapping configuration
+    // Check for target_file_name first (for file outputs), then target_table_name (for table outputs)
+    const targetFileName = mapping.target_file_name;
+    const targetFileFormat = mapping.target_file_format;
+    const targetTableName = mapping.target_table_name;
+    
+    if (targetFileName) {
+      const targetNodeId = `target-file-${targetFileName}`;
+      
+      if (!visited.has(targetNodeId)) {
+        visited.add(targetNodeId);
+        
+        nodes.push({
+          id: targetNodeId,
+          type: 'targetFile',
+          label: `${targetFileName}${targetFileFormat ? '.' + targetFileFormat : ''}`,
+          metadata: {
+            fileName: targetFileName,
+            fileFormat: targetFileFormat,
+            mappingId: mapping.mapping_id,
+            mappingName: mapping.mapping_name,
+            containsPii: false,
+            dataClassification: null,
+            piiColumns: []
+          }
+        });
+      }
+      
+      // Add edge from mapping to target file
+      edges.push({
+        id: `${nodeId}-to-${targetNodeId}`,
+        source: nodeId,
+        target: targetNodeId,
+        relationship: 'OUTPUTS_TO',
+        label: 'outputs to'
+      });
+    } else if (targetTableName) {
+      const targetNodeId = `table-${targetTableName}`;
+      
+      if (!visited.has(targetNodeId)) {
+        visited.add(targetNodeId);
+        
+        nodes.push({
+          id: targetNodeId,
+          type: 'targetTable',
+          label: targetTableName,
+          metadata: {
+            tableName: targetTableName,
+            mappingId: mapping.mapping_id,
+            mappingName: mapping.mapping_name,
+            containsPii: false,
+            dataClassification: null,
+            piiColumns: []
+          }
+        });
+      }
+      
+      // Add edge from mapping to target table
+      edges.push({
+        id: `${nodeId}-to-${targetNodeId}`,
+        source: nodeId,
+        target: targetNodeId,
+        relationship: 'OUTPUTS_TO',
+        label: 'outputs to'
+      });
+    }
   }
 }
 
@@ -751,12 +818,34 @@ async function findWorkflowsForMappings(mappingData, projectId, nodes, edges, vi
       // Find the transformation nodes that match
       for (const match of matchingMappings) {
         // Find the corresponding node in our lineage graph
-        const lineageNode = nodes.find(n => 
-          n.type === 'transformation' && 
-          (n.metadata?.id === Number(match.assetId) || 
-           n.metadata?.mappingId === String(match.assetId) ||
-           n.label === match.name)
-        );
+        let lineageNode = nodes.find(n => {
+          if (n.type !== 'transformation') return false;
+          
+          // Match by numeric ID
+          if (n.metadata?.id === Number(match.assetId)) return true;
+          
+          // Match by string mapping_id
+          if (n.metadata?.mappingId === String(match.assetId)) return true;
+          
+          // Match by name
+          if (match.name && n.label === match.name) return true;
+          
+          // For visualMappingId match, check if mappingId contains the pattern vm-{assetId}-
+          if (match.matchType === 'visualMappingId') {
+            const vmPattern = `vm-${match.assetId}-`;
+            if (n.metadata?.mappingId && n.metadata.mappingId.startsWith(vmPattern)) {
+              return true;
+            }
+          }
+          
+          // For cleanName match, check the clean name
+          if (match.matchType === 'cleanName') {
+            const cleanLabel = n.label?.replace(/^\[VM\]\s*/, '');
+            if (cleanLabel === match.name) return true;
+          }
+          
+          return false;
+        });
         
         if (lineageNode) {
           const edgeId = `${lineageNode.id}-to-${workflowNodeId}`;
@@ -771,6 +860,8 @@ async function findWorkflowsForMappings(mappingData, projectId, nodes, edges, vi
               label: 'part of'
             });
           }
+        } else {
+          systemLogger.info('Could not find lineage node for workflow edge', { match, workflowId: workflow.id });
         }
       }
     }

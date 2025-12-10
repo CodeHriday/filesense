@@ -45,6 +45,7 @@ const nodeTypes = {
   transformation: TransformationNode,
   derivedColumn: DerivedColumnNode,
   targetTable: TargetTableNode,
+  targetFile: TargetTableNode,
   job: JobNode,
   grouped: GroupedNode,
   workflow: WorkflowNode
