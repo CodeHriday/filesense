@@ -231,28 +231,36 @@ function Monitor() {
     setExpandedRows(new Set());
   };
   
-  const toggleRowExpansion = async (auditId) => {
+  const toggleRowExpansion = async (rowId) => {
     const newExpanded = new Set(expandedRows);
-    if (newExpanded.has(auditId)) {
-      newExpanded.delete(auditId);
+    if (newExpanded.has(rowId)) {
+      newExpanded.delete(rowId);
     } else {
-      newExpanded.add(auditId);
+      newExpanded.add(rowId);
       
-      if (!auditLogs[auditId]) {
+      if (!auditLogs[rowId] && activeTab !== 'ledger') {
         try {
           const token = localStorage.getItem('token');
-          const response = await axios.get(`/api/file-audit/${auditId}/logs`, {
-            headers: { Authorization: `Bearer ${token}` }
-          });
+          let response;
+          
+          if (activeTab === 'jobs') {
+            response = await axios.get(`/api/jobs/${rowId}/logs`, {
+              headers: { Authorization: `Bearer ${token}` }
+            });
+          } else {
+            response = await axios.get(`/api/file-audit/${rowId}/logs`, {
+              headers: { Authorization: `Bearer ${token}` }
+            });
+          }
           setAuditLogs(prev => ({
             ...prev,
-            [auditId]: response.data.logs || []
+            [rowId]: response.data.logs || []
           }));
         } catch (err) {
-          console.error('Error fetching audit logs:', err);
+          console.error('Error fetching logs:', err);
           setAuditLogs(prev => ({
             ...prev,
-            [auditId]: []
+            [rowId]: []
           }));
         }
       }
