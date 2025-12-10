@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FiChevronDown, FiChevronRight, FiDownload, FiShield, FiCheck, FiAlertTriangle } from 'react-icons/fi';
+import { FiChevronDown, FiChevronRight, FiDownload, FiShield, FiCheck, FiAlertTriangle, FiRefreshCw } from 'react-icons/fi';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { formatBytes, formatDate } from '../utils/formatters';
 import axios from 'axios';
@@ -115,6 +115,16 @@ function Monitor() {
   };
   
   const hasActiveBulkFilters = bulkFilters.status || bulkFilters.jobName;
+  
+  const handleRefresh = () => {
+    if (activeTab === 'file-audit') {
+      fetchAuditData();
+    } else if (activeTab === 'bulk-profiling') {
+      fetchBulkJobs();
+    } else if (activeTab === 'audit-ledger') {
+      fetchLedgerData();
+    }
+  };
   
   const fetchBulkJobs = async () => {
     try {
@@ -351,8 +361,19 @@ function Monitor() {
           <h1 className="gps-page-title">Data Observatory Monitor</h1>
           <p className="gps-page-subtitle">Monitor file audit logs and bulk profiling jobs</p>
         </div>
-        <div className="gps-results-info">
-          {totalRecords} total records
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <span className="gps-results-info">
+            {totalRecords} total records
+          </span>
+          <button 
+            onClick={handleRefresh}
+            className="monitor-btn-refresh"
+            disabled={loading}
+            title="Refresh data"
+          >
+            <FiRefreshCw style={{ marginRight: '6px', animation: loading ? 'spin 1s linear infinite' : 'none' }} />
+            Refresh
+          </button>
         </div>
       </div>
       

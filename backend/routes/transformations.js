@@ -902,6 +902,14 @@ router.post('/:id/execute',
     
     const userId = req.user?.id || 'system';
     
+    // Capture user context at request time for audit logging
+    const userContext = {
+      userEmail: req.user?.email,
+      userRole: req.user?.role,
+      userIp: req.ip || req.connection?.remoteAddress,
+      sessionId: req.sessionID || req.headers['x-session-id']
+    };
+    
     systemLogger.info('Starting transformation job execution', { mappingId: id, userId });
     
     // Create job record immediately
@@ -909,12 +917,23 @@ router.post('/:id/execute',
     
     systemLogger.info('Transformation job created and queued', { jobId: job.job_id, mappingId: id });
     
+    // Build ledger context for initial log
+    const initialLedgerContext = {
+      userId,
+      userEmail: userContext.userEmail,
+      userRole: userContext.userRole,
+      userIp: userContext.userIp,
+      sessionId: userContext.sessionId,
+      correlationId: job.correlation_id || job.job_id,
+      mappingName: null // Will be set during execution
+    };
+    
     // Log job start immediately to ensure it appears in logs
     await logJobExecution(pool, job.job_id, 'info', 'Job queued for execution', { 
       mappingId: id, 
       userId,
       options: { runSchemaValidation, runProfilingChecks, dryRun }
-    });
+    }, null, initialLedgerContext);
     
     // Start job execution asynchronously in the background with robust error handling
     // Use setImmediate to ensure it runs after response is sent
@@ -927,10 +946,7 @@ router.post('/:id/execute',
             dryRun,
             existingJob: job,
             // Pass user context for audit logging
-            userEmail: req.user?.email,
-            userRole: req.user?.role,
-            userIp: req.ip || req.connection?.remoteAddress,
-            sessionId: req.sessionID || req.headers['x-session-id']
+            ...userContext
           });
           systemLogger.info('Transformation job completed', { 
             jobId: result.jobId, 
@@ -946,7 +962,7 @@ router.post('/:id/execute',
             stack: error.stack 
           });
           
-          // Update job status to failed and log error
+          // Update job status to failed and log error with user context
           try {
             await updateJob(pool, job.job_id, {
               status: 'failed',
@@ -955,7 +971,7 @@ router.post('/:id/execute',
             });
             await logJobExecution(pool, job.job_id, 'error', `Job execution failed: ${error.message}`, {
               error: error.stack
-            });
+            }, null, initialLedgerContext);
           } catch (updateError) {
             systemLogger.error('Failed to update job after error', { 
               jobId: job.job_id, 
