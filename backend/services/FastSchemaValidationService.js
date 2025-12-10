@@ -428,6 +428,35 @@ class FastSchemaValidationService {
   }
 
   /**
+   * Extract S3 key from full S3 URI or path
+   * Handles formats like:
+   * - s3://bucket/path/to/file.csv -> path/to/file.csv
+   * - /path/to/file.csv -> path/to/file.csv
+   * - path/to/file.csv -> path/to/file.csv
+   */
+  static extractS3Key(filePath, bucket) {
+    if (!filePath) return filePath;
+    
+    // Handle s3:// URI format
+    if (filePath.startsWith('s3://')) {
+      // Remove s3://bucket/ prefix
+      const withoutProtocol = filePath.slice(5); // Remove "s3://"
+      const slashIndex = withoutProtocol.indexOf('/');
+      if (slashIndex !== -1) {
+        return withoutProtocol.slice(slashIndex + 1);
+      }
+      return '';
+    }
+    
+    // Handle leading slash
+    if (filePath.startsWith('/')) {
+      return filePath.slice(1);
+    }
+    
+    return filePath;
+  }
+
+  /**
    * Validate file metadata against schema
    */
   static async validateFileMetadata(s3, bucket, filePath, agreementSchema) {
@@ -527,9 +556,12 @@ class FastSchemaValidationService {
    * Extract column headers from file (metadata only - no full read)
    */
   static async extractFileColumns(s3, bucket, filePath, fileExtension) {
+    // Extract the actual S3 key from the file path (handles s3:// URIs)
+    const s3Key = this.extractS3Key(filePath, bucket);
+    
     const params = {
       Bucket: bucket,
-      Key: filePath,
+      Key: s3Key,
       Range: 'bytes=0-65536'
     };
 
