@@ -178,7 +178,7 @@ export const APP_FEATURES = [
   { 
     id: 'workflow_builder', 
     name: 'Visual Workflow Builder', 
-    category: 'Archived', 
+    category: 'Job Design', 
     supportsExecute: true,
     icon: FiGrid,
     route: '/workflow-builder',
@@ -219,6 +219,14 @@ export const APP_FEATURES = [
   },
   
   // Governance
+  { 
+    id: 'executive_dashboard', 
+    name: 'Executive Dashboard', 
+    category: 'Governance',
+    icon: FiTrendingUp,
+    route: '/executive-dashboard',
+    showInSidebar: true
+  },
   { 
     id: 'lineage', 
     name: 'File Lineage', 
@@ -485,14 +493,6 @@ export const APP_FEATURES = [
   },
   
   // Insights
-  { 
-    id: 'executive_dashboard', 
-    name: 'Executive Dashboard', 
-    category: 'Insights',
-    icon: FiTrendingUp,
-    route: '/executive-dashboard',
-    showInSidebar: true
-  },
   { 
     id: 'file_insights', 
     name: 'File Insights', 
