@@ -764,7 +764,8 @@ function DataProfile() {
   const { currentUser, hasPermission, hasRole } = useAuth();
   
   // Check if user is a Vendor User - they should not see DQ Suggestions, Quality Rules, and Schema Builder tabs
-  const isVendorUser = hasRole('Vendor User');
+  // Vendor users can have roles like 'Vendor User - External' or 'Vendor User - Internal'
+  const isVendorUser = hasRole(['Vendor User', 'Vendor User - External', 'Vendor User - Internal']);
   
   // Restricted tabs that Vendor Users cannot access
   const vendorRestrictedTabs = ['ai-suggestions', 'quality-rules', 'schema-builder'];
