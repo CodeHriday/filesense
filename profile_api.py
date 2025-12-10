@@ -1654,6 +1654,69 @@ def health():
     return jsonify({'status': 'healthy'}), 200
 
 
+@app.route('/parquet-schema', methods=['POST'])
+def extract_parquet_schema():
+    """
+    Extract column names from a Parquet file stored in S3.
+    Used by Schema Validation to validate Parquet files against expected schema.
+    """
+    try:
+        data = request.json
+        if not data:
+            return jsonify({'error': 'No data provided'}), 400
+        
+        bucket = data.get('bucket')
+        key = data.get('key')
+        
+        if not bucket or not key:
+            return jsonify({'error': 'bucket and key are required'}), 400
+        
+        logger.info(f"Extracting Parquet schema from s3://{bucket}/{key}")
+        
+        # Get AWS credentials from environment or use default
+        s3_client = boto3.client(
+            's3',
+            aws_access_key_id=os.environ.get('AWS_ACCESS_KEY_ID'),
+            aws_secret_access_key=os.environ.get('AWS_SECRET_ACCESS_KEY'),
+            region_name=os.environ.get('AWS_REGION', 'us-east-1')
+        )
+        
+        # Download the Parquet file to a temp location
+        with tempfile.NamedTemporaryFile(suffix='.parquet', delete=False) as tmp:
+            temp_path = tmp.name
+            s3_client.download_file(bucket, key, temp_path)
+        
+        try:
+            import pyarrow.parquet as pq
+            
+            # Read just the schema (metadata) without loading data
+            parquet_file = pq.ParquetFile(temp_path)
+            schema = parquet_file.schema_arrow
+            
+            # Extract column names
+            columns = [field.name for field in schema]
+            
+            logger.info(f"Extracted {len(columns)} columns from Parquet file")
+            
+            return jsonify({
+                'success': True,
+                'columns': columns,
+                'column_count': len(columns)
+            }), 200
+            
+        finally:
+            # Clean up temp file
+            if os.path.exists(temp_path):
+                os.unlink(temp_path)
+                
+    except Exception as e:
+        logger.error(f"Parquet schema extraction error: {str(e)}", exc_info=True)
+        return jsonify({
+            'error': 'Parquet schema extraction failed',
+            'details': str(e)
+        }), 500
+
+
 @app.route('/api/dq-suggestions', methods=['POST'])
 def generate_dq_suggestions():
     """

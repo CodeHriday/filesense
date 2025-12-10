@@ -16,6 +16,8 @@ const { decryptCredentials } = require('../utils/encryption');
 const { matchesPattern } = require('../utils/filePatternMatcher');
 const csv = require('csv-parser');
 const { Readable } = require('stream');
+const { XMLParser } = require('fast-xml-parser');
+const axios = require('axios');
 
 class FastSchemaValidationService {
   
@@ -576,8 +578,13 @@ class FastSchemaValidationService {
       case 'xlsx':
       case 'xls':
         return this.extractExcelColumns(buffer);
+      case 'xml':
+        return this.extractXMLColumns(buffer);
       case 'parquet':
-        return ['parquet_column_extraction_not_supported'];
+        return await this.extractParquetColumns(s3, bucket, s3Key);
+      case 'dat':
+      case 'txt':
+        return this.extractFixedWidthColumns(buffer);
       default:
         throw new Error(`Unsupported file type: ${fileExtension}`);
     }
@@ -661,6 +668,133 @@ class FastSchemaValidationService {
     }
 
     return columns;
+  }
+
+  /**
+   * Extract columns/fields from XML (first record element)
+   */
+  static extractXMLColumns(buffer) {
+    const content = buffer.toString('utf-8');
+    
+    const parser = new XMLParser({
+      ignoreAttributes: false,
+      attributeNamePrefix: '@_'
+    });
+    
+    try {
+      const parsed = parser.parse(content);
+      
+      // Find the first array of records (common XML patterns)
+      const findRecordKeys = (obj, depth = 0) => {
+        if (depth > 5) return null; // Prevent infinite recursion
+        
+        for (const key of Object.keys(obj)) {
+          const value = obj[key];
+          
+          // If it's an array, get keys from first element
+          if (Array.isArray(value) && value.length > 0 && typeof value[0] === 'object') {
+            return Object.keys(value[0]).filter(k => !k.startsWith('@_'));
+          }
+          
+          // If it's an object with a single child that's an array
+          if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+            const result = findRecordKeys(value, depth + 1);
+            if (result) return result;
+          }
+        }
+        return null;
+      };
+      
+      const columns = findRecordKeys(parsed);
+      if (columns && columns.length > 0) {
+        return columns;
+      }
+      
+      // Fallback: get all unique keys from root level
+      const rootKeys = Object.keys(parsed).filter(k => !k.startsWith('?'));
+      if (rootKeys.length === 1) {
+        const rootValue = parsed[rootKeys[0]];
+        if (typeof rootValue === 'object' && rootValue !== null) {
+          return Object.keys(rootValue).filter(k => !k.startsWith('@_'));
+        }
+      }
+      
+      return rootKeys;
+    } catch (e) {
+      throw new Error(`Failed to parse XML: ${e.message}`);
+    }
+  }
+
+  /**
+   * Extract columns from Parquet file via Python profile API
+   * Parquet has schema metadata that can be read without loading all data
+   */
+  static async extractParquetColumns(s3, bucket, s3Key, credentials = null) {
+    // Fallback: Download full file and try to parse with hyparquet
+    // This is more reliable than making an API call since we already have the S3 client
+    try {
+      const fullParams = { Bucket: bucket, Key: s3Key };
+      const fullResponse = await s3.getObject(fullParams).promise();
+      const buffer = fullResponse.Body;
+      
+      // Use hyparquet to read schema from buffer
+      const { parquetMetadataAsync } = require('hyparquet');
+      
+      // Convert buffer to ArrayBuffer for hyparquet
+      const arrayBuffer = buffer.buffer.slice(
+        buffer.byteOffset,
+        buffer.byteOffset + buffer.byteLength
+      );
+      
+      const metadata = await parquetMetadataAsync(arrayBuffer);
+      
+      if (metadata && metadata.schema && metadata.schema.length > 0) {
+        // First element is usually the root schema, columns start from index 1
+        const columns = metadata.schema
+          .slice(1)
+          .filter(col => col.name) // Filter out any entries without names
+          .map(col => col.name);
+        
+        if (columns.length > 0) {
+          return columns;
+        }
+      }
+      
+      throw new Error('Could not extract schema from Parquet file');
+    } catch (error) {
+      systemLogger.error('Parquet schema extraction failed', { 
+        error: error.message,
+        bucket,
+        key: s3Key
+      });
+      throw new Error(`Parquet schema extraction failed: ${error.message}`);
+    }
+  }
+
+  /**
+   * Extract columns from fixed-width/DAT file
+   * For DAT files, we can't reliably extract column names from the file itself
+   * since they don't have headers. Return a placeholder indicating this.
+   */
+  static extractFixedWidthColumns(buffer) {
+    // Fixed-width files typically don't have header rows
+    // We'll return a special indicator that validation should use schema-defined columns
+    // The validator will compare against expected schema column count
+    const content = buffer.toString('utf-8');
+    const firstLine = content.split('\n')[0];
+    
+    // If the first line looks like a header (contains letters, not just data)
+    // try to parse it as a simple space/tab-delimited header
+    if (/^[A-Za-z]/.test(firstLine.trim())) {
+      const columns = firstLine.trim().split(/\s{2,}|\t/).map(c => c.trim()).filter(c => c);
+      if (columns.length > 1) {
+        return columns;
+      }
+    }
+    
+    // Return indicator that this is a headerless fixed-width file
+    // Validation will need to rely on the schema definition
+    return ['_fixed_width_no_header_'];
   }
 
   /**
