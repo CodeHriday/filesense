@@ -126,7 +126,7 @@ class FastSchemaValidationService {
               v.name as vendor_name
        FROM schema_validation_jobs svj
        LEFT JOIN projects p ON svj.project_id = p.id
-       LEFT JOIN storage_connections sc ON svj.connection_id = sc.connection_id
+       LEFT JOIN storage_connections sc ON svj.connection_id::text = sc.connection_id
        LEFT JOIN vendor_agreements va ON svj.vendor_agreement_id = va.id
        LEFT JOIN vendors v ON va.vendor_id = v.id
        WHERE svj.id = $1`,
@@ -148,7 +148,7 @@ class FastSchemaValidationService {
              v.name as vendor_name
       FROM schema_validation_jobs svj
       LEFT JOIN projects p ON svj.project_id = p.id
-      LEFT JOIN storage_connections sc ON svj.connection_id = sc.connection_id
+      LEFT JOIN storage_connections sc ON svj.connection_id::text = sc.connection_id
       LEFT JOIN vendor_agreements va ON svj.vendor_agreement_id = va.id
       LEFT JOIN vendors v ON va.vendor_id = v.id
       WHERE 1=1
