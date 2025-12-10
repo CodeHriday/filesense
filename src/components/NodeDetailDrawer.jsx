@@ -62,6 +62,68 @@ const NodeDetailDrawer = ({ node, open, onClose }) => {
     }
   };
   
+  const formatFieldLabel = (key) => {
+    return key.replace(/_/g, ' ').replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
+  };
+  
+  const formatFieldValue = (value) => {
+    if (value === null || value === undefined) return '';
+    if (typeof value === 'boolean') return value ? 'Yes' : 'No';
+    if (value instanceof Date) return value.toLocaleString();
+    if (typeof value === 'string' && value.match(/^\d{4}-\d{2}-\d{2}T/)) {
+      return new Date(value).toLocaleString();
+    }
+    if (typeof value === 'object') return JSON.stringify(value, null, 2);
+    return String(value);
+  };
+  
+  const renderContractDetails = () => {
+    const allowedContractFields = [
+      'description', 'file_description',
+      'vendor_type', 'vendorType',
+      'vendor_onboarding_date', 'vendorOnboardingDate', 'onboarding_date',
+      'owner_contact', 'ownerContact',
+      'approval_status', 'approvalStatus',
+      'manager_contact_name', 'managerContactName', 'manager_name',
+      'manager_contact_email', 'managerContactEmail', 'manager_email',
+      'primary_contact', 'primaryContact',
+      'primary_contact_name', 'primaryContactName',
+      'primary_contact_email', 'primaryContactEmail',
+      'primary_contact_phone', 'primaryContactPhone',
+      'secondary_contact_name', 'secondaryContactName',
+      'secondary_contact_email', 'secondaryContactEmail',
+      'secondary_contact_phone', 'secondaryContactPhone',
+      'file_count', 'fileCount'
+    ];
+    
+    const allData = { ...node.data, ...(details || {}) };
+    const excludeFields = ['label', 'type', 'incidents', 'hasIncidents', 'derivedColumns', 
+      'containsPii', 'dataClassification', 'piiColumns', 'id', 'sourcePosition', 'targetPosition',
+      'source_position', 'target_position'];
+    
+    const filteredEntries = Object.entries(allData).filter(([key, value]) => {
+      if (excludeFields.includes(key)) return false;
+      if (value === null || value === undefined) return false;
+      return allowedContractFields.some(allowed => 
+        key.toLowerCase().replace(/_/g, '') === allowed.toLowerCase().replace(/_/g, '')
+      );
+    });
+    
+    return (
+      <section className="drawer-section">
+        <h3>Details</h3>
+        <div className="drawer-metadata">
+          {filteredEntries.map(([key, value]) => (
+            <div className="drawer-metadata-item" key={key}>
+              <span className="drawer-metadata-key">{formatFieldLabel(key)}:</span>
+              <span className="drawer-metadata-value">{formatFieldValue(value)}</span>
+            </div>
+          ))}
+        </div>
+      </section>
+    );
+  };
+  
   const renderContent = () => {
     if (loading) {
       return <div className="drawer-loading">Loading details...</div>;
@@ -71,44 +133,51 @@ const NodeDetailDrawer = ({ node, open, onClose }) => {
       return <div className="drawer-error">{error}</div>;
     }
     
+    const isContract = node.data?.type === 'vendorContract';
+    
     return (
       <div className="drawer-content">
-        {/* Basic Metadata */}
-        <section className="drawer-section">
-          <h3>Metadata</h3>
-          <div className="drawer-metadata">
-            {Object.entries(node.data).map(([key, value]) => {
-              // Skip internal fields and PII fields (shown in dedicated section)
-              if (['label', 'type', 'incidents', 'hasIncidents', 'derivedColumns', 'containsPii', 'dataClassification', 'piiColumns'].includes(key)) {
-                return null;
-              }
-              
-              // Format value
-              let displayValue = value;
-              if (value === null || value === undefined) {
-                return null;
-              }
-              if (typeof value === 'boolean') {
-                displayValue = value ? 'Yes' : 'No';
-              }
-              if (value instanceof Date) {
-                displayValue = value.toLocaleString();
-              }
-              if (typeof value === 'string' && value.match(/^\d{4}-\d{2}-\d{2}T/)) {
-                displayValue = new Date(value).toLocaleString();
-              }
-              
-              return (
-                <div className="drawer-metadata-item" key={key}>
-                  <span className="drawer-metadata-key">
-                    {key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}:
-                  </span>
-                  <span className="drawer-metadata-value">{String(displayValue)}</span>
-                </div>
-              );
-            })}
-          </div>
-        </section>
+        {/* For contracts: single Details section with filtered fields */}
+        {/* For other nodes: standard Metadata section */}
+        {isContract ? (
+          renderContractDetails()
+        ) : (
+          <section className="drawer-section">
+            <h3>Details</h3>
+            <div className="drawer-metadata">
+              {Object.entries(node.data).map(([key, value]) => {
+                // Skip internal fields and PII fields (shown in dedicated section)
+                if (['label', 'type', 'incidents', 'hasIncidents', 'derivedColumns', 'containsPii', 'dataClassification', 'piiColumns', 'sourcePosition', 'targetPosition'].includes(key)) {
+                  return null;
+                }
+                
+                // Format value
+                let displayValue = value;
+                if (value === null || value === undefined) {
+                  return null;
+                }
+                if (typeof value === 'boolean') {
+                  displayValue = value ? 'Yes' : 'No';
+                }
+                if (value instanceof Date) {
+                  displayValue = value.toLocaleString();
+                }
+                if (typeof value === 'string' && value.match(/^\d{4}-\d{2}-\d{2}T/)) {
+                  displayValue = new Date(value).toLocaleString();
+                }
+                
+                return (
+                  <div className="drawer-metadata-item" key={key}>
+                    <span className="drawer-metadata-key">
+                      {key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}:
+                    </span>
+                    <span className="drawer-metadata-value">{String(displayValue)}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        )}
         
         {/* PII & Data Classification */}
         {(node.data.type === 'sourceFile' || node.data.type === 'targetTable') && (
@@ -224,8 +293,8 @@ const NodeDetailDrawer = ({ node, open, onClose }) => {
           </section>
         )}
         
-        {/* Extended Details from Backend */}
-        {details && (
+        {/* Extended Details from Backend - skip for contracts (already merged into Details) */}
+        {details && !isContract && (
           <section className="drawer-section">
             <h3>Extended Information</h3>
             <div className="drawer-metadata">
