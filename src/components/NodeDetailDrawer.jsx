@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import './NodeDetailDrawer.css';
-import { FaTimes, FaFileContract, FaFile, FaCog, FaCalculator, FaTable, FaPlayCircle, FaExclamationTriangle, FaShieldAlt, FaLock, FaArrowRight, FaColumns } from 'react-icons/fa';
+import { FaTimes, FaFileContract, FaFile, FaCog, FaCalculator, FaTable, FaPlayCircle, FaExclamationTriangle, FaShieldAlt, FaLock, FaArrowRight, FaColumns, FaChevronDown, FaChevronRight, FaTag } from 'react-icons/fa';
 import { fetchNodeDetails } from '../services/lineageGraphService';
 
 const NodeDetailDrawer = ({ node, open, onClose }) => {
   const [details, setDetails] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [columnsExpanded, setColumnsExpanded] = useState(false);
   
   useEffect(() => {
     if (open && node) {
@@ -361,6 +362,63 @@ const NodeDetailDrawer = ({ node, open, onClose }) => {
                 </div>
               )}
             </div>
+          </section>
+        )}
+        
+        {/* Collapsible Columns Section for source/target files */}
+        {(isFile || node.data?.type === 'targetFile') && details?.columns && details.columns.length > 0 && (
+          <section className="drawer-section">
+            <h3 
+              className="drawer-section-collapsible"
+              onClick={() => setColumnsExpanded(!columnsExpanded)}
+            >
+              {columnsExpanded ? <FaChevronDown size={12} /> : <FaChevronRight size={12} />}
+              <FaColumns style={{ marginLeft: '6px', marginRight: '8px' }} />
+              Columns ({details.columns.length})
+            </h3>
+            {columnsExpanded && (
+              <div className="drawer-columns-list">
+                {details.columns.map((col, index) => {
+                  const isPii = col.governance_tags?.includes('tag_pii');
+                  const hasTags = col.governance_tags && col.governance_tags.length > 0;
+                  return (
+                    <div className={`drawer-column-item ${isPii ? 'drawer-column-pii' : ''}`} key={index}>
+                      <div className="drawer-column-header">
+                        <span className="drawer-column-name">{col.column_name}</span>
+                        <span className="drawer-column-type">{col.column_type || 'unknown'}</span>
+                      </div>
+                      <div className="drawer-column-meta">
+                        {col.unique_count !== null && col.unique_count !== undefined && (
+                          <span className="drawer-column-stat">Unique: {col.unique_count}</span>
+                        )}
+                        {col.null_count !== null && col.null_count !== undefined && (
+                          <span className="drawer-column-stat">Nulls: {col.null_count}</span>
+                        )}
+                        {col.min_value && (
+                          <span className="drawer-column-stat">Min: {col.min_value}</span>
+                        )}
+                        {col.max_value && (
+                          <span className="drawer-column-stat">Max: {col.max_value}</span>
+                        )}
+                      </div>
+                      {hasTags && (
+                        <div className="drawer-column-tags">
+                          {col.governance_tags.map((tag, tagIndex) => (
+                            <span 
+                              key={tagIndex} 
+                              className={`drawer-column-tag ${tag === 'tag_pii' ? 'drawer-column-tag-pii' : ''}`}
+                            >
+                              <FaTag size={8} />
+                              {tag.replace('tag_', '').toUpperCase()}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </section>
         )}
         
