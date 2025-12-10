@@ -1114,6 +1114,49 @@ async function executeTransformationJob(pool, mappingId, userId, options = {}) {
         file_name_pattern: fileNamePattern
       });
       
+      // Capture file audit entry for failed job (no files matched)
+      try {
+        await captureFileAudit(pool, {
+          fileId: `job_${jobId}_failed`,
+          fileName: fullPattern,
+          fileSchemaId: null,
+          fileHash: null,
+          filePattern: fileNamePattern,
+          fileType: 'unknown',
+          fileDelimiter: null,
+          encoding: 'utf-8',
+          numberOfColumns: null,
+          fileSizeBytes: 0,
+          source: 'transformation',
+          sourcePath: filePath,
+          noOfRecordsInSource: 0,
+          loadStep1: 'file_matching',
+          loadStep1Path: fullPattern,
+          loadStep1RecCnt: 0,
+          loadType: 'etl_transformation',
+          correlationId,
+          transformationJobId: transformationJobDbId,
+          mappingName: mapping.mapping_name,
+          userId: userId,
+          userEmail: ledgerContext?.userEmail,
+          ipAddress: ledgerContext?.userIp,
+          sessionId: ledgerContext?.sessionId,
+          processingDurationMs: Date.now() - (job.start_time ? new Date(job.start_time).getTime() : Date.now()),
+          status: 'failed',
+          createdBy: userId,
+          fileRole: 'source',
+          metadata: JSON.stringify({
+            error: errorMessage,
+            failureReason: 'no_files_matched'
+          })
+        });
+      } catch (auditError) {
+        systemLogger.error('Failed to capture file audit for failed job', {
+          jobId,
+          error: auditError.message
+        });
+      }
+      
       return { 
         jobId, 
         status: 'failed', 
@@ -1842,6 +1885,49 @@ async function executeTransformationJob(pool, mappingId, userId, options = {}) {
         error: error.message,
         stack: error.stack
       });
+      
+      // Capture file audit entry for failed job (unexpected error)
+      try {
+        await captureFileAudit(pool, {
+          fileId: `job_${job.job_id}_error`,
+          fileName: mapping?.file_name_pattern || 'unknown',
+          fileSchemaId: null,
+          fileHash: null,
+          filePattern: mapping?.file_name_pattern,
+          fileType: 'unknown',
+          fileDelimiter: null,
+          encoding: 'utf-8',
+          numberOfColumns: null,
+          fileSizeBytes: 0,
+          source: 'transformation',
+          sourcePath: mapping?.drop_location_path || '',
+          noOfRecordsInSource: 0,
+          loadStep1: 'execution_error',
+          loadStep1Path: null,
+          loadStep1RecCnt: 0,
+          loadType: 'etl_transformation',
+          correlationId: job.correlation_id || job.job_id,
+          transformationJobId: job.id,
+          mappingName: mapping?.mapping_name || ledgerContext?.mappingName,
+          userId: ledgerContext?.userId,
+          userEmail: ledgerContext?.userEmail,
+          ipAddress: ledgerContext?.userIp,
+          sessionId: ledgerContext?.sessionId,
+          processingDurationMs: Date.now() - (job.start_time ? new Date(job.start_time).getTime() : Date.now()),
+          status: 'failed',
+          createdBy: ledgerContext?.userId,
+          fileRole: 'source',
+          metadata: JSON.stringify({
+            error: error.message,
+            failureReason: 'execution_error'
+          })
+        });
+      } catch (auditError) {
+        systemLogger.error('Failed to capture file audit for failed job in catch block', {
+          jobId: job.job_id,
+          error: auditError.message
+        });
+      }
       
       // Emit visual mapping execution error event
       if (visualExecutionId) {
