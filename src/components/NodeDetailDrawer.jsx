@@ -78,45 +78,43 @@ const NodeDetailDrawer = ({ node, open, onClose }) => {
   };
   
   const renderContractDetails = () => {
-    const allowedContractFields = [
-      'description', 'file_description',
-      'vendor_type', 'vendorType',
-      'vendor_onboarding_date', 'vendorOnboardingDate', 'onboarding_date',
-      'owner_contact', 'ownerContact',
-      'approval_status', 'approvalStatus',
-      'manager_contact_name', 'managerContactName', 'manager_name',
-      'manager_contact_email', 'managerContactEmail', 'manager_email',
-      'primary_contact', 'primaryContact',
-      'primary_contact_name', 'primaryContactName',
-      'primary_contact_email', 'primaryContactEmail',
-      'primary_contact_phone', 'primaryContactPhone',
-      'secondary_contact_name', 'secondaryContactName',
-      'secondary_contact_email', 'secondaryContactEmail',
-      'secondary_contact_phone', 'secondaryContactPhone',
-      'file_count', 'fileCount'
+    const allData = { ...node.data, ...(details || {}) };
+    
+    // Ordered field definitions with display label and possible key aliases
+    const orderedFields = [
+      { label: 'Vendor Name', aliases: ['vendor_name', 'vendorName', 'name'] },
+      { label: 'Vendor Description', aliases: ['description', 'file_description', 'vendor_description', 'vendorDescription'] },
+      { label: 'Vendor Type', aliases: ['vendor_type', 'vendorType'] },
+      { label: 'Vendor Onboarding Date', aliases: ['vendor_onboarding_date', 'vendorOnboardingDate', 'onboarding_date', 'onboardingDate'] },
+      { label: 'Approval Status', aliases: ['approval_status', 'approvalStatus'] },
+      { label: 'Primary Contact Name', aliases: ['primary_contact_name', 'primaryContactName', 'primary_contact'] },
+      { label: 'Primary Contact Phone', aliases: ['primary_contact_phone', 'primaryContactPhone'] },
+      { label: 'Primary Contact Email', aliases: ['primary_contact_email', 'primaryContactEmail'] },
+      { label: 'Secondary Contact Name', aliases: ['secondary_contact_name', 'secondaryContactName', 'secondary_contact'] },
+      { label: 'Secondary Contact Phone', aliases: ['secondary_contact_phone', 'secondaryContactPhone'] },
+      { label: 'Secondary Contact Email', aliases: ['secondary_contact_email', 'secondaryContactEmail'] },
+      { label: 'File Count', aliases: ['file_count', 'fileCount'] }
     ];
     
-    const allData = { ...node.data, ...(details || {}) };
-    const excludeFields = ['label', 'type', 'incidents', 'hasIncidents', 'derivedColumns', 
-      'containsPii', 'dataClassification', 'piiColumns', 'id', 'sourcePosition', 'targetPosition',
-      'source_position', 'target_position'];
-    
-    const filteredEntries = Object.entries(allData).filter(([key, value]) => {
-      if (excludeFields.includes(key)) return false;
-      if (value === null || value === undefined) return false;
-      return allowedContractFields.some(allowed => 
-        key.toLowerCase().replace(/_/g, '') === allowed.toLowerCase().replace(/_/g, '')
-      );
-    });
+    // Find first matching value for each field
+    const resolvedFields = orderedFields.map(field => {
+      for (const alias of field.aliases) {
+        const value = allData[alias];
+        if (value !== null && value !== undefined && value !== '') {
+          return { label: field.label, value };
+        }
+      }
+      return null;
+    }).filter(Boolean);
     
     return (
       <section className="drawer-section">
         <h3>Details</h3>
         <div className="drawer-metadata">
-          {filteredEntries.map(([key, value]) => (
-            <div className="drawer-metadata-item" key={key}>
-              <span className="drawer-metadata-key">{formatFieldLabel(key)}:</span>
-              <span className="drawer-metadata-value">{formatFieldValue(value)}</span>
+          {resolvedFields.map((field, index) => (
+            <div className="drawer-metadata-item" key={index}>
+              <span className="drawer-metadata-key">{field.label}:</span>
+              <span className="drawer-metadata-value">{formatFieldValue(field.value)}</span>
             </div>
           ))}
         </div>
