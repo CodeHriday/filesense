@@ -62,8 +62,8 @@ const LineagePageContent = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   
-  // Saved graph state
-  const [savedGraphId, setSavedGraphId] = useState(graphId || null);
+  // Saved graph state - treat 'new' as null since it's creating a new graph
+  const [savedGraphId, setSavedGraphId] = useState(graphId && graphId !== 'new' ? graphId : null);
   const [graphName, setGraphName] = useState('');
   const [graphDescription, setGraphDescription] = useState('');
   const [saving, setSaving] = useState(false);
@@ -150,7 +150,10 @@ const LineagePageContent = () => {
       
       const graphConfig = { depth, includeIncidents };
       
-      if (savedGraphId) {
+      // Defensive check: only update if we have a valid numeric ID
+      const isExistingGraph = savedGraphId && !isNaN(parseInt(savedGraphId, 10));
+      
+      if (isExistingGraph) {
         const response = await updateSavedLineageGraph(savedGraphId, {
           name: graphName,
           description: graphDescription,
