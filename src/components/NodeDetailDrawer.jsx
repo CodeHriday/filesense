@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import './NodeDetailDrawer.css';
-import { FaTimes, FaFileContract, FaFile, FaCog, FaCalculator, FaTable, FaPlayCircle, FaExclamationTriangle, FaShieldAlt, FaLock } from 'react-icons/fa';
+import { FaTimes, FaFileContract, FaFile, FaCog, FaCalculator, FaTable, FaPlayCircle, FaExclamationTriangle, FaShieldAlt, FaLock, FaArrowRight, FaColumns } from 'react-icons/fa';
 import { fetchNodeDetails } from '../services/lineageGraphService';
 
 const NodeDetailDrawer = ({ node, open, onClose }) => {
@@ -122,6 +122,142 @@ const NodeDetailDrawer = ({ node, open, onClose }) => {
     );
   };
   
+  const renderTransformationColumnMappings = () => {
+    // Parse field_mappings from backend
+    let fieldMappings = details?.field_mappings || [];
+    if (typeof fieldMappings === 'string') {
+      try {
+        fieldMappings = JSON.parse(fieldMappings);
+      } catch (e) {
+        fieldMappings = [];
+      }
+    }
+    
+    if (!Array.isArray(fieldMappings)) {
+      fieldMappings = [];
+    }
+    
+    // Separate regular mappings from derived columns
+    const regularMappings = fieldMappings.filter(m => 
+      !m.transformation_type || m.transformation_type === 'direct' || m.transformation_type === 'rename'
+    );
+    const derivedMappings = fieldMappings.filter(m => 
+      m.transformation_type && m.transformation_type !== 'direct' && m.transformation_type !== 'rename'
+    );
+    
+    const hasColumnMappings = regularMappings.length > 0;
+    
+    return (
+      <>
+        {/* Source to Target Column Mapping */}
+        <section className="drawer-section">
+          <h3><FaColumns style={{ marginRight: '8px' }} />Column Mappings</h3>
+          {hasColumnMappings ? (
+            <div className="column-mapping-table">
+              <div className="column-mapping-header">
+                <span className="column-mapping-source">Source Column</span>
+                <span className="column-mapping-arrow"></span>
+                <span className="column-mapping-target">Target Column</span>
+                <span className="column-mapping-transform">Transformation</span>
+              </div>
+              {regularMappings.map((mapping, index) => (
+                <div className="column-mapping-row" key={index}>
+                  <span className="column-mapping-source">
+                    {mapping.source_field || mapping.sourceField || '-'}
+                  </span>
+                  <span className="column-mapping-arrow">
+                    <FaArrowRight size={12} style={{ color: '#6B7280' }} />
+                  </span>
+                  <span className="column-mapping-target">
+                    {mapping.target_field || mapping.targetField || '-'}
+                  </span>
+                  <span className="column-mapping-transform">
+                    {mapping.transformation_type === 'rename' ? 'Rename' : 
+                     mapping.transformation_type === 'direct' ? 'Direct' : 
+                     mapping.transformation_type || 'Direct'}
+                  </span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="no-mappings-message">No column mappings defined</div>
+          )}
+        </section>
+        
+        {/* Derived Columns Section */}
+        {derivedMappings.length > 0 && (
+          <section className="drawer-section">
+            <h3><FaCalculator style={{ marginRight: '8px' }} />Derived Columns</h3>
+            <div className="derived-columns-table">
+              {derivedMappings.map((mapping, index) => (
+                <div className="derived-column-card" key={index}>
+                  <div className="derived-column-header">
+                    <span className="derived-column-target">{mapping.target_field || mapping.targetField}</span>
+                    <span className="derived-column-type">{mapping.transformation_type}</span>
+                  </div>
+                  <div className="derived-column-expression">
+                    <span className="derived-column-label">Expression:</span>
+                    <code className="derived-column-code">{mapping.expression || mapping.formula || '-'}</code>
+                  </div>
+                  {(mapping.source_fields || mapping.sourceFields) && (
+                    <div className="derived-column-sources">
+                      <span className="derived-column-label">Source Fields:</span>
+                      <span className="derived-column-source-list">
+                        {Array.isArray(mapping.source_fields || mapping.sourceFields) 
+                          ? (mapping.source_fields || mapping.sourceFields).join(', ')
+                          : mapping.source_fields || mapping.sourceFields}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+        
+        {/* Basic Mapping Info */}
+        <section className="drawer-section">
+          <h3>Mapping Details</h3>
+          <div className="drawer-metadata">
+            {details?.source_file_pattern && (
+              <div className="drawer-metadata-item">
+                <span className="drawer-metadata-key">Source Pattern:</span>
+                <span className="drawer-metadata-value">{details.source_file_pattern}</span>
+              </div>
+            )}
+            {(details?.target_file_name || details?.target_table_name) && (
+              <div className="drawer-metadata-item">
+                <span className="drawer-metadata-key">Target:</span>
+                <span className="drawer-metadata-value">{details.target_file_name || details.target_table_name}</span>
+              </div>
+            )}
+            {details?.execution_count !== undefined && (
+              <div className="drawer-metadata-item">
+                <span className="drawer-metadata-key">Execution Count:</span>
+                <span className="drawer-metadata-value">{details.execution_count}</span>
+              </div>
+            )}
+            {details?.last_execution && (
+              <div className="drawer-metadata-item">
+                <span className="drawer-metadata-key">Last Execution:</span>
+                <span className="drawer-metadata-value">{new Date(details.last_execution).toLocaleString()}</span>
+              </div>
+            )}
+            {details?.status && (
+              <div className="drawer-metadata-item">
+                <span className="drawer-metadata-key">Status:</span>
+                <span className="drawer-metadata-value">{details.status}</span>
+              </div>
+            )}
+            {!details && (
+              <div className="no-mappings-message">Loading mapping details...</div>
+            )}
+          </div>
+        </section>
+      </>
+    );
+  };
+  
   const renderContent = () => {
     if (loading) {
       return <div className="drawer-loading">Loading details...</div>;
@@ -132,13 +268,18 @@ const NodeDetailDrawer = ({ node, open, onClose }) => {
     }
     
     const isContract = node.data?.type === 'vendorContract';
+    const isFile = node.data?.type === 'sourceFile';
+    const isTransformation = node.data?.type === 'transformation';
     
     return (
       <div className="drawer-content">
         {/* For contracts: single Details section with filtered fields */}
+        {/* For transformations: column mapping visualization */}
         {/* For other nodes: standard Metadata section */}
         {isContract ? (
           renderContractDetails()
+        ) : isTransformation ? (
+          renderTransformationColumnMappings()
         ) : (
           <section className="drawer-section">
             <h3>Details</h3>
@@ -223,8 +364,8 @@ const NodeDetailDrawer = ({ node, open, onClose }) => {
           </section>
         )}
         
-        {/* Derived Columns */}
-        {node.data.derivedColumns && node.data.derivedColumns.length > 0 && (
+        {/* Derived Columns - skip for transformation nodes (shown in column mappings) */}
+        {node.data.derivedColumns && node.data.derivedColumns.length > 0 && !isTransformation && (
           <section className="drawer-section">
             <h3>Derived Columns ({node.data.derivedColumns.length})</h3>
             <div className="drawer-derived-columns">
@@ -291,8 +432,8 @@ const NodeDetailDrawer = ({ node, open, onClose }) => {
           </section>
         )}
         
-        {/* Extended Details from Backend - skip for contracts (already merged into Details) */}
-        {details && !isContract && (
+        {/* Extended Details from Backend - skip for contracts, files, and transformations */}
+        {details && !isContract && !isFile && !isTransformation && (
           <section className="drawer-section">
             <h3>Extended Information</h3>
             <div className="drawer-metadata">
