@@ -121,12 +121,12 @@ class FastSchemaValidationService {
     const result = await pool.query(
       `SELECT svj.*, 
               p.name as project_name,
-              c.name as connection_name,
+              sc.name as connection_name,
               va.name as agreement_name,
               v.name as vendor_name
        FROM schema_validation_jobs svj
        LEFT JOIN projects p ON svj.project_id = p.id
-       LEFT JOIN connections c ON svj.connection_id = c.id
+       LEFT JOIN storage_connections sc ON svj.connection_id = sc.connection_id
        LEFT JOIN vendor_agreements va ON svj.vendor_agreement_id = va.id
        LEFT JOIN vendors v ON va.vendor_id = v.id
        WHERE svj.id = $1`,
@@ -143,12 +143,12 @@ class FastSchemaValidationService {
     let query = `
       SELECT svj.*, 
              p.name as project_name,
-             c.name as connection_name,
+             sc.name as connection_name,
              va.name as agreement_name,
              v.name as vendor_name
       FROM schema_validation_jobs svj
       LEFT JOIN projects p ON svj.project_id = p.id
-      LEFT JOIN connections c ON svj.connection_id = c.id
+      LEFT JOIN storage_connections sc ON svj.connection_id = sc.connection_id
       LEFT JOIN vendor_agreements va ON svj.vendor_agreement_id = va.id
       LEFT JOIN vendors v ON va.vendor_id = v.id
       WHERE 1=1
@@ -389,8 +389,8 @@ class FastSchemaValidationService {
    */
   static async getConnectionCredentials(connectionId) {
     const result = await pool.query(
-      `SELECT * FROM connections WHERE id = $1`,
-      [connectionId]
+      `SELECT * FROM storage_connections WHERE connection_id = $1`,
+      [connectionId.toString()]
     );
 
     if (result.rows.length === 0) {
@@ -398,16 +398,16 @@ class FastSchemaValidationService {
     }
 
     const connection = result.rows[0];
+    const config = connection.config || {};
     
-    if (connection.encrypted_credentials) {
-      const decrypted = decryptCredentials(connection.encrypted_credentials);
-      return {
-        ...connection,
-        ...decrypted
-      };
-    }
-
-    return connection;
+    // Return credentials from config jsonb column
+    return {
+      ...connection,
+      bucket: config.bucket || config.bucketName,
+      access_key_id: config.accessKeyId || config.access_key_id,
+      secret_access_key: config.secretAccessKey || config.secret_access_key,
+      region: config.region || 'us-east-1'
+    };
   }
 
   /**
