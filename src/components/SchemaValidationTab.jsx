@@ -20,6 +20,9 @@ function SchemaValidationTab({ selectedProject: initialProject }) {
   const [selectedAgreement, setSelectedAgreement] = useState('');
   const [loadingAgreements, setLoadingAgreements] = useState(false);
   
+  const [subProjects, setSubProjects] = useState([]);
+  const [selectedSubProject, setSelectedSubProject] = useState('');
+  
   const [discoveredFiles, setDiscoveredFiles] = useState([]);
   const [isDiscovering, setIsDiscovering] = useState(false);
   const [isCreatingJob, setIsCreatingJob] = useState(false);
@@ -74,9 +77,12 @@ function SchemaValidationTab({ selectedProject: initialProject }) {
   useEffect(() => {
     if (selectedProject) {
       fetchVendorAgreements(selectedProject);
+      fetchSubProjects(selectedProject);
     } else {
       setVendorAgreements([]);
       setSelectedAgreement('');
+      setSubProjects([]);
+      setSelectedSubProject('');
     }
   }, [selectedProject]);
 
@@ -130,6 +136,21 @@ function SchemaValidationTab({ selectedProject: initialProject }) {
       setVendorAgreements([]);
     } finally {
       setLoadingAgreements(false);
+    }
+  };
+
+  const fetchSubProjects = async (projectId) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`${API_BASE_URL}/api/projects/${projectId}/sub-projects`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      setSubProjects(response.data.subProjects || []);
+      setSelectedSubProject('');
+    } catch (err) {
+      console.error('Error fetching sub-projects:', err);
+      setSubProjects([]);
     }
   };
 
@@ -516,7 +537,7 @@ function SchemaValidationTab({ selectedProject: initialProject }) {
             <>
               <div className="gps-bulk-form-grid">
                 <div className="gps-bulk-field">
-                  <label className="gps-bulk-label">Project <span className="required">*</span></label>
+                  <label className="gps-bulk-label" style={{ textTransform: 'none' }}>Project <span className="required">*</span></label>
                   <select
                     className="gps-bulk-select"
                     value={selectedProject || ''}
@@ -533,7 +554,31 @@ function SchemaValidationTab({ selectedProject: initialProject }) {
                 </div>
 
                 <div className="gps-bulk-field">
-                  <label className="gps-bulk-label">Vendor Agreement <span className="required">*</span></label>
+                  <label className="gps-bulk-label" style={{ textTransform: 'none' }}>Sub-Project</label>
+                  <select
+                    className="gps-bulk-select"
+                    value={selectedSubProject}
+                    onChange={(e) => setSelectedSubProject(e.target.value)}
+                    disabled={!selectedProject || subProjects.length === 0}
+                  >
+                    <option value="">Select a sub-project...</option>
+                    {subProjects.map(subProj => (
+                      <option key={subProj.id} value={subProj.id}>
+                        {subProj.name}
+                      </option>
+                    ))}
+                  </select>
+                  <span className="gps-bulk-helper">
+                    {!selectedProject 
+                      ? 'Select a project first' 
+                      : subProjects.length === 0 
+                        ? 'No sub-projects available'
+                        : 'Optional: Organize files under a sub-project'}
+                  </span>
+                </div>
+
+                <div className="gps-bulk-field">
+                  <label className="gps-bulk-label" style={{ textTransform: 'none' }}>Vendor Agreement <span className="required">*</span></label>
                   <select
                     className="gps-bulk-select"
                     value={selectedAgreement}
@@ -543,7 +588,7 @@ function SchemaValidationTab({ selectedProject: initialProject }) {
                     <option value="">Select a vendor agreement...</option>
                     {vendorAgreements.map(agreement => (
                       <option key={agreement.id} value={agreement.id}>
-                        {agreement.vendor_name} - {agreement.name}
+                        {agreement.name}{agreement.vendor_name ? ` (${agreement.vendor_name})` : ''}
                       </option>
                     ))}
                   </select>
@@ -551,7 +596,7 @@ function SchemaValidationTab({ selectedProject: initialProject }) {
                 </div>
 
                 <div className="gps-bulk-field">
-                  <label className="gps-bulk-label">S3 Connection <span className="required">*</span></label>
+                  <label className="gps-bulk-label" style={{ textTransform: 'none' }}>S3 Connection <span className="required">*</span></label>
                   <select
                     className="gps-bulk-select"
                     value={selectedConnection}
@@ -568,7 +613,7 @@ function SchemaValidationTab({ selectedProject: initialProject }) {
                 </div>
 
                 <div className="gps-bulk-field">
-                  <label className="gps-bulk-label">File Pattern</label>
+                  <label className="gps-bulk-label" style={{ textTransform: 'none' }}>File Pattern</label>
                   <input
                     className="gps-bulk-input"
                     type="text"
@@ -594,7 +639,7 @@ function SchemaValidationTab({ selectedProject: initialProject }) {
               </div>
 
               <div className="gps-bulk-field gps-bulk-field--full" style={{ marginTop: '16px' }}>
-                <label className="gps-bulk-label">S3 Path <span className="required">*</span></label>
+                <label className="gps-bulk-label" style={{ textTransform: 'none' }}>S3 Path <span className="required">*</span></label>
                 <div className="gps-bulk-input-group">
                   <input
                     className="gps-bulk-input"
@@ -616,7 +661,7 @@ function SchemaValidationTab({ selectedProject: initialProject }) {
 
               <div className="gps-bulk-section">
                 <div className="gps-bulk-field">
-                  <label className="gps-bulk-label"><FiClock style={{ marginRight: '4px' }} /> Execution Type</label>
+                  <label className="gps-bulk-label" style={{ textTransform: 'none' }}><FiClock style={{ marginRight: '4px' }} /> Execution Type</label>
                   <select
                     className="gps-bulk-select"
                     value={executionType}
@@ -630,7 +675,7 @@ function SchemaValidationTab({ selectedProject: initialProject }) {
                 {executionType === 'scheduled' && (
                   <div className="gps-bulk-form-grid" style={{ marginTop: '16px' }}>
                     <div className="gps-bulk-field">
-                      <label className="gps-bulk-label">Schedule Type</label>
+                      <label className="gps-bulk-label" style={{ textTransform: 'none' }}>Schedule Type</label>
                       <select
                         className="gps-bulk-select"
                         value={scheduleType}
@@ -643,7 +688,7 @@ function SchemaValidationTab({ selectedProject: initialProject }) {
 
                     {scheduleType === 'recurring' ? (
                       <div className="gps-bulk-field">
-                        <label className="gps-bulk-label">Cron Expression</label>
+                        <label className="gps-bulk-label" style={{ textTransform: 'none' }}>Cron Expression</label>
                         <input
                           className="gps-bulk-input"
                           type="text"
@@ -655,7 +700,7 @@ function SchemaValidationTab({ selectedProject: initialProject }) {
                       </div>
                     ) : (
                       <div className="gps-bulk-field">
-                        <label className="gps-bulk-label">Start Date & Time</label>
+                        <label className="gps-bulk-label" style={{ textTransform: 'none' }}>Start Date & Time</label>
                         <input
                           className="gps-bulk-input"
                           type="datetime-local"
@@ -844,12 +889,17 @@ function SchemaValidationTab({ selectedProject: initialProject }) {
         </div>
       )}
 
-      {showBrowser && (
-        <S3FolderBrowser
-          connectionId={selectedConnection}
-          onSelect={handleSelectPath}
-          onClose={() => setShowBrowser(false)}
-        />
+      {showBrowser && selectedConnection && (
+        <div className="gps-bulk-field" style={{ marginTop: '16px' }}>
+          <S3FolderBrowser
+            connectionId={selectedConnection}
+            initialPath={s3Path || '/'}
+            onSelectPath={(path) => {
+              setS3Path(path);
+              setShowBrowser(false);
+            }}
+          />
+        </div>
       )}
 
       <ErrorModal 
