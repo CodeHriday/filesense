@@ -173,8 +173,10 @@ export const useVisualWorkflowExecution = () => {
     runsRef.current = [];
   }, []);
 
-  const startNewRun = useCallback((runName) => {
-    const runId = `wfrun-${Date.now()}`;
+  // Start a new execution run (keeps last 10 runs)
+  // If backendRunId is provided, use it instead of generating a new one (for deduplication with backend logs)
+  const startNewRun = useCallback((runName, backendRunId = null) => {
+    const runId = backendRunId || `wfrun-${Date.now()}`;
     const newRun = {
       id: runId,
       name: runName || 'Unnamed Workflow',
@@ -184,6 +186,14 @@ export const useVisualWorkflowExecution = () => {
     };
     setCurrentRunId(runId);
     setExecutionRuns(prev => {
+      // If a run with this ID already exists, update it instead of adding a duplicate
+      const existingIndex = prev.findIndex(r => r.id === runId);
+      if (existingIndex >= 0) {
+        const updated = [...prev];
+        updated[existingIndex] = { ...updated[existingIndex], status: 'running' };
+        runsRef.current = updated;
+        return updated;
+      }
       const updated = [newRun, ...prev];
       const trimmed = updated.slice(0, 10);
       runsRef.current = trimmed;
@@ -288,6 +298,8 @@ export const useVisualWorkflowExecution = () => {
     }
   }, []);
 
+  // Load runs from backend (call on component mount)
+  // Merges with existing in-memory runs by run_id to avoid duplicates
   const loadRunsFromBackend = useCallback(async (workflowId) => {
     if (!workflowId) return;
     
@@ -302,8 +314,39 @@ export const useVisualWorkflowExecution = () => {
       if (response.ok) {
         const data = await response.json();
         if (data.runs && data.runs.length > 0) {
-          setExecutionRuns(data.runs);
-          runsRef.current = data.runs;
+          setExecutionRuns(prev => {
+            // Create a map of existing runs by ID for quick lookup
+            const existingRunsMap = new Map(prev.map(r => [r.id, r]));
+            
+            // Merge backend runs with existing runs, preferring in-memory status for running executions
+            const mergedRuns = data.runs.map(backendRun => {
+              const existingRun = existingRunsMap.get(backendRun.id);
+              if (existingRun) {
+                // Keep in-memory run if it's still running (more recent status)
+                if (existingRun.status === 'running') {
+                  return existingRun;
+                }
+                // Otherwise use backend data but keep any additional logs from memory
+                return {
+                  ...backendRun,
+                  logs: backendRun.logs.length >= existingRun.logs.length ? backendRun.logs : existingRun.logs
+                };
+              }
+              return backendRun;
+            });
+            
+            // Add any in-memory runs that aren't in the backend yet
+            prev.forEach(memRun => {
+              if (!data.runs.find(r => r.id === memRun.id)) {
+                mergedRuns.unshift(memRun);
+              }
+            });
+            
+            // Keep only the last 10 runs
+            const trimmed = mergedRuns.slice(0, 10);
+            runsRef.current = trimmed;
+            return trimmed;
+          });
         }
       }
     } catch (err) {

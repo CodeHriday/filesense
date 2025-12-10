@@ -764,20 +764,21 @@ const WorkflowBuilderContent = () => {
       setIsExecuting(true);
       setShowConsole(true);
       
-      // Start a new execution run (keeps last 10 runs)
-      startNewRun(workflowName);
-      
-      addConsoleLog(`Starting workflow execution: ${workflowName}`, 'info');
-      addConsoleLog(`Workflow ID: ${workflowId}`, 'info');
-      addConsoleLog(`Total nodes: ${nodes.length}`, 'info');
-      addConsoleLog('-------------------------------------------', 'info');
-      
       const token = localStorage.getItem('token');
       const response = await axios.post(`/api/visual-workflows/${workflowId}/execute`, {}, {
         headers: { Authorization: `Bearer ${token}` }
       });
       
       const result = response.data;
+      
+      // Start a new execution run using the backend-provided run_id for deduplication
+      const backendRunId = result.runId;
+      startNewRun(workflowName, backendRunId);
+      
+      addConsoleLog(`Starting workflow execution: ${workflowName}`, 'info');
+      addConsoleLog(`Workflow ID: ${workflowId}`, 'info');
+      addConsoleLog(`Total nodes: ${nodes.length}`, 'info');
+      addConsoleLog('-------------------------------------------', 'info');
       
       // Handle async execution - execution started in background
       if (result.async && result.executionId) {
