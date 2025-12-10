@@ -117,17 +117,6 @@ export const APP_FEATURES = [
     showInSidebar: false // Accessed via file catalog
   },
   
-  // Archived
-  { 
-    id: 'transformation', 
-    name: 'Mapping Jobs', 
-    category: 'Archived', 
-    supportsExecute: true,
-    icon: FiLink,
-    route: '/mappings',
-    showInSidebar: true
-  },
-  
   // Job Design
   { 
     id: 'quality_rules', 
@@ -147,15 +136,6 @@ export const APP_FEATURES = [
     showInSidebar: true
   },
   { 
-    id: 'mapping_group', 
-    name: 'Mapping Job Groups', 
-    category: 'Archived', 
-    supportsExecute: true,
-    icon: FiLayers,
-    route: '/mapping-groups',
-    showInSidebar: true
-  },
-  { 
     id: 'workflow_manager', 
     name: 'Visual Workflows', 
     category: 'Job Design', 
@@ -166,15 +146,6 @@ export const APP_FEATURES = [
   },
   
   // Jobs and Monitoring
-  { 
-    id: 'workflow', 
-    name: 'Workflows', 
-    category: 'Archived', 
-    supportsExecute: true,
-    icon: FiGitBranch,
-    route: '/workflows',
-    showInSidebar: true
-  },
   { 
     id: 'workflow_builder', 
     name: 'Visual Workflow Builder', 
@@ -225,14 +196,6 @@ export const APP_FEATURES = [
     category: 'Governance',
     icon: FiTrendingUp,
     route: '/executive-dashboard',
-    showInSidebar: true
-  },
-  { 
-    id: 'lineage', 
-    name: 'File Lineage', 
-    category: 'Archived',
-    icon: FiGitBranch,
-    route: '/lineage',
     showInSidebar: true
   },
   { 
@@ -536,8 +499,7 @@ export const FEATURE_CATEGORIES_ORDER = [
   'Jobs and Monitoring',
   'Governance',
   'Vendor Management',
-  'Insights',
-  'Archived'
+  'Insights'
 ];
 
 // Group features by category (used by RoleManagement)
@@ -559,8 +521,7 @@ export const getSidebarCategoryName = (category) => {
     'Governance': 'Data Governance',
     'Administration': 'Administration',
     'Vendor Management': 'Vendor Management',
-    'Insights': 'Insights',
-    'Archived': 'Archived'
+    'Insights': 'Insights'
   };
   return mapping[category] || category;
 };
