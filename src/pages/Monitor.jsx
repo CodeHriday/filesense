@@ -91,6 +91,14 @@ function Monitor() {
     fetchAuditData();
   };
   
+  const clearAuditFilters = () => {
+    setAuditFilters({ status: '', mappingName: '', jobId: '' });
+    setCurrentPage(1);
+    setTimeout(() => fetchAuditData(), 0);
+  };
+  
+  const hasActiveAuditFilters = auditFilters.status || auditFilters.mappingName || auditFilters.jobId;
+  
   const handleBulkFilterChange = (key, value) => {
     setBulkFilters(prev => ({ ...prev, [key]: value }));
   };
@@ -99,6 +107,14 @@ function Monitor() {
     setCurrentPage(1);
     fetchBulkJobs();
   };
+  
+  const clearBulkFilters = () => {
+    setBulkFilters({ status: '', jobName: '' });
+    setCurrentPage(1);
+    setTimeout(() => fetchBulkJobs(), 0);
+  };
+  
+  const hasActiveBulkFilters = bulkFilters.status || bulkFilters.jobName;
   
   const fetchBulkJobs = async () => {
     try {
@@ -370,37 +386,45 @@ function Monitor() {
         <>
           {activeTab === 'file-audit' && (
           <div className="gps-table-container">
-            <div className="gps-filter-bar" style={{ marginBottom: '16px', display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
-              <input
-                type="text"
-                placeholder="Filter by Job ID..."
-                value={auditFilters.jobId}
-                onChange={(e) => handleAuditFilterChange('jobId', e.target.value)}
-                className="gps-filter-input"
-                style={{ width: '200px' }}
-              />
-              <input
-                type="text"
-                placeholder="Filter by Mapping Name..."
-                value={auditFilters.mappingName}
-                onChange={(e) => handleAuditFilterChange('mappingName', e.target.value)}
-                className="gps-filter-input"
-                style={{ width: '200px' }}
-              />
-              <select
-                value={auditFilters.status}
-                onChange={(e) => handleAuditFilterChange('status', e.target.value)}
-                className="gps-filter-select"
-              >
-                <option value="">All Statuses</option>
-                <option value="completed">Completed</option>
-                <option value="running">Running</option>
-                <option value="failed">Failed</option>
-                <option value="pending">Pending</option>
-              </select>
-              <button onClick={applyAuditFilters} className="gps-btn-primary">
-                Apply Filters
-              </button>
+            <div className="monitor-filter-bar">
+              <div className="filter-group">
+                <input
+                  type="text"
+                  placeholder="Filter by Job ID..."
+                  value={auditFilters.jobId}
+                  onChange={(e) => handleAuditFilterChange('jobId', e.target.value)}
+                  className="monitor-filter-input"
+                />
+                <input
+                  type="text"
+                  placeholder="Filter by Mapping Name..."
+                  value={auditFilters.mappingName}
+                  onChange={(e) => handleAuditFilterChange('mappingName', e.target.value)}
+                  className="monitor-filter-input"
+                />
+                <div className="filter-divider" />
+                <select
+                  value={auditFilters.status}
+                  onChange={(e) => handleAuditFilterChange('status', e.target.value)}
+                  className="monitor-filter-select"
+                >
+                  <option value="">All Statuses</option>
+                  <option value="completed">Completed</option>
+                  <option value="running">Running</option>
+                  <option value="failed">Failed</option>
+                  <option value="pending">Pending</option>
+                </select>
+              </div>
+              <div className="filter-actions">
+                <button onClick={applyAuditFilters} className="monitor-btn-apply">
+                  Apply Filters
+                </button>
+                {hasActiveAuditFilters && (
+                  <button onClick={clearAuditFilters} className="monitor-btn-clear">
+                    Clear
+                  </button>
+                )}
+              </div>
             </div>
             
             <div style={{ overflowX: 'auto' }}>
@@ -630,29 +654,38 @@ function Monitor() {
           
           {activeTab === 'bulk-profiling' && (
           <div className="gps-table-container">
-            <div className="gps-filter-bar" style={{ marginBottom: '16px', display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
-              <input
-                type="text"
-                placeholder="Filter by Job Name..."
-                value={bulkFilters.jobName}
-                onChange={(e) => handleBulkFilterChange('jobName', e.target.value)}
-                className="gps-filter-input"
-                style={{ width: '200px' }}
-              />
-              <select
-                value={bulkFilters.status}
-                onChange={(e) => handleBulkFilterChange('status', e.target.value)}
-                className="gps-filter-select"
-              >
-                <option value="">All Statuses</option>
-                <option value="completed">Completed</option>
-                <option value="running">Running</option>
-                <option value="failed">Failed</option>
-                <option value="pending">Pending</option>
-              </select>
-              <button onClick={applyBulkFilters} className="gps-btn-primary">
-                Apply Filters
-              </button>
+            <div className="monitor-filter-bar">
+              <div className="filter-group">
+                <input
+                  type="text"
+                  placeholder="Filter by Job Name..."
+                  value={bulkFilters.jobName}
+                  onChange={(e) => handleBulkFilterChange('jobName', e.target.value)}
+                  className="monitor-filter-input"
+                />
+                <div className="filter-divider" />
+                <select
+                  value={bulkFilters.status}
+                  onChange={(e) => handleBulkFilterChange('status', e.target.value)}
+                  className="monitor-filter-select"
+                >
+                  <option value="">All Statuses</option>
+                  <option value="completed">Completed</option>
+                  <option value="running">Running</option>
+                  <option value="failed">Failed</option>
+                  <option value="pending">Pending</option>
+                </select>
+              </div>
+              <div className="filter-actions">
+                <button onClick={applyBulkFilters} className="monitor-btn-apply">
+                  Apply Filters
+                </button>
+                {hasActiveBulkFilters && (
+                  <button onClick={clearBulkFilters} className="monitor-btn-clear">
+                    Clear
+                  </button>
+                )}
+              </div>
             </div>
             
             <div style={{ overflowX: 'auto' }}>
@@ -772,48 +805,53 @@ function Monitor() {
           
           {activeTab === 'audit-ledger' && (
           <div className="gps-table-container">
-            <div className="gps-filter-bar" style={{ marginBottom: '16px', display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
-              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <div className="monitor-filter-bar">
+              <div className="filter-group">
                 <input
                   type="text"
                   placeholder="Filter by Job ID..."
                   value={ledgerFilters.jobId}
                   onChange={(e) => handleLedgerFilterChange('jobId', e.target.value)}
-                  className="gps-filter-input"
-                  style={{ width: '200px' }}
+                  className="monitor-filter-input"
                 />
+                <div className="filter-divider" />
                 <select
                   value={ledgerFilters.logLevel}
                   onChange={(e) => handleLedgerFilterChange('logLevel', e.target.value)}
-                  className="gps-filter-select"
+                  className="monitor-filter-select"
                 >
                   <option value="">All Levels</option>
                   <option value="INFO">INFO</option>
                   <option value="WARN">WARN</option>
                   <option value="ERROR">ERROR</option>
                 </select>
-                <button onClick={applyLedgerFilters} className="gps-btn-primary">
+              </div>
+              <div className="filter-actions">
+                <button onClick={applyLedgerFilters} className="monitor-btn-apply">
                   Apply Filters
                 </button>
-              </div>
-              
-              <div style={{ marginLeft: 'auto', display: 'flex', gap: '8px', alignItems: 'center' }}>
+                {(ledgerFilters.jobId || ledgerFilters.logLevel) && (
+                  <button onClick={() => { setLedgerFilters({ logLevel: '', actionType: '', jobId: '' }); setCurrentPage(1); fetchLedgerData(); }} className="monitor-btn-clear">
+                    Clear
+                  </button>
+                )}
+                <div className="filter-divider" />
                 <button 
                   onClick={handleVerifyLedger} 
                   disabled={verifying}
-                  className="gps-btn-secondary"
+                  className="monitor-btn-verify"
                   title="Verify the integrity of the audit chain"
                 >
-                  <FiShield style={{ marginRight: '4px' }} />
-                  {verifying ? 'Verifying...' : 'Verify Chain Integrity'}
+                  <FiShield />
+                  {verifying ? 'Verifying...' : 'Verify Chain'}
                 </button>
                 
                 {verificationResult && (
-                  <span className={`gps-badge ${verificationResult.verified ? 'gps-badge--success' : 'gps-badge--danger'}`}>
+                  <span className={`verification-badge ${verificationResult.verified ? 'success' : 'danger'}`}>
                     {verificationResult.verified ? (
-                      <><FiCheck style={{ marginRight: '4px' }} /> Chain Verified ({verificationResult.entriesVerified} entries)</>
+                      <><FiCheck /> Verified ({verificationResult.entriesVerified})</>
                     ) : (
-                      <><FiAlertTriangle style={{ marginRight: '4px' }} /> Chain Broken</>
+                      <><FiAlertTriangle /> Chain Broken</>
                     )}
                   </span>
                 )}
@@ -821,11 +859,11 @@ function Monitor() {
             </div>
             
             {ledgerStats && (
-              <div className="gps-stats-bar" style={{ marginBottom: '16px', display: 'flex', gap: '24px', padding: '12px 16px', background: '#f8fafc', borderRadius: '8px', fontSize: '12px' }}>
-                <div><strong>Total Entries:</strong> {parseInt(ledgerStats.total_entries || 0).toLocaleString()}</div>
-                <div><strong>Unique Jobs:</strong> {parseInt(ledgerStats.unique_jobs || 0).toLocaleString()}</div>
-                <div><strong>Unique Actors:</strong> {parseInt(ledgerStats.unique_actors || 0).toLocaleString()}</div>
-                <div><strong>Current Sequence:</strong> {ledgerStats.sequence?.current_sequence || 0}</div>
+              <div className="monitor-stats-bar">
+                <div><strong>Total Entries:</strong> <span>{parseInt(ledgerStats.total_entries || 0).toLocaleString()}</span></div>
+                <div><strong>Unique Jobs:</strong> <span>{parseInt(ledgerStats.unique_jobs || 0).toLocaleString()}</span></div>
+                <div><strong>Unique Actors:</strong> <span>{parseInt(ledgerStats.unique_actors || 0).toLocaleString()}</span></div>
+                <div><strong>Current Sequence:</strong> <span>{ledgerStats.sequence?.current_sequence || 0}</span></div>
               </div>
             )}
             
@@ -984,53 +1022,53 @@ function Monitor() {
           </div>
           )}
           
-          <div className="gps-pagination-container">
-            <div className="gps-results-info">
-              Showing {(activeTab === 'file-audit' ? audits.length : activeTab === 'bulk-profiling' ? bulkJobs.length : ledgerEntries.length) > 0 ? ((currentPage - 1) * pageSize) + 1 : 0} to {Math.min(currentPage * pageSize, totalRecords)} of {totalRecords} records
+          <div className="monitor-pagination">
+            <div className="monitor-pagination-info">
+              Showing <strong>{(activeTab === 'file-audit' ? audits.length : activeTab === 'bulk-profiling' ? bulkJobs.length : ledgerEntries.length) > 0 ? ((currentPage - 1) * pageSize) + 1 : 0}</strong> to <strong>{Math.min(currentPage * pageSize, totalRecords)}</strong> of <strong>{totalRecords.toLocaleString()}</strong> records
             </div>
             
-            <div className="gps-pagination-controls">
-              <div className="gps-page-size-selector">
+            <div className="monitor-pagination-controls">
+              <div className="monitor-page-size">
                 <label>Rows per page:</label>
-                <select value={pageSize} onChange={handlePageSizeChange} className="gps-filter-select">
-                  <option key="10" value="10">10</option>
-                  <option key="25" value="25">25</option>
-                  <option key="50" value="50">50</option>
-                  <option key="100" value="100">100</option>
+                <select value={pageSize} onChange={handlePageSizeChange}>
+                  <option value="10">10</option>
+                  <option value="25">25</option>
+                  <option value="50">50</option>
+                  <option value="100">100</option>
                 </select>
               </div>
               
-              <div className="gps-page-buttons">
+              <div className="monitor-page-buttons">
                 <button 
                   onClick={() => handlePageChange(1)}
                   disabled={currentPage === 1}
-                  className="gps-btn-secondary"
+                  className="monitor-page-btn"
                 >
                   First
                 </button>
                 <button 
                   onClick={() => handlePageChange(currentPage - 1)}
                   disabled={currentPage === 1}
-                  className="gps-btn-secondary"
+                  className="monitor-page-btn"
                 >
                   Previous
                 </button>
                 
-                <span className="gps-page-indicator">
+                <span className="monitor-page-indicator">
                   Page {currentPage} of {totalPages || 1}
                 </span>
                 
                 <button 
                   onClick={() => handlePageChange(currentPage + 1)}
                   disabled={currentPage >= totalPages}
-                  className="gps-btn-secondary"
+                  className="monitor-page-btn"
                 >
                   Next
                 </button>
                 <button 
                   onClick={() => handlePageChange(totalPages)}
                   disabled={currentPage >= totalPages}
-                  className="gps-btn-secondary"
+                  className="monitor-page-btn"
                 >
                   Last
                 </button>
