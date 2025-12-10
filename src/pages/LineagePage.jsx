@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import ReactFlow, {
   MiniMap,
   Controls,
@@ -14,9 +15,17 @@ import ReactFlow, {
 import dagre from 'dagre';
 import 'reactflow/dist/style.css';
 import './LineagePage.css';
-import { fetchLineageGraph, fetchFilterOptions, exportLineageGraph } from '../services/lineageGraphService';
+import { 
+  fetchLineageGraph, 
+  fetchFilterOptions, 
+  exportLineageGraph,
+  fetchSavedLineageGraph,
+  createSavedLineageGraph,
+  updateSavedLineageGraph
+} from '../services/lineageGraphService';
+import { useToast } from '../context/ToastContext';
 import NodeDetailDrawer from '../components/NodeDetailDrawer';
-import { FaDownload, FaFilter, FaProjectDiagram, FaExclamationCircle, FaChevronDown, FaChevronUp } from 'react-icons/fa';
+import { FaDownload, FaFilter, FaProjectDiagram, FaExclamationCircle, FaChevronDown, FaChevronUp, FaSave, FaArrowLeft } from 'react-icons/fa';
 import { toPng, toSvg } from 'html-to-image';
 
 // Custom node components
@@ -40,6 +49,9 @@ const nodeTypes = {
 };
 
 const LineagePageContent = () => {
+  const { graphId } = useParams();
+  const navigate = useNavigate();
+  const { addToast } = useToast();
   const containerRef = useRef(null);
   const [reactFlowInstance, setReactFlowInstance] = useState(null);
   const [containerReady, setContainerReady] = useState(false);
@@ -49,6 +61,13 @@ const LineagePageContent = () => {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  
+  // Saved graph state
+  const [savedGraphId, setSavedGraphId] = useState(graphId || null);
+  const [graphName, setGraphName] = useState('');
+  const [graphDescription, setGraphDescription] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [showSaveModal, setShowSaveModal] = useState(false);
   
   // Filters and controls
   const [rootType, setRootType] = useState('vendorAgreement');
@@ -70,6 +89,112 @@ const LineagePageContent = () => {
   // Node grouping state
   const [expandedGroups, setExpandedGroups] = useState(new Set());
   const [originalGraphData, setOriginalGraphData] = useState({ nodes: [], edges: [] });
+  
+  // Load saved graph if graphId provided
+  useEffect(() => {
+    if (graphId && graphId !== 'new') {
+      loadSavedGraph(graphId);
+    }
+  }, [graphId]);
+  
+  const loadSavedGraph = async (id) => {
+    setLoading(true);
+    try {
+      const response = await fetchSavedLineageGraph(id);
+      if (response.success && response.graph) {
+        const graph = response.graph;
+        setSavedGraphId(graph.id);
+        setGraphName(graph.name);
+        setGraphDescription(graph.description || '');
+        setRootType(graph.root_type);
+        setRootId(String(graph.root_id));
+        setProjectId(graph.project_id);
+        
+        if (graph.graph_config) {
+          setDepth(graph.graph_config.depth || 3);
+          setIncludeIncidents(graph.graph_config.includeIncidents !== false);
+        }
+        
+        if (graph.graph_data && graph.graph_data.nodes && graph.graph_data.nodes.length > 0) {
+          setOriginalGraphData(graph.graph_data);
+          setExpandedGroups(new Set());
+        }
+      } else {
+        setError(response.error || 'Failed to load saved graph');
+      }
+    } catch (err) {
+      console.error('Error loading saved graph:', err);
+      setError('Failed to load saved graph');
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  const handleSaveGraph = async () => {
+    if (!graphName.trim()) {
+      addToast('error', 'Name Required', 'Please enter a name for the graph');
+      return;
+    }
+    
+    if (!rootType || !rootId) {
+      addToast('error', 'Configuration Required', 'Please configure and generate the graph first');
+      return;
+    }
+    
+    setSaving(true);
+    try {
+      const graphData = {
+        nodes: originalGraphData.nodes,
+        edges: originalGraphData.edges
+      };
+      
+      const graphConfig = { depth, includeIncidents };
+      
+      if (savedGraphId) {
+        const response = await updateSavedLineageGraph(savedGraphId, {
+          name: graphName,
+          description: graphDescription,
+          graphConfig,
+          graphData
+        });
+        
+        if (response.success) {
+          addToast('success', 'Graph Saved', 'Lineage graph has been updated');
+          setShowSaveModal(false);
+        } else {
+          addToast('error', 'Save Failed', response.error || 'Failed to save graph');
+        }
+      } else {
+        const response = await createSavedLineageGraph({
+          name: graphName,
+          description: graphDescription,
+          rootType,
+          rootId: parseInt(rootId),
+          graphConfig,
+          graphData,
+          projectId: projectId ? parseInt(projectId) : null
+        });
+        
+        if (response.success) {
+          setSavedGraphId(response.graph.id);
+          addToast('success', 'Graph Saved', 'Lineage graph has been created');
+          setShowSaveModal(false);
+          navigate(`/visual-lineage/${response.graph.id}`, { replace: true });
+        } else {
+          addToast('error', 'Save Failed', response.error || 'Failed to save graph');
+        }
+      }
+    } catch (err) {
+      console.error('Error saving graph:', err);
+      addToast('error', 'Save Failed', err.message || 'Failed to save graph');
+    } finally {
+      setSaving(false);
+    }
+  };
+  
+  const handleBackToList = () => {
+    navigate('/visual-lineage');
+  };
   
   // Fetch filter options on mount
   useEffect(() => {
@@ -545,10 +670,26 @@ const LineagePageContent = () => {
       {/* Top Controls Panel */}
       <div className="lineage-controls">
         <div className="lineage-controls-left">
-          <h2><FaProjectDiagram /> Data Lineage</h2>
+          <button
+            className="lineage-btn lineage-btn-secondary lineage-back-btn"
+            onClick={handleBackToList}
+            title="Back to list"
+          >
+            <FaArrowLeft /> Back
+          </button>
+          <h2><FaProjectDiagram /> {graphName || (graphId === 'new' ? 'New Lineage Graph' : 'Data Lineage')}</h2>
         </div>
         
         <div className="lineage-controls-right">
+          <button
+            className="lineage-btn lineage-btn-primary"
+            onClick={() => setShowSaveModal(true)}
+            disabled={originalGraphData.nodes.length === 0}
+            title="Save graph"
+          >
+            <FaSave /> {savedGraphId ? 'Update' : 'Save'}
+          </button>
+          
           {expandedGroups.size > 0 && (
             <button
               className="lineage-btn lineage-btn-secondary"
@@ -757,6 +898,64 @@ const LineagePageContent = () => {
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
       />
+      
+      {/* Save Modal */}
+      {showSaveModal && (
+        <div className="lineage-modal-overlay" onClick={() => setShowSaveModal(false)}>
+          <div className="lineage-modal" onClick={e => e.stopPropagation()}>
+            <div className="lineage-modal-header">
+              <h3>{savedGraphId ? 'Update Lineage Graph' : 'Save Lineage Graph'}</h3>
+              <button 
+                className="lineage-modal-close"
+                onClick={() => setShowSaveModal(false)}
+              >
+                &times;
+              </button>
+            </div>
+            <div className="lineage-modal-body">
+              <div className="lineage-modal-field">
+                <label>Name *</label>
+                <input
+                  type="text"
+                  value={graphName}
+                  onChange={e => setGraphName(e.target.value)}
+                  placeholder="Enter graph name"
+                />
+              </div>
+              <div className="lineage-modal-field">
+                <label>Description</label>
+                <textarea
+                  value={graphDescription}
+                  onChange={e => setGraphDescription(e.target.value)}
+                  placeholder="Optional description"
+                  rows={3}
+                />
+              </div>
+              <div className="lineage-modal-info">
+                <p><strong>Root Type:</strong> {rootType}</p>
+                <p><strong>Root ID:</strong> {rootId}</p>
+                <p><strong>Nodes:</strong> {originalGraphData.nodes.length}</p>
+                <p><strong>Edges:</strong> {originalGraphData.edges.length}</p>
+              </div>
+            </div>
+            <div className="lineage-modal-footer">
+              <button
+                className="lineage-btn lineage-btn-secondary"
+                onClick={() => setShowSaveModal(false)}
+              >
+                Cancel
+              </button>
+              <button
+                className="lineage-btn lineage-btn-primary"
+                onClick={handleSaveGraph}
+                disabled={saving || !graphName.trim()}
+              >
+                {saving ? 'Saving...' : savedGraphId ? 'Update' : 'Save'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

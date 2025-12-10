@@ -55,15 +55,15 @@ const LineageListPage = () => {
   }, [loadGraphs]);
 
   const handleCreateNew = () => {
-    navigate('/lineage/new');
+    navigate('/visual-lineage/new');
   };
 
   const handleView = (graphId) => {
-    navigate(`/lineage/${graphId}`);
+    navigate(`/visual-lineage/${graphId}`);
   };
 
   const handleEdit = (graphId) => {
-    navigate(`/lineage/${graphId}/edit`);
+    navigate(`/visual-lineage/${graphId}`);
   };
 
   const handleRefresh = async (graphId) => {

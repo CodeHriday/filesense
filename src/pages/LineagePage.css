@@ -563,3 +563,121 @@
 .lineage-grouped-expand-btn svg {
   font-size: 10px;
 }
+
+/* Back Button */
+.lineage-back-btn {
+  margin-right: 12px;
+}
+
+.lineage-controls-left {
+  display: flex;
+  align-items: center;
+}
+
+/* Save Modal Styles */
+.lineage-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.lineage-modal {
+  background: white;
+  border-radius: 8px;
+  width: 100%;
+  max-width: 450px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+.lineage-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.lineage-modal-header h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.lineage-modal-close {
+  background: none;
+  border: none;
+  font-size: 24px;
+  color: #64748b;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+}
+
+.lineage-modal-close:hover {
+  color: #1e293b;
+}
+
+.lineage-modal-body {
+  padding: 20px;
+}
+
+.lineage-modal-field {
+  margin-bottom: 16px;
+}
+
+.lineage-modal-field label {
+  display: block;
+  font-size: 10px;
+  font-weight: 500;
+  color: #475569;
+  margin-bottom: 6px;
+}
+
+.lineage-modal-field input,
+.lineage-modal-field textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  font-size: 10px;
+  font-family: 'Inter', sans-serif;
+  transition: border-color 0.2s;
+}
+
+.lineage-modal-field input:focus,
+.lineage-modal-field textarea:focus {
+  outline: none;
+  border-color: #025043;
+}
+
+.lineage-modal-info {
+  background: #f8fafc;
+  border-radius: 6px;
+  padding: 12px;
+}
+
+.lineage-modal-info p {
+  margin: 0 0 6px 0;
+  font-size: 10px;
+  color: #475569;
+}
+
+.lineage-modal-info p:last-child {
+  margin-bottom: 0;
+}
+
+.lineage-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 16px 20px;
+  border-top: 1px solid #e2e8f0;
+}

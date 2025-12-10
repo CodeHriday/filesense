@@ -53,6 +53,7 @@ const Transform = lazy(() => import('./pages/Transform'));
 const FileLineage = lazy(() => import('./pages/FileLineage'));
 const LineageImpact = lazy(() => import('./pages/LineageImpact'));
 const LineagePage = lazy(() => import('./pages/LineagePage'));
+const LineageListPage = lazy(() => import('./pages/LineageListPage'));
 const Monitor = lazy(() => import('./pages/Monitor'));
 const Scheduler = lazy(() => import('./pages/Scheduler'));
 const Badges = lazy(() => import('./pages/Badges'));
@@ -285,7 +286,9 @@ function AppContent({ showOnboarding, setShowOnboarding }) {
                 <Route path="/transformations" element={<ProtectedRoute><Transform /></ProtectedRoute>} />
                 <Route path="/transform" element={<ProtectedRoute><Transform /></ProtectedRoute>} />
                 <Route path="/lineage" element={<ProtectedRoute><FileLineage /></ProtectedRoute>} />
-                <Route path="/visual-lineage" element={<ProtectedRoute><LineagePage /></ProtectedRoute>} />
+                <Route path="/visual-lineage" element={<ProtectedRoute><LineageListPage /></ProtectedRoute>} />
+                <Route path="/visual-lineage/new" element={<ProtectedRoute><LineagePage /></ProtectedRoute>} />
+                <Route path="/visual-lineage/:graphId" element={<ProtectedRoute><LineagePage /></ProtectedRoute>} />
                 <Route path="/lineage/impact/:fileId" element={<ProtectedRoute>
                   {({ fileId }) => {
                     return fileId ? (
