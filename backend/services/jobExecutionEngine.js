@@ -1606,7 +1606,9 @@ async function executeTransformationJob(pool, mappingId, userId, options = {}) {
           rdmContext,
           onTransformComplete,
           joinLookupTables: hasMultiSourceJoin ? joinLookupTables : null,
-          joinSpecs: hasMultiSourceJoin ? mapping.parsed_join_specs : null
+          joinSpecs: hasMultiSourceJoin ? mapping.parsed_join_specs : null,
+          ledgerContext,
+          visualExecutionId
         });
         
         totalRowsRead += fileResult.rowsRead;
@@ -2266,7 +2268,7 @@ function calculateColumnStatistics(rows, schema) {
  * @returns {Promise<Object>} - Processing result
  */
 async function processFile(pool, file, mapping, jobId, options = {}) {
-  const { dryRun = false, transformationJobDbId = null, userId = null, rdmContext = {}, onTransformComplete = null, joinLookupTables = null, joinSpecs = null } = options;
+  const { dryRun = false, transformationJobDbId = null, userId = null, rdmContext = {}, onTransformComplete = null, joinLookupTables = null, joinSpecs = null, ledgerContext = null, visualExecutionId = null } = options;
   
   let rowsRead = 0;
   let rowsWritten = 0;
@@ -3171,9 +3173,9 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
           transformationJobId: transformationJobDbId,
           mappingName: mapping.mapping_name,
           userId: userId,
-          userEmail: ledgerContext.userEmail,
-          ipAddress: ledgerContext.userIp,
-          sessionId: ledgerContext.sessionId,
+          userEmail: ledgerContext?.userEmail,
+          ipAddress: ledgerContext?.userIp,
+          sessionId: ledgerContext?.sessionId,
           processingDurationMs: 0,
           status: 'success',
           createdBy: userId,
@@ -3223,9 +3225,9 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
           transformationJobId: transformationJobDbId,
           mappingName: mapping.mapping_name,
           userId: userId,
-          userEmail: ledgerContext.userEmail,
-          ipAddress: ledgerContext.userIp,
-          sessionId: ledgerContext.sessionId,
+          userEmail: ledgerContext?.userEmail,
+          ipAddress: ledgerContext?.userIp,
+          sessionId: ledgerContext?.sessionId,
           processingDurationMs: 0,
           status: 'success',
           createdBy: userId,
