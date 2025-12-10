@@ -119,14 +119,6 @@ export const APP_FEATURES = [
   
   // Job Design
   { 
-    id: 'quality_rules', 
-    name: 'Quality Rules', 
-    category: 'Job Design',
-    icon: FiAlertTriangle,
-    route: '/quality-rules',
-    showInSidebar: true
-  },
-  { 
     id: 'visual_mapping_orchestrator', 
     name: 'Visual Mapping Designer', 
     category: 'Job Design',
@@ -190,6 +182,14 @@ export const APP_FEATURES = [
   },
   
   // Governance
+  { 
+    id: 'quality_rules', 
+    name: 'Quality Rules', 
+    category: 'Governance',
+    icon: FiAlertTriangle,
+    route: '/quality-rules',
+    showInSidebar: true
+  },
   { 
     id: 'executive_dashboard', 
     name: 'Executive Dashboard', 
