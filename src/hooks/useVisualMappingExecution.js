@@ -202,8 +202,9 @@ export const useVisualMappingExecution = () => {
   }, []);
 
   // Start a new execution run (keeps last 10 runs)
-  const startNewRun = useCallback((runName) => {
-    const runId = `run-${Date.now()}`;
+  // If backendRunId is provided, use it instead of generating a new one (for deduplication with backend logs)
+  const startNewRun = useCallback((runName, backendRunId = null) => {
+    const runId = backendRunId || `run-${Date.now()}`;
     const newRun = {
       id: runId,
       name: runName || 'Unnamed Mapping',
@@ -213,6 +214,14 @@ export const useVisualMappingExecution = () => {
     };
     setCurrentRunId(runId);
     setExecutionRuns(prev => {
+      // If a run with this ID already exists, update it instead of adding a duplicate
+      const existingIndex = prev.findIndex(r => r.id === runId);
+      if (existingIndex >= 0) {
+        const updated = [...prev];
+        updated[existingIndex] = { ...updated[existingIndex], status: 'running' };
+        runsRef.current = updated;
+        return updated;
+      }
       const updated = [newRun, ...prev];
       const trimmed = updated.slice(0, 10); // Keep only last 10 runs
       runsRef.current = trimmed;

@@ -1108,9 +1108,6 @@ const VisualMappingCanvasContent = () => {
       setError(null);
       setSuccess(null); // Clear previous success message
       
-      // Start a new execution run (keeps last 10 runs)
-      startNewRun(mappingName || 'Unnamed Mapping');
-      
       // Generate execution ID and subscribe to WebSocket BEFORE starting execution
       const executionId = generateExecutionId();
       console.log('Generated execution ID:', executionId);
@@ -1124,6 +1121,10 @@ const VisualMappingCanvasContent = () => {
       const response = await axios.post(`/api/visual-mappings/${mappingId}/execute`, {
         execution_id: executionId
       });
+      
+      // Start a new execution run using the backend-provided run_id for deduplication
+      const backendRunId = response.data?.run_id;
+      startNewRun(mappingName || 'Unnamed Mapping', backendRunId);
       
       setSuccess(`Execution started - monitoring real-time progress`);
     } catch (error) {
