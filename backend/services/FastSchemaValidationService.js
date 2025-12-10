@@ -257,7 +257,7 @@ class FastSchemaValidationService {
         try {
           const validationResult = await this.validateFileMetadata(
             s3,
-            connectionCredentials.bucket_name,
+            connectionCredentials.bucket,
             file.file_path,
             agreementSchema
           );
