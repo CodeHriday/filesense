@@ -1143,12 +1143,15 @@ async function executeTransformationJob(pool, mappingId, userId, options = {}) {
           sessionId: ledgerContext?.sessionId,
           processingDurationMs: Date.now() - (job.start_time ? new Date(job.start_time).getTime() : Date.now()),
           status: 'failed',
+          errorMessage: errorMessage,
+          errorType: 'no_files_matched',
           createdBy: userId,
-          fileRole: 'source',
-          metadata: JSON.stringify({
-            error: errorMessage,
-            failureReason: 'no_files_matched'
-          })
+          fileRole: 'source'
+        });
+        systemLogger.info('File audit captured for failed job (no files matched)', {
+          jobId,
+          correlationId,
+          pattern: fullPattern
         });
       } catch (auditError) {
         systemLogger.error('Failed to capture file audit for failed job', {
@@ -1915,12 +1918,14 @@ async function executeTransformationJob(pool, mappingId, userId, options = {}) {
           sessionId: ledgerContext?.sessionId,
           processingDurationMs: Date.now() - (job.start_time ? new Date(job.start_time).getTime() : Date.now()),
           status: 'failed',
+          errorMessage: error.message,
+          errorType: 'execution_error',
           createdBy: ledgerContext?.userId,
-          fileRole: 'source',
-          metadata: JSON.stringify({
-            error: error.message,
-            failureReason: 'execution_error'
-          })
+          fileRole: 'source'
+        });
+        systemLogger.info('File audit captured for failed job (execution error)', {
+          jobId: job.job_id,
+          correlationId: job.correlation_id
         });
       } catch (auditError) {
         systemLogger.error('Failed to capture file audit for failed job in catch block', {

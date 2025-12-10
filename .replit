@@ -89,6 +89,10 @@ args = "DISABLE_VIRUS_SCAN=true python profile_api.py"
 localPort = 5000
 externalPort = 80
 
+[[ports]]
+localPort = 40701
+externalPort = 3000
+
 [agent]
 integrations = ["python_openai_ai_integrations:1.0.0"]
 
