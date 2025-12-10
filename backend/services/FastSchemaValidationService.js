@@ -726,27 +726,23 @@ class FastSchemaValidationService {
   }
 
   /**
-   * Extract columns from Parquet file via Python profile API
-   * Parquet has schema metadata that can be read without loading all data
+   * Extract columns from Parquet file via hyparquet library
+   * Parquet has schema metadata in footer that can be read efficiently
    */
   static async extractParquetColumns(s3, bucket, s3Key, credentials = null) {
-    // Fallback: Download full file and try to parse with hyparquet
-    // This is more reliable than making an API call since we already have the S3 client
     try {
       const fullParams = { Bucket: bucket, Key: s3Key };
       const fullResponse = await s3.getObject(fullParams).promise();
       const buffer = fullResponse.Body;
       
       // Use hyparquet to read schema from buffer
-      const { parquetMetadataAsync } = require('hyparquet');
+      const { parquetMetadata } = require('hyparquet');
       
-      // Convert buffer to ArrayBuffer for hyparquet
-      const arrayBuffer = buffer.buffer.slice(
-        buffer.byteOffset,
-        buffer.byteOffset + buffer.byteLength
-      );
+      // Properly convert Node.js Buffer to ArrayBuffer
+      // Node.js Buffer may share underlying ArrayBuffer, so we need to copy
+      const arrayBuffer = new Uint8Array(buffer).buffer;
       
-      const metadata = await parquetMetadataAsync(arrayBuffer);
+      const metadata = parquetMetadata(arrayBuffer);
       
       if (metadata && metadata.schema && metadata.schema.length > 0) {
         // First element is usually the root schema, columns start from index 1
@@ -756,6 +752,11 @@ class FastSchemaValidationService {
           .map(col => col.name);
         
         if (columns.length > 0) {
+          systemLogger.info('Extracted Parquet schema', {
+            bucket,
+            key: s3Key,
+            columnCount: columns.length
+          });
           return columns;
         }
       }
@@ -773,27 +774,69 @@ class FastSchemaValidationService {
 
   /**
    * Extract columns from fixed-width/DAT file
-   * For DAT files, we can't reliably extract column names from the file itself
-   * since they don't have headers. Return a placeholder indicating this.
+   * Fixed-width files don't typically have delimiters; column positions
+   * are defined by start position and width in the schema.
+   * 
+   * This method attempts to detect if there's a header row, otherwise
+   * returns a special indicator so validation can fall back to schema-defined columns.
    */
-  static extractFixedWidthColumns(buffer) {
-    // Fixed-width files typically don't have header rows
-    // We'll return a special indicator that validation should use schema-defined columns
-    // The validator will compare against expected schema column count
+  static extractFixedWidthColumns(buffer, schemaColumns = null) {
     const content = buffer.toString('utf-8');
-    const firstLine = content.split('\n')[0];
+    const lines = content.split('\n').filter(l => l.trim());
     
-    // If the first line looks like a header (contains letters, not just data)
-    // try to parse it as a simple space/tab-delimited header
-    if (/^[A-Za-z]/.test(firstLine.trim())) {
-      const columns = firstLine.trim().split(/\s{2,}|\t/).map(c => c.trim()).filter(c => c);
+    if (lines.length === 0) {
+      return ['_empty_file_'];
+    }
+    
+    const firstLine = lines[0];
+    
+    // If schema defines column positions with start_position/width,
+    // use those to extract column names from first line
+    if (schemaColumns && Array.isArray(schemaColumns) && schemaColumns.length > 0) {
+      const hasPositions = schemaColumns.every(col => 
+        typeof col.start_position === 'number' && typeof col.width === 'number'
+      );
+      
+      if (hasPositions) {
+        // Extract values from first line using schema positions
+        const extractedColumns = schemaColumns.map(col => {
+          const start = col.start_position - 1; // Convert to 0-indexed
+          const end = start + col.width;
+          return firstLine.substring(start, end).trim();
+        });
+        
+        // Check if extracted values look like column names (alphanumeric)
+        const looksLikeHeaders = extractedColumns.every(val => 
+          /^[A-Za-z]/.test(val) && !/^\d+(\.\d+)?$/.test(val)
+        );
+        
+        if (looksLikeHeaders) {
+          return extractedColumns.filter(c => c);
+        }
+        
+        // Return schema-defined column names instead
+        return schemaColumns.map(col => col.column_name || col.name || `col_${col.start_position}`);
+      }
+    }
+    
+    // Fallback: Try to detect if first line is a header
+    // Check if it contains only alphabetic characters and common separators
+    if (/^[A-Za-z_]/.test(firstLine.trim())) {
+      // Try tab-delimited first
+      let columns = firstLine.split('\t').map(c => c.trim()).filter(c => c);
+      if (columns.length > 1) {
+        return columns;
+      }
+      
+      // Try multiple spaces as delimiter
+      columns = firstLine.split(/\s{2,}/).map(c => c.trim()).filter(c => c);
       if (columns.length > 1) {
         return columns;
       }
     }
     
     // Return indicator that this is a headerless fixed-width file
-    // Validation will need to rely on the schema definition
+    // Validation should fall back to comparing column count with schema
     return ['_fixed_width_no_header_'];
   }
 
