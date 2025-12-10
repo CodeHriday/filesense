@@ -1952,12 +1952,8 @@ const VisualMappingCanvasContent = () => {
                   </div>
                   <div className="visual-mapping-console-run-logs">
                     {run.logs.map((log, logIndex) => {
-                      const timestamp = new Date(log.timestamp).toLocaleTimeString('en-US', {
-                        hour: '2-digit',
-                        minute: '2-digit',
-                        second: '2-digit',
-                        hour12: true
-                      });
+                      // Use ISO timestamp format for consistency with workflow console
+                      const timestamp = log.timestamp;
                       return (
                         <div key={logIndex} className={`visual-mapping-console-log log-${log.level.toLowerCase()}`}>
                           <span className="visual-mapping-console-timestamp">[{timestamp}]</span>

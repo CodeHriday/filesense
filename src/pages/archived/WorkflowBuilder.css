@@ -850,36 +850,50 @@
 .workflow-builder-console-line {
   display: flex;
   gap: 8px;
-  padding: 3px 0;
-  font-size: 13px;
+  padding: 2px 0;
+  font-size: 10px;
   line-height: 1.6;
-  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
 }
 
 .workflow-builder-console-timestamp {
-  color: #888;
+  color: #718096;
   flex-shrink: 0;
 }
 
-.workflow-builder-console-message {
-  word-break: break-word;
-  color: #ddd;
+.workflow-builder-console-level {
+  flex-shrink: 0;
+  font-weight: 600;
 }
 
-.workflow-builder-console-info .workflow-builder-console-message {
-  color: #ddd;
+.workflow-builder-console-level-info {
+  color: #63b3ed;
 }
 
-.workflow-builder-console-success .workflow-builder-console-message {
+.workflow-builder-console-level-success {
   color: #4ec9b0;
 }
 
-.workflow-builder-console-error .workflow-builder-console-message {
-  color: #f14c4c;
+.workflow-builder-console-level-error {
+  color: #fc8181;
 }
 
-.workflow-builder-console-warn .workflow-builder-console-message {
-  color: #fbbf24;
+.workflow-builder-console-level-warn,
+.workflow-builder-console-level-warning {
+  color: #fbd38d;
+}
+
+.workflow-builder-console-message {
+  color: #e2e8f0;
+  word-break: break-word;
+}
+
+.workflow-builder-console-error {
+  background: rgba(252, 129, 129, 0.1);
+}
+
+.workflow-builder-console-warn,
+.workflow-builder-console-warning {
+  background: rgba(251, 211, 141, 0.1);
 }
 
 /* Console Toggle Button */
@@ -924,12 +938,11 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 12px;
+  padding: 6px 10px;
   background: #2a2a2a;
   border-radius: 4px;
-  margin-bottom: 6px;
-  font-size: 13px;
-  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  margin-bottom: 4px;
+  font-size: 11px;
 }
 
 .workflow-builder-console-run-running {
@@ -954,12 +967,12 @@
 
 .workflow-builder-console-run-name {
   font-weight: 600;
-  color: #fff;
+  color: #ddd;
 }
 
 .workflow-builder-console-run-time {
-  color: #999;
-  font-size: 13px;
+  color: #888;
+  font-size: 10px;
   margin-left: 12px;
 }
 
