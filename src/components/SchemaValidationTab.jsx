@@ -588,7 +588,7 @@ function SchemaValidationTab({ selectedProject: initialProject }) {
                     <option value="">Select a vendor agreement...</option>
                     {vendorAgreements.map(agreement => (
                       <option key={agreement.id} value={agreement.id}>
-                        {agreement.name}{agreement.vendor_name ? ` (${agreement.vendor_name})` : ''}
+                        {agreement.name || agreement.agreement_name || `Agreement ${agreement.id}`} - {agreement.vendor_name || 'Unknown Vendor'}
                       </option>
                     ))}
                   </select>
@@ -736,17 +736,17 @@ function SchemaValidationTab({ selectedProject: initialProject }) {
                     <table className="gps-bulk-table">
                       <thead>
                         <tr>
-                          <th>File Name</th>
-                          <th>Size</th>
-                          <th>Last Modified</th>
+                          <th style={{ textTransform: 'none' }}>File Name</th>
+                          <th style={{ textTransform: 'none' }}>Size</th>
+                          <th style={{ textTransform: 'none' }}>Last Modified</th>
                         </tr>
                       </thead>
                       <tbody>
                         {discoveredFiles.slice(0, 100).map((file, index) => (
                           <tr key={index}>
-                            <td>{file.key}</td>
-                            <td>{formatFileSize(file.size)}</td>
-                            <td>{formatDate(file.lastModified)}</td>
+                            <td>{file.name || file.key || file.Key || 'Unknown'}</td>
+                            <td>{formatFileSize(file.size || file.Size)}</td>
+                            <td>{formatDate(file.lastModified || file.LastModified)}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -799,11 +799,11 @@ function SchemaValidationTab({ selectedProject: initialProject }) {
               <table className="gps-bulk-table">
                 <thead>
                   <tr>
-                    <th>Job Name</th>
-                    <th>Schedule</th>
-                    <th>Next Run</th>
-                    <th>Status</th>
-                    <th>Actions</th>
+                    <th style={{ textTransform: 'none' }}>Job Name</th>
+                    <th style={{ textTransform: 'none' }}>Schedule</th>
+                    <th style={{ textTransform: 'none' }}>Next Run</th>
+                    <th style={{ textTransform: 'none' }}>Status</th>
+                    <th style={{ textTransform: 'none' }}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -849,12 +849,12 @@ function SchemaValidationTab({ selectedProject: initialProject }) {
               <table className="gps-bulk-table">
                 <thead>
                   <tr>
-                    <th>Job Name</th>
-                    <th>Files</th>
-                    <th>Valid</th>
-                    <th>Invalid</th>
-                    <th>Completed</th>
-                    <th>Report</th>
+                    <th style={{ textTransform: 'none' }}>Job Name</th>
+                    <th style={{ textTransform: 'none' }}>Files</th>
+                    <th style={{ textTransform: 'none' }}>Valid</th>
+                    <th style={{ textTransform: 'none' }}>Invalid</th>
+                    <th style={{ textTransform: 'none' }}>Completed</th>
+                    <th style={{ textTransform: 'none' }}>Report</th>
                   </tr>
                 </thead>
                 <tbody>
