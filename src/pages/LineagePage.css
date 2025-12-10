@@ -525,3 +525,41 @@
     stroke-dashoffset: -10;
   }
 }
+
+/* Grouped Node Styles */
+.lineage-node-grouped {
+  border-width: 2px;
+  border-style: dashed;
+  background: linear-gradient(145deg, #f8fafc, #e2e8f0);
+  cursor: pointer;
+}
+
+.lineage-node-grouped:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.lineage-grouped-expand-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  width: 100%;
+  margin-top: 8px;
+  padding: 6px 10px;
+  background: #025043;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.lineage-grouped-expand-btn:hover {
+  background: #013830;
+}
+
+.lineage-grouped-expand-btn svg {
+  font-size: 10px;
+}

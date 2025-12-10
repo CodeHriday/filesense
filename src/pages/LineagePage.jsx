@@ -26,6 +26,8 @@ import TransformationNode from '../components/lineageNodes/TransformationNode';
 import DerivedColumnNode from '../components/lineageNodes/DerivedColumnNode';
 import TargetTableNode from '../components/lineageNodes/TargetTableNode';
 import JobNode from '../components/lineageNodes/JobNode';
+import GroupedNode from '../components/lineageNodes/GroupedNode';
+import { FaUndo } from 'react-icons/fa';
 
 const nodeTypes = {
   vendorContract: VendorContractNode,
@@ -33,7 +35,8 @@ const nodeTypes = {
   transformation: TransformationNode,
   derivedColumn: DerivedColumnNode,
   targetTable: TargetTableNode,
-  job: JobNode
+  job: JobNode,
+  grouped: GroupedNode
 };
 
 const LineagePageContent = () => {
@@ -63,6 +66,10 @@ const LineagePageContent = () => {
     agreements: [],
     files: []
   });
+  
+  // Node grouping state
+  const [expandedGroups, setExpandedGroups] = useState(new Set());
+  const [originalGraphData, setOriginalGraphData] = useState({ nodes: [], edges: [] });
   
   // Fetch filter options on mount
   useEffect(() => {
@@ -109,6 +116,160 @@ const LineagePageContent = () => {
     setReactFlowInstance(instance);
   }, []);
   
+  // Group nodes by their level (determined by edges - nodes with same distance from root)
+  const getNodeLevels = (nodes, edges) => {
+    const levels = new Map();
+    const visited = new Set();
+    const inDegree = new Map();
+    
+    // Calculate in-degree for each node
+    nodes.forEach(n => inDegree.set(n.id, 0));
+    edges.forEach(e => {
+      const currentDegree = inDegree.get(e.target) || 0;
+      inDegree.set(e.target, currentDegree + 1);
+    });
+    
+    // Find root nodes (in-degree = 0)
+    let currentLevel = [];
+    nodes.forEach(n => {
+      if ((inDegree.get(n.id) || 0) === 0) {
+        currentLevel.push(n.id);
+        visited.add(n.id);
+        levels.set(n.id, 0);
+      }
+    });
+    
+    // BFS to assign levels
+    let level = 0;
+    while (currentLevel.length > 0) {
+      const nextLevel = [];
+      for (const nodeId of currentLevel) {
+        edges.filter(e => e.source === nodeId).forEach(e => {
+          if (!visited.has(e.target)) {
+            visited.add(e.target);
+            levels.set(e.target, level + 1);
+            nextLevel.push(e.target);
+          }
+        });
+      }
+      currentLevel = nextLevel;
+      level++;
+    }
+    
+    // Assign remaining unvisited nodes
+    nodes.forEach(n => {
+      if (!levels.has(n.id)) {
+        levels.set(n.id, level);
+      }
+    });
+    
+    return levels;
+  };
+  
+  // Apply node grouping - group nodes by type within each level
+  const applyNodeGrouping = useCallback((nodes, edges, expanded) => {
+    const levels = getNodeLevels(nodes, edges);
+    
+    // Group nodes by level and type
+    const levelTypeGroups = new Map();
+    nodes.forEach(node => {
+      const level = levels.get(node.id) || 0;
+      const groupKey = `${level}-${node.type}`;
+      if (!levelTypeGroups.has(groupKey)) {
+        levelTypeGroups.set(groupKey, []);
+      }
+      levelTypeGroups.get(groupKey).push(node);
+    });
+    
+    // Build grouped nodes and update edges
+    const groupedNodes = [];
+    const nodeToGroup = new Map();
+    
+    levelTypeGroups.forEach((groupNodes, groupKey) => {
+      if (groupNodes.length > 1 && !expanded.has(groupKey)) {
+        // Create a grouped node
+        const groupId = `group-${groupKey}`;
+        const groupType = groupNodes[0].type;
+        groupedNodes.push({
+          id: groupId,
+          type: 'grouped',
+          data: {
+            groupId: groupKey,
+            groupType: groupType,
+            count: groupNodes.length,
+            nodeIds: groupNodes.map(n => n.id),
+            onExpand: handleExpandGroup
+          },
+          position: { x: 0, y: 0 }
+        });
+        
+        // Map original nodes to group
+        groupNodes.forEach(n => nodeToGroup.set(n.id, groupId));
+      } else {
+        // Keep individual nodes
+        groupNodes.forEach(n => {
+          groupedNodes.push(n);
+          nodeToGroup.set(n.id, n.id);
+        });
+      }
+    });
+    
+    // Update edges to point to grouped nodes
+    const edgeSet = new Set();
+    const groupedEdges = [];
+    edges.forEach(edge => {
+      const newSource = nodeToGroup.get(edge.source) || edge.source;
+      const newTarget = nodeToGroup.get(edge.target) || edge.target;
+      const edgeKey = `${newSource}->${newTarget}`;
+      
+      if (!edgeSet.has(edgeKey) && newSource !== newTarget) {
+        edgeSet.add(edgeKey);
+        groupedEdges.push({
+          ...edge,
+          id: `${newSource}-to-${newTarget}`,
+          source: newSource,
+          target: newTarget
+        });
+      }
+    });
+    
+    return { groupedNodes, groupedEdges };
+  }, []);
+  
+  // Handle expanding a group
+  const handleExpandGroup = useCallback((groupId, groupType) => {
+    setExpandedGroups(prev => {
+      const next = new Set(prev);
+      next.add(groupId);
+      return next;
+    });
+  }, []);
+  
+  // Effect to reapply grouping when expanded groups change
+  useEffect(() => {
+    if (originalGraphData.nodes.length > 0) {
+      const { groupedNodes, groupedEdges } = applyNodeGrouping(
+        originalGraphData.nodes,
+        originalGraphData.edges,
+        expandedGroups
+      );
+      
+      const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(
+        groupedNodes,
+        groupedEdges,
+        'LR'
+      );
+      
+      setNodes(layoutedNodes);
+      setEdges(layoutedEdges);
+    }
+  }, [expandedGroups, originalGraphData, applyNodeGrouping]);
+  
+  // Reset all groups to collapsed state
+  const handleResetGroups = useCallback(() => {
+    setExpandedGroups(new Set());
+  }, []);
+  
   // Load lineage graph
   const loadGraph = async () => {
     if (!rootId) {
@@ -145,7 +306,6 @@ const LineagePageContent = () => {
             incidents: node.incidents,
             hasIncidents: node.hasIncidents,
             derivedColumns: node.derivedColumns,
-            // Handle positions will be set by dagre layout
           },
           position: { x: 0, y: 0 }, // Will be set by dagre
         }));
@@ -158,13 +318,21 @@ const LineagePageContent = () => {
           label: edge.label,
           type: 'smoothstep',
           animated: edge.relationship === 'DERIVES',
-          style: getEdgeStyle(edge.relationship)
+          style: getEdgeStyle(edge.relationship),
+          relationship: edge.relationship
         }));
+        
+        // Store original data for reset functionality
+        setOriginalGraphData({ nodes: flowNodes, edges: flowEdges });
+        setExpandedGroups(new Set());
+        
+        // Apply grouping and layout
+        const { groupedNodes, groupedEdges } = applyNodeGrouping(flowNodes, flowEdges, new Set());
         
         // Apply dagre layout to position nodes based on their connections
         const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(
-          flowNodes,
-          flowEdges,
+          groupedNodes,
+          groupedEdges,
           'LR' // Left to Right layout
         );
         
@@ -381,6 +549,16 @@ const LineagePageContent = () => {
         </div>
         
         <div className="lineage-controls-right">
+          {expandedGroups.size > 0 && (
+            <button
+              className="lineage-btn lineage-btn-secondary"
+              onClick={handleResetGroups}
+              title="Collapse all expanded groups"
+            >
+              <FaUndo /> Reset View
+            </button>
+          )}
+          
           <button
             className="lineage-btn lineage-btn-secondary"
             onClick={() => setShowFilters(!showFilters)}
