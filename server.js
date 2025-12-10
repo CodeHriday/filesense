@@ -5073,12 +5073,12 @@ app.get('/api/mappings/:mappingId/execution-logs', authenticateToken, async (req
       [mappingId]
     );
     
-    // Transform to frontend format
+    // Transform to frontend format - return ISO timestamps for consistent client-side formatting
     const runs = result.rows.map(row => ({
       id: row.run_id,
       name: row.run_name,
-      startedAt: row.started_at ? new Date(row.started_at).toLocaleString() : '',
-      status: row.status,
+      startedAt: row.started_at ? new Date(row.started_at).toISOString() : '',
+      status: row.status === 'completed' ? 'success' : row.status,
       logs: row.logs || []
     }));
     

@@ -1067,13 +1067,12 @@
 .visual-mapping-console-run-name {
   font-weight: 600;
   color: #ddd;
-  margin-right: 8px;
 }
 
 .visual-mapping-console-run-time {
   color: #888;
   font-size: 10px;
-  margin-left: auto;
+  margin-left: 12px;
 }
 
 .visual-mapping-console-run-logs {

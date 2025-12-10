@@ -307,6 +307,7 @@ export const useVisualMappingExecution = () => {
   }, []);
 
   // Load runs from backend (call on component mount)
+  // Merges with existing in-memory runs by run_id to avoid duplicates
   const loadRunsFromBackend = useCallback(async (mappingId) => {
     if (!mappingId) return;
     
@@ -321,8 +322,39 @@ export const useVisualMappingExecution = () => {
       if (response.ok) {
         const data = await response.json();
         if (data.runs && data.runs.length > 0) {
-          setExecutionRuns(data.runs);
-          runsRef.current = data.runs;
+          setExecutionRuns(prev => {
+            // Create a map of existing runs by ID for quick lookup
+            const existingRunsMap = new Map(prev.map(r => [r.id, r]));
+            
+            // Merge backend runs with existing runs, preferring in-memory status for running executions
+            const mergedRuns = data.runs.map(backendRun => {
+              const existingRun = existingRunsMap.get(backendRun.id);
+              if (existingRun) {
+                // Keep in-memory run if it's still running (more recent status)
+                if (existingRun.status === 'running') {
+                  return existingRun;
+                }
+                // Otherwise use backend data but keep any additional logs from memory
+                return {
+                  ...backendRun,
+                  logs: backendRun.logs.length >= existingRun.logs.length ? backendRun.logs : existingRun.logs
+                };
+              }
+              return backendRun;
+            });
+            
+            // Add any in-memory runs that aren't in the backend yet
+            prev.forEach(memRun => {
+              if (!data.runs.find(r => r.id === memRun.id)) {
+                mergedRuns.unshift(memRun);
+              }
+            });
+            
+            // Keep only the last 10 runs
+            const trimmed = mergedRuns.slice(0, 10);
+            runsRef.current = trimmed;
+            return trimmed;
+          });
         }
       }
     } catch (err) {
