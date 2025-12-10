@@ -1076,24 +1076,24 @@ async function getNodeDetails(nodeId, nodeType, projectId) {
         // Get column metadata with governance tags
         const columnsResult = await pool.query(`
           SELECT 
-            fcm.column_name,
-            fcm.column_type,
-            fcm.column_index,
-            fcm.null_count,
-            fcm.unique_count,
-            fcm.min_value,
-            fcm.max_value,
-            fcm.most_frequent_value,
-            fcm.top_values,
+            fc.column_name,
+            fc.column_type,
+            fc.column_index,
+            fc.null_count,
+            fc.unique_count,
+            fc.min_value,
+            fc.max_value,
+            fc.most_frequent_value,
+            fc.top_values,
             COALESCE(
               (SELECT array_agg(DISTINCT cta.tag_id) 
                FROM column_governance_tag_assignments cta 
-               WHERE cta.file_id = $1 AND cta.column_name = fcm.column_name),
+               WHERE cta.file_id = $1 AND cta.column_name = fc.column_name),
               ARRAY[]::text[]
             ) as governance_tags
-          FROM file_column_metadata fcm
-          WHERE fcm.file_id = $1
-          ORDER BY fcm.column_index
+          FROM file_columns fc
+          WHERE fc.file_id = $1
+          ORDER BY fc.column_index
         `, [fileData.file_id]);
         
         fileData.columns = columnsResult.rows;
