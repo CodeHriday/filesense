@@ -123,6 +123,17 @@
   font-weight: 600;
 }
 
+.workflow-name-link {
+  color: #025043;
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+
+.workflow-name-link:hover {
+  color: #014037;
+  text-decoration: underline;
+}
+
 .workflow-type {
   color: #6b7280;
 }

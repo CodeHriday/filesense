@@ -261,7 +261,15 @@ const WorkflowManager = () => {
 
                   return (
                     <tr key={workflow.id}>
-                      <td className="workflow-name">{workflow.name}</td>
+                      <td className="workflow-name">
+                        <span 
+                          className="workflow-name-link" 
+                          onClick={() => handleEdit(workflow.id)}
+                          title="Click to edit workflow"
+                        >
+                          {workflow.name}
+                        </span>
+                      </td>
                       <td className="workflow-type">Visual Workflow</td>
                       <td className="workflow-schedule">
                         {schedule ? (
