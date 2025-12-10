@@ -136,7 +136,7 @@ export const APP_FEATURES = [
     showInSidebar: true
   },
   { 
-    id: 'workflow_manager', 
+    id: 'workflow', 
     name: 'Visual Workflows', 
     category: 'Job Design', 
     supportsExecute: true,
