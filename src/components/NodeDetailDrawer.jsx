@@ -271,6 +271,7 @@ const NodeDetailDrawer = ({ node, open, onClose }) => {
     const isContract = node.data?.type === 'vendorContract';
     const isFile = node.data?.type === 'sourceFile';
     const isTransformation = node.data?.type === 'transformation';
+    const isWorkflow = node.data?.type === 'workflow';
     
     return (
       <div className="drawer-content">
@@ -484,8 +485,8 @@ const NodeDetailDrawer = ({ node, open, onClose }) => {
           </section>
         )}
         
-        {/* Extended Details from Backend - skip for contracts, files, and transformations */}
-        {details && !isContract && !isFile && !isTransformation && (
+        {/* Extended Details from Backend - skip for contracts, files, transformations, and workflows */}
+        {details && !isContract && !isFile && !isTransformation && !isWorkflow && (
           <section className="drawer-section">
             <h3>Extended Information</h3>
             <div className="drawer-metadata">
@@ -531,7 +532,8 @@ const NodeDetailDrawer = ({ node, open, onClose }) => {
       'vendorContract': 'Vendor Contract',
       'transformation': 'Transformation',
       'derivedColumn': 'Derived Column',
-      'job': 'Job'
+      'job': 'Job',
+      'workflow': 'Workflow'
     };
     return typeMap[type] || type.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
   };
