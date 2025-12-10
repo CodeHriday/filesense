@@ -319,7 +319,7 @@ function SchemaValidationTab({ selectedProject: initialProject }) {
       const jobData = {
         jobName: `Schema Validation - ${s3Path}`,
         projectId: parseInt(selectedProject),
-        connectionId: parseInt(selectedConnection),
+        connectionId: selectedConnection,
         vendorAgreementId: parseInt(selectedAgreement),
         s3Path,
         filePattern,
