@@ -761,12 +761,27 @@ function ColumnPolicyModal({ fileId, columnName, currentPolicies, availablePolic
 function DataProfile() {
   const { fileId: encodedFileId } = useParams();
   const fileId = decodeURIComponent(encodedFileId || '');
-  const { currentUser, hasPermission } = useAuth();
+  const { currentUser, hasPermission, hasRole } = useAuth();
+  
+  // Check if user is a Vendor User - they should not see DQ Suggestions, Quality Rules, and Schema Builder tabs
+  const isVendorUser = hasRole('Vendor User');
+  
+  // Restricted tabs that Vendor Users cannot access
+  const vendorRestrictedTabs = ['ai-suggestions', 'quality-rules', 'schema-builder'];
+  
   const [file, setFile] = useState(null);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('attributes');
+  
+  // Reset activeTab to 'attributes' if Vendor User has a restricted tab selected
+  useEffect(() => {
+    if (isVendorUser && vendorRestrictedTabs.includes(activeTab)) {
+      setActiveTab('attributes');
+    }
+  }, [isVendorUser, activeTab]);
+  
   const [ownership, setOwnership] = useState(null);
   const [showOwnershipModal, setShowOwnershipModal] = useState(false);
   const [policies, setPolicies] = useState([]);
@@ -3722,24 +3737,30 @@ function DataProfile() {
             >
               <FiTable style={{ marginRight: '6px' }} /> Preview
             </button>
-            <button 
-              className={`gps-tab ${activeTab === 'ai-suggestions' ? 'gps-tab--active' : ''}`}
-              onClick={() => setActiveTab('ai-suggestions')}
-            >
-              <FiZap style={{ marginRight: '6px' }} /> DQ Suggestions
-            </button>
-            <button 
-              className={`gps-tab ${activeTab === 'quality-rules' ? 'gps-tab--active' : ''}`}
-              onClick={() => setActiveTab('quality-rules')}
-            >
-              <FiCheckCircle style={{ marginRight: '6px' }} /> Quality Rules
-            </button>
-            <button 
-              className={`gps-tab ${activeTab === 'schema-builder' ? 'gps-tab--active' : ''}`}
-              onClick={() => setActiveTab('schema-builder')}
-            >
-              <FiFileText style={{ marginRight: '6px' }} /> Schema Builder
-            </button>
+            {!isVendorUser && (
+              <button 
+                className={`gps-tab ${activeTab === 'ai-suggestions' ? 'gps-tab--active' : ''}`}
+                onClick={() => setActiveTab('ai-suggestions')}
+              >
+                <FiZap style={{ marginRight: '6px' }} /> DQ Suggestions
+              </button>
+            )}
+            {!isVendorUser && (
+              <button 
+                className={`gps-tab ${activeTab === 'quality-rules' ? 'gps-tab--active' : ''}`}
+                onClick={() => setActiveTab('quality-rules')}
+              >
+                <FiCheckCircle style={{ marginRight: '6px' }} /> Quality Rules
+              </button>
+            )}
+            {!isVendorUser && (
+              <button 
+                className={`gps-tab ${activeTab === 'schema-builder' ? 'gps-tab--active' : ''}`}
+                onClick={() => setActiveTab('schema-builder')}
+              >
+                <FiFileText style={{ marginRight: '6px' }} /> Schema Builder
+              </button>
+            )}
           </div>
           
           <div className="profile-content">
@@ -3747,8 +3768,8 @@ function DataProfile() {
             {activeTab === 'profile' && renderColumnsTab()}
             {activeTab === 'schema-history' && <SchemaHistoryTab fileId={fileId} />}
             {activeTab === 'preview' && renderPreviewTab()}
-            {activeTab === 'quality-rules' && renderQualityRulesTab()}
-            {activeTab === 'ai-suggestions' && (
+            {activeTab === 'quality-rules' && !isVendorUser && renderQualityRulesTab()}
+            {activeTab === 'ai-suggestions' && !isVendorUser && (
               <AIDQSuggestionsTab 
                 fileId={fileId}
                 filename={file?.filename}
@@ -3756,7 +3777,7 @@ function DataProfile() {
                 projectId={file?.project_id}
               />
             )}
-            {activeTab === 'schema-builder' && renderSchemaBuilderTab()}
+            {activeTab === 'schema-builder' && !isVendorUser && renderSchemaBuilderTab()}
           </div>
         </>
       ) : (
