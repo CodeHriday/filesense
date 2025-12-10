@@ -324,7 +324,7 @@ function SchemaValidationTab({ selectedProject: initialProject }) {
         s3Path,
         filePattern,
         recursive,
-        files: discoveredFiles.map(f => f.key),
+        files: discoveredFiles.map(f => f.path || f.key || f.name).filter(Boolean),
         executionType,
         scheduleType: executionType === 'scheduled' ? scheduleType : null,
         cronExpression: executionType === 'scheduled' && scheduleType === 'recurring' ? cronExpression : null,

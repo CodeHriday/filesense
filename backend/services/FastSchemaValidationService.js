@@ -72,15 +72,28 @@ class FastSchemaValidationService {
       const job = jobResult.rows[0];
 
       if (files && files.length > 0) {
-        const fileValues = files.map((filePath, index) => 
-          `($1, $${index + 2}, 'pending')`
-        ).join(', ');
+        // Filter out null/undefined/empty file paths
+        const validFiles = files.filter(f => f && typeof f === 'string' && f.trim().length > 0);
         
-        await client.query(
-          `INSERT INTO schema_validation_job_files (job_id, file_path, status)
-           VALUES ${fileValues}`,
-          [job.id, ...files]
-        );
+        if (validFiles.length > 0) {
+          const fileValues = validFiles.map((filePath, index) => 
+            `($1, $${index + 2}, 'pending')`
+          ).join(', ');
+          
+          await client.query(
+            `INSERT INTO schema_validation_job_files (job_id, file_path, status)
+             VALUES ${fileValues}`,
+            [job.id, ...validFiles]
+          );
+          
+          // Update total_files count if it changed
+          if (validFiles.length !== files.length) {
+            await client.query(
+              `UPDATE schema_validation_jobs SET total_files = $1 WHERE id = $2`,
+              [validFiles.length, job.id]
+            );
+          }
+        }
       }
 
       await client.query('COMMIT');
