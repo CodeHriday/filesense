@@ -8,7 +8,6 @@ import Pagination from '../components/Pagination';
 import { PageTransition } from '../components/MicroAnimations';
 import ConfirmModal from '../components/ConfirmModal';
 import { groupWorkflowsByProject, initializeExpansionState } from '../utils/workflowGrouping';
-import '../styles/NStepWorkflows.css';
 
 const NStepWorkflows = () => {
   const navigate = useNavigate();

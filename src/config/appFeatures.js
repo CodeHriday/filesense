@@ -147,15 +147,6 @@ export const APP_FEATURES = [
   
   // Jobs and Monitoring
   { 
-    id: 'workflow_builder', 
-    name: 'Visual Workflow Builder', 
-    category: 'Job Design', 
-    supportsExecute: true,
-    icon: FiGrid,
-    route: '/workflow-builder',
-    showInSidebar: true
-  },
-  { 
     id: 'schedule', 
     name: 'Job Schedules', 
     category: 'Jobs and Monitoring', 
