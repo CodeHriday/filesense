@@ -388,17 +388,11 @@ const NodeDetailDrawer = ({ node, open, onClose }) => {
                         <span className="drawer-column-type">{col.column_type || 'unknown'}</span>
                       </div>
                       <div className="drawer-column-meta">
-                        {col.unique_count !== null && col.unique_count !== undefined && (
-                          <span className="drawer-column-stat">Unique: {col.unique_count}</span>
+                        {col.precision && (
+                          <span className="drawer-column-stat">Precision: {col.precision}</span>
                         )}
-                        {col.null_count !== null && col.null_count !== undefined && (
-                          <span className="drawer-column-stat">Nulls: {col.null_count}</span>
-                        )}
-                        {col.min_value && (
-                          <span className="drawer-column-stat">Min: {col.min_value}</span>
-                        )}
-                        {col.max_value && (
-                          <span className="drawer-column-stat">Max: {col.max_value}</span>
+                        {col.scale !== null && col.scale !== undefined && (
+                          <span className="drawer-column-stat">Scale: {col.scale}</span>
                         )}
                       </div>
                       {hasTags && (
@@ -527,6 +521,21 @@ const NodeDetailDrawer = ({ node, open, onClose }) => {
     );
   };
   
+  // Format node type for display (Title Case)
+  const formatNodeType = (type) => {
+    if (!type) return '';
+    const typeMap = {
+      'sourceFile': 'Source File',
+      'targetFile': 'Target File',
+      'targetTable': 'Target Table',
+      'vendorContract': 'Vendor Contract',
+      'transformation': 'Transformation',
+      'derivedColumn': 'Derived Column',
+      'job': 'Job'
+    };
+    return typeMap[type] || type.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
+  };
+  
   return (
     <div className={`node-detail-drawer ${open ? 'open' : ''}`}>
       <div className="drawer-overlay" onClick={onClose}></div>
@@ -536,7 +545,7 @@ const NodeDetailDrawer = ({ node, open, onClose }) => {
             {getIcon()}
             <div>
               <div className="drawer-title-main">{node.data.label}</div>
-              <div className="drawer-title-sub">{node.data.type}</div>
+              <div className="drawer-title-sub">{formatNodeType(node.data.type)}</div>
             </div>
           </div>
           <button className="drawer-close" onClick={onClose}>
