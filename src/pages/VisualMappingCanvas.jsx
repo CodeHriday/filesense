@@ -284,7 +284,8 @@ const formatRunDate = (dateStr) => {
   try {
     const date = new Date(dateStr);
     if (isNaN(date.getTime())) return dateStr;
-    return date.toLocaleString();
+    // Use ISO format for consistency with log timestamps
+    return date.toISOString();
   } catch {
     return dateStr;
   }
