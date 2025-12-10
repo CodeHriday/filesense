@@ -85,9 +85,9 @@ router.get('/:auditId/logs', async (req, res) => {
   const { limit = 100 } = req.query;
 
   try {
-    // First, get the audit record to find the related job_id or correlation_id
+    // First, get the audit record to find the related correlation_id
     const auditResult = await pool.query(
-      'SELECT id, correlation_id, job_id FROM file_audit_details WHERE id = $1',
+      'SELECT id, correlation_id, transformation_job_id FROM file_audit_details WHERE id = $1',
       [auditId]
     );
 
@@ -96,41 +96,29 @@ router.get('/:auditId/logs', async (req, res) => {
     }
 
     const audit = auditResult.rows[0];
-    const jobId = audit.job_id;
+    const correlationId = audit.correlation_id;
 
-    // If no job_id, try to find it via correlation_id from transformation_jobs
-    let finalJobId = jobId;
-    if (!finalJobId && audit.correlation_id) {
-      const jobResult = await pool.query(
-        'SELECT id FROM transformation_jobs WHERE correlation_id = $1 ORDER BY created_at DESC LIMIT 1',
-        [audit.correlation_id]
-      );
-      if (jobResult.rows.length > 0) {
-        finalJobId = jobResult.rows[0].id;
-      }
-    }
-
-    // Fetch logs if we have a job_id
+    // Fetch logs using correlation_id which matches job_id in transformation_logs
     let logs = [];
-    if (finalJobId) {
+    if (correlationId) {
       const logsResult = await pool.query(
         `SELECT 
           timestamp,
           log_level as level,
           message,
-          metadata
+          log_details as metadata
         FROM transformation_logs 
         WHERE job_id = $1 
         ORDER BY timestamp ASC 
         LIMIT $2`,
-        [finalJobId, limit]
+        [correlationId, parseInt(limit)]
       );
       logs = logsResult.rows;
     }
 
     res.json({
       auditId: auditId,
-      jobId: finalJobId,
+      jobId: correlationId,
       logs: logs,
       total: logs.length
     });

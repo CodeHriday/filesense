@@ -30,6 +30,17 @@ function Monitor() {
     jobId: ''
   });
   
+  const [auditFilters, setAuditFilters] = useState({
+    status: '',
+    mappingName: '',
+    jobId: ''
+  });
+  
+  const [bulkFilters, setBulkFilters] = useState({
+    status: '',
+    jobName: ''
+  });
+  
   useEffect(() => {
     if (activeTab === 'file-audit') {
       fetchAuditData();
@@ -46,12 +57,18 @@ function Monitor() {
       const token = localStorage.getItem('token');
       const offset = (currentPage - 1) * pageSize;
       
+      const params = {
+        limit: pageSize,
+        offset: offset
+      };
+      
+      if (auditFilters.status) params.status = auditFilters.status;
+      if (auditFilters.mappingName) params.mappingName = auditFilters.mappingName;
+      if (auditFilters.jobId) params.correlationId = auditFilters.jobId;
+      
       const response = await axios.get('/api/file-audit', {
         headers: { Authorization: `Bearer ${token}` },
-        params: {
-          limit: pageSize,
-          offset: offset
-        }
+        params
       });
       
       setAudits(response.data.audits || []);
@@ -65,18 +82,41 @@ function Monitor() {
     }
   };
   
+  const handleAuditFilterChange = (key, value) => {
+    setAuditFilters(prev => ({ ...prev, [key]: value }));
+  };
+  
+  const applyAuditFilters = () => {
+    setCurrentPage(1);
+    fetchAuditData();
+  };
+  
+  const handleBulkFilterChange = (key, value) => {
+    setBulkFilters(prev => ({ ...prev, [key]: value }));
+  };
+  
+  const applyBulkFilters = () => {
+    setCurrentPage(1);
+    fetchBulkJobs();
+  };
+  
   const fetchBulkJobs = async () => {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
       const offset = (currentPage - 1) * pageSize;
       
+      const params = {
+        limit: pageSize,
+        offset: offset
+      };
+      
+      if (bulkFilters.status) params.status = bulkFilters.status;
+      if (bulkFilters.jobName) params.jobName = bulkFilters.jobName;
+      
       const response = await axios.get('/api/bulk-profiling/jobs', {
         headers: { Authorization: `Bearer ${token}` },
-        params: {
-          limit: pageSize,
-          offset: offset
-        }
+        params
       });
       
       setBulkJobs(response.data.jobs || []);
@@ -330,6 +370,39 @@ function Monitor() {
         <>
           {activeTab === 'file-audit' && (
           <div className="gps-table-container">
+            <div className="gps-filter-bar" style={{ marginBottom: '16px', display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
+              <input
+                type="text"
+                placeholder="Filter by Job ID..."
+                value={auditFilters.jobId}
+                onChange={(e) => handleAuditFilterChange('jobId', e.target.value)}
+                className="gps-filter-input"
+                style={{ width: '200px' }}
+              />
+              <input
+                type="text"
+                placeholder="Filter by Mapping Name..."
+                value={auditFilters.mappingName}
+                onChange={(e) => handleAuditFilterChange('mappingName', e.target.value)}
+                className="gps-filter-input"
+                style={{ width: '200px' }}
+              />
+              <select
+                value={auditFilters.status}
+                onChange={(e) => handleAuditFilterChange('status', e.target.value)}
+                className="gps-filter-select"
+              >
+                <option value="">All Statuses</option>
+                <option value="completed">Completed</option>
+                <option value="running">Running</option>
+                <option value="failed">Failed</option>
+                <option value="pending">Pending</option>
+              </select>
+              <button onClick={applyAuditFilters} className="gps-btn-primary">
+                Apply Filters
+              </button>
+            </div>
+            
             <div style={{ overflowX: 'auto' }}>
               <table className="gps-table">
                 <thead>
@@ -557,6 +630,31 @@ function Monitor() {
           
           {activeTab === 'bulk-profiling' && (
           <div className="gps-table-container">
+            <div className="gps-filter-bar" style={{ marginBottom: '16px', display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
+              <input
+                type="text"
+                placeholder="Filter by Job Name..."
+                value={bulkFilters.jobName}
+                onChange={(e) => handleBulkFilterChange('jobName', e.target.value)}
+                className="gps-filter-input"
+                style={{ width: '200px' }}
+              />
+              <select
+                value={bulkFilters.status}
+                onChange={(e) => handleBulkFilterChange('status', e.target.value)}
+                className="gps-filter-select"
+              >
+                <option value="">All Statuses</option>
+                <option value="completed">Completed</option>
+                <option value="running">Running</option>
+                <option value="failed">Failed</option>
+                <option value="pending">Pending</option>
+              </select>
+              <button onClick={applyBulkFilters} className="gps-btn-primary">
+                Apply Filters
+              </button>
+            </div>
+            
             <div style={{ overflowX: 'auto' }}>
               <table className="gps-table">
                 <thead>
