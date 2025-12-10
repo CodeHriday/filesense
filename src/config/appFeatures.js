@@ -157,14 +157,6 @@ export const APP_FEATURES = [
     showInSidebar: true
   },
   { 
-    id: 'jobs', 
-    name: 'Jobs', 
-    category: 'Jobs and Monitoring',
-    icon: FiPlay,
-    route: '/jobs',
-    showInSidebar: true
-  },
-  { 
     id: 'monitor', 
     name: 'Monitor', 
     category: 'Jobs and Monitoring',
@@ -486,6 +478,14 @@ export const APP_FEATURES = [
     category: 'Insights',
     icon: FiBookOpen,
     route: '/stories',
+    showInSidebar: true
+  },
+  { 
+    id: 'jobs', 
+    name: 'Jobs', 
+    category: 'Insights',
+    icon: FiPlay,
+    route: '/jobs',
     showInSidebar: true
   }
 ];
