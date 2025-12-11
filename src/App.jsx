@@ -57,9 +57,6 @@ const LineageListPage = lazy(() => import('./pages/LineageListPage'));
 const Monitor = lazy(() => import('./pages/Monitor'));
 const Scheduler = lazy(() => import('./pages/Scheduler'));
 const Badges = lazy(() => import('./pages/Badges'));
-const DataInsights = lazy(() => import('./pages/DataInsights'));
-const FileInsights = lazy(() => import('./pages/FileInsights'));
-const Recommendations = lazy(() => import('./pages/Recommendations'));
 const DataStories = lazy(() => import('./pages/DataStories'));
 const DashboardSettings = lazy(() => import('./pages/DashboardSettings'));
 const UserManagement = lazy(() => import('./pages/UserManagement'));
@@ -301,9 +298,6 @@ function AppContent({ showOnboarding, setShowOnboarding }) {
                 <Route path="/monitor" element={<ProtectedRoute><Monitor /></ProtectedRoute>} />
                 <Route path="/scheduler" element={<ProtectedRoute><Scheduler /></ProtectedRoute>} />
                 <Route path="/badges" element={<ProtectedRoute><Badges /></ProtectedRoute>} />
-                <Route path="/insights" element={<ProtectedRoute><DataInsights /></ProtectedRoute>} />
-                <Route path="/file-insights" element={<ProtectedRoute><FileInsights /></ProtectedRoute>} />
-                <Route path="/recommendations" element={<ProtectedRoute><Recommendations /></ProtectedRoute>} />
                 <Route path="/stories" element={<ProtectedRoute><DataStories /></ProtectedRoute>} />
                 <Route path="/dashboard-settings" element={<ProtectedRoute><DashboardSettings /></ProtectedRoute>} />
                 <Route path="/users" element={<ProtectedRoute><UserManagement /></ProtectedRoute>} />

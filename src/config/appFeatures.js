@@ -447,35 +447,11 @@ export const APP_FEATURES = [
     showInSidebar: true
   },
   
-  // Insights
-  { 
-    id: 'file_insights', 
-    name: 'File Insights', 
-    category: 'Insights',
-    icon: FiTrendingUp,
-    route: '/file-insights',
-    showInSidebar: true
-  },
-  { 
-    id: 'recommendations', 
-    name: 'Recommendations', 
-    category: 'Insights',
-    icon: FiTrendingUp,
-    route: '/recommendations',
-    showInSidebar: true
-  },
-  { 
-    id: 'insights', 
-    name: 'All Insights', 
-    category: 'Insights',
-    icon: FiMessageSquare,
-    route: '/insights',
-    showInSidebar: true
-  },
+  // Data Stories & Jobs
   { 
     id: 'stories', 
     name: 'Data Stories', 
-    category: 'Insights',
+    category: 'Jobs and Monitoring',
     icon: FiBookOpen,
     route: '/stories',
     showInSidebar: true
@@ -483,7 +459,7 @@ export const APP_FEATURES = [
   { 
     id: 'jobs', 
     name: 'Jobs', 
-    category: 'Insights',
+    category: 'Jobs and Monitoring',
     icon: FiPlay,
     route: '/jobs',
     showInSidebar: true
@@ -498,8 +474,7 @@ export const FEATURE_CATEGORIES_ORDER = [
   'Job Design',
   'Jobs and Monitoring',
   'Governance',
-  'Vendor Management',
-  'Insights'
+  'Vendor Management'
 ];
 
 // Group features by category (used by RoleManagement)
@@ -520,8 +495,7 @@ export const getSidebarCategoryName = (category) => {
     'Jobs and Monitoring': 'Jobs and Monitoring',
     'Governance': 'Data Governance',
     'Administration': 'Administration',
-    'Vendor Management': 'Vendor Management',
-    'Insights': 'Insights'
+    'Vendor Management': 'Vendor Management'
   };
   return mapping[category] || category;
 };
