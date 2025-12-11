@@ -420,23 +420,58 @@ class FastSchemaValidationService {
         // Process batch in parallel with per-file progress updates
         const batchPromises = batch.map(async (file) => {
           const filePath = file.file_path || file.filePath;
+          const isExtracted = file.isExtracted === true;
+          const originalArchive = file.originalArchive;
           let result;
           let isValid = false;
           let isError = false;
           
+          // Handle archive extraction errors
+          if (file.archiveError) {
+            result = {
+              filePath,
+              valid: false,
+              fileType: path.extname(filePath).slice(1).toLowerCase() || 'unknown',
+              fileSize: null,
+              fileSizeFormatted: '-',
+              recordCount: null,
+              error: file.archiveError,
+              reason: `Archive extraction failed: ${file.archiveError}`
+            };
+            isError = true;
+            
+            if (file.id) {
+              await pool.query(
+                `UPDATE schema_validation_job_files 
+                 SET status = 'error', error_message = $2, validation_result = $3, updated_at = NOW()
+                 WHERE id = $1`,
+                [file.id, file.archiveError, JSON.stringify(result)]
+              );
+            }
+            
+            progressTracker.processedCount++;
+            progressTracker.errorCount++;
+            updateProgress();
+            
+            return { result, isValid: false, isError: true };
+          }
+          
           try {
-            // Get file metadata (size, type)
+            // Get file metadata (size, type) - handle local extracted files
             const fileMetadata = await this.getFileMetadata(
               s3, 
               connectionCredentials.bucket, 
-              filePath
+              filePath,
+              isExtracted
             );
             
             const validationResult = await this.validateFileMetadata(
               s3,
               connectionCredentials.bucket,
               filePath,
-              agreementSchema
+              agreementSchema,
+              isExtracted,
+              originalArchive
             );
 
             // Merge metadata with validation result
@@ -467,7 +502,8 @@ class FastSchemaValidationService {
                     connectionCredentials.bucket,
                     filePath,
                     fileMetadata.fileType,
-                    100 // Limit to 100 rows for performance
+                    100, // Limit to 100 rows for performance
+                    isExtracted
                   );
                   
                   if (sampleData && sampleData.length > 0) {
@@ -1117,17 +1153,26 @@ except Exception as e:
 
   /**
    * Validate file metadata against schema
+   * @param {Object} s3 - S3 client
+   * @param {string} bucket - S3 bucket name
+   * @param {string} filePath - Path to file (S3 or local)
+   * @param {Object} agreementSchema - Schema to validate against
+   * @param {boolean} isExtracted - Whether file was extracted from archive
+   * @param {string} originalArchive - Original archive path (for pattern matching)
    */
-  static async validateFileMetadata(s3, bucket, filePath, agreementSchema) {
+  static async validateFileMetadata(s3, bucket, filePath, agreementSchema, isExtracted = false, originalArchive = null) {
     const fileName = path.basename(filePath);
     const fileExtension = path.extname(fileName).toLowerCase().slice(1);
+    
+    // For extracted files, use the original archive name for pattern matching
+    const patternMatchName = originalArchive ? path.basename(originalArchive) : fileName;
 
     let expectedSchema;
     let matchedPattern = null;
 
     if (agreementSchema.type === 'multi-pattern') {
       for (const pattern of agreementSchema.patterns) {
-        if (matchesPattern(fileName, pattern.file_name_pattern)) {
+        if (matchesPattern(patternMatchName, pattern.file_name_pattern)) {
           expectedSchema = pattern.schema;
           matchedPattern = pattern.file_name_pattern;
           break;
@@ -1158,7 +1203,7 @@ except Exception as e:
 
     let actualColumns;
     try {
-      actualColumns = await this.extractFileColumns(s3, bucket, filePath, fileExtension);
+      actualColumns = await this.extractFileColumns(s3, bucket, filePath, fileExtension, isExtracted);
     } catch (err) {
       return {
         valid: false,
@@ -1198,7 +1243,7 @@ except Exception as e:
     // Get record count for the file
     let recordCount = null;
     try {
-      recordCount = await this.getRecordCount(s3, bucket, filePath, fileExtension);
+      recordCount = await this.getRecordCount(s3, bucket, filePath, fileExtension, isExtracted);
     } catch (countErr) {
       systemLogger.warn('Failed to count records', { filePath, error: countErr.message });
     }
@@ -1223,11 +1268,11 @@ except Exception as e:
   /**
    * Get record count for a file (approximate for large files)
    */
-  static async getRecordCount(s3, bucket, filePath, fileExtension) {
+  static async getRecordCount(s3, bucket, filePath, fileExtension, isExtracted = false) {
     const s3Key = this.extractS3Key(filePath, bucket);
     
     // Check if this is a local file (extracted from archive)
-    if (fs.existsSync(filePath)) {
+    if ((isExtracted && fs.existsSync(filePath)) || (!filePath.startsWith('s3://') && fs.existsSync(filePath))) {
       return this.countRecordsFromBuffer(fs.readFileSync(filePath), fileExtension);
     }
     
@@ -1555,19 +1600,36 @@ except Exception as e:
 
   /**
    * Extract column headers from file (metadata only - no full read)
+   * @param {Object} s3 - S3 client
+   * @param {string} bucket - S3 bucket name
+   * @param {string} filePath - Path to file (S3 or local)
+   * @param {string} fileExtension - File extension
+   * @param {boolean} isExtracted - Whether file was extracted from archive (local file)
    */
-  static async extractFileColumns(s3, bucket, filePath, fileExtension) {
-    // Extract the actual S3 key from the file path (handles s3:// URIs)
-    const s3Key = this.extractS3Key(filePath, bucket);
+  static async extractFileColumns(s3, bucket, filePath, fileExtension, isExtracted = false) {
+    let buffer;
     
-    const params = {
-      Bucket: bucket,
-      Key: s3Key,
-      Range: 'bytes=0-65536'
-    };
+    // Handle local extracted files
+    if (isExtracted && fs.existsSync(filePath)) {
+      // Read first 64KB of local file
+      const fd = fs.openSync(filePath, 'r');
+      buffer = Buffer.alloc(65536);
+      const bytesRead = fs.readSync(fd, buffer, 0, 65536, 0);
+      fs.closeSync(fd);
+      buffer = buffer.slice(0, bytesRead);
+    } else {
+      // Read from S3
+      const s3Key = this.extractS3Key(filePath, bucket);
+      
+      const params = {
+        Bucket: bucket,
+        Key: s3Key,
+        Range: 'bytes=0-65536'
+      };
 
-    const response = await s3.getObject(params).promise();
-    const buffer = response.Body;
+      const response = await s3.getObject(params).promise();
+      buffer = response.Body;
+    }
 
     switch (fileExtension) {
       case 'csv':
@@ -1580,7 +1642,10 @@ except Exception as e:
       case 'xml':
         return this.extractXMLColumns(buffer);
       case 'parquet':
-        return await this.extractParquetColumns(s3, bucket, s3Key);
+        if (isExtracted && fs.existsSync(filePath)) {
+          return await this.extractParquetColumnsFromLocal(filePath);
+        }
+        return await this.extractParquetColumns(s3, bucket, this.extractS3Key(filePath, bucket));
       case 'dat':
       case 'txt':
         return this.extractFixedWidthColumns(buffer);
@@ -1767,6 +1832,48 @@ except Exception as e:
         error: error.message,
         bucket,
         key: s3Key
+      });
+      throw new Error(`Parquet schema extraction failed: ${error.message}`);
+    }
+  }
+
+  /**
+   * Extract columns from local Parquet file (for extracted archives)
+   */
+  static async extractParquetColumnsFromLocal(localFilePath) {
+    try {
+      const buffer = fs.readFileSync(localFilePath);
+      
+      // Use dynamic import for hyparquet (ESM module)
+      const hyparquet = await import('hyparquet');
+      const parquetMetadata = hyparquet.parquetMetadata;
+      
+      // Properly convert Node.js Buffer to ArrayBuffer
+      const arrayBuffer = new Uint8Array(buffer).buffer;
+      
+      const metadata = parquetMetadata(arrayBuffer);
+      
+      if (metadata && metadata.schema && metadata.schema.length > 0) {
+        // First element is usually the root schema, columns start from index 1
+        const columns = metadata.schema
+          .slice(1)
+          .filter(col => col.name)
+          .map(col => col.name);
+        
+        if (columns.length > 0) {
+          systemLogger.info('Extracted Parquet schema from local file', {
+            filePath: localFilePath,
+            columnCount: columns.length
+          });
+          return columns;
+        }
+      }
+      
+      throw new Error('Could not extract schema from Parquet file');
+    } catch (error) {
+      systemLogger.error('Local Parquet schema extraction failed', { 
+        error: error.message,
+        filePath: localFilePath
       });
       throw new Error(`Parquet schema extraction failed: ${error.message}`);
     }
