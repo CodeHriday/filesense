@@ -366,30 +366,24 @@ class FastSchemaValidationService {
         jobId
       );
       
-      // Use expanded file list if archives were found
-      if (expandedFiles.length > files.length) {
-        files = expandedFiles;
-        await this.updateJobStatus(jobId, 'running', {
-          total_files: files.length
-        });
-      }
+      // Always use expanded file list - expandArchiveFiles replaces archives with their extracted contents
+      // Archives are NOT included in expanded list when extraction succeeds (only extracted files are)
+      // Archives WITH errors ARE included (with archiveError flag) to report the failure
+      files = expandedFiles;
       
-      // Filter out archives that were successfully processed (their contents are now separate entries)
-      // Keep only: non-archives, extracted files, and archives with errors (to report the error)
-      const originalFileCount = files.length;
-      files = files.filter(file => {
-        // Keep files that are extracted from archives
-        if (file.isExtracted) return true;
-        // Keep archives with errors (to report the extraction error)
-        if (file.archiveError) return true;
-        // Skip archives that were successfully processed (replaced by extracted files)
-        if (file.archiveProcessed) return false;
-        // Keep all other files (non-archive files)
-        return true;
+      // Log archive expansion results
+      const extractedCount = files.filter(f => f.isExtracted).length;
+      const archiveErrorCount = files.filter(f => f.archiveError).length;
+      systemLogger.info('Archive expansion completed', { 
+        jobId, 
+        originalCount: filesResult.rows.length,
+        expandedCount: files.length,
+        extractedFileCount: extractedCount,
+        archiveErrorCount 
       });
       
-      // Update total count if archives were filtered out
-      if (files.length !== originalFileCount) {
+      // Update total file count after expansion
+      if (files.length !== filesResult.rows.length) {
         await this.updateJobStatus(jobId, 'running', {
           total_files: files.length
         });
