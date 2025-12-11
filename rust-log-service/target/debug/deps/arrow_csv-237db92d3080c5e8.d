@@ -1,0 +1,8 @@
+/home/runner/workspace/rust-log-service/target/debug/deps/arrow_csv-237db92d3080c5e8.d: /home/runner/workspace/.local/share/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/arrow-csv-53.4.1/src/lib.rs /home/runner/workspace/.local/share/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/arrow-csv-53.4.1/src/reader/mod.rs /home/runner/workspace/.local/share/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/arrow-csv-53.4.1/src/reader/records.rs /home/runner/workspace/.local/share/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/arrow-csv-53.4.1/src/writer.rs
+
+/home/runner/workspace/rust-log-service/target/debug/deps/libarrow_csv-237db92d3080c5e8.rmeta: /home/runner/workspace/.local/share/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/arrow-csv-53.4.1/src/lib.rs /home/runner/workspace/.local/share/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/arrow-csv-53.4.1/src/reader/mod.rs /home/runner/workspace/.local/share/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/arrow-csv-53.4.1/src/reader/records.rs /home/runner/workspace/.local/share/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/arrow-csv-53.4.1/src/writer.rs
+
+/home/runner/workspace/.local/share/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/arrow-csv-53.4.1/src/lib.rs:
+/home/runner/workspace/.local/share/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/arrow-csv-53.4.1/src/reader/mod.rs:
+/home/runner/workspace/.local/share/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/arrow-csv-53.4.1/src/reader/records.rs:
+/home/runner/workspace/.local/share/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/arrow-csv-53.4.1/src/writer.rs:
