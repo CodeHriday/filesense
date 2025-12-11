@@ -1284,14 +1284,15 @@ except Exception as e:
    * @param {string} filePath - Path to file (S3 or local)
    * @param {Object} agreementSchema - Schema to validate against
    * @param {boolean} isExtracted - Whether file was extracted from archive
-   * @param {string} originalArchive - Original archive path (for pattern matching)
+   * @param {string} originalArchive - Original archive path (for tracking/audit only)
    */
   static async validateFileMetadata(s3, bucket, filePath, agreementSchema, isExtracted = false, originalArchive = null) {
     const fileName = path.basename(filePath);
     const fileExtension = path.extname(fileName).toLowerCase().slice(1);
     
-    // For extracted files, use the original archive name for pattern matching
-    const patternMatchName = originalArchive ? path.basename(originalArchive) : fileName;
+    // Each file is matched against its own filename pattern
+    // (originalArchive is tracked for audit/reference purposes only, not for pattern matching)
+    const patternMatchName = fileName;
 
     let expectedSchema;
     let matchedPattern = null;
