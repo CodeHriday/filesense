@@ -254,6 +254,7 @@ class FastSchemaValidationService {
         extraColumns: validationResult.extraColumns || [],
         reason: validationResult.reason || row.error_message || '-',
         valid: validationResult.valid !== undefined ? validationResult.valid : (row.status === 'valid'),
+        dqValidation: validationResult.dqValidation || null,
         createdAt: row.created_at,
         updatedAt: row.updated_at
       };
@@ -450,13 +451,67 @@ class FastSchemaValidationService {
 
             isValid = validationResult.valid;
 
+            // If schema validation passed, run DQ validation
+            let dqResult = { executed: false, status: 'skipped', rulesExecuted: 0, violationCount: 0 };
+            if (isValid && validationResult.matchedPattern) {
+              try {
+                // Find the matched pattern to get its quality rules
+                const matchedPatternObj = agreementSchema.patterns?.find(
+                  p => p.file_name_pattern === validationResult.matchedPattern
+                );
+                
+                if (matchedPatternObj?.qualityRules?.length > 0) {
+                  // Extract sample data for DQ validation
+                  const sampleData = await this.extractSampleData(
+                    s3,
+                    connectionCredentials.bucket,
+                    filePath,
+                    fileMetadata.fileType,
+                    100 // Limit to 100 rows for performance
+                  );
+                  
+                  if (sampleData && sampleData.length > 0) {
+                    dqResult = await this.executeDQValidation(
+                      sampleData,
+                      matchedPatternObj.qualityRules,
+                      { filePath, fileType: fileMetadata.fileType }
+                    );
+                  }
+                }
+              } catch (dqError) {
+                systemLogger.warn('DQ validation failed', { 
+                  filePath, 
+                  error: dqError.message 
+                });
+                dqResult = {
+                  executed: false,
+                  status: 'error',
+                  error: dqError.message,
+                  rulesExecuted: 0,
+                  violationCount: 0
+                };
+              }
+            }
+
+            // Add DQ results to the validation result
+            result.dqValidation = dqResult;
+
             // Update file record if it exists in DB
             if (file.id) {
               await pool.query(
                 `UPDATE schema_validation_job_files 
-                 SET status = $2, validation_result = $3, updated_at = NOW()
+                 SET status = $2, validation_result = $3, 
+                     dq_status = $4, dq_rules_executed = $5, dq_violation_count = $6,
+                     updated_at = NOW()
                  WHERE id = $1`,
-                [file.id, validationResult.valid ? 'valid' : 'invalid', JSON.stringify(result)]
+                [
+                  file.id, 
+                  validationResult.valid ? 'valid' : 'invalid', 
+                  JSON.stringify(result),
+                  dqResult.status || 'skipped',
+                  dqResult.rulesExecuted || 0,
+                  dqResult.violationCount || 0
+                ]
               );
             }
 
@@ -921,11 +976,11 @@ except Exception as e:
   }
 
   /**
-   * Get vendor agreement schema
+   * Get vendor agreement schema with associated DQ rules
    */
   static async getAgreementSchema(vendorAgreementId) {
     const fileSchemasResult = await pool.query(
-      `SELECT id, file_name_pattern, schema, priority, file_description 
+      `SELECT id, file_name_pattern, schema, priority, file_description, quality_rule_ids 
        FROM vendor_agreement_file_schemas 
        WHERE vendor_agreement_id = $1 AND is_active = TRUE 
        ORDER BY priority ASC, id ASC`,
@@ -933,9 +988,41 @@ except Exception as e:
     );
 
     if (fileSchemasResult.rows.length > 0) {
+      // Collect all unique quality rule IDs across all patterns
+      const allRuleIds = new Set();
+      for (const pattern of fileSchemasResult.rows) {
+        if (pattern.quality_rule_ids && Array.isArray(pattern.quality_rule_ids)) {
+          pattern.quality_rule_ids.forEach(id => allRuleIds.add(id));
+        }
+      }
+
+      // Fetch full quality rule definitions if any exist
+      let qualityRulesMap = {};
+      if (allRuleIds.size > 0) {
+        const rulesResult = await pool.query(
+          `SELECT id, rule_name, rule_type, description, column_name, rule_config, severity, enabled
+           FROM quality_rules 
+           WHERE id = ANY($1) AND enabled = TRUE`,
+          [Array.from(allRuleIds)]
+        );
+        
+        for (const rule of rulesResult.rows) {
+          qualityRulesMap[rule.id] = rule;
+        }
+      }
+
+      // Attach full rule definitions to each pattern
+      const patternsWithRules = fileSchemasResult.rows.map(pattern => ({
+        ...pattern,
+        qualityRules: (pattern.quality_rule_ids || [])
+          .filter(id => qualityRulesMap[id])
+          .map(id => qualityRulesMap[id])
+      }));
+
       return {
         type: 'multi-pattern',
-        patterns: fileSchemasResult.rows
+        patterns: patternsWithRules,
+        qualityRulesMap
       };
     }
 
@@ -951,7 +1038,8 @@ except Exception as e:
     return {
       type: 'legacy',
       schema: legacyResult.rows[0].schema,
-      pattern: legacyResult.rows[0].file_name
+      pattern: legacyResult.rows[0].file_name,
+      qualityRules: []
     };
   }
 
@@ -1312,6 +1400,156 @@ except Exception as e:
     } catch (error) {
       systemLogger.warn('Error counting records from buffer', { fileExtension, error: error.message });
       return null;
+    }
+  }
+
+  /**
+   * Extract sample data rows from a file for DQ validation
+   * @param {AWS.S3} s3 - S3 client
+   * @param {string} bucket - S3 bucket
+   * @param {string} filePath - File path
+   * @param {string} fileType - File extension type
+   * @param {number} maxRows - Maximum rows to extract
+   * @returns {Array} - Array of data row objects
+   */
+  static async extractSampleData(s3, bucket, filePath, fileType, maxRows = 100) {
+    const s3Key = this.extractS3Key(filePath, bucket);
+    
+    try {
+      // Check if this is a local file (extracted from archive)
+      let buffer;
+      if (fs.existsSync(filePath)) {
+        buffer = fs.readFileSync(filePath);
+      } else {
+        const response = await s3.getObject({ Bucket: bucket, Key: s3Key }).promise();
+        buffer = response.Body;
+      }
+
+      switch (fileType.toLowerCase()) {
+        case 'csv':
+        case 'txt':
+        case 'dat': {
+          return this.parseCsvSample(buffer, maxRows);
+        }
+        case 'json': {
+          return this.parseJsonSample(buffer, maxRows);
+        }
+        case 'xlsx':
+        case 'xls': {
+          return this.parseExcelSample(buffer, maxRows);
+        }
+        case 'xml': {
+          return this.parseXmlSample(buffer, maxRows);
+        }
+        default:
+          systemLogger.debug('Unsupported file type for sample extraction', { fileType });
+          return [];
+      }
+    } catch (error) {
+      systemLogger.warn('Error extracting sample data', { 
+        filePath, 
+        fileType, 
+        error: error.message 
+      });
+      return [];
+    }
+  }
+
+  /**
+   * Parse CSV buffer to sample rows
+   */
+  static parseCsvSample(buffer, maxRows) {
+    return new Promise((resolve) => {
+      const rows = [];
+      const stream = Readable.from(buffer);
+      
+      stream.pipe(csv())
+        .on('data', (row) => {
+          if (rows.length < maxRows) {
+            rows.push(row);
+          } else {
+            stream.destroy(); // Stop reading
+          }
+        })
+        .on('end', () => resolve(rows))
+        .on('error', () => resolve(rows))
+        .on('close', () => resolve(rows));
+    });
+  }
+
+  /**
+   * Parse JSON buffer to sample rows
+   */
+  static parseJsonSample(buffer, maxRows) {
+    try {
+      const content = buffer.toString('utf-8');
+      const parsed = JSON.parse(content);
+      
+      if (Array.isArray(parsed)) {
+        return parsed.slice(0, maxRows);
+      }
+      
+      // Look for array property in object
+      for (const key of Object.keys(parsed)) {
+        if (Array.isArray(parsed[key])) {
+          return parsed[key].slice(0, maxRows);
+        }
+      }
+      
+      // Single object
+      return [parsed];
+    } catch {
+      return [];
+    }
+  }
+
+  /**
+   * Parse Excel buffer to sample rows
+   */
+  static parseExcelSample(buffer, maxRows) {
+    try {
+      const workbook = xlsx.read(buffer, { type: 'buffer' });
+      const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+      const data = xlsx.utils.sheet_to_json(firstSheet, { defval: null });
+      return data.slice(0, maxRows);
+    } catch {
+      return [];
+    }
+  }
+
+  /**
+   * Parse XML buffer to sample rows
+   */
+  static parseXmlSample(buffer, maxRows) {
+    try {
+      const content = buffer.toString('utf-8');
+      const parser = new XMLParser({
+        ignoreAttributes: false,
+        attributeNamePrefix: '@_'
+      });
+      const parsed = parser.parse(content);
+      
+      // Find array of records in parsed XML
+      const findRecordArray = (obj, depth = 0) => {
+        if (depth > 5 || !obj) return null;
+        
+        for (const key of Object.keys(obj)) {
+          const value = obj[key];
+          if (Array.isArray(value) && value.length > 0 && typeof value[0] === 'object') {
+            return value;
+          }
+          if (typeof value === 'object' && !Array.isArray(value)) {
+            const result = findRecordArray(value, depth + 1);
+            if (result) return result;
+          }
+        }
+        return null;
+      };
+      
+      const records = findRecordArray(parsed);
+      return records ? records.slice(0, maxRows) : [];
+    } catch {
+      return [];
     }
   }
 
@@ -1752,6 +1990,473 @@ except Exception as e:
        WHERE id = $1`,
       values
     );
+  }
+
+  /**
+   * Execute DQ rule validation against file sample data
+   * @param {Array} data - Sample data rows from file
+   * @param {Array} qualityRules - Array of quality rule definitions from contract
+   * @param {Object} metadata - File/validation metadata
+   * @returns {Object} - DQ validation results
+   */
+  static async executeDQValidation(data, qualityRules, metadata) {
+    if (!qualityRules || qualityRules.length === 0 || !data || data.length === 0) {
+      return {
+        executed: false,
+        rulesExecuted: 0,
+        rulesPassed: 0,
+        violationCount: 0,
+        violations: [],
+        status: 'skipped',
+        reason: !qualityRules?.length ? 'No DQ rules defined' : 'No data available'
+      };
+    }
+
+    const violations = [];
+    let rulesPassed = 0;
+    const ruleResults = [];
+
+    for (const rule of qualityRules) {
+      if (!rule.enabled) continue;
+
+      try {
+        const ruleViolations = await this.executeRule(rule, data, metadata);
+        
+        ruleResults.push({
+          ruleId: rule.id,
+          ruleName: rule.rule_name,
+          ruleType: rule.rule_type,
+          severity: rule.severity,
+          violationCount: ruleViolations.length,
+          passed: ruleViolations.length === 0
+        });
+
+        if (ruleViolations.length === 0) {
+          rulesPassed++;
+        } else {
+          violations.push(...ruleViolations.slice(0, 10)); // Limit per-rule violations
+        }
+      } catch (ruleError) {
+        systemLogger.warn('DQ rule execution failed', { 
+          ruleId: rule.id, 
+          error: ruleError.message 
+        });
+        ruleResults.push({
+          ruleId: rule.id,
+          ruleName: rule.rule_name,
+          ruleType: rule.rule_type,
+          error: ruleError.message,
+          passed: false
+        });
+      }
+    }
+
+    const rulesExecuted = ruleResults.length;
+    const hasViolations = violations.length > 0;
+
+    return {
+      executed: true,
+      rulesExecuted,
+      rulesPassed,
+      violationCount: violations.length,
+      violations: violations.slice(0, 50), // Limit total violations stored
+      ruleResults,
+      status: hasViolations ? 'failed' : 'passed',
+      summary: {
+        total: rulesExecuted,
+        passed: rulesPassed,
+        failed: rulesExecuted - rulesPassed,
+        passRate: rulesExecuted > 0 ? ((rulesPassed / rulesExecuted) * 100).toFixed(1) : 0
+      }
+    };
+  }
+
+  /**
+   * Execute a single DQ rule against data
+   * @param {Object} rule - Quality rule definition
+   * @param {Array} data - Data rows to validate
+   * @param {Object} metadata - File metadata
+   * @returns {Array} - Array of violations
+   */
+  static async executeRule(rule, data, metadata) {
+    const violations = [];
+    const config = rule.rule_config || {};
+    const ruleType = (rule.rule_type || '').toLowerCase();
+    const columnName = rule.column_name;
+
+    switch (ruleType) {
+      case 'completeness':
+      case 'null_check':
+      case 'column_completeness':
+        return this.validateCompleteness(rule, config, data, columnName);
+      
+      case 'validity':
+      case 'validity_check':
+      case 'email_validity':
+      case 'phone_validity':
+      case 'date_format':
+      case 'timestamp_format':
+        return this.validatePatternValidity(rule, config, data, columnName);
+      
+      case 'uniqueness':
+      case 'duplicate_check':
+        return this.validateUniqueness(rule, config, data, columnName);
+      
+      case 'range_check':
+        return this.validateRange(rule, config, data, columnName);
+      
+      case 'length_check':
+        return this.validateLength(rule, config, data, columnName);
+      
+      default:
+        systemLogger.debug('Unsupported DQ rule type', { ruleType, ruleId: rule.id });
+        return [];
+    }
+  }
+
+  /**
+   * Validate completeness - check for null/empty values
+   */
+  static validateCompleteness(rule, config, data, columnName) {
+    const violations = [];
+    let threshold = config.threshold || 1.0;
+    if (threshold > 1) threshold = threshold / 100;
+
+    if (columnName) {
+      let nullCount = 0;
+      data.forEach(row => {
+        const value = row[columnName];
+        if (value === null || value === undefined || value === '') {
+          nullCount++;
+        }
+      });
+
+      const completeness = data.length > 0 ? (data.length - nullCount) / data.length : 1;
+      
+      if (completeness < threshold) {
+        violations.push({
+          ruleId: rule.id,
+          ruleName: rule.rule_name,
+          columnName,
+          severity: rule.severity,
+          message: `Completeness ${(completeness * 100).toFixed(1)}% below threshold ${(threshold * 100).toFixed(1)}%`,
+          details: {
+            nullCount,
+            totalRows: data.length,
+            completeness: (completeness * 100).toFixed(1)
+          }
+        });
+      }
+    }
+    
+    return violations;
+  }
+
+  /**
+   * Validate validity - pattern, range, enum, datatype
+   */
+  static validateValidity(rule, config, data, columnName) {
+    const violations = [];
+    if (!columnName) return violations;
+
+    const validationType = config.type;
+    let violationCount = 0;
+    const maxSampleViolations = 5;
+    const sampleViolations = [];
+
+    data.forEach((row, rowIndex) => {
+      const value = row[columnName];
+      if (value === null || value === undefined || value === '') return;
+
+      let isValid = true;
+      let reason = '';
+
+      switch (validationType) {
+        case 'pattern':
+          if (config.pattern) {
+            const regex = new RegExp(config.pattern);
+            isValid = regex.test(String(value));
+            reason = `Does not match pattern ${config.pattern}`;
+          }
+          break;
+        
+        case 'range':
+          const numValue = Number(value);
+          if (!isNaN(numValue)) {
+            if (config.min !== undefined && numValue < config.min) {
+              isValid = false;
+              reason = `Value ${numValue} < minimum ${config.min}`;
+            }
+            if (config.max !== undefined && numValue > config.max) {
+              isValid = false;
+              reason = `Value ${numValue} > maximum ${config.max}`;
+            }
+          }
+          break;
+        
+        case 'enum':
+          if (config.allowed_values && Array.isArray(config.allowed_values)) {
+            isValid = config.allowed_values.includes(value);
+            reason = `Value "${value}" not in allowed values`;
+          }
+          break;
+      }
+
+      if (!isValid) {
+        violationCount++;
+        if (sampleViolations.length < maxSampleViolations) {
+          sampleViolations.push({ row: rowIndex + 1, value, reason });
+        }
+      }
+    });
+
+    if (violationCount > 0) {
+      violations.push({
+        ruleId: rule.id,
+        ruleName: rule.rule_name,
+        columnName,
+        severity: rule.severity,
+        message: `${violationCount} validity violations found`,
+        details: {
+          violationCount,
+          samples: sampleViolations
+        }
+      });
+    }
+
+    return violations;
+  }
+
+  /**
+   * Validate pattern validity - email, phone, date, timestamp formats
+   * Uses rule_type to determine validation logic
+   */
+  static validatePatternValidity(rule, config, data, columnName) {
+    const violations = [];
+    const ruleType = (rule.rule_type || '').toLowerCase();
+    let violationCount = 0;
+    const maxSampleViolations = 5;
+    const sampleViolations = [];
+
+    // Define built-in patterns for common rule types
+    const builtInPatterns = {
+      'email_validity': /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/,
+      'phone_validity': /^[\d\s\-\+\(\)\.]{7,20}$/,
+      'date_format': /^\d{4}-\d{2}-\d{2}$|^\d{2}\/\d{2}\/\d{4}$|^\d{2}-\d{2}-\d{4}$/,
+      'timestamp_format': /^\d{4}-\d{2}-\d{2}[T\s]\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:?\d{2})?$/
+    };
+
+    // Use pattern from config if provided, otherwise use built-in pattern
+    let pattern = null;
+    if (config.pattern) {
+      try {
+        pattern = new RegExp(config.pattern);
+      } catch (e) {
+        systemLogger.warn('Invalid regex pattern in rule config', { ruleId: rule.id, pattern: config.pattern });
+      }
+    } else if (builtInPatterns[ruleType]) {
+      pattern = builtInPatterns[ruleType];
+    }
+
+    if (!pattern) {
+      // No pattern available, treat as generic validity
+      return this.validateValidity(rule, config, data, columnName);
+    }
+
+    // If no column specified, check all columns for pattern validity
+    const columnsToCheck = columnName ? [columnName] : Object.keys(data[0] || {});
+
+    for (const col of columnsToCheck) {
+      let colViolationCount = 0;
+      const colSampleViolations = [];
+
+      data.forEach((row, rowIndex) => {
+        const value = row[col];
+        if (value === null || value === undefined || value === '') return;
+
+        const strValue = String(value).trim();
+        if (!pattern.test(strValue)) {
+          colViolationCount++;
+          if (colSampleViolations.length < maxSampleViolations) {
+            colSampleViolations.push({ row: rowIndex + 1, column: col, value: strValue });
+          }
+        }
+      });
+
+      if (colViolationCount > 0) {
+        violationCount += colViolationCount;
+        sampleViolations.push(...colSampleViolations.slice(0, maxSampleViolations - sampleViolations.length));
+      }
+    }
+
+    if (violationCount > 0) {
+      violations.push({
+        ruleId: rule.id,
+        ruleName: rule.rule_name,
+        columnName: columnName || '(all columns)',
+        severity: rule.severity,
+        message: `${violationCount} ${ruleType.replace(/_/g, ' ')} violations found`,
+        details: {
+          violationCount,
+          samples: sampleViolations
+        }
+      });
+    }
+
+    return violations;
+  }
+
+  /**
+   * Validate uniqueness - check for duplicates
+   */
+  static validateUniqueness(rule, config, data, columnName) {
+    const violations = [];
+    const columnsToCheck = config.columns || (columnName ? [columnName] : []);
+    if (columnsToCheck.length === 0) return violations;
+
+    const seen = new Map();
+    const duplicates = [];
+
+    data.forEach((row, rowIndex) => {
+      const keyParts = columnsToCheck.map(col => row[col]);
+      if (keyParts.some(val => val === null || val === undefined || val === '')) return;
+
+      const key = JSON.stringify(keyParts);
+      if (seen.has(key)) {
+        if (duplicates.length < 10) {
+          duplicates.push({ row: rowIndex + 1, value: keyParts });
+        }
+      } else {
+        seen.set(key, rowIndex + 1);
+      }
+    });
+
+    if (duplicates.length > 0) {
+      violations.push({
+        ruleId: rule.id,
+        ruleName: rule.rule_name,
+        columnName: columnsToCheck.join(', '),
+        severity: rule.severity,
+        message: `${duplicates.length} duplicate values found`,
+        details: {
+          duplicateCount: duplicates.length,
+          samples: duplicates.slice(0, 5)
+        }
+      });
+    }
+
+    return violations;
+  }
+
+  /**
+   * Validate range - numeric min/max checks
+   */
+  static validateRange(rule, config, data, columnName) {
+    const violations = [];
+    if (!columnName) return violations;
+
+    const min = config.min !== undefined ? Number(config.min) : null;
+    const max = config.max !== undefined ? Number(config.max) : null;
+    let violationCount = 0;
+    const samples = [];
+
+    data.forEach((row, rowIndex) => {
+      const value = row[columnName];
+      if (value === null || value === undefined || value === '') return;
+
+      const numValue = Number(value);
+      if (isNaN(numValue)) return;
+
+      let outOfRange = false;
+      let reason = '';
+
+      if (min !== null && numValue < min) {
+        outOfRange = true;
+        reason = `${numValue} < ${min}`;
+      }
+      if (max !== null && numValue > max) {
+        outOfRange = true;
+        reason = `${numValue} > ${max}`;
+      }
+
+      if (outOfRange) {
+        violationCount++;
+        if (samples.length < 5) {
+          samples.push({ row: rowIndex + 1, value: numValue, reason });
+        }
+      }
+    });
+
+    if (violationCount > 0) {
+      violations.push({
+        ruleId: rule.id,
+        ruleName: rule.rule_name,
+        columnName,
+        severity: rule.severity,
+        message: `${violationCount} range violations found`,
+        details: { min, max, violationCount, samples }
+      });
+    }
+
+    return violations;
+  }
+
+  /**
+   * Validate length - string length checks
+   */
+  static validateLength(rule, config, data, columnName) {
+    const violations = [];
+    if (!columnName) return violations;
+
+    const minLength = config.min_length;
+    const maxLength = config.max_length;
+    const exactLength = config.exact_length;
+    let violationCount = 0;
+    const samples = [];
+
+    data.forEach((row, rowIndex) => {
+      const value = row[columnName];
+      if (value === null || value === undefined) return;
+
+      const strValue = String(value);
+      const length = strValue.length;
+      let invalid = false;
+      let reason = '';
+
+      if (exactLength !== undefined && length !== exactLength) {
+        invalid = true;
+        reason = `Length ${length} != ${exactLength}`;
+      } else {
+        if (minLength !== undefined && length < minLength) {
+          invalid = true;
+          reason = `Length ${length} < ${minLength}`;
+        }
+        if (maxLength !== undefined && length > maxLength) {
+          invalid = true;
+          reason = `Length ${length} > ${maxLength}`;
+        }
+      }
+
+      if (invalid) {
+        violationCount++;
+        if (samples.length < 5) {
+          samples.push({ row: rowIndex + 1, value: strValue.substring(0, 50), length, reason });
+        }
+      }
+    });
+
+    if (violationCount > 0) {
+      violations.push({
+        ruleId: rule.id,
+        ruleName: rule.rule_name,
+        columnName,
+        severity: rule.severity,
+        message: `${violationCount} length violations found`,
+        details: { minLength, maxLength, exactLength, violationCount, samples }
+      });
+    }
+
+    return violations;
   }
 }
 

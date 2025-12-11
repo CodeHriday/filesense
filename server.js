@@ -4785,6 +4785,7 @@ const { addVendorSLAToAlertScope } = require('./backend/migrations/addVendorSLAT
 const enterprisePerformanceOptimizations = require('./backend/migrations/enterprisePerformanceOptimizations');
 const { addProjectToVisualWorkflows } = require('./backend/migrations/addProjectToVisualWorkflows');
 const { createAllowedEmailDomains } = require('./backend/migrations/createAllowedEmailDomains');
+const { up: addDQValidationColumns } = require('./backend/migrations/addDQValidationColumns');
 
 // Run schema migrations asynchronously with tracking to prevent re-running
 (async () => {
@@ -4834,6 +4835,7 @@ const { createAllowedEmailDomains } = require('./backend/migrations/createAllowe
     await migrationTracker.runOnce('addProjectToVisualWorkflows', () => addProjectToVisualWorkflows(dbPool));
     await migrationTracker.runOnce('enterprisePerformanceOptimizations', () => enterprisePerformanceOptimizations(dbPool));
     await migrationTracker.runOnce('createAllowedEmailDomains', () => createAllowedEmailDomains(dbPool));
+    await migrationTracker.runOnce('addDQValidationColumns', () => addDQValidationColumns(dbPool));
     
     console.log('🎉 All migrations completed successfully');
   } catch (err) {

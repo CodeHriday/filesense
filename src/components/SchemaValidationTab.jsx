@@ -654,7 +654,8 @@ function SchemaValidationTab({ selectedProject: initialProject }) {
                                   <th style={{ textTransform: 'none' }}>Type</th>
                                   <th style={{ textTransform: 'none' }}>Size</th>
                                   <th style={{ textTransform: 'none' }}>Records</th>
-                                  <th style={{ textTransform: 'none' }}>Status</th>
+                                  <th style={{ textTransform: 'none' }}>Schema</th>
+                                  <th style={{ textTransform: 'none' }}>DQ Status</th>
                                   <th style={{ textTransform: 'none' }}>Matched Pattern</th>
                                   <th style={{ textTransform: 'none' }}>Details</th>
                                 </tr>
@@ -683,6 +684,33 @@ function SchemaValidationTab({ selectedProject: initialProject }) {
                                         {file.valid ? <FiCheck size={10} /> : <FiX size={10} />}
                                         {file.valid ? 'Valid' : 'Invalid'}
                                       </span>
+                                    </td>
+                                    <td>
+                                      {file.dqValidation?.executed ? (
+                                        <span style={{
+                                          display: 'inline-flex',
+                                          alignItems: 'center',
+                                          gap: '4px',
+                                          padding: '2px 6px',
+                                          borderRadius: '4px',
+                                          fontSize: '10px',
+                                          fontWeight: 500,
+                                          backgroundColor: file.dqValidation?.status === 'passed' ? '#d1fae5' : 
+                                                          file.dqValidation?.status === 'failed' ? '#fef3c7' : '#f3f4f6',
+                                          color: file.dqValidation?.status === 'passed' ? '#065f46' : 
+                                                file.dqValidation?.status === 'failed' ? '#92400e' : '#6b7280'
+                                        }}>
+                                          {file.dqValidation?.status === 'passed' ? <FiCheck size={10} /> : 
+                                           file.dqValidation?.status === 'failed' ? <FiAlertCircle size={10} /> : null}
+                                          {file.dqValidation?.status === 'passed' ? 'Passed' : 
+                                           file.dqValidation?.status === 'failed' ? `${file.dqValidation?.violationCount || 0} Issues` : 
+                                           file.dqValidation?.status || '-'}
+                                        </span>
+                                      ) : (
+                                        <span style={{ color: '#9ca3af', fontSize: '10px' }}>
+                                          {file.valid ? 'No Rules' : '-'}
+                                        </span>
+                                      )}
                                     </td>
                                     <td style={{ maxWidth: '150px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                       {file.matchedPattern || '-'}
