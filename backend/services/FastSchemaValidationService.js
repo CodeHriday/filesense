@@ -374,6 +374,27 @@ class FastSchemaValidationService {
         });
       }
       
+      // Filter out archives that were successfully processed (their contents are now separate entries)
+      // Keep only: non-archives, extracted files, and archives with errors (to report the error)
+      const originalFileCount = files.length;
+      files = files.filter(file => {
+        // Keep files that are extracted from archives
+        if (file.isExtracted) return true;
+        // Keep archives with errors (to report the extraction error)
+        if (file.archiveError) return true;
+        // Skip archives that were successfully processed (replaced by extracted files)
+        if (file.archiveProcessed) return false;
+        // Keep all other files (non-archive files)
+        return true;
+      });
+      
+      // Update total count if archives were filtered out
+      if (files.length !== originalFileCount) {
+        await this.updateJobStatus(jobId, 'running', {
+          total_files: files.length
+        });
+      }
+      
       const totalFiles = files.length;
       const BATCH_SIZE = 10; // Process 10 files in parallel
       let errorCount = 0;
