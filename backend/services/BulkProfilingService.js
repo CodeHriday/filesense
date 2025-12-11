@@ -211,7 +211,8 @@ class BulkProfilingService {
       });
       
       // Extract files (Contents) - only those directly in this folder
-      const compatibleExtensions = ['.csv', '.json', '.parquet', '.xlsx', '.xml'];
+      // Include archive extensions and DAT files for schema validation
+      const compatibleExtensions = ['.csv', '.json', '.parquet', '.xlsx', '.xml', '.dat', '.txt', '.zip', '.7z', '.tar', '.tgz', '.gz'];
       const files = (data.Contents || [])
         .filter(item => {
           // Skip the folder itself and folders (keys ending with /)
