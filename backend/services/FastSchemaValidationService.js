@@ -1024,6 +1024,14 @@ except Exception as e:
 
     const valid = missingColumns.length === 0;
 
+    // Get record count for the file
+    let recordCount = null;
+    try {
+      recordCount = await this.getRecordCount(s3, bucket, filePath, fileExtension);
+    } catch (countErr) {
+      systemLogger.warn('Failed to count records', { filePath, error: countErr.message });
+    }
+
     return {
       valid,
       fileName,
@@ -1032,12 +1040,157 @@ except Exception as e:
       expectedColumnCount: expectedColumns.length,
       missingColumns,
       extraColumns,
+      recordCount,
       reason: valid ? 'Schema matches' : `Missing ${missingColumns.length} column(s)`,
       details: {
         actualColumns,
         expectedColumns: expectedColumns.map(c => c.name)
       }
     };
+  }
+
+  /**
+   * Get record count for a file (approximate for large files)
+   */
+  static async getRecordCount(s3, bucket, filePath, fileExtension) {
+    const s3Key = this.extractS3Key(filePath, bucket);
+    
+    // Check if this is a local file (extracted from archive)
+    if (fs.existsSync(filePath)) {
+      return this.countRecordsFromBuffer(fs.readFileSync(filePath), fileExtension);
+    }
+    
+    try {
+      // For parquet files, get row count from metadata
+      if (fileExtension === 'parquet') {
+        return await this.getParquetRecordCount(s3, bucket, s3Key);
+      }
+      
+      // For small files, download and count
+      const headResponse = await s3.headObject({ Bucket: bucket, Key: s3Key }).promise();
+      const fileSize = headResponse.ContentLength;
+      
+      // For files under 10MB, count all records
+      if (fileSize < 10 * 1024 * 1024) {
+        const response = await s3.getObject({ Bucket: bucket, Key: s3Key }).promise();
+        return this.countRecordsFromBuffer(response.Body, fileExtension);
+      }
+      
+      // For larger files, sample and estimate
+      const sampleSize = 1024 * 1024; // 1MB sample
+      const params = {
+        Bucket: bucket,
+        Key: s3Key,
+        Range: `bytes=0-${sampleSize - 1}`
+      };
+      
+      const response = await s3.getObject(params).promise();
+      const sampleRecords = this.countRecordsFromBuffer(response.Body, fileExtension);
+      
+      // Estimate total based on sample
+      const estimatedTotal = Math.round((sampleRecords / sampleSize) * fileSize);
+      return estimatedTotal;
+    } catch (error) {
+      systemLogger.warn('Error counting records', { s3Key, error: error.message });
+      return null;
+    }
+  }
+
+  /**
+   * Get record count from Parquet file metadata
+   */
+  static async getParquetRecordCount(s3, bucket, s3Key) {
+    try {
+      const response = await s3.getObject({ Bucket: bucket, Key: s3Key }).promise();
+      const buffer = response.Body;
+      
+      // Use dynamic import for hyparquet (ESM module)
+      const hyparquet = await import('hyparquet');
+      const parquetMetadata = hyparquet.parquetMetadata;
+      
+      const arrayBuffer = new Uint8Array(buffer).buffer;
+      const metadata = parquetMetadata(arrayBuffer);
+      
+      // Sum up row counts from all row groups
+      if (metadata && metadata.row_groups) {
+        let totalRows = 0;
+        for (const rowGroup of metadata.row_groups) {
+          if (rowGroup.num_rows) {
+            totalRows += rowGroup.num_rows;
+          }
+        }
+        return totalRows > 0 ? totalRows : null;
+      }
+      
+      // Try direct num_rows property
+      if (metadata && metadata.num_rows) {
+        return metadata.num_rows;
+      }
+      
+      return null;
+    } catch (error) {
+      systemLogger.warn('Error getting parquet record count', { s3Key, error: error.message });
+      return null;
+    }
+  }
+
+  /**
+   * Count records from a buffer based on file type
+   */
+  static countRecordsFromBuffer(buffer, fileExtension) {
+    try {
+      switch (fileExtension) {
+        case 'csv':
+        case 'txt':
+        case 'dat': {
+          const content = buffer.toString('utf-8');
+          const lines = content.split('\n').filter(l => l.trim());
+          // Subtract 1 for header row
+          return Math.max(0, lines.length - 1);
+        }
+        case 'json': {
+          const content = buffer.toString('utf-8');
+          const parsed = JSON.parse(content);
+          if (Array.isArray(parsed)) {
+            return parsed.length;
+          }
+          // For object with array property
+          for (const key of Object.keys(parsed)) {
+            if (Array.isArray(parsed[key])) {
+              return parsed[key].length;
+            }
+          }
+          return 1;
+        }
+        case 'xlsx':
+        case 'xls': {
+          const workbook = xlsx.read(buffer, { type: 'buffer' });
+          const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+          const range = xlsx.utils.decode_range(firstSheet['!ref'] || 'A1');
+          // Subtract 1 for header row
+          return Math.max(0, range.e.r);
+        }
+        case 'xml': {
+          const content = buffer.toString('utf-8');
+          // Count closing tags that look like record elements (rough estimate)
+          const matches = content.match(/<\/[A-Za-z]+>/g);
+          if (matches) {
+            // Estimate based on common patterns (divide by avg tags per record)
+            return Math.round(matches.length / 5);
+          }
+          return null;
+        }
+        case 'parquet': {
+          // Parquet record count requires async operation, handled separately
+          return null;
+        }
+        default:
+          return null;
+      }
+    } catch (error) {
+      systemLogger.warn('Error counting records from buffer', { fileExtension, error: error.message });
+      return null;
+    }
   }
 
   /**
@@ -1221,8 +1374,9 @@ except Exception as e:
       const fullResponse = await s3.getObject(fullParams).promise();
       const buffer = fullResponse.Body;
       
-      // Use hyparquet to read schema from buffer
-      const { parquetMetadata } = require('hyparquet');
+      // Use dynamic import for hyparquet (ESM module)
+      const hyparquet = await import('hyparquet');
+      const parquetMetadata = hyparquet.parquetMetadata;
       
       // Properly convert Node.js Buffer to ArrayBuffer
       // Node.js Buffer may share underlying ArrayBuffer, so we need to copy
