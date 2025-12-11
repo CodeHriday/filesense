@@ -372,17 +372,68 @@ class FastSchemaValidationService {
       files = expandedFiles;
       
       // Log archive expansion results
-      const extractedCount = files.filter(f => f.isExtracted).length;
+      const extractedFiles = files.filter(f => f.isExtracted);
       const archiveErrorCount = files.filter(f => f.archiveError).length;
       systemLogger.info('Archive expansion completed', { 
         jobId, 
         originalCount: filesResult.rows.length,
         expandedCount: files.length,
-        extractedFileCount: extractedCount,
+        extractedFileCount: extractedFiles.length,
         archiveErrorCount 
       });
       
+      // Handle database updates for archives and extracted files
+      if (extractedFiles.length > 0) {
+        // Find original archive records that were successfully extracted
+        const archivePaths = [...new Set(extractedFiles.map(f => f.originalArchive))];
+        const originalArchiveRecords = filesResult.rows.filter(f => 
+          archivePaths.includes(f.file_path)
+        );
+        
+        // Mark original archives as "extracted" in database (not validated as regular files)
+        for (const archiveRecord of originalArchiveRecords) {
+          await pool.query(
+            `UPDATE schema_validation_job_files 
+             SET status = 'valid', 
+                 validation_result = $2,
+                 updated_at = NOW()
+             WHERE id = $1`,
+            [
+              archiveRecord.id,
+              JSON.stringify({
+                filePath: archiveRecord.file_path,
+                valid: true,
+                fileType: 'archive',
+                reason: `Archive extracted successfully (${extractedFiles.filter(f => f.originalArchive === archiveRecord.file_path).length} files)`,
+                isArchive: true,
+                extractedFileCount: extractedFiles.filter(f => f.originalArchive === archiveRecord.file_path).length
+              })
+            ]
+          );
+        }
+        
+        // Insert new records for extracted files
+        for (const extractedFile of extractedFiles) {
+          const insertResult = await pool.query(
+            `INSERT INTO schema_validation_job_files (job_id, file_path, status)
+             VALUES ($1, $2, 'pending')
+             RETURNING id`,
+            [jobId, extractedFile.file_path]
+          );
+          // Assign the new ID to the file object so it can be updated after validation
+          extractedFile.id = insertResult.rows[0].id;
+        }
+        
+        systemLogger.info('Created database records for extracted files', {
+          jobId,
+          extractedFileCount: extractedFiles.length,
+          archivesProcessed: originalArchiveRecords.length
+        });
+      }
+      
       // Update total file count after expansion
+      // Note: Successfully extracted archives are already NOT in the 'files' list (replaced by extracted files)
+      // Archives with errors ARE in the list (with archiveError flag) to report the failure
       if (files.length !== filesResult.rows.length) {
         await this.updateJobStatus(jobId, 'running', {
           total_files: files.length
