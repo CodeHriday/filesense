@@ -135,6 +135,43 @@ router.get('/jobs/:jobId', authenticateToken, async (req, res) => {
 });
 
 /**
+ * GET /api/schema-validation/jobs/:jobId/files
+ * Get paginated file details for a job
+ */
+router.get('/jobs/:jobId/files', authenticateToken, async (req, res) => {
+  try {
+    const { jobId } = req.params;
+    const { 
+      page = 1, 
+      pageSize = 25, 
+      status, 
+      sortBy = 'id',
+      sortOrder = 'asc'
+    } = req.query;
+    
+    const result = await FastSchemaValidationService.getJobFileDetails(jobId, {
+      page: parseInt(page, 10),
+      pageSize: parseInt(pageSize, 10),
+      status: status || null,
+      sortBy,
+      sortOrder
+    });
+
+    res.json({
+      success: true,
+      ...result
+    });
+
+  } catch (error) {
+    systemLogger.error('Error fetching job files', { error: error.message });
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+});
+
+/**
  * GET /api/schema-validation/jobs/:jobId/report
  * Download validation report
  */

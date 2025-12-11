@@ -49,6 +49,12 @@ function SchemaValidationTab({ selectedProject: initialProject }) {
   const [scheduleType, setScheduleType] = useState('recurring');
   const [cronExpression, setCronExpression] = useState('0 0 * * *');
   const [scheduleStartDate, setScheduleStartDate] = useState('');
+  
+  const [fileDetails, setFileDetails] = useState([]);
+  const [fileDetailsPagination, setFileDetailsPagination] = useState({ page: 1, pageSize: 25, totalCount: 0, totalPages: 0 });
+  const [isLoadingFileDetails, setIsLoadingFileDetails] = useState(false);
+  const [fileDetailsFilter, setFileDetailsFilter] = useState('all');
+  const [showFileDetails, setShowFileDetails] = useState(false);
 
   useEffect(() => {
     if (initialProject) {
@@ -410,6 +416,52 @@ function SchemaValidationTab({ selectedProject: initialProject }) {
     }
   };
 
+  const fetchFileDetails = async (jobId, page = 1, statusFilter = null) => {
+    try {
+      setIsLoadingFileDetails(true);
+      const token = localStorage.getItem('token');
+      const params = new URLSearchParams({
+        page: page.toString(),
+        pageSize: '25',
+        sortBy: 'id',
+        sortOrder: 'asc'
+      });
+      
+      if (statusFilter && statusFilter !== 'all') {
+        params.append('status', statusFilter);
+      }
+      
+      const response = await axios.get(
+        `${API_BASE_URL}/api/schema-validation/jobs/${jobId}/files?${params.toString()}`,
+        {
+          headers: { Authorization: `Bearer ${token}` }
+        }
+      );
+      
+      if (response.data.success) {
+        setFileDetails(response.data.files || []);
+        setFileDetailsPagination(response.data.pagination || { page: 1, pageSize: 25, totalCount: 0, totalPages: 0 });
+      }
+    } catch (err) {
+      console.error('Error fetching file details:', err);
+    } finally {
+      setIsLoadingFileDetails(false);
+    }
+  };
+
+  const handleFileDetailsPageChange = (newPage) => {
+    if (createdJob) {
+      fetchFileDetails(createdJob.id, newPage, fileDetailsFilter === 'all' ? null : fileDetailsFilter);
+    }
+  };
+
+  const handleFileDetailsFilterChange = (newFilter) => {
+    setFileDetailsFilter(newFilter);
+    if (createdJob) {
+      fetchFileDetails(createdJob.id, 1, newFilter === 'all' ? null : newFilter);
+    }
+  };
+
   const handleSelectPath = (path) => {
     setS3Path(path);
     setShowBrowser(false);
@@ -427,6 +479,10 @@ function SchemaValidationTab({ selectedProject: initialProject }) {
     setExecutionType('manual');
     setPollingStopped(false);
     pollRetryCount.current = 0;
+    setFileDetails([]);
+    setFileDetailsPagination({ page: 1, pageSize: 25, totalCount: 0, totalPages: 0 });
+    setFileDetailsFilter('all');
+    setShowFileDetails(false);
     if (pollingInterval) {
       clearInterval(pollingInterval);
       setPollingInterval(null);
@@ -533,20 +589,154 @@ function SchemaValidationTab({ selectedProject: initialProject }) {
               )}
 
               {jobStatus?.status === 'completed' && (
-                <div style={{ display: 'flex', gap: '12px' }}>
-                  <button 
-                    className="gps-bulk-btn gps-bulk-btn--primary"
-                    onClick={() => handleDownloadReport(createdJob.id)}
-                  >
-                    <FiDownload /> Download Report
-                  </button>
-                  <button 
-                    className="gps-bulk-btn gps-bulk-btn--secondary"
-                    onClick={resetForm}
-                  >
-                    Create New Job
-                  </button>
-                </div>
+                <>
+                  <div style={{ display: 'flex', gap: '12px', marginBottom: '16px' }}>
+                    <button 
+                      className="gps-bulk-btn gps-bulk-btn--primary"
+                      onClick={() => handleDownloadReport(createdJob.id)}
+                    >
+                      <FiDownload /> Download Report
+                    </button>
+                    <button 
+                      className="gps-bulk-btn gps-bulk-btn--secondary"
+                      onClick={() => {
+                        if (!showFileDetails) {
+                          fetchFileDetails(createdJob.id, 1, null);
+                        }
+                        setShowFileDetails(!showFileDetails);
+                      }}
+                    >
+                      <FiFileText /> {showFileDetails ? 'Hide' : 'View'} File Details
+                    </button>
+                    <button 
+                      className="gps-bulk-btn gps-bulk-btn--secondary"
+                      onClick={resetForm}
+                    >
+                      Create New Job
+                    </button>
+                  </div>
+                  
+                  {showFileDetails && (
+                    <div style={{ marginTop: '16px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                        <h4 className="gps-bulk-title" style={{ margin: 0 }}>File Details</h4>
+                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                          <label style={{ fontSize: '10px', fontFamily: 'Inter, sans-serif' }}>Filter:</label>
+                          <select
+                            className="gps-bulk-select"
+                            value={fileDetailsFilter}
+                            onChange={(e) => handleFileDetailsFilterChange(e.target.value)}
+                            style={{ width: 'auto', minWidth: '120px', padding: '4px 8px', fontSize: '10px' }}
+                          >
+                            <option value="all">All Files</option>
+                            <option value="valid">Valid Only</option>
+                            <option value="invalid">Invalid Only</option>
+                            <option value="error">Errors Only</option>
+                          </select>
+                        </div>
+                      </div>
+                      
+                      {isLoadingFileDetails ? (
+                        <div className="gps-bulk-helper" style={{ textAlign: 'center', padding: '20px' }}>
+                          <FiRefreshCw className="spin-animation" /> Loading file details...
+                        </div>
+                      ) : fileDetails.length === 0 ? (
+                        <div className="gps-bulk-helper" style={{ textAlign: 'center', padding: '20px' }}>
+                          No files found
+                        </div>
+                      ) : (
+                        <>
+                          <div className="gps-bulk-table-container" style={{ maxHeight: '400px', overflowY: 'auto' }}>
+                            <table className="gps-bulk-table">
+                              <thead style={{ position: 'sticky', top: 0, background: '#f8fafc', zIndex: 1 }}>
+                                <tr>
+                                  <th style={{ textTransform: 'none' }}>File Name</th>
+                                  <th style={{ textTransform: 'none' }}>Type</th>
+                                  <th style={{ textTransform: 'none' }}>Size</th>
+                                  <th style={{ textTransform: 'none' }}>Records</th>
+                                  <th style={{ textTransform: 'none' }}>Status</th>
+                                  <th style={{ textTransform: 'none' }}>Matched Pattern</th>
+                                  <th style={{ textTransform: 'none' }}>Details</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {fileDetails.map((file, idx) => (
+                                  <tr key={file.id || idx}>
+                                    <td title={file.filePath} style={{ maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                      {file.fileName || '-'}
+                                    </td>
+                                    <td>{file.fileType?.toUpperCase() || '-'}</td>
+                                    <td>{file.fileSizeFormatted || '-'}</td>
+                                    <td>{file.recordCount || '-'}</td>
+                                    <td>
+                                      <span style={{
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: '4px',
+                                        padding: '2px 6px',
+                                        borderRadius: '4px',
+                                        fontSize: '10px',
+                                        fontWeight: 500,
+                                        backgroundColor: file.valid ? '#d1fae5' : '#fee2e2',
+                                        color: file.valid ? '#065f46' : '#991b1b'
+                                      }}>
+                                        {file.valid ? <FiCheck size={10} /> : <FiX size={10} />}
+                                        {file.valid ? 'Valid' : 'Invalid'}
+                                      </span>
+                                    </td>
+                                    <td style={{ maxWidth: '150px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                      {file.matchedPattern || '-'}
+                                    </td>
+                                    <td style={{ fontSize: '9px', maxWidth: '200px' }}>
+                                      {file.missingColumns?.length > 0 && (
+                                        <span style={{ color: '#991b1b' }}>
+                                          Missing: {file.missingColumns.slice(0, 3).join(', ')}{file.missingColumns.length > 3 ? '...' : ''}
+                                        </span>
+                                      )}
+                                      {!file.missingColumns?.length && file.reason && file.reason !== 'Schema matches' && (
+                                        <span style={{ color: '#991b1b' }}>{file.reason}</span>
+                                      )}
+                                      {file.valid && 'Schema matches'}
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                          
+                          {fileDetailsPagination.totalPages > 1 && (
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '12px', padding: '8px', background: '#f8fafc', borderRadius: '4px' }}>
+                              <span style={{ fontSize: '10px', fontFamily: 'Inter, sans-serif' }}>
+                                Showing {((fileDetailsPagination.page - 1) * fileDetailsPagination.pageSize) + 1} - {Math.min(fileDetailsPagination.page * fileDetailsPagination.pageSize, fileDetailsPagination.totalCount)} of {fileDetailsPagination.totalCount} files
+                              </span>
+                              <div style={{ display: 'flex', gap: '8px' }}>
+                                <button
+                                  className="gps-bulk-btn gps-bulk-btn--secondary"
+                                  onClick={() => handleFileDetailsPageChange(fileDetailsPagination.page - 1)}
+                                  disabled={!fileDetailsPagination.hasPrev}
+                                  style={{ padding: '4px 8px', fontSize: '10px' }}
+                                >
+                                  Previous
+                                </button>
+                                <span style={{ fontSize: '10px', fontFamily: 'Inter, sans-serif', display: 'flex', alignItems: 'center' }}>
+                                  Page {fileDetailsPagination.page} of {fileDetailsPagination.totalPages}
+                                </span>
+                                <button
+                                  className="gps-bulk-btn gps-bulk-btn--secondary"
+                                  onClick={() => handleFileDetailsPageChange(fileDetailsPagination.page + 1)}
+                                  disabled={!fileDetailsPagination.hasNext}
+                                  style={{ padding: '4px 8px', fontSize: '10px' }}
+                                >
+                                  Next
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  )}
+                </>
               )}
 
               {jobStatus?.status === 'failed' && (

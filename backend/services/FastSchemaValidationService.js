@@ -18,6 +18,11 @@ const csv = require('csv-parser');
 const { Readable } = require('stream');
 const { XMLParser } = require('fast-xml-parser');
 const axios = require('axios');
+const ArchiveDetectionService = require('./archiveDetectionService');
+const PasswordVaultService = require('./passwordVaultService');
+
+// Archive file extensions
+const ARCHIVE_EXTENSIONS = ['.zip', '.7z', '.tar', '.tar.gz', '.tar.bz2', '.tgz', '.tbz2'];
 
 class FastSchemaValidationService {
   
@@ -175,6 +180,99 @@ class FastSchemaValidationService {
   }
 
   /**
+   * Get paginated file details for a job
+   */
+  static async getJobFileDetails(jobId, options = {}) {
+    const { 
+      page = 1, 
+      pageSize = 25, 
+      status = null, 
+      sortBy = 'id',
+      sortOrder = 'asc'
+    } = options;
+
+    const offset = (page - 1) * pageSize;
+    const validSortColumns = ['id', 'file_path', 'status', 'created_at'];
+    const sortColumn = validSortColumns.includes(sortBy) ? sortBy : 'id';
+    const order = sortOrder.toLowerCase() === 'desc' ? 'DESC' : 'ASC';
+
+    // Get total count
+    let countQuery = `SELECT COUNT(*) FROM schema_validation_job_files WHERE job_id = $1`;
+    const countParams = [jobId];
+    
+    if (status) {
+      countParams.push(status);
+      countQuery += ` AND status = $${countParams.length}`;
+    }
+    
+    const countResult = await pool.query(countQuery, countParams);
+    const totalCount = parseInt(countResult.rows[0].count, 10);
+
+    // Get paginated files
+    let query = `
+      SELECT id, job_id, file_path, status, validation_result, error_message, created_at, updated_at
+      FROM schema_validation_job_files 
+      WHERE job_id = $1
+    `;
+    const params = [jobId];
+    
+    if (status) {
+      params.push(status);
+      query += ` AND status = $${params.length}`;
+    }
+    
+    query += ` ORDER BY ${sortColumn} ${order}`;
+    query += ` LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
+    params.push(pageSize, offset);
+
+    const result = await pool.query(query, params);
+
+    // Parse validation_result JSON for each file
+    const files = result.rows.map(row => {
+      let validationResult = {};
+      try {
+        validationResult = typeof row.validation_result === 'string' 
+          ? JSON.parse(row.validation_result) 
+          : (row.validation_result || {});
+      } catch (e) {
+        validationResult = {};
+      }
+      
+      return {
+        id: row.id,
+        filePath: row.file_path,
+        fileName: path.basename(row.file_path || ''),
+        status: row.status,
+        fileType: validationResult.fileType || path.extname(row.file_path || '').slice(1) || 'unknown',
+        fileSize: validationResult.fileSize || null,
+        fileSizeFormatted: validationResult.fileSizeFormatted || '-',
+        recordCount: validationResult.recordCount || null,
+        matchedPattern: validationResult.matchedPattern || null,
+        actualColumnCount: validationResult.actualColumnCount || null,
+        expectedColumnCount: validationResult.expectedColumnCount || null,
+        missingColumns: validationResult.missingColumns || [],
+        extraColumns: validationResult.extraColumns || [],
+        reason: validationResult.reason || row.error_message || '-',
+        valid: validationResult.valid !== undefined ? validationResult.valid : (row.status === 'valid'),
+        createdAt: row.created_at,
+        updatedAt: row.updated_at
+      };
+    });
+
+    return {
+      files,
+      pagination: {
+        page,
+        pageSize,
+        totalCount,
+        totalPages: Math.ceil(totalCount / pageSize),
+        hasNext: page * pageSize < totalCount,
+        hasPrev: page > 1
+      }
+    };
+  }
+
+  /**
    * Get scheduled jobs
    */
   static async getScheduledJobs() {
@@ -245,7 +343,7 @@ class FastSchemaValidationService {
         [jobId]
       );
       
-      const files = filesResult.rows;
+      let files = filesResult.rows;
       const results = [];
       let validCount = 0;
       let invalidCount = 0;
@@ -254,20 +352,56 @@ class FastSchemaValidationService {
       const agreementSchema = await this.getAgreementSchema(job.vendor_agreement_id);
       const connectionCredentials = await this.getConnectionCredentials(job.connection_id);
       const s3 = this.createS3Client(connectionCredentials);
+      
+      // Get archive password from vendor agreement (if any)
+      const archivePassword = await this.getArchivePassword(job.vendor_agreement_id);
+      
+      // Check for archive files and expand them
+      const expandedFiles = await this.expandArchiveFiles(
+        s3, 
+        connectionCredentials.bucket, 
+        files, 
+        archivePassword,
+        jobId
+      );
+      
+      // Use expanded file list if archives were found
+      if (expandedFiles.length > files.length) {
+        files = expandedFiles;
+        await this.updateJobStatus(jobId, 'running', {
+          total_files: files.length
+        });
+      }
+      
+      const totalFiles = files.length;
 
       for (const file of files) {
         try {
+          // Get file metadata (size, type)
+          const fileMetadata = await this.getFileMetadata(
+            s3, 
+            connectionCredentials.bucket, 
+            file.file_path || file.filePath
+          );
+          
           const validationResult = await this.validateFileMetadata(
             s3,
             connectionCredentials.bucket,
-            file.file_path,
+            file.file_path || file.filePath,
             agreementSchema
           );
 
-          results.push({
-            filePath: file.file_path,
+          // Merge metadata with validation result
+          const fullResult = {
+            filePath: file.file_path || file.filePath,
+            fileSize: fileMetadata.size,
+            fileSizeFormatted: this.formatFileSize(fileMetadata.size),
+            fileType: fileMetadata.fileType,
+            recordCount: validationResult.recordCount || null,
             ...validationResult
-          });
+          };
+
+          results.push(fullResult);
 
           if (validationResult.valid) {
             validCount++;
@@ -275,50 +409,63 @@ class FastSchemaValidationService {
             invalidCount++;
           }
 
-          await pool.query(
-            `UPDATE schema_validation_job_files 
-             SET status = $2, validation_result = $3, updated_at = NOW()
-             WHERE id = $1`,
-            [file.id, validationResult.valid ? 'valid' : 'invalid', JSON.stringify(validationResult)]
-          );
+          // Update file record if it exists in DB
+          if (file.id) {
+            await pool.query(
+              `UPDATE schema_validation_job_files 
+               SET status = $2, validation_result = $3, updated_at = NOW()
+               WHERE id = $1`,
+              [file.id, validationResult.valid ? 'valid' : 'invalid', JSON.stringify(fullResult)]
+            );
+          }
 
         } catch (fileError) {
           systemLogger.error('Error validating file', { 
-            filePath: file.file_path, 
+            filePath: file.file_path || file.filePath, 
             error: fileError.message 
           });
           
-          results.push({
-            filePath: file.file_path,
+          const errorResult = {
+            filePath: file.file_path || file.filePath,
             valid: false,
-            error: fileError.message
-          });
+            fileType: path.extname(file.file_path || file.filePath).slice(1) || 'unknown',
+            fileSize: null,
+            fileSizeFormatted: '-',
+            recordCount: null,
+            error: fileError.message,
+            reason: fileError.message
+          };
+          
+          results.push(errorResult);
           
           invalidCount++;
           
-          await pool.query(
-            `UPDATE schema_validation_job_files 
-             SET status = 'error', error_message = $2, updated_at = NOW()
-             WHERE id = $1`,
-            [file.id, fileError.message]
-          );
+          if (file.id) {
+            await pool.query(
+              `UPDATE schema_validation_job_files 
+               SET status = 'error', error_message = $2, validation_result = $3, updated_at = NOW()
+               WHERE id = $1`,
+              [file.id, fileError.message, JSON.stringify(errorResult)]
+            );
+          }
         }
 
         processedCount++;
 
-        if (processedCount % 10 === 0) {
-          await this.updateJobStatus(jobId, 'running', {
-            processed_count: processedCount,
-            valid_count: validCount,
-            invalid_count: invalidCount
-          });
-        }
+        // Update progress after EVERY file for real-time feedback
+        await this.updateJobStatus(jobId, 'running', {
+          processed_count: processedCount,
+          total_files: totalFiles,
+          valid_count: validCount,
+          invalid_count: invalidCount
+        });
       }
 
       const reportPath = await this.generateReport(job, results);
 
       await this.updateJobStatus(jobId, 'completed', {
         processed_count: processedCount,
+        total_files: totalFiles,
         valid_count: validCount,
         invalid_count: invalidCount,
         report_path: reportPath
@@ -327,13 +474,15 @@ class FastSchemaValidationService {
       systemLogger.info('Schema validation job completed', { 
         jobId, 
         validCount, 
-        invalidCount 
+        invalidCount,
+        totalFiles 
       });
 
       return {
         success: true,
         validCount,
         invalidCount,
+        totalFiles,
         reportPath
       };
 
@@ -349,6 +498,343 @@ class FastSchemaValidationService {
       
       throw error;
     }
+  }
+
+  /**
+   * Get archive password from vendor agreement
+   */
+  static async getArchivePassword(vendorAgreementId) {
+    try {
+      const passwordVaultService = new PasswordVaultService(pool, null, systemLogger);
+      const password = await passwordVaultService.retrievePassword(
+        'vendor_agreement',
+        vendorAgreementId.toString()
+      );
+      return password;
+    } catch (error) {
+      // No password stored or retrieval failed - that's okay for non-encrypted archives
+      return null;
+    }
+  }
+
+  /**
+   * Expand archive files - extract contents and return expanded file list
+   */
+  static async expandArchiveFiles(s3, bucket, files, archivePassword, jobId) {
+    const expandedFiles = [];
+    const archiveDetector = new ArchiveDetectionService(systemLogger);
+    const tempDir = path.join(os.tmpdir(), `schema-validation-${jobId}`);
+    
+    // Ensure temp directory exists
+    if (!fs.existsSync(tempDir)) {
+      fs.mkdirSync(tempDir, { recursive: true });
+    }
+
+    for (const file of files) {
+      const filePath = file.file_path || file.filePath;
+      const fileName = path.basename(filePath);
+      const ext = path.extname(fileName).toLowerCase();
+      
+      // Check if this is an archive file
+      const isArchive = ARCHIVE_EXTENSIONS.some(archiveExt => 
+        fileName.toLowerCase().endsWith(archiveExt)
+      );
+      
+      if (isArchive) {
+        try {
+          systemLogger.info('Processing archive file for schema validation', { filePath, jobId });
+          
+          // Download archive to temp location
+          const s3Key = this.extractS3Key(filePath, bucket);
+          const tempArchivePath = path.join(tempDir, fileName);
+          
+          const response = await s3.getObject({ Bucket: bucket, Key: s3Key }).promise();
+          fs.writeFileSync(tempArchivePath, response.Body);
+          
+          // Extract archive contents
+          const extractedFiles = await this.extractArchiveContents(
+            tempArchivePath,
+            tempDir,
+            archivePassword,
+            archiveDetector
+          );
+          
+          // Add extracted files to the list
+          for (const extractedFile of extractedFiles) {
+            expandedFiles.push({
+              file_path: extractedFile.fullPath,
+              filePath: extractedFile.fullPath,
+              originalArchive: filePath,
+              isExtracted: true,
+              extractedFileName: extractedFile.fileName
+            });
+          }
+          
+          // Clean up archive file
+          if (fs.existsSync(tempArchivePath)) {
+            fs.unlinkSync(tempArchivePath);
+          }
+          
+        } catch (archiveError) {
+          systemLogger.error('Failed to process archive', { 
+            filePath, 
+            error: archiveError.message 
+          });
+          // Add the archive itself as a file that couldn't be processed
+          expandedFiles.push({
+            ...file,
+            archiveError: archiveError.message
+          });
+        }
+      } else {
+        // Not an archive, add as-is
+        expandedFiles.push(file);
+      }
+    }
+    
+    return expandedFiles;
+  }
+
+  /**
+   * Extract contents from an archive file
+   */
+  static async extractArchiveContents(archivePath, outputDir, password, archiveDetector) {
+    const archiveInfo = await archiveDetector.analyzeArchive(archivePath);
+    
+    if (!archiveInfo.isArchive) {
+      throw new Error('File is not a valid archive');
+    }
+    
+    const extractedFiles = [];
+    const extractDir = path.join(outputDir, `extracted_${Date.now()}`);
+    fs.mkdirSync(extractDir, { recursive: true });
+    
+    const archiveType = archiveInfo.archiveType;
+    
+    if (archiveType === 'zip') {
+      // Use Python pyzipper for ZIP extraction (supports password-protected)
+      const extracted = await this.extractZipWithPython(archivePath, extractDir, password);
+      extractedFiles.push(...extracted);
+    } else if (archiveType === 'tar' || archiveType === 'tar.gz' || archiveType === 'tgz') {
+      const extracted = await this.extractTar(archivePath, extractDir, archiveType);
+      extractedFiles.push(...extracted);
+    } else if (archiveType === '7z') {
+      const extracted = await this.extract7z(archivePath, extractDir, password);
+      extractedFiles.push(...extracted);
+    } else {
+      throw new Error(`Unsupported archive type: ${archiveType}`);
+    }
+    
+    return extractedFiles;
+  }
+
+  /**
+   * Extract ZIP using Python pyzipper (supports AES-256 encryption)
+   */
+  static async extractZipWithPython(archivePath, outputDir, password) {
+    return new Promise((resolve, reject) => {
+      const { spawn } = require('child_process');
+      
+      const pythonScript = `
+import sys
+import json
+import os
+import pyzipper
+
+archive_path = sys.argv[1]
+output_dir = sys.argv[2]
+password = sys.argv[3] if len(sys.argv) > 3 and sys.argv[3] != '__NO_PASSWORD__' else None
+
+try:
+    extracted = []
+    with pyzipper.AESZipFile(archive_path, 'r') as archive:
+        for member_info in archive.infolist():
+            if member_info.is_dir():
+                continue
+            member_name = os.path.basename(member_info.filename)
+            if not member_name or '..' in member_info.filename:
+                continue
+            if member_name.startswith('._') or '__MACOSX' in member_info.filename:
+                continue
+            safe_path = os.path.join(output_dir, member_name)
+            with archive.open(member_info, pwd=password.encode() if password else None) as source:
+                with open(safe_path, 'wb') as target:
+                    target.write(source.read())
+            file_size = os.path.getsize(safe_path)
+            extracted.append({
+                'relativePath': member_info.filename,
+                'fileName': member_name,
+                'fullPath': safe_path,
+                'originalSize': file_size
+            })
+    print(json.dumps({'success': True, 'files': extracted}))
+except Exception as e:
+    print(json.dumps({'success': False, 'error': str(e)}))
+`;
+      
+      const pythonProcess = spawn('python3', ['-c', pythonScript, archivePath, outputDir, password || '__NO_PASSWORD__']);
+      let stdout = '';
+      let stderr = '';
+      
+      pythonProcess.stdout.on('data', (data) => { stdout += data.toString(); });
+      pythonProcess.stderr.on('data', (data) => { stderr += data.toString(); });
+      
+      pythonProcess.on('close', (code) => {
+        try {
+          const result = JSON.parse(stdout.trim());
+          if (result.success) {
+            resolve(result.files);
+          } else {
+            reject(new Error(result.error || 'ZIP extraction failed'));
+          }
+        } catch (e) {
+          reject(new Error(`ZIP extraction failed: ${stderr || e.message}`));
+        }
+      });
+    });
+  }
+
+  /**
+   * Extract TAR archives
+   */
+  static async extractTar(archivePath, outputDir, archiveType) {
+    return new Promise((resolve, reject) => {
+      const tar = require('tar-stream');
+      const gunzip = require('gunzip-maybe');
+      const extractedFiles = [];
+      const extract = tar.extract();
+      
+      extract.on('entry', (header, stream, next) => {
+        if (header.type !== 'file') {
+          stream.resume();
+          return next();
+        }
+        
+        const fileName = path.basename(header.name);
+        if (!fileName || header.name.includes('..')) {
+          stream.resume();
+          return next();
+        }
+        
+        const outputPath = path.join(outputDir, fileName);
+        const writeStream = fs.createWriteStream(outputPath);
+        
+        stream.pipe(writeStream);
+        
+        writeStream.on('finish', () => {
+          extractedFiles.push({
+            relativePath: header.name,
+            fileName: fileName,
+            fullPath: outputPath,
+            originalSize: header.size
+          });
+          next();
+        });
+        
+        writeStream.on('error', () => next());
+      });
+      
+      extract.on('finish', () => resolve(extractedFiles));
+      extract.on('error', (err) => reject(err));
+      
+      const fileStream = fs.createReadStream(archivePath);
+      if (archiveType === 'tar.gz' || archiveType === 'tgz') {
+        fileStream.pipe(gunzip()).pipe(extract);
+      } else {
+        fileStream.pipe(extract);
+      }
+    });
+  }
+
+  /**
+   * Extract 7z archives
+   */
+  static async extract7z(archivePath, outputDir, password) {
+    const sevenZip = require('node-7z-archive');
+    
+    return new Promise((resolve, reject) => {
+      const options = password ? { password } : {};
+      const extractStream = sevenZip.extractFull(archivePath, outputDir, options);
+      
+      extractStream.on('end', async () => {
+        try {
+          const files = await fs.promises.readdir(outputDir);
+          const extractedFiles = [];
+          
+          for (const file of files) {
+            const filePath = path.join(outputDir, file);
+            const stats = await fs.promises.stat(filePath);
+            
+            if (stats.isFile()) {
+              extractedFiles.push({
+                relativePath: file,
+                fileName: file,
+                fullPath: filePath,
+                originalSize: stats.size
+              });
+            }
+          }
+          
+          resolve(extractedFiles);
+        } catch (error) {
+          reject(new Error(`Failed to read extracted 7z files: ${error.message}`));
+        }
+      });
+      
+      extractStream.on('error', (error) => {
+        if (error.message && (error.message.includes('password') || error.message.includes('encrypted'))) {
+          reject(new Error('ARCHIVE_PASSWORD_REQUIRED: Archive is password-protected but no password was provided'));
+        } else {
+          reject(new Error(`7z extraction failed: ${error.message}`));
+        }
+      });
+    });
+  }
+
+  /**
+   * Get file metadata from S3
+   */
+  static async getFileMetadata(s3, bucket, filePath) {
+    try {
+      const s3Key = this.extractS3Key(filePath, bucket);
+      
+      // Check if this is a local extracted file
+      if (fs.existsSync(filePath)) {
+        const stats = fs.statSync(filePath);
+        return {
+          size: stats.size,
+          fileType: path.extname(filePath).slice(1).toLowerCase() || 'unknown',
+          lastModified: stats.mtime
+        };
+      }
+      
+      // Get metadata from S3
+      const headResponse = await s3.headObject({ Bucket: bucket, Key: s3Key }).promise();
+      
+      return {
+        size: headResponse.ContentLength,
+        fileType: path.extname(s3Key).slice(1).toLowerCase() || 'unknown',
+        lastModified: headResponse.LastModified
+      };
+    } catch (error) {
+      return {
+        size: null,
+        fileType: path.extname(filePath).slice(1).toLowerCase() || 'unknown',
+        lastModified: null
+      };
+    }
+  }
+
+  /**
+   * Format file size for display
+   */
+  static formatFileSize(bytes) {
+    if (bytes === null || bytes === undefined) return '-';
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   }
 
   /**
@@ -869,19 +1355,23 @@ class FastSchemaValidationService {
     ];
 
     const detailsData = [
-      ['File Path', 'Status', 'Matched Pattern', 'Actual Columns', 'Expected Columns', 'Missing Columns', 'Extra Columns', 'Reason']
+      ['File Name', 'File Type', 'File Size', 'Record Count', 'Status', 'Matched Pattern', 'Actual Columns', 'Expected Columns', 'Missing Columns', 'Extra Columns', 'Reason', 'Full Path']
     ];
 
     for (const result of results) {
       detailsData.push([
-        result.filePath,
+        result.fileName || path.basename(result.filePath || ''),
+        result.fileType || path.extname(result.filePath || '').slice(1) || '-',
+        result.fileSizeFormatted || '-',
+        result.recordCount || '-',
         result.valid ? 'Valid' : 'Invalid',
         result.matchedPattern || '-',
         result.actualColumnCount || '-',
         result.expectedColumnCount || '-',
         result.missingColumns?.join(', ') || '-',
         result.extraColumns?.join(', ') || '-',
-        result.reason || result.error || '-'
+        result.reason || result.error || '-',
+        result.filePath || '-'
       ]);
     }
 
