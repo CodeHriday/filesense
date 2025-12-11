@@ -1,8 +1,0 @@
-/home/runner/workspace/rust-log-service/target/debug/deps/zerocopy_derive-2fbfa0cc3c133f2b.d: /home/runner/workspace/.local/share/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/zerocopy-derive-0.8.31/src/lib.rs /home/runner/workspace/.local/share/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/zerocopy-derive-0.8.31/src/enum.rs /home/runner/workspace/.local/share/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/zerocopy-derive-0.8.31/src/ext.rs /home/runner/workspace/.local/share/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/zerocopy-derive-0.8.31/src/repr.rs
-
-/home/runner/workspace/rust-log-service/target/debug/deps/libzerocopy_derive-2fbfa0cc3c133f2b.so: /home/runner/workspace/.local/share/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/zerocopy-derive-0.8.31/src/lib.rs /home/runner/workspace/.local/share/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/zerocopy-derive-0.8.31/src/enum.rs /home/runner/workspace/.local/share/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/zerocopy-derive-0.8.31/src/ext.rs /home/runner/workspace/.local/share/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/zerocopy-derive-0.8.31/src/repr.rs
-
-/home/runner/workspace/.local/share/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/zerocopy-derive-0.8.31/src/lib.rs:
-/home/runner/workspace/.local/share/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/zerocopy-derive-0.8.31/src/enum.rs:
-/home/runner/workspace/.local/share/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/zerocopy-derive-0.8.31/src/ext.rs:
-/home/runner/workspace/.local/share/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/zerocopy-derive-0.8.31/src/repr.rs:
