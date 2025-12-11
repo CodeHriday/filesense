@@ -354,15 +354,15 @@ class FastSchemaValidationService {
       const connectionCredentials = await this.getConnectionCredentials(job.connection_id);
       const s3 = this.createS3Client(connectionCredentials);
       
-      // Get archive password from vendor agreement (if any)
-      const archivePassword = await this.getArchivePassword(job.vendor_agreement_id);
+      // Get archive passwords from vendor agreement file schemas (pattern -> password map)
+      const archivePasswords = await this.getArchivePasswords(job.vendor_agreement_id);
       
       // Check for archive files and expand them
       const expandedFiles = await this.expandArchiveFiles(
         s3, 
         connectionCredentials.bucket, 
         files, 
-        archivePassword,
+        archivePasswords,
         jobId
       );
       
@@ -690,26 +690,79 @@ class FastSchemaValidationService {
   }
 
   /**
-   * Get archive password from vendor agreement
+   * Get archive passwords from vendor agreement file schemas
+   * Returns a map of file_name_pattern -> password for archives that have passwords stored
    */
-  static async getArchivePassword(vendorAgreementId) {
+  static async getArchivePasswords(vendorAgreementId) {
     try {
       const passwordVaultService = new PasswordVaultService(pool, null, systemLogger);
-      const password = await passwordVaultService.retrievePassword(
-        'vendor_agreement',
-        vendorAgreementId.toString()
+      
+      const schemasResult = await pool.query(
+        `SELECT id, file_name_pattern FROM vendor_agreement_file_schemas 
+         WHERE vendor_agreement_id = $1 AND is_active = TRUE`,
+        [vendorAgreementId]
       );
-      return password;
+      
+      const passwordMap = {};
+      
+      for (const schema of schemasResult.rows) {
+        try {
+          const password = await passwordVaultService.retrievePassword(
+            'vendor_agreement_file_schema',
+            schema.id.toString()
+          );
+          if (password) {
+            passwordMap[schema.file_name_pattern] = password;
+            passwordMap[`schema_${schema.id}`] = password;
+          }
+        } catch (err) {
+          // No password for this schema - that's okay
+        }
+      }
+      
+      systemLogger.info('Retrieved archive passwords for vendor agreement', {
+        vendorAgreementId,
+        schemaCount: schemasResult.rows.length,
+        passwordsFound: Object.keys(passwordMap).filter(k => !k.startsWith('schema_')).length
+      });
+      
+      return passwordMap;
     } catch (error) {
-      // No password stored or retrieval failed - that's okay for non-encrypted archives
+      systemLogger.warn('Failed to retrieve archive passwords', { 
+        vendorAgreementId, 
+        error: error.message 
+      });
+      return {};
+    }
+  }
+  
+  /**
+   * Find the matching password for an archive file based on pattern matching
+   */
+  static findPasswordForFile(fileName, passwordMap) {
+    if (!passwordMap || Object.keys(passwordMap).length === 0) {
       return null;
     }
+    
+    for (const [pattern, password] of Object.entries(passwordMap)) {
+      if (pattern.startsWith('schema_')) continue;
+      if (matchesPattern(fileName, pattern)) {
+        return password;
+      }
+    }
+    
+    return null;
   }
 
   /**
    * Expand archive files - extract contents and return expanded file list
+   * @param {Object} s3 - S3 client
+   * @param {string} bucket - S3 bucket name
+   * @param {Array} files - Array of file objects
+   * @param {Object} archivePasswords - Map of file_name_pattern -> password
+   * @param {string} jobId - Job ID for logging
    */
-  static async expandArchiveFiles(s3, bucket, files, archivePassword, jobId) {
+  static async expandArchiveFiles(s3, bucket, files, archivePasswords, jobId) {
     const expandedFiles = [];
     const archiveDetector = new ArchiveDetectionService(systemLogger);
     const tempDir = path.join(os.tmpdir(), `schema-validation-${jobId}`);
@@ -731,7 +784,14 @@ class FastSchemaValidationService {
       
       if (isArchive) {
         try {
-          systemLogger.info('Processing archive file for schema validation', { filePath, jobId });
+          // Find matching password for this archive based on file pattern
+          const archivePassword = this.findPasswordForFile(fileName, archivePasswords);
+          
+          systemLogger.info('Processing archive file for schema validation', { 
+            filePath, 
+            jobId,
+            hasPassword: !!archivePassword 
+          });
           
           // Download archive to temp location
           const s3Key = this.extractS3Key(filePath, bucket);
