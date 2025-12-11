@@ -374,92 +374,172 @@ class FastSchemaValidationService {
       }
       
       const totalFiles = files.length;
-
-      for (const file of files) {
+      const BATCH_SIZE = 10; // Process 10 files in parallel
+      let errorCount = 0;
+      
+      // Shared progress tracker for real-time per-file updates
+      const progressTracker = {
+        processedCount: 0,
+        validCount: 0,
+        invalidCount: 0,
+        errorCount: 0,
+        updateInProgress: false,
+        pendingUpdate: false
+      };
+      
+      // Debounced progress update function
+      const updateProgress = async () => {
+        if (progressTracker.updateInProgress) {
+          progressTracker.pendingUpdate = true;
+          return;
+        }
+        progressTracker.updateInProgress = true;
+        
         try {
-          // Get file metadata (size, type)
-          const fileMetadata = await this.getFileMetadata(
-            s3, 
-            connectionCredentials.bucket, 
-            file.file_path || file.filePath
-          );
-          
-          const validationResult = await this.validateFileMetadata(
-            s3,
-            connectionCredentials.bucket,
-            file.file_path || file.filePath,
-            agreementSchema
-          );
-
-          // Merge metadata with validation result
-          const fullResult = {
-            filePath: file.file_path || file.filePath,
-            fileSize: fileMetadata.size,
-            fileSizeFormatted: this.formatFileSize(fileMetadata.size),
-            fileType: fileMetadata.fileType,
-            recordCount: validationResult.recordCount || null,
-            ...validationResult
-          };
-
-          results.push(fullResult);
-
-          if (validationResult.valid) {
-            validCount++;
-          } else {
-            invalidCount++;
-          }
-
-          // Update file record if it exists in DB
-          if (file.id) {
-            await pool.query(
-              `UPDATE schema_validation_job_files 
-               SET status = $2, validation_result = $3, updated_at = NOW()
-               WHERE id = $1`,
-              [file.id, validationResult.valid ? 'valid' : 'invalid', JSON.stringify(fullResult)]
-            );
-          }
-
-        } catch (fileError) {
-          systemLogger.error('Error validating file', { 
-            filePath: file.file_path || file.filePath, 
-            error: fileError.message 
+          await this.updateJobStatus(jobId, 'running', {
+            processed_count: progressTracker.processedCount,
+            total_files: totalFiles,
+            valid_count: progressTracker.validCount,
+            invalid_count: progressTracker.invalidCount,
+            error_count: progressTracker.errorCount
           });
-          
-          const errorResult = {
-            filePath: file.file_path || file.filePath,
-            valid: false,
-            fileType: path.extname(file.file_path || file.filePath).slice(1) || 'unknown',
-            fileSize: null,
-            fileSizeFormatted: '-',
-            recordCount: null,
-            error: fileError.message,
-            reason: fileError.message
-          };
-          
-          results.push(errorResult);
-          
-          invalidCount++;
-          
-          if (file.id) {
-            await pool.query(
-              `UPDATE schema_validation_job_files 
-               SET status = 'error', error_message = $2, validation_result = $3, updated_at = NOW()
-               WHERE id = $1`,
-              [file.id, fileError.message, JSON.stringify(errorResult)]
-            );
+        } finally {
+          progressTracker.updateInProgress = false;
+          if (progressTracker.pendingUpdate) {
+            progressTracker.pendingUpdate = false;
+            setImmediate(updateProgress);
           }
         }
+      };
+      
+      // Process files in parallel batches
+      for (let i = 0; i < files.length; i += BATCH_SIZE) {
+        const batch = files.slice(i, i + BATCH_SIZE);
+        
+        // Process batch in parallel with per-file progress updates
+        const batchPromises = batch.map(async (file) => {
+          const filePath = file.file_path || file.filePath;
+          let result;
+          let isValid = false;
+          let isError = false;
+          
+          try {
+            // Get file metadata (size, type)
+            const fileMetadata = await this.getFileMetadata(
+              s3, 
+              connectionCredentials.bucket, 
+              filePath
+            );
+            
+            const validationResult = await this.validateFileMetadata(
+              s3,
+              connectionCredentials.bucket,
+              filePath,
+              agreementSchema
+            );
 
-        processedCount++;
+            // Merge metadata with validation result
+            result = {
+              filePath,
+              fileSize: fileMetadata.size,
+              fileSizeFormatted: this.formatFileSize(fileMetadata.size),
+              fileType: fileMetadata.fileType,
+              recordCount: validationResult.recordCount || null,
+              ...validationResult
+            };
 
-        // Update progress after EVERY file for real-time feedback
+            isValid = validationResult.valid;
+
+            // Update file record if it exists in DB
+            if (file.id) {
+              await pool.query(
+                `UPDATE schema_validation_job_files 
+                 SET status = $2, validation_result = $3, updated_at = NOW()
+                 WHERE id = $1`,
+                [file.id, validationResult.valid ? 'valid' : 'invalid', JSON.stringify(result)]
+              );
+            }
+
+          } catch (fileError) {
+            systemLogger.error('Error validating file', { 
+              filePath, 
+              error: fileError.message 
+            });
+            
+            result = {
+              filePath,
+              valid: false,
+              fileType: path.extname(filePath).slice(1) || 'unknown',
+              fileSize: null,
+              fileSizeFormatted: '-',
+              recordCount: null,
+              error: fileError.message,
+              reason: fileError.message
+            };
+            
+            isError = true;
+            
+            if (file.id) {
+              await pool.query(
+                `UPDATE schema_validation_job_files 
+                 SET status = 'error', error_message = $2, validation_result = $3, updated_at = NOW()
+                 WHERE id = $1`,
+                [file.id, fileError.message, JSON.stringify(result)]
+              );
+            }
+          }
+          
+          // Update progress tracker per file (thread-safe increment)
+          progressTracker.processedCount++;
+          if (isValid) {
+            progressTracker.validCount++;
+          } else if (isError) {
+            progressTracker.errorCount++;
+          } else {
+            progressTracker.invalidCount++;
+          }
+          
+          // Trigger progress update (fire and forget - debounced)
+          updateProgress().catch(err => {
+            systemLogger.warn('Progress update failed', { jobId, error: err.message });
+          });
+
+          return { result, valid: isValid, error: isError };
+        });
+
+        // Wait for batch to complete
+        const batchResults = await Promise.all(batchPromises);
+        
+        // Aggregate batch results
+        for (const { result, error } of batchResults) {
+          results.push(result);
+          if (error) {
+            errorCount++;
+          }
+        }
+        
+        // Final progress sync after batch
         await this.updateJobStatus(jobId, 'running', {
-          processed_count: processedCount,
+          processed_count: progressTracker.processedCount,
           total_files: totalFiles,
-          valid_count: validCount,
-          invalid_count: invalidCount
+          valid_count: progressTracker.validCount,
+          invalid_count: progressTracker.invalidCount,
+          error_count: progressTracker.errorCount
+        });
+        
+        systemLogger.info('Batch processed', { 
+          jobId, 
+          batchNumber: Math.floor(i / BATCH_SIZE) + 1,
+          processedCount: progressTracker.processedCount,
+          totalFiles 
         });
       }
+      
+      // Copy final counts from tracker
+      processedCount = progressTracker.processedCount;
+      validCount = progressTracker.validCount;
+      invalidCount = progressTracker.invalidCount;
+      errorCount = progressTracker.errorCount;
 
       const reportPath = await this.generateReport(job, results);
 
@@ -468,6 +548,7 @@ class FastSchemaValidationService {
         total_files: totalFiles,
         valid_count: validCount,
         invalid_count: invalidCount,
+        error_count: errorCount,
         report_path: reportPath
       });
 
@@ -475,6 +556,7 @@ class FastSchemaValidationService {
         jobId, 
         validCount, 
         invalidCount,
+        errorCount,
         totalFiles 
       });
 
@@ -482,6 +564,7 @@ class FastSchemaValidationService {
         success: true,
         validCount,
         invalidCount,
+        errorCount,
         totalFiles,
         reportPath
       };
@@ -1111,20 +1194,59 @@ except Exception as e:
       const arrayBuffer = new Uint8Array(buffer).buffer;
       const metadata = parquetMetadata(arrayBuffer);
       
-      // Sum up row counts from all row groups
-      if (metadata && metadata.row_groups) {
-        let totalRows = 0;
-        for (const rowGroup of metadata.row_groups) {
-          if (rowGroup.num_rows) {
-            totalRows += rowGroup.num_rows;
-          }
+      systemLogger.debug('Parquet metadata structure', { 
+        s3Key, 
+        hasMetadata: !!metadata,
+        metadataKeys: metadata ? Object.keys(metadata) : [],
+        rowGroupsLength: metadata?.row_groups?.length,
+        numRows: metadata?.num_rows,
+        numRowsBigInt: typeof metadata?.num_rows
+      });
+      
+      // First, check top-level numRows (hyparquet's preferred property)
+      if (metadata?.numRows !== undefined && metadata.numRows !== null) {
+        const count = Number(metadata.numRows);
+        if (count > 0) {
+          systemLogger.info('Parquet record count from numRows', { s3Key, count });
+          return count;
         }
-        return totalRows > 0 ? totalRows : null;
       }
       
-      // Try direct num_rows property
-      if (metadata && metadata.num_rows) {
-        return metadata.num_rows;
+      // Try direct num_rows property (may be BigInt)
+      if (metadata?.num_rows !== undefined && metadata.num_rows !== null) {
+        const count = Number(metadata.num_rows);
+        if (count > 0) {
+          systemLogger.info('Parquet record count from num_rows', { s3Key, count });
+          return count;
+        }
+      }
+      
+      // Sum up row counts from all row groups as fallback
+      if (metadata && metadata.row_groups && metadata.row_groups.length > 0) {
+        let totalRows = BigInt(0);
+        for (const rowGroup of metadata.row_groups) {
+          // hyparquet may use num_rows or numRows
+          const rowCount = rowGroup.num_rows ?? rowGroup.numRows;
+          if (rowCount !== undefined && rowCount !== null) {
+            totalRows += BigInt(rowCount);
+          }
+        }
+        if (totalRows > 0) {
+          const count = Number(totalRows);
+          systemLogger.info('Parquet record count from row_groups', { s3Key, count });
+          return count;
+        }
+      }
+      
+      // Check metadata.metadata for additional properties
+      if (metadata?.metadata) {
+        const innerMeta = metadata.metadata;
+        if (innerMeta.num_rows !== undefined) {
+          return Number(innerMeta.num_rows);
+        }
+        if (innerMeta.numRows !== undefined) {
+          return Number(innerMeta.numRows);
+        }
       }
       
       return null;
