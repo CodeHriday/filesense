@@ -75,7 +75,8 @@ class BulkProfilingService {
       const data = await s3.listObjectsV2(params).promise();
       
       // Filter files by pattern and compatible types
-      const compatibleExtensions = ['.csv', '.json', '.parquet', '.xlsx', '.xml'];
+      // Include archive extensions - these will be extracted during schema validation
+      const compatibleExtensions = ['.csv', '.json', '.parquet', '.xlsx', '.xml', '.dat', '.zip', '.7z', '.tar', '.tar.gz', '.tgz'];
       const files = [];
       
       for (const item of data.Contents || []) {
