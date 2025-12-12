@@ -4,6 +4,7 @@ clamav-db/*.cvd
 node_modules/
 .env
 dist/
+utils/logs/
 logs/
 .gitignore
 .vscode/
