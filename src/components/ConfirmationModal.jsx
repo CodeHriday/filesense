@@ -1,6 +1,7 @@
 import React from 'react';
 import { FiAlertCircle, FiAlertTriangle, FiInfo, FiCheckCircle } from 'react-icons/fi';
 import './styles/ConfirmationModal.css';
+import PropTypes from 'prop-types';
 
 /**
  * ConfirmationModal - A standardized compact modal for confirmations and alerts
@@ -69,5 +70,26 @@ const ConfirmationModal = ({
     </div>
   );
 };
+// Add PropTypes validation
+ConfirmationModal.propTypes = {
+  isOpen: PropTypes.bool.isRequired,
+  onClose: PropTypes.func.isRequired,
+  onConfirm: PropTypes.func.isRequired,
+  title: PropTypes.string,
+  message: PropTypes.string.isRequired,
+  subMessage: PropTypes.string,
+  confirmText: PropTypes.string,
+  cancelText: PropTypes.string,
+  variant: PropTypes.oneOf(['danger', 'warning', 'info', 'success']),
+  showCancel: PropTypes.bool,
+};
 
+// Optional: Define default props (good practice)
+ConfirmationModal.defaultProps = {
+  title: 'Confirm Action',
+  confirmText: 'Confirm',
+  cancelText: 'Cancel',
+  variant: 'danger',
+  showCancel: true,
+};
 export default ConfirmationModal;

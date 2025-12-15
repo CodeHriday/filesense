@@ -182,8 +182,9 @@ const APITokens = () => {
           <h3 className="gps-section-header">Create New API Token</h3>
           <form onSubmit={handleCreateToken}>
             <div className="gps-form-group">
-              <label className="gps-form-label">Token Name *</label>
+              <label htmlFor="token-name" className="gps-form-label">Token Name *</label>
               <input
+                id="token-name"
                 type="text"
                 className="gps-form-input"
                 value={formData.name}
@@ -194,8 +195,9 @@ const APITokens = () => {
             </div>
 
             <div className="gps-form-group">
-              <label className="gps-form-label">Project (Optional)</label>
+              <label htmlFor="token-project" className="gps-form-label">Project (Optional)</label>
               <select
+                id="token-project"
                 className="gps-form-select"
                 value={formData.projectId}
                 onChange={(e) => setFormData({ ...formData, projectId: e.target.value })}
@@ -211,12 +213,13 @@ const APITokens = () => {
             </div>
 
             <div className="gps-form-group">
-              <label className="gps-form-label">Scopes *</label>
-              <div className="gps-scope-checkboxes">
-                {availableScopes.map(scope => (
+              <label id="scopes-label" className="gps-form-label">Scopes *</label>
+              <div className="gps-scope-checkboxes" role="group" aria-labelledby="scopes-label">
+                {availableScopes.map((scope) => (
                   <div key={scope.value} className="gps-checkbox-card">
-                    <label className="gps-checkbox-card-label">
+                    <label className="gps-checkbox-card-label" htmlFor={`scope-${scope.value}`}>
                       <input
+                        id={`scope-${scope.value}`}
                         type="checkbox"
                         checked={formData.scopes.includes(scope.value)}
                         onChange={() => handleScopeToggle(scope.value)}
@@ -232,9 +235,10 @@ const APITokens = () => {
             </div>
 
             <div className="gps-form-row">
-              <div className="gps-form-group">
-                <label className="gps-form-label">Rate Limit (requests)</label>
+                <div className="gps-form-group">
+                <label htmlFor="rate-limit" className="gps-form-label">Rate Limit (requests)</label>
                 <input
+                  id="rate-limit"
                   type="number"
                   className="gps-form-input"
                   value={formData.rateLimit}
@@ -244,8 +248,9 @@ const APITokens = () => {
                 />
               </div>
               <div className="gps-form-group">
-                <label className="gps-form-label">Rate Window (hours)</label>
+                <label htmlFor="rate-window" className="gps-form-label">Rate Window (hours)</label>
                 <input
+                  id="rate-window"
                   type="number"
                   className="gps-form-input"
                   value={formData.rateWindowHours}
@@ -257,8 +262,9 @@ const APITokens = () => {
             </div>
 
             <div className="gps-form-group">
-              <label className="gps-form-label">Expiration Date (Optional)</label>
+              <label htmlFor="expires-at" className="gps-form-label">Expiration Date (Optional)</label>
               <input
+                id="expires-at"
                 type="datetime-local"
                 className="gps-form-input"
                 value={formData.expiresAt}
