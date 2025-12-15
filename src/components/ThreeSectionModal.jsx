@@ -1,5 +1,6 @@
 import React from 'react';
 import './ThreeSectionModal.css';
+import PropTypes from 'prop-types';
 
 /**
  * ThreeSectionModal Component
@@ -53,6 +54,17 @@ const ThreeSectionModal = ({
       </div>
     </div>
   );
+};
+ThreeSectionModal.propTypes = {
+  isOpen: PropTypes.bool.isRequired,
+  onClose: PropTypes.func.isRequired,
+  title: PropTypes.string.isRequired,
+
+  children: PropTypes.node,
+  footer: PropTypes.node,
+
+  className: PropTypes.string,
+  size: PropTypes.oneOf(['small', 'medium', 'large'])
 };
 
 export default ThreeSectionModal;

@@ -291,8 +291,9 @@ const VendorConnectionModal = ({
         return (
           <>
             <div className="form-group">
-              <label>AWS Region</label>
+              <label htmlFor="region">AWS Region</label>
               <input
+                id="region"
                 type="text"
                 name="region"
                 value={formData.region}
@@ -302,8 +303,9 @@ const VendorConnectionModal = ({
             </div>
             
             <div className="form-group">
-              <label>Bucket Name *</label>
+              <label htmlFor="bucket">Bucket Name *</label>
               <input
+                id="bucket"
                 type="text"
                 name="bucket"
                 value={formData.bucket}
@@ -313,8 +315,9 @@ const VendorConnectionModal = ({
             </div>
             
             <div className="form-group">
-              <label>Access Key ID {!isEditMode && '*'}</label>
+              <label htmlFor="access_key_id">Access Key ID {!isEditMode && '*'}</label>
               <input
+                id="access_key_id"
                 type="text"
                 name="access_key_id"
                 value={formData.access_key_id}
@@ -324,8 +327,9 @@ const VendorConnectionModal = ({
             </div>
             
             <div className="form-group">
-              <label>Secret Access Key {!isEditMode && '*'}</label>
+              <label htmlFor="secret_access_key">Secret Access Key {!isEditMode && '*'}</label>
               <input
+                id="secret_access_key"
                 type="password"
                 name="secret_access_key"
                 value={formData.secret_access_key}
@@ -335,8 +339,9 @@ const VendorConnectionModal = ({
             </div>
             
             <div className="form-group">
-              <label>Endpoint (Optional)</label>
+              <label htmlFor="endpoint">Endpoint (Optional)</label>
               <input
+                id="endpoint"
                 type="text"
                 name="endpoint"
                 value={formData.endpoint}
@@ -363,8 +368,9 @@ const VendorConnectionModal = ({
         return (
           <>
             <div className="form-group">
-              <label>GCP Project ID *</label>
+              <label htmlFor="gcp_project_id">GCP Project ID *</label>
               <input
+                id="gcp_project_id"
                 type="text"
                 name="gcp_project_id"
                 value={formData.gcp_project_id}
@@ -374,8 +380,9 @@ const VendorConnectionModal = ({
             </div>
             
             <div className="form-group">
-              <label>Bucket Name *</label>
+              <label htmlFor="gcp_bucket">Bucket Name *</label>
               <input
+                id="gcp_bucket"
                 type="text"
                 name="gcp_bucket"
                 value={formData.gcp_bucket}
@@ -385,8 +392,9 @@ const VendorConnectionModal = ({
             </div>
             
             <div className="form-group">
-              <label>Service Account JSON (JSON format) {!isEditMode && '*'}</label>
+              <label htmlFor="service_account_json">Service Account JSON (JSON format) {!isEditMode && '*'}</label>
               <textarea
+                id="service_account_json"
                 name="service_account_json"
                 value={formData.service_account_json}
                 onChange={handleInputChange}
@@ -404,8 +412,9 @@ const VendorConnectionModal = ({
         return (
           <>
             <div className="form-group">
-              <label>Account Name *</label>
+              <label htmlFor="account_name">Account Name *</label>
               <input
+                id="account_name"
                 type="text"
                 name="account_name"
                 value={formData.account_name}
@@ -415,8 +424,9 @@ const VendorConnectionModal = ({
             </div>
             
             <div className="form-group">
-              <label>Container Name *</label>
+              <label htmlFor="container_name">Container Name *</label>
               <input
+                id="container_name"
                 type="text"
                 name="container_name"
                 value={formData.container_name}
@@ -426,8 +436,9 @@ const VendorConnectionModal = ({
             </div>
             
             <div className="form-group">
-              <label>Account Key {!isEditMode && '*'}</label>
+              <label htmlFor="account_key">Account Key {!isEditMode && '*'}</label>
               <input
+                id="account_key"
                 type="password"
                 name="account_key"
                 value={formData.account_key}
@@ -437,8 +448,9 @@ const VendorConnectionModal = ({
             </div>
             
             <div className="form-group">
-              <label>Endpoint (Optional)</label>
+              <label htmlFor="azure_endpoint">Endpoint (Optional)</label>
               <input
+                id="azure_endpoint"
                 type="text"
                 name="azure_endpoint"
                 value={formData.azure_endpoint}
@@ -485,8 +497,9 @@ const VendorConnectionModal = ({
       >
         <form onSubmit={handleSubmit} className="vendor-connection-form">
           <div className="form-group">
-            <label>Connection Name *</label>
+            <label htmlFor="name">Connection Name *</label>
             <input
+              id="name"
               type="text"
               name="name"
               value={formData.name}
@@ -497,8 +510,9 @@ const VendorConnectionModal = ({
           </div>
           
           <div className="form-group">
-            <label>Provider *</label>
+            <label htmlFor="provider">Provider *</label>
             <select
+              id="provider"
               name="provider"
               value={formData.provider}
               onChange={handleInputChange}
@@ -519,9 +533,10 @@ const VendorConnectionModal = ({
           )}
           
           <div className="form-group">
-            <label>File Path (Optional)</label>
+            <label htmlFor="file_path">File Path (Optional)</label>
             <div style={{ display: 'flex', gap: '0.5rem' }}>
               <input
+                id="file_path"
                 type="text"
                 name="file_path"
                 value={formData.file_path}

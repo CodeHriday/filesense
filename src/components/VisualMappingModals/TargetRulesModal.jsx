@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import FileBrowserModal from './FileBrowserModal';
 import './MappingConfigModal.css';
+import PropTypes from 'prop-types';
+
 
 const TargetRulesModal = ({ isOpen, onClose, onSave, initialConfig = {}, projectId, outputSchema = null }) => {
   const [name, setName] = useState(initialConfig.name || '');
@@ -385,6 +387,32 @@ const TargetRulesModal = ({ isOpen, onClose, onSave, initialConfig = {}, project
       )}
     </div>
   );
+};
+TargetRulesModal.propTypes = {
+  isOpen: PropTypes.bool.isRequired,
+  onClose: PropTypes.func.isRequired,
+  onSave: PropTypes.func.isRequired,
+  projectId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+  outputSchema: PropTypes.arrayOf(
+    PropTypes.shape({
+      name: PropTypes.string.isRequired,
+      type: PropTypes.string,
+      description: PropTypes.string,
+      contains_pii: PropTypes.bool
+    })
+  ),
+  initialConfig: PropTypes.shape({
+    name: PropTypes.string,
+    description: PropTypes.string,
+    connectionId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    filePath: PropTypes.string,
+    fileName: PropTypes.string,
+    fileFormat: PropTypes.string,
+    violationHandling: PropTypes.string,
+    selectedQualityRules: PropTypes.arrayOf(PropTypes.number),
+    anomalyDetection: PropTypes.bool,
+    targetFileOwnerId: PropTypes.oneOfType([PropTypes.string, PropTypes.number])
+  })
 };
 
 export default TargetRulesModal;

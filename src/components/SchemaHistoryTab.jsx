@@ -349,6 +349,7 @@ function SchemaHistoryTab({ fileId }) {
                 }}
               >
                 <input
+                  id={`compare-${snapshot.id}`}
                   type="checkbox"
                   className="compare-checkbox"
                   checked={isCheckedForCompare}
@@ -356,10 +357,11 @@ function SchemaHistoryTab({ fileId }) {
                   onChange={(e) => handleCompareCheckboxToggle(snapshot, e)}
                   onClick={(e) => e.stopPropagation()}
                   title={isMaxSelected ? 'Maximum 3 files can be compared' : 'Select for comparison'}
+                  aria-labelledby={`snapshot-date-${snapshot.id}`}
                 />
                 <div className="snapshot-marker">{isCurrent ? '●' : isSelected ? '◉' : '○'}</div>
                 <div className="snapshot-details">
-                  <span className="snapshot-date">
+                  <span id={`snapshot-date-${snapshot.id}`} className="snapshot-date">
                     {formatDate(snapshot.capturedAt)}
                     {isCurrent && <span className="current-label"> (Current)</span>}
                     {isSelected && <span className="selected-label"> (Comparing)</span>}

@@ -458,8 +458,9 @@ const ConnectionModal = ({
         return (
           <>
             <div style={compactStyles.formGroup}>
-              <label style={compactStyles.label}>IAM Role ARN *</label>
+              <label htmlFor="iam_role_arn" style={compactStyles.label}>IAM Role ARN *</label>
               <input
+                id="iam_role_arn"
                 type="text"
                 name="iam_role_arn"
                 value={formData.iam_role_arn}
@@ -473,8 +474,9 @@ const ConnectionModal = ({
               </small>
             </div>
             <div style={compactStyles.formGroup}>
-              <label style={compactStyles.label}>External ID (Optional)</label>
+              <label htmlFor="external_id" style={compactStyles.label}>External ID (Optional)</label>
               <input
+                id="external_id"
                 type="text"
                 name="external_id"
                 value={formData.external_id}
@@ -490,8 +492,9 @@ const ConnectionModal = ({
         return (
           <>
             <div style={compactStyles.formGroup}>
-              <label style={compactStyles.label}>Workload Identity Pool *</label>
+              <label htmlFor="workload_identity_pool" style={compactStyles.label}>Workload Identity Pool *</label>
               <input
+                id="workload_identity_pool"
                 type="text"
                 name="workload_identity_pool"
                 value={formData.workload_identity_pool}
@@ -502,8 +505,9 @@ const ConnectionModal = ({
               />
             </div>
             <div style={compactStyles.formGroup}>
-              <label style={compactStyles.label}>Workload Identity Provider *</label>
+              <label htmlFor="workload_identity_provider" style={compactStyles.label}>Workload Identity Provider *</label>
               <input
+                id="workload_identity_provider"
                 type="text"
                 name="workload_identity_provider"
                 value={formData.workload_identity_provider}
@@ -514,8 +518,9 @@ const ConnectionModal = ({
               />
             </div>
             <div style={compactStyles.formGroup}>
-              <label style={compactStyles.label}>Service Account Email *</label>
+              <label htmlFor="service_account_email" style={compactStyles.label}>Service Account Email *</label>
               <input
+                id="service_account_email"
                 type="email"
                 name="service_account_email"
                 value={formData.service_account_email}
@@ -532,8 +537,9 @@ const ConnectionModal = ({
         return (
           <>
             <div style={compactStyles.formGroup}>
-              <label style={compactStyles.label}>Azure Resource ID *</label>
+              <label htmlFor="azure_resource_id" style={compactStyles.label}>Azure Resource ID *</label>
               <input
+                id="azure_resource_id"
                 type="text"
                 name="azure_resource_id"
                 value={formData.azure_resource_id}
@@ -544,8 +550,9 @@ const ConnectionModal = ({
               />
             </div>
             <div style={compactStyles.formGroup}>
-              <label style={compactStyles.label}>Client ID (Optional)</label>
+              <label htmlFor="azure_client_id" style={compactStyles.label}>Client ID (Optional)</label>
               <input
+                id="azure_client_id"
                 type="text"
                 name="azure_client_id"
                 value={formData.azure_client_id}
@@ -561,8 +568,9 @@ const ConnectionModal = ({
         return (
           <>
             <div style={compactStyles.formGroup}>
-              <label style={compactStyles.label}>Database Host *</label>
+              <label htmlFor="db_host" style={compactStyles.label}>Database Host *</label>
               <input
+                id="db_host"
                 type="text"
                 name="db_host"
                 value={formData.db_host}
@@ -573,8 +581,9 @@ const ConnectionModal = ({
               />
             </div>
             <div style={compactStyles.formGroup}>
-              <label style={compactStyles.label}>Database Port *</label>
+              <label htmlFor="db_port" style={compactStyles.label}>Database Port *</label>
               <input
+                id="db_port"
                 type="number"
                 name="db_port"
                 value={formData.db_port}
@@ -585,8 +594,9 @@ const ConnectionModal = ({
               />
             </div>
             <div style={compactStyles.formGroup}>
-              <label style={compactStyles.label}>Database Name *</label>
+              <label htmlFor="db_name" style={compactStyles.label}>Database Name *</label>
               <input
+                id="db_name"
                 type="text"
                 name="db_name"
                 value={formData.db_name}
@@ -597,8 +607,9 @@ const ConnectionModal = ({
               />
             </div>
             <div style={compactStyles.formGroup}>
-              <label style={compactStyles.label}>Database User *</label>
+              <label htmlFor="db_user" style={compactStyles.label}>Database User *</label>
               <input
+                id="db_user"
                 type="text"
                 name="db_user"
                 value={formData.db_user}
@@ -609,8 +620,9 @@ const ConnectionModal = ({
               />
             </div>
             <div style={compactStyles.formGroup}>
-              <label style={compactStyles.label}>Token Endpoint *</label>
+              <label htmlFor="token_endpoint" style={compactStyles.label}>Token Endpoint *</label>
               <input
+                id="token_endpoint"
                 type="url"
                 name="token_endpoint"
                 value={formData.token_endpoint}
@@ -627,8 +639,9 @@ const ConnectionModal = ({
         return (
           <>
             <div style={compactStyles.formGroup}>
-              <label style={compactStyles.label}>OAuth Client ID *</label>
+              <label htmlFor="oauth_client_id" style={compactStyles.label}>OAuth Client ID *</label>
               <input
+                id="oauth_client_id"
                 type="text"
                 name="oauth_client_id"
                 value={formData.oauth_client_id}
@@ -639,8 +652,9 @@ const ConnectionModal = ({
               />
             </div>
             <div style={compactStyles.formGroup}>
-              <label style={compactStyles.label}>OAuth Client Secret {!isEditMode && '*'}</label>
+              <label htmlFor="oauth_client_secret" style={compactStyles.label}>OAuth Client Secret {!isEditMode && '*'}</label>
               <input
+                id="oauth_client_secret"
                 type="password"
                 name="oauth_client_secret"
                 value={formData.oauth_client_secret}
@@ -651,8 +665,9 @@ const ConnectionModal = ({
               />
             </div>
             <div style={compactStyles.formGroup}>
-              <label style={compactStyles.label}>Token URL *</label>
+              <label htmlFor="oauth_token_url" style={compactStyles.label}>Token URL *</label>
               <input
+                id="oauth_token_url"
                 type="url"
                 name="oauth_token_url"
                 value={formData.oauth_token_url}
@@ -663,8 +678,9 @@ const ConnectionModal = ({
               />
             </div>
             <div style={compactStyles.formGroup}>
-              <label style={compactStyles.label}>Scopes (Optional)</label>
+              <label htmlFor="oauth_scopes" style={compactStyles.label}>Scopes (Optional)</label>
               <input
+                id="oauth_scopes"
                 type="text"
                 name="oauth_scopes"
                 value={formData.oauth_scopes}
@@ -680,8 +696,9 @@ const ConnectionModal = ({
         return (
           <>
             <div style={compactStyles.formGroup}>
-              <label style={compactStyles.label}>Kerberos Principal *</label>
+              <label htmlFor="kerberos_principal" style={compactStyles.label}>Kerberos Principal *</label>
               <input
+                id="kerberos_principal"
                 type="text"
                 name="kerberos_principal"
                 value={formData.kerberos_principal}
@@ -692,8 +709,9 @@ const ConnectionModal = ({
               />
             </div>
             <div style={compactStyles.formGroup}>
-              <label style={compactStyles.label}>Kerberos Keytab {!isEditMode && '*'}</label>
+              <label htmlFor="kerberos_keytab" style={compactStyles.label}>Kerberos Keytab {!isEditMode && '*'}</label>
               <textarea
+                id="kerberos_keytab"
                 name="kerberos_keytab"
                 value={formData.kerberos_keytab}
                 onChange={handleInputChange}
@@ -704,8 +722,9 @@ const ConnectionModal = ({
               />
             </div>
             <div style={compactStyles.formGroup}>
-              <label style={compactStyles.label}>Kerberos Realm *</label>
+              <label htmlFor="kerberos_realm" style={compactStyles.label}>Kerberos Realm *</label>
               <input
+                id="kerberos_realm"
                 type="text"
                 name="kerberos_realm"
                 value={formData.kerberos_realm}
@@ -743,8 +762,9 @@ const ConnectionModal = ({
             </div>
             
             <div style={compactStyles.formGroup}>
-              <label style={compactStyles.label}>S3 Bucket Name *</label>
+              <label htmlFor="bucket" style={compactStyles.label}>S3 Bucket Name *</label>
               <input
+                id="bucket"
                 type="text"
                 name="bucket"
                 value={formData.bucket}
@@ -755,8 +775,9 @@ const ConnectionModal = ({
             </div>
             
             <div style={compactStyles.formGroup}>
-              <label style={compactStyles.label}>Access Key ID {!isEditMode && '*'}</label>
+              <label htmlFor="access_key_id" style={compactStyles.label}>Access Key ID {!isEditMode && '*'}</label>
               <input
+                id="access_key_id"
                 type="text"
                 name="access_key_id"
                 value={formData.access_key_id}
@@ -767,8 +788,9 @@ const ConnectionModal = ({
             </div>
             
             <div style={compactStyles.formGroup}>
-              <label style={compactStyles.label}>Secret Access Key {!isEditMode && '*'}</label>
+              <label htmlFor="secret_access_key" style={compactStyles.label}>Secret Access Key {!isEditMode && '*'}</label>
               <input
+                id="secret_access_key"
                 type="password"
                 name="secret_access_key"
                 value={formData.secret_access_key}
@@ -779,8 +801,9 @@ const ConnectionModal = ({
             </div>
             
             <div style={compactStyles.formGroup}>
-              <label style={compactStyles.label}>Endpoint (Optional)</label>
+              <label htmlFor="endpoint" style={compactStyles.label}>Endpoint (Optional)</label>
               <input
+                id="endpoint"
                 type="text"
                 name="endpoint"
                 value={formData.endpoint}
@@ -810,8 +833,9 @@ const ConnectionModal = ({
         return (
           <>
             <div style={compactStyles.formGroup}>
-              <label style={compactStyles.label}>GCP Project ID *</label>
+              <label htmlFor="gcp_project_id" style={compactStyles.label}>GCP Project ID *</label>
               <input
+                id="gcp_project_id"
                 type="text"
                 name="gcp_project_id"
                 value={formData.gcp_project_id}
@@ -822,8 +846,9 @@ const ConnectionModal = ({
             </div>
             
             <div style={compactStyles.formGroup}>
-              <label style={compactStyles.label}>Bucket Name *</label>
+              <label htmlFor="gcp_bucket" style={compactStyles.label}>Bucket Name *</label>
               <input
+                id="gcp_bucket"
                 type="text"
                 name="gcp_bucket"
                 value={formData.gcp_bucket}
@@ -834,8 +859,9 @@ const ConnectionModal = ({
             </div>
             
             <div style={compactStyles.formGroup}>
-              <label style={compactStyles.label}>Service Account JSON {!isEditMode && '*'}</label>
+              <label htmlFor="service_account_json" style={compactStyles.label}>Service Account JSON {!isEditMode && '*'}</label>
               <textarea
+                id="service_account_json"
                 name="service_account_json"
                 value={formData.service_account_json}
                 onChange={handleInputChange}
@@ -854,8 +880,9 @@ const ConnectionModal = ({
         return (
           <>
             <div style={compactStyles.formGroup}>
-              <label style={compactStyles.label}>Account Name *</label>
+              <label htmlFor="account_name" style={compactStyles.label}>Account Name *</label>
               <input
+                id="account_name"
                 type="text"
                 name="account_name"
                 value={formData.account_name}
@@ -866,8 +893,9 @@ const ConnectionModal = ({
             </div>
             
             <div style={compactStyles.formGroup}>
-              <label style={compactStyles.label}>Container Name *</label>
+              <label htmlFor="container_name" style={compactStyles.label}>Container Name *</label>
               <input
+                id="container_name"
                 type="text"
                 name="container_name"
                 value={formData.container_name}
@@ -878,8 +906,9 @@ const ConnectionModal = ({
             </div>
             
             <div style={compactStyles.formGroup}>
-              <label style={compactStyles.label}>Account Key {!isEditMode && '*'}</label>
+              <label htmlFor="account_key" style={compactStyles.label}>Account Key {!isEditMode && '*'}</label>
               <input
+                id="account_key"
                 type="password"
                 name="account_key"
                 value={formData.account_key}
@@ -890,8 +919,9 @@ const ConnectionModal = ({
             </div>
             
             <div style={compactStyles.formGroup}>
-              <label style={compactStyles.label}>Endpoint (Optional)</label>
+              <label htmlFor="azure_endpoint" style={compactStyles.label}>Endpoint (Optional)</label>
               <input
+                id="azure_endpoint"
                 type="text"
                 name="azure_endpoint"
                 value={formData.azure_endpoint}
@@ -939,8 +969,9 @@ const ConnectionModal = ({
       >
         <form onSubmit={handleSubmit} className="vendor-connection-form" style={{ padding: '1rem' }}>
           <div style={compactStyles.formGroup}>
-            <label style={compactStyles.label}>Connection Name *</label>
+            <label htmlFor="name" style={compactStyles.label}>Connection Name *</label>
             <input
+              id="name"
               type="text"
               name="name"
               value={formData.name}
@@ -952,8 +983,9 @@ const ConnectionModal = ({
           </div>
           
           <div style={compactStyles.formGroup}>
-            <label style={compactStyles.label}>Connection User *</label>
+            <label htmlFor="connection_user" style={compactStyles.label}>Connection User *</label>
             <select
+              id="connection_user"
               name="connection_user"
               value={formData.connection_user}
               onChange={handleInputChange}
@@ -969,8 +1001,9 @@ const ConnectionModal = ({
           </div>
           
           <div style={compactStyles.formGroup}>
-            <label style={compactStyles.label}>Connection Direction *</label>
+            <label htmlFor="connection_direction" style={compactStyles.label}>Connection Direction *</label>
             <select
+              id="connection_direction"
               name="connection_direction"
               value={formData.connection_direction}
               onChange={handleInputChange}
@@ -986,8 +1019,9 @@ const ConnectionModal = ({
           </div>
           
           <div style={compactStyles.formGroup}>
-            <label style={compactStyles.label}>Description</label>
+            <label htmlFor="description" style={compactStyles.label}>Description</label>
             <textarea
+              id="description"
               name="description"
               value={formData.description}
               onChange={handleInputChange}
@@ -998,8 +1032,9 @@ const ConnectionModal = ({
           </div>
           
           <div style={compactStyles.formGroup}>
-            <label style={compactStyles.label}>Authentication Method *</label>
+            <label htmlFor="authentication_method" style={compactStyles.label}>Authentication Method *</label>
             <select
+              id="authentication_method"
               name="authentication_method"
               value={formData.authentication_method}
               onChange={handleInputChange}
@@ -1022,8 +1057,9 @@ const ConnectionModal = ({
           {renderAuthenticationFields()}
           
           <div style={compactStyles.formGroup}>
-            <label style={compactStyles.label}>Provider *</label>
+            <label htmlFor="provider" style={compactStyles.label}>Provider *</label>
             <select
+              id="provider"
               name="provider"
               value={formData.provider}
               onChange={handleInputChange}
@@ -1045,9 +1081,10 @@ const ConnectionModal = ({
           )}
           
           <div style={compactStyles.formGroup}>
-            <label style={compactStyles.label}>Path</label>
+            <label htmlFor="file_path" style={compactStyles.label}>Path</label>
             <div style={{ display: 'flex', gap: '0.5rem' }}>
               <input
+                id="file_path"
                 type="text"
                 name="file_path"
                 value={formData.file_path}
@@ -1117,8 +1154,9 @@ const ConnectionModal = ({
             
             {formData.has_archive_password && (
               <div style={{ marginBottom: 0 }}>
-                <label style={compactStyles.label}>Archive Password *</label>
+                <label htmlFor="archive_password" style={compactStyles.label}>Archive Password *</label>
                 <input
+                  id="archive_password"
                   type="password"
                   name="archive_password"
                   value={formData.archive_password}

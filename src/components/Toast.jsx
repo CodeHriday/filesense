@@ -1,6 +1,8 @@
 import React from 'react';
 import { FiCheckCircle, FiAlertCircle, FiInfo, FiX } from 'react-icons/fi';
 import './styles/Toast.css';
+import PropTypes from 'prop-types';
+
 
 const Toast = ({ notification, onClose }) => {
   const { id, message, type } = notification;
@@ -26,6 +28,20 @@ const Toast = ({ notification, onClose }) => {
       </button>
     </div>
   );
+};
+Toast.propTypes = {
+  notification: PropTypes.shape({
+    id: PropTypes.oneOfType([
+      PropTypes.string,
+      PropTypes.number
+    ]).isRequired,
+
+    message: PropTypes.string.isRequired,
+
+    type: PropTypes.oneOf(['success', 'error', 'info']).isRequired
+  }).isRequired,
+
+  onClose: PropTypes.func.isRequired
 };
 
 export default Toast;

@@ -365,8 +365,9 @@ export const AlertsConfig = () => {
       >
         <div className="modal-form">
           <div className="form-group">
-            <label className="form-label">Policy Name *</label>
+            <label htmlFor="create-policy-name" className="form-label">Policy Name *</label>
             <input
+              id="create-policy-name"
               type="text"
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
@@ -376,8 +377,9 @@ export const AlertsConfig = () => {
           </div>
 
           <div className="form-group">
-            <label className="form-label">Description</label>
+            <label htmlFor="create-description" className="form-label">Description</label>
             <textarea
+              id="create-description"
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               className="form-textarea"
@@ -387,8 +389,9 @@ export const AlertsConfig = () => {
           </div>
 
           <div className="form-group">
-            <label className="form-label">Project *</label>
+            <label htmlFor="create-project" className="form-label">Project *</label>
             <select
+              id="create-project"
               value={formData.project_id}
               onChange={(e) => setFormData({ ...formData, project_id: e.target.value })}
               className="form-select"
@@ -404,8 +407,9 @@ export const AlertsConfig = () => {
 
           <div className="form-row">
             <div className="form-group">
-              <label className="form-label">Entity Type *</label>
+              <label htmlFor="create-entity-type" className="form-label">Entity Type *</label>
               <select
+                id="create-entity-type"
                 value={formData.entity_type}
                 onChange={(e) => setFormData({ ...formData, entity_type: e.target.value })}
                 className="form-select"
@@ -418,8 +422,9 @@ export const AlertsConfig = () => {
             </div>
 
             <div className="form-group">
-              <label className="form-label">Trigger Event *</label>
+              <label htmlFor="create-trigger-event" className="form-label">Trigger Event *</label>
               <select
+                id="create-trigger-event"
                 value={formData.trigger_events[0] || 'failure'}
                 onChange={handleTriggerEventsChange}
                 className="form-select"
@@ -432,8 +437,9 @@ export const AlertsConfig = () => {
           </div>
 
           <div className="form-group">
-            <label className="form-label">Consolidation Window (minutes) *</label>
+            <label htmlFor="create-consolidation-window" className="form-label">Consolidation Window (minutes) *</label>
             <input
+              id="create-consolidation-window"
               type="number"
               value={formData.consolidation_window_minutes}
               onChange={(e) => setFormData({ ...formData, consolidation_window_minutes: parseInt(e.target.value) || 60 })}
@@ -499,8 +505,9 @@ export const AlertsConfig = () => {
       >
         <div className="modal-form">
           <div className="form-group">
-            <label className="form-label">Policy Name *</label>
+            <label htmlFor="edit-policy-name" className="form-label">Policy Name *</label>
             <input
+              id="edit-policy-name"
               type="text"
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
@@ -509,8 +516,9 @@ export const AlertsConfig = () => {
           </div>
 
           <div className="form-group">
-            <label className="form-label">Description</label>
+            <label htmlFor="edit-description" className="form-label">Description</label>
             <textarea
+              id="edit-description"
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               className="form-textarea"
@@ -519,8 +527,9 @@ export const AlertsConfig = () => {
           </div>
 
           <div className="form-group">
-            <label className="form-label">Project *</label>
+            <label htmlFor="edit-project" className="form-label">Project *</label>
             <select
+              id="edit-project"
               value={formData.project_id}
               onChange={(e) => setFormData({ ...formData, project_id: e.target.value })}
               className="form-select"
@@ -536,8 +545,9 @@ export const AlertsConfig = () => {
 
           <div className="form-row">
             <div className="form-group">
-              <label className="form-label">Entity Type *</label>
+              <label htmlFor="edit-entity-type" className="form-label">Entity Type *</label>
               <select
+                id="edit-entity-type"
                 value={formData.entity_type}
                 onChange={(e) => setFormData({ ...formData, entity_type: e.target.value })}
                 className="form-select"
@@ -550,8 +560,9 @@ export const AlertsConfig = () => {
             </div>
 
             <div className="form-group">
-              <label className="form-label">Trigger Event *</label>
+              <label htmlFor="edit-trigger-event" className="form-label">Trigger Event *</label>
               <select
+                id="edit-trigger-event"
                 value={formData.trigger_events[0] || 'failure'}
                 onChange={handleTriggerEventsChange}
                 className="form-select"
@@ -564,8 +575,9 @@ export const AlertsConfig = () => {
           </div>
 
           <div className="form-group">
-            <label className="form-label">Consolidation Window (minutes) *</label>
+            <label htmlFor="edit-consolidation-window" className="form-label">Consolidation Window (minutes) *</label>
             <input
+              id="edit-consolidation-window"
               type="number"
               value={formData.consolidation_window_minutes}
               onChange={(e) => setFormData({ ...formData, consolidation_window_minutes: parseInt(e.target.value) || 60 })}

@@ -3,6 +3,7 @@ import { FiCheckCircle, FiAlertCircle } from 'react-icons/fi';
 import { getConnections } from '../../api/connectionService';
 import LoadingSpinner from '../LoadingSpinner';
 import './Transform.css';
+import PropTypes from 'prop-types';
 
 /**
  * Connection Selector component for choosing source and target connections
@@ -154,6 +155,24 @@ const ConnectionSelector = ({ sourceConnection, targetConnection, onSourceChange
       )}
     </div>
   );
+};
+ConnectionSelector.propTypes = {
+  sourceConnection: PropTypes.shape({
+    id: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
+    name: PropTypes.string,
+    connection_name: PropTypes.string,
+    type: PropTypes.string
+  }),
+
+  targetConnection: PropTypes.shape({
+    id: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
+    name: PropTypes.string,
+    connection_name: PropTypes.string,
+    type: PropTypes.string
+  }),
+
+  onSourceChange: PropTypes.func.isRequired,
+  onTargetChange: PropTypes.func.isRequired
 };
 
 export default ConnectionSelector;

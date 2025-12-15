@@ -356,8 +356,9 @@ const AuditTrail = () => {
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', marginBottom: '24px' }}>
               <div className="gps-form-group">
-                <label className="gps-label">Retention Period (days)</label>
+                <label htmlFor="retention-days" className="gps-label">Retention Period (days)</label>
                 <select
+                  id="retention-days"
                   className="gps-select"
                   value={retentionSettings.retention_days}
                   onChange={(e) => setRetentionSettings(prev => ({ ...prev, retention_days: parseInt(e.target.value) }))}
@@ -454,8 +455,9 @@ const AuditTrail = () => {
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '16px', marginBottom: '16px' }}>
           <div className="gps-form-group">
-            <label className="gps-label">User Id</label>
+            <label htmlFor="filter-user-id" className="gps-label">User Id</label>
             <input
+              id="filter-user-id"
               type="text"
               placeholder="Enter user ID"
               value={filters.userId}
@@ -465,8 +467,9 @@ const AuditTrail = () => {
           </div>
 
           <div className="gps-form-group">
-            <label className="gps-label">Action Type</label>
+            <label htmlFor="filter-action-type" className="gps-label">Action Type</label>
             <select
+              id="filter-action-type"
               value={filters.actionType}
               onChange={(e) => handleFilterChange('actionType', e.target.value)}
               className="gps-select"
@@ -479,8 +482,9 @@ const AuditTrail = () => {
           </div>
 
           <div className="gps-form-group">
-            <label className="gps-label">Entity Type</label>
+            <label htmlFor="filter-entity-type" className="gps-label">Entity Type</label>
             <select
+              id="filter-entity-type"
               value={filters.entityType}
               onChange={(e) => handleFilterChange('entityType', e.target.value)}
               className="gps-select"
@@ -493,8 +497,9 @@ const AuditTrail = () => {
           </div>
 
           <div className="gps-form-group">
-            <label className="gps-label">Start Date</label>
+            <label htmlFor="filter-start-date" className="gps-label">Start Date</label>
             <input
+              id="filter-start-date"
               type="datetime-local"
               value={filters.startDate}
               onChange={(e) => handleFilterChange('startDate', e.target.value)}
@@ -503,8 +508,9 @@ const AuditTrail = () => {
           </div>
 
           <div className="gps-form-group">
-            <label className="gps-label">End Date</label>
+            <label htmlFor="filter-end-date" className="gps-label">End Date</label>
             <input
+              id="filter-end-date"
               type="datetime-local"
               value={filters.endDate}
               onChange={(e) => handleFilterChange('endDate', e.target.value)}
@@ -612,8 +618,9 @@ const AuditTrail = () => {
               
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <label style={{ fontSize: '10px' }}>Show:</label>
+                  <label htmlFor="page-size-select" style={{ fontSize: '10px' }}>Show:</label>
                   <select
+                    id="page-size-select"
                     className="gps-select"
                     value={pageSize}
                     onChange={(e) => handlePageSizeChange(parseInt(e.target.value))}
@@ -665,20 +672,20 @@ const AuditTrail = () => {
             <div className="gps-modal-body">
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
                 <div>
-                  <label className="gps-label">Timestamp</label>
-                  <p style={{ margin: 0, fontSize: '10px' }}>{formatTimestamp(selectedLog.timestamp)}</p>
+                  <label htmlFor="selected-timestamp" className="gps-label">Timestamp</label>
+                  <p id="selected-timestamp" style={{ margin: 0, fontSize: '10px' }}>{formatTimestamp(selectedLog.timestamp)}</p>
                 </div>
                 <div>
-                  <label className="gps-label">User</label>
-                  <p style={{ margin: 0, fontSize: '10px' }}>{selectedLog.user_email || selectedLog.user_id || 'System'}</p>
+                  <label htmlFor="selected-user" className="gps-label">User</label>
+                  <p id="selected-user" style={{ margin: 0, fontSize: '10px' }}>{selectedLog.user_email || selectedLog.user_id || 'System'}</p>
                 </div>
                 <div>
-                  <label className="gps-label">Entity Type</label>
-                  <p style={{ margin: 0, fontSize: '10px' }}>{formatEntityType(selectedLog.entity_type)}</p>
+                  <label htmlFor="selected-entity-type" className="gps-label">Entity Type</label>
+                  <p id="selected-entity-type" style={{ margin: 0, fontSize: '10px' }}>{formatEntityType(selectedLog.entity_type)}</p>
                 </div>
                 <div>
-                  <label className="gps-label">Action Type</label>
-                  <span className={`gps-badge ${getActionBadgeClass(selectedLog.action_type)}`}>
+                  <label htmlFor="selected-action-type" className="gps-label">Action Type</label>
+                  <span id="selected-action-type" className={`gps-badge ${getActionBadgeClass(selectedLog.action_type)}`}>
                     {selectedLog.action_type}
                   </span>
                 </div>
@@ -686,8 +693,8 @@ const AuditTrail = () => {
               
               {selectedLog.entity_id && (
                 <div style={{ marginBottom: '16px' }}>
-                  <label className="gps-label">Entity Id</label>
-                  <code style={{ fontSize: '10px', backgroundColor: '#f3f4f6', padding: '4px 8px', borderRadius: '4px' }}>
+                  <label htmlFor="selected-entity-id" className="gps-label">Entity Id</label>
+                  <code id="selected-entity-id" style={{ fontSize: '10px', backgroundColor: '#f3f4f6', padding: '4px 8px', borderRadius: '4px' }}>
                     {selectedLog.entity_id}
                   </code>
                 </div>
@@ -695,8 +702,8 @@ const AuditTrail = () => {
 
               {selectedLog.changes && (
                 <div>
-                  <label className="gps-label">Changes</label>
-                  <div style={{ backgroundColor: '#f9fafb', padding: '12px', borderRadius: '8px', maxHeight: '300px', overflow: 'auto' }}>
+                  <label htmlFor="selected-changes" className="gps-label">Changes</label>
+                  <div id="selected-changes" style={{ backgroundColor: '#f9fafb', padding: '12px', borderRadius: '8px', maxHeight: '300px', overflow: 'auto' }}>
                     {renderDiff(selectedLog.changes)}
                   </div>
                 </div>

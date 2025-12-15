@@ -355,8 +355,9 @@ export const EmailProvidersConfig = () => {
         <>
           <div className="form-row-grid">
             <div className="form-group">
-              <label>SMTP Host <span className="required-field">*</span></label>
+              <label htmlFor="smtp-host">SMTP Host <span className="required-field">*</span></label>
               <input
+                id="smtp-host"
                 type="text"
                 value={formData.config.host || ''}
                 onChange={(e) => setFormData({ ...formData, config: { ...formData.config, host: e.target.value } })}
@@ -364,8 +365,9 @@ export const EmailProvidersConfig = () => {
               />
             </div>
             <div className="form-group">
-              <label>Port <span className="required-field">*</span></label>
+              <label htmlFor="smtp-port">Port <span className="required-field">*</span></label>
               <input
+                id="smtp-port"
                 type="number"
                 value={formData.config.port || 587}
                 onChange={(e) => setFormData({ ...formData, config: { ...formData.config, port: parseInt(e.target.value) } })}
@@ -375,16 +377,18 @@ export const EmailProvidersConfig = () => {
 
           <div className="form-row-grid">
             <div className="form-group">
-              <label>Username <span className="required-field">*</span></label>
+              <label htmlFor="smtp-username">Username <span className="required-field">*</span></label>
               <input
+                id="smtp-username"
                 type="text"
                 value={formData.config.username || ''}
                 onChange={(e) => setFormData({ ...formData, config: { ...formData.config, username: e.target.value } })}
               />
             </div>
             <div className="form-group">
-              <label>Password <span className="required-field">*</span></label>
+              <label htmlFor="smtp-password">Password <span className="required-field">*</span></label>
               <input
+                id="smtp-password"
                 type="password"
                 value={formData.config.password || ''}
                 onChange={(e) => setFormData({ ...formData, config: { ...formData.config, password: e.target.value } })}
@@ -393,8 +397,9 @@ export const EmailProvidersConfig = () => {
           </div>
 
           <div className="form-group">
-            <label>From Email <span className="required-field">*</span></label>
+            <label htmlFor="smtp-from">From Email <span className="required-field">*</span></label>
             <input
+              id="smtp-from"
               type="email"
               value={formData.config.from || ''}
               onChange={(e) => setFormData({ ...formData, config: { ...formData.config, from: e.target.value } })}
@@ -419,8 +424,9 @@ export const EmailProvidersConfig = () => {
       return (
         <>
           <div className="form-group">
-            <label>API Key <span className="required-field">*</span></label>
+            <label htmlFor="sendgrid-api-key">API Key <span className="required-field">*</span></label>
             <input
+              id="sendgrid-api-key"
               type="password"
               value={formData.config.apiKey || ''}
               onChange={(e) => setFormData({ ...formData, config: { ...formData.config, apiKey: e.target.value } })}
@@ -428,8 +434,9 @@ export const EmailProvidersConfig = () => {
             />
           </div>
           <div className="form-group">
-            <label>From Email <span className="required-field">*</span></label>
+            <label htmlFor="sendgrid-from">From Email <span className="required-field">*</span></label>
             <input
+              id="sendgrid-from"
               type="email"
               value={formData.config.from || ''}
               onChange={(e) => setFormData({ ...formData, config: { ...formData.config, from: e.target.value } })}
@@ -444,8 +451,9 @@ export const EmailProvidersConfig = () => {
       return (
         <>
           <div className="form-group">
-            <label>AWS Region <span className="required-field">*</span></label>
+            <label htmlFor="ses-region">AWS Region <span className="required-field">*</span></label>
             <input
+              id="ses-region"
               type="text"
               value={formData.config.region || ''}
               onChange={(e) => setFormData({ ...formData, config: { ...formData.config, region: e.target.value } })}
@@ -454,16 +462,18 @@ export const EmailProvidersConfig = () => {
           </div>
           <div className="form-row-grid">
             <div className="form-group">
-              <label>Access Key ID <span className="required-field">*</span></label>
+              <label htmlFor="ses-access-key-id">Access Key ID <span className="required-field">*</span></label>
               <input
+                id="ses-access-key-id"
                 type="text"
                 value={formData.config.accessKeyId || ''}
                 onChange={(e) => setFormData({ ...formData, config: { ...formData.config, accessKeyId: e.target.value } })}
               />
             </div>
             <div className="form-group">
-              <label>Secret Access Key <span className="required-field">*</span></label>
+              <label htmlFor="ses-secret-access-key">Secret Access Key <span className="required-field">*</span></label>
               <input
+                id="ses-secret-access-key"
                 type="password"
                 value={formData.config.secretAccessKey || ''}
                 onChange={(e) => setFormData({ ...formData, config: { ...formData.config, secretAccessKey: e.target.value } })}
@@ -471,8 +481,9 @@ export const EmailProvidersConfig = () => {
             </div>
           </div>
           <div className="form-group">
-            <label>From Email <span className="required-field">*</span></label>
+            <label htmlFor="ses-from">From Email <span className="required-field">*</span></label>
             <input
+              id="ses-from"
               type="email"
               value={formData.config.from || ''}
               onChange={(e) => setFormData({ ...formData, config: { ...formData.config, from: e.target.value } })}
@@ -487,8 +498,9 @@ export const EmailProvidersConfig = () => {
       return (
         <>
           <div className="form-group">
-            <label>Endpoint <span className="required-field">*</span></label>
+            <label htmlFor="azure-endpoint">Endpoint <span className="required-field">*</span></label>
             <input
+              id="azure-endpoint"
               type="text"
               value={formData.config.endpoint || ''}
               onChange={(e) => setFormData({ ...formData, config: { ...formData.config, endpoint: e.target.value } })}
@@ -496,16 +508,18 @@ export const EmailProvidersConfig = () => {
             />
           </div>
           <div className="form-group">
-            <label>Access Key <span className="required-field">*</span></label>
+            <label htmlFor="azure-access-key">Access Key <span className="required-field">*</span></label>
             <input
+              id="azure-access-key"
               type="password"
               value={formData.config.accessKey || ''}
               onChange={(e) => setFormData({ ...formData, config: { ...formData.config, accessKey: e.target.value } })}
             />
           </div>
           <div className="form-group">
-            <label>From Email <span className="required-field">*</span></label>
+            <label htmlFor="azure-from">From Email <span className="required-field">*</span></label>
             <input
+              id="azure-from"
               type="email"
               value={formData.config.from || ''}
               onChange={(e) => setFormData({ ...formData, config: { ...formData.config, from: e.target.value } })}
@@ -521,16 +535,18 @@ export const EmailProvidersConfig = () => {
         <>
           <div className="form-row-grid">
             <div className="form-group">
-              <label>SMTP Host <span className="required-field">*</span></label>
+              <label htmlFor="gcp-host">SMTP Host <span className="required-field">*</span></label>
               <input
+                id="gcp-host"
                 type="text"
                 value={formData.config.host || 'smtp-relay.gmail.com'}
                 onChange={(e) => setFormData({ ...formData, config: { ...formData.config, host: e.target.value } })}
               />
             </div>
             <div className="form-group">
-              <label>Port <span className="required-field">*</span></label>
+              <label htmlFor="gcp-port">Port <span className="required-field">*</span></label>
               <input
+                id="gcp-port"
                 type="number"
                 value={formData.config.port || 587}
                 onChange={(e) => setFormData({ ...formData, config: { ...formData.config, port: parseInt(e.target.value) } })}
@@ -538,8 +554,9 @@ export const EmailProvidersConfig = () => {
             </div>
           </div>
           <div className="form-group">
-            <label>From Email <span className="required-field">*</span></label>
+            <label htmlFor="gcp-from">From Email <span className="required-field">*</span></label>
             <input
+              id="gcp-from"
               type="email"
               value={formData.config.from || ''}
               onChange={(e) => setFormData({ ...formData, config: { ...formData.config, from: e.target.value } })}
@@ -838,8 +855,9 @@ export const EmailProvidersConfig = () => {
         }
       >
         <div className="form-group">
-          <label>Connection Name <span className="required-field">*</span></label>
+          <label htmlFor="connection-name">Connection Name <span className="required-field">*</span></label>
           <input
+            id="connection-name"
             type="text"
             value={formData.name}
             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
@@ -848,8 +866,9 @@ export const EmailProvidersConfig = () => {
         </div>
 
         <div className="form-group">
-          <label>Provider Type <span className="required-field">*</span></label>
+          <label htmlFor="provider-type">Provider Type <span className="required-field">*</span></label>
           <select
+            id="provider-type"
             value={formData.provider_type}
             onChange={(e) => setFormData({ ...formData, provider_type: e.target.value, config: {} })}
           >
@@ -888,8 +907,9 @@ export const EmailProvidersConfig = () => {
         </p>
 
         <div className="form-group">
-          <label className="gps-form-label">Recipient Email <span className="required-field">*</span></label>
+          <label htmlFor="test-recipient-email" className="gps-form-label">Recipient Email <span className="required-field">*</span></label>
           <input
+            id="test-recipient-email"
             type="email"
             value={testEmail}
             onChange={(e) => setTestEmail(e.target.value)}

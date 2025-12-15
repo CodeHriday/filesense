@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import './WorkflowConfigModal.css';
-
+import PropTypes from 'prop-types';
 function WorkflowConfigModal({ workflow, onSave, onClose }) {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -91,5 +91,17 @@ function WorkflowConfigModal({ workflow, onSave, onClose }) {
     </div>
   );
 }
+WorkflowConfigModal.propTypes = {
+  workflow: PropTypes.shape({
+    name: PropTypes.string,
+    description: PropTypes.string,
+    execution_mode: PropTypes.oneOf(['sequential', 'parallel']),
+  }),
+  onSave: PropTypes.func.isRequired,
+  onClose: PropTypes.func.isRequired,
+};
 
+WorkflowConfigModal.defaultProps = {
+  workflow: null,
+};
 export default WorkflowConfigModal;

@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { FiSettings, FiDatabase, FiEdit2, FiSave, FiRefreshCw } from 'react-icons/fi';
 import './Transform.css';
+import PropTypes from 'prop-types';
+
 
 /**
  * Target Schema Editor component for configuring target connection settings
@@ -281,6 +283,25 @@ const TargetSchemaEditor = ({ connection, schema, onSchemaChange }) => {
       </div>
     </div>
   );
+};
+TargetSchemaEditor.propTypes = {
+  connection: PropTypes.shape({
+    id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    name: PropTypes.string,
+    connection_name: PropTypes.string,
+    type: PropTypes.string
+  }),
+
+  schema: PropTypes.arrayOf(
+    PropTypes.shape({
+      id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
+      name: PropTypes.string.isRequired,
+      type: PropTypes.string.isRequired,
+      nullable: PropTypes.bool
+    })
+  ).isRequired,
+
+  onSchemaChange: PropTypes.func.isRequired
 };
 
 export default TargetSchemaEditor;

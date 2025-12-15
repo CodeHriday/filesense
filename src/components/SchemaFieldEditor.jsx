@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { FiPlus, FiTrash2, FiAlertCircle, FiInfo, FiFileText, FiCheckCircle } from 'react-icons/fi';
 import './SchemaFieldEditor.css';
+import PropTypes from 'prop-types';
 
 const FIXED_WIDTH_FILE_TYPES = ['fixed_width', 'binary', 'dat'];
 const ARCHIVE_FILE_TYPES = ['zip', '7z', 'tar', 'tar.gz', 'tar.bz2'];
@@ -360,5 +361,18 @@ function SchemaFieldEditor({ value, onChange, fileType, hasHeader, onHasHeaderCh
     </div>
   );
 }
-
+JobNode.propTypes = {
+  data: PropTypes.shape({
+    label: PropTypes.string,
+    status: PropTypes.string,
+    durationMs: PropTypes.number,
+    rowsWritten: PropTypes.number,
+    hasIncidents: PropTypes.bool,
+    incidents: PropTypes.shape({
+      totalViolations: PropTypes.number
+    }),
+    targetPosition: PropTypes.any,
+    sourcePosition: PropTypes.any
+  }).isRequired
+};
 export default SchemaFieldEditor;
