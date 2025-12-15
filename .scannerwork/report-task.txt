@@ -1,0 +1,6 @@
+projectKey=filesense-feature
+serverUrl=https://sonar.blumetra.com
+serverVersion=25.5.0.107428
+dashboardUrl=https://sonar.blumetra.com/dashboard?id=filesense-feature
+ceTaskId=54457e8f-f866-4b55-9e55-e1bfca89463e
+ceTaskUrl=https://sonar.blumetra.com/api/ce/task?id=54457e8f-f866-4b55-9e55-e1bfca89463e
