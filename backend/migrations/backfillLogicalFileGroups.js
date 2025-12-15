@@ -70,7 +70,7 @@ async function backfillLogicalFileGroups() {
     let updatedSchemas = 0;
 
     // Step 3: Process each group
-    for (const [groupKey, group] of fileGroups) {
+    for (const [, group] of fileGroups) {
       // Create or get logical_file_group
       const logicalFileId = uuidv4();
       

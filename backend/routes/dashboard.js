@@ -1043,8 +1043,7 @@ router.get('/file-type-distribution', dashboardCacheMiddleware, async (req, res)
     let fileTypeQuery;
     let queryParams;
 
-    if (isAdmin) {
-      if (projectId) {
+    if (isAdmin && projectId) {
         fileTypeQuery = `
           SELECT 
             f.file_type,
@@ -1059,7 +1058,7 @@ router.get('/file-type-distribution', dashboardCacheMiddleware, async (req, res)
           ORDER BY count DESC
         `;
         queryParams = [projectId];
-      } else {
+      } else if(isAdmin && !projectId) {
         fileTypeQuery = `
           SELECT 
             f.file_type,
@@ -1073,9 +1072,7 @@ router.get('/file-type-distribution', dashboardCacheMiddleware, async (req, res)
           ORDER BY count DESC
         `;
         queryParams = [];
-      }
-    } else {
-      if (projectId) {
+      } else if(!isAdmin && projectId) {
         fileTypeQuery = `
           WITH accessible_projects AS (
             SELECT project_id FROM get_user_projects($1)
@@ -1113,7 +1110,6 @@ router.get('/file-type-distribution', dashboardCacheMiddleware, async (req, res)
         `;
         queryParams = [userId];
       }
-    }
 
     const result = await pool.query(fileTypeQuery, queryParams);
 
@@ -1164,8 +1160,7 @@ router.get('/job-trend', dashboardCacheMiddleware, async (req, res) => {
     let jobTrendQuery;
     let queryParams;
 
-    if (isAdmin) {
-      if (projectId) {
+    if (isAdmin && projectId) {
         jobTrendQuery = `
           SELECT 
             DATE(start_time) as date,
@@ -1178,7 +1173,7 @@ router.get('/job-trend', dashboardCacheMiddleware, async (req, res) => {
           ORDER BY DATE(start_time)
         `;
         queryParams = [projectId];
-      } else {
+      } else if(isAdmin && !projectId) {
         jobTrendQuery = `
           SELECT 
             DATE(start_time) as date,
@@ -1190,9 +1185,7 @@ router.get('/job-trend', dashboardCacheMiddleware, async (req, res) => {
           ORDER BY DATE(start_time)
         `;
         queryParams = [];
-      }
-    } else {
-      if (projectId) {
+    } else if(!isAdmin && projectId) {
         jobTrendQuery = `
           WITH accessible_projects AS (
             SELECT project_id FROM get_user_projects($1)
@@ -1226,7 +1219,6 @@ router.get('/job-trend', dashboardCacheMiddleware, async (req, res) => {
         `;
         queryParams = [userId];
       }
-    }
 
     const result = await pool.query(jobTrendQuery, queryParams);
 
@@ -1272,8 +1264,7 @@ router.get('/schema-drift-trend', dashboardCacheMiddleware, async (req, res) => 
     let driftTrendQuery;
     let queryParams;
 
-    if (isAdmin) {
-      if (projectId) {
+    if (isAdmin && projectId) {
         driftTrendQuery = `
           SELECT 
             DATE(a.detected_at) as date,
@@ -1287,7 +1278,7 @@ router.get('/schema-drift-trend', dashboardCacheMiddleware, async (req, res) => 
           ORDER BY DATE(a.detected_at)
         `;
         queryParams = [projectId];
-      } else {
+      } else if(isAdmin && !projectId) {
         driftTrendQuery = `
           SELECT 
             DATE(detected_at) as date,
@@ -1299,9 +1290,7 @@ router.get('/schema-drift-trend', dashboardCacheMiddleware, async (req, res) => 
           ORDER BY DATE(detected_at)
         `;
         queryParams = [];
-      }
-    } else {
-      if (projectId) {
+    } else if(!isAdmin && projectId) {
         driftTrendQuery = `
           WITH accessible_projects AS (
             SELECT project_id FROM get_user_projects($1)
@@ -1336,7 +1325,6 @@ router.get('/schema-drift-trend', dashboardCacheMiddleware, async (req, res) => 
           ORDER BY DATE(a.detected_at)
         `;
         queryParams = [userId];
-      }
     }
 
     const result = await pool.query(driftTrendQuery, queryParams);
@@ -1382,8 +1370,7 @@ router.get('/quality-violations-trend', dashboardCacheMiddleware, async (req, re
     let violationsTrendQuery;
     let queryParams;
 
-    if (isAdmin) {
-      if (projectId) {
+    if (isAdmin && projectId) {
         violationsTrendQuery = `
           SELECT 
             DATE(qrv.created_at) as date,
@@ -1399,7 +1386,7 @@ router.get('/quality-violations-trend', dashboardCacheMiddleware, async (req, re
           ORDER BY DATE(qrv.created_at), qr.rule_type
         `;
         queryParams = [projectId];
-      } else {
+      } else if(isAdmin && !projectId) {
         violationsTrendQuery = `
           SELECT 
             DATE(qrv.created_at) as date,
@@ -1413,9 +1400,7 @@ router.get('/quality-violations-trend', dashboardCacheMiddleware, async (req, re
           ORDER BY DATE(qrv.created_at), qr.rule_type
         `;
         queryParams = [];
-      }
-    } else {
-      if (projectId) {
+    } else if(!isAdmin && projectId) {
         violationsTrendQuery = `
           WITH accessible_projects AS (
             SELECT project_id FROM get_user_projects($1)
@@ -1454,7 +1439,6 @@ router.get('/quality-violations-trend', dashboardCacheMiddleware, async (req, re
           ORDER BY DATE(qrv.created_at), qr.rule_type
         `;
         queryParams = [userId];
-      }
     }
 
     const result = await pool.query(violationsTrendQuery, queryParams);
@@ -1501,17 +1485,6 @@ router.get('/metric-trends', dashboardCacheMiddleware, async (req, res) => {
     const projectId = req.query.project_id ? parseInt(req.query.project_id, 10) : null;
     
     const trends = {};
-    
-    // Helper to generate date series for last N days
-    const generateDateSeries = (days) => {
-      const dates = [];
-      for (let i = days - 1; i >= 0; i--) {
-        const date = new Date();
-        date.setDate(date.getDate() - i);
-        dates.push(date.toISOString().split('T')[0]);
-      }
-      return dates;
-    };
 
     // Total Files Trend - files uploaded per day
     if (metricType === 'all' || metricType === 'totalFiles') {

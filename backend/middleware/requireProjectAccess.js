@@ -201,111 +201,83 @@ async function extractProjectId(req, resourceType) {
  * Lookup project_id from resource tables
  */
 async function lookupResourceProject(req, resourceType) {
-  let query = null;
-  let params = null;
+  const config = getResourceLookupConfig(req, resourceType);
+  if (!config) return null;
 
-  switch (resourceType) {
-    case 'file':
-      if (req.params.fileId) {
-        query = 'SELECT project_id FROM files WHERE file_id = $1';
-        params = [req.params.fileId];
-      } else if (req.params.id) {
-        query = 'SELECT project_id FROM files WHERE id = $1';
-        params = [req.params.id];
-      }
-      break;
+  const { query, params } = config;
 
-    case 'transformation':
-      if (req.params.mappingId) {
-        query = 'SELECT project_id FROM transformation_mappings WHERE mapping_id = $1';
-        params = [req.params.mappingId];
-      } else if (req.params.id) {
-        // Check if id is numeric or a mapping_id string
-        const isNumeric = /^\d+$/.test(req.params.id);
-        if (isNumeric) {
-          query = 'SELECT project_id FROM transformation_mappings WHERE id = $1';
-        } else {
-          query = 'SELECT project_id FROM transformation_mappings WHERE mapping_id = $1';
-        }
-        params = [req.params.id];
-      }
-      break;
+  try {
+    const result = await db.query(query, params);
+    return result.rows[0]?.project_id ?? null;
+  } catch (error) {
+    systemLogger.error('Error looking up resource project', {
+      error: error.message,
+      resourceType,
+      params,
+    });
+    return null;
+  }
+}
 
-    case 'mapping_group':
-      if (req.params.groupId || req.params.id) {
-        query = 'SELECT project_id FROM mapping_groups WHERE id = $1';
-        params = [req.params.groupId || req.params.id];
-      }
-      break;
+// Pure function – zero cognitive complexity in main flow
+function getResourceLookupConfig(req, resourceType) {
+  const p = req.params;
 
-    case 'workflow':
-      // Workflows are stored in business_processes table
-      if (req.params.workflowId || req.params.id) {
-        query = 'SELECT project_id FROM business_processes WHERE id = $1';
-        params = [req.params.workflowId || req.params.id];
-      }
-      break;
-
-    case 'workflow_step':
-      // Workflow steps have their own project_id
-      if (req.params.stepId || req.params.id) {
-        query = 'SELECT project_id FROM workflow_steps WHERE id = $1';
-        params = [req.params.stepId || req.params.id];
-      } else if (req.params.workflowId) {
-        // If we have workflow ID, get project from workflow's steps
-        query = 'SELECT DISTINCT project_id FROM workflow_steps WHERE workflow_id = $1';
-        params = [req.params.workflowId];
-      }
-      break;
-
-    case 'schedule':
-      if (req.params.scheduleId || req.params.id) {
-        query = 'SELECT project_id FROM schedules WHERE id = $1';
-        params = [req.params.scheduleId || req.params.id];
-      }
-      break;
-
-    case 'connection':
-      if (req.params.connectionId || req.params.id) {
-        query = 'SELECT project_id FROM storage_connections WHERE connection_id = $1';
-        params = [req.params.connectionId || req.params.id];
-      }
-      break;
-
-    case 'alert_policy':
-      if (req.params.id) {
-        query = 'SELECT project_id FROM alert_policies WHERE id = $1';
-        params = [req.params.id];
-      }
-      break;
-
-    case 'job':
-      if (req.params.jobId) {
-        query = 'SELECT project_id FROM transformation_jobs WHERE job_id = $1';
-        params = [req.params.jobId];
-      }
-      break;
-
-    default:
+  const configs = {
+    file: () => {
+      if (p.fileId) return { query: 'SELECT project_id FROM files WHERE file_id = $1', params: [p.fileId] };
+      if (p.id) return { query: 'SELECT project_id FROM files WHERE id = $1', params: [p.id] };
       return null;
-  }
+    },
 
-  if (query && params) {
-    try {
-      const result = await db.query(query, params);
-      if (result.rows.length > 0) {
-        return result.rows[0].project_id;
+    transformation: () => {
+      if (p.mappingId) {
+        return { query: 'SELECT project_id FROM transformation_mappings WHERE mapping_id = $1', params: [p.mappingId] };
       }
-    } catch (error) {
-      systemLogger.error('Error looking up resource project', {
-        error: error.message,
-        resourceType,
-        params
-      });
-    }
-  }
+      if (p.id) {
+        const query = /^\d+$/.test(p.id)
+          ? 'SELECT project_id FROM transformation_mappings WHERE id = $1'
+          : 'SELECT project_id FROM transformation_mappings WHERE mapping_id = $1';
+        return { query, params: [p.id] };
+      }
+      return null;
+    },
+    mapping_group: () => {
+      const id = p.groupId || p.id;
+      return id ? { query: 'SELECT project_id FROM mapping_groups WHERE id = $1', params: [id] } : null;
+    },
+    workflow: () => {
+      const id = p.workflowId || p.id;
+      return id ? { query: 'SELECT project_id FROM business_processes WHERE id = $1', params: [id] } : null;
+    },
+    workflow_step: () => {
+      if (p.stepId || p.id) {
+        const id = p.stepId || p.id;
+        return { query: 'SELECT project_id FROM workflow_steps WHERE id = $1', params: [id] };
+      }
+      if (p.workflowId) {
+        return { query: 'SELECT DISTINCT project_id FROM workflow_steps WHERE workflow_id = $1', params: [p.workflowId] };
+      }
+      return null;
+    },
+    schedule: () => {
+      const id = p.scheduleId || p.id;
+      return id ? { query: 'SELECT project_id FROM schedules WHERE id = $1', params: [id] } : null;
+    },
+    connection: () => {
+      const id = p.connectionId || p.id;
+      return id ? { query: 'SELECT project_id FROM storage_connections WHERE connection_id = $1', params: [id] } : null;
+    },
+    alert_policy: () => {
+      return p.id ? { query: 'SELECT project_id FROM alert_policies WHERE id = $1', params: [p.id] } : null;
+    },
+    job: () => {
+      return p.jobId ? { query: 'SELECT project_id FROM transformation_jobs WHERE job_id = $1', params: [p.jobId] } : null;
+    },
+  };
 
-  return null;
+  const builder = configs[resourceType];
+  return builder ? builder() : null;
 }
 
 /**

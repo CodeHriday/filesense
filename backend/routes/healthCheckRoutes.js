@@ -23,6 +23,11 @@ async function checkQueueHealth() {
   } catch (error) {
     isQueueHealthy = false;
     lastQueueCheck = new Date();
+    console.error('Queue health check failed', {
+      error: error.message,
+      stack: error.stack
+    });
+
     return false;
   }
 }

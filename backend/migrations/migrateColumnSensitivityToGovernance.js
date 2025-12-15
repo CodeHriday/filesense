@@ -54,7 +54,7 @@ async function migrateColumnSensitivityToGovernance(pool) {
     let unmappedCount = 0;
     
     for (const tag of sensitivityTags) {
-      const { file_id, column_name, sensitivity_level, tagged_by, tagged_at } = tag;
+      const { file_id, column_name, sensitivity_level, _, tagged_at } = tag;
       
       // Map sensitivity level to governance tag name
       const governanceTagName = levelToTagMapping[sensitivity_level];

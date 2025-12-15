@@ -66,7 +66,9 @@ router.get('/stats/summary', async (req, res) => {
       }
     } catch (mvError) {
       // Materialized view not available, fall back to live query
-      systemLogger.debug('Materialized view not available, using live query');
+      systemLogger.debug('Materialized view not available, using live query', {
+        error: mvError.message,
+      });
     }
     
     // Fall back to live query if materialized view not used
@@ -215,7 +217,6 @@ router.get('/v2', async (req, res) => {
         OR (tj.${sortColumn} = $${paramIndex} AND tj.id ${operator} $${paramIndex + 1})
       )`;
       params.push(cursorValues.sortValue, cursorValues.cursorId);
-      paramIndex += 2;
     }
     
     query += ` ORDER BY tj.${sortColumn} ${order}, tj.id ${order}`;

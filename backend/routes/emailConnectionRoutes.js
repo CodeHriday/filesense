@@ -406,7 +406,6 @@ router.post('/oauth2/authorize-url', async (req, res) => {
     
     // Generate state token for CSRF protection
     const crypto = require('crypto');
-    const state = crypto.randomBytes(32).toString('hex');
     
     // Store state in session or temporary storage
     // For simplicity, we'll encode it in the state parameter
@@ -847,14 +846,19 @@ router.post('/oauth2/callback',
     resourceType: 'connection',
     requiredPermissions: ['connection:create'],
     getProjectId: async (req) => {
-      // Extract project_id from state parameter
+      const { state } = req.body;
+      if (!state) return null;
+
       try {
-        const { state } = req.body;
-        if (!state) return null;
-        
-        const stateData = JSON.parse(Buffer.from(state, 'base64').toString('utf-8'));
-        return stateData.project_id;
+        const decoded = Buffer.from(state, 'base64').toString('utf-8');
+        const stateData = JSON.parse(decoded);
+        return stateData?.project_id ?? null;
       } catch (error) {
+        // Proper handling: log with context
+        console.warn('Invalid OAuth state parameter', {
+          error: error.message,
+          state,
+        });
         return null;
       }
     }
@@ -873,8 +877,14 @@ router.post('/oauth2/callback',
     // Decode and validate state
     let stateData;
     try {
-      stateData = JSON.parse(Buffer.from(state, 'base64').toString('utf-8'));
+      const decoded = Buffer.from(state, 'base64').toString('utf-8');
+      stateData = JSON.parse(decoded);
     } catch (error) {
+      console.warn('Invalid OAuth state parameter', {
+        error: error.message,
+        state
+      });
+
       return res.status(400).json({
         success: false,
         error: 'Invalid state parameter'

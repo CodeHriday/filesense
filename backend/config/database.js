@@ -322,7 +322,6 @@ async function close() {
 async function getHealthStatus() {
   try {
     const start = Date.now();
-    const result = await pool.query('SELECT 1 as healthy');
     const responseTime = Date.now() - start;
     
     return {

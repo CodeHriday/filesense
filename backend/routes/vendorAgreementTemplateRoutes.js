@@ -161,7 +161,6 @@ router.post('/vendor-agreement-template/upload-schema', authenticateToken, schem
       }
       
       // Validate type is a valid string
-      const validTypes = ['string', 'integer', 'float', 'boolean', 'date', 'timestamp', 'json', 'decimal', 'text', 'number'];
       if (typeof normalized.type !== 'string') {
         validationErrors.push(`Field ${index + 1} (${normalized.name}): Type must be a string`);
         return null;

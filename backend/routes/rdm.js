@@ -84,32 +84,43 @@ router.get('/datasets/:id/schema', authenticateToken, async (req, res) => {
 
 router.get('/datasets/:id/data', authenticateToken, async (req, res) => {
   try {
-    const { id } = req.params;
-    const { limit, offset, filters } = req.query;
-    
-    const options = {};
-    if (limit) options.limit = parseInt(limit);
-    if (offset) options.offset = parseInt(offset);
-    if (filters) {
-      try {
-        options.filters = JSON.parse(filters);
-      } catch (e) {
-        return res.status(400).json({ 
-          success: false, 
-          error: 'Invalid filters format' 
-        });
-      }
+  const { id } = req.params;
+  const { limit, offset, filters } = req.query;
+
+  const options = {};
+  if (limit) options.limit = parseInt(limit, 10);
+  if (offset) options.offset = parseInt(offset, 10);
+
+  if (filters) {
+    try {
+      options.filters = JSON.parse(filters);
+    } catch (e) {
+      systemLogger.warn('Invalid filters query parameter', {
+        error: e.message,
+        filters
+      });
+
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid filters format'
+      });
     }
-    
-    const data = await rdmService.getDatasetData(id, options);
-    res.json({ success: true, data });
-  } catch (error) {
-    systemLogger.error('Failed to fetch RDM dataset data:', error);
-    res.status(500).json({ 
-      success: false, 
-      error: error.message || 'Failed to fetch dataset data from RDM' 
-    });
   }
+
+  const data = await rdmService.getDatasetData(id, options);
+  return res.json({ success: true, data });
+
+  } catch (error) {
+  systemLogger.error('Failed to fetch RDM dataset data', {
+    error: error.message,
+    stack: error.stack
+  });
+
+  return res.status(500).json({
+    success: false,
+    error: error.message || 'Failed to fetch dataset data from RDM'
+  });
+}
 });
 
 router.get('/crosswalks', authenticateToken, async (req, res) => {
