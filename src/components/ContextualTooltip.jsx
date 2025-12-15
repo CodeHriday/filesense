@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { FiInfo, FiX, FiArrowRight, FiExternalLink } from 'react-icons/fi';
 import './ContextualTooltip.css';
+import PropTypes from 'prop-types';
 
 /**
  * Tooltip component for explaining complex metrics and data concepts
@@ -304,6 +305,47 @@ export const MetricTooltip = ({
       {children}
     </ContextualTooltip>
   );
+};
+
+// PropTypes for ContextualTooltip
+ContextualTooltip.propTypes = {
+  children: PropTypes.node,
+  content: PropTypes.oneOfType([PropTypes.node, PropTypes.string]),
+  title: PropTypes.string,
+  examples: PropTypes.arrayOf(PropTypes.string),
+  links: PropTypes.arrayOf(PropTypes.shape({ url: PropTypes.string.isRequired, label: PropTypes.string })),
+  position: PropTypes.oneOf(['top', 'bottom', 'left', 'right']),
+  maxWidth: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
+  interactive: PropTypes.bool,
+  className: PropTypes.string,
+  theme: PropTypes.oneOf(['light', 'dark'])
+};
+
+ContextualTooltip.defaultProps = {
+  children: null,
+  content: '',
+  title: '',
+  examples: null,
+  links: null,
+  position: 'top',
+  maxWidth: 300,
+  interactive: false,
+  className: '',
+  theme: 'light'
+};
+
+// PropTypes for MetricTooltip
+MetricTooltip.propTypes = {
+  metric: PropTypes.string.isRequired,
+  children: PropTypes.node,
+  position: PropTypes.oneOf(['top', 'bottom', 'left', 'right']),
+  theme: PropTypes.oneOf(['light', 'dark'])
+};
+
+MetricTooltip.defaultProps = {
+  children: null,
+  position: 'top',
+  theme: 'light'
 };
 
 export default ContextualTooltip;

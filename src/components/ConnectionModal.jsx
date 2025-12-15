@@ -4,6 +4,7 @@ import ThreeSectionModal from './ThreeSectionModal';
 import S3FolderBrowser from './S3FolderBrowser';
 import axios from 'axios';
 import '../styles/VendorManagement.css';
+import PropTypes from 'prop-types';
 
 const ConnectionModal = ({
   isOpen,
@@ -1164,6 +1165,33 @@ const ConnectionModal = ({
       )}
     </>
   );
+};
+
+ConnectionModal.propTypes = {
+  isOpen: PropTypes.bool,
+  onClose: PropTypes.func,
+  onSuccess: PropTypes.func,
+  connection: PropTypes.shape({
+    connection_id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    name: PropTypes.string,
+    connection_user: PropTypes.string,
+    connection_direction: PropTypes.string,
+    description: PropTypes.string,
+    authentication_method: PropTypes.string,
+    provider: PropTypes.string,
+    config: PropTypes.object,
+    auth_config: PropTypes.object,
+    has_archive_password: PropTypes.bool
+  }),
+  connectionDirection: PropTypes.string,
+};
+
+ConnectionModal.defaultProps = {
+  isOpen: false,
+  onClose: () => {},
+  onSuccess: () => {},
+  connection: null,
+  connectionDirection: 'source'
 };
 
 export default ConnectionModal;
