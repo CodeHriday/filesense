@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import './VendorUserSelect.css';
+import PropTypes from 'prop-types';
+
 
 const VendorUserSelect = ({ 
   value, 
@@ -193,6 +195,25 @@ const VendorUserSelect = ({
       )}
     </div>
   );
+};
+VendorUserSelect.propTypes = {
+  value: PropTypes.oneOfType([
+    PropTypes.string,
+    PropTypes.number,
+    PropTypes.object
+  ]),
+
+  onChange: PropTypes.func.isRequired,
+
+  placeholder: PropTypes.string,
+  disabled: PropTypes.bool,
+  required: PropTypes.bool,
+  name: PropTypes.string,
+
+  filterByVendorId: PropTypes.oneOfType([
+    PropTypes.string,
+    PropTypes.number
+  ])
 };
 
 export default VendorUserSelect;

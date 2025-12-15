@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { FaPlus, FaTrash } from 'react-icons/fa';
 import './MappingConfigModal.css';
+import PropTypes from 'prop-types';
+
 
 const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [], rightSchema = [], leftNodeName = '', rightNodeName = '' }) => {
   const [name, setName] = useState('');
@@ -572,6 +574,34 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
       </div>
     </div>
   );
+};
+JoinModal.propTypes = {
+  isOpen: PropTypes.bool.isRequired,
+  onClose: PropTypes.func.isRequired,
+  onSave: PropTypes.func.isRequired,
+
+  initialConfig: PropTypes.shape({
+    name: PropTypes.string,
+    description: PropTypes.string,
+    joinType: PropTypes.string,
+    joinKeys: PropTypes.array,
+    columnMappings: PropTypes.array
+  }),
+
+  leftSchema: PropTypes.arrayOf(
+    PropTypes.shape({
+      name: PropTypes.string.isRequired
+    })
+  ),
+
+  rightSchema: PropTypes.arrayOf(
+    PropTypes.shape({
+      name: PropTypes.string.isRequired
+    })
+  ),
+
+  leftNodeName: PropTypes.string,
+  rightNodeName: PropTypes.string
 };
 
 export default JoinModal;

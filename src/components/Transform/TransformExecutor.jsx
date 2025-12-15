@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { FiPlay, FiPause, FiSquare, FiCheckCircle, FiAlertCircle, FiClock, FiDatabase } from 'react-icons/fi';
 import './Transform.css';
+import PropTypes from 'prop-types';
+
 
 /**
  * Transform Executor component for running and monitoring transformations
@@ -284,6 +286,29 @@ const TransformExecutor = ({ config, onExecute }) => {
       )}
     </div>
   );
+};
+TransformExecutor.propTypes = {
+  onExecute: PropTypes.func.isRequired,
+
+  config: PropTypes.shape({
+    transformName: PropTypes.string,
+
+    sourceConnection: PropTypes.shape({
+      name: PropTypes.string
+    }),
+
+    targetConnection: PropTypes.shape({
+      name: PropTypes.string
+    }),
+
+    sourceFile: PropTypes.shape({
+      filename: PropTypes.string,
+      row_count: PropTypes.number
+    }),
+
+    columnMappings: PropTypes.array,
+    targetSchema: PropTypes.array
+  }).isRequired
 };
 
 export default TransformExecutor;

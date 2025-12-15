@@ -1,6 +1,8 @@
 import React from 'react';
 import { FiX, FiFileText, FiArrowRight, FiDatabase, FiCode, FiShield } from 'react-icons/fi';
 import './TransformationDetailsPanel.css';
+import PropTypes from 'prop-types';
+
 
 /**
  * TransformationDetailsPanel
@@ -316,5 +318,57 @@ function TransformationDetailsPanel({ transformationData, onClose }) {
     </div>
   );
 }
+TransformationDetailsPanel.propTypes = {
+  onClose: PropTypes.func.isRequired,
+
+  transformationData: PropTypes.shape({
+    type: PropTypes.string,
+
+    mapping_name: PropTypes.string,
+    description: PropTypes.string,
+
+    // Source file info
+    source_filename: PropTypes.string,
+    source_file_type: PropTypes.string,
+    source_file_size: PropTypes.number,
+    source_row_count: PropTypes.number,
+    source_column_count: PropTypes.number,
+    source_created_at: PropTypes.string,
+    source_owner: PropTypes.string,
+    source_path: PropTypes.string,
+
+    // Target file info
+    target_filename: PropTypes.string,
+    target_file_type: PropTypes.string,
+    target_file_size: PropTypes.number,
+    target_row_count: PropTypes.number,
+    target_column_count: PropTypes.number,
+    target_created_at: PropTypes.string,
+    target_owner: PropTypes.string,
+    target_path: PropTypes.string,
+
+    // Transformation metadata
+    source_pattern: PropTypes.string,
+    target_pattern: PropTypes.string,
+    source_file_pattern: PropTypes.string,
+    target_file_name: PropTypes.string,
+    target_file_format: PropTypes.string,
+    agreement_name: PropTypes.string,
+
+    // Mappings & variables (can be array or JSON string)
+    field_mappings: PropTypes.oneOfType([
+      PropTypes.array,
+      PropTypes.string
+    ]),
+    variables: PropTypes.oneOfType([
+      PropTypes.array,
+      PropTypes.string
+    ]),
+    column_mappings: PropTypes.oneOfType([
+      PropTypes.array,
+      PropTypes.string
+    ])
+  })
+};
 
 export default TransformationDetailsPanel;
