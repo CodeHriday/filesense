@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { FiX } from 'react-icons/fi';
 import './styles/Modal.css';
+import PropTypes from 'prop-types';
 
 const Modal = ({ 
   isOpen, 
@@ -70,6 +71,16 @@ const Modal = ({
       </div>
     </div>
   );
+};
+Modal.propTypes = {
+  isOpen: PropTypes.bool.isRequired,
+  onClose: PropTypes.func.isRequired,
+  title: PropTypes.string.isRequired,
+  children: PropTypes.node.isRequired,
+
+  footer: PropTypes.node,
+  size: PropTypes.oneOf(['small', 'medium', 'large']),
+  closeOnOverlayClick: PropTypes.bool
 };
 
 export default Modal;

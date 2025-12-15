@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import PropTypes from 'prop-types';
+
 import './Table.css';
 
 const Table = ({ 
@@ -173,6 +175,28 @@ const Table = ({
       )}
     </div>
   );
+};
+Table.propTypes = {
+  data: PropTypes.arrayOf(PropTypes.object),
+  
+  columns: PropTypes.arrayOf(
+    PropTypes.shape({
+      header: PropTypes.string.isRequired,
+      accessor: PropTypes.string,
+      cell: PropTypes.func
+    })
+  ),
+
+  pageSize: PropTypes.number,
+  sortable: PropTypes.bool,
+  className: PropTypes.string
+};
+Table.defaultProps = {
+  data: [],
+  columns: [],
+  pageSize: 10,
+  sortable: true,
+  className: ''
 };
 
 export default Table;

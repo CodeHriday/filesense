@@ -1,5 +1,6 @@
 import React from 'react';
 import { useAccessibility } from '../../context/AccessibilityContext';
+import PropTypes from 'prop-types';
 
 /**
  * FormField - An accessible form field wrapper
@@ -71,6 +72,14 @@ const FormField = ({
       )}
     </div>
   );
+};
+FormField.propTypes = {
+  id: PropTypes.string.isRequired,
+  label: PropTypes.string.isRequired,
+  children: PropTypes.node.isRequired,
+  error: PropTypes.string,
+  helpText: PropTypes.string,
+  required: PropTypes.bool
 };
 
 export default FormField;

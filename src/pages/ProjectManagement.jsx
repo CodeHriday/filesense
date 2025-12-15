@@ -702,8 +702,9 @@ function ProjectManagement() {
               <form onSubmit={handleCreate}>
                 <div className="gps-form-grid gps-form-grid--2col">
                   <div className="gps-form-group">
-                    <label className="gps-form-label">Project Name *</label>
+                    <label htmlFor="create-project-name" className="gps-form-label">Project Name *</label>
                     <input
+                      id="create-project-name"
                       type="text"
                       className="gps-form-input"
                       value={formData.name}
@@ -712,8 +713,9 @@ function ProjectManagement() {
                     />
                   </div>
                   <div className="gps-form-group">
-                    <label className="gps-form-label">Project Type *</label>
+                    <label htmlFor="create-project-type" className="gps-form-label">Project Type *</label>
                     <select
+                      id="create-project-type"
                       className="gps-form-select"
                       value={formData.project_type}
                       onChange={(e) => setFormData({ ...formData, project_type: e.target.value })}
@@ -725,8 +727,9 @@ function ProjectManagement() {
                   </div>
                 </div>
                 <div className="gps-form-group">
-                  <label className="gps-form-label">Description</label>
+                  <label htmlFor="create-project-description" className="gps-form-label">Description</label>
                   <textarea
+                    id="create-project-description"
                     className="gps-form-input"
                     value={formData.description}
                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
@@ -735,8 +738,9 @@ function ProjectManagement() {
                 </div>
                 <div className="gps-form-grid gps-form-grid--2col">
                   <div className="gps-form-group">
-                    <label className="gps-form-label">Add Members</label>
+                    <label htmlFor="create-member-ids" className="gps-form-label">Add Members</label>
                     <select
+                      id="create-member-ids"
                       className="gps-form-select"
                       multiple
                       value={formData.member_ids}
@@ -755,8 +759,9 @@ function ProjectManagement() {
                     <span className="gps-form-hint">Hold Ctrl/Cmd to select multiple users</span>
                   </div>
                   <div className="gps-form-group">
-                    <label className="gps-form-label">Add Access Groups</label>
+                    <label htmlFor="create-group-ids" className="gps-form-label">Add Access Groups</label>
                     <select
+                      id="create-group-ids"
                       className="gps-form-select"
                       multiple
                       value={formData.group_ids}
@@ -883,8 +888,9 @@ function ProjectManagement() {
                   <h3 className="gps-section-title">Project Details</h3>
                   <div className="gps-form-grid gps-form-grid--2col">
                     <div className="gps-form-group">
-                      <label className="gps-form-label">Project Name *</label>
+                      <label htmlFor="edit-project-name" className="gps-form-label">Project Name *</label>
                       <input
+                        id="edit-project-name"
                         type="text"
                         className="gps-form-input"
                         value={formData.name}
@@ -893,8 +899,9 @@ function ProjectManagement() {
                       />
                     </div>
                     <div className="gps-form-group">
-                      <label className="gps-form-label">Project Type *</label>
+                      <label htmlFor="edit-project-type" className="gps-form-label">Project Type *</label>
                       <select
+                        id="edit-project-type"
                         className="gps-form-select"
                         value={formData.project_type}
                         onChange={(e) => setFormData({ ...formData, project_type: e.target.value })}
@@ -906,8 +913,9 @@ function ProjectManagement() {
                     </div>
                   </div>
                   <div className="gps-form-group">
-                    <label className="gps-form-label">Description</label>
+                    <label htmlFor="edit-project-description" className="gps-form-label">Description</label>
                     <textarea
+                      id="edit-project-description"
                       className="gps-form-input"
                       value={formData.description}
                       onChange={(e) => setFormData({ ...formData, description: e.target.value })}
