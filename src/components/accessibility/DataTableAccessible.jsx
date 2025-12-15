@@ -1,5 +1,6 @@
 import React from 'react';
 import { useAccessibility } from '../../context/AccessibilityContext';
+import PropTypes from 'prop-types';
 
 /**
  * DataTableAccessible - A screen reader friendly data table component
@@ -123,6 +124,27 @@ const DataTableAccessible = ({
       </div>
     </div>
   );
+};
+DataTableAccessible.propTypes = {
+  data: PropTypes.arrayOf(PropTypes.object).isRequired,
+
+  columns: PropTypes.arrayOf(
+    PropTypes.shape({
+      key: PropTypes.string.isRequired,
+      header: PropTypes.string.isRequired,
+      description: PropTypes.string,
+      formatter: PropTypes.func,
+      screenReaderInfo: PropTypes.oneOfType([
+        PropTypes.string,
+        PropTypes.func
+      ])
+    })
+  ).isRequired,
+
+  caption: PropTypes.string.isRequired,
+  summary: PropTypes.string,
+  sortable: PropTypes.bool,
+  onRowClick: PropTypes.func
 };
 
 export default DataTableAccessible;

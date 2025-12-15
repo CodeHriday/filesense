@@ -1,6 +1,7 @@
 import React from 'react';
 import { Handle, Position } from 'reactflow';
 import { FaFile, FaShieldAlt, FaLock } from 'react-icons/fa';
+import PropTypes from 'prop-types';
 
 const SourceFileNode = ({ data }) => {
   const formatFileSize = (bytes) => {
@@ -81,6 +82,40 @@ const SourceFileNode = ({ data }) => {
       <Handle type="source" position={sourcePosition} />
     </div>
   );
+};
+
+SourceFileNode.propTypes = {
+  data: PropTypes.shape({
+    targetPosition: PropTypes.oneOf([Position.Left, Position.Right, Position.Top, Position.Bottom]),
+    sourcePosition: PropTypes.oneOf([Position.Left, Position.Right, Position.Top, Position.Bottom]),
+    label: PropTypes.string,
+    fileType: PropTypes.string,
+    fileSize: PropTypes.number,
+    rowCount: PropTypes.number,
+    piiColumns: PropTypes.arrayOf(PropTypes.string),
+    versionCount: PropTypes.number,
+    hasIncidents: PropTypes.bool,
+    incidents: PropTypes.shape({ totalViolations: PropTypes.number }),
+    containsPii: PropTypes.bool,
+    dataClassification: PropTypes.string,
+  }).isRequired,
+};
+
+SourceFileNode.defaultProps = {
+  data: {
+    targetPosition: Position.Left,
+    sourcePosition: Position.Right,
+    label: '',
+    fileType: '',
+    fileSize: 0,
+    rowCount: 0,
+    piiColumns: [],
+    versionCount: 1,
+    hasIncidents: false,
+    incidents: { totalViolations: 0 },
+    containsPii: false,
+    dataClassification: '',
+  },
 };
 
 export default SourceFileNode;

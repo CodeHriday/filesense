@@ -213,8 +213,16 @@ const APITokens = () => {
             </div>
 
             <div className="gps-form-group">
-              <label id="scopes-label" className="gps-form-label">Scopes *</label>
-              <div className="gps-scope-checkboxes" role="group" aria-labelledby="scopes-label">
+              {/* Use a <div> or <span> with id instead of <label> */}
+              <div id="scopes-label" className="gps-form-label" role="heading" aria-level="3">
+                Scopes *
+              </div>
+
+              <div 
+                className="gps-scope-checkboxes" 
+                role="group" 
+                aria-labelledby="scopes-label"  
+              >
                 {availableScopes.map((scope) => (
                   <div key={scope.value} className="gps-checkbox-card">
                     <label className="gps-checkbox-card-label" htmlFor={`scope-${scope.value}`}>
@@ -223,6 +231,7 @@ const APITokens = () => {
                         type="checkbox"
                         checked={formData.scopes.includes(scope.value)}
                         onChange={() => handleScopeToggle(scope.value)}
+                        aria-label={`${scope.label}${scope.description ? `, ${scope.description}` : ''}`}  // Fallback accessible name
                       />
                       <div className="gps-checkbox-card-content">
                         <span className="gps-checkbox-card-title">{scope.label}</span>

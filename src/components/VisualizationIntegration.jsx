@@ -4,6 +4,7 @@ import { ContextualTooltip } from './ContextualTooltip';
 import { LoadingSkeleton } from './LoadingSkeleton';
 import { ToggleSwitch } from './MicroInteractions';
 import './VisualizationIntegration.css';
+import PropTypes from 'prop-types';
 
 /**
  * Component for integrating with external data visualization tools
@@ -635,6 +636,25 @@ const VisualizationIntegration = ({
       </div>
     </div>
   );
+};
+
+VisualizationIntegration.propTypes = {
+  fileData: PropTypes.shape({
+    filename: PropTypes.string,
+    file_id: PropTypes.oneOfType([PropTypes.string, PropTypes.number])
+  }),
+  className: PropTypes.string,
+  style: PropTypes.object,
+  onExport: PropTypes.func,
+  loading: PropTypes.bool,
+};
+
+VisualizationIntegration.defaultProps = {
+  fileData: null,
+  className: '',
+  style: {},
+  onExport: null,
+  loading: false,
 };
 
 export default VisualizationIntegration;

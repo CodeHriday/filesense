@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import PropTypes from 'prop-types';
 import TableBasedMapper from '../TableBasedMapper';
 import './MappingConfigModal.css';
 
@@ -88,6 +89,22 @@ const ExpressionModal = ({ isOpen, onClose, onSave, initialConfig = {}, schema =
       </div>
     </div>
   );
+};
+ExpressionModal.propTypes = {
+  isOpen: PropTypes.bool.isRequired,
+  onClose: PropTypes.func.isRequired,
+  onSave: PropTypes.func.isRequired,
+
+  initialConfig: PropTypes.shape({
+    name: PropTypes.string,
+    description: PropTypes.string,
+    fieldMappings: PropTypes.array,
+    variables: PropTypes.array,
+    piiColumns: PropTypes.array,
+    dqRuleAssignments: PropTypes.object
+  }),
+
+  schema: PropTypes.array
 };
 
 export default ExpressionModal;

@@ -4,6 +4,7 @@ import ThreeSectionModal from './ThreeSectionModal';
 import S3FolderBrowser from './S3FolderBrowser';
 import axios from 'axios';
 import '../styles/VendorManagement.css';
+import PropTypes from 'prop-types';
 
 const VendorConnectionModal = ({
   isOpen,
@@ -593,3 +594,33 @@ const VendorConnectionModal = ({
 };
 
 export default VendorConnectionModal;
+
+VendorConnectionModal.propTypes = {
+  isOpen: PropTypes.bool,
+  onClose: PropTypes.func,
+  onSuccess: PropTypes.func,
+  connection: PropTypes.shape({
+    connection_id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    name: PropTypes.string,
+    config: PropTypes.shape({
+      provider: PropTypes.string,
+      region: PropTypes.string,
+      bucket: PropTypes.string,
+      endpoint: PropTypes.string,
+      use_ssl: PropTypes.bool,
+      project_id: PropTypes.string,
+      gcp_bucket: PropTypes.string,
+      account_name: PropTypes.string,
+      container_name: PropTypes.string,
+      azure_endpoint: PropTypes.string,
+      path_prefix: PropTypes.string,
+    }),
+  }),
+};
+
+VendorConnectionModal.defaultProps = {
+  isOpen: false,
+  onClose: () => {},
+  onSuccess: () => {},
+  connection: null,
+};

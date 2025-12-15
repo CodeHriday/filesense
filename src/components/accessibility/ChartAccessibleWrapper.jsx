@@ -1,5 +1,6 @@
 import React from 'react';
 import { useAccessibility } from '../../context/AccessibilityContext';
+import PropTypes from 'prop-types';
 
 /**
  * ChartAccessibleWrapper - Wraps chart components to provide accessibility features
@@ -154,3 +155,32 @@ const ChartAccessibleWrapper = ({
 };
 
 export default ChartAccessibleWrapper;
+
+ChartAccessibleWrapper.propTypes = {
+  children: PropTypes.node,
+  title: PropTypes.string,
+  description: PropTypes.string,
+  data: PropTypes.oneOfType([PropTypes.array, PropTypes.object]),
+  chartType: PropTypes.string,
+  xAxisLabel: PropTypes.string,
+  yAxisLabel: PropTypes.string,
+  dataTableColumns: PropTypes.arrayOf(
+    PropTypes.shape({
+      header: PropTypes.string.isRequired,
+      accessor: PropTypes.oneOfType([PropTypes.string, PropTypes.func]).isRequired,
+    })
+  ),
+  summaryText: PropTypes.string,
+};
+
+ChartAccessibleWrapper.defaultProps = {
+  children: null,
+  title: '',
+  description: '',
+  data: null,
+  chartType: 'chart',
+  xAxisLabel: '',
+  yAxisLabel: '',
+  dataTableColumns: null,
+  summaryText: '',
+};
