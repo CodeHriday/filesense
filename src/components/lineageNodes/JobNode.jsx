@@ -1,5 +1,6 @@
 import React from 'react';
 import { Handle, Position } from 'reactflow';
+import PropTypes from 'prop-types';
 import { FaPlayCircle, FaCheckCircle, FaTimesCircle } from 'react-icons/fa';
 
 const JobNode = ({ data }) => {
@@ -48,6 +49,32 @@ const JobNode = ({ data }) => {
       <Handle type="source" position={sourcePosition} />
     </div>
   );
+};
+JobNode.propTypes = {
+  data: PropTypes.shape({
+    label: PropTypes.string.isRequired,
+    status: PropTypes.oneOf(['running', 'completed', 'failed']),
+    durationMs: PropTypes.number,
+    rowsWritten: PropTypes.number,
+
+    hasIncidents: PropTypes.bool,
+    incidents: PropTypes.shape({
+      totalViolations: PropTypes.number
+    }),
+
+    targetPosition: PropTypes.oneOf([
+      Position.Left,
+      Position.Right,
+      Position.Top,
+      Position.Bottom
+    ]),
+    sourcePosition: PropTypes.oneOf([
+      Position.Left,
+      Position.Right,
+      Position.Top,
+      Position.Bottom
+    ])
+  }).isRequired
 };
 
 export default JobNode;

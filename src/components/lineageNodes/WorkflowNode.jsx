@@ -1,6 +1,8 @@
 import React from 'react';
 import { Handle, Position } from 'reactflow';
 import { FaProjectDiagram } from 'react-icons/fa';
+import PropTypes from 'prop-types';
+
 
 const WorkflowNode = ({ data }) => {
   const targetPosition = data.targetPosition || Position.Left;
@@ -24,6 +26,28 @@ const WorkflowNode = ({ data }) => {
       <Handle type="source" position={sourcePosition} />
     </div>
   );
+};
+WorkflowNode.propTypes = {
+  data: PropTypes.shape({
+    label: PropTypes.string.isRequired,
+
+    executionMode: PropTypes.string,
+    nodeCount: PropTypes.number,
+    projectName: PropTypes.string,
+
+    targetPosition: PropTypes.oneOf([
+      Position.Left,
+      Position.Right,
+      Position.Top,
+      Position.Bottom
+    ]),
+    sourcePosition: PropTypes.oneOf([
+      Position.Left,
+      Position.Right,
+      Position.Top,
+      Position.Bottom
+    ])
+  }).isRequired
 };
 
 export default WorkflowNode;

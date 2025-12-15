@@ -1,6 +1,8 @@
 import React from 'react';
 import { Handle, Position } from 'reactflow';
 import './WorkflowNodes.css';
+import PropTypes from 'prop-types';
+
 
 function WorkflowNode({ data, isConnectable }) {
   return (
@@ -34,5 +36,17 @@ function WorkflowNode({ data, isConnectable }) {
     </div>
   );
 }
+WorkflowNode.propTypes = {
+  data: PropTypes.shape({
+    assetName: PropTypes.string.isRequired,
+    assetId: PropTypes.oneOfType([
+      PropTypes.string,
+      PropTypes.number
+    ]).isRequired,
+    description: PropTypes.string
+  }).isRequired,
+
+  isConnectable: PropTypes.bool
+};
 
 export default WorkflowNode;

@@ -1,6 +1,7 @@
 import React from 'react';
 import { Handle, Position } from 'reactflow';
 import { FaCog } from 'react-icons/fa';
+import PropTypes from 'prop-types';
 
 const TransformationNode = ({ data }) => {
   const targetPosition = data.targetPosition || Position.Left;
@@ -28,6 +29,28 @@ const TransformationNode = ({ data }) => {
       <Handle type="source" position={sourcePosition} />
     </div>
   );
+};
+TransformationNode.propTypes = {
+  data: PropTypes.shape({
+    label: PropTypes.string.isRequired,
+    description: PropTypes.string,
+
+    fieldMappingsCount: PropTypes.number,
+    derivedColumnsCount: PropTypes.number,
+
+    targetPosition: PropTypes.oneOf([
+      Position.Left,
+      Position.Right,
+      Position.Top,
+      Position.Bottom
+    ]),
+    sourcePosition: PropTypes.oneOf([
+      Position.Left,
+      Position.Right,
+      Position.Top,
+      Position.Bottom
+    ])
+  }).isRequired
 };
 
 export default TransformationNode;
