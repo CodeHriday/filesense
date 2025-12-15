@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { FaCheckCircle, FaClock, FaTimesCircle, FaUpload, FaFileAlt } from 'react-icons/fa';
 import axios from 'axios';
 import './ThreeStageApprovalPanel.css';
+import PropTypes from 'prop-types';
 
 const ThreeStageApprovalPanel = ({ agreement, currentUser, onUpdate, onError, onSuccess }) => {
   const [comments, setComments] = useState('');
@@ -365,3 +366,35 @@ const ThreeStageApprovalPanel = ({ agreement, currentUser, onUpdate, onError, on
 };
 
 export default ThreeStageApprovalPanel;
+
+ThreeStageApprovalPanel.propTypes = {
+  agreement: PropTypes.shape({
+    id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    approval_status: PropTypes.string,
+    is_locked: PropTypes.bool,
+    vendor_id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    primary_contact_email: PropTypes.string,
+    secondary_contact_email: PropTypes.string,
+    file_owner_user_id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    governance_manager_user_id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    vendor_approved_at: PropTypes.string,
+    manager_approved_at: PropTypes.string,
+    governance_approved_at: PropTypes.string,
+  }).isRequired,
+  currentUser: PropTypes.shape({
+    id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    vendor_id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    email: PropTypes.string,
+    roles: PropTypes.arrayOf(PropTypes.string),
+    role: PropTypes.string,
+  }).isRequired,
+  onUpdate: PropTypes.func,
+  onError: PropTypes.func,
+  onSuccess: PropTypes.func,
+};
+
+ThreeStageApprovalPanel.defaultProps = {
+  onUpdate: null,
+  onError: () => {},
+  onSuccess: () => {},
+};

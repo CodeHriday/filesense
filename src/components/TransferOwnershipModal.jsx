@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import '../styles/UserManagement.css';
+import PropTypes from 'prop-types';
 
 const TransferOwnershipModal = ({ 
   isOpen, 
@@ -220,6 +221,47 @@ const TransferOwnershipModal = ({
       </div>
     </div>
   );
+};
+
+TransferOwnershipModal.propTypes = {
+  isOpen: PropTypes.bool,
+  onClose: PropTypes.func,
+  user: PropTypes.shape({
+    id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    username: PropTypes.string,
+    vendor_id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    user_type: PropTypes.string
+  }),
+  dependencies: PropTypes.shape({
+    vendors: PropTypes.arrayOf(PropTypes.object),
+    agreements: PropTypes.arrayOf(PropTypes.object),
+    mappings: PropTypes.arrayOf(PropTypes.object),
+    catalogs: PropTypes.arrayOf(PropTypes.object),
+    projects: PropTypes.arrayOf(PropTypes.object)
+  }),
+  vendorContacts: PropTypes.arrayOf(
+    PropTypes.shape({
+      id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
+      username: PropTypes.string,
+      email: PropTypes.string
+    })
+  ),
+  onTransfer: PropTypes.func.isRequired,
+};
+
+TransferOwnershipModal.defaultProps = {
+  isOpen: false,
+  onClose: () => {},
+  user: null,
+  dependencies: {
+    vendors: [],
+    agreements: [],
+    mappings: [],
+    catalogs: [],
+    projects: []
+  },
+  vendorContacts: [],
+  onTransfer: () => {}
 };
 
 export default TransferOwnershipModal;
