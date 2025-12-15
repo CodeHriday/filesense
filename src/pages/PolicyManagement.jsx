@@ -347,8 +347,9 @@ function PolicyModal({ policy, onClose, onSave, onError }) {
         </div>
         <div className="gps-modal-body">
           <div className="gps-form-group">
-            <label className="gps-label">Policy Name</label>
+            <label htmlFor="policy-name" className="gps-label">Policy Name</label>
             <input
+              id="policy-name"
               type="text"
               className="gps-input"
               value={policyName}
@@ -358,8 +359,9 @@ function PolicyModal({ policy, onClose, onSave, onError }) {
           </div>
 
           <div className="gps-form-group">
-            <label className="gps-label">Description</label>
+            <label htmlFor="description" className="gps-label">Description</label>
             <textarea
+              id="description"
               className="gps-textarea"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
@@ -372,8 +374,9 @@ function PolicyModal({ policy, onClose, onSave, onError }) {
             <h3 className="gps-section-title">Policy Rules</h3>
 
             <div className="gps-form-group">
-              <label className="gps-label">Retention Period (days)</label>
+              <label htmlFor="retention-days" className="gps-label">Retention Period (days)</label>
               <input
+                id="retention-days"
                 type="number"
                 className="gps-input"
                 value={retentionDays}
@@ -383,8 +386,9 @@ function PolicyModal({ policy, onClose, onSave, onError }) {
             </div>
 
             <div className="gps-form-group">
-              <label className="gps-label">Access Control</label>
+              <label htmlFor="access-control" className="gps-label">Access Control</label>
               <select
+                id="access-control"
                 className="gps-select"
                 value={accessControl}
                 onChange={(e) => setAccessControl(e.target.value)}
@@ -397,8 +401,9 @@ function PolicyModal({ policy, onClose, onSave, onError }) {
             </div>
 
             <div className="gps-form-group">
-              <label className="gps-checkbox-label">
+              <label htmlFor="encryption-required" className="gps-checkbox-label">
                 <input
+                  id="encryption-required"
                   type="checkbox"
                   checked={encryptionRequired}
                   onChange={(e) => setEncryptionRequired(e.target.checked)}

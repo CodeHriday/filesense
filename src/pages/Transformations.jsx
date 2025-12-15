@@ -1696,8 +1696,9 @@ function Transformations() {
         return (
           <div className="config-form">
             <div className="config-form-row">
-              <label className="config-label">Source File</label>
+              <label htmlFor="source-file" className="config-label">Source File</label>
               <select
+                id="source-file"
                 className="config-select"
                 value={nodeConfig.sourceFile || ''}
                 onChange={(e) => setNodeConfig({...nodeConfig, sourceFile: e.target.value})}
@@ -1727,8 +1728,9 @@ function Transformations() {
         return (
           <div className="config-form">
             <div className="config-form-row">
-              <label className="config-label">Target Name</label>
+              <label htmlFor="target-name" className="config-label">Target Name</label>
               <input
+                id="target-name"
                 type="text"
                 className="config-input"
                 value={nodeConfig.targetName || ''}
@@ -1737,8 +1739,9 @@ function Transformations() {
               />
             </div>
             <div className="config-form-row">
-              <label className="config-label">Output Type</label>
+              <label htmlFor="output-type" className="config-label">Output Type</label>
               <select
+                id="output-type"
                 className="config-select"
                 value={nodeConfig.outputType || ''}
                 onChange={(e) => setNodeConfig({...nodeConfig, outputType: e.target.value})}
@@ -1751,8 +1754,9 @@ function Transformations() {
             </div>
             {nodeConfig.outputType === 'file' && (
               <div className="config-form-row">
-                <label className="config-label">File Format</label>
+                <label htmlFor="file-format" className="config-label">File Format</label>
                 <select
+                  id="file-format"
                   className="config-select"
                   value={nodeConfig.fileFormat || ''}
                   onChange={(e) => setNodeConfig({...nodeConfig, fileFormat: e.target.value})}
@@ -1771,8 +1775,9 @@ function Transformations() {
         return (
           <div className="config-form">
             <div className="config-form-row">
-              <label className="config-label">Column</label>
+              <label htmlFor="filter-column" className="config-label">Column</label>
               <select
+                id="filter-column"
                 className="config-select"
                 value={nodeConfig.column || ''}
                 onChange={(e) => setNodeConfig({...nodeConfig, column: e.target.value})}
@@ -1784,8 +1789,9 @@ function Transformations() {
               </select>
             </div>
             <div className="config-form-row">
-              <label className="config-label">Operator</label>
+              <label htmlFor="filter-operator" className="config-label">Operator</label>
               <select
+                id="filter-operator"
                 className="config-select"
                 value={nodeConfig.operator || ''}
                 onChange={(e) => setNodeConfig({...nodeConfig, operator: e.target.value})}
@@ -1805,8 +1811,9 @@ function Transformations() {
               </select>
             </div>
             <div className="config-form-row">
-              <label className="config-label">Value</label>
+              <label htmlFor="filter-value" className="config-label">Value</label>
               <input
+                id="filter-value"
                 type="text"
                 className="config-input"
                 value={nodeConfig.value || ''}
@@ -1826,8 +1833,9 @@ function Transformations() {
         return (
           <div className="config-form">
             <div className="config-form-row">
-              <label className="config-label">Join Type</label>
+              <label htmlFor="join-type" className="config-label">Join Type</label>
               <select
+                id="join-type"
                 className="config-select"
                 value={nodeConfig.joinType || ''}
                 onChange={(e) => setNodeConfig({...nodeConfig, joinType: e.target.value})}
@@ -1840,8 +1848,9 @@ function Transformations() {
               </select>
             </div>
             <div className="config-form-row">
-              <label className="config-label">Right Table</label>
+              <label htmlFor="right-table" className="config-label">Right Table</label>
               <select
+                id="right-table"
                 className="config-select"
                 value={nodeConfig.rightTable || ''}
                 onChange={(e) => setNodeConfig({...nodeConfig, rightTable: e.target.value})}
@@ -1853,8 +1862,9 @@ function Transformations() {
               </select>
             </div>
             <div className="config-form-row">
-              <label className="config-label">Left Column</label>
+              <label htmlFor="left-column" className="config-label">Left Column</label>
               <select
+                id="left-column"
                 className="config-select"
                 value={nodeConfig.leftColumn || ''}
                 onChange={(e) => setNodeConfig({...nodeConfig, leftColumn: e.target.value})}
@@ -1866,8 +1876,9 @@ function Transformations() {
               </select>
             </div>
             <div className="config-form-row">
-              <label className="config-label">Right Column</label>
+              <label htmlFor="right-column" className="config-label">Right Column</label>
               <select
+                id="right-column"
                 className="config-select"
                 value={nodeConfig.rightColumn || ''}
                 onChange={(e) => setNodeConfig({...nodeConfig, rightColumn: e.target.value})}
@@ -1891,8 +1902,9 @@ function Transformations() {
         return (
           <div className="config-form">
             <div className="config-form-row">
-              <label className="config-label">Aggregation Function</label>
+              <label htmlFor="agg-function" className="config-label">Aggregation Function</label>
               <select
+                id="agg-function"
                 className="config-select"
                 value={nodeConfig.function || ''}
                 onChange={(e) => setNodeConfig({...nodeConfig, function: e.target.value})}
@@ -1906,8 +1918,9 @@ function Transformations() {
               </select>
             </div>
             <div className="config-form-row">
-              <label className="config-label">Column</label>
+              <label htmlFor="agg-column" className="config-label">Column</label>
               <select
+                id="agg-column"
                 className="config-select"
                 value={nodeConfig.column || ''}
                 onChange={(e) => setNodeConfig({...nodeConfig, column: e.target.value})}
@@ -1919,8 +1932,9 @@ function Transformations() {
               </select>
             </div>
             <div className="config-form-row">
-              <label className="config-label">Group By</label>
+              <label htmlFor="group-by" className="config-label">Group By</label>
               <select
+                id="group-by"
                 className="config-select"
                 value={nodeConfig.groupBy || ''}
                 onChange={(e) => setNodeConfig({...nodeConfig, groupBy: e.target.value})}
@@ -1943,8 +1957,9 @@ function Transformations() {
         return (
           <div className="config-form">
             <div className="config-form-row">
-              <label className="config-label">Operation</label>
+              <label htmlFor="transform-operation" className="config-label">Operation</label>
               <select
+                id="transform-operation"
                 className="config-select"
                 value={nodeConfig.operation || ''}
                 onChange={(e) => setNodeConfig({...nodeConfig, operation: e.target.value})}
@@ -1963,8 +1978,9 @@ function Transformations() {
               </select>
             </div>
             <div className="config-form-row">
-              <label className="config-label">Column</label>
+              <label htmlFor="transform-column" className="config-label">Column</label>
               <select
+                id="transform-column"
                 className="config-select"
                 value={nodeConfig.column || ''}
                 onChange={(e) => setNodeConfig({...nodeConfig, column: e.target.value})}
@@ -1977,8 +1993,9 @@ function Transformations() {
             </div>
             {nodeConfig.operation === 'CONCAT' && (
               <div className="config-form-row">
-                <label className="config-label">Concat With</label>
+                <label htmlFor="concat-with" className="config-label">Concat With</label>
                 <select
+                  id="concat-with"
                   className="config-select"
                   value={nodeConfig.concatWith || ''}
                   onChange={(e) => setNodeConfig({...nodeConfig, concatWith: e.target.value})}
@@ -1993,8 +2010,9 @@ function Transformations() {
             {nodeConfig.operation === 'REPLACE' && (
               <>
                 <div className="config-form-row">
-                  <label className="config-label">Search</label>
+                  <label htmlFor="search-text" className="config-label">Search</label>
                   <input
+                    id="search-text"
                     type="text"
                     className="config-input"
                     value={nodeConfig.search || ''}
@@ -2003,8 +2021,9 @@ function Transformations() {
                   />
                 </div>
                 <div className="config-form-row">
-                  <label className="config-label">Replace With</label>
+                  <label htmlFor="replace-text" className="config-label">Replace With</label>
                   <input
+                    id="replace-text"
                     type="text"
                     className="config-input"
                     value={nodeConfig.replace || ''}
@@ -2047,22 +2066,26 @@ function Transformations() {
           </button>
           <h1 className="transformations-title">
             {editing ? (
-              <input
-                type="text"
-                value={transformationName}
-                onChange={(e) => setTransformationName(e.target.value)}
-                className="inline-edit-title"
-                style={{
-                  fontSize: 'inherit',
-                  fontWeight: 'inherit',
-                  color: 'inherit',
-                  border: 'none',
-                  background: 'transparent',
-                  width: '400px',
-                  padding: '5px',
-                  borderBottom: '1px dashed #ccc'
-                }}
-              />
+              <>
+                <label htmlFor="transformation-name" style={{ display: 'none' }}>Transformation Name</label>
+                <input
+                  id="transformation-name"
+                  type="text"
+                  value={transformationName}
+                  onChange={(e) => setTransformationName(e.target.value)}
+                  className="inline-edit-title"
+                  style={{
+                    fontSize: 'inherit',
+                    fontWeight: 'inherit',
+                    color: 'inherit',
+                    border: 'none',
+                    background: 'transparent',
+                    width: '400px',
+                    padding: '5px',
+                    borderBottom: '1px dashed #ccc'
+                  }}
+                />
+              </>
             ) : (
               <span>{transformationName}</span>
             )}

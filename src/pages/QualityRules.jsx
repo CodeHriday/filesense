@@ -1056,8 +1056,9 @@ function QualityRules() {
               <div className="gps-modal-body" style={{ maxHeight: '60vh', overflowY: 'auto' }}>
                 <div className="gps-form-row">
                   <div className="gps-form-group">
-                    <label className="gps-form-label">Rule Name *</label>
+                    <label htmlFor="rule-name" className="gps-form-label">Rule Name *</label>
                     <input
+                      id="rule-name"
                       type="text"
                       className="gps-form-input"
                       value={formData.rule_name}
@@ -1069,8 +1070,9 @@ function QualityRules() {
                   </div>
                   
                   <div className="gps-form-group">
-                    <label className="gps-form-label">Project (Optional)</label>
+                    <label htmlFor="project-select" className="gps-form-label">Project (Optional)</label>
                     <select
+                      id="project-select"
                       className="gps-form-select"
                       value={formData.project_id}
                       onChange={(e) => handleProjectChange(e.target.value)}
@@ -1087,8 +1089,9 @@ function QualityRules() {
                 
                 {formData.project_id && (
                   <div className="gps-form-group">
-                    <label className="gps-form-label">Sub-Project (Optional)</label>
+                    <label htmlFor="subproject-select" className="gps-form-label">Sub-Project (Optional)</label>
                     <select
+                      id="subproject-select"
                       className="gps-form-select"
                       value={formData.sub_project_id}
                       onChange={(e) => setFormData({ ...formData, sub_project_id: e.target.value })}
@@ -1104,8 +1107,9 @@ function QualityRules() {
                 )}
                 
                 <div className="gps-form-group">
-                  <label className="gps-form-label">Description</label>
+                  <label htmlFor="rule-description" className="gps-form-label">Description</label>
                   <textarea
+                    id="rule-description"
                     className="gps-form-textarea"
                     rows="2"
                     value={formData.description}
@@ -1116,8 +1120,9 @@ function QualityRules() {
                 
                 <div className="gps-form-row">
                   <div className="gps-form-group">
-                    <label className="gps-form-label">Rule Type *</label>
+                    <label htmlFor="rule-type" className="gps-form-label">Rule Type *</label>
                     <select
+                      id="rule-type"
                       className="gps-form-select"
                       value={formData.rule_type}
                       onChange={(e) => handleRuleTypeChange(e.target.value)}
@@ -1136,8 +1141,9 @@ function QualityRules() {
                   </div>
                   
                   <div className="gps-form-group">
-                    <label className="gps-form-label">Severity</label>
+                    <label htmlFor="severity-select" className="gps-form-label">Severity</label>
                     <select
+                      id="severity-select"
                       className="gps-form-select"
                       value={formData.severity}
                       onChange={(e) => setFormData({ ...formData, severity: e.target.value })}
@@ -1152,8 +1158,9 @@ function QualityRules() {
                 {renderRuleTypeFields()}
                 
                 <div className="gps-form-group" style={{ marginTop: '16px' }}>
-                  <label className="gps-checkbox-label">
+                  <label htmlFor="enable-rule" className="gps-checkbox-label">
                     <input
+                      id="enable-rule"
                       type="checkbox"
                       checked={formData.enabled}
                       onChange={(e) => setFormData({ ...formData, enabled: e.target.checked })}
