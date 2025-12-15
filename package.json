@@ -5,10 +5,11 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "vite build",
-    "start": "node server.js",
     "dev:frontend": "vite",
     "dev:backend": "node server.js",
-    "seed:production": "node backend/scripts/seedProduction.js"
+    "seed:production": "node backend/scripts/seedProduction.js",
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "start": "npm run dev"
   },
   "keywords": [],
   "author": "",
@@ -111,5 +112,8 @@
     "winston": "^3.17.0",
     "xlsx": "^0.18.5",
     "yauzl": "^3.2.0"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
   }
 }

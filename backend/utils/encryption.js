@@ -2,7 +2,7 @@
  * Encryption utility for sensitive data
  * Uses AES-256-CBC encryption
  */
-
+require("dotenv").config();
 const crypto = require('crypto');
 const { systemLogger } = require('./logger');
 

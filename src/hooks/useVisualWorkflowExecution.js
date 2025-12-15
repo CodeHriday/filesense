@@ -2,7 +2,6 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { io } from 'socket.io-client';
 
 export const useVisualWorkflowExecution = () => {
-  const [socket, setSocket] = useState(null);
   const [nodeStatuses, setNodeStatuses] = useState({});
   const [executionProgress, setExecutionProgress] = useState(null);
   const [executionComplete, setExecutionComplete] = useState(false);
@@ -10,7 +9,6 @@ export const useVisualWorkflowExecution = () => {
   const [isConnected, setIsConnected] = useState(false);
   const [currentExecutionId, setCurrentExecutionId] = useState(null);
   const [executionRuns, setExecutionRuns] = useState([]);
-  const [currentRunId, setCurrentRunId] = useState(null);
   const socketRef = useRef(null);
   const runsRef = useRef([]);
 

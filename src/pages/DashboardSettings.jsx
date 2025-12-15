@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { FiSave, FiRotateCcw, FiEye, FiSettings, FiLayout, FiX } from 'react-icons/fi';
+import { FiSave, FiRotateCcw, FiEye, FiSettings, FiLayout } from 'react-icons/fi';
 import DashboardLayoutCreator from '../components/DashboardLayoutCreator';
 import LoadingSpinner from '../components/LoadingSpinner';
-import { PageTransition, AnimatedButton, SuccessAnimation } from '../components/MicroAnimations';
+import { PageTransition, SuccessAnimation } from '../components/MicroAnimations';
 import ContextualTooltip from '../components/ContextualTooltip';
 import axios from 'axios';
 import '../styles/global-page-styles.css';

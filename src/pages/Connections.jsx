@@ -50,7 +50,7 @@ const Connections = () => {
   const [testCredentials, setTestCredentials] = useState(null);
   
   const isAdmin = currentUser?.roles?.includes('Admin');
-  const [projects, setProjects] = useState([]);
+
   
   // Compute whether user can browse folders
   // Must have either saved connection or successful test, AND no modifications since
@@ -1393,78 +1393,10 @@ const Connections = () => {
   };
   
   // Format connection details for display
-  const formatConnectionDetails = (connection) => {
-    const { connection_type } = connection;
-    
-    if (connection_type === 'aws') {
-      return (
-        <>
-          <div><strong>Region:</strong> {connection.region}</div>
-          <div><strong>Bucket:</strong> {connection.bucket_name}</div>
-        </>
-      );
-    } else if (providerType === 'gcp') {
-      return (
-        <>
-          <div><strong>Project:</strong> {connection.project_id}</div>
-          <div><strong>Bucket:</strong> {connection.bucket_name}</div>
-        </>
-      );
-    } else if (providerType === 'azure') {
-      return (
-        <>
-          <div><strong>Account:</strong> {connection.account_name}</div>
-          <div><strong>Container:</strong> {connection.container_name}</div>
-        </>
-      );
-    } else if (providerType === 'snowflake') {
-      return (
-        <>
-          <div><strong>Account:</strong> {connection.snowflake_account}</div>
-          <div><strong>Database:</strong> {connection.snowflake_database}</div>
-          <div><strong>Schema:</strong> {connection.snowflake_schema}</div>
-        </>
-      );
-    } else if (providerType === 'databricks') {
-      return (
-        <>
-          <div><strong>Host:</strong> {connection.databricks_host}</div>
-          <div><strong>Catalog:</strong> {connection.databricks_catalog}</div>
-          <div><strong>Schema:</strong> {connection.databricks_schema}</div>
-        </>
-      );
-    } else if (providerType === 'sharepoint') {
-      return (
-        <>
-          <div><strong>Site URL:</strong> {connection.sharepoint_site_url}</div>
-          <div><strong>Document Library:</strong> {connection.sharepoint_document_library}</div>
-        </>
-      );
-    } else if (providerType === 'outlook') {
-      return (
-        <>
-          <div><strong>Email:</strong> {connection.outlook_user_email}</div>
-          <div><strong>Folder:</strong> {connection.outlook_folder_path}</div>
-        </>
-      );
-    }
-    
-    return null;
-  };
+  
   
   // Get connection type label
-  const getConnectionTypeLabel = (type) => {
-    switch (type) {
-      case 'aws': return 'AWS S3';
-      case 'gcp': return 'Google Cloud Storage';
-      case 'azure': return 'Azure Blob Storage';
-      case 'snowflake': return 'Snowflake';
-      case 'databricks': return 'Databricks';
-      case 'sharepoint': return 'SharePoint';
-      case 'outlook': return 'Outlook';
-      default: return type;
-    }
-  };
+  
   
   // Filter connections based on search term first
   const searchedConnections = connections.filter(conn => {

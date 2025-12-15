@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { FiSearch } from 'react-icons/fi';
 import '../styles/global-page-styles.css';
 
 const APITokens = () => {
