@@ -1429,28 +1429,28 @@ const WorkflowBuilderContent = () => {
       {showScheduleModal && (
           <div 
             className="workflow-builder-modal-overlay" 
-            onClick={() => setShowScheduleModal(false)}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="schedule-modal-title"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) {
+                setShowScheduleModal(false);
+              }
+            }}
+            role="button"
+            tabIndex="0"
+            aria-label="Close modal by clicking outside"
             onKeyDown={(e) => {
-              if (e.key === 'Escape') {
+              if (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
                 setShowScheduleModal(false);
               }
             }}
           >
             <div 
               className="workflow-builder-modal" 
-              onClick={(e) => e.stopPropagation()}
-              onKeyDown={(e) => {
-                // Handle keyboard events to satisfy accessibility requirements
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.stopPropagation();
-                }
-              }}
               ref={modalRef}
               tabIndex="-1"
-              role="document"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="schedule-modal-title"
             >
               <div className="workflow-builder-modal-header">
                 <h3 id="schedule-modal-title">Schedule Workflow</h3>

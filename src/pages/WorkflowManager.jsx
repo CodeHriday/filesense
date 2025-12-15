@@ -264,7 +264,16 @@ const WorkflowManager = () => {
                       <td className="workflow-name">
                         <span 
                           className="workflow-name-link" 
+                          role="button"
+                          tabIndex="0"
+                          aria-label={`Edit workflow ${workflow.name}`}
                           onClick={() => handleEdit(workflow.id)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              handleEdit(workflow.id);
+                            }
+                          }}
                           title="Click to edit workflow"
                         >
                           {workflow.name}
