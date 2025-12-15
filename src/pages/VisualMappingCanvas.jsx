@@ -35,6 +35,7 @@ import {
   FaExclamationTriangle
 } from 'react-icons/fa';
 import { FiPlay } from 'react-icons/fi';
+import PropTypes from 'prop-types';
 import SourceConfigModal from '../components/VisualMappingModals/SourceConfigModal';
 import ExpressionModal from '../components/VisualMappingModals/ExpressionModal';
 import RdmLookupModal from '../components/VisualMappingModals/RdmLookupModal';
@@ -277,6 +278,57 @@ const nodeTypes = {
   rdmLookup: RdmLookupNode,
   targetRules: TargetRulesNode,
   join: JoinNode
+};
+
+// Prop validation for custom node components used by React Flow
+SourceConfigNode.propTypes = {
+  data: PropTypes.shape({
+    statusBadge: PropTypes.shape({ text: PropTypes.string, icon: PropTypes.node }),
+    config: PropTypes.object,
+    label: PropTypes.string,
+    onConfigure: PropTypes.func,
+    nodeId: PropTypes.oneOfType([PropTypes.string, PropTypes.number])
+  }).isRequired,
+};
+
+ExpressionNode.propTypes = {
+  data: PropTypes.shape({
+    statusBadge: PropTypes.shape({ text: PropTypes.string, icon: PropTypes.node }),
+    config: PropTypes.object,
+    label: PropTypes.string,
+    onConfigure: PropTypes.func,
+    nodeId: PropTypes.oneOfType([PropTypes.string, PropTypes.number])
+  }).isRequired,
+};
+
+RdmLookupNode.propTypes = {
+  data: PropTypes.shape({
+    statusBadge: PropTypes.shape({ text: PropTypes.string, icon: PropTypes.node }),
+    config: PropTypes.object,
+    label: PropTypes.string,
+    onConfigure: PropTypes.func,
+    nodeId: PropTypes.oneOfType([PropTypes.string, PropTypes.number])
+  }).isRequired,
+};
+
+TargetRulesNode.propTypes = {
+  data: PropTypes.shape({
+    statusBadge: PropTypes.shape({ text: PropTypes.string, icon: PropTypes.node }),
+    config: PropTypes.object,
+    label: PropTypes.string,
+    onConfigure: PropTypes.func,
+    nodeId: PropTypes.oneOfType([PropTypes.string, PropTypes.number])
+  }).isRequired,
+};
+
+JoinNode.propTypes = {
+  data: PropTypes.shape({
+    statusBadge: PropTypes.shape({ text: PropTypes.string, icon: PropTypes.node }),
+    config: PropTypes.object,
+    label: PropTypes.string,
+    onConfigure: PropTypes.func,
+    nodeId: PropTypes.oneOfType([PropTypes.string, PropTypes.number])
+  }).isRequired,
 };
 
 const formatRunDate = (dateStr) => {
