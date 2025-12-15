@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useRef, useMemo, useEffect } from 'react';
+import PropTypes from 'prop-types';
 import ReactFlow, {
   addEdge,
   Background,
@@ -118,6 +119,21 @@ const SourceNode = React.memo(({ data }) => {
   );
 });
 
+SourceNode.propTypes = {
+  data: PropTypes.shape({
+    label: PropTypes.string.isRequired,
+    description: PropTypes.string,
+    metadata: PropTypes.string,
+    actions: PropTypes.node,
+    config: PropTypes.object,
+    onConfigure: PropTypes.func,
+    isSource: PropTypes.bool,
+    nodeType: PropTypes.string
+  }).isRequired
+};
+
+SourceNode.displayName = 'SourceNode';
+
 const TargetNode = React.memo(({ data }) => {
   return (
     <div 
@@ -192,6 +208,21 @@ const TargetNode = React.memo(({ data }) => {
     </div>
   );
 });
+
+TargetNode.propTypes = {
+  data: PropTypes.shape({
+    label: PropTypes.string.isRequired,
+    description: PropTypes.string,
+    metadata: PropTypes.string,
+    actions: PropTypes.node,
+    config: PropTypes.object,
+    onConfigure: PropTypes.func,
+    isTarget: PropTypes.bool,
+    nodeType: PropTypes.string
+  }).isRequired
+};
+
+TargetNode.displayName = 'TargetNode';
 
 const FilterNode = React.memo(({ data }) => {
   return (
@@ -282,6 +313,20 @@ const FilterNode = React.memo(({ data }) => {
     </div>
   );
 });
+
+FilterNode.propTypes = {
+  data: PropTypes.shape({
+    label: PropTypes.string.isRequired,
+    description: PropTypes.string,
+    condition: PropTypes.string,
+    actions: PropTypes.node,
+    config: PropTypes.object,
+    onConfigure: PropTypes.func,
+    nodeType: PropTypes.string
+  }).isRequired
+};
+
+FilterNode.displayName = 'FilterNode';
 
 const JoinNode = React.memo(({ data }) => {
   return (
@@ -378,6 +423,20 @@ const JoinNode = React.memo(({ data }) => {
   );
 });
 
+JoinNode.propTypes = {
+  data: PropTypes.shape({
+    label: PropTypes.string.isRequired,
+    description: PropTypes.string,
+    joinInfo: PropTypes.string,
+    actions: PropTypes.node,
+    config: PropTypes.object,
+    onConfigure: PropTypes.func,
+    nodeType: PropTypes.string
+  }).isRequired
+};
+
+JoinNode.displayName = 'JoinNode';
+
 const AggregateNode = React.memo(({ data }) => {
   return (
     <div 
@@ -466,6 +525,20 @@ const AggregateNode = React.memo(({ data }) => {
   );
 });
 
+AggregateNode.propTypes = {
+  data: PropTypes.shape({
+    label: PropTypes.string.isRequired,
+    description: PropTypes.string,
+    aggregateInfo: PropTypes.string,
+    actions: PropTypes.node,
+    config: PropTypes.object,
+    onConfigure: PropTypes.func,
+    nodeType: PropTypes.string
+  }).isRequired
+};
+
+AggregateNode.displayName = 'AggregateNode';
+
 const TransformNode = React.memo(({ data }) => {
   return (
     <div 
@@ -553,6 +626,20 @@ const TransformNode = React.memo(({ data }) => {
     </div>
   );
 });
+
+TransformNode.propTypes = {
+  data: PropTypes.shape({
+    label: PropTypes.string.isRequired,
+    description: PropTypes.string,
+    transformInfo: PropTypes.string,
+    actions: PropTypes.node,
+    config: PropTypes.object,
+    onConfigure: PropTypes.func,
+    nodeType: PropTypes.string
+  }).isRequired
+};
+
+TransformNode.displayName = 'TransformNode';
 
 // Define nodeTypes outside the component to prevent recreation on each render
 const NODE_TYPES = {

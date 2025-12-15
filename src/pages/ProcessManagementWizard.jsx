@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import PropTypes from 'prop-types';
 import { useNavigate } from 'react-router-dom';
 import { 
   FiSave, 
@@ -569,6 +570,14 @@ const ProcessManagementWizard = () => {
       </div>
     );
   };
+
+  SourceNode.propTypes = {
+    data: PropTypes.shape({
+      label: PropTypes.string.isRequired,
+      type: PropTypes.string,
+      sourceId: PropTypes.string
+    }).isRequired
+  };
   
   const TargetNode = ({ data }) => {
     return (
@@ -580,6 +589,14 @@ const ProcessManagementWizard = () => {
         </div>
       </div>
     );
+  };
+
+  TargetNode.propTypes = {
+    data: PropTypes.shape({
+      label: PropTypes.string.isRequired,
+      type: PropTypes.string,
+      mappingId: PropTypes.string
+    }).isRequired
   };
   
   const FilterNode = ({ data, id }) => {
@@ -605,6 +622,16 @@ const ProcessManagementWizard = () => {
         <Handle type="source" position="right" id="filter-source" />
       </div>
     );
+  };
+
+  FilterNode.propTypes = {
+    data: PropTypes.shape({
+      condition: PropTypes.string,
+      column: PropTypes.string,
+      operator: PropTypes.string,
+      value: PropTypes.string
+    }).isRequired,
+    id: PropTypes.string.isRequired
   };
   
   const JoinNode = ({ data, id }) => {
@@ -632,6 +659,16 @@ const ProcessManagementWizard = () => {
       </div>
     );
   };
+
+  JoinNode.propTypes = {
+    data: PropTypes.shape({
+      joinType: PropTypes.string,
+      rightTable: PropTypes.string,
+      leftColumn: PropTypes.string,
+      rightColumn: PropTypes.string
+    }).isRequired,
+    id: PropTypes.string.isRequired
+  };
   
   const AggregateNode = ({ data, id }) => {
     return (
@@ -656,6 +693,16 @@ const ProcessManagementWizard = () => {
         <Handle type="source" position="right" id="aggregate-source" />
       </div>
     );
+  };
+
+  AggregateNode.propTypes = {
+    data: PropTypes.shape({
+      aggregation: PropTypes.string,
+      function: PropTypes.string,
+      column: PropTypes.string,
+      groupBy: PropTypes.string
+    }).isRequired,
+    id: PropTypes.string.isRequired
   };
   
   const LookupNode = ({ data, id }) => {
@@ -682,6 +729,16 @@ const ProcessManagementWizard = () => {
       </div>
     );
   };
+
+  LookupNode.propTypes = {
+    data: PropTypes.shape({
+      lookupTable: PropTypes.string,
+      keyColumn: PropTypes.string,
+      lookupColumn: PropTypes.string,
+      returnColumn: PropTypes.string
+    }).isRequired,
+    id: PropTypes.string.isRequired
+  };
   
   const FormatNode = ({ data, id }) => {
     return (
@@ -707,6 +764,18 @@ const ProcessManagementWizard = () => {
       </div>
     );
   };
+
+  FormatNode.propTypes = {
+    data: PropTypes.shape({
+      formatType: PropTypes.string,
+      column: PropTypes.string,
+      dateFormat: PropTypes.string,
+      decimalPlaces: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+      textOperation: PropTypes.string,
+      caseOperation: PropTypes.string
+    }).isRequired,
+    id: PropTypes.string.isRequired
+  };
   
   const CalculateNode = ({ data, id }) => {
     return (
@@ -731,6 +800,14 @@ const ProcessManagementWizard = () => {
         <Handle type="source" position="right" id="calculate-source" />
       </div>
     );
+  };
+
+  CalculateNode.propTypes = {
+    data: PropTypes.shape({
+      formula: PropTypes.string,
+      outputColumn: PropTypes.string
+    }).isRequired,
+    id: PropTypes.string.isRequired
   };
   
   // Define node types

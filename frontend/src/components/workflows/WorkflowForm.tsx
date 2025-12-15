@@ -42,7 +42,8 @@ const WorkflowForm: React.FC = () => {
 
       if (isEdit && workflowName) {
         const stepsData = await workflowService.getWorkflowSteps(workflowName);
-        const sortedSteps = stepsData.sort((a, b) => a.step_order - b.step_order);
+        const stepsCopy = [...stepsData];
+        const sortedSteps = stepsCopy.sort((a, b) => a.step_order - b.step_order);
         setSteps(sortedSteps);
       }
     } catch (err) {
