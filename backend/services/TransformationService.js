@@ -394,23 +394,6 @@ class TransformationService extends ServiceBase {
     });
     
     try {
-      // Get transformation details to validate existence
-      const transformation = await this.executeReadTransaction(async (client) => {
-        const transformResult = await client.query(
-          `SELECT * FROM transformations WHERE transformation_id = $1`,
-          [transformationId]
-        );
-        
-        if (transformResult.rows.length === 0) {
-          throw new Error(`Transformation not found: ${transformationId}`);
-        }
-        
-        return transformResult.rows[0];
-      }, { 
-        traceId, 
-        isolationLevel: 'REPEATABLE READ' 
-      });
-      
       // Create execution record with a write transaction
       const executionDetails = await this.executeTransaction(async (client) => {
         const executionId = `exec_${Date.now()}`;

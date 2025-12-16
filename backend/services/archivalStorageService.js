@@ -342,7 +342,7 @@ class ArchivalStorageService {
 
   async archiveToAzure(fileInfo, archivePath, connectionId) {
     const connection = await this.getConnectionConfig(connectionId);
-    const { containerClient, blobClient } = this.createAzureClient(connection, archivePath);
+    const { blobClient } = this.createAzureClient(connection, archivePath);
 
     // Read file data
     const fileData = await fs.readFile(fileInfo.file_path);
@@ -369,14 +369,14 @@ class ArchivalStorageService {
 
   async restoreFromAzure(archivePath, destinationPath, connectionId) {
     const connection = await this.getConnectionConfig(connectionId);
-    const { containerClient, blobClient } = this.createAzureClient(connection, archivePath);
+    const { blobClient } = this.createAzureClient(connection, archivePath);
 
     await blobClient.downloadToFile(destinationPath);
   }
 
   async deleteFromAzure(archivePath, connectionId) {
     const connection = await this.getConnectionConfig(connectionId);
-    const { containerClient, blobClient } = this.createAzureClient(connection, archivePath);
+    const { blobClient } = this.createAzureClient(connection, archivePath);
 
     await blobClient.delete();
   }
