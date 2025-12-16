@@ -36,7 +36,7 @@ jobs:
         run: |
           sonar-scanner \
             -Dsonar.projectKey=filesense-feature \
-            -Dsonar.projectName="filesense-feature" \
+            -Dsonar.projectName="filesense-sonar" \
             -Dsonar.sources=. \
             -Dsonar.host.url=https://sonar.blumetra.com \
-            -Dsonar.token=sqp_c7fccc0a0ada44d844fca0ec0acd30843eb09e32
+            -Dsonar.token=sqp_8bf9b91f18f9f705fdc136db6dda0ca1a3f1d224
