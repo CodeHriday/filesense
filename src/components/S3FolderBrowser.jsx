@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { FaFolder, FaChevronRight, FaHome, FaSpinner } from 'react-icons/fa';
 import axios from 'axios';
 import './S3FolderBrowser.css';
+import PropTypes from 'prop-types';
 
 const S3FolderBrowser = ({ connectionId, rawCredentials, onSelectPath, onSelectFile, initialPath = '/', browseEndpoint = '/api/bulk-profiling/browse', agreementId = null }) => {
   const [currentPath, setCurrentPath] = useState(initialPath);
@@ -204,6 +205,31 @@ const S3FolderBrowser = ({ connectionId, rawCredentials, onSelectPath, onSelectF
       )}
     </div>
   );
+};
+
+
+S3FolderBrowser.propTypes = {
+  connectionId: PropTypes.oneOfType([
+    PropTypes.string,
+    PropTypes.number
+  ]),
+  rawCredentials: PropTypes.object,
+  agreementId: PropTypes.oneOfType([
+    PropTypes.string,
+    PropTypes.number
+  ]),
+  onSelectPath: PropTypes.func.isRequired,
+  onSelectFile: PropTypes.func,
+  initialPath: PropTypes.string,
+  browseEndpoint: PropTypes.string
+};
+
+S3FolderBrowser.defaultProps = {
+  initialPath: '/',
+  browseEndpoint: '/api/bulk-profiling/browse',
+  rawCredentials: null,
+  agreementId: null,
+  onSelectFile: undefined
 };
 
 export default S3FolderBrowser;

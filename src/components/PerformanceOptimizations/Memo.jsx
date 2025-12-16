@@ -1,4 +1,5 @@
 import React, { memo } from 'react';
+import PropTypes from 'prop-types';
 
 // A simple example component to demonstrate React.memo
 const ExpensiveComponent = ({ data, onClick }) => {
@@ -27,7 +28,14 @@ const ExpensiveComponent = ({ data, onClick }) => {
     </div>
   );
 };
-
+ExpensiveComponent.propTypes = {
+  data: PropTypes.arrayOf(
+    PropTypes.shape({
+      value: PropTypes.number.isRequired
+    })
+  ).isRequired,
+  onClick: PropTypes.func.isRequired
+};
 // Using memo to avoid unnecessary re-renders
 export default memo(ExpensiveComponent, (prevProps, nextProps) => {
   // Custom comparison function (optional)

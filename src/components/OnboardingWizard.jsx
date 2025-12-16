@@ -4,6 +4,7 @@ import { FiUpload, FiCheck, FiAlertTriangle, FiBarChart2, FiGrid, FiLink, FiChev
 import axios from 'axios';
 import FilePreview from './FilePreview';
 import './OnboardingWizard.css';
+import PropTypes from 'prop-types';
 
 const OnboardingWizard = ({ onClose }) => {
   const [currentStep, setCurrentStep] = useState(0);
@@ -502,5 +503,12 @@ const OnboardingWizard = ({ onClose }) => {
     </div>
   );
 };
+OnboardingWizard.propTypes = {
+ 
+  onClose: PropTypes.func
+};
 
+OnboardingWizard.defaultProps = {
+  onClose: null
+};
 export default OnboardingWizard;

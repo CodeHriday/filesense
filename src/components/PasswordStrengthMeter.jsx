@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import './PasswordStrengthMeter.css';
+import PropTypes from 'prop-types';
 
 const PasswordStrengthMeter = ({ password }) => {
   const [strength, setStrength] = useState({ score: 0, label: '', checks: [] });
@@ -103,5 +104,11 @@ const PasswordStrengthMeter = ({ password }) => {
     </div>
   );
 };
+PasswordStrengthMeter.propTypes = {
+  password: PropTypes.string
+};
 
+PasswordStrengthMeter.defaultProps = {
+  password: ''
+};
 export default PasswordStrengthMeter;

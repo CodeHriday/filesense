@@ -377,18 +377,33 @@ function SchemaFieldEditor({ value, onChange, fileType, hasHeader, onHasHeaderCh
     </div>
   );
 }
-JobNode.propTypes = {
-  data: PropTypes.shape({
-    label: PropTypes.string,
-    status: PropTypes.string,
-    durationMs: PropTypes.number,
-    rowsWritten: PropTypes.number,
-    hasIncidents: PropTypes.bool,
-    incidents: PropTypes.shape({
-      totalViolations: PropTypes.number
-    }),
-    targetPosition: PropTypes.any,
-    sourcePosition: PropTypes.any
-  }).isRequired
+SchemaFieldEditor.propTypes = {
+  value: PropTypes.string,
+  onChange: PropTypes.func.isRequired,
+  fileType: PropTypes.string,
+  hasHeader: PropTypes.bool,
+  onHasHeaderChange: PropTypes.func,
+  showHeaderToggle: PropTypes.bool,
+  qualityRuleAssignments: PropTypes.objectOf(
+    PropTypes.arrayOf(PropTypes.string)
+  ),
+  qualityRules: PropTypes.arrayOf(
+    PropTypes.shape({
+      id: PropTypes.number.isRequired,
+      rule_name: PropTypes.string.isRequired,
+      rule_type: PropTypes.string,
+      severity: PropTypes.string
+    })
+  )
 };
+
+SchemaFieldEditor.defaultProps = {
+  value: '',
+  fileType: '',
+  hasHeader: true,
+  showHeaderToggle: true,
+  qualityRuleAssignments: {},
+  qualityRules: []
+};
+
 export default SchemaFieldEditor;

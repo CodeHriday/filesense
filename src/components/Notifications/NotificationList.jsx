@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { useNotifications } from '../../hooks';
 import './Notifications.css';
+import PropTypes from 'prop-types';
 
 export const NotificationList = () => {
   const { notifications, removeNotification } = useNotifications();
@@ -46,6 +47,17 @@ const Notification = ({ notification, onClose }) => {
       </button>
     </div>
   );
+};
+import PropTypes from 'prop-types';
+
+NotificationModal.propTypes = {
+  isOpen: PropTypes.bool.isRequired,
+  onClose: PropTypes.func.isRequired,
+  type: PropTypes.oneOf(['success', 'error']),
+  title: PropTypes.string,
+  message: PropTypes.string.isRequired,
+  autoClose: PropTypes.bool,
+  autoCloseDelay: PropTypes.number
 };
 
 export default NotificationList;

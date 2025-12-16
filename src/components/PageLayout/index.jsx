@@ -1,5 +1,6 @@
 import React from 'react';
 import './PageLayout.css';
+import PropTypes from 'prop-types';
 
 const PageLayout = ({ 
   title, 
@@ -55,6 +56,26 @@ PageLayout.TableWrapper = ({ children, className = '' }) => {
       {children}
     </div>
   );
+};
+
+
+PageLayout.propTypes = {
+  title: PropTypes.string.isRequired,
+  subtitle: PropTypes.string,
+  headerActions: PropTypes.node,
+  filters: PropTypes.node,
+  children: PropTypes.node.isRequired,
+  className: PropTypes.string
+};
+
+PageLayout.Filters.propTypes = {
+  children: PropTypes.node.isRequired,
+  className: PropTypes.string
+};
+
+PageLayout.TableWrapper.propTypes = {
+  children: PropTypes.node.isRequired,
+  className: PropTypes.string
 };
 
 export default PageLayout;

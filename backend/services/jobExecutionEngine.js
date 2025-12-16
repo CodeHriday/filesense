@@ -260,7 +260,7 @@ async function getArchivePasswordFromVault(pool, vendorAgreementId, filename) {
     
     // Look up password in encrypted_passwords table
     const passwordResult = await pool.query(`
-      SELECT ep.secret_ciphertext, ep.iv
+      SELECT ep.secret_ciphertext, ep.iv, ep.auth_tag
       FROM encrypted_passwords ep
       WHERE ep.entity_type = 'vendor_agreement_file_schema' 
       AND ep.entity_id = $1
@@ -269,7 +269,7 @@ async function getArchivePasswordFromVault(pool, vendorAgreementId, filename) {
     if (passwordResult.rows.length === 0) {
       // Also try looking up by vendor agreement ID
       const agreementPasswordResult = await pool.query(`
-        SELECT ep.secret_ciphertext, ep.iv
+        SELECT ep.secret_ciphertext, ep.iv, ep.auth_tag
         FROM encrypted_passwords ep
         WHERE ep.entity_type = 'vendor_agreement' 
         AND ep.entity_id = $1
@@ -284,7 +284,8 @@ async function getArchivePasswordFromVault(pool, vendorAgreementId, filename) {
       const vaultService = new PasswordVaultService(pool, null, systemLogger);
       return vaultService.decrypt(
         agreementPasswordResult.rows[0].secret_ciphertext,
-        agreementPasswordResult.rows[0].iv
+        agreementPasswordResult.rows[0].iv,
+        agreementPasswordResult.rows[0].auth_tag
       );
     }
     
@@ -293,7 +294,8 @@ async function getArchivePasswordFromVault(pool, vendorAgreementId, filename) {
     const vaultService = new PasswordVaultService(pool, null, systemLogger);
     return vaultService.decrypt(
       passwordResult.rows[0].secret_ciphertext,
-      passwordResult.rows[0].iv
+      passwordResult.rows[0].iv,
+      passwordResult.rows[0].auth_tag
     );
   } catch (error) {
     systemLogger.error('Failed to get archive password from vault', {

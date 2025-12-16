@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import './NodeDetailDrawer.css';
+import PropTypes from 'prop-types';
 import { FaTimes, FaFileContract, FaFile, FaCog, FaCalculator, FaTable, FaPlayCircle, FaExclamationTriangle, FaShieldAlt, FaLock, FaArrowRight, FaColumns, FaChevronDown, FaChevronRight, FaTag } from 'react-icons/fa';
 import { fetchNodeDetails } from '../services/lineageGraphService';
 
@@ -560,6 +561,55 @@ const NodeDetailDrawer = ({ node, open, onClose }) => {
       </div>
     </div>
   );
+};
+NodeDetailDrawer.propTypes = {
+  /** Graph node object */
+  node: PropTypes.shape({
+    id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
+    type: PropTypes.string,
+    data: PropTypes.shape({
+      label: PropTypes.string,
+      type: PropTypes.string,
+      projectId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+
+      /* Governance / Quality */
+      containsPii: PropTypes.bool,
+      dataClassification: PropTypes.string,
+      piiColumns: PropTypes.arrayOf(PropTypes.string),
+
+      /* Incidents */
+      hasIncidents: PropTypes.bool,
+      incidents: PropTypes.shape({
+        criticalCount: PropTypes.number,
+        warningCount: PropTypes.number,
+        totalViolations: PropTypes.number,
+        violations: PropTypes.arrayOf(
+          PropTypes.shape({
+            severity: PropTypes.string,
+            ruleName: PropTypes.string,
+            ruleType: PropTypes.string,
+            count: PropTypes.number
+          })
+        )
+      }),
+
+      /* Derived Columns */
+      derivedColumns: PropTypes.arrayOf(
+        PropTypes.shape({
+          target_field: PropTypes.string,
+          expression: PropTypes.string,
+          transformation_type: PropTypes.string,
+          source_fields: PropTypes.arrayOf(PropTypes.string)
+        })
+      )
+    }).isRequired
+  }),
+
+  /** Controls drawer visibility */
+  open: PropTypes.bool.isRequired,
+
+  /** Close handler */
+  onClose: PropTypes.func.isRequired
 };
 
 export default NodeDetailDrawer;

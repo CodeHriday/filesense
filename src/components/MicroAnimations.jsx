@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { FiLoader, FiSave, FiUpload, FiDownload } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
 import './MicroAnimations.css';
+import PropTypes from 'prop-types';
+
 
 /**
  * Button Animation Component
@@ -169,6 +171,24 @@ export const SuccessAnimation = ({ show, message, duration = 2000, onComplete })
  * Page Transition Component
  * Adds smooth transitions between page changes
  */
+AnimatedButton.propTypes = {
+  icon: PropTypes.node,
+  children: PropTypes.node.isRequired,
+  onClick: PropTypes.func,
+  variant: PropTypes.oneOf(['primary', 'secondary', 'success', 'danger']),
+  animated: PropTypes.bool,
+  loading: PropTypes.bool,
+  disabled: PropTypes.bool,
+  className: PropTypes.string
+};
+AnimatedButton.defaultProps = {
+  variant: 'primary',
+  animated: true,
+  loading: false,
+  disabled: false,
+  className: ''
+};
+
 export const PageTransition = ({ children, className = "" }) => {
   return (
     <AnimatePresence mode="wait">

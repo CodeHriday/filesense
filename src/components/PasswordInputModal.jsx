@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { FiLock, FiX } from 'react-icons/fi';
 import './PasswordInputModal.css';
+import PropTypes from 'prop-types';
 
 export const PasswordInputModal = ({ 
   isOpen, 
@@ -98,6 +99,20 @@ export const PasswordInputModal = ({
       </div>
     </div>
   );
+};
+
+
+PasswordInputModal.propTypes = {
+  isOpen: PropTypes.bool.isRequired,
+  onClose: PropTypes.func.isRequired,
+  onSubmit: PropTypes.func.isRequired,
+  fileName: PropTypes.string,
+  isSubmitting: PropTypes.bool
+};
+
+PasswordInputModal.defaultProps = {
+  fileName: '',
+  isSubmitting: false
 };
 
 export default PasswordInputModal;
