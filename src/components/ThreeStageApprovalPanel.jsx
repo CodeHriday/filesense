@@ -213,8 +213,9 @@ const ThreeStageApprovalPanel = ({ agreement, currentUser, onUpdate, onError, on
           
           {/* Comments */}
           <div className="form-group">
-            <label>Comments {currentStage === 'vendor' ? '(Optional)' : '(Required for rejection)'}:</label>
+            <label htmlFor="approval-comments">Comments {currentStage === 'vendor' ? '(Optional)' : '(Required for rejection)'}:</label>
             <textarea
+              id="approval-comments"
               value={comments}
               onChange={(e) => setComments(e.target.value)}
               placeholder="Enter comments about your decision..."
@@ -224,7 +225,7 @@ const ThreeStageApprovalPanel = ({ agreement, currentUser, onUpdate, onError, on
 
           {/* Document Upload */}
           <div className="form-group">
-            <label>Attach Supporting Documents (Optional):</label>
+            <label htmlFor="approval-docs">Attach Supporting Documents (Optional):</label>
             <div className="file-upload-area">
               <input
                 type="file"

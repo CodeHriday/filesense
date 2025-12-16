@@ -156,8 +156,9 @@ function SubProjectManagement({ projectId, projectName }) {
           </div>
           <form onSubmit={handleCreate} className="sub-project-form">
             <div className="form-group">
-              <label>Sub-Project Name <span className="required">*</span></label>
+              <label htmlFor="subproject-name-create">Sub-Project Name <span className="required">*</span></label>
               <input
+                id="subproject-name-create"
                 type="text"
                 className="form-input"
                 value={formData.name}
@@ -169,8 +170,9 @@ function SubProjectManagement({ projectId, projectName }) {
               />
             </div>
             <div className="form-group">
-              <label>Description</label>
+              <label htmlFor="subproject-description-create">Description</label>
               <textarea
+                id="subproject-description-create"
                 className="form-input"
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
@@ -213,8 +215,9 @@ function SubProjectManagement({ projectId, projectName }) {
                       <div className="inline-edit-form">
                         <div className="edit-form-grid">
                           <div className="form-group">
-                            <label>Name</label>
+                            <label htmlFor="subproject-name-edit">Name</label>
                             <input
+                              id="subproject-name-edit"
                               type="text"
                               className="form-input"
                               value={formData.name}
@@ -223,8 +226,9 @@ function SubProjectManagement({ projectId, projectName }) {
                             />
                           </div>
                           <div className="form-group">
-                            <label>Description</label>
+                            <label htmlFor="subproject-description-edit">Description</label>
                             <input
+                              id="subproject-description-edit"
                               type="text"
                               className="form-input"
                               value={formData.description}
@@ -233,8 +237,9 @@ function SubProjectManagement({ projectId, projectName }) {
                             />
                           </div>
                           <div className="form-group-checkbox">
-                            <label>
+                            <label htmlFor="subproject-active-checkbox">
                               <input
+                                id="subproject-active-checkbox"
                                 type="checkbox"
                                 checked={formData.is_active}
                                 onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}

@@ -178,8 +178,9 @@ const SystemSettings = () => {
         </p>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
-          <label className="gps-label" style={{ marginBottom: 0, whiteSpace: 'nowrap' }}>Profiles to Retain per Mapping:</label>
+          <label htmlFor="retention-count-input" className="gps-label" style={{ marginBottom: 0, whiteSpace: 'nowrap' }}>Profiles to Retain per Mapping:</label>
           <input
+            id="retention-count-input"
             type="number"
             value={retentionCount}
             onChange={(e) => setRetentionCount(parseInt(e.target.value, 10) || 1)}

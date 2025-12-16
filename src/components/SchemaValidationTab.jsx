@@ -621,8 +621,9 @@ function SchemaValidationTab({ selectedProject: initialProject }) {
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
                         <h4 className="gps-bulk-title" style={{ margin: 0 }}>File Details</h4>
                         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                          <label style={{ fontSize: '10px', fontFamily: 'Inter, sans-serif' }}>Filter:</label>
+                          <label htmlFor="file-details-filter-select" style={{ fontSize: '10px', fontFamily: 'Inter, sans-serif' }}>Filter:</label>
                           <select
+                            id="file-details-filter-select"
                             className="gps-bulk-select"
                             value={fileDetailsFilter}
                             onChange={(e) => handleFileDetailsFilterChange(e.target.value)}
@@ -781,8 +782,9 @@ function SchemaValidationTab({ selectedProject: initialProject }) {
             <>
               <div className="gps-bulk-form-grid">
                 <div className="gps-bulk-field">
-                  <label className="gps-bulk-label" style={{ textTransform: 'none' }}>Project <span className="required">*</span></label>
+                  <label htmlFor="project-select" className="gps-bulk-label" style={{ textTransform: 'none' }}>Project <span className="required">*</span></label>
                   <select
+                    id="project-select"
                     className="gps-bulk-select"
                     value={selectedProject || ''}
                     onChange={(e) => setSelectedProject(Number(e.target.value))}
@@ -798,8 +800,9 @@ function SchemaValidationTab({ selectedProject: initialProject }) {
                 </div>
 
                 <div className="gps-bulk-field">
-                  <label className="gps-bulk-label" style={{ textTransform: 'none' }}>Sub-Project</label>
+                  <label htmlFor="subproject-select" className="gps-bulk-label" style={{ textTransform: 'none' }}>Sub-Project</label>
                   <select
+                    id="subproject-select"
                     className="gps-bulk-select"
                     value={selectedSubProject}
                     onChange={(e) => setSelectedSubProject(e.target.value)}
@@ -822,8 +825,9 @@ function SchemaValidationTab({ selectedProject: initialProject }) {
                 </div>
 
                 <div className="gps-bulk-field">
-                  <label className="gps-bulk-label" style={{ textTransform: 'none' }}>Vendor Agreement <span className="required">*</span></label>
+                  <label htmlFor="vendor-agreement-select" className="gps-bulk-label" style={{ textTransform: 'none' }}>Vendor Agreement <span className="required">*</span></label>
                   <select
+                    id="vendor-agreement-select"
                     className="gps-bulk-select"
                     value={selectedAgreement}
                     onChange={(e) => setSelectedAgreement(e.target.value)}
@@ -840,8 +844,9 @@ function SchemaValidationTab({ selectedProject: initialProject }) {
                 </div>
 
                 <div className="gps-bulk-field">
-                  <label className="gps-bulk-label" style={{ textTransform: 'none' }}>S3 Connection <span className="required">*</span></label>
+                  <label htmlFor="s3-connection-select" className="gps-bulk-label" style={{ textTransform: 'none' }}>S3 Connection <span className="required">*</span></label>
                   <select
+                    id="s3-connection-select"
                     className="gps-bulk-select"
                     value={selectedConnection}
                     onChange={(e) => setSelectedConnection(e.target.value)}
@@ -857,8 +862,9 @@ function SchemaValidationTab({ selectedProject: initialProject }) {
                 </div>
 
                 <div className="gps-bulk-field">
-                  <label className="gps-bulk-label" style={{ textTransform: 'none' }}>File Pattern</label>
+                  <label htmlFor="file-pattern-input" className="gps-bulk-label" style={{ textTransform: 'none' }}>File Pattern</label>
                   <input
+                    id="file-pattern-input"
                     className="gps-bulk-input"
                     type="text"
                     value={filePattern}
@@ -883,9 +889,10 @@ function SchemaValidationTab({ selectedProject: initialProject }) {
               </div>
 
               <div className="gps-bulk-field gps-bulk-field--full" style={{ marginTop: '16px' }}>
-                <label className="gps-bulk-label" style={{ textTransform: 'none' }}>S3 Path <span className="required">*</span></label>
+                <label htmlFor="s3-path-input" className="gps-bulk-label" style={{ textTransform: 'none' }}>S3 Path <span className="required">*</span></label>
                 <div className="gps-bulk-input-group">
                   <input
+                    id="s3-path-input"
                     className="gps-bulk-input"
                     type="text"
                     value={s3Path}
@@ -905,8 +912,9 @@ function SchemaValidationTab({ selectedProject: initialProject }) {
 
               <div className="gps-bulk-section">
                 <div className="gps-bulk-field">
-                  <label className="gps-bulk-label" style={{ textTransform: 'none' }}><FiClock style={{ marginRight: '4px' }} /> Execution Type</label>
+                  <label htmlFor="execution-type-select" className="gps-bulk-label" style={{ textTransform: 'none' }}><FiClock style={{ marginRight: '4px' }} /> Execution Type</label>
                   <select
+                    id="execution-type-select"
                     className="gps-bulk-select"
                     value={executionType}
                     onChange={(e) => setExecutionType(e.target.value)}
@@ -919,8 +927,9 @@ function SchemaValidationTab({ selectedProject: initialProject }) {
                 {executionType === 'scheduled' && (
                   <div className="gps-bulk-form-grid" style={{ marginTop: '16px' }}>
                     <div className="gps-bulk-field">
-                      <label className="gps-bulk-label" style={{ textTransform: 'none' }}>Schedule Type</label>
+                      <label htmlFor="schedule-type-select" className="gps-bulk-label" style={{ textTransform: 'none' }}>Schedule Type</label>
                       <select
+                        id="schedule-type-select"
                         className="gps-bulk-select"
                         value={scheduleType}
                         onChange={(e) => setScheduleType(e.target.value)}
@@ -932,8 +941,9 @@ function SchemaValidationTab({ selectedProject: initialProject }) {
 
                     {scheduleType === 'recurring' ? (
                       <div className="gps-bulk-field">
-                        <label className="gps-bulk-label" style={{ textTransform: 'none' }}>Cron Expression</label>
+                        <label htmlFor="cron-expression-input" className="gps-bulk-label" style={{ textTransform: 'none' }}>Cron Expression</label>
                         <input
+                          id="cron-expression-input"
                           className="gps-bulk-input"
                           type="text"
                           value={cronExpression}
@@ -944,8 +954,9 @@ function SchemaValidationTab({ selectedProject: initialProject }) {
                       </div>
                     ) : (
                       <div className="gps-bulk-field">
-                        <label className="gps-bulk-label" style={{ textTransform: 'none' }}>Start Date & Time</label>
+                        <label htmlFor="schedule-start-date-input" className="gps-bulk-label" style={{ textTransform: 'none' }}>Start Date & Time</label>
                         <input
+                          id="schedule-start-date-input"
                           className="gps-bulk-input"
                           type="datetime-local"
                           value={scheduleStartDate}

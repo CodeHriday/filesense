@@ -1585,8 +1585,8 @@ function FileUpload() {
 
             {/* Row 2: Upload Type Selection */}
             <div className="upload-type-section">
-              <label className="upload-form-label">Upload Type:</label>
-              <div className="upload-type-options">
+              <label htmlFor="upload-type-group" className="upload-form-label">Upload Type:</label>
+              <div id="upload-type-group" className="upload-type-options">
                 <label className="upload-radio-label">
                   <input
                     type="radio"
@@ -1772,9 +1772,10 @@ function FileUpload() {
 
               {/* Header Configuration */}
               <div className="upload-form-field upload-form-field--flex">
-                <label className="upload-form-label">Header Configuration:</label>
+                <label htmlFor="header-config-checkbox" className="upload-form-label">Header Configuration:</label>
                 <label className="upload-checkbox-label upload-checkbox-label--inline">
                   <input 
+                    id="header-config-checkbox"
                     type="checkbox"
                     checked={hasHeader}
                     onChange={(e) => {

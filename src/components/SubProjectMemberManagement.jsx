@@ -355,8 +355,9 @@ function SubProjectMemberManagement({ projectId, subProjectId, subProjectName, m
             </div>
             <form onSubmit={handleAddMember} className="modal-form">
               <div className="form-group">
-                <label>Select User <span className="required">*</span></label>
+                <label htmlFor="add-member-user-select">Select User <span className="required">*</span></label>
                 <select
+                  id="add-member-user-select"
                   className="form-input"
                   value={selectedUserId}
                   onChange={(e) => setSelectedUserId(e.target.value)}
@@ -372,8 +373,9 @@ function SubProjectMemberManagement({ projectId, subProjectId, subProjectName, m
                 </select>
               </div>
               <div className="form-group">
-                <label>Role <span className="required">*</span></label>
+                <label htmlFor="add-member-role-select">Role <span className="required">*</span></label>
                 <select
+                  id="add-member-role-select"
                   className="form-input"
                   value={selectedRole}
                   onChange={(e) => setSelectedRole(e.target.value)}
@@ -422,8 +424,9 @@ function SubProjectMemberManagement({ projectId, subProjectId, subProjectName, m
             </div>
             <form onSubmit={handleAddGroup} className="modal-form">
               <div className="form-group">
-                <label>Select Group <span className="required">*</span></label>
+                <label htmlFor="add-group-select">Select Group <span className="required">*</span></label>
                 <select
+                  id="add-group-select"
                   className="form-input"
                   value={selectedGroupId}
                   onChange={(e) => setSelectedGroupId(e.target.value)}

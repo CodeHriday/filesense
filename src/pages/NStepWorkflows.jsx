@@ -991,8 +991,9 @@ const NStepWorkflows = () => {
             <div className="workflow-controls">
               <div className="asset-selectors">
                 <div className="selector-group">
-                  <label>Select Visual Mapping</label>
+                  <label htmlFor="select-visual-mapping">Select Visual Mapping</label>
                   <select
+                    id="select-visual-mapping"
                     value={selectedMapping}
                     onChange={(e) => {
                       setSelectedMapping(e.target.value);
@@ -1018,8 +1019,9 @@ const NStepWorkflows = () => {
                 </div>
 
                 <div className="selector-group">
-                  <label>Select Mapping Group</label>
+                  <label htmlFor="select-mapping-group">Select Mapping Group</label>
                   <select
+                    id="select-mapping-group"
                     value={selectedMappingGroup}
                     onChange={(e) => {
                       setSelectedMappingGroup(e.target.value);
@@ -1155,8 +1157,9 @@ const NStepWorkflows = () => {
               </div>
               <div className="modal-body">
                 <div className="form-group">
-                  <label>Project *</label>
+                  <label htmlFor="create-project-select">Project *</label>
                   <select
+                    id="create-project-select"
                     value={newWorkflowProjectId}
                     onChange={(e) => {
                       const projectId = e.target.value;
@@ -1177,8 +1180,9 @@ const NStepWorkflows = () => {
                 </div>
                 {newWorkflowProjectId && (
                   <div className="form-group">
-                    <label>Sub-Project (Optional)</label>
+                    <label htmlFor="create-subproject-select">Sub-Project (Optional)</label>
                     <select
+                      id="create-subproject-select"
                       value={newWorkflowSubProjectId}
                       onChange={(e) => setNewWorkflowSubProjectId(e.target.value)}
                       className="form-input"
@@ -1193,8 +1197,9 @@ const NStepWorkflows = () => {
                   </div>
                 )}
                 <div className="form-group">
-                  <label>Workflow Name *</label>
+                  <label htmlFor="create-workflow-name">Workflow Name *</label>
                   <input
+                    id="create-workflow-name"
                     type="text"
                     value={newWorkflowName}
                     onChange={(e) => setNewWorkflowName(e.target.value)}
@@ -1203,8 +1208,9 @@ const NStepWorkflows = () => {
                   />
                 </div>
                 <div className="form-group">
-                  <label>Description</label>
+                  <label htmlFor="create-workflow-description">Description</label>
                   <textarea
+                    id="create-workflow-description"
                     value={newWorkflowDescription}
                     onChange={(e) => setNewWorkflowDescription(e.target.value)}
                     className="form-input"
@@ -1236,8 +1242,9 @@ const NStepWorkflows = () => {
               </div>
               <div className="modal-body">
                 <div className="form-group">
-                  <label>Project *</label>
+                  <label htmlFor="edit-project-select">Project *</label>
                   <select
+                    id="edit-project-select"
                     value={workflowData?.project_id || ''}
                     disabled
                     className="form-input"
@@ -1255,8 +1262,9 @@ const NStepWorkflows = () => {
                 </div>
                 {workflowData?.project_id && (
                   <div className="form-group">
-                    <label>Sub-Project (Optional)</label>
+                    <label htmlFor="edit-subproject-select">Sub-Project (Optional)</label>
                     <select
+                      id="edit-subproject-select"
                       value={editWorkflowSubProjectId}
                       onChange={(e) => setEditWorkflowSubProjectId(e.target.value)}
                       className="form-input"
@@ -1271,8 +1279,9 @@ const NStepWorkflows = () => {
                   </div>
                 )}
                 <div className="form-group">
-                  <label>Workflow Name *</label>
+                  <label htmlFor="edit-workflow-name">Workflow Name *</label>
                   <input
+                    id="edit-workflow-name"
                     type="text"
                     value={editWorkflowName}
                     onChange={(e) => setEditWorkflowName(e.target.value)}
@@ -1281,8 +1290,9 @@ const NStepWorkflows = () => {
                   />
                 </div>
                 <div className="form-group">
-                  <label>Description</label>
+                  <label htmlFor="edit-workflow-description">Description</label>
                   <textarea
+                    id="edit-workflow-description"
                     value={editWorkflowDescription}
                     onChange={(e) => setEditWorkflowDescription(e.target.value)}
                     className="form-input"

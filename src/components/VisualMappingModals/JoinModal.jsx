@@ -395,7 +395,7 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
                   <span style={{ fontSize: '10px', fontFamily: 'Inter, sans-serif', fontWeight: 500, color: '#333' }}>
                     Include All {leftNodeName || 'Left'}
                   </span>
-                  <label style={{ 
+                  <label htmlFor="toggle-left-columns" style={{ 
                     position: 'relative', 
                     display: 'inline-block', 
                     width: '36px', 
@@ -403,6 +403,7 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
                     cursor: 'pointer'
                   }}>
                     <input
+                      id="toggle-left-columns"
                       type="checkbox"
                       checked={getLeftIncludeState()}
                       onChange={toggleAllLeftColumns}
@@ -434,7 +435,7 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
                   <span style={{ fontSize: '10px', fontFamily: 'Inter, sans-serif', fontWeight: 500, color: '#333' }}>
                     Include All {rightNodeName || 'Right'}
                   </span>
-                  <label style={{ 
+                  <label htmlFor="toggle-right-columns" style={{ 
                     position: 'relative', 
                     display: 'inline-block', 
                     width: '36px', 
@@ -442,6 +443,7 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
                     cursor: 'pointer'
                   }}>
                     <input
+                      id="toggle-right-columns"
                       type="checkbox"
                       checked={getRightIncludeState()}
                       onChange={toggleAllRightColumns}

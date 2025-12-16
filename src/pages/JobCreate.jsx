@@ -378,8 +378,9 @@ const JobCreate = () => {
                   <div key={rule.id} className="rule-item">
                     <div className="rule-content">
                       <div className="form-group">
-                        <label>Rule Type</label>
+                        <label htmlFor="rule-type-select">Rule Type</label>
                         <select
+                          id="rule-type-select"
                           value={rule.type}
                           onChange={(e) => handleUpdateValidationRule(rule.id, 'type', e.target.value)}
                         >
@@ -391,8 +392,9 @@ const JobCreate = () => {
                         </select>
                       </div>
                       <div className="form-group">
-                        <label>Field</label>
+                        <label htmlFor="rule-field-input">Field</label>
                         <input
+                          id="rule-field-input"
                           type="text"
                           value={rule.field}
                           onChange={(e) => handleUpdateValidationRule(rule.id, 'field', e.target.value)}

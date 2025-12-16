@@ -46,8 +46,9 @@ const ExpressionModal = ({ isOpen, onClose, onSave, initialConfig = {}, schema =
         
         <div className="vm-modal-body vm-modal-body-scroll">
           <div className="vm-form-group">
-            <label>Name *</label>
+            <label htmlFor="expression-name">Name *</label>
             <input
+              id="expression-name"
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -58,8 +59,9 @@ const ExpressionModal = ({ isOpen, onClose, onSave, initialConfig = {}, schema =
           </div>
           
           <div className="vm-form-group">
-            <label>Description</label>
+            <label htmlFor="expression-description">Description</label>
             <textarea
+              id="expression-description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Optional description"

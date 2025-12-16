@@ -1666,8 +1666,9 @@ function MappingWizard() {
               marginBottom: '1.5rem'
             }}>
               <div className="form-group" style={{ marginBottom: 0 }}>
-                <label style={{ fontSize: '10px', fontFamily: 'Inter', fontWeight: 600, textTransform: 'uppercase' }}>Target Connection</label>
+                <label htmlFor="target-connection-select" style={{ fontSize: '10px', fontFamily: 'Inter', fontWeight: 600, textTransform: 'uppercase' }}>Target Connection</label>
                 <select
+                  id="target-connection-select"
                   className="form-control"
                   value={targetConnectionId}
                   onChange={(e) => setTargetConnectionId(e.target.value)}
@@ -1686,9 +1687,10 @@ function MappingWizard() {
               </div>
 
               <div className="form-group" style={{ marginBottom: 0 }}>
-                <label style={{ fontSize: '10px', fontFamily: 'Inter', fontWeight: 600, textTransform: 'uppercase' }}>Target File Path</label>
+                <label htmlFor="target-file-path-input" style={{ fontSize: '10px', fontFamily: 'Inter', fontWeight: 600, textTransform: 'uppercase' }}>Target File Path</label>
                 <div style={{ display: 'flex', gap: '8px' }}>
                   <input
+                    id="target-file-path-input"
                     type="text"
                     className="form-control"
                     value={targetFilePath}
@@ -1713,8 +1715,9 @@ function MappingWizard() {
               </div>
 
               <div className="form-group" style={{ marginBottom: 0 }}>
-                <label style={{ fontSize: '10px', fontFamily: 'Inter', fontWeight: 600, textTransform: 'uppercase' }}>Target File Name</label>
+                <label htmlFor="target-file-name-input" style={{ fontSize: '10px', fontFamily: 'Inter', fontWeight: 600, textTransform: 'uppercase' }}>Target File Name</label>
                 <input
+                  id="target-file-name-input"
                   type="text"
                   className="form-control"
                   value={targetFileName}
@@ -1728,8 +1731,9 @@ function MappingWizard() {
               </div>
 
               <div className="form-group" style={{ marginBottom: 0 }}>
-                <label style={{ fontSize: '10px', fontFamily: 'Inter', fontWeight: 600, textTransform: 'uppercase' }}>Target File Format</label>
+                <label htmlFor="target-file-format-select" style={{ fontSize: '10px', fontFamily: 'Inter', fontWeight: 600, textTransform: 'uppercase' }}>Target File Format</label>
                 <select
+                  id="target-file-format-select"
                   className="form-control"
                   value={targetFileFormat}
                   onChange={(e) => setTargetFileFormat(e.target.value)}
@@ -1746,8 +1750,9 @@ function MappingWizard() {
             </div>
 
             <div className="form-group">
-              <label style={{ fontSize: '10px', fontFamily: 'Inter', fontWeight: 600, textTransform: 'uppercase' }}>Target File Owner (Data Steward)</label>
+              <label htmlFor="target-owner-select" style={{ fontSize: '10px', fontFamily: 'Inter', fontWeight: 600, textTransform: 'uppercase' }}>Target File Owner (Data Steward)</label>
               <select
+                id="target-owner-select"
                 className="form-control"
                 value={targetOwner}
                 onChange={(e) => setTargetOwner(e.target.value)}
