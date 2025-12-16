@@ -22,7 +22,7 @@ const APP_CONFIG = {
 
 // Database configuration
 const DATABASE_CONFIG = {
-  CONNECTION_STRING: process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/dataobservatory',
+  CONNECTION_STRING: process.env.DATABASE_URL || '',
   SSL_ENABLED: process.env.DATABASE_SSL === 'true',
   SSL_REJECT_UNAUTHORIZED: process.env.DATABASE_SSL_REJECT_UNAUTHORIZED !== 'false',
   POOL_MAX: parseInt(process.env.DATABASE_POOL_MAX || '20', 10),
