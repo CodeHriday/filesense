@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import './Modal.css';
+import PropTypes from 'prop-types';
 
 const Modal = ({ isOpen, onClose, children, className = '' }) => {
   const modalRef = useRef(null);
@@ -88,5 +89,10 @@ const Modal = ({ isOpen, onClose, children, className = '' }) => {
     </div>
   );
 };
-
+Modal.propTypes = {
+  isOpen: PropTypes.bool.isRequired,
+  onClose: PropTypes.func.isRequired,
+  children: PropTypes.node.isRequired,
+  className: PropTypes.string
+};
 export default Modal;

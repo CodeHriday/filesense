@@ -167,8 +167,9 @@ const TargetRulesModal = ({ isOpen, onClose, onSave, initialConfig = {}, project
           {activeTab === 'configuration' && (
           <div className="vm-modal-body-scroll">
           <div className="vm-form-group">
-            <label>Name *</label>
+            <label htmlFor="target-name-input">Name *</label>
             <input
+              id="target-name-input"
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -179,8 +180,9 @@ const TargetRulesModal = ({ isOpen, onClose, onSave, initialConfig = {}, project
           </div>
           
           <div className="vm-form-group">
-            <label>Description</label>
+            <label htmlFor="target-description">Description</label>
             <textarea
+              id="target-description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Optional description"
@@ -193,8 +195,9 @@ const TargetRulesModal = ({ isOpen, onClose, onSave, initialConfig = {}, project
           
           {/* Target Connection - Full Width */}
           <div className="vm-form-group">
-            <label>Target Connection *</label>
+            <label htmlFor="target-connection-select">Target Connection *</label>
             <select
+              id="target-connection-select"
               value={connectionId}
               onChange={(e) => setConnectionId(e.target.value)}
               className="vm-select"
@@ -211,8 +214,9 @@ const TargetRulesModal = ({ isOpen, onClose, onSave, initialConfig = {}, project
           {/* Row 1: File Path + File Name + Browse + File Format */}
           <div className="vm-form-row-four-cols">
             <div className="vm-form-group vm-form-group-no-margin">
-              <label>File Path *</label>
+              <label htmlFor="target-filepath-input">File Path *</label>
               <input
+                id="target-filepath-input"
                 type="text"
                 value={filePath}
                 onChange={(e) => setFilePath(e.target.value)}
@@ -222,8 +226,9 @@ const TargetRulesModal = ({ isOpen, onClose, onSave, initialConfig = {}, project
             </div>
             
             <div className="vm-form-group vm-form-group-no-margin">
-              <label>File Name *</label>
+              <label htmlFor="target-filename-input">File Name *</label>
               <input
+                id="target-filename-input"
                 type="text"
                 value={fileName}
                 onChange={(e) => setFileName(e.target.value)}
@@ -233,8 +238,9 @@ const TargetRulesModal = ({ isOpen, onClose, onSave, initialConfig = {}, project
             </div>
             
             <div className="vm-form-group vm-form-group-no-margin vm-form-group-browse">
-              <label>&nbsp;</label>
+              <label htmlFor="target-browse-button">&nbsp;</label>
               <button 
+                id="target-browse-button"
                 onClick={handleBrowse}
                 disabled={!connectionId || loading}
                 className="vm-btn vm-btn-browse"
@@ -244,8 +250,9 @@ const TargetRulesModal = ({ isOpen, onClose, onSave, initialConfig = {}, project
             </div>
             
             <div className="vm-form-group vm-form-group-no-margin">
-              <label>File Format</label>
+              <label htmlFor="target-fileformat-select">File Format</label>
               <select
+                id="target-fileformat-select"
                 value={fileFormat}
                 onChange={(e) => setFileFormat(e.target.value)}
                 className="vm-select"
@@ -260,8 +267,9 @@ const TargetRulesModal = ({ isOpen, onClose, onSave, initialConfig = {}, project
           
           {/* Target File Owner - Full Width */}
           <div className="vm-form-group">
-            <label>Target File Owner</label>
+            <label htmlFor="target-file-owner-select">Target File Owner</label>
             <select
+              id="target-file-owner-select"
               value={targetFileOwnerId}
               onChange={(e) => setTargetFileOwnerId(e.target.value)}
               className="vm-select"

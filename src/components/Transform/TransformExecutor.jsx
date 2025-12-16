@@ -249,21 +249,21 @@ const TransformExecutor = ({ config, onExecute }) => {
           <h4>Execution Statistics</h4>
           <div className="stats-grid">
             <div className="stat-item">
-              <label>Start Time:</label>
+              <div className="stat-label">Start Time:</div>
               <span>{executionStats.startTime.toLocaleTimeString()}</span>
             </div>
             {executionStats.endTime && (
               <div className="stat-item">
-                <label>End Time:</label>
+                <div className="stat-label">End Time:</div>
                 <span>{executionStats.endTime.toLocaleTimeString()}</span>
               </div>
             )}
             <div className="stat-item">
-              <label>Duration:</label>
+              <div className="stat-label">Duration:</div>
               <span>{formatDuration(executionStats.duration)}</span>
             </div>
             <div className="stat-item">
-              <label>Rows Processed:</label>
+              <div className="stat-label">Rows Processed:</div>
               <span>{executionStats.rowsProcessed.toLocaleString()}</span>
             </div>
           </div>

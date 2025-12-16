@@ -1,5 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import './Tooltip.css';
+import PropTypes from 'prop-types';
+
 
 const Tooltip = ({ children, content, position = 'top', className = '' }) => {
   const [showTooltip, setShowTooltip] = useState(false);
@@ -114,6 +116,12 @@ const Tooltip = ({ children, content, position = 'top', className = '' }) => {
       )}
     </div>
   );
+};
+Tooltip.propTypes = {
+  children: PropTypes.node.isRequired,
+  content: PropTypes.node,
+  position: PropTypes.oneOf(['top', 'bottom', 'left', 'right']),
+  className: PropTypes.string
 };
 
 export default Tooltip;

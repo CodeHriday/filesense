@@ -222,27 +222,27 @@ const FileSelector = ({ connection, selectedFile, onFileSelect }) => {
     </div>
   );
 };
-ConnectionSelector.propTypes = {
-  sourceConnection: PropTypes.shape({
-    id: PropTypes.number,
+
+FileSelector.propTypes = {
+  connection: PropTypes.shape({
+    id: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
     name: PropTypes.string,
     connection_name: PropTypes.string,
     type: PropTypes.string
   }),
 
-  targetConnection: PropTypes.shape({
-    id: PropTypes.number,
-    name: PropTypes.string,
-    connection_name: PropTypes.string,
-    type: PropTypes.string
+  selectedFile: PropTypes.shape({
+    file_id: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
+    filename: PropTypes.string,
+    file_type: PropTypes.string,
+    file_size: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
+    row_count: PropTypes.number,
+    column_count: PropTypes.number,
+    quality_score: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
+    updated_at: PropTypes.string
   }),
 
-  onSourceChange: PropTypes.func.isRequired,
-  onTargetChange: PropTypes.func.isRequired
-};
-ConnectionSelector.defaultProps = {
-  sourceConnection: null,
-  targetConnection: null
+  onFileSelect: PropTypes.func.isRequired
 };
 
 export default FileSelector;

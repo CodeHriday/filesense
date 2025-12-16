@@ -1525,8 +1525,9 @@ const VisualMappingCanvasContent = () => {
               {showMappingDetails && (
                 <div className="visual-mapping-sidebar-content">
                   <div className="visual-mapping-form-group">
-                    <label>Mapping Name</label>
+                    <label htmlFor="mapping-name-input">Mapping Name</label>
                     <input 
+                      id="mapping-name-input"
                       type="text"
                       value={mappingName}
                       onChange={(e) => { setMappingName(e.target.value); setHasUnsavedChanges(true); }}
@@ -1535,8 +1536,9 @@ const VisualMappingCanvasContent = () => {
                     />
                   </div>
                   <div className="visual-mapping-form-group">
-                    <label>Description</label>
+                    <label htmlFor="mapping-description">Description</label>
                     <textarea 
+                      id="mapping-description"
                       value={mappingDescription}
                       onChange={(e) => { setMappingDescription(e.target.value); setHasUnsavedChanges(true); }}
                       placeholder="Enter description"
@@ -1545,8 +1547,9 @@ const VisualMappingCanvasContent = () => {
                     />
                   </div>
                   <div className="visual-mapping-form-group">
-                    <label>Project</label>
+                    <label htmlFor="project-select">Project</label>
                     <select
+                      id="project-select"
                       value={projectId || ''}
                       onChange={(e) => { setProjectId(parseInt(e.target.value) || null); setHasUnsavedChanges(true); }}
                       className="visual-mapping-select"
@@ -1559,8 +1562,9 @@ const VisualMappingCanvasContent = () => {
                   </div>
                   {projectId && (
                     <div className="visual-mapping-form-group">
-                      <label>Sub-Project (Optional)</label>
+                      <label htmlFor="subproject-select">Sub-Project (Optional)</label>
                       <select
+                        id="subproject-select"
                         value={subProjectId || ''}
                         onChange={(e) => { setSubProjectId(parseInt(e.target.value) || null); setHasUnsavedChanges(true); }}
                         className="visual-mapping-select"
@@ -1587,26 +1591,27 @@ const VisualMappingCanvasContent = () => {
               </div>
               {showNotificationSettings && (
                 <div className="visual-mapping-sidebar-content">
-                  <div className="visual-mapping-form-group">
-                    <label className="checkbox-label" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <input 
-                        type="checkbox"
-                        checked={notificationSettings.enabled}
-                        onChange={(e) => setNotificationSettings({
-                          ...notificationSettings,
-                          enabled: e.target.checked
-                        })}
-                        style={{ width: 'auto' }}
-                      />
-                      Enable Email Notifications
-                    </label>
-                  </div>
+                      <div className="visual-mapping-form-group">
+                        <label className="checkbox-label" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <input 
+                            type="checkbox"
+                            checked={notificationSettings.enabled}
+                            onChange={(e) => setNotificationSettings({
+                              ...notificationSettings,
+                              enabled: e.target.checked
+                            })}
+                            style={{ width: 'auto' }}
+                          />
+                          Enable Email Notifications
+                        </label>
+                      </div>
                   
                   {notificationSettings.enabled && (
                     <>
                       <div className="visual-mapping-form-group">
-                        <label>Email Provider</label>
+                        <label htmlFor="email-provider-select">Email Provider</label>
                         <select
+                          id="email-provider-select"
                           value={notificationSettings.emailConnectionId || ''}
                           onChange={(e) => setNotificationSettings({
                             ...notificationSettings,
@@ -1629,8 +1634,9 @@ const VisualMappingCanvasContent = () => {
                       </div>
                       
                       <div className="visual-mapping-form-group">
-                        <label>Recipients</label>
+                        <label htmlFor="recipients-input">Recipients</label>
                         <input 
+                          id="recipients-input"
                           type="text"
                           value={notificationSettings.recipients}
                           onChange={(e) => setNotificationSettings({
@@ -1646,7 +1652,7 @@ const VisualMappingCanvasContent = () => {
                       </div>
                       
                       <div className="visual-mapping-form-group">
-                        <label style={{ marginBottom: '8px', display: 'block' }}>Notify When</label>
+                        <div className="group-label" style={{ marginBottom: '8px', display: 'block' }}>Notify When</div>
                         <label className="checkbox-label" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
                           <input 
                             type="checkbox"

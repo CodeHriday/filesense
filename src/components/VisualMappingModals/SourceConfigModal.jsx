@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import FileBrowserModal from './FileBrowserModal';
 import './MappingConfigModal.css';
+import PropTypes from 'prop-types';
 
 const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
   // Use ref to track if we have a saved file pattern - this won't trigger re-renders
@@ -469,8 +470,9 @@ const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
             <>
           {/* Name and Description Fields */}
           <div className="vm-form-group">
-            <label>Name *</label>
+            <label htmlFor="source-name-input">Name *</label>
             <input
+              id="source-name-input"
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -481,8 +483,9 @@ const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
           </div>
           
           <div className="vm-form-group">
-            <label>Description</label>
+            <label htmlFor="source-description">Description</label>
             <textarea
+              id="source-description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Optional description"
@@ -494,8 +497,9 @@ const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
           {/* Row 1: Vendor Contract and Source File Owner (side by side) */}
           <div className="vm-form-row-two-cols">
             <div className="vm-form-group">
-              <label>Vendor Contract</label>
+              <label htmlFor="vendor-agreement-select">Vendor Contract</label>
               <select
+                id="vendor-agreement-select"
                 value={vendorAgreementId}
                 onChange={(e) => setVendorAgreementId(e.target.value)}
                 className="vm-select"
@@ -510,8 +514,9 @@ const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
             </div>
             
             <div className="vm-form-group">
-              <label>Source File Owner</label>
+              <label htmlFor="source-file-owner-select">Source File Owner</label>
               <select
+                id="source-file-owner-select"
                 value={sourceFileOwnerId}
                 onChange={(e) => setSourceFileOwnerId(e.target.value)}
                 className="vm-select"
@@ -528,8 +533,9 @@ const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
           
           {/* Row 2: Source Connection (full width) */}
           <div className="vm-form-group">
-            <label>Source Connection *</label>
+            <label htmlFor="connection-select">Source Connection *</label>
             <select
+              id="connection-select"
               value={connectionId}
               onChange={(e) => setConnectionId(e.target.value)}
               className="vm-select"
@@ -552,8 +558,9 @@ const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
           {/* Row 3: File Path, File Selection/Pattern, and Browse */}
           <div className="vm-form-row-file-path">
             <div className="vm-form-group vm-form-group-no-margin">
-              <label>File Path</label>
+              <label htmlFor="file-path-input">File Path</label>
               <input
+                id="file-path-input"
                 type="text"
                 value={filePath}
                 onChange={(e) => setFilePath(e.target.value)}
@@ -567,8 +574,9 @@ const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
             
             {showFileDropdown ? (
               <div className="vm-form-group vm-form-group-no-margin">
-                <label>Select File from Agreement</label>
+                <label htmlFor="agreement-file-select">Select File from Agreement</label>
                 <select
+                  id="agreement-file-select"
                   value={selectedFileId}
                   onChange={(e) => {
                     const newFileId = e.target.value;
@@ -591,8 +599,9 @@ const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
               </div>
             ) : (
               <div className="vm-form-group vm-form-group-no-margin">
-                <label>File Name Pattern</label>
+                <label htmlFor="file-pattern-input">File Name Pattern</label>
                 <input
+                  id="file-pattern-input"
                   type="text"
                   value={filePattern}
                   onChange={(e) => setFilePattern(e.target.value)}
@@ -605,8 +614,9 @@ const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
             {/* File Type - shown when vendor contract is selected */}
             {showFileDropdown && (
               <div className="vm-form-group vm-form-group-no-margin" style={{ minWidth: '100px', maxWidth: '120px' }}>
-                <label>File Type</label>
+                <label htmlFor="file-type-input">File Type</label>
                 <input
+                  id="file-type-input"
                   type="text"
                   value={selectedFileType ? selectedFileType.toUpperCase() : '-'}
                   readOnly
@@ -622,8 +632,9 @@ const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
             )}
             
             <div className="vm-form-group vm-form-group-no-margin vm-form-group-browse">
-              <label>&nbsp;</label>
+              <label htmlFor="browse-button">&nbsp;</label>
               <button 
+                id="browse-button"
                 onClick={handleBrowse}
                 disabled={!connectionId || loading || !!vendorAgreementId}
                 className="vm-btn vm-btn-browse"
@@ -691,8 +702,9 @@ const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
           
           {/* Row 4: Schema Drift Handling (full width) */}
           <div className="vm-form-group">
-            <label>Schema Drift Handling</label>
+            <label htmlFor="schema-drift-select">Schema Drift Handling</label>
             <select
+              id="schema-drift-select"
               value={schemaDriftHandling}
               onChange={(e) => setSchemaDriftHandling(e.target.value)}
               className="vm-select"
@@ -852,6 +864,63 @@ const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
       )}
     </div>
   );
+};
+
+
+SourceConfigModal.propTypes = {
+  isOpen: PropTypes.bool.isRequired,
+  onClose: PropTypes.func.isRequired,
+  onSave: PropTypes.func.isRequired,
+
+  initialConfig: PropTypes.shape({
+    name: PropTypes.string,
+    description: PropTypes.string,
+    connectionId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    connectionName: PropTypes.string,
+    connectionType: PropTypes.string,
+
+    filePath: PropTypes.string,
+    filePattern: PropTypes.string,
+
+    vendorAgreementId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    vendorAgreementName: PropTypes.string,
+
+    sourceFileOwnerId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    sourceFileOwnerName: PropTypes.string,
+
+    schemaDriftHandling: PropTypes.oneOf(['none', 'alert', 'abort']),
+
+    agreementFileId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    agreementFileName: PropTypes.string,
+    agreementFileDescription: PropTypes.string,
+
+    selectedFileType: PropTypes.string,
+    hasArchivePassword: PropTypes.bool,
+
+    schema: PropTypes.arrayOf(
+      PropTypes.shape({
+        column_name: PropTypes.string,
+        name: PropTypes.string,
+        data_type: PropTypes.string,
+        type: PropTypes.string,
+        description: PropTypes.string,
+        contains_pii: PropTypes.bool,
+        pii: PropTypes.bool
+      })
+    ),
+
+    schemaMetadata: PropTypes.shape({
+      contains_pii: PropTypes.bool,
+      data_classification: PropTypes.string,
+      file_type: PropTypes.string,
+      column_metadata: PropTypes.object,
+      source: PropTypes.oneOf(['agreement', 'inferred'])
+    })
+  })
+};
+
+SourceConfigModal.defaultProps = {
+  initialConfig: {}
 };
 
 export default SourceConfigModal;

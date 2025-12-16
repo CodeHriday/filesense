@@ -262,8 +262,9 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
           {activeTab === 'configuration' && (
             <div>
               <div className="vm-form-group">
-                <label>Name *</label>
+                <label htmlFor="join-name-input">Name *</label>
                 <input
+                  id="join-name-input"
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
@@ -274,8 +275,9 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
               </div>
               
               <div className="vm-form-group">
-                <label>Description</label>
+                <label htmlFor="join-description">Description</label>
                 <textarea
+                  id="join-description"
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   placeholder="Optional description"
@@ -285,8 +287,9 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
               </div>
               
               <div className="vm-form-group">
-                <label>Join Type</label>
+                <label htmlFor="join-type-select">Join Type</label>
                 <select 
+                  id="join-type-select"
                   className="vm-select"
                   value={joinType}
                   onChange={(e) => setJoinType(e.target.value)}
