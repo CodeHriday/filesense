@@ -26,7 +26,6 @@ const VendorAgreements = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
-  const [modalError, setModalError] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState('create');
@@ -71,7 +70,6 @@ const VendorAgreements = () => {
   // Multiple files display modal
   const [multipleFilesModalOpen, setMultipleFilesModalOpen] = useState(false);
   const [multipleFilesData, setMultipleFilesData] = useState([]);
-  const [modalSuccessMessage, setModalSuccessMessage] = useState('');
   
   // Notification modal state
   const [notificationModal, setNotificationModal] = useState({
@@ -139,8 +137,6 @@ const VendorAgreements = () => {
   
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-  const [totalPages, setTotalPages] = useState(1);
-  const [totalCount, setTotalCount] = useState(0);
   
   // Search state
   const [searchTerm, setSearchTerm] = useState('');
@@ -154,7 +150,6 @@ const VendorAgreements = () => {
   
   const isAdmin = hasRole && hasRole('Admin');
   const isVendor = isVendorUser(currentUser);
-  const isOwner = hasRole && hasRole('Owner');
   
   useEffect(() => {
     if (!currentUser) {
@@ -393,23 +388,19 @@ const VendorAgreements = () => {
             drop_location_path: fullPath
           }));
         }
-      } else {
+      } else if (formData.drop_location_path !== '') {
         // Connection not found, clear path
-        if (formData.drop_location_path !== '') {
-          setFormData(prev => ({
-            ...prev,
-            drop_location_path: ''
-          }));
-        }
-      }
-    } else {
-      // No connection selected, clear path
-      if (formData.drop_location_path !== '') {
         setFormData(prev => ({
           ...prev,
           drop_location_path: ''
         }));
       }
+    } else if (formData.drop_location_path !== '') {
+      // No connection selected, clear path
+      setFormData(prev => ({
+        ...prev,
+        drop_location_path: ''
+      }));
     }
   }, [formData.vendor_connection_id, formData.drop_location_path, filteredConnections]);
   
@@ -432,25 +423,21 @@ const VendorAgreements = () => {
             project_name: newProjectName
           }));
         }
-      } else {
+      } else if (formData.project_id !== '' || formData.project_name !== '') {
         // Vendor not found, clear project fields
-        if (formData.project_id !== '' || formData.project_name !== '') {
-          setFormData(prev => ({
-            ...prev,
-            project_id: '',
-            project_name: ''
-          }));
-        }
-      }
-    } else {
-      // No vendor selected, clear project fields
-      if (formData.project_id !== '' || formData.project_name !== '') {
         setFormData(prev => ({
           ...prev,
           project_id: '',
           project_name: ''
         }));
       }
+    } else if (formData.project_id !== '' || formData.project_name !== '') {
+      // No vendor selected, clear project fields
+      setFormData(prev => ({
+        ...prev,
+        project_id: '',
+        project_name: ''
+      }));
     }
   }, [formData.vendor_id, formData.project_id, formData.project_name, vendors]);
   
@@ -501,40 +488,15 @@ const VendorAgreements = () => {
             secondary_contact_phone: newSecondaryContactPhone
           }));
         }
-      } else {
+      } else if (formData.vendor_code !== '' || formData.vendor_type !== '' || 
+                 formData.vendor_onboarding_date !== '' ||
+                 formData.primary_contact_name !== '' ||
+                 formData.primary_contact_email !== '' ||
+                 formData.primary_contact_phone !== '' ||
+                 formData.secondary_contact_name !== '' ||
+                 formData.secondary_contact_email !== '' ||
+                 formData.secondary_contact_phone !== '') {
         // Vendor not found, clear vendor and contact fields
-        if (formData.vendor_code !== '' || formData.vendor_type !== '' || 
-            formData.vendor_onboarding_date !== '' ||
-            formData.primary_contact_name !== '' ||
-            formData.primary_contact_email !== '' ||
-            formData.primary_contact_phone !== '' ||
-            formData.secondary_contact_name !== '' ||
-            formData.secondary_contact_email !== '' ||
-            formData.secondary_contact_phone !== '') {
-          setFormData(prev => ({
-            ...prev,
-            vendor_code: '',
-            vendor_type: '',
-            vendor_onboarding_date: '',
-            primary_contact_name: '',
-            primary_contact_email: '',
-            primary_contact_phone: '',
-            secondary_contact_name: '',
-            secondary_contact_email: '',
-            secondary_contact_phone: ''
-          }));
-        }
-      }
-    } else {
-      // No vendor selected, clear vendor and contact fields
-      if (formData.vendor_code !== '' || formData.vendor_type !== '' || 
-          formData.vendor_onboarding_date !== '' ||
-          formData.primary_contact_name !== '' ||
-          formData.primary_contact_email !== '' ||
-          formData.primary_contact_phone !== '' ||
-          formData.secondary_contact_name !== '' ||
-          formData.secondary_contact_email !== '' ||
-          formData.secondary_contact_phone !== '') {
         setFormData(prev => ({
           ...prev,
           vendor_code: '',
@@ -548,6 +510,27 @@ const VendorAgreements = () => {
           secondary_contact_phone: ''
         }));
       }
+    } else if (formData.vendor_code !== '' || formData.vendor_type !== '' || 
+               formData.vendor_onboarding_date !== '' ||
+               formData.primary_contact_name !== '' ||
+               formData.primary_contact_email !== '' ||
+               formData.primary_contact_phone !== '' ||
+               formData.secondary_contact_name !== '' ||
+               formData.secondary_contact_email !== '' ||
+               formData.secondary_contact_phone !== '') {
+      // No vendor selected, clear vendor and contact fields
+      setFormData(prev => ({
+        ...prev,
+        vendor_code: '',
+        vendor_type: '',
+        vendor_onboarding_date: '',
+        primary_contact_name: '',
+        primary_contact_email: '',
+        primary_contact_phone: '',
+        secondary_contact_name: '',
+        secondary_contact_email: '',
+        secondary_contact_phone: ''
+      }));
     }
   }, [
     formData.vendor_id, 
@@ -574,23 +557,19 @@ const VendorAgreements = () => {
             manager_contact: newManagerContact
           }));
         }
-      } else {
+      } else if (formData.manager_contact !== '') {
         // User not found, clear manager_contact
-        if (formData.manager_contact !== '') {
-          setFormData(prev => ({
-            ...prev,
-            manager_contact: ''
-          }));
-        }
-      }
-    } else {
-      // No user selected, clear manager_contact
-      if (formData.manager_contact !== '') {
         setFormData(prev => ({
           ...prev,
           manager_contact: ''
         }));
       }
+    } else if (formData.manager_contact !== '') {
+      // No user selected, clear manager_contact
+      setFormData(prev => ({
+        ...prev,
+        manager_contact: ''
+      }));
     }
   }, [formData.file_owner_user_id, formData.manager_contact, users]);
   

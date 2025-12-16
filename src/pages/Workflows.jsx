@@ -8,7 +8,7 @@ import Pagination from '../components/Pagination';
 import ConfirmModal from '../components/ConfirmModal';
 import '../components/styles/PageActions.css';
 import axios from 'axios';
-import { groupWorkflowsByProject, initializeExpansionState, autoExpandMatchingSections } from '../utils/workflowGrouping';
+import { groupWorkflowsByProject, initializeExpansionState } from '../utils/workflowGrouping';
 
 const Workflows = () => {
   const [workflows, setWorkflows] = useState([]);

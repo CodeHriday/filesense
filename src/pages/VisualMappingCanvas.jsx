@@ -16,11 +16,7 @@ import './VisualMappingCanvas.css';
 import axios from 'axios';
 import { 
   FaSave, 
-  FaClock, 
-  FaPlus, 
   FaTrash, 
-  FaSearch,
-  FaCog,
   FaDatabase,
   FaCode,
   FaExchangeAlt,
@@ -377,7 +373,6 @@ const VisualMappingCanvasContent = () => {
   
   // Palette panel visibility
   const [showPalette, setShowPalette] = useState(true);
-  const [showConfig, setShowConfig] = useState(true);
   const [showMappingDetails, setShowMappingDetails] = useState(true);
   const [showComponents, setShowComponents] = useState(true);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -414,8 +409,6 @@ const VisualMappingCanvasContent = () => {
     updateRunStatus,
     resetExecution,
     clearLogs,
-    loadLogs,
-    getCurrentLogs,
     isConnected,
     subscribeToExecution,
     generateExecutionId,
@@ -428,9 +421,7 @@ const VisualMappingCanvasContent = () => {
   // Track unsaved changes
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
-  const [previousExecutions, setPreviousExecutions] = useState([]);
-  const [selectedExecutionIndex, setSelectedExecutionIndex] = useState(0);
-  
+    
   // Configuration modal
   const [configModalOpen, setConfigModalOpen] = useState(false);
   const [configNodeId, setConfigNodeId] = useState(null);

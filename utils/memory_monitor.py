@@ -147,7 +147,6 @@ def check_before_processing(file_size_mb: float = 0) -> Tuple[bool, str]:
         return False, f"Insufficient memory: need ~{estimated_memory_needed}MB, have {available_memory}MB"
     
     # Check if processing would push us over threshold
-    current_percent = status['usage']['usage_percent']
     projected_usage = status['usage']['used_mb'] + estimated_memory_needed
     projected_percent = (projected_usage / status['usage']['total_mb']) * 100
     
@@ -181,7 +180,12 @@ def log_memory_status():
     status = check_memory_status()
     usage = status['usage']
     
-    emoji = '🔴' if status['status'] == 'critical' else '🟡' if status['status'] == 'warning' else '🟢'
+    if status['status'] == 'critical':
+        emoji = '🔴'
+    elif status['status'] == 'warning':
+        emoji = '🟡'
+    else:
+        emoji = '🟢'
     breaker_status = 'OPEN' if status['circuit_breaker_open'] else 'CLOSED'
     
     file_logger.info(

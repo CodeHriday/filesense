@@ -170,6 +170,7 @@
   padding: 1.5rem;
   overflow: hidden;
   transform-origin: bottom right;
+  display: none;
 }
 
 .accessibility-menu__header {
@@ -313,6 +314,7 @@
 }
 
 .accessibility-menu.open {
+  display: block;
   animation: slideIn 0.3s forwards;
 }
 
@@ -320,14 +322,7 @@
   animation: slideOut 0.3s forwards;
 }
 
-/* Hide the menu by default */
-.accessibility-menu {
-  display: none;
-}
-
-.accessibility-menu.open {
-  display: block;
-}
+/* display rules consolidated with main .accessibility-menu block */
 
 /* Skip navigation links */
 .skip-link {

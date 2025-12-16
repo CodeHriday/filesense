@@ -4,7 +4,6 @@ import axios from 'axios';
 import './VisualMappingManager.css';
 import { 
   FaPlus, 
-  FaClock, 
   FaSearch,
   FaFilter,
   FaHistory,
