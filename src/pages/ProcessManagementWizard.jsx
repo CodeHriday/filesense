@@ -965,8 +965,8 @@ const ProcessManagementWizard = () => {
     if (overlapping) {
       for (let i = 0; i < 10; i++) {
         // Use a slightly randomized position but still based on a grid
-        const randomOffsetX = Math.floor(Math.random() * 5) * gridSize;
-        const randomOffsetY = Math.floor(Math.random() * 5) * gridSize;
+        const randomOffsetX = Math.floor((crypto.getRandomValues(new Uint32Array(1))[0] / 0xFFFFFFFF) * 5) * gridSize;
+        const randomOffsetY = Math.floor((crypto.getRandomValues(new Uint32Array(1))[0] / 0xFFFFFFFF) * 5) * gridSize;
         
         newX = initialX + randomOffsetX;
         newY = initialY + randomOffsetY;

@@ -935,8 +935,8 @@ const VisualMappingCanvasContent = () => {
       id: nodeId,
       type,
       position: { 
-        x: Math.random() * 300 + 100, 
-        y: Math.random() * 300 + 100 
+        x: (crypto.getRandomValues(new Uint32Array(1))[0] / 0xFFFFFFFF) * 300 + 100, 
+        y: (crypto.getRandomValues(new Uint32Array(1))[0] / 0xFFFFFFFF) * 300 + 100 
       },
       data: { 
         label,

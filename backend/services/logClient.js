@@ -6,6 +6,7 @@
  */
 
 const axios = require('axios');
+const crypto = require('crypto');
 
 class LogServiceClient {
   constructor(options = {}) {
@@ -117,7 +118,7 @@ class LogServiceClient {
   }
 
   generateId() {
-    return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    return `${Date.now()}-${crypto.randomBytes(5).toString('hex')}`;
   }
 
   /**

@@ -135,7 +135,7 @@ class ArchiveExtractionService {
         });
       }
 
-      tempDir = path.join(EXTRACTION_TEMP_DIR, `extract_${Date.now()}_${Math.random().toString(36).substring(7)}`);
+      tempDir = path.join(EXTRACTION_TEMP_DIR, `extract_${Date.now()}_${crypto.randomBytes(4).toString('hex')}`);
       await fs.promises.mkdir(tempDir, { recursive: true });
 
       this.logger.info('Starting archive extraction', {

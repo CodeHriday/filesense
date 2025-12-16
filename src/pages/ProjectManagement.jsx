@@ -138,7 +138,9 @@ function ProjectManagement() {
     
     try {
       const token = localStorage.getItem('token');
-      const idempotencyKey = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      const array = new Uint8Array(5);
+      crypto.getRandomValues(array);
+      const idempotencyKey = `${Date.now()}-${Array.from(array, byte => byte.toString(36)).join('')}`;
       
       await axios.post(`${API_BASE_URL}/projects`, formData, {
         headers: { 

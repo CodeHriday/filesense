@@ -351,7 +351,9 @@ const DashboardLayoutCreator = ({
   useEffect(() => {
     // Generate random ID for widgets
     const generateLocalId = () => {
-      return `widget-${Math.random().toString(36).substr(2, 9)}`;
+      const array = new Uint8Array(5);
+      crypto.getRandomValues(array);
+      return `widget-${Array.from(array, byte => byte.toString(36)).join('')}`;
     };
 
     // Ensure initialLayout is always treated as an array
@@ -397,7 +399,9 @@ const DashboardLayoutCreator = ({
   
   // Generate random ID for widgets
   const generateId = () => {
-    return `widget-${Math.random().toString(36).substr(2, 9)}`;
+    const array = new Uint8Array(5);
+    crypto.getRandomValues(array);
+    return `widget-${Array.from(array, byte => byte.toString(36)).join('')}`;
   };
   
   // Handle drag start

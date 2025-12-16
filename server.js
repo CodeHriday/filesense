@@ -6,6 +6,7 @@ const cors = require('cors');
 const multer = require('multer');
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 const bodyParser = require('body-parser');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
@@ -2156,7 +2157,7 @@ app.post('/api/files/upload', authenticateToken, invalidateCache('cache:*:*files
     const results = [];
     
     for (const file of req.files) {
-      const fileId = `file_${Date.now()}_${Math.random().toString(36).substr(2, 8)}`;
+      const fileId = `file_${Date.now()}_${crypto.randomBytes(4).toString('hex')}`;
       const fileType = path.extname(file.originalname).substring(1).toLowerCase();
       
       try {
@@ -2599,7 +2600,7 @@ app.post('/api/files/drop', authenticateToken, uploadLimiter, upload.single('fil
     }
     
     const file = req.file;
-    const fileId = `drop_${Date.now()}_${Math.random().toString(36).substr(2, 8)}`;
+    const fileId = `drop_${Date.now()}_${crypto.randomBytes(4).toString('hex')}`;
     const userId = req.user.id;
     
     // CRITICAL: Validate filename against vendor agreement patterns BEFORE any processing
@@ -7267,7 +7268,7 @@ app.post('/api/governance-tags', authenticateToken, requireAdmin, invalidateCach
       return res.status(400).json({ error: 'tag_name is required' });
     }
     
-    const tag_id = `tag_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const tag_id = `tag_${Date.now()}_${crypto.randomBytes(5).toString('hex')}`;
     
     const result = await dbPool.query(
       `INSERT INTO governance_tags (tag_id, tag_name, description, color, badge_style, created_by)
