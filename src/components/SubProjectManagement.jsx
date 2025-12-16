@@ -3,6 +3,8 @@ import { FiPlus, FiEdit2, FiTrash2, FiFolder, FiFolderPlus, FiSave, FiX, FiAlert
 import axios from 'axios';
 import SubProjectMemberManagement from './SubProjectMemberManagement';
 import './SubProjectManagement.css';
+import PropTypes from 'prop-types';
+
 
 function SubProjectManagement({ projectId, projectName }) {
   const [subProjects, setSubProjects] = useState([]);
@@ -343,5 +345,13 @@ function formatBytes(bytes) {
   const i = Math.floor(Math.log(numBytes) / Math.log(k));
   return Math.round((numBytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i];
 }
+SubProjectManagement.propTypes = {
+  projectId: PropTypes.oneOfType([
+    PropTypes.string,
+    PropTypes.number
+  ]).isRequired,
+
+  projectName: PropTypes.string.isRequired
+};
 
 export default SubProjectManagement;

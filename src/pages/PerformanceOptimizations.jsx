@@ -3,6 +3,8 @@ import Callback from '../components/PerformanceOptimizations/Callback';
 import LazyLoading from '../components/PerformanceOptimizations/LazyLoading';
 import VirtualizedList from '../components/PerformanceOptimizations/VirtualizedList';
 import './PerformanceOptimizations.css';
+import PropTypes from 'prop-types';
+
 
 const PerformanceOptimizations = () => {
   const [activeTab, setActiveTab] = useState('overview');
@@ -163,6 +165,9 @@ const Overview = ({ setActiveTab }) => {
       </div>
     </div>
   );
+};
+Overview.propTypes = {
+  setActiveTab: PropTypes.func.isRequired
 };
 
 export default PerformanceOptimizations;

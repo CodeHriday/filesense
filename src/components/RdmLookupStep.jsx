@@ -594,12 +594,18 @@ RdmLookupStep.propTypes = {
   datasetConfig: PropTypes.shape({
     dataset_id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
     join_type: PropTypes.string,
+
+    // ✅ ADD THESE TWO
+    dataset_column: PropTypes.string,
+    source_column: PropTypes.string,
+
     join_conditions: PropTypes.arrayOf(
       PropTypes.shape({
         dataset_column: PropTypes.string,
         source_column: PropTypes.string
       })
     ),
+
     column_mappings: PropTypes.arrayOf(
       PropTypes.shape({
         source_column: PropTypes.string,

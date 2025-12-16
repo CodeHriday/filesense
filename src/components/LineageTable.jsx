@@ -325,5 +325,9 @@ LineageTable.propTypes = {
   }).isRequired,
   onDataChange: PropTypes.func
 };
+PIIBadge.propTypes = {
+  piiColumnCount: PropTypes.number,
+  piiTypes: PropTypes.arrayOf(PropTypes.string)
+};
 
 export default LineageTable;

@@ -1,4 +1,5 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
+import PropTypes from 'prop-types';
 
 // Create the context
 export const AccessibilityContext = createContext();
@@ -13,7 +14,10 @@ export const AccessibilityProvider = ({ children }) => {
     const saved = localStorage.getItem('accessibility_highContrast');
     return saved ? JSON.parse(saved) : false;
   });
-  
+  AccessibilityProvider.propTypes = {
+  children: PropTypes.node.isRequired
+};
+
   const [largeText, setLargeText] = useState(() => {
     const saved = localStorage.getItem('accessibility_largeText');
     return saved ? JSON.parse(saved) : false;

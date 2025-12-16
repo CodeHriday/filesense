@@ -50,6 +50,15 @@ const Notification = ({ notification, onClose }) => {
 };
 
 
+Notification.propTypes = {
+  notification: PropTypes.shape({
+    id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
+    message: PropTypes.string.isRequired,
+    type: PropTypes.oneOf(['success', 'error', 'warning', 'info']).isRequired,
+    duration: PropTypes.number
+  }).isRequired,
+  onClose: PropTypes.func.isRequired
+};
 
 
 export default NotificationList;

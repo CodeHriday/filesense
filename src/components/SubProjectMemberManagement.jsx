@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { FiUsers, FiUserPlus, FiTrash2, FiX, FiAlertCircle, FiShield } from 'react-icons/fi';
 import axios from 'axios';
 import './SubProjectMemberManagement.css';
+import PropTypes from 'prop-types';
+
 
 function SubProjectMemberManagement({ projectId, subProjectId, subProjectName, mode }) {
   const [activeTab, setActiveTab] = useState(mode || 'members');
@@ -462,5 +464,20 @@ function SubProjectMemberManagement({ projectId, subProjectId, subProjectName, m
     </div>
   );
 }
+SubProjectMemberManagement.propTypes = {
+  projectId: PropTypes.oneOfType([
+    PropTypes.string,
+    PropTypes.number
+  ]).isRequired,
+
+  subProjectId: PropTypes.oneOfType([
+    PropTypes.string,
+    PropTypes.number
+  ]).isRequired,
+
+  subProjectName: PropTypes.string,
+
+  mode: PropTypes.oneOf(['members', 'groups'])
+};
 
 export default SubProjectMemberManagement;

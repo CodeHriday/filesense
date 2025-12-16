@@ -1,5 +1,6 @@
 import React from 'react';
 import ThreeSectionModal from './ThreeSectionModal';
+import PropTypes from 'prop-types';
 
 const SimpleSuccessModal = ({
   isOpen,
@@ -39,6 +40,15 @@ const SimpleSuccessModal = ({
       </div>
     </ThreeSectionModal>
   );
+};
+SimpleSuccessModal.propTypes = {
+  isOpen: PropTypes.bool.isRequired,
+  onClose: PropTypes.func.isRequired,
+  title: PropTypes.string,
+  message: PropTypes.oneOfType([
+    PropTypes.string,
+    PropTypes.node
+  ]).isRequired
 };
 
 export default SimpleSuccessModal;

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
+import PropTypes from 'prop-types';
 
 /**
  * AnnouncementRegion - Creates an accessible announcement region for screen readers
@@ -56,6 +57,17 @@ const AnnouncementRegion = ({
     document.body
   );
 };
+AnnouncementRegion.propTypes = {
+  message: PropTypes.string,
+  politeness: PropTypes.oneOf(['polite', 'assertive']),
+  clearDelay: PropTypes.number
+};
+
+AnnouncementRegion.defaultProps = {
+  message: '',
+  politeness: 'polite',
+  clearDelay: 5000
+};
 
 /**
  * Announcement context for providing a way to make announcements throughout the app
@@ -91,6 +103,9 @@ export const AnnouncementProvider = ({ children }) => {
       <AnnouncementRegion message={assertiveMessage} politeness="assertive" clearDelay={3000} />
     </AnnouncementContext.Provider>
   );
+};
+AnnouncementProvider.propTypes = {
+  children: PropTypes.node.isRequired
 };
 
 export default AnnouncementRegion;

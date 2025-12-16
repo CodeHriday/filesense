@@ -3,6 +3,7 @@ import { Line } from 'react-chartjs-2';
 import axios from 'axios';
 import { API_BASE_URL } from '../config';
 import './MetricTrendPopup.css';
+import PropTypes from 'prop-types';
 
 const MetricTrendPopup = ({ 
   metricType, 
@@ -303,5 +304,16 @@ const MetricTrendPopup = ({
     </div>
   );
 };
-
+MetricTrendPopup.propTypes = {
+  metricType: PropTypes.string.isRequired,
+  metricLabel: PropTypes.string.isRequired,
+  isOpen: PropTypes.bool.isRequired,
+  onClose: PropTypes.func.isRequired,
+  anchorEl: PropTypes.instanceOf(Element),
+  projectId: PropTypes.oneOfType([
+    PropTypes.string,
+    PropTypes.number
+  ]),
+  isModal: PropTypes.bool
+};
 export default MetricTrendPopup;

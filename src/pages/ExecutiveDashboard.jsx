@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Bar, Doughnut, Line } from 'react-chartjs-2';
 import axios from 'axios';
+import PropTypes from 'prop-types';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -1251,6 +1252,9 @@ const ExecutiveDashboard = () => {
       )}
     </div>
   );
+};
+TrendIcon.propTypes = {
+  direction: PropTypes.oneOf(['up', 'down', 'neutral']).isRequired
 };
 
 export default ExecutiveDashboard;

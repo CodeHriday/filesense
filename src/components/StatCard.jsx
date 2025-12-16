@@ -1,5 +1,23 @@
 import React from 'react';
 import './StatCard.css';
+import PropTypes from 'prop-types';
+StatCard.propTypes = {
+  title: PropTypes.string.isRequired,
+  value: PropTypes.oneOfType([
+    PropTypes.string,
+    PropTypes.number,
+    PropTypes.node
+  ]).isRequired,
+  icon: PropTypes.node,
+  trend: PropTypes.shape({
+    type: PropTypes.oneOf(['up', 'down']).isRequired,
+    value: PropTypes.oneOfType([
+      PropTypes.string,
+      PropTypes.number
+    ]).isRequired
+  }),
+  color: PropTypes.oneOf(['primary', 'success', 'warning', 'danger'])
+};
 
 export const StatCard = ({ title, value, icon, trend, color = 'primary' }) => {
   return (

@@ -13,6 +13,8 @@ import { PasswordInputModal } from '../components/PasswordInputModal';
 import { bulkDeleteFiles, submitFilePassword } from '../api/fileService';
 import '../styles/global-page-styles.css';
 import './FileCatalog.css';
+import PropTypes from 'prop-types';
+
 
 export const FileCatalog = ({ onFileSelect }) => {
   const navigate = useNavigate();
@@ -845,4 +847,7 @@ export const FileCatalog = ({ onFileSelect }) => {
       />
     </div>
   );
+};
+FileCatalog.propTypes = {
+  onFileSelect: PropTypes.func
 };

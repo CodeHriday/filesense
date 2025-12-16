@@ -1,5 +1,7 @@
 import React, { createContext, useContext, useState } from 'react';
 import './ToastContext.css';
+import PropTypes from 'prop-types';
+
 
 // Create context
 const ToastContext = createContext();
@@ -106,6 +108,9 @@ export const useToast = () => {
   }
   
   return context;
+};
+ToastProvider.propTypes = {
+  children: PropTypes.node.isRequired
 };
 
 export default ToastContext;

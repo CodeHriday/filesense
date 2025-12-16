@@ -594,5 +594,21 @@ AddWidgetPanel.propTypes = {
   onAddWidget: PropTypes.func.isRequired,
   onClose: PropTypes.func.isRequired
 };
+DashboardLayoutCreator.propTypes = {
+  initialLayout: PropTypes.arrayOf(
+    PropTypes.shape({
+      id: PropTypes.string,
+      type: PropTypes.string.isRequired,
+      title: PropTypes.string,
+      width: PropTypes.number,
+      height: PropTypes.number,
+      position: PropTypes.number
+    })
+  ),
+  onSaveLayout: PropTypes.func,
+  readOnly: PropTypes.bool,
+  maxColumns: PropTypes.number,
+  maxRows: PropTypes.number
+};
 
 export default DashboardLayoutCreator;

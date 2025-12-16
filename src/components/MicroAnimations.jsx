@@ -188,6 +188,57 @@ AnimatedButton.defaultProps = {
   disabled: false,
   className: ''
 };
+SaveButton.propTypes = {
+  onClick: PropTypes.func,
+  loading: PropTypes.bool,
+  disabled: PropTypes.bool
+};
+
+UploadButton.propTypes = {
+  onClick: PropTypes.func,
+  loading: PropTypes.bool,
+  disabled: PropTypes.bool
+};
+
+DownloadButton.propTypes = {
+  onClick: PropTypes.func,
+  loading: PropTypes.bool,
+  disabled: PropTypes.bool
+};
+AnimationContainer.propTypes = {
+  children: PropTypes.node.isRequired,
+  animate: PropTypes.bool,
+  animationType: PropTypes.oneOf(['fade', 'slide', 'zoom']),
+  duration: PropTypes.number,
+  delay: PropTypes.number,
+  className: PropTypes.string
+};
+
+AnimationContainer.defaultProps = {
+  animate: true,
+  animationType: 'fade',
+  duration: 300,
+  delay: 0,
+  className: ''
+};
+SuccessAnimation.propTypes = {
+  show: PropTypes.bool.isRequired,
+  message: PropTypes.string,
+  duration: PropTypes.number,
+  onComplete: PropTypes.func
+};
+
+SuccessAnimation.defaultProps = {
+  duration: 2000
+};
+PageTransition.propTypes = {
+  children: PropTypes.node.isRequired,
+  className: PropTypes.string
+};
+
+PageTransition.defaultProps = {
+  className: ''
+};
 
 export const PageTransition = ({ children, className = "" }) => {
   return (

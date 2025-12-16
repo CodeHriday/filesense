@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { FiCheck, FiArrowRight, FiTrash2, FiEdit2, FiX, FiPlus, FiChevronDown, FiChevronUp, FiChevronRight, FiLock, FiShield } from 'react-icons/fi';
 import './TableBasedMapper.css';
+import PropTypes from 'prop-types';
+
 
 const TRANSFORMATION_OPTIONS = [
   { value: 'none', label: 'None (Direct Copy)', group: 'Basic', params: [] },
@@ -1944,6 +1946,52 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
       </div>
     </div>
   );
+};
+TableBasedMapper.propTypes = {
+  schema: PropTypes.arrayOf(
+    PropTypes.shape({
+      name: PropTypes.string.isRequired,
+      contains_pii: PropTypes.bool,
+      is_pii: PropTypes.bool,
+      pii: PropTypes.bool
+    })
+  ).isRequired,
+
+  fieldMappings: PropTypes.arrayOf(
+    PropTypes.shape({
+      source_field: PropTypes.string.isRequired,
+      target_field: PropTypes.string.isRequired,
+      transformation: PropTypes.string,
+      transformation_params: PropTypes.object,
+      is_custom: PropTypes.bool
+    })
+  ),
+
+  variables: PropTypes.arrayOf(
+    PropTypes.shape({
+      id: PropTypes.string,
+      name: PropTypes.string.isRequired,
+      expression: PropTypes.string,
+      data_type: PropTypes.string,
+      source_field: PropTypes.string,
+      transformation: PropTypes.string,
+      transformation_params: PropTypes.object
+    })
+  ),
+
+  piiColumns: PropTypes.arrayOf(PropTypes.string),
+
+  dqRuleAssignments: PropTypes.objectOf(
+    PropTypes.arrayOf(
+      PropTypes.shape({
+        ruleId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
+        errorAction: PropTypes.oneOf(['log_continue', 'log_abort']),
+        applyTo: PropTypes.string
+      })
+    )
+  ),
+
+  onMappingsChange: PropTypes.func.isRequired
 };
 
 export default TableBasedMapper;

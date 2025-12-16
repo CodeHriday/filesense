@@ -5,6 +5,8 @@ import S3FolderBrowser from './S3FolderBrowser';
 import ErrorModal from './ErrorModal';
 import { useToast } from '../context/ToastContext';
 import './BulkProfilingTab.css';
+import PropTypes from 'prop-types';
+
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 const MAX_POLL_RETRIES = 5;
@@ -1211,5 +1213,11 @@ function SchemaValidationTab({ selectedProject: initialProject }) {
     </div>
   );
 }
+SchemaValidationTab.propTypes = {
+  selectedProject: PropTypes.oneOfType([
+    PropTypes.number,
+    PropTypes.string
+  ])
+};
 
 export default SchemaValidationTab;

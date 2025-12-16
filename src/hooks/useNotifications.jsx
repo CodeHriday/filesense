@@ -1,5 +1,7 @@
 import { createContext, useContext, useReducer, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
+import PropTypes from 'prop-types';
+
 
 // Default duration for notifications in milliseconds
 const DEFAULT_DURATION = 5000;
@@ -73,6 +75,9 @@ export const useNotifications = () => {
   }
   
   return context;
+};
+NotificationsProvider.propTypes = {
+  children: PropTypes.node.isRequired
 };
 
 export default useNotifications;

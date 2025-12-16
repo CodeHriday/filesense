@@ -6,6 +6,7 @@ import { formatDate } from '../utils/formatters';
 import LoadingSpinner from './LoadingSpinner';
 import '../styles/global-page-styles.css';
 import './SchemaHistoryTab.css';
+import PropTypes from 'prop-types';
 
 function SchemaHistoryTab({ fileId }) {
   const [historyData, setHistoryData] = useState(null);
@@ -986,5 +987,10 @@ function SchemaHistoryTab({ fileId }) {
     </div>
   );
 }
-
+SchemaHistoryTab.propTypes = {
+  fileId: PropTypes.oneOfType([
+    PropTypes.string,
+    PropTypes.number
+  ]).isRequired
+};
 export default SchemaHistoryTab;

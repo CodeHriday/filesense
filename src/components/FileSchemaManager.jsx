@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { FiPlus, FiEdit2, FiTrash2, FiSave, FiX, FiAlertCircle, FiFileText, FiInfo, FiShield } from 'react-icons/fi';
 import axios from 'axios';
 import './FileSchemaManager.css';
+import PropTypes from 'prop-types';
 
 function FileSchemaManager({ agreementId }) {
   const [fileSchemas, setFileSchemas] = useState([]);
@@ -660,5 +661,10 @@ function FileSchemaManager({ agreementId }) {
     </div>
   );
 }
-
+FileSchemaManager.propTypes = {
+  agreementId: PropTypes.oneOfType([
+    PropTypes.string,
+    PropTypes.number
+  ]).isRequired
+};
 export default FileSchemaManager;

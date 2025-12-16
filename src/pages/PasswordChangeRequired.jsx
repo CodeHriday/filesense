@@ -4,6 +4,8 @@ import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
 import PasswordInput from '../components/PasswordInput';
 import '../styles/Login.css';
+import PropTypes from 'prop-types';
+
 
 const PasswordChangeRequired = ({ userId, username, passwordChangeToken, onPasswordChanged }) => {
   const [newPassword, setNewPassword] = useState('');
@@ -180,6 +182,12 @@ const PasswordChangeRequired = ({ userId, username, passwordChangeToken, onPassw
       </div>
     </div>
   );
+};
+PasswordChangeRequired.propTypes = {
+  userId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
+  username: PropTypes.string.isRequired,
+  passwordChangeToken: PropTypes.string.isRequired,
+  onPasswordChanged: PropTypes.func
 };
 
 export default PasswordChangeRequired;

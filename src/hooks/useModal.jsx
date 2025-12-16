@@ -1,4 +1,5 @@
 import { useState, useCallback, useContext, createContext } from 'react';
+import PropTypes from 'prop-types';
 
 // Create Context
 const ModalContext = createContext();
@@ -118,6 +119,9 @@ export const useModal = (modalId) => {
   
   // Otherwise return the full context
   return context;
+};
+ModalProvider.propTypes = {
+  children: PropTypes.node.isRequired
 };
 
 export default useModal;
