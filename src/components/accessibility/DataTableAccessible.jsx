@@ -50,7 +50,7 @@ const DataTableAccessible = ({
           <tr>
             {columns.map((column, index) => (
               <th 
-                key={`header-${index}`}
+                key={`header-${column.accessor || column.header || index}`}
                 scope="col"
                 aria-sort={sortable ? 'none' : undefined}
               >
@@ -73,7 +73,7 @@ const DataTableAccessible = ({
         <tbody>
           {data.map((row, rowIndex) => (
             <tr 
-              key={`row-${rowIndex}`}
+              key={`row-${row.id || row.name || rowIndex}`}
               onClick={onRowClick ? () => onRowClick(row) : undefined}
               className={onRowClick ? 'clickable-row' : ''}
               tabIndex={onRowClick ? 0 : undefined}
@@ -94,7 +94,7 @@ const DataTableAccessible = ({
                   
                 return (
                   <td 
-                    key={`cell-${rowIndex}-${colIndex}`}
+                    key={`cell-${rowIndex}-${column.accessor || colIndex}`}
                     data-label={column.header} // For responsive tables
                   >
                     {/* Render cell content */}

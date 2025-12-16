@@ -92,7 +92,7 @@ const PasswordStrengthMeter = ({ password }) => {
         <div className="requirements-title">Password must have:</div>
         <ul className="requirements-list">
           {strength.checks.map((check, index) => (
-            <li key={index} className={check.passed ? 'requirement-passed' : 'requirement-failed'}>
+            <li key={`check-${check.label || check.name || index}`} className={check.passed ? 'requirement-passed' : 'requirement-failed'}>
               <span className="requirement-icon">
                 {check.passed ? '✓' : '○'}
               </span>

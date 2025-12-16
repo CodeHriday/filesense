@@ -130,7 +130,7 @@ const Table = ({
               {paginatedData.map((row, rowIndex) => (
                 <tr key={row.id || rowIndex}>
                   {columns.map((column, colIndex) => (
-                    <td key={colIndex}>
+                    <td key={`col-${column.accessor || column.header || colIndex}`}>
                       {column.cell ? column.cell(row) : row[column.accessor]}
                     </td>
                   ))}

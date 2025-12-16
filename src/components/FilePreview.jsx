@@ -317,7 +317,7 @@ ${nullCount} null values`}
           <thead>
             <tr>
               {columnNames.map((column, index) => (
-                <th key={index}>
+                <th key={`header-${column}-${index}`}>
                   <div className="header-cell">
                     <span className="column-name">{column}</span>
                     {renderColumnAccessIndicator(column)}
@@ -329,9 +329,9 @@ ${nullCount} null values`}
           </thead>
           <tbody>
             {rows.map((row, rowIndex) => (
-              <tr key={rowIndex}>
+              <tr key={`row-${rowIndex}`}>
                 {columnNames.map((column, colIndex) => (
-                  <td key={colIndex}>
+                  <td key={`cell-${column}-${colIndex}`}>
                     {shouldMaskColumnValue(column) ? (
                       <span className="masked-value">****</span>
                     ) : (

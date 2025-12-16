@@ -363,7 +363,7 @@ function FileSchemaManager({ agreementId }) {
                         <span>Action</span>
                       </div>
                       {columnList.map((col, idx) => (
-                        <div key={idx} className="column-table-row">
+                        <div key={`col-${col.name || col.column_name || idx}`} className="column-table-row">
                           <input
                             type="text"
                             value={col.name}
@@ -522,7 +522,7 @@ function FileSchemaManager({ agreementId }) {
                                 <span>Action</span>
                               </div>
                               {columnList.map((col, idx) => (
-                                <div key={idx} className="column-table-row">
+                                <div key={`edit-col-${col.name || col.column_name || idx}`} className="column-table-row">
                                   <input
                                     type="text"
                                     value={col.name}

@@ -441,7 +441,7 @@ const OnboardingWizard = ({ onClose }) => {
         <div className="wizard-progress">
           {steps.map((step, index) => (
             <div 
-              key={index} 
+              key={`step-${step.title || step.name || index}`} 
               className={`progress-step ${index <= currentStep ? 'completed' : ''} ${index === currentStep ? 'active' : ''}`}
             >
               <div className="step-indicator">

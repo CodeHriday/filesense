@@ -392,7 +392,7 @@ function FixedWidthSchemaModal({ fileId, onClose, onSave, setErrorMessage }) {
         
         <div className="form-group">
           {columns.map((col, index) => (
-            <div key={`${col.name || 'col'}-${index}`} style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
+            <div key={`col-${col.name || col.column_name || index}`} style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
               <input
                 type="text"
                 placeholder="Column Name"
@@ -1990,7 +1990,7 @@ function DataProfile() {
 
                             {quality.issues.map((issue, idx) => (
                               <span
-                                key={issue.type || issue.issue_type || idx}
+                                key={`issue-${issue.type || issue.issue_type || issue.rule_name || idx}`}
                                 className="gps-badge"
                                 style={getIssueBadgeStyle(issue.severity)}
                                 title={issue.tooltip}
@@ -2487,7 +2487,7 @@ function DataProfile() {
                     const columnRules = columnRulesMap[columnName];
                     
                     return columnRules.map((rule, ruleIdx) => (
-                      <tr key={`${columnName}-${rule.rule_type || rule.rule_name || ruleIdx}`}>
+                      <tr key={`rule-${columnName}-${rule.rule_type || rule.rule_name || rule.id || ruleIdx}`}>
                         {ruleIdx === 0 ? (
                           <td 
                             rowSpan={columnRules.length} 

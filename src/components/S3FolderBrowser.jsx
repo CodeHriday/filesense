@@ -108,7 +108,7 @@ const S3FolderBrowser = ({ connectionId, rawCredentials, onSelectPath, onSelectF
         </button>
         
         {getBreadcrumbs().map((crumb, index) => (
-          <React.Fragment key={index}>
+          <React.Fragment key={`breadcrumb-${crumb.path || crumb.name || index}`}>
             <FaChevronRight className="breadcrumb-separator" />
             <button
               onClick={() => setCurrentPath(crumb.path)}

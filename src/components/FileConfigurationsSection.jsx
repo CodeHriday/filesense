@@ -887,7 +887,7 @@ function FileConfigurationsSection({ fileConfigurations, onChange }) {
           {fileConfigurations
             .sort((a, b) => (a.priority ?? 100) - (b.priority ?? 100))
             .map((config, index) => (
-              <div key={index} className={`file-config-item ${editingIndex === index ? 'editing' : ''}`}>
+              <div key={`config-${config.id || config.pattern || index}`} className={`file-config-item ${editingIndex === index ? 'editing' : ''}`}>
                 <div className="config-main-info">
                   <div className="config-pattern">
                     <FiFileText className="pattern-icon-inline" />

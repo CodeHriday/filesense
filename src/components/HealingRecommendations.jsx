@@ -181,7 +181,7 @@ const HealingRecommendations = ({ anomalyId, anomaly }) => {
       <div className="space-y-3">
         {recommendations.map((rec, index) => (
           <div
-            key={rec.id || index}
+            key={rec.id || `rec-${rec.type || rec.title?.substring(0, 20) || index}`}
             className={`border-l-4 rounded-lg p-4 bg-white shadow-sm ${getPriorityColor(rec.priority)}`}
           >
             <div className="flex items-start justify-between">

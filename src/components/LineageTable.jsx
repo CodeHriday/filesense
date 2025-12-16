@@ -201,7 +201,7 @@ function LineageTable({ lineages, onDataChange }) {
           <tbody>
             {allLineage.map((lineage, index) => (
               <tr 
-                key={`${lineage.type}-${lineage.id}-${index}`}
+                key={`lineage-${lineage.type}-${lineage.id || lineage.name || index}`}
                 className={selectedIds.includes(lineage.id) ? 'selected-row' : ''}
               >
                 <td className="checkbox-cell">

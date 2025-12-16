@@ -228,7 +228,7 @@ function SchemaFieldEditor({ value, onChange, fileType, hasHeader, onHasHeaderCh
               </thead>
             <tbody>
               {fields.map((field, index) => (
-                <tr key={index}>
+                <tr key={`field-${field.name || field.column_name || index}`}>
                   <td>
                     <label htmlFor={`fieldName-${index}`} className="sr-only">Field Name {index + 1}</label>
                     <input

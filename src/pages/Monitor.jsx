@@ -329,7 +329,7 @@ function Monitor() {
                   </thead>
                   <tbody>
                     {schema.columns.map((col, idx) => (
-                      <tr key={idx}>
+                      <tr key={`schema-col-${col.name || col.column_name || idx}`}>
                         <td>{col.name}</td>
                         <td>{col.type}</td>
                         <td>{col.nullable !== false ? 'Yes' : 'No'}</td>
@@ -648,7 +648,7 @@ function Monitor() {
                                     {auditLogs[audit.id] && auditLogs[audit.id].length > 0 ? (
                                       <pre className="logs-display">
                                         {auditLogs[audit.id].map((log, idx) => (
-                                          <div key={idx} className={`log-entry log-${log.level?.toLowerCase() || 'info'}`}>
+                                          <div key={`audit-log-${log.timestamp || log.id || idx}`} className={`log-entry log-${log.level?.toLowerCase() || 'info'}`}>
                                             <span className="log-timestamp">{log.timestamp}</span>
                                             <span className="log-level">[{log.level || 'INFO'}]</span>
                                             <span className="log-message">{log.message}</span>

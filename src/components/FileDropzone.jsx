@@ -537,7 +537,7 @@ function FileDropzone({ onFileDrop, onBatchFileDrop, onFilesChange, acceptedFile
                 )}
                 <div className="gps-dropzone-file-list">
                   {uploadingFiles.map((file, idx) => (
-                    <div key={idx} className="gps-dropzone-file-item">
+                    <div key={`uploading-1-${file.name || file.id || idx}`} className="gps-dropzone-file-item">
                       <span className="gps-dropzone-file-name">{file.name}</span>
                       <div className="gps-dropzone-file-status">
                         {file.error && <span className="gps-dropzone-file-error">{file.error}</span>}
@@ -572,7 +572,7 @@ function FileDropzone({ onFileDrop, onBatchFileDrop, onFilesChange, acceptedFile
             {multiple && uploadingFiles.length > 0 && (
               <div className="gps-dropzone-file-list">
                 {uploadingFiles.map((file, idx) => (
-                  <div key={idx} className="gps-dropzone-file-item">
+                  <div key={`uploading-2-${file.name || file.id || idx}`} className="gps-dropzone-file-item">
                     <span className="gps-dropzone-file-name">{file.name}</span>
                     <div className="gps-dropzone-file-status">
                       {file.error && <span className="gps-dropzone-file-error">{file.error}</span>}
@@ -590,7 +590,7 @@ function FileDropzone({ onFileDrop, onBatchFileDrop, onFilesChange, acceptedFile
             {multiple && uploadingFiles.length > 0 && (
               <div className="gps-dropzone-file-list">
                 {uploadingFiles.map((file, idx) => (
-                  <div key={idx} className="gps-dropzone-file-item">
+                  <div key={`uploading-3-${file.name || file.id || idx}`} className="gps-dropzone-file-item">
                     <span className="gps-dropzone-file-name">{file.name}</span>
                     <div className="gps-dropzone-file-status">
                       {file.error && <span className="gps-dropzone-file-error">{file.error}</span>}
@@ -609,7 +609,7 @@ function FileDropzone({ onFileDrop, onBatchFileDrop, onFilesChange, acceptedFile
                 <p>Processing {uploadingFiles.length} file(s)...</p>
                 <div className="gps-dropzone-file-list">
                   {uploadingFiles.map((file, idx) => (
-                    <div key={idx} className="gps-dropzone-file-item">
+                    <div key={`uploading-4-${file.name || file.id || idx}`} className="gps-dropzone-file-item">
                       <span className="gps-dropzone-file-name">{file.name}</span>
                       <div className="gps-dropzone-file-status">
                         {file.status === 'scanning' && (

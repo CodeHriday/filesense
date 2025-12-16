@@ -1852,7 +1852,7 @@ function FileUpload() {
                       const dataType = col.data_type || col.type;
                       
                       return (
-                        <span key={idx} className="agreement-column-chip">
+                        <span key={`agreement-col-${columnName || idx}`} className="agreement-column-chip">
                           {columnName} <span className="data-type">({dataType})</span>
                         </span>
                       );
@@ -1951,7 +1951,7 @@ function FileUpload() {
                       </div>
                       <div className="fixed-width-columns-scroll">
                         {fixedWidthSchema.map((column, index) => (
-                          <div key={index} className="fixed-width-column-row">
+                          <div key={`fixed-width-${column.name || column.field || index}`} className="fixed-width-column-row">
                             <input 
                               type="text"
                               value={column.name}
@@ -2147,7 +2147,7 @@ function FileUpload() {
               </div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
                 {filenameValidationError.expectedPatterns?.map((pattern, idx) => (
-                  <code key={idx} style={{ 
+                  <code key={`filename-pattern-${pattern}-${idx}`} style={{ 
                     background: '#d1fae5', 
                     padding: '2px 8px', 
                     borderRadius: '3px',
@@ -2257,7 +2257,7 @@ function FileUpload() {
                 </div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
                   {validationError.details.expectedPatterns.map((pattern, idx) => (
-                    <code key={idx} style={{ 
+                    <code key={`validation-pattern-${pattern}-${idx}`} style={{ 
                       background: '#d1fae5', 
                       padding: '2px 8px', 
                       borderRadius: '3px',
@@ -2307,7 +2307,7 @@ function FileUpload() {
                     </div>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
                       {validationError.details.missingColumns.map((col, idx) => (
-                        <code key={idx} style={{ 
+                        <code key={`missing-col-${col}-${idx}`} style={{ 
                           background: '#fee2e2', 
                           padding: '2px 6px', 
                           borderRadius: '3px',
@@ -2335,7 +2335,7 @@ function FileUpload() {
                     </div>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
                       {validationError.details.extraColumns.map((col, idx) => (
-                        <code key={idx} style={{ 
+                        <code key={`extra-col-${col}-${idx}`} style={{ 
                           background: '#fef3c7', 
                           padding: '2px 6px', 
                           borderRadius: '3px',
@@ -2363,7 +2363,7 @@ function FileUpload() {
                     </div>
                     <ul style={{ margin: 0, paddingLeft: '16px', color: '#78350f', fontSize: '10px', lineHeight: '1.5' }}>
                       {validationError.details.warnings.map((warning, idx) => (
-                        <li key={idx} style={{ marginBottom: '2px' }}>{warning}</li>
+                        <li key={`warning-${warning.substring(0, 20)}-${idx}`} style={{ marginBottom: '2px' }}>{warning}</li>
                       ))}
                     </ul>
                   </div>
@@ -2551,7 +2551,7 @@ function FileUpload() {
               marginBottom: '1.5rem'
             }}>
               {batchResults.results.map((result, index) => (
-                <div key={index} style={{
+                <div key={`batch-result-${result.fileName || result.id || index}`} style={{
                   display: 'flex',
                   alignItems: 'center',
                   padding: '0.5rem',

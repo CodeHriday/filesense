@@ -1204,7 +1204,7 @@ const IncidentIntegration = ({
                         <div className="links-list">
                           {selectedIncident.externalLinks.map((link, index) => (
                             <a
-                              key={index}
+                              key={`link-${link.url || link.title || index}`}
                               href={link.url}
                               target="_blank"
                               rel="noopener noreferrer"
@@ -1223,7 +1223,7 @@ const IncidentIntegration = ({
                         <h3 className="section-title">Timeline</h3>
                         <div className="timeline-events">
                           {selectedIncident.timeline.map((event, index) => (
-                            <div key={index} className="timeline-event">
+                            <div key={`event-${event.timestamp || event.id || index}`} className="timeline-event">
                               <div className="event-time">
                                 {formatDateTime(event.timestamp)}
                               </div>
