@@ -353,8 +353,9 @@ const RdmLookupStep = ({
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.5rem' }}>
           <div style={{ marginBottom: 0 }}>
-            <label style={{ fontSize: '10px', fontFamily: 'Inter', fontWeight: '500', display: 'block', marginBottom: '0.25rem' }}>Reference Dataset</label>
+            <label htmlFor="referenceDataset" style={{ fontSize: '10px', fontFamily: 'Inter', fontWeight: '500', display: 'block', marginBottom: '0.25rem' }}>Reference Dataset</label>
             <select
+              id="referenceDataset"
               style={{ 
                 width: '100%', 
                 padding: '0.25rem', 
@@ -377,8 +378,9 @@ const RdmLookupStep = ({
           </div>
 
           <div style={{ marginBottom: 0 }}>
-            <label style={{ fontSize: '10px', fontFamily: 'Inter', fontWeight: '500', display: 'block', marginBottom: '0.25rem' }}>Join Type</label>
+            <label htmlFor="joinType" style={{ fontSize: '10px', fontFamily: 'Inter', fontWeight: '500', display: 'block', marginBottom: '0.25rem' }}>Join Type</label>
             <select
+              id="joinType"
               style={{ 
                 width: '100%', 
                 padding: '0.25rem', 
@@ -414,8 +416,9 @@ const RdmLookupStep = ({
           {joinConditions.map((condition, idx) => (
             <div key={idx} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: '0.5rem', marginBottom: '0.5rem' }}>
               <div style={{ marginBottom: 0 }}>
-                <label style={{ fontSize: '10px', fontFamily: 'Inter', fontWeight: '500', display: 'block', marginBottom: '0.25rem' }}>Dataset Column (Reference Data)</label>
+                <label htmlFor={`datasetColumn-${idx}`} style={{ fontSize: '10px', fontFamily: 'Inter', fontWeight: '500', display: 'block', marginBottom: '0.25rem' }}>Dataset Column (Reference Data)</label>
                 <select
+                  id={`datasetColumn-${idx}`}
                   style={{ 
                     width: '100%', 
                     padding: '0.25rem', 
@@ -437,8 +440,9 @@ const RdmLookupStep = ({
               </div>
               
               <div style={{ marginBottom: 0 }}>
-                <label style={{ fontSize: '10px', fontFamily: 'Inter', fontWeight: '500', display: 'block', marginBottom: '0.25rem' }}>Source Column (Your Data)</label>
+                <label htmlFor={`sourceColumn-${idx}`} style={{ fontSize: '10px', fontFamily: 'Inter', fontWeight: '500', display: 'block', marginBottom: '0.25rem' }}>Source Column (Your Data)</label>
                 <select
+                  id={`sourceColumn-${idx}`}
                   style={{ 
                     width: '100%', 
                     padding: '0.25rem', 

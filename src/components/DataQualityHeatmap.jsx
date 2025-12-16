@@ -299,8 +299,9 @@ const DataQualityHeatmap = ({
         <div className="filter-panel">
           <div className="filter-controls">
             <div className="filter-item">
-              <label>Filename</label>
+              <label htmlFor="filenameFilter">Filename</label>
               <input 
+                id="filenameFilter"
                 type="text" 
                 placeholder="Filter by name..."
                 value={filters.filename || ''}
@@ -309,8 +310,9 @@ const DataQualityHeatmap = ({
             </div>
             
             <div className="filter-item">
-              <label>File Type</label>
+              <label htmlFor="fileTypeFilter">File Type</label>
               <select
+                id="fileTypeFilter"
                 value={filters.file_type || ''}
                 onChange={(e) => handleFilterChange('file_type', e.target.value)}
               >
@@ -322,9 +324,10 @@ const DataQualityHeatmap = ({
             </div>
             
             <div className="filter-item">
-              <label>Quality Score</label>
+              <label htmlFor="qualityScoreMinFilter">Quality Score</label>
               <div className="filter-range">
                 <input 
+                  id="qualityScoreMinFilter"
                   type="number" 
                   min="0" 
                   max="100" 
@@ -337,6 +340,7 @@ const DataQualityHeatmap = ({
                 />
                 <span>to</span>
                 <input 
+                  id="qualityScoreMaxFilter"
                   type="number" 
                   min="0" 
                   max="100" 

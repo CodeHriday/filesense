@@ -289,8 +289,9 @@ const TargetRulesModal = ({ isOpen, onClose, onSave, initialConfig = {}, project
           <h3 className="vm-section-title">Anomaly Detection</h3>
           
           <div className="vm-form-group">
-            <label className="vm-checkbox-label">
+            <label htmlFor="anomaly-detection-checkbox" className="vm-checkbox-label">
               <input
+                id="anomaly-detection-checkbox"
                 type="checkbox"
                 checked={anomalyDetection}
                 onChange={(e) => setAnomalyDetection(e.target.checked)}

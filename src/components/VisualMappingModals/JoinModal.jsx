@@ -325,7 +325,9 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
                       {joinKeys.map((key, index) => (
                         <tr key={index}>
                           <td>
+                            <label htmlFor={`leftColumn-${index}`} className="sr-only">Left Column {index + 1}</label>
                             <select
+                              id={`leftColumn-${index}`}
                               className="vm-select"
                               value={key.leftColumn}
                               onChange={(e) => updateJoinKey(index, 'leftColumn', e.target.value)}
@@ -337,7 +339,9 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
                             </select>
                           </td>
                           <td>
+                            <label htmlFor={`operator-${index}`} className="sr-only">Operator {index + 1}</label>
                             <select
+                              id={`operator-${index}`}
                               className="vm-select"
                               value={key.operator}
                               onChange={(e) => updateJoinKey(index, 'operator', e.target.value)}
@@ -351,7 +355,9 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
                             </select>
                           </td>
                           <td>
+                            <label htmlFor={`rightColumn-${index}`} className="sr-only">Right Column {index + 1}</label>
                             <select
+                              id={`rightColumn-${index}`}
                               className="vm-select"
                               value={key.rightColumn}
                               onChange={(e) => updateJoinKey(index, 'rightColumn', e.target.value)}
@@ -487,7 +493,9 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
                     {columnMappings.map((mapping, index) => (
                       <tr key={index}>
                         <td>
+                          <label htmlFor={`sourceSide-${index}`} className="sr-only">Source Side {index + 1}</label>
                           <select
+                            id={`sourceSide-${index}`}
                             className="vm-select"
                             value={mapping.sourceSide}
                             onChange={(e) => updateColumnMapping(index, 'sourceSide', e.target.value)}
@@ -497,7 +505,9 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
                           </select>
                         </td>
                         <td>
+                          <label htmlFor={`sourceColumn-mapping-${index}`} className="sr-only">Source Column {index + 1}</label>
                           <select
+                            id={`sourceColumn-mapping-${index}`}
                             className="vm-select"
                             value={mapping.sourceColumn}
                             onChange={(e) => updateColumnMapping(index, 'sourceColumn', e.target.value)}
@@ -513,7 +523,9 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
                           </select>
                         </td>
                         <td>
+                          <label htmlFor={`outputColumn-${index}`} className="sr-only">Output Column Name {index + 1}</label>
                           <input
+                            id={`outputColumn-${index}`}
                             type="text"
                             className="vm-input"
                             value={mapping.outputColumn}
@@ -522,7 +534,9 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
                           />
                         </td>
                         <td style={{ textAlign: 'center' }}>
+                          <label htmlFor={`includeColumn-${index}`} className="sr-only">Include Column {index + 1}</label>
                           <input
+                            id={`includeColumn-${index}`}
                             type="checkbox"
                             checked={mapping.include}
                             onChange={(e) => updateColumnMapping(index, 'include', e.target.checked)}

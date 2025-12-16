@@ -104,8 +104,9 @@ function EditSubProjectModal({ show, onClose, projectId, subProject, onUpdate })
             {activeTab === 'details' && (
               <form onSubmit={handleSave} style={{ padding: '1rem 1.5rem' }}>
                 <div className="form-group">
-                  <label>Sub-Project Name *</label>
+                  <label htmlFor="subProjectName">Sub-Project Name *</label>
                   <input
+                    id="subProjectName"
                     type="text"
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
@@ -114,8 +115,9 @@ function EditSubProjectModal({ show, onClose, projectId, subProject, onUpdate })
                   />
                 </div>
                 <div className="form-group">
-                  <label>Description</label>
+                  <label htmlFor="subProjectDescription">Description</label>
                   <textarea
+                    id="subProjectDescription"
                     value={formData.description}
                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                     rows="4"
@@ -123,8 +125,9 @@ function EditSubProjectModal({ show, onClose, projectId, subProject, onUpdate })
                   />
                 </div>
                 <div className="form-group">
-                  <label className="checkbox-label">
+                  <label htmlFor="subProjectActive" className="checkbox-label">
                     <input
+                      id="subProjectActive"
                       type="checkbox"
                       checked={formData.is_active}
                       onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}

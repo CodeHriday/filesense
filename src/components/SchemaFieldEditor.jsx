@@ -153,7 +153,7 @@ function SchemaFieldEditor({ value, onChange, fileType, hasHeader, onHasHeaderCh
       <div className="editor-header">
         <div className="editor-title-row">
           <FiFileText className="editor-icon" />
-          <label>Schema Fields</label>
+          <label htmlFor="schemaFields">Schema Fields</label>
         </div>
         <button
           type="button"
@@ -209,7 +209,7 @@ function SchemaFieldEditor({ value, onChange, fileType, hasHeader, onHasHeaderCh
         </div>
       ) : (
         <div className="fields-table-container">
-          <div className="fields-table">
+          <div id="schemaFields" className="fields-table">
             <table>
               <thead>
                 <tr>
@@ -230,7 +230,9 @@ function SchemaFieldEditor({ value, onChange, fileType, hasHeader, onHasHeaderCh
               {fields.map((field, index) => (
                 <tr key={index}>
                   <td>
+                    <label htmlFor={`fieldName-${index}`} className="sr-only">Field Name {index + 1}</label>
                     <input
+                      id={`fieldName-${index}`}
                       type="text"
                       value={field.name}
                       onChange={(e) => handleFieldChange(index, 'name', e.target.value)}
@@ -239,7 +241,9 @@ function SchemaFieldEditor({ value, onChange, fileType, hasHeader, onHasHeaderCh
                     />
                   </td>
                   <td>
+                    <label htmlFor={`fieldType-${index}`} className="sr-only">Field Type {index + 1}</label>
                     <select
+                      id={`fieldType-${index}`}
                       value={field.type}
                       onChange={(e) => handleFieldChange(index, 'type', e.target.value)}
                       className="field-select"
@@ -250,7 +254,9 @@ function SchemaFieldEditor({ value, onChange, fileType, hasHeader, onHasHeaderCh
                     </select>
                   </td>
                   <td>
+                    <label htmlFor={`fieldWidth-${index}`} className="sr-only">Field Width {index + 1}</label>
                     <input
+                      id={`fieldWidth-${index}`}
                       type="number"
                       value={field.width || ''}
                       onChange={(e) => handleFieldChange(index, 'width', e.target.value)}
@@ -260,7 +266,9 @@ function SchemaFieldEditor({ value, onChange, fileType, hasHeader, onHasHeaderCh
                     />
                   </td>
                   <td>
+                    <label htmlFor={`fieldStartPos-${index}`} className="sr-only">Start Position {index + 1}</label>
                     <input
+                      id={`fieldStartPos-${index}`}
                       type="number"
                       value={field.start_position || ''}
                       onChange={(e) => handleFieldChange(index, 'start_position', e.target.value)}
@@ -270,7 +278,9 @@ function SchemaFieldEditor({ value, onChange, fileType, hasHeader, onHasHeaderCh
                     />
                   </td>
                   <td>
+                    <label htmlFor={`fieldPrecision-${index}`} className="sr-only">Precision {index + 1}</label>
                     <input
+                      id={`fieldPrecision-${index}`}
                       type="number"
                       value={field.precision || ''}
                       onChange={(e) => handleFieldChange(index, 'precision', e.target.value)}
@@ -280,7 +290,9 @@ function SchemaFieldEditor({ value, onChange, fileType, hasHeader, onHasHeaderCh
                     />
                   </td>
                   <td>
+                    <label htmlFor={`fieldScale-${index}`} className="sr-only">Scale {index + 1}</label>
                     <input
+                      id={`fieldScale-${index}`}
                       type="number"
                       value={field.scale || ''}
                       onChange={(e) => handleFieldChange(index, 'scale', e.target.value)}
@@ -290,8 +302,9 @@ function SchemaFieldEditor({ value, onChange, fileType, hasHeader, onHasHeaderCh
                     />
                   </td>
                   <td className="nullable-cell">
-                    <label className="nullable-checkbox">
+                    <label htmlFor={`fieldNullable-${index}`} className="nullable-checkbox">
                       <input
+                        id={`fieldNullable-${index}`}
                         type="checkbox"
                         checked={field.nullable !== false}
                         onChange={(e) => handleFieldChange(index, 'nullable', e.target.checked)}
@@ -300,8 +313,9 @@ function SchemaFieldEditor({ value, onChange, fileType, hasHeader, onHasHeaderCh
                     </label>
                   </td>
                   <td className="pii-cell">
-                    <label className="pii-checkbox">
+                    <label htmlFor={`fieldPii-${index}`} className="pii-checkbox">
                       <input
+                        id={`fieldPii-${index}`}
                         type="checkbox"
                         checked={field.pii}
                         onChange={(e) => handleFieldChange(index, 'pii', e.target.checked)}
@@ -312,7 +326,9 @@ function SchemaFieldEditor({ value, onChange, fileType, hasHeader, onHasHeaderCh
                     </label>
                   </td>
                   <td>
+                    <label htmlFor={`fieldDescription-${index}`} className="sr-only">Description {index + 1}</label>
                     <input
+                      id={`fieldDescription-${index}`}
                       type="text"
                       value={field.description}
                       onChange={(e) => handleFieldChange(index, 'description', e.target.value)}

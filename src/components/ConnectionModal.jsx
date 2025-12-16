@@ -750,8 +750,9 @@ const ConnectionModal = ({
         return (
           <>
             <div style={compactStyles.formGroup}>
-              <label style={compactStyles.label}>AWS Region</label>
+              <label htmlFor="region" style={compactStyles.label}>AWS Region</label>
               <input
+                id="region"
                 type="text"
                 name="region"
                 value={formData.region}

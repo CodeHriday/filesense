@@ -906,11 +906,12 @@ const IncidentIntegration = ({
                     >
                       <div className="trigger-conditions-form">
                         <div className="form-group">
-                          <label>Severity Levels</label>
-                          <div className="checkbox-group">
+                          <label htmlFor="severityLevels">Severity Levels</label>
+                          <div id="severityLevels" className="checkbox-group">
                             {['critical', 'high', 'medium', 'low'].map(severity => (
-                              <label key={severity} className="checkbox-label">
+                              <label key={severity} htmlFor={`severity-${severity}`} className="checkbox-label">
                                 <input
+                                  id={`severity-${severity}`}
                                   type="checkbox"
                                   checked={editingIntegration !== null
                                     ? integrations[editingIntegration].triggerConditions.severity?.includes(severity)
@@ -945,11 +946,12 @@ const IncidentIntegration = ({
                         </div>
                         
                         <div className="form-group">
-                          <label>Metric Types</label>
-                          <div className="checkbox-group">
+                          <label htmlFor="metricTypes">Metric Types</label>
+                          <div id="metricTypes" className="checkbox-group">
                             {['completeness', 'accuracy', 'consistency', 'timeliness', 'uniqueness'].map(metric => (
-                              <label key={metric} className="checkbox-label">
+                              <label key={metric} htmlFor={`metric-${metric}`} className="checkbox-label">
                                 <input
+                                  id={`metric-${metric}`}
                                   type="checkbox"
                                   checked={editingIntegration !== null
                                     ? integrations[editingIntegration].triggerConditions.metricTypes?.includes(metric)
@@ -1056,7 +1058,9 @@ const IncidentIntegration = ({
           <>
             <div className="incidents-toolbar">
               <div className="search-container">
+                <label htmlFor="incidentSearch" className="sr-only">Search incidents</label>
                 <input
+                  id="incidentSearch"
                   type="text"
                   placeholder="Search incidents..."
                   value={searchTerm}
@@ -1077,8 +1081,9 @@ const IncidentIntegration = ({
                 <div className="filter-options">
                   <label className="filter-label">Severity:</label>
                   {['critical', 'high', 'medium', 'low'].map(severity => (
-                    <label key={severity} className="filter-checkbox">
+                    <label key={severity} htmlFor={`filter-${severity}`} className="filter-checkbox">
                       <input
+                        id={`filter-${severity}`}
                         type="checkbox"
                         checked={filterBySeverity.includes(severity)}
                         onChange={(e) => {
