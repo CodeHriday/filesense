@@ -998,6 +998,7 @@ const WorkflowBuilderContent = () => {
               <button 
                 className="workflow-builder-close-btn"
                 onClick={() => setShowPalette(false)}
+                aria-label="Close asset palette"
               >
                 ×
               </button>
@@ -1234,6 +1235,7 @@ const WorkflowBuilderContent = () => {
               <button 
                 className="workflow-builder-close-btn"
                 onClick={() => setShowConfig(false)}
+                aria-label="Close configuration panel"
               >
                 ×
               </button>
@@ -1344,6 +1346,10 @@ const WorkflowBuilderContent = () => {
         {showConsole && (
           <div 
             className="workflow-builder-console-resize-handle"
+            role="separator"
+            aria-orientation="horizontal"
+            aria-label="Resize console panel"
+            tabIndex="0"
             onMouseDown={handleConsoleResizeStart}
             title="Drag to resize"
           />
@@ -1374,6 +1380,7 @@ const WorkflowBuilderContent = () => {
                 e.stopPropagation();
                 setExecutionRuns([]);
               }}
+              aria-label="Clear console logs"
               title="Clear console"
             >
               Clear
@@ -1434,9 +1441,6 @@ const WorkflowBuilderContent = () => {
                 setShowScheduleModal(false);
               }
             }}
-            role="button"
-            tabIndex="0"
-            aria-label="Close modal by clicking outside"
             onKeyDown={(e) => {
               if (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault();

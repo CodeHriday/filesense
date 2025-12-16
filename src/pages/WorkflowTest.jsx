@@ -134,6 +134,9 @@ function WorkflowTest() {
         </div>
         <div
           draggable
+          role="button"
+          tabIndex="0"
+          aria-label="Draggable test element - drag to canvas to create a node"
           onDragStart={(e) => e.dataTransfer.effectAllowed = 'move'}
           style={{
             padding: '10px',

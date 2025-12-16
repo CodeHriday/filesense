@@ -1445,7 +1445,7 @@ const VisualMappingCanvasContent = () => {
           <div className="vm-modal" style={{ maxWidth: '450px' }}>
             <div className="vm-modal-header">
               <h2>Unsaved Changes</h2>
-              <button className="vm-modal-close" onClick={() => setShowCloseConfirm(false)}>×</button>
+              <button className="vm-modal-close" onClick={() => setShowCloseConfirm(false)} aria-label="Close confirmation dialog">×</button>
             </div>
             <div className="vm-modal-body">
               <p style={{ fontFamily: 'Inter', fontSize: '12px', margin: 0 }}>You have unsaved changes. Do you want to save before closing?</p>
@@ -1486,7 +1486,7 @@ const VisualMappingCanvasContent = () => {
               e.stopPropagation();
               setShowValidationErrors(false);
               setValidationErrors([]);
-            }}>×</button>
+            }} aria-label="Close validation errors panel">×</button>
           </div>
           <div className="visual-mapping-validation-errors">
             <ul>
@@ -1517,6 +1517,10 @@ const VisualMappingCanvasContent = () => {
             <div className="visual-mapping-sidebar-section">
               <div 
                 className="visual-mapping-sidebar-header" 
+                role="button"
+                tabIndex="0"
+                aria-expanded={showMappingDetails}
+                aria-label={`${showMappingDetails ? 'Collapse' : 'Expand'} mapping details section`}
                 onClick={() => setShowMappingDetails(!showMappingDetails)}
               >
                 <h3>Mapping Details</h3>
@@ -1584,6 +1588,10 @@ const VisualMappingCanvasContent = () => {
             <div className="visual-mapping-sidebar-section">
               <div 
                 className="visual-mapping-sidebar-header" 
+                role="button"
+                tabIndex="0"
+                aria-expanded={showNotificationSettings}
+                aria-label={`${showNotificationSettings ? 'Collapse' : 'Expand'} notification settings section`}
                 onClick={() => setShowNotificationSettings(!showNotificationSettings)}
               >
                 <h3>Notification Settings</h3>
@@ -1688,6 +1696,10 @@ const VisualMappingCanvasContent = () => {
             <div className="visual-mapping-sidebar-section">
               <div 
                 className="visual-mapping-sidebar-header" 
+                role="button"
+                tabIndex="0"
+                aria-expanded={showComponents}
+                aria-label={`${showComponents ? 'Collapse' : 'Expand'} mapping components section`}
                 onClick={() => setShowComponents(!showComponents)}
               >
                 <h3>Mapping Components</h3>
@@ -1966,6 +1978,10 @@ const VisualMappingCanvasContent = () => {
         >
           <div 
             className="visual-mapping-console-resize-handle"
+            role="separator"
+            aria-orientation="horizontal"
+            aria-label="Resize console panel"
+            tabIndex="0"
             onMouseDown={handleConsoleResizeStart}
             title="Drag to resize"
           />
@@ -1981,6 +1997,7 @@ const VisualMappingCanvasContent = () => {
               <button 
                 className="visual-mapping-console-btn"
                 onClick={clearLogs}
+                aria-label="Clear execution logs"
                 title="Clear logs"
               >
                 Clear
@@ -1988,6 +2005,7 @@ const VisualMappingCanvasContent = () => {
               <button 
                 className="visual-mapping-console-btn visual-mapping-console-close"
                 onClick={() => setShowConsole(false)}
+                aria-label="Close console panel"
                 title="Close console"
               >
                 ×
