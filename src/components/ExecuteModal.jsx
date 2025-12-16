@@ -1,6 +1,7 @@
 import React from 'react';
 import { FiCheckCircle, FiXCircle, FiX } from 'react-icons/fi';
 import './styles/Modal.css';
+import PropTypes from 'prop-types';
 
 const ExecuteModal = ({ isOpen, onClose, success, message, groupName }) => {
   if (!isOpen) return null;
@@ -35,5 +36,11 @@ const ExecuteModal = ({ isOpen, onClose, success, message, groupName }) => {
     </div>
   );
 };
-
+ExecuteModal.propTypes = {
+  isOpen: PropTypes.bool.isRequired,
+  onClose: PropTypes.func.isRequired,
+  success: PropTypes.bool.isRequired,
+  message: PropTypes.string.isRequired,
+  groupName: PropTypes.string
+};
 export default ExecuteModal;

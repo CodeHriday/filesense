@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import SubProjectMemberManagement from './SubProjectMemberManagement';
 import './EditSubProjectModal.css';
+import PropTypes from 'prop-types';
 
 function EditSubProjectModal({ show, onClose, projectId, subProject, onUpdate }) {
   const [activeTab, setActiveTab] = useState('details');
@@ -187,5 +188,16 @@ function EditSubProjectModal({ show, onClose, projectId, subProject, onUpdate })
     </div>
   );
 }
-
+EditSubProjectModal.propTypes = {
+  show: PropTypes.bool.isRequired,
+  onClose: PropTypes.func.isRequired,
+  projectId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
+  subProject: PropTypes.shape({
+    id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
+    name: PropTypes.string,
+    description: PropTypes.string,
+    is_active: PropTypes.bool
+  }),
+  onUpdate: PropTypes.func
+};
 export default EditSubProjectModal;

@@ -3,6 +3,7 @@ import { FiPlus, FiEdit2, FiTrash2, FiSave, FiX, FiFileText, FiShield, FiCheckCi
 import axios from 'axios';
 import SchemaFieldEditor from './SchemaFieldEditor';
 import './FileConfigurationsSection.css';
+import PropTypes from 'prop-types';
 
 function FileConfigurationsSection({ fileConfigurations, onChange }) {
   const [showAddForm, setShowAddForm] = useState(false);
@@ -1066,5 +1067,30 @@ function FileConfigurationsSection({ fileConfigurations, onChange }) {
     </div>
   );
 }
-
+FileConfigurationsSection.propTypes = {
+  fileConfigurations: PropTypes.arrayOf(
+    PropTypes.shape({
+      file_name_pattern: PropTypes.string,
+      file_name_pattern_base: PropTypes.string,
+      file_type: PropTypes.string,
+      file_description: PropTypes.string,
+      schema: PropTypes.oneOfType([
+        PropTypes.array,
+        PropTypes.object,
+        PropTypes.string
+      ]),
+      is_active: PropTypes.bool,
+      contains_pii: PropTypes.bool,
+      data_classification: PropTypes.string,
+      quality_rule_ids: PropTypes.arrayOf(PropTypes.number),
+      quality_rule_assignments: PropTypes.object,
+      archive_password: PropTypes.string,
+      has_archive_password: PropTypes.bool,
+      has_header: PropTypes.bool,
+      header_definition: PropTypes.array,
+      priority: PropTypes.number
+    })
+  ).isRequired,
+  onChange: PropTypes.func.isRequired
+};
 export default FileConfigurationsSection;

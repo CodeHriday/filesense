@@ -2,6 +2,7 @@ import React, { useCallback, useState, useEffect } from 'react';
 import { flushSync } from 'react-dom';
 import { FiUpload, FiFile, FiCheckCircle, FiAlertCircle, FiLoader } from 'react-icons/fi';
 import './FileDropzone.css';
+import PropTypes from 'prop-types';
 
 function FileDropzone({ onFileDrop, onBatchFileDrop, onFilesChange, acceptedFileTypes = ['.csv', '.json', '.parquet'], maxSizeMB = 500, multiple = false, virusScan = null, externalStatus = null }) {
   const [isDragging, setIsDragging] = useState(false);
@@ -693,5 +694,35 @@ function FileDropzone({ onFileDrop, onBatchFileDrop, onFilesChange, acceptedFile
     </div>
   );
 }
+FileDropzone.propTypes = {
+  onFileDrop: PropTypes.func.isRequired,
+  onBatchFileDrop: PropTypes.func,
+  onFilesChange: PropTypes.func,
+  acceptedFileTypes: PropTypes.arrayOf(PropTypes.string),
+  maxSizeMB: PropTypes.number,
+  multiple: PropTypes.bool,
+  virusScan: PropTypes.shape({
+    clean: PropTypes.bool,
+    skipped: PropTypes.bool,
+    message: PropTypes.string
+  }),
+  externalStatus: PropTypes.oneOf([
+    'checking',
+    'uploading',
+    'success',
+    'error',
+    'partial'
+  ])
+};
+
+FileDropzone.defaultProps = {
+  acceptedFileTypes: ['.csv', '.json', '.parquet'],
+  maxSizeMB: 500,
+  multiple: false,
+  virusScan: null,
+  externalStatus: null,
+  onBatchFileDrop: null,
+  onFilesChange: null
+};
 
 export default FileDropzone;

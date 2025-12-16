@@ -1,5 +1,6 @@
 import React from 'react';
 import './LoadingSkeleton.css';
+import PropTypes from 'prop-types';
 
 /**
  * Generic skeleton loading component for various UI elements
@@ -48,6 +49,33 @@ const LoadingSkeleton = ({
     </div>
   );
 };
+LoadingSkeleton.propTypes = {
+  type: PropTypes.oneOf([
+    'rectangle',
+    'text',
+    'circle',
+    'line',
+    'bar',
+    'pie'
+  ]),
+  width: PropTypes.oneOfType([
+    PropTypes.string,
+    PropTypes.number
+  ]),
+  height: PropTypes.oneOfType([
+    PropTypes.string,
+    PropTypes.number
+  ]),
+  borderRadius: PropTypes.oneOfType([
+    PropTypes.string,
+    PropTypes.number
+  ]),
+  count: PropTypes.number,
+  className: PropTypes.string,
+  animated: PropTypes.bool,
+  inline: PropTypes.bool,
+  style: PropTypes.object
+};
 
 /**
  * Text skeleton for paragraph and text content
@@ -89,6 +117,12 @@ export const TextSkeleton = ({
       {generateLines()}
     </div>
   );
+};
+TextSkeleton.propTypes = {
+  lines: PropTypes.number,
+  lastLineWidth: PropTypes.number,
+  className: PropTypes.string,
+  style: PropTypes.object
 };
 
 /**
@@ -156,6 +190,16 @@ export const CardSkeleton = ({
       )}
     </div>
   );
+};
+CardSkeleton.propTypes = {
+  hasHeader: PropTypes.bool,
+  hasFooter: PropTypes.bool,
+  contentHeight: PropTypes.oneOfType([
+    PropTypes.string,
+    PropTypes.number
+  ]),
+  className: PropTypes.string,
+  style: PropTypes.object
 };
 
 /**
@@ -253,6 +297,19 @@ export const ChartSkeleton = ({
     </div>
   );
 };
+ChartSkeleton.propTypes = {
+  type: PropTypes.oneOf(['bar', 'line', 'pie']),
+  className: PropTypes.string,
+  height: PropTypes.oneOfType([
+    PropTypes.string,
+    PropTypes.number
+  ]),
+  width: PropTypes.oneOfType([
+    PropTypes.string,
+    PropTypes.number
+  ]),
+  style: PropTypes.object
+};
 
 /**
  * Dashboard insight skeleton for the data insights section
@@ -308,6 +365,9 @@ export const InsightSkeleton = ({ count = 3 }) => {
     </div>
   );
 };
+InsightSkeleton.propTypes = {
+  count: PropTypes.number
+};
 
 /**
  * Table skeleton for data grids and tables
@@ -355,6 +415,13 @@ export const TableSkeleton = ({
     </div>
   );
 };
+TableSkeleton.propTypes = {
+  rows: PropTypes.number,
+  columns: PropTypes.number,
+  hasHeader: PropTypes.bool,
+  className: PropTypes.string,
+  style: PropTypes.object
+};
 
 /**
  * Dashboard skeleton for the main dashboard
@@ -396,5 +463,6 @@ export const DashboardSkeleton = () => {
     </div>
   );
 };
+DashboardSkeleton.propTypes = {};
 
 export default LoadingSkeleton;

@@ -1,6 +1,7 @@
 import React from 'react';
 import { FiAlertTriangle, FiX } from 'react-icons/fi';
 import './DuplicateFileModal.css';
+import PropTypes from 'prop-types';
 
 const DuplicateFileModal = ({ existingFile, onReplace, onKeepBoth, onCancel }) => {
   const formatFileSize = (bytes) => {
@@ -71,5 +72,17 @@ const DuplicateFileModal = ({ existingFile, onReplace, onKeepBoth, onCancel }) =
     </div>
   );
 };
-
+DuplicateFileModal.propTypes = {
+  existingFile: PropTypes.shape({
+    filename: PropTypes.string.isRequired,
+    fileSize: PropTypes.number.isRequired,
+    uploadedAt: PropTypes.oneOfType([
+      PropTypes.string,
+      PropTypes.instanceOf(Date)
+    ]).isRequired
+  }).isRequired,
+  onReplace: PropTypes.func.isRequired,
+  onKeepBoth: PropTypes.func.isRequired,
+  onCancel: PropTypes.func.isRequired
+};
 export default DuplicateFileModal;

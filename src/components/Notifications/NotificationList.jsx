@@ -48,16 +48,8 @@ const Notification = ({ notification, onClose }) => {
     </div>
   );
 };
-import PropTypes from 'prop-types';
 
-NotificationModal.propTypes = {
-  isOpen: PropTypes.bool.isRequired,
-  onClose: PropTypes.func.isRequired,
-  type: PropTypes.oneOf(['success', 'error']),
-  title: PropTypes.string,
-  message: PropTypes.string.isRequired,
-  autoClose: PropTypes.bool,
-  autoCloseDelay: PropTypes.number
-};
+
+
 
 export default NotificationList;

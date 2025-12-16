@@ -3,6 +3,7 @@ import { FiEye, FiArrowRight, FiGitMerge, FiShield, FiTrash2 } from 'react-icons
 import TransformationDetailsPanel from './TransformationDetailsPanel';
 import { bulkDeleteLineage } from '../api/lineageService';
 import './LineageTable.css';
+import PropTypes from 'prop-types';
 
 function LineageTable({ lineages, onDataChange }) {
   const [selectedLineage, setSelectedLineage] = useState(null);
@@ -279,5 +280,50 @@ function LineageTable({ lineages, onDataChange }) {
     </>
   );
 }
+
+
+LineageTable.propTypes = {
+  lineages: PropTypes.shape({
+    manual_lineage: PropTypes.arrayOf(
+      PropTypes.shape({
+        id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
+        source_filename: PropTypes.string,
+        target_filename: PropTypes.string,
+        source_file_type: PropTypes.string,
+        target_file_type: PropTypes.string,
+        source_owner: PropTypes.string,
+        target_owner: PropTypes.string,
+        agreement_name: PropTypes.string,
+        source_agreement_name: PropTypes.string,
+        target_agreement_name: PropTypes.string,
+        pii_column_count: PropTypes.number,
+        pii_types: PropTypes.arrayOf(PropTypes.string),
+        created_at: PropTypes.string
+      })
+    ),
+    transformation_lineage: PropTypes.arrayOf(
+      PropTypes.shape({
+        id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
+        source_filename: PropTypes.string,
+        target_filename: PropTypes.string,
+        source_pattern: PropTypes.string,
+        source_file_pattern: PropTypes.string,
+        target_pattern: PropTypes.string,
+        target_file_name: PropTypes.string,
+        target_file_format: PropTypes.string,
+        mapping_name: PropTypes.string,
+        source_owner: PropTypes.string,
+        target_owner: PropTypes.string,
+        agreement_name: PropTypes.string,
+        source_agreement_name: PropTypes.string,
+        target_agreement_name: PropTypes.string,
+        pii_column_count: PropTypes.number,
+        pii_types: PropTypes.arrayOf(PropTypes.string),
+        created_at: PropTypes.string
+      })
+    )
+  }).isRequired,
+  onDataChange: PropTypes.func
+};
 
 export default LineageTable;

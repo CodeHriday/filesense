@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import LoadingSpinner from './LoadingSpinner';
+import PropTypes from 'prop-types';
 import { 
   FiAlertTriangle, 
   FiSlack, 
@@ -1274,6 +1275,21 @@ const IncidentIntegration = ({
       />
     </div>
   );
+};
+
+IncidentIntegration.propTypes = {
+  loading: PropTypes.bool,
+  onSaveIntegration: PropTypes.func,
+  onTestIntegration: PropTypes.func,
+  onDeleteIntegration: PropTypes.func,
+  className: PropTypes.string,
+  style: PropTypes.object
+};
+
+IncidentIntegration.defaultProps = {
+  loading: false,
+  className: '',
+  style: {}
 };
 
 export default IncidentIntegration;

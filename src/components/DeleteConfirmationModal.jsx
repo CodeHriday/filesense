@@ -1,6 +1,7 @@
 import React from 'react';
 import { FiX, FiAlertTriangle, FiFileText, FiFile, FiZap, FiDatabase, FiSlash, FiTrash2 } from 'react-icons/fi';
 import './DeleteConfirmationModal.css';
+import PropTypes from 'prop-types';
 
 function DeleteConfirmationModal({ 
   isOpen, 
@@ -121,5 +122,27 @@ function DeleteConfirmationModal({
     </div>
   );
 }
+
+
+DeleteConfirmationModal.propTypes = {
+  isOpen: PropTypes.bool.isRequired,
+  onClose: PropTypes.func.isRequired,
+  agreement: PropTypes.shape({
+    id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
+    file_name: PropTypes.string,
+    agreement_code: PropTypes.string,
+    vendor_name: PropTypes.string
+  }),
+  dependencies: PropTypes.shape({
+    canDelete: PropTypes.bool,
+    dependencies: PropTypes.shape({
+      total: PropTypes.number,
+      documents: PropTypes.number,
+      transformationJobs: PropTypes.number
+    })
+  }),
+  onDelete: PropTypes.func.isRequired,
+  onDisable: PropTypes.func.isRequired
+};
 
 export default DeleteConfirmationModal;

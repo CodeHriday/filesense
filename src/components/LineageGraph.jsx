@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import LoadingSpinner from './LoadingSpinner';
+import PropTypes from 'prop-types';
 import ReactFlow, {
   Background,
   Controls,
@@ -453,5 +454,27 @@ function LineageGraph({ onNodeClick }) {
     </>
   );
 }
+LineageGraph.propTypes = {
+  onNodeClick: PropTypes.func
+};
+FileNode.propTypes = {
+  data: PropTypes.shape({
+    id: PropTypes.string.isRequired,
+    label: PropTypes.string.isRequired,
+    fileType: PropTypes.string.isRequired,
+    size: PropTypes.string
+  }).isRequired
+};
+
+TransformationNode.propTypes = {
+  data: PropTypes.shape({
+    id: PropTypes.string.isRequired,
+    label: PropTypes.string.isRequired,
+    description: PropTypes.string,
+    fieldCount: PropTypes.number,
+    variableCount: PropTypes.number,
+    onClick: PropTypes.func
+  }).isRequired
+};
 
 export default LineageGraph;

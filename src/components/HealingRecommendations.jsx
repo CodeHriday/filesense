@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import PropTypes from 'prop-types';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 
@@ -251,5 +252,16 @@ const HealingRecommendations = ({ anomalyId, anomaly }) => {
     </div>
   );
 };
+HealingRecommendations.propTypes = {
+  anomalyId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+  anomaly: PropTypes.shape({
+    file_id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    file_name: PropTypes.string
+  })
+};
 
+HealingRecommendations.defaultProps = {
+  anomalyId: null,
+  anomaly: null
+};
 export default HealingRecommendations;

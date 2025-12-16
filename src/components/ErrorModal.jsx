@@ -1,5 +1,6 @@
 import React from 'react';
 import { FiX, FiAlertCircle } from 'react-icons/fi';
+import PropTypes from 'prop-types';
 
 const ErrorModal = ({ message, onClose }) => {
   if (!message) return null;
@@ -75,5 +76,8 @@ const ErrorModal = ({ message, onClose }) => {
     </div>
   );
 };
-
+ErrorModal.propTypes = {
+  message: PropTypes.string,
+  onClose: PropTypes.func.isRequired
+};
 export default ErrorModal;

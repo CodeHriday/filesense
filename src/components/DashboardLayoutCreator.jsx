@@ -565,27 +565,34 @@ const DashboardLayoutCreator = ({
     </div>
   );
 };
-DashboardLayoutCreator.propTypes = {
-  initialLayout: PropTypes.arrayOf(
-    PropTypes.shape({
-      id: PropTypes.string,
-      type: PropTypes.string.isRequired,
-      width: PropTypes.number,
-      height: PropTypes.number,
-      position: PropTypes.number
-    })
-  ),
-  onSaveLayout: PropTypes.func,
-  readOnly: PropTypes.bool,
-  maxColumns: PropTypes.number,
-  maxRows: PropTypes.number
+SortableWidgetItem.propTypes = {
+  id: PropTypes.string.isRequired,
+  widget: PropTypes.shape({
+    id: PropTypes.string,
+    type: PropTypes.string.isRequired,
+    title: PropTypes.string,
+    width: PropTypes.number,
+    height: PropTypes.number,
+    position: PropTypes.number
+  }).isRequired,
+  onRemove: PropTypes.func,
+  onResize: PropTypes.func,
+  onConfigureWidget: PropTypes.func
 };
 
-DashboardLayoutCreator.defaultProps = {
-  initialLayout: [],
-  readOnly: false,
-  maxColumns: 2,
-  maxRows: 4
+DragOverlayWidget.propTypes = {
+  widget: PropTypes.shape({
+    id: PropTypes.string,
+    type: PropTypes.string.isRequired,
+    title: PropTypes.string,
+    width: PropTypes.number,
+    height: PropTypes.number
+  }).isRequired
+};
+
+AddWidgetPanel.propTypes = {
+  onAddWidget: PropTypes.func.isRequired,
+  onClose: PropTypes.func.isRequired
 };
 
 export default DashboardLayoutCreator;
