@@ -35,7 +35,7 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: |
           sonar-scanner \
-            -Dsonar.projectKey=filesense-feature \
+            -Dsonar.projectKey=filesense-sonar \
             -Dsonar.projectName="filesense-sonar" \
             -Dsonar.sources=. \
             -Dsonar.host.url=https://sonar.blumetra.com \
