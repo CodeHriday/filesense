@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import PropTypes from 'prop-types';
 import { FiPlus, FiEdit, FiTrash, FiBriefcase, FiPlay } from 'react-icons/fi';
 import { 
   getBusinessProcesses, 
@@ -511,5 +512,10 @@ const BusinessProcesses = () => {
     </div>
   );
 };
-
+SimpleModal.propTypes = {
+  show: PropTypes.bool.isRequired,
+  title: PropTypes.string.isRequired,
+  onClose: PropTypes.func.isRequired,
+  children: PropTypes.node.isRequired
+};
 export default BusinessProcesses;

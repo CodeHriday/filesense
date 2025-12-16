@@ -199,8 +199,9 @@ const MappingGroupForm = () => {
         <div className="form-container">
           <form onSubmit={handleSubmit} className="data-form">
             <div className="form-group">
-              <label>Project *</label>
+              <label htmlFor="project-select">Project *</label>
               <select
+                id="project-select"
                 value={formData.project_id}
                 onChange={e => handleProjectChange(e.target.value)}
                 required
@@ -223,8 +224,9 @@ const MappingGroupForm = () => {
 
             {formData.project_id && (
               <div className="form-group">
-                <label>Sub-Project (Optional)</label>
+                <label htmlFor="subproject-select">Sub-Project (Optional)</label>
                 <select
+                  id="subproject-select"
                   value={formData.sub_project_id}
                   onChange={e => setFormData({ ...formData, sub_project_id: e.target.value })}
                   disabled={isEdit}
@@ -246,8 +248,9 @@ const MappingGroupForm = () => {
             )}
 
             <div className="form-group">
-              <label>Group Name *</label>
+              <label htmlFor="group-name-input">Group Name *</label>
               <input
+                id="group-name-input"
                 type="text"
                 value={formData.group_name}
                 onChange={e => setFormData({ ...formData, group_name: e.target.value })}
@@ -257,8 +260,9 @@ const MappingGroupForm = () => {
             </div>
 
             <div className="form-group">
-              <label>Description</label>
+              <label htmlFor="group-description">Description</label>
               <textarea
+                id="group-description"
                 value={formData.description}
                 onChange={e => setFormData({ ...formData, description: e.target.value })}
                 rows={3}
@@ -267,8 +271,9 @@ const MappingGroupForm = () => {
             </div>
 
             <div className="form-group">
-              <label>Concurrency Limit: {formData.concurrency_limit}</label>
+              <label htmlFor="concurrency-range">Concurrency Limit: {formData.concurrency_limit}</label>
               <input
+                id="concurrency-range"
                 type="range"
                 min="1"
                 max="10"

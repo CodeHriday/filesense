@@ -142,8 +142,9 @@ const ArchivedFiles = () => {
       {/* Filters */}
       <div className="filters-section">
         <div className="filter-group">
-          <label>Policy:</label>
+          <label htmlFor="policy-select">Policy:</label>
           <select 
+            id="policy-select"
             value={filter.policy_id} 
             onChange={(e) => handleFilterChange('policy_id', e.target.value)}
           >
@@ -155,8 +156,9 @@ const ArchivedFiles = () => {
         </div>
 
         <div className="filter-group">
-          <label>Status:</label>
+          <label htmlFor="status-select">Status:</label>
           <select 
+            id="status-select"
             value={filter.status} 
             onChange={(e) => handleFilterChange('status', e.target.value)}
           >
@@ -168,8 +170,9 @@ const ArchivedFiles = () => {
         </div>
 
         <div className="filter-group">
-          <label>Start Date:</label>
+          <label htmlFor="start-date-input">Start Date:</label>
           <input 
+            id="start-date-input"
             type="datetime-local"
             value={filter.start_date}
             onChange={(e) => handleFilterChange('start_date', e.target.value)}
@@ -177,8 +180,9 @@ const ArchivedFiles = () => {
         </div>
 
         <div className="filter-group">
-          <label>End Date:</label>
+          <label htmlFor="end-date-input">End Date:</label>
           <input 
+            id="end-date-input"
             type="datetime-local"
             value={filter.end_date}
             onChange={(e) => handleFilterChange('end_date', e.target.value)}
@@ -306,13 +310,14 @@ const ArchivedFiles = () => {
             <h2>Restore Archived File</h2>
             
             <div className="form-group">
-              <label>Filename:</label>
-              <input type="text" value={restoreModal.filename} disabled />
+              <label htmlFor="restore-filename">Filename:</label>
+              <input id="restore-filename" type="text" value={restoreModal.filename} disabled />
             </div>
 
             <div className="form-group">
-              <label>Restore Path:</label>
+              <label htmlFor="restore-path">Restore Path:</label>
               <input 
+                id="restore-path"
                 type="text"
                 value={restoreModal.restorePath}
                 onChange={(e) => setRestoreModal({ ...restoreModal, restorePath: e.target.value })}
@@ -322,8 +327,9 @@ const ArchivedFiles = () => {
             </div>
 
             <div className="form-group">
-              <label>Reason (optional):</label>
+              <label htmlFor="restore-reason">Reason (optional):</label>
               <textarea
+                id="restore-reason"
                 value={restoreModal.reason}
                 onChange={(e) => setRestoreModal({ ...restoreModal, reason: e.target.value })}
                 placeholder="Why are you restoring this file?"

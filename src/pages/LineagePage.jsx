@@ -730,17 +730,17 @@ const LineagePageContent = () => {
       {showFilters && (
         <div className="lineage-filters">
           <div className="lineage-filter-group">
-            <label>Root Type</label>
-            <select value={rootType} onChange={(e) => setRootType(e.target.value)}>
+            <label htmlFor="root-type-select">Root Type</label>
+            <select id="root-type-select" value={rootType} onChange={(e) => setRootType(e.target.value)}>
               <option value="vendorAgreement">Vendor Agreement</option>
               <option value="file">Source File</option>
             </select>
           </div>
           
           <div className="lineage-filter-group">
-            <label>Root Entity</label>
+            <label htmlFor="root-entity-select">Root Entity</label>
             {rootType === 'vendorAgreement' && (
-              <select value={rootId} onChange={(e) => setRootId(e.target.value)}>
+              <select id="root-entity-select" value={rootId} onChange={(e) => setRootId(e.target.value)}>
                 <option value="">Select Agreement</option>
                 {filterOptions.agreements.map(ag => (
                   <option key={ag.id} value={ag.id}>
@@ -750,7 +750,7 @@ const LineagePageContent = () => {
               </select>
             )}
             {rootType === 'file' && (
-              <select value={rootId} onChange={(e) => setRootId(e.target.value)}>
+              <select id="root-entity-select" value={rootId} onChange={(e) => setRootId(e.target.value)}>
                 <option value="">Select File</option>
                 {filterOptions.files.map(file => (
                   <option key={file.id} value={file.id}>
@@ -762,8 +762,8 @@ const LineagePageContent = () => {
           </div>
           
           <div className="lineage-filter-group">
-            <label>Depth</label>
-            <select value={depth} onChange={(e) => setDepth(parseInt(e.target.value))}>
+            <label htmlFor="depth-select">Depth</label>
+            <select id="depth-select" value={depth} onChange={(e) => setDepth(parseInt(e.target.value))}>
               <option value={1}>1 Level</option>
               <option value={2}>2 Levels</option>
               <option value={3}>3 Levels</option>
@@ -924,8 +924,9 @@ const LineagePageContent = () => {
             </div>
             <div className="lineage-modal-body">
               <div className="lineage-modal-field">
-                <label>Name *</label>
+                <label htmlFor="save-name-input">Name *</label>
                 <input
+                  id="save-name-input"
                   type="text"
                   value={graphName}
                   onChange={e => setGraphName(e.target.value)}
@@ -933,8 +934,9 @@ const LineagePageContent = () => {
                 />
               </div>
               <div className="lineage-modal-field">
-                <label>Description</label>
+                <label htmlFor="save-description">Description</label>
                 <textarea
+                  id="save-description"
                   value={graphDescription}
                   onChange={e => setGraphDescription(e.target.value)}
                   placeholder="Optional description"
