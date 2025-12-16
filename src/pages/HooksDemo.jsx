@@ -304,7 +304,7 @@ const HooksDemo = () => {
             
             {pageRange.map((page, index) => (
               <button
-                key={index}
+                key={`page-${page}-${index}`}
                 onClick={() => typeof page === 'number' && goToPage(page)}
                 disabled={page === '...' || page === currentPage}
                 style={{ 

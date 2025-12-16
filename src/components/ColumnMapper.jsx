@@ -82,7 +82,7 @@ const ColumnMapper = ({
           ) : (
             sourceColumns.map((col, idx) => (
               <div
-                key={idx}
+                key={`source-${col.name || col.column_name || idx}`}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -175,7 +175,7 @@ const ColumnMapper = ({
               </div>
               {existingTargetColumns.map((col, idx) => (
                 <div
-                  key={`existing-${idx}`}
+                  key={`existing-${col.name || col.column_name || idx}`}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -221,7 +221,7 @@ const ColumnMapper = ({
               )}
               {mappings.map((mapping, idx) => (
                 <div
-                  key={idx}
+                  key={`mapping-${mapping.source || mapping.target || idx}`}
                   style={{
                     display: 'flex',
                     alignItems: 'center',

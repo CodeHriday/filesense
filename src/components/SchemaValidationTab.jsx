@@ -221,29 +221,7 @@ function SchemaValidationTab({ selectedProject: initialProject }) {
     }
   };
 
-  const handleUpdateSchedule = async () => {
-    if (!editingSchedule) return;
-
-    try {
-      const token = localStorage.getItem('token');
-      await axios.put(
-        `${API_BASE_URL}/api/schema-validation/schedules/${editingSchedule.id}`,
-        {
-          cronExpression: editingSchedule.cron_expression,
-          isActive: editingSchedule.is_active
-        },
-        {
-          headers: { Authorization: `Bearer ${token}` }
-        }
-      );
-      
-      setEditingSchedule(null);
-      fetchScheduledJobs();
-    } catch (err) {
-      console.error('Error updating schedule:', err);
-      setError('Failed to update schedule');
-    }
-  };
+ 
 
   const handleDiscover = async () => {
     if (!selectedConnection || !s3Path) {
@@ -464,12 +442,7 @@ function SchemaValidationTab({ selectedProject: initialProject }) {
     }
   };
 
-  const handleSelectPath = (path) => {
-    setS3Path(path);
-    setShowBrowser(false);
-    setDiscoveredFiles([]);
-  };
-
+ 
   const resetForm = () => {
     setCreatedJob(null);
     setJobStatus(null);
@@ -665,7 +638,7 @@ function SchemaValidationTab({ selectedProject: initialProject }) {
                               </thead>
                               <tbody>
                                 {fileDetails.map((file, idx) => (
-                                  <tr key={file.id || idx}>
+                                  <tr key={file.id || `file-${file.fileName || file.filePath || idx}`}>
                                     <td title={file.filePath} style={{ maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                       {file.fileName || '-'}
                                     </td>
@@ -1000,7 +973,7 @@ function SchemaValidationTab({ selectedProject: initialProject }) {
                       </thead>
                       <tbody>
                         {discoveredFiles.slice(0, 100).map((file, index) => (
-                          <tr key={index}>
+                          <tr key={`discovered-${file.name || file.key || file.Key || index}`}>
                             <td>{file.name || file.key || file.Key || 'Unknown'}</td>
                             <td>{formatFileSize(file.size || file.Size)}</td>
                             <td>{formatDate(file.lastModified || file.LastModified)}</td>

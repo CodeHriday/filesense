@@ -160,7 +160,7 @@ const DataStories = () => {
             <p className="story-description">{story.description}</p>
             <div className="story-preview">
               {story.visualizations.slice(0, 2).map((viz, index) => (
-                <div key={index} className="viz-preview">
+                <div key={`viz-preview-${viz.type || viz.id || index}`} className="viz-preview">
                   {getVisualizationIcon(viz.type)}
                   <span>{viz.type}</span>
                 </div>
@@ -168,7 +168,7 @@ const DataStories = () => {
             </div>
             <div className="story-tags">
               {story.tags.map((tag, index) => (
-                <span key={index} className="story-tag">{tag}</span>
+                <span key={`story-tag-${tag}-${index}`} className="story-tag">{tag}</span>
               ))}
             </div>
           </div>
@@ -199,7 +199,7 @@ const DataStories = () => {
         
         <div className="story-visualizations">
           {activeStory.visualizations.map((viz, index) => (
-            <div key={index} className="visualization-card">
+            <div key={`viz-${viz.id || viz.type || index}`} className="visualization-card">
               <div className="viz-header">
                 {getVisualizationIcon(viz.type)}
                 <h3>{viz.title}</h3>
@@ -223,7 +223,7 @@ const DataStories = () => {
           <h2>Key Insights</h2>
           <ul className="insights-list">
             {activeStory.insights.map((insight, index) => (
-              <li key={index}>{insight}</li>
+              <li key={`insight-${insight.substring(0, 20)}-${index}`}>{insight}</li>
             ))}
           </ul>
         </div>

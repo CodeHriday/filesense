@@ -244,8 +244,6 @@ function SchemaHistoryTab({ fileId }) {
     driftAction, 
     transformationJobId, 
     totalSnapshots,
-    logicalFileId,
-    canonicalName,
     hasSchemaChanged,
     totalUploads,
     allSnapshots,
@@ -429,7 +427,7 @@ function SchemaHistoryTab({ fileId }) {
                   {contractSchema.schema.columns.map((col, index) => {
                     const isRemoved = contractComparison?.removedColumns?.some(c => c.name === col.name);
                     return (
-                      <tr key={index} className={isRemoved ? 'row-removed' : ''}>
+                      <tr key={`contract-${col.name}-${index}`} className={isRemoved ? 'row-removed' : ''}>
                         <td>{col.index !== undefined ? col.index + 1 : index + 1}</td>
                         <td className="column-name">
                           {col.name}
@@ -483,7 +481,7 @@ function SchemaHistoryTab({ fileId }) {
                     }
                     
                     return (
-                      <tr key={index} className={diffClass}>
+                      <tr key={`current-${col.name}-${index}`} className={diffClass}>
                         <td>{col.index !== undefined ? col.index + 1 : index + 1}</td>
                         <td className="column-name">
                           {col.name}
@@ -535,7 +533,7 @@ function SchemaHistoryTab({ fileId }) {
                       </h4>
                       <ul className="change-list">
                         {contractComparison.removedColumns.map((col, idx) => (
-                          <li key={idx} className="change-item-removed">
+                          <li key={`removed-${col.name}-${idx}`} className="change-item-removed">
                             <strong>{col.name}</strong>
                             <span className="type-badge-small">{getDisplayType(col.previousType)}</span>
                           </li>
@@ -553,7 +551,7 @@ function SchemaHistoryTab({ fileId }) {
                       </h4>
                       <ul className="change-list">
                         {contractComparison.addedColumns.map((col, idx) => (
-                          <li key={idx} className="change-item-added">
+                          <li key={`added-${col.name}-${idx}`} className="change-item-added">
                             <strong>{col.name}</strong>
                             <span className="type-badge-small">{getDisplayType(col.currentType)}</span>
                           </li>
@@ -571,7 +569,7 @@ function SchemaHistoryTab({ fileId }) {
                       </h4>
                       <ul className="change-list">
                         {contractComparison.modifiedColumns.map((col, idx) => (
-                          <li key={idx} className="change-item-modified">
+                          <li key={`modified-${col.name}-${idx}`} className="change-item-modified">
                             <strong>{col.name}</strong>
                             <div className="type-change">
                               <span className="type-badge-small">Expected: {getDisplayType(col.previousType)}</span>
@@ -612,7 +610,7 @@ function SchemaHistoryTab({ fileId }) {
                       </h4>
                       <ul className="change-list">
                         {activeComparison.addedColumns.map((col, idx) => (
-                          <li key={idx} className="change-item-added">
+                          <li key={`active-added-${col.name}-${idx}`} className="change-item-added">
                             <strong>{col.name}</strong>
                             <span className="type-badge-small">{getDisplayType(col.currentType)}</span>
                           </li>
@@ -630,7 +628,7 @@ function SchemaHistoryTab({ fileId }) {
                       </h4>
                       <ul className="change-list">
                         {activeComparison.removedColumns.map((col, idx) => (
-                          <li key={idx} className="change-item-removed">
+                          <li key={`active-removed-${col.name}-${idx}`} className="change-item-removed">
                             <strong>{col.name}</strong>
                             <span className="type-badge-small">{getDisplayType(col.previousType)}</span>
                           </li>
@@ -648,7 +646,7 @@ function SchemaHistoryTab({ fileId }) {
                       </h4>
                       <ul className="change-list">
                         {activeComparison.modifiedColumns.map((col, idx) => (
-                          <li key={idx} className="change-item-modified">
+                          <li key={`active-modified-${col.name}-${idx}`} className="change-item-modified">
                             <strong>{col.name}</strong>
                             <div className="type-change">
                               <span className="type-badge-small">{getDisplayType(col.previousType)}</span>
@@ -670,7 +668,7 @@ function SchemaHistoryTab({ fileId }) {
                       </h4>
                       <ul className="change-list">
                         {activeComparison.reorderedColumns.map((col, idx) => (
-                          <li key={idx} className="change-item-reordered">
+                          <li key={`active-reordered-${col.name}-${idx}`} className="change-item-reordered">
                             <strong>{col.name}</strong>
                             <span className="position-change">Position {col.previousIndex + 1} → {col.currentIndex + 1}</span>
                           </li>
@@ -736,7 +734,7 @@ function SchemaHistoryTab({ fileId }) {
                     }
                     
                     return (
-                      <tr key={index} className={diffClass}>
+                      <tr key={`schema-current-${col.name}-${index}`} className={diffClass}>
                         <td>{col.index !== undefined ? col.index + 1 : index + 1}</td>
                         <td className="column-name">
                           {col.name}
@@ -781,7 +779,7 @@ function SchemaHistoryTab({ fileId }) {
                   {(activePrevious?.schema?.columns || []).map((col, index) => {
                     const isRemoved = activeComparison?.removedColumns?.some(c => c.name === col.name);
                     return (
-                      <tr key={index} className={isRemoved ? 'row-removed' : ''}>
+                      <tr key={`schema-previous-${col.name}-${index}`} className={isRemoved ? 'row-removed' : ''}>
                         <td>{col.index !== undefined ? col.index + 1 : index + 1}</td>
                         <td className="column-name">
                           {col.name}
@@ -821,7 +819,7 @@ function SchemaHistoryTab({ fileId }) {
                 </thead>
                 <tbody>
                   {current.schema?.columns?.map((col, index) => (
-                    <tr key={index}>
+                    <tr key={`single-schema-${col.name}-${index}`}>
                       <td>{col.index !== undefined ? col.index + 1 : index + 1}</td>
                       <td className="column-name">{col.name}</td>
                       <td><span className="type-badge">{getDisplayType(col.type)}</span></td>
@@ -939,7 +937,7 @@ function SchemaHistoryTab({ fileId }) {
                                 }
                                 
                                 return (
-                                  <tr key={colIdx} className={rowClass}>
+                                  <tr key={`compare-${colName}-${colIdx}`} className={rowClass}>
                                     <td className="col-name">
                                       {exists ? colName : <span className="missing-col">{colName}</span>}
                                       {!exists && existsInOthers && <span className="diff-badge-removed">Missing</span>}

@@ -7,11 +7,7 @@ import './RelatedDatasets.css';
 import PropTypes from 'prop-types';
 
 // Utility functions
-const formatDate = (date) => {
-  if (!date) return '';
-  const d = new Date(date);
-  return d.toLocaleDateString();
-};
+
 
 const getTimeSince = (date) => {
   if (!date) return '';

@@ -515,7 +515,7 @@ const JobCreate = () => {
             ) : (
               <div className="recipients-list">
                 {jobData.notification_settings.recipients.map((recipient, index) => (
-                  <div key={index} className="recipient-item">
+                  <div key={`recipient-${recipient || index}`} className="recipient-item">
                     <input
                       type="email"
                       value={recipient}

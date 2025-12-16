@@ -39,15 +39,15 @@ const ChartAccessibleWrapper = ({
           <thead>
             <tr>
               {dataTableColumns.map((column, index) => (
-                <th key={index} scope="col">{column.header}</th>
+                <th key={`header-${column.header || column.accessor || index}`} scope="col">{column.header}</th>
               ))}
             </tr>
           </thead>
           <tbody>
             {data.map((item, index) => (
-              <tr key={index}>
+              <tr key={`row-${item.id || item.name || index}`}>
                 {dataTableColumns.map((column, colIndex) => (
-                  <td key={`${index}-${colIndex}`}>
+                  <td key={`cell-${index}-${column.accessor || colIndex}`}>
                     {typeof column.accessor === 'function' 
                       ? column.accessor(item) 
                       : item[column.accessor]}

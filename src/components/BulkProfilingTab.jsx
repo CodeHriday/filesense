@@ -574,7 +574,7 @@ function BulkProfilingTab({ selectedProject: initialProject }) {
                   </thead>
                   <tbody>
                     {jobStatus.files.map((file, index) => (
-                      <tr key={index} style={{ borderBottom: '1px solid #f3f4f6' }}>
+                      <tr key={`job-file-${file.file_name || file.id || index}`} style={{ borderBottom: '1px solid #f3f4f6' }}>
                         <td style={{ padding: '0.5rem' }}>{file.file_name}</td>
                         <td style={{ padding: '0.5rem', textAlign: 'center' }}>
                           <span style={{
@@ -1061,7 +1061,7 @@ function BulkProfilingTab({ selectedProject: initialProject }) {
               </thead>
               <tbody>
                 {discoveredFiles.map((file, index) => (
-                  <tr key={index}>
+                  <tr key={`discovered-file-${file.name || file.key || index}`}>
                     <td>{file.name}</td>
                     <td>
                       <span className="gps-bulk-status gps-bulk-status--processing">

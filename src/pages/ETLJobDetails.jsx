@@ -557,7 +557,7 @@ function ETLJobDetails() {
               ) : (
                 <div className="logs-list">
                   {logs.map((log, idx) => (
-                    <div key={idx} className={`log-entry ${getLogLevelClass(log.level)}`}>
+                    <div key={`log-${log.timestamp || log.message?.substring(0, 20) || idx}`} className={`log-entry ${getLogLevelClass(log.level)}`}>
                       <div className="log-header">
                         <span className="log-level">{log.level.toUpperCase()}</span>
                         <span className="log-time">{formatDate(log.created_at)}</span>
@@ -629,7 +629,7 @@ function ETLJobDetails() {
                     </thead>
                     <tbody>
                       {metrics.map((metric, idx) => (
-                        <tr key={idx}>
+                        <tr key={`metric-${metric.file_path || metric.id || idx}`}>
                           <td>{metric.file_path}</td>
                           <td>{metric.row_count?.toLocaleString()}</td>
                           <td>{metric.column_count}</td>

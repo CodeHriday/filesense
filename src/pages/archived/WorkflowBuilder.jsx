@@ -1411,7 +1411,7 @@ const WorkflowBuilderContent = () => {
                   <div className="workflow-builder-console-run-logs">
                     {run.logs.map((log, logIndex) => (
                       <div 
-                        key={logIndex} 
+                        key={`log-${log.timestamp || log.level || logIndex}`} 
                         className={`workflow-builder-console-line workflow-builder-console-${log.level}`}
                       >
                         <span className="workflow-builder-console-timestamp">[{log.timestamp}]</span>

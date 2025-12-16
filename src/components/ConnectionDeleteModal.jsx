@@ -85,7 +85,7 @@ function ConnectionDeleteModal({
                 <h3>Dependencies</h3>
                 <div className="dependencies-list">
                   {deps.map((dep, index) => (
-                    <div key={index} className="dependency-item-detailed">
+                    <div key={`dep-${dep.type || dep.name || index}`} className="dependency-item-detailed">
                       <div className="dependency-header">
                         {getDependencyIcon(dep.type)}
                         <span className="dep-label">{dep.type}:</span>
@@ -94,7 +94,7 @@ function ConnectionDeleteModal({
                       {dep.items && dep.items.length > 0 && (
                         <div className="dependency-items-list">
                           {dep.items.map((item, idx) => (
-                            <div key={idx} className="dependency-item-name">
+                            <div key={`item-${typeof item === 'string' ? item : item.name || idx}`} className="dependency-item-name">
                               • {typeof item === 'string' ? item : item.name}
                             </div>
                           ))}

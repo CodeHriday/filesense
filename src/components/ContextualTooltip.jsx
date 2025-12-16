@@ -96,7 +96,7 @@ const ContextualTooltip = ({
             <div className="tooltip-section-title">Examples:</div>
             <ul>
               {examples.map((example, index) => (
-                <li key={index}>
+                <li key={`example-${example.substring(0, 20)}-${index}`}>
                   <FiArrowRight className="tooltip-icon" />
                   <span>{example}</span>
                 </li>
@@ -109,7 +109,7 @@ const ContextualTooltip = ({
           <div className="tooltip-links">
             {links.map((link, index) => (
               <a 
-                key={index} 
+                key={`link-${link.url || link.text || index}`} 
                 href={link.url} 
                 target="_blank" 
                 rel="noopener noreferrer"

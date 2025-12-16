@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FiPlus, FiEdit2, FiTrash2, FiFolder, FiFolderPlus, FiSave, FiX, FiAlertCircle, FiChevronDown, FiChevronRight, FiUsers } from 'react-icons/fi';
+import { FiEdit2, FiTrash2, FiFolder, FiFolderPlus, FiSave, FiX, FiAlertCircle, FiChevronDown, FiChevronRight, FiUsers } from 'react-icons/fi';
 import axios from 'axios';
 import SubProjectMemberManagement from './SubProjectMemberManagement';
 import './SubProjectManagement.css';

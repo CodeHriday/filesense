@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FiPlus, FiTrash2, FiAlertCircle, FiInfo, FiFileText, FiCheckCircle } from 'react-icons/fi';
+import { FiPlus, FiTrash2, FiAlertCircle, FiFileText } from 'react-icons/fi';
 import './SchemaFieldEditor.css';
 import PropTypes from 'prop-types';
 

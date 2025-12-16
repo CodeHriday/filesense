@@ -152,7 +152,7 @@ const Table = ({
               
               {getPageNumbers().map((page, index) => (
                 <button
-                  key={index}
+                  key={`page-btn-${page}-${index}`}
                   onClick={() => typeof page === 'number' && handlePageChange(page)}
                   className={`pagination-button ${currentPage === page ? 'active' : ''}`}
                   disabled={page === '...'}

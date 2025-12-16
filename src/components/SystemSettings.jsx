@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FaCog, FaSave, FaTrash, FaInfoCircle, FaCheckCircle, FaExclamationTriangle } from 'react-icons/fa';
+import { FaCog, FaSave, FaTrash, FaCheckCircle, FaExclamationTriangle } from 'react-icons/fa';
 import ConfirmModal from './ConfirmModal';
 import '../styles/global-page-styles.css';
 
