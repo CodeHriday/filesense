@@ -221,7 +221,7 @@ export const ChartSkeleton = ({
               <LoadingSkeleton
                 type="rectangle"
                 width="40px"
-                height={`${Math.floor(Math.random() * 50) + 30}%`}
+                height={`${Math.floor((crypto.getRandomValues(new Uint32Array(1))[0] / 0xFFFFFFFF) * 50) + 30}%`}
                 borderRadius="4px 4px 0 0"
                 inline
               />
@@ -403,7 +403,7 @@ export const TableSkeleton = ({
               <div className="skeleton-table-cell" key={`cell-${rowIndex}-${colIndex}`}>
                 <LoadingSkeleton
                   type="text"
-                  width={`${Math.floor(Math.random() * 50) + 30}%`}
+                  width={`${Math.floor((crypto.getRandomValues(new Uint32Array(1))[0] / 0xFFFFFFFF) * 50) + 30}%`}
                   height="12px"
                   inline
                 />

@@ -16,7 +16,7 @@ const HeavyComponent = () => {
         id: index,
         title: `Item ${index}`,
         description: `This is a detailed description for item ${index}. It contains a lot of text to simulate a complex data object.`,
-        value: Math.floor(Math.random() * 1000),
+        value: Math.floor((crypto.getRandomValues(new Uint32Array(1))[0] / 0xFFFFFFFF) * 1000),
         timestamp: new Date().toISOString()
       }));
       

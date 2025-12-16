@@ -14,11 +14,11 @@ import './HooksDemo.css';
 const sampleData = Array.from({ length: 50 }, (_, index) => ({
   id: index + 1,
   name: `Item ${index + 1}`,
-  category: ['Electronics', 'Clothing', 'Books', 'Home', 'Food'][Math.floor(Math.random() * 5)],
-  price: Math.floor(Math.random() * 1000) + 10,
-  stock: Math.floor(Math.random() * 100),
-  rating: (Math.random() * 5).toFixed(1),
-  createdAt: new Date(Date.now() - Math.random() * 10000000000)
+  category: ['Electronics', 'Clothing', 'Books', 'Home', 'Food'][Math.floor((crypto.getRandomValues(new Uint32Array(1))[0] / 0xFFFFFFFF) * 5)],
+  price: Math.floor((crypto.getRandomValues(new Uint32Array(1))[0] / 0xFFFFFFFF) * 1000) + 10,
+  stock: Math.floor((crypto.getRandomValues(new Uint32Array(1))[0] / 0xFFFFFFFF) * 100),
+  rating: ((crypto.getRandomValues(new Uint32Array(1))[0] / 0xFFFFFFFF) * 5).toFixed(1),
+  createdAt: new Date(Date.now() - (crypto.getRandomValues(new Uint32Array(1))[0] / 0xFFFFFFFF) * 10000000000)
 }));
 
 const HooksDemo = () => {

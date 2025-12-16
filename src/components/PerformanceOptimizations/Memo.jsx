@@ -11,7 +11,7 @@ const ExpensiveComponent = ({ data, onClick }) => {
     // Simulating a CPU-intensive operation
     let result = 0;
     for (let i = 0; i < 1000000; i++) {
-      result += Math.random() * i;
+      result += (crypto.getRandomValues(new Uint32Array(1))[0] / 0xFFFFFFFF) * i;
     }
     return data.map(item => ({ ...item, value: item.value * 2 + result / 1000000000 }));
   }, [data]); // Only recalculate when data changes
