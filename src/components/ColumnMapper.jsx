@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { FiPlus, FiTrash2, FiMove, FiEdit2 } from 'react-icons/fi';
+import PropTypes from 'prop-types';
 
 const ColumnMapper = ({
   sourceColumns = [],
@@ -335,5 +336,38 @@ const ColumnMapper = ({
     </div>
   );
 };
+ColumnMapper.propTypes = {
+  sourceColumns: PropTypes.arrayOf(
+    PropTypes.shape({
+      name: PropTypes.string.isRequired,
+      type: PropTypes.string
+    })
+  ),
+  existingTargetColumns: PropTypes.arrayOf(
+    PropTypes.shape({
+      name: PropTypes.string.isRequired,
+      type: PropTypes.string
+    })
+  ),
+  mappings: PropTypes.arrayOf(
+    PropTypes.shape({
+      sourceColumn: PropTypes.string.isRequired,
+      targetColumn: PropTypes.string.isRequired,
+      dataType: PropTypes.string
+    })
+  ),
+  onMappingsChange: PropTypes.func.isRequired,
+  sourceLabel: PropTypes.string,
+  targetLabel: PropTypes.string,
+  allowRename: PropTypes.bool
+};
 
+ColumnMapper.defaultProps = {
+  sourceColumns: [],
+  existingTargetColumns: [],
+  mappings: [],
+  sourceLabel: 'Available Columns',
+  targetLabel: 'Target Columns',
+  allowRename: true
+};
 export default ColumnMapper;

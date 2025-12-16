@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { FaLightbulb, FaChartLine, FaExclamationTriangle, FaTimes, FaArrowRight } from 'react-icons/fa';
 import LoadingSpinner from './LoadingSpinner';
 import '../styles/AIPredictiveInsights.css';
+import PropTypes from 'prop-types';
 
 const AIPredictiveInsights = ({ fileId, onClose }) => {
   const [insights, setInsights] = useState(null);
@@ -263,6 +264,18 @@ const AIPredictiveInsights = ({ fileId, onClose }) => {
       )}
     </div>
   );
+};
+
+
+AIPredictiveInsights.propTypes = {
+  /** File ID for which AI insights are fetched */
+  fileId: PropTypes.oneOfType([
+    PropTypes.string,
+    PropTypes.number
+  ]).isRequired,
+
+  /** Callback to close the insights sidebar */
+  onClose: PropTypes.func.isRequired
 };
 
 export default AIPredictiveInsights;

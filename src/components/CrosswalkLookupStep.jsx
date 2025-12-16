@@ -4,6 +4,7 @@ import { FiGitBranch, FiInfo } from 'react-icons/fi';
 import LoadingSpinner from './LoadingSpinner';
 import ColumnMapper from './ColumnMapper';
 import { API_BASE_URL } from '../config';
+import PropTypes from 'prop-types';
 
 const CrosswalkLookupStep = ({
   crosswalkConfig,
@@ -269,5 +270,21 @@ const CrosswalkLookupStep = ({
     </div>
   );
 };
+CrosswalkLookupStep.propTypes = {
+  crosswalkConfig: PropTypes.shape({
+    crosswalk_id: PropTypes.string,
+    source_column: PropTypes.string,
+    crosswalk_source_field: PropTypes.string,
+    no_match_behavior: PropTypes.string,
+    default_value: PropTypes.string,
+    column_mappings: PropTypes.array
+  }),
+  schema: PropTypes.array,
+  onCrosswalkConfigChange: PropTypes.func.isRequired
+};
 
+CrosswalkLookupStep.defaultProps = {
+  crosswalkConfig: {},
+  schema: []
+};
 export default CrosswalkLookupStep;

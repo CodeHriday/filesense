@@ -1,6 +1,7 @@
 import React from 'react';
 import { FiAward, FiStar, FiCheckCircle, FiTrendingUp, FiShield, FiClock } from 'react-icons/fi';
 import './AchievementBadge.css';
+import PropTypes from 'prop-types';
 
 const BADGE_ICONS = {
   quality: FiAward,
@@ -55,5 +56,34 @@ const AchievementBadge = ({ type, level, score, label, description, isLocked = f
     </div>
   );
 };
+AchievementBadge.propTypes = {
+  type: PropTypes.oneOf([
+    'quality',
+    'completeness',
+    'consistency',
+    'freshness',
+    'improvement',
+    'excellence'
+  ]).isRequired,
 
+  level: PropTypes.oneOf([
+    'bronze',
+    'silver',
+    'gold',
+    'platinum'
+  ]).isRequired,
+
+  score: PropTypes.oneOfType([
+    PropTypes.number,
+    PropTypes.string
+  ]),
+
+  label: PropTypes.string.isRequired,
+
+  description: PropTypes.string.isRequired,
+
+  isLocked: PropTypes.bool,
+
+  onClick: PropTypes.func
+};
 export default AchievementBadge;

@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { FiSend, FiDownload, FiCopy, FiInfo } from 'react-icons/fi';
 import { useAIFeatures } from '../../hooks';
 import './ChatWithDataset.css';
+import PropTypes from 'prop-types';
 
 /**
  * Chat interface for interacting with a dataset using natural language
@@ -232,5 +233,12 @@ const ChatInterface = ({ fileId, filename }) => {
     </div>
   );
 };
+ChatInterface.propTypes = {
+  fileId: PropTypes.string.isRequired,
+  filename: PropTypes.string
+};
 
+ChatInterface.defaultProps = {
+  filename: ''
+};
 export default ChatInterface;

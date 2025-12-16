@@ -4,6 +4,7 @@ import { FiDatabase, FiGitBranch, FiInfo, FiPlus, FiTrash2 } from 'react-icons/f
 import LoadingSpinner from './LoadingSpinner';
 import ColumnMapper from './ColumnMapper';
 import { API_BASE_URL } from '../config';
+import PropTypes from 'prop-types';
 
 const RdmLookupStep = ({ 
   datasetConfig, 
@@ -582,6 +583,47 @@ const RdmLookupStep = ({
       </div>
     </div>
   );
+};
+
+
+RdmLookupStep.propTypes = {
+  datasetConfig: PropTypes.shape({
+    dataset_id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    join_type: PropTypes.string,
+    join_conditions: PropTypes.arrayOf(
+      PropTypes.shape({
+        dataset_column: PropTypes.string,
+        source_column: PropTypes.string
+      })
+    ),
+    column_mappings: PropTypes.arrayOf(
+      PropTypes.shape({
+        source_column: PropTypes.string,
+        target_column: PropTypes.string
+      })
+    )
+  }),
+
+  crosswalkConfig: PropTypes.shape({
+    crosswalk_id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    source_column: PropTypes.string,
+    target_column: PropTypes.string
+  }),
+
+  schema: PropTypes.arrayOf(
+    PropTypes.shape({
+      name: PropTypes.string.isRequired,
+      dataType: PropTypes.string
+    })
+  ),
+
+  datasetEnabled: PropTypes.bool,
+  crosswalkEnabled: PropTypes.bool,
+
+  onDatasetConfigChange: PropTypes.func.isRequired,
+  onCrosswalkConfigChange: PropTypes.func.isRequired,
+  onDatasetEnabledChange: PropTypes.func,
+  onCrosswalkEnabledChange: PropTypes.func
 };
 
 export default RdmLookupStep;

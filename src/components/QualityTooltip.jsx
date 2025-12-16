@@ -1,5 +1,6 @@
 import React from 'react';
 import { Tooltip } from './Tooltip';
+import PropTypes from 'prop-types';
 
 /**
  * Quality-specific tooltip that displays quality score breakdowns
@@ -66,3 +67,32 @@ export const QualityTooltip = ({
     </Tooltip>
   );
 };
+
+
+QualityTooltip.propTypes = {
+  /** Element that triggers the tooltip */
+  children: PropTypes.node.isRequired,
+
+  /** Overall quality score (0–100) */
+  score: PropTypes.number.isRequired,
+
+  /** Breakdown of quality components */
+  components: PropTypes.objectOf(PropTypes.number),
+
+  /** Tooltip position */
+  position: PropTypes.oneOf(['top', 'bottom', 'left', 'right']),
+
+  /** Enable animated tooltip */
+  animated: PropTypes.bool,
+
+  /** Delay before tooltip appears (ms) */
+  delay: PropTypes.number
+};
+
+QualityTooltip.defaultProps = {
+  components: {},
+  position: 'top',
+  animated: true,
+  delay: 200
+};
+

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import PropTypes from 'prop-types';
 import {
   DndContext,
   closestCenter,
@@ -563,6 +564,28 @@ const DashboardLayoutCreator = ({
       )}
     </div>
   );
+};
+DashboardLayoutCreator.propTypes = {
+  initialLayout: PropTypes.arrayOf(
+    PropTypes.shape({
+      id: PropTypes.string,
+      type: PropTypes.string.isRequired,
+      width: PropTypes.number,
+      height: PropTypes.number,
+      position: PropTypes.number
+    })
+  ),
+  onSaveLayout: PropTypes.func,
+  readOnly: PropTypes.bool,
+  maxColumns: PropTypes.number,
+  maxRows: PropTypes.number
+};
+
+DashboardLayoutCreator.defaultProps = {
+  initialLayout: [],
+  readOnly: false,
+  maxColumns: 2,
+  maxRows: 4
 };
 
 export default DashboardLayoutCreator;
