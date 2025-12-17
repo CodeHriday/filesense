@@ -45,7 +45,8 @@ const HooksDemo = () => {
       const newErrors = {};
       if (!formData.name) newErrors.name = 'Name is required';
       if (!formData.email) newErrors.email = 'Email is required';
-      if (formData.email && !/\S+@\S+\.\S+/.test(formData.email)) {
+      // Use a safer email regex to prevent ReDoS - limit quantifiers
+      if (formData.email && !/\S{1,64}@\S{1,253}\.\S{1,63}/.test(formData.email)) {
         newErrors.email = 'Email is invalid';
       }
       return newErrors;

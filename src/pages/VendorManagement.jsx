@@ -240,7 +240,8 @@ const VendorManagement = () => {
   };
   
   const validateEmail = (email) => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    // Use a safer email regex to prevent ReDoS - limit quantifiers
+    const emailRegex = /^[^\s@]{1,64}@[^\s@]{1,253}\.[^\s@]{1,63}$/;
     return emailRegex.test(email);
   };
   

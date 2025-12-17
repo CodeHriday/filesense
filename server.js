@@ -5677,7 +5677,8 @@ app.post('/api/files/:fileId/quality-rules/run', authenticateToken, async (req, 
               
             case 'email_validity':
               if (cellValue && typeof cellValue === 'string') {
-                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                // Use a safer email regex to prevent ReDoS - limit quantifiers
+                const emailRegex = /^[^\s@]{1,64}@[^\s@]{1,253}\.[^\s@]{1,63}$/;
                 if (!emailRegex.test(cellValue)) {
                   isViolation = true;
                   expectedValue = 'Valid email format';
@@ -6229,7 +6230,8 @@ app.post('/api/files/:fileId/quality-rules/revalidate', authenticateToken, uploa
               
             case 'email_validity':
               if (cellValue && typeof cellValue === 'string') {
-                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                // Use a safer email regex to prevent ReDoS - limit quantifiers
+                const emailRegex = /^[^\s@]{1,64}@[^\s@]{1,253}\.[^\s@]{1,63}$/;
                 if (!emailRegex.test(cellValue)) {
                   isViolation = true;
                   expectedValue = 'Valid email format';

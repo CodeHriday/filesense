@@ -70,12 +70,12 @@ const getSemanticFieldType = (column) => {
   if (/(_ts|_at|timestamp|_datetime)$/.test(name) || /^(created|updated|modified|deleted|processed)_?(at|on|date|time)?$/.test(name)) {
     return 'datetime';
   }
-  if (/(_date|_dt)$/.test(name) || /^(birth|start|end|order|ship|delivery|due|expir).*date/.test(name) || name === 'date' || name === 'dob') {
+  if (/(_date|_dt)$/.test(name) || /^(birth|start|end|order|ship|delivery|due|expir).{0,20}date/.test(name) || name === 'date' || name === 'dob') {
     return 'date';
   }
   
-  // SSN / Tax ID detection
-  if (/ssn|social.*security|tax.*id|tin|ein|itin/.test(name)) {
+  // SSN / Tax ID detection - use safer regex to prevent ReDoS
+  if (/ssn|social.{0,10}security|tax.{0,10}id|tin|ein|itin/.test(name)) {
     return 'ssn';
   }
   
@@ -84,13 +84,13 @@ const getSemanticFieldType = (column) => {
     return 'zipcode';
   }
   
-  // Credit card detection
-  if (/credit.*card|card.*number|cc.*num/.test(name)) {
+  // Credit card detection - use safer regex to prevent ReDoS
+  if (/credit.{0,20}card|card.{0,20}number|cc.{0,10}num/.test(name)) {
     return 'creditcard';
   }
   
-  // IP address detection
-  if (/ip.*addr|ip_address|ipv[46]/.test(name)) {
+  // IP address detection - use safer regex to prevent ReDoS
+  if (/ip.{0,10}addr|ip_address|ipv[46]/.test(name)) {
     return 'ip';
   }
   

@@ -28,7 +28,8 @@ const getTypeDescription = (type) => {
   };
   
   // Normalize the type by removing any modifiers and converting to lowercase
-  const normalizedType = type.toLowerCase().replace(/\(.*\)/, '').trim();
+  // Use safer regex to prevent ReDoS - limit quantifier
+  const normalizedType = type.toLowerCase().replace(/\(.{0,100}\)/, '').trim();
   
   return descriptions[normalizedType] || `Data of type ${type}`;
 };

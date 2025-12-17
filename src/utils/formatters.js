@@ -78,7 +78,11 @@ export const getTimeSince = (dateString) => {
 export const formatNumber = (num) => {
   if (num === null || num === undefined) return '';
   
-  return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  // Use a safer approach to prevent ReDoS - use built-in toLocaleString instead of regex
+  const numValue = typeof num === 'string' ? parseFloat(num) : num;
+  if (isNaN(numValue)) return num.toString();
+  
+  return numValue.toLocaleString('en-US');
 };
 
 /**
