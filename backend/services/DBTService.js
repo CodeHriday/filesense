@@ -73,7 +73,8 @@ class DBTService {
             const modelName = entry.name.replace('.sql', '');
             const content = await fs.readFile(fullPath, 'utf-8');
             
-            const configMatch = content.match(/config\(([\s\S]*?)\)/);
+            // Use a more specific regex to avoid ReDoS - limit the content length and be more specific
+            const configMatch = content.match(/config\(([^)]{0,1000})\)/);
             let materialization = 'view';
             let tags = [];
             
@@ -82,15 +83,15 @@ class DBTService {
               const matMatch = configContent.match(/materialized=['"](\w+)['"]/);
               if (matMatch) materialization = matMatch[1];
               
-              const tagsMatch = configContent.match(/tags=\[(.*?)\]/);
+              const tagsMatch = configContent.match(/tags=\[([^\]]{0,200})\]/);
               if (tagsMatch) {
                 tags = tagsMatch[1].split(',').map(t => t.trim().replace(/['"]/g, ''));
               }
             }
 
-            const sourceMatch = content.match(/source\(['"](\w+)['"],\s*['"](\w+)['"]\)/g);
+            const sourceMatch = content.match(/source\(['"](\w+)['"], *['"](\w+)['"]\)/g);
             const sourceTables = sourceMatch ? sourceMatch.map(s => {
-              const match = s.match(/source\(['"](\w+)['"],\s*['"](\w+)['"]\)/);
+              const match = s.match(/source\(['"](\w+)['"], *['"](\w+)['"]\)/);
               return match ? `${match[1]}.${match[2]}` : null;
             }).filter(Boolean) : [];
 
@@ -356,7 +357,8 @@ class DBTService {
         results.modelsRun++;
       }
 
-      const modelMatch = line.match(/(\w+)\s+([\w.]+)\s+\.\.\.\s+\[(\w+)\s+in\s+([\d.]+)s\]/);
+      // Use a more specific regex to avoid ReDoS vulnerability
+      const modelMatch = line.match(/^(\w+) ([\w.]+) \.\.\. \[(\w+) in ([\d.]+)s\]$/);
       if (modelMatch) {
         const [, action, modelName, status, time] = modelMatch;
         results.modelResults.push({
@@ -368,7 +370,7 @@ class DBTService {
       }
     }
 
-    const summaryMatch = output.match(/Done\.\s+PASS=(\d+)\s+WARN=(\d+)\s+ERROR=(\d+)\s+SKIP=(\d+)\s+TOTAL=(\d+)/);
+    const summaryMatch = output.match(/Done\. +PASS=(\d+) +WARN=(\d+) +ERROR=(\d+) +SKIP=(\d+) +TOTAL=(\d+)/);
     if (summaryMatch) {
       results.modelsSuccess = parseInt(summaryMatch[1]);
       results.modelsFailed = parseInt(summaryMatch[3]);

@@ -213,9 +213,25 @@ function globToRegex(pattern, caseSensitive = false) {
   return safeRegex(regexPattern, flags, { strict: false });
 }
 
+/**
+ * Validate regex safety without creating the RegExp object
+ * This is the function used by other services to validate user-provided patterns
+ * 
+ * @param {string} pattern - The regex pattern to validate
+ * @param {Object} options - Validation options
+ * @throws {Error} If pattern is unsafe
+ */
+function validateRegexSafety(pattern, options = {}) {
+  const result = isPatternSafe(pattern, options);
+  if (!result.safe) {
+    throw new Error(result.error);
+  }
+}
+
 module.exports = {
   safeRegex,
   isPatternSafe,
+  validateRegexSafety,
   createLiteralRegex,
   regexTestWithTimeout,
   regexMatchWithTimeout,

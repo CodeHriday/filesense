@@ -1,5 +1,6 @@
 const { systemLogger } = require('../utils/logger');
 const pool = require('../db');
+const { validateRegexSafety } = require('../utils/regexValidator');
 
 /**
  * Quality Validation Engine
@@ -286,9 +287,19 @@ class QualityValidationEngine {
       switch (validationType) {
         case 'pattern':
           if (config.pattern) {
-            const regex = new RegExp(config.pattern);
-            isValid = regex.test(String(value));
-            violationMessage = `Value does not match pattern: ${config.pattern}`;
+            try {
+              // Validate regex safety before creating RegExp
+              validateRegexSafety(config.pattern);
+              const regex = new RegExp(config.pattern);
+              isValid = regex.test(String(value));
+              violationMessage = `Value does not match pattern: ${config.pattern}`;
+            } catch (e) {
+              systemLogger.warn('Unsafe or invalid regex pattern in validity rule', { 
+                pattern: config.pattern, 
+                error: e.message 
+              });
+              isValid = true; // Skip validation for unsafe patterns
+            }
           }
           break;
           
@@ -478,7 +489,10 @@ class QualityValidationEngine {
       // Replace column names with values
       let evaluableExpression = expression;
       for (const [key, value] of Object.entries(row)) {
-        const regex = new RegExp(`\\b${key}\\b`, 'g');
+        // Use a safer approach for variable replacement to avoid ReDoS
+        // Escape the key to prevent regex injection
+        const escapedKey = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const regex = new RegExp(`\\b${escapedKey}\\b`, 'g');
         const safeValue = typeof value === 'string' ? `"${value}"` : value;
         evaluableExpression = evaluableExpression.replace(regex, safeValue);
       }
@@ -859,12 +873,17 @@ class QualityValidationEngine {
       
       if (config.pattern) {
         try {
+          // Validate regex safety before creating RegExp
+          validateRegexSafety(config.pattern);
           const regex = new RegExp(config.pattern);
           isValid = regex.test(String(value));
           violationMessage = config.custom_message || `Value does not match pattern: ${config.pattern}`;
         } catch (e) {
-          systemLogger.warn('Invalid regex pattern in validity_check', { pattern: config.pattern, error: e.message });
-          isValid = true;
+          systemLogger.warn('Unsafe or invalid regex pattern in validity_check', { 
+            pattern: config.pattern, 
+            error: e.message 
+          });
+          isValid = true; // Skip validation for unsafe patterns
         }
       } else if (config.datatype) {
         const check = this.validateDatatype(value, config.datatype);

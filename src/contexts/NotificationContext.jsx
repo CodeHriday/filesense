@@ -10,9 +10,7 @@ export const useNotification = () => {
   }
   return context;
 };
-NotificationProvider.propTypes = {
-  children: PropTypes.node.isRequired
-};
+
 
 export const NotificationProvider = ({ children }) => {
   const [notifications, setNotifications] = useState([]);
@@ -62,4 +60,7 @@ export const NotificationProvider = ({ children }) => {
       {children}
     </NotificationContext.Provider>
   );
+};
+NotificationProvider.propTypes = {
+  children: PropTypes.node.isRequired
 };

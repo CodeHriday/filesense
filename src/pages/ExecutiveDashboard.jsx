@@ -57,6 +57,18 @@ const ExecutiveDashboard = () => {
   const clickTimeoutRef = useRef(null);
   const kpiCardRefs = useRef({});
 
+  // TrendIcon component - defined early to avoid hoisting issues
+  const TrendIcon = ({ direction }) => {
+    if (direction === 'up') return <span className="trend-icon up">↑</span>;
+    if (direction === 'down') return <span className="trend-icon down">↓</span>;
+    return <span className="trend-icon neutral">→</span>;
+  };
+
+  // PropTypes for TrendIcon
+  TrendIcon.propTypes = {
+    direction: PropTypes.oneOf(['up', 'down', 'neutral']).isRequired
+  };
+
   const fetchProjects = async () => {
     try {
       const token = localStorage.getItem('token');
@@ -230,12 +242,6 @@ const ExecutiveDashboard = () => {
     if (last > first) return 'up';
     if (last < first) return 'down';
     return 'neutral';
-  };
-
-  const TrendIcon = ({ direction }) => {
-    if (direction === 'up') return <span className="trend-icon up">↑</span>;
-    if (direction === 'down') return <span className="trend-icon down">↓</span>;
-    return <span className="trend-icon neutral">→</span>;
   };
 
   if (loading) {
@@ -1252,9 +1258,6 @@ const ExecutiveDashboard = () => {
       )}
     </div>
   );
-};
-TrendIcon.propTypes = {
-  direction: PropTypes.oneOf(['up', 'down', 'neutral']).isRequired
 };
 
 export default ExecutiveDashboard;
