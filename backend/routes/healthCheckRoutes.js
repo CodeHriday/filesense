@@ -10,19 +10,12 @@ const { getUploadQueue } = require('../queues/uploadQueue');
 
 const router = express.Router();
 
-let isQueueHealthy = null;
-let lastQueueCheck = null;
-
 async function checkQueueHealth() {
   try {
     const queue = getUploadQueue();
     await queue.getJobCounts();
-    isQueueHealthy = true;
-    lastQueueCheck = new Date();
     return true;
   } catch (error) {
-    isQueueHealthy = false;
-    lastQueueCheck = new Date();
     console.error('Queue health check failed', {
       error: error.message,
       stack: error.stack
@@ -35,7 +28,7 @@ async function checkQueueHealth() {
 /**
  * Check overall system health including upload queue
  */
-router.get('/', async (req, res) => {
+router.get('/', async (_req, res) => {
   const queueHealthy = await checkQueueHealth();
   
   const health = {
@@ -59,7 +52,7 @@ router.get('/', async (req, res) => {
 /**
  * Check Python environment and required packages
  */
-router.get('/python', async (req, res) => {
+router.get('/python', async (_req, res) => {
   try {
     const pythonCheck = await checkPythonEnvironment();
     
@@ -88,9 +81,7 @@ router.get('/python', async (req, res) => {
  */
 function checkPythonEnvironment() {
   return new Promise((resolve) => {
-    // eslint-disable-next-line security/detect-child-process
-    // Note: PATH is controlled in deployment environment for security
-    const python = spawn('python3', ['-c', `
+    const python = spawn('python3', ['-c', ` // NOSONAR - PATH is controlled in deployment environment for security
 import sys
 import json
 
