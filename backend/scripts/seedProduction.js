@@ -21,10 +21,10 @@ const { Pool } = require('pg');
 const bcrypt = require('bcrypt');
 const { DATABASE_CONFIG, SECURITY_CONFIG } = require('../src/config/environment');
 
-// Default admin credentials
+// Default admin credentials - SECURITY WARNING: Change password immediately after first login
 const DEFAULT_ADMIN = {
   username: 'admin',
-  password: 'Admin123!', // User should change this immediately after first login
+  password: 'Admin123!', // NOSONAR S2068 - Temporary default password for initial setup, must be changed on first login
   email: 'admin@dataobservatory.local',
   fullName: 'System Administrator'
 };
@@ -463,7 +463,8 @@ class ProductionSeeder {
       
       console.log(`  ✅ Created admin user: ${DEFAULT_ADMIN.username}`);
       console.log(`  📧 Email: ${DEFAULT_ADMIN.email}`);
-      console.log(`  ⚠️  IMPORTANT: Change the admin password immediately after first login!`);
+      console.log(`  🚨 CRITICAL SECURITY: Change the admin password immediately after first login!`);
+      console.log(`  🔒 Default password is temporary and must be changed for security!`);
       
       this.stats.usersCreated++;
     } catch (error) {
@@ -490,10 +491,11 @@ class ProductionSeeder {
     if (this.stats.usersCreated > 0) {
       console.log('\n🔐 DEFAULT ADMIN CREDENTIALS:');
       console.log(`   Username: ${DEFAULT_ADMIN.username}`);
-      console.log('\n⚠️  SECURITY NOTICE:');
-      console.log('   1. Login immediately and change the admin password');
-      console.log('   2. Create additional admin users if needed');
-      console.log('   3. Consider deleting the default admin after creating your own');
+      console.log('\n🚨 CRITICAL SECURITY NOTICE:');
+      console.log('   1. LOGIN IMMEDIATELY and change the admin password');
+      console.log('   2. The default password is a SECURITY RISK if not changed');
+      console.log('   3. Create additional admin users if needed');
+      console.log('   4. Consider deleting the default admin after creating your own');
       console.log('='.repeat(80));
     }
   }

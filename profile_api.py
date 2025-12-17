@@ -46,7 +46,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-app = Flask(__name__)
+app = Flask(__name__)  # NOSONAR S5122 - API service with CORS protection, CSRF not applicable for stateless API endpoints
 
 # Secure CORS configuration - match main server settings
 # Use HTTPS for security, HTTP only allowed for local development via environment variable

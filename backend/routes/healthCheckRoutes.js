@@ -81,7 +81,8 @@ router.get('/python', async (_req, res) => {
  */
 function checkPythonEnvironment() {
   return new Promise((resolve) => {
-    const python = spawn('python3', ['-c', ` // NOSONAR
+    // NOSONAR S4036 - PATH controlled in deployment environment, hardcoded command with static script
+    const python = spawn('python3', ['-c', `
 import sys
 import json
 

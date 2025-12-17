@@ -118,7 +118,7 @@ class ServiceBase {
             throw new Error(`Invalid isolation level: ${isolationLevel}`);
           }
           
-          await client.query(`SET TRANSACTION ISOLATION LEVEL ${normalizedLevel}`);
+          await client.query(`SET TRANSACTION ISOLATION LEVEL ${normalizedLevel}`); // NOSONAR S3649 - normalizedLevel is validated against whitelist, no SQL injection risk
         }
         
         if (readOnly) {

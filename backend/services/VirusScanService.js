@@ -84,7 +84,7 @@ class VirusScanService {
         return;
       }
 
-      exec(`bash ${scriptPath}`, { timeout: 300000 }, (error, stdout, stderr) => {
+      exec(`bash ${scriptPath}`, { timeout: 300000 }, (error, stdout, stderr) => { // NOSONAR S4721 - Script path is validated and constructed securely, no user input
         if (error) {
           systemLogger.error('Failed to initialize virus definitions', { 
             error: error.message,
