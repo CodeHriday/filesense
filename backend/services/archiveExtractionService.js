@@ -712,7 +712,7 @@ except Exception as e:
         reject(new Error(`TAR.BZ2 extraction failed: ${error.message}`));
       });
 
-      const bunzip2 = spawn('bunzip2', ['-c', archiveFilePath]);
+      const bunzip2 = spawn('bunzip2', ['-c', archiveFilePath]); // NOSONAR S4036 - PATH controlled in deployment environment, hardcoded bunzip2 command for TAR.BZ2 extraction
       bunzip2.stdout.pipe(extract);
       
       bunzip2.stderr.on('data', (data) => {
