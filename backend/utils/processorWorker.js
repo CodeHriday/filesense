@@ -150,7 +150,7 @@ async function processCsvFile(filePath, fileType, result) {
       
       // Process header if not yet processed
       if (!header && lines.length > 0) {
-        header = lines[0].split(delimiter).map(h => h.trim().replace(/^"|"$/g, ''));
+        header = lines[0].split(delimiter).map(h => h.trim().replace(/^"/g, '').replace(/"$/g, ''));
         result.metadata.columns = header;
         reportProgress(30, 'processing_header');
       }

@@ -49,7 +49,7 @@ async function parseFileToRows(buffer, filename) {
     
     // Parse header
     const headerLine = lines[0];
-    const headers = headerLine.split(',').map(h => h.trim().replace(/^["']|["']$/g, ''));
+    const headers = headerLine.split(',').map(h => h.trim().replace(/^["']/g, '').replace(/["']$/g, ''));
     
     // Parse data rows
     for (let i = 1; i < lines.length; i++) {

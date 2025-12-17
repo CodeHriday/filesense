@@ -372,7 +372,8 @@ class QualityValidationEngine {
           message: 'Value must be a valid number'
         };
       case 'email':
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        // Use more specific pattern to prevent ReDoS attacks
+        const emailRegex = /^[a-zA-Z0-9._%+-]{1,64}@[a-zA-Z0-9.-]{1,253}\.[a-zA-Z]{2,}$/;
         return {
           valid: emailRegex.test(String(value)),
           message: 'Value must be a valid email address'

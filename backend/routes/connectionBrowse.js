@@ -572,13 +572,13 @@ function inferSchemaFromCSV(lines) {
   // Parse header
   const header = lines[0]
   .split(',')
-  .map(col => col.trim().replace(/(^"|"$)/g, ''));
+  .map(col => col.trim().replace(/^"/g, '').replace(/"$/g, ''));
   
   // Parse sample rows to infer types
   const sampleRows = lines
   .slice(1, Math.min(11, lines.length))
   .map(line => 
-    line.split(',').map(val => val.trim().replace(/(^"|"$)/g, ''))
+    line.split(',').map(val => val.trim().replace(/^"/g, '').replace(/"$/g, ''))
   );
   
   return header.map((colName, idx) => {

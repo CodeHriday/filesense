@@ -2947,8 +2947,8 @@ app.post('/api/files/drop', authenticateToken, uploadLimiter, upload.single('fil
       // Normalize and validate folder path to prevent directory traversal
       let normalizedFolder = folder || '';
       if (normalizedFolder) {
-        // Remove leading/trailing slashes
-        normalizedFolder = normalizedFolder.replace(/^\/+|\/+$/g, '');
+        // Remove leading/trailing slashes - use safer regex to prevent ReDoS
+        normalizedFolder = normalizedFolder.replace(/^\/+/g, '').replace(/\/+$/g, '');
         // Reject path traversal attempts
         if (normalizedFolder.includes('..') || normalizedFolder.includes('\\')) {
           try { fs.unlinkSync(file.path); } catch (e) {}
@@ -2985,7 +2985,7 @@ app.post('/api/files/drop', authenticateToken, uploadLimiter, upload.single('fil
       if (normalizedFolder) {
         // Folder was explicitly provided - use it directly
         // Check if normalizedFolder already starts with or equals connPath to avoid duplication
-        const cleanConnPath = connPath.replace(/^\/+|\/+$/g, '');
+        const cleanConnPath = connPath.replace(/^\/+/g, '').replace(/\/+$/g, '');
         if (cleanConnPath && normalizedFolder.startsWith(cleanConnPath)) {
           // normalizedFolder already contains the connection path, use as-is
           folderPath = normalizedFolder;

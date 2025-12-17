@@ -1907,7 +1907,7 @@ except Exception as e:
         inQuotes = !inQuotes;
       } else if (char === ',' && !inQuotes) {
         columns.push(
-        current.trim().replace(/(^"|"$)/g, '')
+        current.trim().replace(/^"/g, '').replace(/"$/g, '')
         );
         current = '';
       } else {
@@ -1917,7 +1917,7 @@ except Exception as e:
     
     if (current) {
       columns.push(
-        current.trim().replace(/(^"|"$)/g, '')
+        current.trim().replace(/^"/g, '').replace(/"$/g, '')
         );
     }
 
