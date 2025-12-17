@@ -129,7 +129,7 @@ class ArchiveDetectionService {
 
   async isZipPasswordProtected(filePath) {
     return new Promise((resolve) => {
-      yauzl.open(filePath, { lazyEntries: true }, (err, zipfile) => {
+      yauzl.open(filePath, { lazyEntries: true }, (err, zipfile) => { // NOSONAR S5042 - Only reading ZIP metadata for password detection, not extracting files
         if (err) {
           if (err.message && err.message.toLowerCase().includes('encrypted')) {
             return resolve({

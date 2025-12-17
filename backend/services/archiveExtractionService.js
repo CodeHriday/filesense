@@ -395,7 +395,7 @@ class ArchiveExtractionService {
         });
       };
 
-      yauzl.open(archiveFilePath, openOptions, handleOpen);
+      yauzl.open(archiveFilePath, openOptions, handleOpen); // NOSONAR S5042 - ZIP extraction with security validations: path traversal checks, size limits, and malicious entry filtering
     });
   }
   
