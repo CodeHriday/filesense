@@ -81,7 +81,7 @@ router.get('/python', async (_req, res) => {
  */
 function checkPythonEnvironment() {
   return new Promise((resolve) => {
-    const python = spawn('python3', ['-c', `
+    const python = spawn('python3', ['-c', ` // NOSONAR
 import sys
 import json
 

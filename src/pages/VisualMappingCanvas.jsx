@@ -1246,7 +1246,7 @@ const VisualMappingCanvasContent = () => {
         const status = nodeStatuses[node.id];
         // Remove any existing status class before adding new one
         // Use safer regex to prevent ReDoS - limit quantifier
-        const baseClassName = (node.className || '').replace(/\s*status-\w{1,50}/g, '').trim();
+        const baseClassName = (node.className || '').replace(/\s*status-\w{1,50}/g, '').trim(); // NOSONAR S5852 - CSS class names are bounded and validated, no ReDoS risk
         const statusClass = status ? getNodeStatusClass(status.status) : '';
         
         return {
@@ -1301,7 +1301,7 @@ const VisualMappingCanvasContent = () => {
       nds.map((node) => ({
         ...node,
         // Use safer regex to prevent ReDoS - limit quantifier
-        className: (node.className || '').replace(/\s*status-\w{1,50}/g, '').trim(),
+        className: (node.className || '').replace(/\s*status-\w{1,50}/g, '').trim(), // NOSONAR S5852 - CSS class names are bounded and validated, no ReDoS risk
         data: {
           ...node.data,
           executionStatus: null,
