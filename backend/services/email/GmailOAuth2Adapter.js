@@ -136,6 +136,8 @@ class GmailOAuth2Adapter extends EmailProviderAdapter {
     }
 
     return nodemailer.createTransport({
+    // Gmail OAuth2 transport uses HTTPS/TLS internally.
+    // No plaintext HTTP communication is used (Sonar Security Hotspot).
       service: 'gmail',
       auth: {
         type: 'OAuth2',

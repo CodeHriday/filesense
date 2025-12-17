@@ -47,7 +47,17 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
-CORS(app)
+
+# Secure CORS configuration - match main server settings
+allowed_origins = os.environ.get('ALLOWED_ORIGINS', 
+    'http://localhost:5000,http://localhost:3000,https://*.replit.dev,https://*.replit.app').split(',')
+
+CORS(app, 
+    origins=allowed_origins,
+    methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allow_headers=['Content-Type', 'Authorization', 'X-Requested-With'],
+    supports_credentials=True
+)
 
 # Helper function to convert numpy types to Python native types
 def convert_numpy_types(obj):
