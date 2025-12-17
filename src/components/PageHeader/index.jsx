@@ -1,5 +1,7 @@
 import React from 'react';
 import './PageHeader.css';
+import PropTypes from 'prop-types';
+
 
 const PageHeader = ({ 
   title, 
@@ -33,6 +35,20 @@ const PageHeader = ({
       )}
     </div>
   );
+};
+PageHeader.propTypes = {
+  title: PropTypes.string.isRequired,
+  description: PropTypes.string,
+  icon: PropTypes.node,
+  actions: PropTypes.node,
+  breadcrumbs: PropTypes.node
+};
+
+PageHeader.defaultProps = {
+  description: null,
+  icon: null,
+  actions: null,
+  breadcrumbs: null
 };
 
 export default PageHeader;

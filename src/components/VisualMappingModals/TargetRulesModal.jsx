@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import FileBrowserModal from './FileBrowserModal';
 import './MappingConfigModal.css';
+import PropTypes from 'prop-types';
+
 
 const TargetRulesModal = ({ isOpen, onClose, onSave, initialConfig = {}, projectId, outputSchema = null }) => {
   const [name, setName] = useState(initialConfig.name || '');
@@ -105,7 +107,7 @@ const TargetRulesModal = ({ isOpen, onClose, onSave, initialConfig = {}, project
       }
     });
   };
-  
+
   const handleSave = () => {
     const selectedConnection = connections.find(c => c.id === parseInt(connectionId));
     const selectedOwner = datastewards.find(ds => ds.id === parseInt(targetFileOwnerId));
@@ -139,7 +141,7 @@ const TargetRulesModal = ({ isOpen, onClose, onSave, initialConfig = {}, project
       <div className="vm-modal vm-modal-large">
         <div className="vm-modal-header">
           <h2>Target Configuration</h2>
-          <button onClick={onClose} className="vm-modal-close">×</button>
+          <button onClick={onClose} className="vm-modal-close" aria-label="Close modal">×</button>
         </div>
         
         {/* Tab Navigation */}
@@ -147,6 +149,8 @@ const TargetRulesModal = ({ isOpen, onClose, onSave, initialConfig = {}, project
           <button 
             className={`vm-tab ${activeTab === 'configuration' ? 'vm-tab-active' : ''}`}
             onClick={() => setActiveTab('configuration')}
+            aria-pressed={activeTab === 'configuration'}
+            aria-label="Configuration tab"
           >
             Configuration
           </button>
@@ -154,6 +158,8 @@ const TargetRulesModal = ({ isOpen, onClose, onSave, initialConfig = {}, project
             <button 
               className={`vm-tab ${activeTab === 'schema' ? 'vm-tab-active' : ''}`}
               onClick={() => setActiveTab('schema')}
+              aria-pressed={activeTab === 'schema'}
+              aria-label="Output Schema tab"
             >
               Output Schema
             </button>
@@ -165,8 +171,9 @@ const TargetRulesModal = ({ isOpen, onClose, onSave, initialConfig = {}, project
           {activeTab === 'configuration' && (
           <div className="vm-modal-body-scroll">
           <div className="vm-form-group">
-            <label>Name *</label>
+            <label htmlFor="target-name-input">Name *</label>
             <input
+              id="target-name-input"
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -177,8 +184,9 @@ const TargetRulesModal = ({ isOpen, onClose, onSave, initialConfig = {}, project
           </div>
           
           <div className="vm-form-group">
-            <label>Description</label>
+            <label htmlFor="target-description">Description</label>
             <textarea
+              id="target-description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Optional description"
@@ -191,8 +199,9 @@ const TargetRulesModal = ({ isOpen, onClose, onSave, initialConfig = {}, project
           
           {/* Target Connection - Full Width */}
           <div className="vm-form-group">
-            <label>Target Connection *</label>
+            <label htmlFor="target-connection-select">Target Connection *</label>
             <select
+              id="target-connection-select"
               value={connectionId}
               onChange={(e) => setConnectionId(e.target.value)}
               className="vm-select"
@@ -209,8 +218,9 @@ const TargetRulesModal = ({ isOpen, onClose, onSave, initialConfig = {}, project
           {/* Row 1: File Path + File Name + Browse + File Format */}
           <div className="vm-form-row-four-cols">
             <div className="vm-form-group vm-form-group-no-margin">
-              <label>File Path *</label>
+              <label htmlFor="target-filepath-input">File Path *</label>
               <input
+                id="target-filepath-input"
                 type="text"
                 value={filePath}
                 onChange={(e) => setFilePath(e.target.value)}
@@ -220,8 +230,9 @@ const TargetRulesModal = ({ isOpen, onClose, onSave, initialConfig = {}, project
             </div>
             
             <div className="vm-form-group vm-form-group-no-margin">
-              <label>File Name *</label>
+              <label htmlFor="target-filename-input">File Name *</label>
               <input
+                id="target-filename-input"
                 type="text"
                 value={fileName}
                 onChange={(e) => setFileName(e.target.value)}
@@ -231,19 +242,22 @@ const TargetRulesModal = ({ isOpen, onClose, onSave, initialConfig = {}, project
             </div>
             
             <div className="vm-form-group vm-form-group-no-margin vm-form-group-browse">
-              <label>&nbsp;</label>
+              <label htmlFor="target-browse-button" className="sr-only">Browse files</label>
               <button 
+                id="target-browse-button"
                 onClick={handleBrowse}
                 disabled={!connectionId || loading}
                 className="vm-btn vm-btn-browse"
+                aria-label="Browse files in selected connection"
               >
                 Browse
               </button>
             </div>
             
             <div className="vm-form-group vm-form-group-no-margin">
-              <label>File Format</label>
+              <label htmlFor="target-fileformat-select">File Format</label>
               <select
+                id="target-fileformat-select"
                 value={fileFormat}
                 onChange={(e) => setFileFormat(e.target.value)}
                 className="vm-select"
@@ -258,8 +272,9 @@ const TargetRulesModal = ({ isOpen, onClose, onSave, initialConfig = {}, project
           
           {/* Target File Owner - Full Width */}
           <div className="vm-form-group">
-            <label>Target File Owner</label>
+            <label htmlFor="target-file-owner-select">Target File Owner</label>
             <select
+              id="target-file-owner-select"
               value={targetFileOwnerId}
               onChange={(e) => setTargetFileOwnerId(e.target.value)}
               className="vm-select"
@@ -279,13 +294,14 @@ const TargetRulesModal = ({ isOpen, onClose, onSave, initialConfig = {}, project
           <h3 className="vm-section-title">Anomaly Detection</h3>
           
           <div className="vm-form-group">
-            <label className="vm-checkbox-label">
+            <label htmlFor="anomaly-detection-checkbox" className="vm-checkbox-label">
               <input
+                id="anomaly-detection-checkbox"
                 type="checkbox"
                 checked={anomalyDetection}
                 onChange={(e) => setAnomalyDetection(e.target.checked)}
               />
-              Enable anomaly detection for numeric deviation, row count, and null spikes
+              <span>Enable anomaly detection for numeric deviation, row count, and null spikes</span>
             </label>
           </div>
           </div>
@@ -385,6 +401,32 @@ const TargetRulesModal = ({ isOpen, onClose, onSave, initialConfig = {}, project
       )}
     </div>
   );
+};
+TargetRulesModal.propTypes = {
+  isOpen: PropTypes.bool.isRequired,
+  onClose: PropTypes.func.isRequired,
+  onSave: PropTypes.func.isRequired,
+  projectId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+  outputSchema: PropTypes.arrayOf(
+    PropTypes.shape({
+      name: PropTypes.string.isRequired,
+      type: PropTypes.string,
+      description: PropTypes.string,
+      contains_pii: PropTypes.bool
+    })
+  ),
+  initialConfig: PropTypes.shape({
+    name: PropTypes.string,
+    description: PropTypes.string,
+    connectionId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    filePath: PropTypes.string,
+    fileName: PropTypes.string,
+    fileFormat: PropTypes.string,
+    violationHandling: PropTypes.string,
+    selectedQualityRules: PropTypes.arrayOf(PropTypes.number),
+    anomalyDetection: PropTypes.bool,
+    targetFileOwnerId: PropTypes.oneOfType([PropTypes.string, PropTypes.number])
+  })
 };
 
 export default TargetRulesModal;

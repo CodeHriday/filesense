@@ -1,5 +1,6 @@
 import React from 'react';
 import { FiChevronLeft, FiChevronRight } from 'react-icons/fi';
+import PropTypes from 'prop-types';
 
 const Pagination = ({ currentPage, totalPages, onPageChange, itemsPerPage, totalItems }) => {
   const startItem = (currentPage - 1) * itemsPerPage + 1;
@@ -78,6 +79,24 @@ const Pagination = ({ currentPage, totalPages, onPageChange, itemsPerPage, total
       </div>
     </div>
   );
+};
+
+
+Pagination.propTypes = {
+  /** Current active page number (1-based) */
+  currentPage: PropTypes.number.isRequired,
+
+  /** Total number of pages */
+  totalPages: PropTypes.number.isRequired,
+
+  /** Callback fired when page changes */
+  onPageChange: PropTypes.func.isRequired,
+
+  /** Number of items per page */
+  itemsPerPage: PropTypes.number.isRequired,
+
+  /** Total number of items across all pages */
+  totalItems: PropTypes.number.isRequired
 };
 
 export default Pagination;

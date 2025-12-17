@@ -21,7 +21,7 @@ function validateVariables(variables) {
   
   const errors = [];
   const namesSeen = new Set();
-  const namePattern = /^[A-Za-z_][A-Za-z0-9_]*$/;
+  const namePattern = /^[A-Za-z_]\w*$/;
   
   variables.forEach((variable, index) => {
     // Validate name exists and matches pattern
@@ -129,7 +129,6 @@ router.get('/', async (req, res) => {
     
     countQuery += ' WHERE ' + countWhereClauses.join(' AND ');
     
-    const countResult = await pool.query(countQuery, countParams);
     
     // Return direct array for workflow builder compatibility
     // If pagination metadata is needed, query parameters can indicate that

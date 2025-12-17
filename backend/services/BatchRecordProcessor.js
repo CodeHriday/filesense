@@ -288,7 +288,6 @@ class BatchRecordProcessor {
   async processParquet(uploadFile, filePath, options) {
     const { parquetRead } = await import('hyparquet');
     const fileHandle = fs.openSync(filePath, 'r');
-    const records = [];
     let totalRecords = 0;
     let processedRecords = 0;
 
@@ -347,7 +346,7 @@ class BatchRecordProcessor {
       return { inserted: 0 };
     }
 
-    const { projectId, agreementId, governanceTags = [] } = options;
+    const { projectId } = options;
     const fileType = path.extname(uploadFile.original_filename).toLowerCase().substring(1);
 
     try {
@@ -427,13 +426,11 @@ class BatchRecordProcessor {
       return `${uploadFile.id}\t${recordNumber}\t${JSON.stringify(record)}`;
     });
 
-    const csvData = csvRows.join('\n');
-
     // Use COPY command
-    const copySQL = `
-      COPY upload_staging (upload_file_id, record_number, record_data)
-      FROM STDIN WITH (FORMAT text, DELIMITER E'\\t')
-    `;
+    // const copySQL = `
+    //   COPY upload_staging (upload_file_id, record_number, record_data)
+    //   FROM STDIN WITH (FORMAT text, DELIMITER E'\\t')
+    // `;
 
     // NOTE: PostgreSQL COPY requires special handling via pg-copy-streams
     // For now, fall back to multi-row insert

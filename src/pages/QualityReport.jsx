@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import PropTypes from 'prop-types';
 import { useParams, useNavigate } from 'react-router-dom';
 import { FiArrowLeft, FiDownload, FiAlertTriangle, FiCheckCircle, FiBarChart2, FiPieChart, FiFileText } from 'react-icons/fi';
 import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, BarElement, Title, Tooltip, Legend, ArcElement, RadialLinearScale } from 'chart.js';
@@ -145,6 +146,12 @@ const QualityReport = () => {
         </div>
       </div>
     );
+  };
+
+  ScoreGauge.propTypes = {
+    score: PropTypes.number.isRequired,
+    label: PropTypes.string.isRequired,
+    color: PropTypes.string
   };
   
   // Generate component score data for chart

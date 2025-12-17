@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import PropTypes from 'prop-types';
 import TableBasedMapper from '../TableBasedMapper';
 import './MappingConfigModal.css';
 
@@ -45,8 +46,9 @@ const ExpressionModal = ({ isOpen, onClose, onSave, initialConfig = {}, schema =
         
         <div className="vm-modal-body vm-modal-body-scroll">
           <div className="vm-form-group">
-            <label>Name *</label>
+            <label htmlFor="expression-name">Name *</label>
             <input
+              id="expression-name"
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -57,8 +59,9 @@ const ExpressionModal = ({ isOpen, onClose, onSave, initialConfig = {}, schema =
           </div>
           
           <div className="vm-form-group">
-            <label>Description</label>
+            <label htmlFor="expression-description">Description</label>
             <textarea
+              id="expression-description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Optional description"
@@ -88,6 +91,22 @@ const ExpressionModal = ({ isOpen, onClose, onSave, initialConfig = {}, schema =
       </div>
     </div>
   );
+};
+ExpressionModal.propTypes = {
+  isOpen: PropTypes.bool.isRequired,
+  onClose: PropTypes.func.isRequired,
+  onSave: PropTypes.func.isRequired,
+
+  initialConfig: PropTypes.shape({
+    name: PropTypes.string,
+    description: PropTypes.string,
+    fieldMappings: PropTypes.array,
+    variables: PropTypes.array,
+    piiColumns: PropTypes.array,
+    dqRuleAssignments: PropTypes.object
+  }),
+
+  schema: PropTypes.array
 };
 
 export default ExpressionModal;

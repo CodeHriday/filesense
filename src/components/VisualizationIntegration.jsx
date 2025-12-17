@@ -4,6 +4,7 @@ import { ContextualTooltip } from './ContextualTooltip';
 import { LoadingSkeleton } from './LoadingSkeleton';
 import { ToggleSwitch } from './MicroInteractions';
 import './VisualizationIntegration.css';
+import PropTypes from 'prop-types';
 
 /**
  * Component for integrating with external data visualization tools
@@ -363,10 +364,10 @@ const VisualizationIntegration = ({
     return (
       <form className="api-key-form" onSubmit={(e) => handleSaveApiKey(e, currentTool.id)}>
         <div className="form-group">
-          <label htmlFor="apiKey">{currentTool.name} API Key</label>
+          <label htmlFor={`apiKey-${currentTool.id}`}>{currentTool.name} API Key</label>
           <input 
             type="text" 
-            id="apiKey" 
+            id={`apiKey-${currentTool.id}`}
             name="apiKey" 
             placeholder={`Enter your ${currentTool.name} API key`}
             required
@@ -473,9 +474,10 @@ const VisualizationIntegration = ({
                 
                 <div className="export-options">
                   <div className="option-group">
-                    <label>Format</label>
+                    <label htmlFor="export-format-select">Format</label>
                     <div className="format-selector">
                       <select 
+                        id="export-format-select"
                         value={exportFormat} 
                         onChange={handleFormatChange}
                       >
@@ -494,8 +496,9 @@ const VisualizationIntegration = ({
                   </div>
                   
                   <div className="option-group">
-                    <label>Include Metadata</label>
+                    <label htmlFor="include-metadata-toggle">Include Metadata</label>
                     <ToggleSwitch
+                      id="include-metadata-toggle"
                       isOn={includeMetadata}
                       onToggle={handleMetadataToggle}
                       size="small"
@@ -547,40 +550,41 @@ const VisualizationIntegration = ({
                         <h5>Advanced Export Options</h5>
                         
                         <div className="advanced-option">
-                          <label>
+                          <label htmlFor="advanced-include-metadata">
                             <input 
+                              id="advanced-include-metadata"
                               type="checkbox" 
                               checked={includeMetadata} 
                               onChange={(e) => setIncludeMetadata(e.target.checked)} 
                             />
-                            Include file metadata
+                            <span>Include file metadata</span>
                           </label>
                         </div>
                         
                         <div className="advanced-option">
-                          <label>
-                            <input type="checkbox" defaultChecked={true} />
-                            Include quality metrics
+                          <label htmlFor="include-quality-metrics">
+                            <input id="include-quality-metrics" type="checkbox" defaultChecked={true} />
+                            <span>Include quality metrics</span>
                           </label>
                         </div>
                         
                         <div className="advanced-option">
-                          <label>
-                            <input type="checkbox" defaultChecked={false} />
-                            Include lineage information
+                          <label htmlFor="include-lineage-info">
+                            <input id="include-lineage-info" type="checkbox" defaultChecked={false} />
+                            <span>Include lineage information</span>
                           </label>
                         </div>
                         
                         <div className="advanced-option">
-                          <label>
-                            <input type="checkbox" defaultChecked={false} />
-                            Include historical versions
+                          <label htmlFor="include-historical-versions">
+                            <input id="include-historical-versions" type="checkbox" defaultChecked={false} />
+                            <span>Include historical versions</span>
                           </label>
                         </div>
                         
                         <div className="option-group">
-                          <label>Data sample size</label>
-                          <select defaultValue="full">
+                          <label htmlFor="data-sample-size-select">Data sample size</label>
+                          <select id="data-sample-size-select" defaultValue="full">
                             <option value="full">Full dataset</option>
                             <option value="1000">1,000 rows</option>
                             <option value="5000">5,000 rows</option>
@@ -597,6 +601,7 @@ const VisualizationIntegration = ({
                 <div className="export-result">
                   <h4>Connection URL</h4>
                   <div className="url-display">
+                    <label htmlFor="export-url" className="sr-only">Export URL</label>
                     <input 
                       type="text" 
                       value={exportUrl} 
@@ -635,6 +640,25 @@ const VisualizationIntegration = ({
       </div>
     </div>
   );
+};
+
+VisualizationIntegration.propTypes = {
+  fileData: PropTypes.shape({
+    filename: PropTypes.string,
+    file_id: PropTypes.oneOfType([PropTypes.string, PropTypes.number])
+  }),
+  className: PropTypes.string,
+  style: PropTypes.object,
+  onExport: PropTypes.func,
+  loading: PropTypes.bool,
+};
+
+VisualizationIntegration.defaultProps = {
+  fileData: null,
+  className: '',
+  style: {},
+  onExport: null,
+  loading: false,
 };
 
 export default VisualizationIntegration;

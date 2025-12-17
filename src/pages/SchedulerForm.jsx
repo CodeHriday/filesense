@@ -260,8 +260,9 @@ const SchedulerForm = () => {
             {/* Row 1: Project and Subproject */}
             <div className="form-row">
               <div className="form-group">
-                <label>Project *</label>
+                <label htmlFor="project-select">Project *</label>
                 <select
+                  id="project-select"
                   value={formData.project_id}
                   onChange={e => setFormData({ ...formData, project_id: e.target.value })}
                   required
@@ -280,8 +281,9 @@ const SchedulerForm = () => {
               </div>
 
               <div className="form-group">
-                <label>Subproject</label>
+                <label htmlFor="subproject-select">Subproject</label>
                 <select
+                  id="subproject-select"
                   value={formData.sub_project_id}
                   onChange={e => setFormData({ ...formData, sub_project_id: e.target.value })}
                   className="form-select"
@@ -303,8 +305,9 @@ const SchedulerForm = () => {
             {/* Row 2: Entity Type */}
             <div className="form-row">
               <div className="form-group">
-                <label>Entity Type *</label>
+                <label htmlFor="entity-type">Entity Type *</label>
                 <select
+                  id="entity-type"
                   value={formData.entity_type}
                   onChange={e => setFormData({ ...formData, entity_type: e.target.value, entity_id: '' })}
                   className="form-select"
@@ -319,8 +322,9 @@ const SchedulerForm = () => {
             {/* Row 3: Select Entity and Schedule Type */}
             <div className="form-row">
               <div className="form-group">
-                <label>Select {formData.entity_type.replace('_', ' ')} *</label>
+                <label htmlFor="entity-select">Select {formData.entity_type.replace('_', ' ')} *</label>
                 <select
+                  id="entity-select"
                   value={formData.entity_id}
                   onChange={e => {
                     const value = e.target.value;
@@ -363,10 +367,11 @@ const SchedulerForm = () => {
               </div>
 
               <div className="form-group" style={{ border: '1px solid #ddd', padding: '1rem', borderRadius: '4px' }}>
-                <label>Schedule Type *</label>
+                <label htmlFor="schedule-type-cron">Schedule Type *</label>
                 <div className="radio-group">
                   <label className="radio-label">
                     <input
+                      id="schedule-type-cron"
                       type="radio"
                       value="cron"
                       checked={formData.schedule_type === 'cron'}
@@ -376,6 +381,7 @@ const SchedulerForm = () => {
                   </label>
                   <label className="radio-label">
                     <input
+                      id="schedule-type-interval"
                       type="radio"
                       value="interval"
                       checked={formData.schedule_type === 'interval'}
@@ -389,8 +395,9 @@ const SchedulerForm = () => {
 
             {formData.schedule_type === 'cron' ? (
               <div className="form-group">
-                <label>Cron Expression *</label>
+                <label htmlFor="cron-expression">Cron Expression *</label>
                 <input
+                  id="cron-expression"
                   type="text"
                   value={formData.cron_expression}
                   onChange={e => setFormData({ ...formData, cron_expression: e.target.value })}
@@ -417,8 +424,9 @@ const SchedulerForm = () => {
             ) : (
               <div className="form-row">
                 <div className="form-group">
-                  <label>Interval Value *</label>
+                  <label htmlFor="interval-value">Interval Value *</label>
                   <input
+                    id="interval-value"
                     type="number"
                     min="1"
                     value={formData.interval_value}
@@ -428,8 +436,9 @@ const SchedulerForm = () => {
                   />
                 </div>
                 <div className="form-group">
-                  <label>Interval Unit *</label>
+                  <label htmlFor="interval-unit">Interval Unit *</label>
                   <select
+                    id="interval-unit"
                     value={formData.interval_unit}
                     onChange={e => setFormData({ ...formData, interval_unit: e.target.value })}
                     required
@@ -447,8 +456,9 @@ const SchedulerForm = () => {
             )}
 
             <div className="form-group">
-              <label className="checkbox-label">
+              <label htmlFor="schedule-enabled" className="checkbox-label">
                 <input
+                  id="schedule-enabled"
                   type="checkbox"
                   checked={formData.enabled}
                   onChange={e => setFormData({ ...formData, enabled: e.target.checked })}

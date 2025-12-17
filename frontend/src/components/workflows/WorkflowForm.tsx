@@ -2,9 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import workflowService, { WorkflowStep, CreateWorkflowStepRequest } from '../../services/workflowService';
 import transformationService from '../../services/transformationService';
-import mappingGroupService from '../../services/mappingGroupService';
+import mappingGroupService, { MappingGroup } from '../../services/mappingGroupService';
 import { Transformation } from '../../../../shared/types/transformations';
-import { MappingGroup } from '../../services/mappingGroupService';
 import { THEME } from '../../config/config';
 
 const WorkflowForm: React.FC = () => {
@@ -12,7 +11,7 @@ const WorkflowForm: React.FC = () => {
   const { workflowName } = useParams<{ workflowName: string }>();
   const isEdit = !!workflowName;
 
-  const [name, setName] = useState(workflowName || '');
+  const [name, setName] = useState(workflowName ?? '');
   const [steps, setSteps] = useState<WorkflowStep[]>([]);
   const [transformations, setTransformations] = useState<Transformation[]>([]);
   const [mappingGroups, setMappingGroups] = useState<MappingGroup[]>([]);
@@ -43,7 +42,9 @@ const WorkflowForm: React.FC = () => {
 
       if (isEdit && workflowName) {
         const stepsData = await workflowService.getWorkflowSteps(workflowName);
-        setSteps(stepsData.sort((a, b) => a.step_order - b.step_order));
+        const stepsCopy = [...stepsData];
+        const sortedSteps = stepsCopy.sort((a, b) => a.step_order - b.step_order);
+        setSteps(sortedSteps);
       }
     } catch (err) {
       console.error('Error fetching data:', err);
@@ -111,7 +112,7 @@ const WorkflowForm: React.FC = () => {
 
   const getEntityOptions = () => {
     if (newStep.step_type === 'transformation') {
-      return transformations.map(t => ({ id: t.id, name: t.mapping_name }));
+      return transformations.map(t => ({ id: t.id, name: t.name }));
     } else {
       return mappingGroups.map(g => ({ id: g.group_id, name: g.group_name }));
     }
@@ -131,10 +132,11 @@ const WorkflowForm: React.FC = () => {
 
       {!isEdit && (
         <div style={{ marginBottom: '24px' }}>
-          <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>
+          <label htmlFor="workflow-name-input" style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>
             Workflow Name *
           </label>
           <input
+            id="workflow-name-input"
             type="text"
             value={name}
             onChange={e => setName(e.target.value)}
@@ -199,8 +201,9 @@ const WorkflowForm: React.FC = () => {
         
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
           <div>
-            <label style={{ display: 'block', marginBottom: '4px', fontSize: '14px' }}>Step Name *</label>
+            <label htmlFor="step-name-input" style={{ display: 'block', marginBottom: '4px', fontSize: '14px' }}>Step Name *</label>
             <input
+              id="step-name-input"
               type="text"
               value={newStep.step_name}
               onChange={e => setNewStep({ ...newStep, step_name: e.target.value })}
@@ -209,8 +212,9 @@ const WorkflowForm: React.FC = () => {
           </div>
           
           <div>
-            <label style={{ display: 'block', marginBottom: '4px', fontSize: '14px' }}>Step Type *</label>
+            <label htmlFor="step-type-select" style={{ display: 'block', marginBottom: '4px', fontSize: '14px' }}>Step Type *</label>
             <select
+              id="step-type-select"
               value={newStep.step_type}
               onChange={e => setNewStep({ ...newStep, step_type: e.target.value as 'transformation' | 'mapping_group', entity_id: '' })}
               style={{ width: '100%', padding: '6px', border: '1px solid #e0e0e0', borderRadius: '4px' }}
@@ -223,10 +227,11 @@ const WorkflowForm: React.FC = () => {
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px', marginBottom: '12px' }}>
           <div>
-            <label style={{ display: 'block', marginBottom: '4px', fontSize: '14px' }}>
+            <label htmlFor="entity-select" style={{ display: 'block', marginBottom: '4px', fontSize: '14px' }}>
               {newStep.step_type === 'transformation' ? 'Transformation' : 'Mapping Group'} *
             </label>
             <select
+              id="entity-select"
               value={newStep.entity_id}
               onChange={e => setNewStep({ ...newStep, entity_id: e.target.value })}
               style={{ width: '100%', padding: '6px', border: '1px solid #e0e0e0', borderRadius: '4px' }}
@@ -239,8 +244,9 @@ const WorkflowForm: React.FC = () => {
           </div>
 
           <div>
-            <label style={{ display: 'block', marginBottom: '4px', fontSize: '14px' }}>Execution Mode</label>
+            <label htmlFor="execution-mode-select" style={{ display: 'block', marginBottom: '4px', fontSize: '14px' }}>Execution Mode</label>
             <select
+              id="execution-mode-select"
               value={newStep.execution_mode}
               onChange={e => setNewStep({ ...newStep, execution_mode: e.target.value as 'parallel' | 'sequential' })}
               style={{ width: '100%', padding: '6px', border: '1px solid #e0e0e0', borderRadius: '4px' }}
@@ -251,8 +257,9 @@ const WorkflowForm: React.FC = () => {
           </div>
 
           <div>
-            <label style={{ display: 'block', marginBottom: '4px', fontSize: '14px' }}>Retry Attempts</label>
+            <label htmlFor="retry-attempts-input" style={{ display: 'block', marginBottom: '4px', fontSize: '14px' }}>Retry Attempts</label>
             <input
+              id="retry-attempts-input"
               type="number"
               min="0"
               max="10"
@@ -264,8 +271,8 @@ const WorkflowForm: React.FC = () => {
         </div>
 
         {steps.length > 0 && (
-          <div style={{ marginBottom: '12px' }}>
-            <label style={{ display: 'block', marginBottom: '4px', fontSize: '14px' }}>Dependencies (optional)</label>
+          <fieldset style={{ marginBottom: '12px', border: 'none', padding: '0' }}>
+            <legend style={{ display: 'block', marginBottom: '4px', fontSize: '14px', fontWeight: 'normal' }}>Dependencies (optional)</legend>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
               {steps.map((step, idx) => (
                 <label
@@ -292,7 +299,7 @@ const WorkflowForm: React.FC = () => {
                 </label>
               ))}
             </div>
-          </div>
+          </fieldset>
         )}
 
         <button

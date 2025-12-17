@@ -15,13 +15,12 @@ const { systemLogger } = require('../utils/logger');
 let redisClient = null;
 let useRedis = false;
 
-try {
-  const redis = require('../redis');
-  if (redis && redis.getClient) {
-    redisClient = redis.getClient();
-    useRedis = !!redisClient;
-  }
-} catch (e) {
+const redis = require('../redis');
+
+redisClient = redis?.getClient?.() || null;
+useRedis = !!redisClient;
+
+if (!useRedis) {
   systemLogger?.debug?.('Redis not available for caching, using in-memory');
 }
 

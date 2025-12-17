@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
+import PropTypes from 'prop-types';
 import { useParams, Link } from 'react-router-dom';
-import { FiFileText, FiCalendar, FiBarChart2, FiDownload, FiTable, FiCopy, FiEdit2, FiUser, FiClock, FiCheckCircle, FiAlertTriangle, FiXCircle, FiGitBranch, FiZap, FiPlay, FiRefreshCw } from 'react-icons/fi';
+import { FiFileText, FiBarChart2, FiDownload, FiTable, FiCopy, FiEdit2, FiUser, FiClock, FiCheckCircle, FiAlertTriangle, FiXCircle, FiGitBranch, FiZap, FiPlay, FiRefreshCw } from 'react-icons/fi';
 import Card from '../components/Card';
 import LoadingSpinner from '../components/LoadingSpinner';
 import FilePreview from '../components/FilePreview';
 import ErrorModal from '../components/ErrorModal';
 import SchemaHistoryTab from '../components/SchemaHistoryTab';
 import AIDQSuggestionsTab from '../components/AIDQSuggestionsTab';
-import { getFileDetails, getFileProfile, getFilePreview } from '../api/fileService';
+import { getFileDetails, getFileProfile} from '../api/fileService';
 import { getFileQualityRules, assignFileQualityRules } from '../api/qualityRulesService';
 import { formatBytes, formatDate, getTimeSince, formatNumber, formatDecimal } from '../utils/formatters';
 import { useAuth } from '../context/AuthContext';
@@ -69,12 +70,12 @@ const getSemanticFieldType = (column) => {
   if (/(_ts|_at|timestamp|_datetime)$/.test(name) || /^(created|updated|modified|deleted|processed)_?(at|on|date|time)?$/.test(name)) {
     return 'datetime';
   }
-  if (/(_date|_dt)$/.test(name) || /^(birth|start|end|order|ship|delivery|due|expir).*date/.test(name) || name === 'date' || name === 'dob') {
+  if (/(_date|_dt)$/.test(name) || /^(birth|start|end|order|ship|delivery|due|expir).{0,20}date/.test(name) || name === 'date' || name === 'dob') {
     return 'date';
   }
   
-  // SSN / Tax ID detection
-  if (/ssn|social.*security|tax.*id|tin|ein|itin/.test(name)) {
+  // SSN / Tax ID detection - use safer regex to prevent ReDoS
+  if (/ssn|social.{0,10}security|tax.{0,10}id|tin|ein|itin/.test(name)) {
     return 'ssn';
   }
   
@@ -83,13 +84,13 @@ const getSemanticFieldType = (column) => {
     return 'zipcode';
   }
   
-  // Credit card detection
-  if (/credit.*card|card.*number|cc.*num/.test(name)) {
+  // Credit card detection - use safer regex to prevent ReDoS
+  if (/credit.{0,20}card|card.{0,20}number|cc.{0,10}num/.test(name)) {
     return 'creditcard';
   }
   
-  // IP address detection
-  if (/ip.*addr|ip_address|ipv[46]/.test(name)) {
+  // IP address detection - use safer regex to prevent ReDoS
+  if (/ip.{0,10}addr|ip_address|ipv[46]/.test(name)) {
     return 'ip';
   }
   
@@ -391,7 +392,7 @@ function FixedWidthSchemaModal({ fileId, onClose, onSave, setErrorMessage }) {
         
         <div className="form-group">
           {columns.map((col, index) => (
-            <div key={index} style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
+            <div key={`col-${col.name || col.column_name || index}`} style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
               <input
                 type="text"
                 placeholder="Column Name"
@@ -479,8 +480,15 @@ function SensitivityTagModal({ fileId, columnName, currentTags, availableTags, o
         <h2>Classify Column: {columnName}</h2>
         
         <div className="form-group">
-          <label>Select Governance Tags (multi-select)</label>
-          <div className="classification-options">
+          <label htmlFor="governance-tags-multiselect">Select Governance Tags (multi-select)</label>
+
+          <div 
+            id="governance-tags-multiselect"           
+            className="classification-options"
+            role="listbox"                            
+            aria-multiselectable="true"                
+            tabIndex={0}
+          >
             {availableTags && availableTags.length > 0 ? (
               availableTags.map((tag) => {
                 const isSelected = selectedTagIds.includes(tag.tag_id);
@@ -559,8 +567,9 @@ function OwnershipModal({ fileId, currentOwnership, onClose, onSave, setErrorMes
         <h2>Edit File Ownership</h2>
         
         <div className="form-group">
-          <label>Owner Name</label>
+          <label htmlFor="owner-name-input">Owner Name</label>
           <input
+            id="owner-name-input"
             type="text"
             value={ownerName}
             onChange={(e) => setOwnerName(e.target.value)}
@@ -569,8 +578,9 @@ function OwnershipModal({ fileId, currentOwnership, onClose, onSave, setErrorMes
         </div>
         
         <div className="form-group">
-          <label>Owner Email</label>
+          <label htmlFor="owner-email-input">Owner Email</label>
           <input
+            id="owner-email-input"
             type="email"
             value={ownerEmail}
             onChange={(e) => setOwnerEmail(e.target.value)}
@@ -579,8 +589,9 @@ function OwnershipModal({ fileId, currentOwnership, onClose, onSave, setErrorMes
         </div>
         
         <div className="form-group">
-          <label>Owner Contact</label>
+          <label htmlFor="owner-contact-input">Owner Contact</label>
           <input
+            id="owner-contact-input"
             type="text"
             value={ownerContact}
             onChange={(e) => setOwnerContact(e.target.value)}
@@ -645,8 +656,13 @@ function ColumnGovernanceTagModal({ fileId, columnName, currentTags, availableTa
         <h2>Assign Tags to Column: {columnName}</h2>
         
         <div className="form-group">
-          <label>Select Governance Tags</label>
-          <div className="tags-selector">
+          <label htmlFor="governance-tags-selector">Select Governance Tags</label>
+          <div
+           id="governance-tags-selector"  
+            className="tags-selector"
+            role="listbox"
+            aria-multiselectable="true"
+            >
             {availableTags.length > 0 ? (
               availableTags.map(tag => {
                 const isSelected = selectedTags.some(t => t.tag_id === tag.tag_id);
@@ -724,8 +740,8 @@ function ColumnPolicyModal({ fileId, columnName, currentPolicies, availablePolic
         <h2>Assign Policies to Column: {columnName}</h2>
         
         <div className="form-group">
-          <label>Select Governance Policies</label>
-          <div className="policies-selector">
+          <label htmlFor="policies-selector">Select Governance Policies</label>
+          <div id="policies-selector" className="policies-selector" role="listbox" aria-multiselectable="true">
             {availablePolicies.length > 0 ? (
               availablePolicies.map(policy => {
                 const isSelected = selectedPolicies.some(p => p.policy_id === policy.policy_id);
@@ -838,7 +854,7 @@ function DataProfile() {
   
   // Rule-to-column assignment state for Quality Rules tab
   const [expandedRuleId, setExpandedRuleId] = useState(null);
-  const [ruleColumnAssignments, setRuleColumnAssignments] = useState({}); // { ruleId: [columnNames] }
+  const [ruleColumnAssignments, setRuleColumnAssignments] = useState({}); 
   const [savedRuleColumnAssignments, setSavedRuleColumnAssignments] = useState({}); // Tracks persisted state for change detection
   const [rulesRunning, setRulesRunning] = useState(false); // Running quality rule validation
   const [showRevalidateModal, setShowRevalidateModal] = useState(false); // Show file upload modal for revalidation
@@ -896,13 +912,7 @@ function DataProfile() {
     return accessLevel === 'masked' || accessLevel === 'denied' || accessLevel === 'none';
   };
   
-  const getMaskedValue = (value, column) => {
-    // Return masked placeholder if column should be masked, otherwise return the original value
-    if (shouldMaskValue(column)) {
-      return '****';
-    }
-    return value;
-  };
+  
   
   // Check if user has edit permission for a column's governance tags
   // MUST match backend security logic: requires edit permission for ALL tags
@@ -1528,33 +1538,9 @@ function DataProfile() {
     const basicInfo = profile.basic_info || {};
     const columns = profile.columns || [];
     
-    const handleTagToggle = async (tagId) => {
-      const isSelected = fileTags.some(ft => ft.tag_id === tagId);
-      const encodedFileId = encodeURIComponent(fileId);
-      if (isSelected) {
-        // Remove tag
-        await axios.delete(`/api/files/${encodedFileId}/tags/${tagId}`);
-        await fetchFileTags();
-      } else {
-        // Add tag
-        await axios.post(`/api/files/${encodedFileId}/tags`, { tag_id: tagId });
-        await fetchFileTags();
-      }
-    };
+   
     
-    const handlePolicyToggle = async (policyId) => {
-      const isSelected = policies.some(p => p.policy_id === policyId);
-      const encodedFileId = encodeURIComponent(fileId);
-      if (isSelected) {
-        // Remove policy
-        await axios.delete(`/api/files/${encodedFileId}/policies/${policyId}`);
-        await fetchPolicies();
-      } else {
-        // Add policy
-        await axios.post(`/api/files/${encodedFileId}/policies`, { policy_id: policyId });
-        await fetchPolicies();
-      }
-    };
+    
     
     const headerValidation = file.metadata?.header_validation;
     const hasHeaderIssues = headerValidation && (headerValidation.issues_found > 0 || headerValidation.status !== 'healthy');
@@ -1608,8 +1594,8 @@ function DataProfile() {
                 {hasHeaderIssues && headerValidation.issues && headerValidation.issues.length > 0 && (
                   <div className="header-validation-issues">
                     <h5 style={{ fontSize: '10px', fontWeight: '600', marginBottom: '8px' }}>Issues Detected:</h5>
-                    {headerValidation.issues.map((issue, index) => (
-                      <div key={index} className={`issue-item ${issue.severity}`}>
+                    {headerValidation.issues.map((issue) => (
+                      <div key={issue.issue_type} className={`issue-item ${issue.severity}`}>
                         <div className="issue-header">
                           <span className={`gps-badge gps-badge--${issue.severity === 'high' ? 'danger' : 'warning'}`} style={{ fontSize: '9px' }}>
                             {issue.severity === 'high' ? 'High' : 'Medium'}
@@ -1750,9 +1736,9 @@ function DataProfile() {
                                 {getSemanticTypeLabel(quality.semanticType)}
                               </span>
                             )}
-                            {quality.issues.map((issue, idx) => (
+                            {quality.issues.map((issue) => (
                               <span 
-                                key={idx}
+                                key={issue.type} 
                                 className="gps-badge"
                                 style={getAttrIssueBadgeStyle(issue.severity)}
                                 title={issue.tooltip}
@@ -1930,32 +1916,69 @@ function DataProfile() {
                   {columnAnalysis.map((column) => {
                     const nullCount = column.missing || 0;
                     const missingPercentage = Math.round((nullCount / totalRows) * 100);
-                    const columnGovernanceTags = allColumnGovernanceTags[column.name] || [];
+                    const governanceTags = allColumnGovernanceTags[column.name] || [];
                     const { quality } = column;
-                    
-                    const formatPatterns = (patterns) => {
-                      if (!patterns || patterns.length === 0) return 'N/A';
-                      if (shouldMaskValue(column)) return '****';
-                      const topPatterns = patterns.slice(0, 2);
-                      return topPatterns.map(p => `${p.pattern} (${p.percentage}%)`).join(', ');
-                    };
-                    
-                    // Find specific issue types for cell-level highlighting
+
+                    // Early extraction of commonly used flags
+                    const isMasked = shouldMaskValue(column);
+                    const hasMinMax = hasMinMaxValues(column);
                     const multiPatternIssue = quality.issues.find(i => i.type === 'multipattern');
                     const highNullsIssue = quality.issues.find(i => i.type === 'highnulls');
-                    
+
+                    // Helper: Format patterns (extracted to reduce nesting)
+                    const renderedPatterns = (() => {
+                      if (isMasked) return '****';
+                      if (!column.patterns || column.patterns.length === 0) return 'N/A';
+                      return column.patterns
+                        .slice(0, 2)
+                        .map(p => `${p.pattern} (${p.percentage}%)`)
+                        .join(', ');
+                    })();
+
+                    // Helper: Render min or least frequent value
+                    const renderMinValue = () => {
+                      if (isMasked) return '****';
+                      if (hasMinMax) {
+                        const value = formatMinMaxValue(column.min, column);
+                        return column.min_is_frequent
+                          ? `${value} (occurs ${column.min_frequency || 1}x)`
+                          : value;
+                      }
+                      if (column.least_frequent_value) {
+                        return `${column.least_frequent_value} (occurs ${column.least_frequent_count || 1}x)`;
+                      }
+                      return 'N/A';
+                    };
+
+                    // Helper: Render max or most frequent value
+                    const renderMaxValue = () => {
+                      if (isMasked) return '****';
+                      if (hasMinMax) {
+                        const value = formatMinMaxValue(column.max, column);
+                        return column.max_is_frequent
+                          ? `${value} (occurs ${column.max_frequency || 1}x)`
+                          : value;
+                      }
+                      if (column.most_frequent_value) {
+                        return `${column.most_frequent_value} (occurs ${column.most_frequent_count || 1}x)`;
+                      }
+                      return 'N/A';
+                    };
+
                     return (
                       <tr key={column.name} style={getRowStyle(quality.severityLevel)}>
+                        {/* Column Name + Semantic Type + Issues */}
                         <td>
                           <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '4px' }}>
                             <span style={{ fontWeight: '500' }}>{column.name}</span>
+
                             {quality.semanticType !== 'generic' && (
-                              <span 
-                                className="gps-badge" 
-                                style={{ 
-                                  backgroundColor: '#e2e8f0', 
-                                  color: '#475569', 
-                                  fontSize: '8px', 
+                              <span
+                                className="gps-badge"
+                                style={{
+                                  backgroundColor: '#e2e8f0',
+                                  color: '#475569',
+                                  fontSize: '8px',
                                   padding: '1px 4px',
                                   fontWeight: '500'
                                 }}
@@ -1964,9 +1987,10 @@ function DataProfile() {
                                 {getSemanticTypeLabel(quality.semanticType)}
                               </span>
                             )}
+
                             {quality.issues.map((issue, idx) => (
-                              <span 
-                                key={idx}
+                              <span
+                                key={`issue-${issue.type || issue.issue_type || issue.rule_name || idx}`}
                                 className="gps-badge"
                                 style={getIssueBadgeStyle(issue.severity)}
                                 title={issue.tooltip}
@@ -1976,14 +2000,16 @@ function DataProfile() {
                             ))}
                           </div>
                         </td>
+
+                        {/* Governance Tags */}
                         <td>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexWrap: 'wrap' }}>
-                            {columnGovernanceTags.length > 0 ? (
-                              columnGovernanceTags.map(tag => (
-                                <span 
-                                  key={tag.tag_id} 
-                                  className="gps-badge" 
-                                  style={{ 
+                            {governanceTags.length > 0 ? (
+                              governanceTags.map(tag => (
+                                <span
+                                  key={tag.tag_id}
+                                  className="gps-badge"
+                                  style={{
                                     backgroundColor: tag.tag_color || tag.color || '#3b82f6',
                                     color: 'white',
                                     fontSize: '9px',
@@ -1999,38 +2025,57 @@ function DataProfile() {
                             )}
                           </div>
                         </td>
-                        <td><span className="gps-badge gps-badge--secondary" style={{ fontSize: '9px' }}>{column.type}</span></td>
-                        <td style={{ 
-                          maxWidth: '150px', 
-                          overflow: 'hidden', 
-                          textOverflow: 'ellipsis',
-                          ...(multiPatternIssue ? { borderLeft: '3px solid #f59e0b' } : {})
-                        }}>
-                          {formatPatterns(column.patterns)}
+
+                        {/* Data Type */}
+                        <td>
+                          <span className="gps-badge gps-badge--secondary" style={{ fontSize: '9px' }}>
+                            {column.type}
+                          </span>
                         </td>
-                        <td>{column.unique !== undefined && column.unique !== null ? column.unique.toLocaleString() : '0'}</td>
-                        <td style={{
-                          ...(highNullsIssue ? { 
-                            borderLeft: highNullsIssue.severity === 'danger' ? '3px solid #ef4444' : '3px solid #f59e0b'
-                          } : {})
-                        }}>
+
+                        {/* Patterns */}
+                        <td
+                          style={{
+                            maxWidth: '150px',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            ...(multiPatternIssue ? { borderLeft: '3px solid #f59e0b' } : {})
+                          }}
+                        >
+                          {renderedPatterns}
+                        </td>
+
+                        {/* Unique Values */}
+                        <td>
+                          {column.unique !== undefined && column.unique !== null
+                            ? column.unique.toLocaleString()
+                            : '0'}
+                        </td>
+
+                        {/* Nulls */}
+                        <td
+                          style={{
+                            ...(highNullsIssue
+                              ? {
+                                  borderLeft:
+                                    highNullsIssue.severity === 'danger'
+                                      ? '3px solid #ef4444'
+                                      : '3px solid #f59e0b'
+                                }
+                              : {})
+                          }}
+                        >
                           {`${nullCount.toLocaleString()} (${missingPercentage}%)`}
                         </td>
+
+                        {/* Min / Least Frequent */}
                         <td style={{ maxWidth: '180px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {shouldMaskValue(column) ? '****' : 
-                          hasMinMaxValues(column)
-                            ? column.min_is_frequent 
-                              ? `${formatMinMaxValue(column.min, column)} (occurs ${column.min_frequency || 1}x)` 
-                              : formatMinMaxValue(column.min, column)
-                            : column.least_frequent_value ? `${column.least_frequent_value} (occurs ${column.least_frequent_count || 1}x)` : 'N/A'}
+                          {renderMinValue()}
                         </td>
+
+                        {/* Max / Most Frequent */}
                         <td style={{ maxWidth: '180px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {shouldMaskValue(column) ? '****' :
-                          hasMinMaxValues(column)
-                            ? column.max_is_frequent 
-                              ? `${formatMinMaxValue(column.max, column)} (occurs ${column.max_frequency || 1}x)` 
-                              : formatMinMaxValue(column.max, column)
-                            : column.most_frequent_value ? `${column.most_frequent_value} (occurs ${column.most_frequent_count || 1}x)` : 'N/A'}
+                          {renderMaxValue()}
                         </td>
                       </tr>
                     );
@@ -2044,285 +2089,7 @@ function DataProfile() {
     );
   };
 
-  const renderDistributionTab = () => {
-    if (!profile || !profile.columns) return null;
-    
-    const columns = profile.columns;
-    const basicInfo = profile.basic_info || {};
-    const totalRows = file.row_count || basicInfo.rowCount || 100;
-    
-    // Get severity-based border color for distribution cards
-    const getSeverityBorderColor = (severityLevel) => {
-      switch (severityLevel) {
-        case 'danger': return '#ef4444';
-        case 'warning': return '#f59e0b';
-        case 'info': return '#3b82f6';
-        default: return null;
-      }
-    };
-    
-    // Get badge style for distribution tab based on severity
-    const getDistBadgeStyle = (severity) => {
-      switch (severity) {
-        case 'danger': return { backgroundColor: '#ef4444', color: 'white', fontSize: '9px', padding: '2px 6px' };
-        case 'warning': return { backgroundColor: '#f59e0b', color: 'white', fontSize: '9px', padding: '2px 6px' };
-        case 'info': return { backgroundColor: '#3b82f6', color: 'white', fontSize: '9px', padding: '2px 6px' };
-        default: return { fontSize: '9px', padding: '2px 6px' };
-      }
-    };
-    
-    return (
-      <div className="distribution-tab">
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: '16px' }}>
-          {columns.map((column) => {
-            const quality = analyzeColumnQuality(column, totalRows);
-            const columnGovernanceTags = allColumnGovernanceTags[column.name] || [];
-            const borderColor = getSeverityBorderColor(quality.severityLevel);
-            
-            return (
-              <div 
-                key={column.name} 
-                className="gps-card"
-                style={borderColor ? { borderLeft: `3px solid ${borderColor}` } : {}}
-              >
-                <div className="gps-card-header" style={{ padding: '12px 16px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                    <h3 className="gps-card-title" style={{ margin: 0, fontSize: '12px' }}>{column.name}</h3>
-                    {quality.semanticType !== 'generic' && (
-                      <span 
-                        className="gps-badge" 
-                        style={{ 
-                          backgroundColor: '#e2e8f0', 
-                          color: '#475569', 
-                          fontSize: '8px', 
-                          padding: '1px 4px',
-                          fontWeight: '500'
-                        }}
-                        title={`Detected as ${getSemanticTypeLabel(quality.semanticType)} field`}
-                      >
-                        {getSemanticTypeLabel(quality.semanticType)}
-                      </span>
-                    )}
-                    {columnGovernanceTags.length > 0 && (
-                      columnGovernanceTags.map(tag => (
-                        <span 
-                          key={tag.tag_id} 
-                          className="gps-badge" 
-                          style={{ 
-                            backgroundColor: tag.tag_color || tag.color || '#3b82f6',
-                            color: 'white',
-                            fontSize: '9px',
-                            padding: '2px 6px'
-                          }}
-                          title={tag.tag_name}
-                        >
-                          {tag.tag_name}
-                        </span>
-                      ))
-                    )}
-                    {quality.issues.map((issue, idx) => (
-                      <span 
-                        key={idx} 
-                        className="gps-badge" 
-                        style={getDistBadgeStyle(issue.severity)}
-                        title={issue.tooltip}
-                      >
-                        {issue.label}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-                <div className="distribution-card-content">
-                <div className="column-distribution">
-                {/* NULL Values Section */}
-                {(() => {
-                  const nullCount = column.missing || 0;
-                  const nullPercentage = ((nullCount / totalRows) * 100).toFixed(2);
-                  const hasNulls = nullCount > 0;
-                  const highNulls = parseFloat(nullPercentage) > 10;
-                  
-                  return (
-                    <div className={`null-values-section ${highNulls ? 'null-warning' : hasNulls ? 'null-info' : ''}`}>
-                      <div className="null-header">
-                        <strong>NULL Values:</strong>
-                        {highNulls && (
-                          <span className="anomaly-badge anomaly-warning" style={{ marginLeft: '8px' }}>
-                            High Nulls
-                          </span>
-                        )}
-                      </div>
-                      <div className="null-metrics-vertical">
-                        <div className="null-metric-vertical">
-                          <span className="null-label">Count</span>
-                          <span className={`null-value ${hasNulls ? 'has-nulls' : ''}`}>
-                            {nullCount.toLocaleString()}
-                          </span>
-                        </div>
-                        <div className="null-metric-vertical">
-                          <span className="null-label">Percentage</span>
-                          <span className={`null-value ${hasNulls ? 'has-nulls' : ''}`}>
-                            {nullPercentage}%
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })()}
-                <div className="column-stats-table">
-                  <div className="column-stat-row">
-                    <div className="column-stat-label">Type:</div>
-                    <div className="column-stat-value">{column.type || 'Unknown'}</div>
-                  </div>
-                  <div className="column-stat-row">
-                    <div className="column-stat-label">Unique Values:</div>
-                    <div className="column-stat-value">{column.unique !== undefined && column.unique !== null ? column.unique.toLocaleString() : '0'}</div>
-                  </div>
-                  {/* Show min/max for numeric and datetime types */}
-                  {hasMinMaxValues(column) && (
-                    <>
-                      <div className="column-stat-row">
-                        <div className="column-stat-label">Min:</div>
-                        <div className="column-stat-value">
-                          {shouldMaskValue(column) ? '****' :
-                            column.min_is_frequent 
-                              ? `${formatMinMaxValue(column.min, column)} (occurs ${column.min_frequency || 1}x)` 
-                              : formatMinMaxValue(column.min, column)}
-                        </div>
-                      </div>
-                      <div className="column-stat-row">
-                        <div className="column-stat-label">Max:</div>
-                        <div className="column-stat-value">
-                          {shouldMaskValue(column) ? '****' :
-                            column.max_is_frequent 
-                              ? `${formatMinMaxValue(column.max, column)} (occurs ${column.max_frequency || 1}x)` 
-                              : formatMinMaxValue(column.max, column)}
-                        </div>
-                      </div>
-                    </>
-                  )}
-                  {/* For string/object types, show different stats */}
-                  {(column.type === 'string' || column.type === 'object') && (
-                    <>
-                      <div className="column-stat-row">
-                        <div className="column-stat-label">Most Frequent:</div>
-                        <div className="column-stat-value">
-                          {shouldMaskValue(column) ? '****' :
-                            column.most_frequent_value ? `${column.most_frequent_value} (occurs ${column.most_frequent_count || 1}x)` : 'N/A'}
-                        </div>
-                      </div>
-                      <div className="column-stat-row">
-                        <div className="column-stat-label">Least Frequent:</div>
-                        <div className="column-stat-value">
-                          {shouldMaskValue(column) ? '****' :
-                            column.least_frequent_value ? `${column.least_frequent_value} (occurs ${column.least_frequent_count || 1}x)` : 'N/A'}
-                        </div>
-                      </div>
-                    </>
-                  )}
-                </div>
-                
-                <div className="distribution-visualization">
-                  {/* Pattern Detection */}
-                  {column.patterns && column.patterns.length > 0 && (
-                    <div className="pattern-section">
-                      <div className="pattern-header">
-                        <strong>Detected Patterns:</strong>
-                        {(() => {
-                          const semanticType = getSemanticFieldType(column);
-                          const shouldFlag = shouldFlagMultiPattern(semanticType) && column.patterns.length > 1;
-                          if (shouldFlag) {
-                            return (
-                              <span className="anomaly-badge anomaly-warning" style={{ marginLeft: '8px' }}>
-                                Inconsistent {getSemanticTypeLabel(semanticType)} Format
-                              </span>
-                            );
-                          }
-                          return null;
-                        })()}
-                      </div>
-                      <div className="pattern-list">
-                        {column.patterns.map((p, idx) => (
-                          <div key={idx} className="pattern-item">
-                            <code className="pattern-code">{p.pattern}</code>
-                            <span className="pattern-count">
-                              {p.count} occurrences ({p.percentage}%)
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="histogram-container">
-                    <div className="histogram-title">Value Distribution</div>
-                    <div className="pseudo-histogram">
-                      {hasMinMaxValues(column) ? (
-                        // Simple min/max display for numeric/datetime data
-                        <div className="numeric-summary">
-                          <div className="min-max-display">
-                            <div className="min-max-item">
-                              <span className="label">Min:</span>
-                              <span className="value">
-                                {shouldMaskValue(column) ? '****' : formatMinMaxValue(column.min, column)}
-                              </span>
-                            </div>
-                            <div className="min-max-item">
-                              <span className="label">Max:</span>
-                              <span className="value">
-                                {shouldMaskValue(column) ? '****' : formatMinMaxValue(column.max, column)}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                      ) : (
-                        // Create a data-based distribution for categorical data based on top_values
-                        <div className="categorical-distribution">
-                          {(() => {
-                            // Use actual top_values from profiling if available
-                            if (column.top_values && column.top_values.length > 0) {
-                              return column.top_values.map((item, index) => (
-                                <div key={index} className="category-row">
-                                  <div className="category-label">
-                                    {shouldMaskValue(column) ? '****' : item.value}
-                                  </div>
-                                  <div className="category-bar-container">
-                                    <div 
-                                      className="category-bar" 
-                                      style={{ 
-                                        width: `${Math.max(5, Math.min(95, item.percentage))}%`,
-                                        backgroundColor: `rgba(52, 152, 219, ${0.8 - (index * 0.05)})`
-                                      }}
-                                    ></div>
-                                  </div>
-                                  <div className="category-percentage">{`${item.percentage}%`}</div>
-                                </div>
-                              ));
-                            }
-                            
-                            // Fallback if no top_values available
-                            return (
-                              <div className="empty-distribution">
-                                <p>No distribution data available</p>
-                              </div>
-                            );
-                          })()}
-                        </div>
-                      )}
-                    </div>
-                    <div className="histogram-footer">
-                      <div className="note" style={{ fontSize: '9px', color: '#94a3b8' }}>Based on actual data distribution</div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    );
-  };
+  
 
   const renderPreviewTab = () => {
     if (!fileId || !profile || !profile.columns) return null;
@@ -2720,7 +2487,7 @@ function DataProfile() {
                     const columnRules = columnRulesMap[columnName];
                     
                     return columnRules.map((rule, ruleIdx) => (
-                      <tr key={`${colIdx}-${ruleIdx}`}>
+                      <tr key={`rule-${columnName}-${rule.rule_type || rule.rule_name || rule.id || ruleIdx}`}>
                         {ruleIdx === 0 ? (
                           <td 
                             rowSpan={columnRules.length} 
@@ -2927,8 +2694,9 @@ function DataProfile() {
           <div className="gps-card-body" style={{ padding: '12px 16px' }}>
             <div className="gps-filter-row">
               <div className="gps-filter-group">
-                <label className="gps-filter-label">Severity</label>
+                <label className="gps-filter-label" htmlFor="filter-severity">Severity</label>
                 <select 
+                  id="filter-severity"
                   value={qualityFilter.severity} 
                   onChange={(e) => { setQualityFilter({...qualityFilter, severity: e.target.value}); setViolationsPage(1); }}
                   className="gps-form-select"
@@ -2941,8 +2709,9 @@ function DataProfile() {
               </div>
               
               <div className="gps-filter-group">
-                <label className="gps-filter-label">Rule Type</label>
+                <label className="gps-filter-label" htmlFor="filter-rule-type">Rule Type</label>
                 <select 
+                  id="filter-rule-type"
                   value={qualityFilter.ruleType} 
                   onChange={(e) => { setQualityFilter({...qualityFilter, ruleType: e.target.value}); setViolationsPage(1); }}
                   className="gps-form-select"
@@ -2956,8 +2725,9 @@ function DataProfile() {
               
               {uniqueColumns.length > 0 && (
                 <div className="gps-filter-group">
-                  <label className="gps-filter-label">Column</label>
+                  <label className="gps-filter-label" htmlFor="filter-column">Column</label>
                   <select 
+                    id="filter-column"
                     value={qualityFilter.column} 
                     onChange={(e) => { setQualityFilter({...qualityFilter, column: e.target.value}); setViolationsPage(1); }}
                     className="gps-form-select"
@@ -3029,7 +2799,12 @@ function DataProfile() {
                       {filteredViolations
                         .slice((violationsPage - 1) * VIOLATIONS_PER_PAGE, violationsPage * VIOLATIONS_PER_PAGE)
                         .map((violation, idx) => (
-                        <tr key={idx}>
+                        <tr key={
+                          violation.id ||
+                          (violation.primary_key_value ? `${violation.primary_key_column || 'pk'}:${violation.primary_key_value}` :
+                            (violation.row_number ? `row:${violation.row_number}` : `violation:${idx}`)) +
+                          `-${violation.rule_name || violation.rule_type || idx}`
+                        }>
                           <td>
                             {violation.primary_key_value ? (
                               <div>
@@ -3297,183 +3072,7 @@ function DataProfile() {
     }
   };
 
-  const renderHistoryTab = () => {
-    // Fetch history when tab is first accessed (only once)
-    if (!historyFetched && !historyLoading) {
-      fetchProfileHistory();
-    }
-
-    if (historyLoading) {
-      return (
-        <div style={{ padding: '40px', textAlign: 'center' }}>
-          <LoadingSpinner />
-        </div>
-      );
-    }
-
-    if (!profileHistory || !profileHistory.history || profileHistory.history.length === 0) {
-      return (
-        <div className="empty-state">
-          <FiClock size={48} style={{ marginBottom: '16px', opacity: 0.5 }} />
-          <p>No profile history available</p>
-          <p className="empty-state-hint">
-            Profile history is captured when files are processed through ETL transformations
-          </p>
-        </div>
-      );
-    }
-
-    // Prepare data for quality metrics chart
-    const history = profileHistory.history.sort((a, b) => 
-      new Date(a.profile_timestamp) - new Date(b.profile_timestamp)
-    );
-
-    const chartData = {
-      labels: history.map(h => formatDate(h.profile_timestamp)),
-      datasets: [
-        {
-          label: 'Overall Quality',
-          data: history.map(h => h.overall_quality_score || 0),
-          borderColor: 'rgb(75, 192, 192)',
-          backgroundColor: 'rgba(75, 192, 192, 0.2)',
-          tension: 0.4
-        },
-        {
-          label: 'Completeness',
-          data: history.map(h => h.completeness_score || 0),
-          borderColor: 'rgb(54, 162, 235)',
-          backgroundColor: 'rgba(54, 162, 235, 0.2)',
-          tension: 0.4
-        },
-        {
-          label: 'Consistency',
-          data: history.map(h => h.consistency_score || 0),
-          borderColor: 'rgb(255, 206, 86)',
-          backgroundColor: 'rgba(255, 206, 86, 0.2)',
-          tension: 0.4
-        },
-        {
-          label: 'Validity',
-          data: history.map(h => h.validity_score || 0),
-          borderColor: 'rgb(153, 102, 255)',
-          backgroundColor: 'rgba(153, 102, 255, 0.2)',
-          tension: 0.4
-        },
-        {
-          label: 'Uniqueness',
-          data: history.map(h => h.uniqueness_score || 0),
-          borderColor: 'rgb(255, 159, 64)',
-          backgroundColor: 'rgba(255, 159, 64, 0.2)',
-          tension: 0.4
-        }
-      ]
-    };
-
-    const chartOptions = {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: {
-          position: 'top',
-        },
-        title: {
-          display: true,
-          text: 'Data Quality Trends Over Time'
-        }
-      },
-      scales: {
-        y: {
-          beginAtZero: true,
-          max: 100,
-          title: {
-            display: true,
-            text: 'Score (%)'
-          }
-        }
-      }
-    };
-
-    return (
-      <div className="history-tab">
-        <div className="history-summary">
-          <Card>
-            <div className="summary-stats">
-              <div className="stat">
-                <div className="stat-label">Total Snapshots</div>
-                <div className="stat-value">{profileHistory.totalSnapshots}</div>
-              </div>
-              <div className="stat">
-                <div className="stat-label">Latest Profile</div>
-                <div className="stat-value">
-                  {history[history.length - 1]?.file_role === 'source' ? 'Source' : 
-                   history[history.length - 1]?.file_role === 'target' ? 'Target' : 'Unknown'}
-                </div>
-              </div>
-              <div className="stat">
-                <div className="stat-label">Last Updated</div>
-                <div className="stat-value">{formatDate(history[history.length - 1]?.profile_timestamp)}</div>
-              </div>
-            </div>
-          </Card>
-        </div>
-
-        <Card>
-          <h3>Quality Metrics Timeline</h3>
-          <div style={{ height: '400px', marginTop: '20px' }}>
-            <Line data={chartData} options={chartOptions} />
-          </div>
-        </Card>
-
-        <Card style={{ marginTop: '20px' }}>
-          <h3>Profile Snapshots</h3>
-          <div className="history-table-container">
-            <table className="history-table">
-              <thead>
-                <tr>
-                  <th>Timestamp</th>
-                  <th>Role</th>
-                  <th>Rows</th>
-                  <th>Columns</th>
-                  <th>Completeness</th>
-                  <th>Consistency</th>
-                  <th>Validity</th>
-                  <th>Uniqueness</th>
-                  <th>Overall Quality</th>
-                </tr>
-              </thead>
-              <tbody>
-                {history.map((snapshot, index) => (
-                  <tr key={index}>
-                    <td>{formatDate(snapshot.profile_timestamp)}</td>
-                    <td>
-                      <span className={`badge badge-${snapshot.file_role}`}>
-                        {snapshot.file_role === 'source' ? 'Source' : 
-                         snapshot.file_role === 'target' ? 'Target' : 'Ad-hoc'}
-                      </span>
-                    </td>
-                    <td>{formatNumber(snapshot.row_count)}</td>
-                    <td>{snapshot.column_count}</td>
-                    <td>{snapshot.completeness_score ? `${snapshot.completeness_score.toFixed(1)}%` : 'N/A'}</td>
-                    <td>{snapshot.consistency_score ? `${snapshot.consistency_score.toFixed(1)}%` : 'N/A'}</td>
-                    <td>{snapshot.validity_score ? `${snapshot.validity_score.toFixed(1)}%` : 'N/A'}</td>
-                    <td>{snapshot.uniqueness_score ? `${snapshot.uniqueness_score.toFixed(1)}%` : 'N/A'}</td>
-                    <td>
-                      <span className={`quality-badge quality-${
-                        (snapshot.overall_quality_score || 0) >= 80 ? 'high' :
-                        (snapshot.overall_quality_score || 0) >= 60 ? 'medium' : 'low'
-                      }`}>
-                        {snapshot.overall_quality_score ? `${snapshot.overall_quality_score.toFixed(1)}%` : 'N/A'}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </Card>
-      </div>
-    );
-  };
+  
 
   return (
     <div className="gps-page-container data-profile-container">
@@ -3961,5 +3560,88 @@ function DataProfile() {
     </div>
   );
 }
+
+// ---------------------------
+// PropTypes for local components
+// ---------------------------
+
+DelimiterConfigModal.propTypes = {
+  fileId: PropTypes.string.isRequired,
+  onClose: PropTypes.func.isRequired,
+  onSave: PropTypes.func.isRequired,
+  setErrorMessage: PropTypes.func
+};
+DelimiterConfigModal.defaultProps = {
+  setErrorMessage: null
+};
+
+FixedWidthSchemaModal.propTypes = {
+  fileId: PropTypes.string.isRequired,
+  onClose: PropTypes.func.isRequired,
+  onSave: PropTypes.func.isRequired,
+  setErrorMessage: PropTypes.func
+};
+FixedWidthSchemaModal.defaultProps = {
+  setErrorMessage: null
+};
+
+SensitivityTagModal.propTypes = {
+  fileId: PropTypes.string.isRequired,
+  columnName: PropTypes.string.isRequired,
+  currentTags: PropTypes.array,
+  availableTags: PropTypes.array,
+  onClose: PropTypes.func.isRequired,
+  onSave: PropTypes.func.isRequired,
+  setErrorMessage: PropTypes.func
+};
+SensitivityTagModal.defaultProps = {
+  currentTags: [],
+  availableTags: [],
+  setErrorMessage: null
+};
+
+OwnershipModal.propTypes = {
+  fileId: PropTypes.string.isRequired,
+  currentOwnership: PropTypes.object,
+  onClose: PropTypes.func.isRequired,
+  onSave: PropTypes.func.isRequired,
+  setErrorMessage: PropTypes.func
+};
+OwnershipModal.defaultProps = {
+  currentOwnership: null,
+  setErrorMessage: null
+};
+
+ColumnGovernanceTagModal.propTypes = {
+  fileId: PropTypes.string.isRequired,
+  columnName: PropTypes.string.isRequired,
+  currentTags: PropTypes.array,
+  availableTags: PropTypes.array,
+  onClose: PropTypes.func.isRequired,
+  onSave: PropTypes.func.isRequired,
+  setErrorMessage: PropTypes.func
+};
+ColumnGovernanceTagModal.defaultProps = {
+  currentTags: [],
+  availableTags: [],
+  setErrorMessage: null
+};
+
+ColumnPolicyModal.propTypes = {
+  fileId: PropTypes.string.isRequired,
+  columnName: PropTypes.string.isRequired,
+  currentPolicies: PropTypes.array,
+  availablePolicies: PropTypes.array,
+  onClose: PropTypes.func.isRequired,
+  onSave: PropTypes.func.isRequired,
+  setErrorMessage: PropTypes.func
+};
+ColumnPolicyModal.defaultProps = {
+  currentPolicies: [],
+  availablePolicies: [],
+  setErrorMessage: null
+};
+
+DataProfile.propTypes = {};
 
 export default DataProfile;

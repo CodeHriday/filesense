@@ -1,7 +1,8 @@
 const crypto = require('crypto');
 
-const ALGORITHM = 'aes-256-cbc';
-const IV_LENGTH = 16;
+const ALGORITHM = 'aes-256-gcm';
+const IV_LENGTH = 12; // GCM uses 12-byte IV for optimal security
+const TAG_LENGTH = 16; // GCM authentication tag length
 
 class PasswordVaultService {
   constructor(dbPool, auditService = null, logger = null) {
@@ -33,7 +34,7 @@ class PasswordVaultService {
   /**
    * Encrypt a password for secure storage
    * @param {string} password - Plain text password
-   * @returns {Object} - Object containing encrypted password and IV
+   * @returns {Object} - Object containing encrypted password, IV, and authentication tag
    */
   encrypt(password) {
     try {
@@ -43,9 +44,13 @@ class PasswordVaultService {
       let encrypted = cipher.update(password, 'utf8', 'hex');
       encrypted += cipher.final('hex');
       
+      // Get the authentication tag for GCM mode
+      const tag = cipher.getAuthTag();
+      
       return {
         ciphertext: encrypted,
-        iv: iv.toString('hex')
+        iv: iv.toString('hex'),
+        tag: tag.toString('hex')
       };
     } catch (error) {
       this.logger.error('Encryption failed', { error: error.message });
@@ -57,17 +62,35 @@ class PasswordVaultService {
    * Decrypt a password from secure storage
    * @param {string} ciphertext - Encrypted password
    * @param {string} ivHex - Initialization vector (hex)
+   * @param {string} tagHex - Authentication tag (hex) - optional for backward compatibility
    * @returns {string} - Decrypted password
    */
-  decrypt(ciphertext, ivHex) {
+  decrypt(ciphertext, ivHex, tagHex = null) {
     try {
       const iv = Buffer.from(ivHex, 'hex');
-      const decipher = crypto.createDecipheriv(ALGORITHM, this.encryptionKey, iv);
       
-      let decrypted = decipher.update(ciphertext, 'hex', 'utf8');
-      decrypted += decipher.final('utf8');
-      
-      return decrypted;
+      // Determine encryption mode based on presence of auth tag
+      if (tagHex) {
+        // New GCM mode with authentication
+        const decipher = crypto.createDecipheriv(ALGORITHM, this.encryptionKey, iv);
+        const tag = Buffer.from(tagHex, 'hex');
+        decipher.setAuthTag(tag);
+        
+        let decrypted = decipher.update(ciphertext, 'hex', 'utf8');
+        decrypted += decipher.final('utf8');
+        
+        return decrypted;
+      } else {
+        // Legacy CBC mode for backward compatibility
+        const legacyAlgorithm = 'aes-256-cbc';
+        const legacyIv = iv.length === 12 ? Buffer.concat([iv, Buffer.alloc(4)]) : iv; // Pad IV if needed
+        const decipher = crypto.createDecipheriv(legacyAlgorithm, this.encryptionKey, legacyIv);
+        
+        let decrypted = decipher.update(ciphertext, 'hex', 'utf8');
+        decrypted += decipher.final('utf8');
+        
+        return decrypted;
+      }
     } catch (error) {
       this.logger.error('Decryption failed', { error: error.message });
       throw new Error(`Password decryption failed: ${error.message}`);
@@ -84,19 +107,20 @@ class PasswordVaultService {
    */
   async storePassword(entityType, entityId, password, userId) {
     try {
-      const { ciphertext, iv } = this.encrypt(password);
+      const { ciphertext, iv, tag } = this.encrypt(password);
       
       const result = await this.dbPool.query(
-        `INSERT INTO encrypted_passwords (entity_type, entity_id, secret_ciphertext, iv, encryption_version, created_by)
-         VALUES ($1, $2, $3, $4, $5, $6)
+        `INSERT INTO encrypted_passwords (entity_type, entity_id, secret_ciphertext, iv, auth_tag, encryption_version, created_by)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)
          ON CONFLICT (entity_type, entity_id)
          DO UPDATE SET 
            secret_ciphertext = EXCLUDED.secret_ciphertext,
            iv = EXCLUDED.iv,
+           auth_tag = EXCLUDED.auth_tag,
            created_by = EXCLUDED.created_by,
            created_at = CURRENT_TIMESTAMP
          RETURNING *`,
-        [entityType, entityId, ciphertext, iv, 'v1', userId]
+        [entityType, entityId, ciphertext, iv, tag, 'v2', userId]
       );
       
       // Audit password storage
@@ -156,7 +180,7 @@ class PasswordVaultService {
       }
       
       const record = result.rows[0];
-      const password = this.decrypt(record.secret_ciphertext, record.iv);
+      const password = this.decrypt(record.secret_ciphertext, record.iv, record.auth_tag);
       
       // Audit password retrieval
       if (this.auditService && this.auditService.logAction && userId) {

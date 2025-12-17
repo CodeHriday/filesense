@@ -4,6 +4,7 @@ import { FiDatabase, FiGitBranch, FiInfo, FiPlus, FiTrash2 } from 'react-icons/f
 import LoadingSpinner from './LoadingSpinner';
 import ColumnMapper from './ColumnMapper';
 import { API_BASE_URL } from '../config';
+import PropTypes from 'prop-types';
 
 const RdmLookupStep = ({ 
   datasetConfig, 
@@ -321,6 +322,8 @@ const RdmLookupStep = ({
             }}
             onMouseOver={(e) => e.target.style.backgroundColor = 'hsl(210, 100%, 45%)'}
             onMouseOut={(e) => e.target.style.backgroundColor = 'hsl(210, 100%, 50%)'}
+            onFocus={(e) => e.target.style.backgroundColor = 'hsl(210, 100%, 45%)'}
+            onBlur={(e) => e.target.style.backgroundColor = 'hsl(210, 100%, 50%)'}
           >
             Retry Connection
           </button>
@@ -352,8 +355,9 @@ const RdmLookupStep = ({
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.5rem' }}>
           <div style={{ marginBottom: 0 }}>
-            <label style={{ fontSize: '10px', fontFamily: 'Inter', fontWeight: '500', display: 'block', marginBottom: '0.25rem' }}>Reference Dataset</label>
+            <label htmlFor="referenceDataset" style={{ fontSize: '10px', fontFamily: 'Inter', fontWeight: '500', display: 'block', marginBottom: '0.25rem' }}>Reference Dataset</label>
             <select
+              id="referenceDataset"
               style={{ 
                 width: '100%', 
                 padding: '0.25rem', 
@@ -376,8 +380,9 @@ const RdmLookupStep = ({
           </div>
 
           <div style={{ marginBottom: 0 }}>
-            <label style={{ fontSize: '10px', fontFamily: 'Inter', fontWeight: '500', display: 'block', marginBottom: '0.25rem' }}>Join Type</label>
+            <label htmlFor="joinType" style={{ fontSize: '10px', fontFamily: 'Inter', fontWeight: '500', display: 'block', marginBottom: '0.25rem' }}>Join Type</label>
             <select
+              id="joinType"
               style={{ 
                 width: '100%', 
                 padding: '0.25rem', 
@@ -413,8 +418,9 @@ const RdmLookupStep = ({
           {joinConditions.map((condition, idx) => (
             <div key={idx} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: '0.5rem', marginBottom: '0.5rem' }}>
               <div style={{ marginBottom: 0 }}>
-                <label style={{ fontSize: '10px', fontFamily: 'Inter', fontWeight: '500', display: 'block', marginBottom: '0.25rem' }}>Dataset Column (Reference Data)</label>
+                <label htmlFor={`datasetColumn-${idx}`} style={{ fontSize: '10px', fontFamily: 'Inter', fontWeight: '500', display: 'block', marginBottom: '0.25rem' }}>Dataset Column (Reference Data)</label>
                 <select
+                  id={`datasetColumn-${idx}`}
                   style={{ 
                     width: '100%', 
                     padding: '0.25rem', 
@@ -436,8 +442,9 @@ const RdmLookupStep = ({
               </div>
               
               <div style={{ marginBottom: 0 }}>
-                <label style={{ fontSize: '10px', fontFamily: 'Inter', fontWeight: '500', display: 'block', marginBottom: '0.25rem' }}>Source Column (Your Data)</label>
+                <label htmlFor={`sourceColumn-${idx}`} style={{ fontSize: '10px', fontFamily: 'Inter', fontWeight: '500', display: 'block', marginBottom: '0.25rem' }}>Source Column (Your Data)</label>
                 <select
+                  id={`sourceColumn-${idx}`}
                   style={{ 
                     width: '100%', 
                     padding: '0.25rem', 
@@ -477,6 +484,9 @@ const RdmLookupStep = ({
                     }}
                     onMouseOver={(e) => e.target.style.backgroundColor = '#b91c1c'}
                     onMouseOut={(e) => e.target.style.backgroundColor = '#dc2626'}
+                    onFocus={(e) => e.target.style.backgroundColor = '#b91c1c'}
+                    onBlur={(e) => e.target.style.backgroundColor = '#dc2626'}
+                    aria-label={`Remove join condition ${idx + 1}`}
                   >
                     <FiTrash2 size={12} />
                   </button>
@@ -499,6 +509,9 @@ const RdmLookupStep = ({
                     }}
                     onMouseOver={(e) => e.target.style.backgroundColor = 'hsl(210, 100%, 45%)'}
                     onMouseOut={(e) => e.target.style.backgroundColor = 'hsl(210, 100%, 50%)'}
+                    onFocus={(e) => e.target.style.backgroundColor = 'hsl(210, 100%, 45%)'}
+                    onBlur={(e) => e.target.style.backgroundColor = 'hsl(210, 100%, 50%)'}
+                    aria-label="Add join condition"
                   >
                     <FiPlus size={12} />
                   </button>
@@ -582,6 +595,53 @@ const RdmLookupStep = ({
       </div>
     </div>
   );
+};
+
+
+RdmLookupStep.propTypes = {
+  datasetConfig: PropTypes.shape({
+    dataset_id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    join_type: PropTypes.string,
+
+    // ✅ ADD THESE TWO
+    dataset_column: PropTypes.string,
+    source_column: PropTypes.string,
+
+    join_conditions: PropTypes.arrayOf(
+      PropTypes.shape({
+        dataset_column: PropTypes.string,
+        source_column: PropTypes.string
+      })
+    ),
+
+    column_mappings: PropTypes.arrayOf(
+      PropTypes.shape({
+        source_column: PropTypes.string,
+        target_column: PropTypes.string
+      })
+    )
+  }),
+
+  crosswalkConfig: PropTypes.shape({
+    crosswalk_id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    source_column: PropTypes.string,
+    target_column: PropTypes.string
+  }),
+
+  schema: PropTypes.arrayOf(
+    PropTypes.shape({
+      name: PropTypes.string.isRequired,
+      dataType: PropTypes.string
+    })
+  ),
+
+  datasetEnabled: PropTypes.bool,
+  crosswalkEnabled: PropTypes.bool,
+
+  onDatasetConfigChange: PropTypes.func.isRequired,
+  onCrosswalkConfigChange: PropTypes.func.isRequired,
+  onDatasetEnabledChange: PropTypes.func,
+  onCrosswalkEnabledChange: PropTypes.func
 };
 
 export default RdmLookupStep;

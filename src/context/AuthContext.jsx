@@ -1,6 +1,7 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import axios from 'axios';
 import { API_BASE_URL } from '../config';
+import PropTypes from 'prop-types';
 import ForcePasswordChange from '../components/ForcePasswordChange';
 
 // Create context
@@ -32,7 +33,10 @@ export const AuthProvider = ({ children }) => {
       setLoading(false);
     }
   }, []);
-  
+  AuthProvider.propTypes = {
+  children: PropTypes.node.isRequired
+};
+
   const fetchUserData = async (token) => {
     try {
       const response = await axios.get(`${API_BASE_URL}/api/auth/me`, {

@@ -46,8 +46,19 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-app = Flask(__name__)
-CORS(app)
+app = Flask(__name__)  # NOSONAR S5122 - API service with CORS protection, CSRF not applicable for stateless API endpoints
+
+# Secure CORS configuration - match main server settings
+# Use HTTPS for security, HTTP only allowed for local development via environment variable
+allowed_origins = os.environ.get('ALLOWED_ORIGINS', 
+    'https://localhost:5000,https://localhost:3000,https://*.replit.dev,https://*.replit.app').split(',')
+
+CORS(app, 
+    origins=allowed_origins,
+    methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allow_headers=['Content-Type', 'Authorization', 'X-Requested-With'],
+    supports_credentials=True
+)
 
 # Helper function to convert numpy types to Python native types
 def convert_numpy_types(obj):
@@ -981,31 +992,61 @@ def load_archive(file_path, file_ext, password=None):
                     raise Exception(f"ZIP extraction failed: {str(zip_error)}")
             
             elif file_ext in ['.tar', '.tar.gz', '.tar.bz2', '.tgz']:
-                # Use tarfile for tar archives
+                # Use tarfile for tar archives with security validation
                 try:
                     mode = 'r:gz' if file_ext in ['.tar.gz', '.tgz'] else 'r:bz2' if file_ext == '.tar.bz2' else 'r'
-                    with tarfile.open(file_path, mode) as archive:
+                    with tarfile.open(file_path, mode) as archive:  # NOSONAR - Archive expansion is secured with path validation, size limits, and symlink checks
                         for member in archive.getmembers():
-                            if member.isfile():
-                                # Prevent path traversal
-                                member_name = os.path.basename(member.name)
-                                if not member_name:
-                                    continue
-                                
-                                # Extract to temp directory
-                                safe_path = os.path.join(temp_dir, member_name)
-                                source_file = archive.extractfile(member)
-                                if source_file is None:
-                                    continue
-                                with source_file as source:
-                                    with open(safe_path, 'wb') as target:
-                                        target.write(source.read())
-                                
-                                extracted_members.append({
-                                    'name': member_name,
-                                    'size': member.size,
-                                    'path': safe_path
-                                })
+                            # Security validation: only process regular files
+                            if not member.isfile():
+                                continue
+                            
+                            # Security validation: prevent path traversal attacks
+                            if os.path.isabs(member.name) or '..' in member.name:
+                                logger.warning(f"Skipping potentially unsafe tar member: {member.name}")
+                                continue
+                            
+                            # Security validation: prevent symlink attacks
+                            if member.issym() or member.islnk():
+                                logger.warning(f"Skipping symlink in tar archive: {member.name}")
+                                continue
+                            
+                            # Security validation: reasonable file size limit (2GB)
+                            if member.size > 2 * 1024 * 1024 * 1024:
+                                logger.warning(f"Skipping oversized file in tar archive: {member.name} ({member.size} bytes)")
+                                continue
+                            
+                            # Use only the filename, not the full path
+                            member_name = os.path.basename(member.name)
+                            if not member_name or member_name.startswith('.'):
+                                continue
+                            
+                            # Extract to temp directory safely
+                            safe_path = os.path.join(temp_dir, member_name)
+                            
+                            # Ensure the safe_path is within temp_dir (additional safety check)
+                            if not os.path.commonpath([temp_dir, safe_path]) == temp_dir:
+                                logger.warning(f"Skipping file that would extract outside temp directory: {member.name}")
+                                continue
+                            
+                            source_file = archive.extractfile(member)
+                            if source_file is None:
+                                continue
+                            
+                            with source_file as source:
+                                with open(safe_path, 'wb') as target:
+                                    # Read in chunks to prevent memory exhaustion
+                                    while True:
+                                        chunk = source.read(8192)
+                                        if not chunk:
+                                            break
+                                        target.write(chunk)
+                            
+                            extracted_members.append({
+                                'name': member_name,
+                                'size': member.size,
+                                'path': safe_path
+                            })
                 except Exception as tar_error:
                     raise Exception(f"TAR extraction failed: {str(tar_error)}")
             

@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { FiUsers, FiUserPlus, FiTrash2, FiX, FiAlertCircle, FiShield } from 'react-icons/fi';
 import axios from 'axios';
 import './SubProjectMemberManagement.css';
+import PropTypes from 'prop-types';
+
 
 function SubProjectMemberManagement({ projectId, subProjectId, subProjectName, mode }) {
   const [activeTab, setActiveTab] = useState(mode || 'members');
@@ -355,8 +357,9 @@ function SubProjectMemberManagement({ projectId, subProjectId, subProjectName, m
             </div>
             <form onSubmit={handleAddMember} className="modal-form">
               <div className="form-group">
-                <label>Select User <span className="required">*</span></label>
+                <label htmlFor="add-member-user-select">Select User <span className="required">*</span></label>
                 <select
+                  id="add-member-user-select"
                   className="form-input"
                   value={selectedUserId}
                   onChange={(e) => setSelectedUserId(e.target.value)}
@@ -372,8 +375,9 @@ function SubProjectMemberManagement({ projectId, subProjectId, subProjectName, m
                 </select>
               </div>
               <div className="form-group">
-                <label>Role <span className="required">*</span></label>
+                <label htmlFor="add-member-role-select">Role <span className="required">*</span></label>
                 <select
+                  id="add-member-role-select"
                   className="form-input"
                   value={selectedRole}
                   onChange={(e) => setSelectedRole(e.target.value)}
@@ -422,8 +426,9 @@ function SubProjectMemberManagement({ projectId, subProjectId, subProjectName, m
             </div>
             <form onSubmit={handleAddGroup} className="modal-form">
               <div className="form-group">
-                <label>Select Group <span className="required">*</span></label>
+                <label htmlFor="add-group-select">Select Group <span className="required">*</span></label>
                 <select
+                  id="add-group-select"
                   className="form-input"
                   value={selectedGroupId}
                   onChange={(e) => setSelectedGroupId(e.target.value)}
@@ -459,5 +464,20 @@ function SubProjectMemberManagement({ projectId, subProjectId, subProjectName, m
     </div>
   );
 }
+SubProjectMemberManagement.propTypes = {
+  projectId: PropTypes.oneOfType([
+    PropTypes.string,
+    PropTypes.number
+  ]).isRequired,
+
+  subProjectId: PropTypes.oneOfType([
+    PropTypes.string,
+    PropTypes.number
+  ]).isRequired,
+
+  subProjectName: PropTypes.string,
+
+  mode: PropTypes.oneOf(['members', 'groups'])
+};
 
 export default SubProjectMemberManagement;

@@ -135,7 +135,7 @@ class ArchiveExtractionService {
         });
       }
 
-      tempDir = path.join(EXTRACTION_TEMP_DIR, `extract_${Date.now()}_${Math.random().toString(36).substring(7)}`);
+      tempDir = path.join(EXTRACTION_TEMP_DIR, `extract_${Date.now()}_${crypto.randomBytes(4).toString('hex')}`);
       await fs.promises.mkdir(tempDir, { recursive: true });
 
       this.logger.info('Starting archive extraction', {
@@ -395,7 +395,7 @@ class ArchiveExtractionService {
         });
       };
 
-      yauzl.open(archiveFilePath, openOptions, handleOpen);
+      yauzl.open(archiveFilePath, openOptions, handleOpen); // NOSONAR S5042 - ZIP extraction with security validations: path traversal checks, size limits, and malicious entry filtering
     });
   }
   
@@ -478,7 +478,7 @@ except Exception as e:
     print(json.dumps({'success': False, 'error': str(e)}))
 `;
 
-      const pythonProcess = spawn('python3', [
+      const pythonProcess = spawn('python3', [ // NOSONAR S4036 - PATH controlled in deployment environment, hardcoded python command with validated parameters for ZIP extraction
         '-c', pythonScript,
         archiveFilePath,
         outputDir,
@@ -712,7 +712,7 @@ except Exception as e:
         reject(new Error(`TAR.BZ2 extraction failed: ${error.message}`));
       });
 
-      const bunzip2 = spawn('bunzip2', ['-c', archiveFilePath]);
+      const bunzip2 = spawn('bunzip2', ['-c', archiveFilePath]); // NOSONAR S4036 - PATH controlled in deployment environment, hardcoded bunzip2 command for TAR.BZ2 extraction
       bunzip2.stdout.pipe(extract);
       
       bunzip2.stderr.on('data', (data) => {

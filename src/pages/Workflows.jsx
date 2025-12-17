@@ -8,7 +8,7 @@ import Pagination from '../components/Pagination';
 import ConfirmModal from '../components/ConfirmModal';
 import '../components/styles/PageActions.css';
 import axios from 'axios';
-import { groupWorkflowsByProject, initializeExpansionState, autoExpandMatchingSections } from '../utils/workflowGrouping';
+import { groupWorkflowsByProject, initializeExpansionState } from '../utils/workflowGrouping';
 
 const Workflows = () => {
   const [workflows, setWorkflows] = useState([]);
@@ -183,7 +183,17 @@ const Workflows = () => {
                 <div key={project.projectId} style={{ marginBottom: '1.25rem' }}>
                   {/* Project Header */}
                   <div
+                    role="button"
+                    tabIndex="0"
+                    aria-expanded={isProjectExpanded}
+                    aria-label={`${isProjectExpanded ? 'Collapse' : 'Expand'} project ${project.projectName}`}
                     onClick={() => toggleExpansion(projectKey)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        toggleExpansion(projectKey);
+                      }
+                    }}
                     style={{
                       display: 'flex',
                       alignItems: 'center',
@@ -227,7 +237,17 @@ const Workflows = () => {
                           <div key={subproject.subProjectId} style={{ marginBottom: '0.75rem' }}>
                             {/* Subproject Header */}
                             <div
+                              role="button"
+                              tabIndex="0"
+                              aria-expanded={isSubprojectExpanded}
+                              aria-label={`${isSubprojectExpanded ? 'Collapse' : 'Expand'} subproject ${subproject.subProjectName}`}
                               onClick={() => toggleExpansion(subprojectKey)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter' || e.key === ' ') {
+                                  e.preventDefault();
+                                  toggleExpansion(subprojectKey);
+                                }
+                              }}
                               style={{
                                 display: 'flex',
                                 alignItems: 'center',
@@ -335,7 +355,17 @@ const Workflows = () => {
                           <>
                             {/* Unassigned Header */}
                             <div
+                              role="button"
+                              tabIndex="0"
+                              aria-expanded={isUnassignedExpanded}
+                              aria-label={`${isUnassignedExpanded ? 'Collapse' : 'Expand'} unassigned workflows`}
                               onClick={() => toggleExpansion(unassignedKey)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter' || e.key === ' ') {
+                                  e.preventDefault();
+                                  toggleExpansion(unassignedKey);
+                                }
+                              }}
                               style={{
                                 display: 'flex',
                                 alignItems: 'center',

@@ -7,6 +7,7 @@
 
 const EmailProviderAdapter = require('./EmailProviderAdapter');
 const AWS = require('aws-sdk');
+const crypto = require('crypto');
 const { systemLogger } = require('../../utils/logger');
 
 class AwsSesAdapter extends EmailProviderAdapter {
@@ -107,7 +108,7 @@ class AwsSesAdapter extends EmailProviderAdapter {
   async sendRawEmail(emailData) {
     try {
       // Build MIME message
-      const boundary = `----=_Part_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      const boundary = `----=_Part_${Date.now()}_${crypto.randomBytes(5).toString('hex')}`;
       let rawMessage = '';
 
       // Headers

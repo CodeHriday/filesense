@@ -3,6 +3,7 @@ import { DndProvider, useDrag, useDrop } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 import { FiArrowRight, FiTrash2, FiPlus, FiType, FiKey, FiEye, FiEyeOff } from 'react-icons/fi';
 import './Transform.css';
+import PropTypes from 'prop-types';
 
 /**
  * Draggable source column component
@@ -309,3 +310,53 @@ const ColumnMapper = ({ sourceSchema, targetSchema, mappings, onMappingsChange, 
 };
 
 export default ColumnMapper;
+
+// PropTypes for subcomponents
+SourceColumn.propTypes = {
+  column: PropTypes.shape({
+    name: PropTypes.string.isRequired,
+    type: PropTypes.string,
+    nullable: PropTypes.bool,
+    unique: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
+    missing: PropTypes.number
+  }).isRequired,
+  isUsed: PropTypes.bool
+};
+
+TargetColumn.propTypes = {
+  column: PropTypes.shape({
+    id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
+    name: PropTypes.string.isRequired,
+    type: PropTypes.string,
+    nullable: PropTypes.bool
+  }).isRequired,
+  onUpdate: PropTypes.func.isRequired,
+  onDelete: PropTypes.func.isRequired,
+  onDrop: PropTypes.func.isRequired,
+  mapping: PropTypes.shape({
+    sourceColumn: PropTypes.shape({ name: PropTypes.string }).isRequired,
+    transformation: PropTypes.string
+  })
+};
+
+ColumnMapper.propTypes = {
+  sourceSchema: PropTypes.arrayOf(
+    PropTypes.shape({ name: PropTypes.string.isRequired, type: PropTypes.string, nullable: PropTypes.bool })
+  ),
+  targetSchema: PropTypes.arrayOf(
+    PropTypes.shape({ id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired, name: PropTypes.string.isRequired, type: PropTypes.string })
+  ),
+  mappings: PropTypes.arrayOf(
+    PropTypes.shape({ id: PropTypes.string.isRequired, sourceColumn: PropTypes.object.isRequired, targetColumnId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired, transformation: PropTypes.string })
+  ),
+  onMappingsChange: PropTypes.func.isRequired,
+  onTargetSchemaChange: PropTypes.func.isRequired
+};
+
+ColumnMapper.defaultProps = {
+  sourceSchema: [],
+  targetSchema: [],
+  mappings: [],
+  onMappingsChange: () => {},
+  onTargetSchemaChange: () => {}
+};

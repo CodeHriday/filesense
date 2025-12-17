@@ -1,6 +1,8 @@
 import React from 'react';
 import { Handle, Position } from 'reactflow';
 import { FaLayerGroup, FaExpand } from 'react-icons/fa';
+import PropTypes from 'prop-types';
+
 
 const GroupedNode = ({ data }) => {
   const targetPosition = data.targetPosition || Position.Left;
@@ -75,6 +77,35 @@ const GroupedNode = ({ data }) => {
       <Handle type="source" position={sourcePosition} />
     </div>
   );
+};
+GroupedNode.propTypes = {
+  data: PropTypes.shape({
+    groupType: PropTypes.oneOf([
+      'sourceFile',
+      'transformation',
+      'job',
+      'vendorContract',
+      'targetTable'
+    ]).isRequired,
+
+    count: PropTypes.number.isRequired,
+    groupId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
+
+    onExpand: PropTypes.func,
+
+    targetPosition: PropTypes.oneOf([
+      Position.Left,
+      Position.Right,
+      Position.Top,
+      Position.Bottom
+    ]),
+    sourcePosition: PropTypes.oneOf([
+      Position.Left,
+      Position.Right,
+      Position.Top,
+      Position.Bottom
+    ])
+  }).isRequired
 };
 
 export default GroupedNode;

@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { FiSave, FiX, FiPlus } from 'react-icons/fi';
+import { FiSave, FiPlus } from 'react-icons/fi';
 import PageHeader from '../components/PageHeader';
-import LoadingSpinner from '../components/LoadingSpinner';
 import { PageTransition } from '../components/MicroAnimations';
 import axios from 'axios';
 
@@ -55,9 +54,9 @@ const WorkflowForm = () => {
         const workflow = workflows.find(w => w.name === name);
         
         if (workflow) {
-          setProjectId(workflow.project_id || '');
-          setSubProjectId(workflow.sub_project_id || '');
-          setDescription(workflow.description || '');
+          setProjectId(workflow.project_id ?? '');
+          setSubProjectId(workflow.sub_project_id ?? '');
+          setDescription(workflow.description ?? '');
           
           // Fetch subprojects if project is set
           if (workflow.project_id) {
@@ -68,7 +67,8 @@ const WorkflowForm = () => {
         // Fetch workflow steps
         const stepsData = await axios.get(`/api/workflow-steps?workflow_name=${encodeURIComponent(name)}`);
         const steps = stepsData.data.steps || [];
-        setSteps(steps.sort((a, b) => a.step_order - b.step_order));
+        const sortedSteps = steps.sort((a, b) => a.step_order - b.step_order);
+        setSteps(sortedSteps);
       }
     } catch (err) {
       console.error('Error fetching data:', err);
@@ -192,8 +192,9 @@ const WorkflowForm = () => {
 
         <div className="form-container">
           <div className="form-group">
-            <label>Project *</label>
+            <label htmlFor="project-select">Project *</label>
             <select
+              id="project-select"
               value={projectId}
               onChange={e => handleProjectChange(e.target.value)}
               required
@@ -216,8 +217,9 @@ const WorkflowForm = () => {
 
           {projectId && (
             <div className="form-group">
-              <label>Sub-Project (Optional)</label>
+              <label htmlFor="sub-project-select">Sub-Project (Optional)</label>
               <select
+                id="sub-project-select"
                 value={subProjectId}
                 onChange={e => setSubProjectId(e.target.value)}
                 disabled={isEdit}
@@ -241,8 +243,9 @@ const WorkflowForm = () => {
           {!isEdit && (
             <>
               <div className="form-group">
-                <label>Workflow Name *</label>
+                <label htmlFor="workflow-name-input">Workflow Name *</label>
                 <input
+                  id="workflow-name-input"
                   type="text"
                   value={name}
                   onChange={e => setName(e.target.value)}
@@ -252,8 +255,9 @@ const WorkflowForm = () => {
               </div>
 
               <div className="form-group">
-                <label>Description (Optional)</label>
+                <label htmlFor="workflow-description-textarea">Description (Optional)</label>
                 <textarea
+                  id="workflow-description-textarea"
                   value={description}
                   onChange={e => setDescription(e.target.value)}
                   rows={3}
@@ -295,8 +299,9 @@ const WorkflowForm = () => {
               
               <div className="form-row">
                 <div className="form-group">
-                  <label>Step Name *</label>
+                  <label htmlFor="step-name-input">Step Name *</label>
                   <input
+                    id="step-name-input"
                     type="text"
                     value={newStep.step_name}
                     onChange={e => setNewStep({ ...newStep, step_name: e.target.value })}
@@ -305,8 +310,9 @@ const WorkflowForm = () => {
                 </div>
                 
                 <div className="form-group">
-                  <label>Step Type *</label>
+                  <label htmlFor="step-type-select">Step Type *</label>
                   <select
+                    id="step-type-select"
                     value={newStep.step_type}
                     onChange={e => setNewStep({ ...newStep, step_type: e.target.value, entity_id: '' })}
                     className="form-select"
@@ -319,8 +325,9 @@ const WorkflowForm = () => {
 
               <div className="form-row">
                 <div className="form-group">
-                  <label>{newStep.step_type === 'transformation' ? 'Transformation' : 'Mapping Group'} *</label>
+                  <label htmlFor="entity-select">{newStep.step_type === 'transformation' ? 'Transformation' : 'Mapping Group'} *</label>
                   <select
+                    id="entity-select"
                     value={newStep.entity_id}
                     onChange={e => setNewStep({ ...newStep, entity_id: e.target.value })}
                     className="form-select"
@@ -333,8 +340,9 @@ const WorkflowForm = () => {
                 </div>
 
                 <div className="form-group">
-                  <label>Execution Mode</label>
+                  <label htmlFor="execution-mode-select">Execution Mode</label>
                   <select
+                    id="execution-mode-select"
                     value={newStep.execution_mode}
                     onChange={e => setNewStep({ ...newStep, execution_mode: e.target.value })}
                     className="form-select"
@@ -345,8 +353,9 @@ const WorkflowForm = () => {
                 </div>
 
                 <div className="form-group">
-                  <label>Retry Attempts</label>
+                  <label htmlFor="retry-attempts-input">Retry Attempts</label>
                   <input
+                    id="retry-attempts-input"
                     type="number"
                     min="0"
                     max="10"
@@ -358,8 +367,8 @@ const WorkflowForm = () => {
               </div>
 
               {steps.length > 0 && (
-                <div className="form-group">
-                  <label>Dependencies (optional)</label>
+                <fieldset className="form-group">
+                  <legend>Dependencies (optional)</legend>
                   <div className="dependency-chips">
                     {steps.map((step, idx) => (
                       <label
@@ -375,7 +384,7 @@ const WorkflowForm = () => {
                       </label>
                     ))}
                   </div>
-                </div>
+                </fieldset>
               )}
 
               <button

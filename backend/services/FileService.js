@@ -639,7 +639,7 @@ class FileService extends ServiceBase {
       const sample = buffer.toString('utf8').trim();
       
       // Basic CSV validation: should not contain binary characters
-      const hasBinaryChars = /[\x00-\x08\x0E-\x1F]/.test(sample);
+      const hasBinaryChars = /\p{Cc}/u.test(sample);
       if (hasBinaryChars) {
         throw new Error('File contains binary characters, not a valid CSV');
       }
@@ -748,7 +748,7 @@ class FileService extends ServiceBase {
       }
       
       // Check for binary characters
-      const hasBinaryChars = /[\x00-\x08\x0E-\x1F]/.test(sample);
+      const hasBinaryChars = /\p{Cc}/u.test(sample);
       if (hasBinaryChars) {
         throw new Error('File contains binary characters, not a valid XML');
       }
@@ -795,9 +795,9 @@ class FileService extends ServiceBase {
       const tarSignature = tarBuffer.slice(257, 262).toString('ascii');
       const isTar = tarSignature === 'ustar';
       
-      if (isTar) {
-        return true;
-      }
+      // if (isTar) {
+      //   return true;
+      // }
       
       // If none of the known archive signatures match, still allow the file
       // Python processors will determine if it's a valid archive during processing

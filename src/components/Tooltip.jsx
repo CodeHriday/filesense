@@ -1,4 +1,6 @@
 import React, { useState, useRef } from 'react';
+import PropTypes from 'prop-types';
+
 import './Tooltip.css';
 
 /**
@@ -66,3 +68,16 @@ export const Tooltip = ({
     </div>
   );
 };
+Tooltip.propTypes = {
+  children: PropTypes.node.isRequired,
+  content: PropTypes.oneOfType([
+    PropTypes.string,
+    PropTypes.node
+  ]).isRequired,
+
+  position: PropTypes.oneOf(['top', 'bottom', 'left', 'right']),
+  type: PropTypes.oneOf(['default', 'info', 'warning', 'error', 'success']),
+  animated: PropTypes.bool,
+  delay: PropTypes.number
+};
+

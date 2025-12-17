@@ -68,8 +68,8 @@ class VendorService {
         throw new Error('Vendor name, contact name, and contact email are required');
       }
       
-      // Email validation
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      // Email validation - use more specific pattern to prevent ReDoS
+      const emailRegex = /^[a-zA-Z0-9._%+-]{1,64}@[a-zA-Z0-9.-]{1,253}\.[a-zA-Z]{2,}$/;
       if (!emailRegex.test(contact_email)) {
         throw new Error('Invalid contact email format');
       }
@@ -625,8 +625,8 @@ class VendorService {
       const primaryContactChanged = contact_email !== undefined && contact_email !== currentVendor.contact_email;
       const backupContactChanged = backup_contact_email !== undefined && backup_contact_email !== currentVendor.backup_contact_email;
       
-      // Email validation
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      // Email validation - use more specific pattern to prevent ReDoS
+      const emailRegex = /^[a-zA-Z0-9._%+-]{1,64}@[a-zA-Z0-9.-]{1,253}\.[a-zA-Z]{2,}$/;
       if (contact_email && !emailRegex.test(contact_email)) {
         throw new Error('Invalid contact email format');
       }

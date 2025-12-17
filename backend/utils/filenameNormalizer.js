@@ -7,6 +7,7 @@
 /**
  * Normalize a filename to create a canonical name for grouping
  * Strips timestamps, GUIDs, and converts to lowercase
+ * Uses length-limited regex patterns to prevent ReDoS attacks
  * @param {string} filename - Original filename
  * @param {string} filePattern - Optional file pattern for additional context
  * @returns {string} Canonical filename
@@ -41,20 +42,20 @@ function normalizeFilename(filename, filePattern = null) {
   // Pattern 6: _YYYYMMDDHHMMSS (no separator)
   normalized = normalized.replace(/_\d{14}$/i, '');
   
-  // Pattern 7: Trailing timestamps with milliseconds
-  normalized = normalized.replace(/_\d{13,}$/i, '');
+  // Pattern 7: Trailing timestamps with milliseconds (limit to reasonable length)
+  normalized = normalized.replace(/_\d{13,20}$/i, '');
   
   // Remove UUID/GUID patterns (8-4-4-4-12 hex digits)
   normalized = normalized.replace(/_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, '');
   
   // Remove common sequential numbers at the end (e.g., _001, _1, _v2, etc.)
-  normalized = normalized.replace(/_v?\d+$/i, '');
+  normalized = normalized.replace(/_v?\d{1,10}$/i, '');
   
-  // Remove multiple consecutive underscores or hyphens
-  normalized = normalized.replace(/[_-]{2,}/g, '_');
+  // Remove multiple consecutive underscores or hyphens (limit to prevent ReDoS)
+  normalized = normalized.replace(/[_-]{2,20}/g, '_');
   
-  // Remove trailing underscores or hyphens
-  normalized = normalized.replace(/[_-]+$/, '');
+  // Remove trailing underscores or hyphens (limit to prevent ReDoS)
+  normalized = normalized.replace(/[_-]{1,10}$/, '');
   
   // Convert to lowercase for case-insensitive matching
   normalized = normalized.toLowerCase();

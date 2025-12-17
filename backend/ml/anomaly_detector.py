@@ -240,7 +240,7 @@ class AnomalyDetector:
                     'anomaly_type': 'quality_degradation',
                     'severity': self._calculate_degradation_severity(degradation_pct),
                     'title': f'{score_type.replace("_", " ").title()} degradation',
-                    'description': f'Quality score has degraded compared to historical average',
+                    'description': 'Quality score has degraded compared to historical average',
                     'anomaly_details': {
                         'method': 'quality_comparison',
                         'score_type': score_type,
@@ -388,7 +388,7 @@ class AnomalyAnalyzer:
         """
         self.db = db_connection
         self.detector = AnomalyDetector(sensitivity)
-        logger.info(f"Anomaly analyzer initialized")
+        logger.info("Anomaly analyzer initialized")
     
     def analyze_file_profile(
         self,

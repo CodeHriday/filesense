@@ -1,6 +1,8 @@
 import React from 'react';
 import { Handle, Position } from 'reactflow';
 import { FaTable, FaShieldAlt, FaLock } from 'react-icons/fa';
+import PropTypes from 'prop-types';
+
 
 const TargetTableNode = ({ data }) => {
   const getClassificationColor = (classification) => {
@@ -57,6 +59,35 @@ const TargetTableNode = ({ data }) => {
       </div>
     </div>
   );
+};
+TargetTableNode.propTypes = {
+  data: PropTypes.shape({
+    label: PropTypes.string.isRequired,
+
+    rowsWritten: PropTypes.number,
+    lastUpdated: PropTypes.oneOfType([
+      PropTypes.string,
+      PropTypes.number,
+      PropTypes.instanceOf(Date)
+    ]),
+
+    piiColumns: PropTypes.arrayOf(PropTypes.string),
+    containsPii: PropTypes.bool,
+
+    dataClassification: PropTypes.oneOf([
+      'confidential',
+      'phi',
+      'internal',
+      'public'
+    ]),
+
+    targetPosition: PropTypes.oneOf([
+      Position.Left,
+      Position.Right,
+      Position.Top,
+      Position.Bottom
+    ])
+  }).isRequired
 };
 
 export default TargetTableNode;

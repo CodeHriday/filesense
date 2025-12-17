@@ -26,7 +26,6 @@ const VendorAgreements = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
-  const [modalError, setModalError] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState('create');
@@ -71,7 +70,6 @@ const VendorAgreements = () => {
   // Multiple files display modal
   const [multipleFilesModalOpen, setMultipleFilesModalOpen] = useState(false);
   const [multipleFilesData, setMultipleFilesData] = useState([]);
-  const [modalSuccessMessage, setModalSuccessMessage] = useState('');
   
   // Notification modal state
   const [notificationModal, setNotificationModal] = useState({
@@ -139,8 +137,6 @@ const VendorAgreements = () => {
   
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-  const [totalPages, setTotalPages] = useState(1);
-  const [totalCount, setTotalCount] = useState(0);
   
   // Search state
   const [searchTerm, setSearchTerm] = useState('');
@@ -154,7 +150,6 @@ const VendorAgreements = () => {
   
   const isAdmin = hasRole && hasRole('Admin');
   const isVendor = isVendorUser(currentUser);
-  const isOwner = hasRole && hasRole('Owner');
   
   useEffect(() => {
     if (!currentUser) {
@@ -393,23 +388,19 @@ const VendorAgreements = () => {
             drop_location_path: fullPath
           }));
         }
-      } else {
+      } else if (formData.drop_location_path !== '') {
         // Connection not found, clear path
-        if (formData.drop_location_path !== '') {
-          setFormData(prev => ({
-            ...prev,
-            drop_location_path: ''
-          }));
-        }
-      }
-    } else {
-      // No connection selected, clear path
-      if (formData.drop_location_path !== '') {
         setFormData(prev => ({
           ...prev,
           drop_location_path: ''
         }));
       }
+    } else if (formData.drop_location_path !== '') {
+      // No connection selected, clear path
+      setFormData(prev => ({
+        ...prev,
+        drop_location_path: ''
+      }));
     }
   }, [formData.vendor_connection_id, formData.drop_location_path, filteredConnections]);
   
@@ -432,25 +423,21 @@ const VendorAgreements = () => {
             project_name: newProjectName
           }));
         }
-      } else {
+      } else if (formData.project_id !== '' || formData.project_name !== '') {
         // Vendor not found, clear project fields
-        if (formData.project_id !== '' || formData.project_name !== '') {
-          setFormData(prev => ({
-            ...prev,
-            project_id: '',
-            project_name: ''
-          }));
-        }
-      }
-    } else {
-      // No vendor selected, clear project fields
-      if (formData.project_id !== '' || formData.project_name !== '') {
         setFormData(prev => ({
           ...prev,
           project_id: '',
           project_name: ''
         }));
       }
+    } else if (formData.project_id !== '' || formData.project_name !== '') {
+      // No vendor selected, clear project fields
+      setFormData(prev => ({
+        ...prev,
+        project_id: '',
+        project_name: ''
+      }));
     }
   }, [formData.vendor_id, formData.project_id, formData.project_name, vendors]);
   
@@ -501,40 +488,15 @@ const VendorAgreements = () => {
             secondary_contact_phone: newSecondaryContactPhone
           }));
         }
-      } else {
+      } else if (formData.vendor_code !== '' || formData.vendor_type !== '' || 
+                 formData.vendor_onboarding_date !== '' ||
+                 formData.primary_contact_name !== '' ||
+                 formData.primary_contact_email !== '' ||
+                 formData.primary_contact_phone !== '' ||
+                 formData.secondary_contact_name !== '' ||
+                 formData.secondary_contact_email !== '' ||
+                 formData.secondary_contact_phone !== '') {
         // Vendor not found, clear vendor and contact fields
-        if (formData.vendor_code !== '' || formData.vendor_type !== '' || 
-            formData.vendor_onboarding_date !== '' ||
-            formData.primary_contact_name !== '' ||
-            formData.primary_contact_email !== '' ||
-            formData.primary_contact_phone !== '' ||
-            formData.secondary_contact_name !== '' ||
-            formData.secondary_contact_email !== '' ||
-            formData.secondary_contact_phone !== '') {
-          setFormData(prev => ({
-            ...prev,
-            vendor_code: '',
-            vendor_type: '',
-            vendor_onboarding_date: '',
-            primary_contact_name: '',
-            primary_contact_email: '',
-            primary_contact_phone: '',
-            secondary_contact_name: '',
-            secondary_contact_email: '',
-            secondary_contact_phone: ''
-          }));
-        }
-      }
-    } else {
-      // No vendor selected, clear vendor and contact fields
-      if (formData.vendor_code !== '' || formData.vendor_type !== '' || 
-          formData.vendor_onboarding_date !== '' ||
-          formData.primary_contact_name !== '' ||
-          formData.primary_contact_email !== '' ||
-          formData.primary_contact_phone !== '' ||
-          formData.secondary_contact_name !== '' ||
-          formData.secondary_contact_email !== '' ||
-          formData.secondary_contact_phone !== '') {
         setFormData(prev => ({
           ...prev,
           vendor_code: '',
@@ -548,6 +510,27 @@ const VendorAgreements = () => {
           secondary_contact_phone: ''
         }));
       }
+    } else if (formData.vendor_code !== '' || formData.vendor_type !== '' || 
+               formData.vendor_onboarding_date !== '' ||
+               formData.primary_contact_name !== '' ||
+               formData.primary_contact_email !== '' ||
+               formData.primary_contact_phone !== '' ||
+               formData.secondary_contact_name !== '' ||
+               formData.secondary_contact_email !== '' ||
+               formData.secondary_contact_phone !== '') {
+      // No vendor selected, clear vendor and contact fields
+      setFormData(prev => ({
+        ...prev,
+        vendor_code: '',
+        vendor_type: '',
+        vendor_onboarding_date: '',
+        primary_contact_name: '',
+        primary_contact_email: '',
+        primary_contact_phone: '',
+        secondary_contact_name: '',
+        secondary_contact_email: '',
+        secondary_contact_phone: ''
+      }));
     }
   }, [
     formData.vendor_id, 
@@ -574,23 +557,19 @@ const VendorAgreements = () => {
             manager_contact: newManagerContact
           }));
         }
-      } else {
+      } else if (formData.manager_contact !== '') {
         // User not found, clear manager_contact
-        if (formData.manager_contact !== '') {
-          setFormData(prev => ({
-            ...prev,
-            manager_contact: ''
-          }));
-        }
-      }
-    } else {
-      // No user selected, clear manager_contact
-      if (formData.manager_contact !== '') {
         setFormData(prev => ({
           ...prev,
           manager_contact: ''
         }));
       }
+    } else if (formData.manager_contact !== '') {
+      // No user selected, clear manager_contact
+      setFormData(prev => ({
+        ...prev,
+        manager_contact: ''
+      }));
     }
   }, [formData.file_owner_user_id, formData.manager_contact, users]);
   
@@ -1777,7 +1756,7 @@ const VendorAgreements = () => {
                     </p>
                     
                     <div className="form-group">
-                      <label>Download Template</label>
+                      <div className="form-label">Download Template</div>
                       <div className="template-buttons">
                         <button
                           type="button"
@@ -2219,13 +2198,14 @@ const VendorAgreements = () => {
                   
                   <div className="form-row-grid">
                     {/* Additional Users */}
-                    <div className="form-group">
-                      <label>Additional Users</label>
+                      <div className="form-group">
+                        <label htmlFor="additional-users-select">Additional Users</label>
                       {loadingStakeholders ? (
                         <p style={{ color: '#666', fontSize: '12px' }}>Loading users...</p>
                       ) : (
                         <>
                           <select
+                            id="additional-users-select"
                             multiple
                             value={formData.additional_stakeholder_user_ids.map(id => String(id))}
                             onChange={(e) => {
@@ -2261,12 +2241,13 @@ const VendorAgreements = () => {
                     
                     {/* Additional Groups */}
                     <div className="form-group">
-                      <label>Additional Groups</label>
+                      <label htmlFor="additional-groups-select">Additional Groups</label>
                       {loadingStakeholders ? (
                         <p style={{ color: '#666', fontSize: '12px' }}>Loading groups...</p>
                       ) : (
                         <>
                           <select
+                            id="additional-groups-select"
                             multiple
                             value={formData.additional_stakeholder_group_ids.map(id => String(id))}
                             onChange={(e) => {
@@ -2611,83 +2592,83 @@ const VendorAgreements = () => {
                       
                       <div className="detail-grid">
                         <div className="detail-item">
-                          <label>Agreement Code:</label>
+                          <div className="detail-label">Agreement Code:</div>
                           <span>{selectedAgreement.agreement_code || '-'}</span>
                         </div>
                         <div className="detail-item">
-                          <label>File Name:</label>
+                          <div className="detail-label">File Name:</div>
                           <span>{selectedAgreement.file_name || '-'}</span>
                         </div>
                         <div className="detail-item">
-                          <label>Vendor Name:</label>
+                          <div className="detail-label">Vendor Name:</div>
                           <span>
                             {selectedAgreement.vendor_name || '-'}
                             {selectedAgreement.vendor_code ? ` (${selectedAgreement.vendor_code})` : ''}
                           </span>
                         </div>
                         <div className="detail-item">
-                          <label>Frequency:</label>
+                          <div className="detail-label">Frequency:</div>
                           <span>{selectedAgreement.frequency || '-'}</span>
                         </div>
                         <div className="detail-item">
-                          <label>Vendor Department/Team:</label>
+                          <div className="detail-label">Vendor Department/Team:</div>
                           <span>{selectedAgreement.vendor_department_team || selectedAgreement.file_creator || '-'}</span>
                         </div>
                         <div className="detail-item">
-                          <label>Vendor Manager/File Owner:</label>
+                          <div className="detail-label">Vendor Manager/File Owner:</div>
                           <span>
                             {selectedAgreement.owner_username || selectedAgreement.owner_email || '-'}
                             {selectedAgreement.owner_username && selectedAgreement.owner_email ? ` (${selectedAgreement.owner_email})` : ''}
                           </span>
                         </div>
                         <div className="detail-item full-width detail-section-header">
-                          <label>Primary Contact</label>
+                          <div className="detail-label">Primary Contact</div>
                         </div>
                         <div className="detail-item">
-                          <label>Name:</label>
+                          <div className="detail-label">Name:</div>
                           <span>{selectedAgreement.primary_contact_name || selectedAgreement.vendor_contact || '-'}</span>
                         </div>
                         <div className="detail-item">
-                          <label>Email:</label>
+                          <div className="detail-label">Email:</div>
                           <span>{selectedAgreement.primary_contact_email || '-'}</span>
                         </div>
                         <div className="detail-item">
-                          <label>Phone:</label>
+                          <div className="detail-label">Phone:</div>
                           <span>{selectedAgreement.primary_contact_phone || '-'}</span>
                         </div>
                         <div className="detail-item">
-                          <label>Designation:</label>
+                          <div className="detail-label">Designation:</div>
                           <span>{selectedAgreement.primary_contact_designation || '-'}</span>
                         </div>
                         <div className="detail-item full-width detail-section-header">
-                          <label>Secondary Contact</label>
+                          <div className="detail-label">Secondary Contact</div>
                         </div>
                         <div className="detail-item">
-                          <label>Name:</label>
+                          <div className="detail-label">Name:</div>
                           <span>{selectedAgreement.secondary_contact_name || '-'}</span>
                         </div>
                         <div className="detail-item">
-                          <label>Email:</label>
+                          <div className="detail-label">Email:</div>
                           <span>{selectedAgreement.secondary_contact_email || '-'}</span>
                         </div>
                         <div className="detail-item">
-                          <label>Phone:</label>
+                          <div className="detail-label">Phone:</div>
                           <span>{selectedAgreement.secondary_contact_phone || '-'}</span>
                         </div>
                         <div className="detail-item">
-                          <label>Designation:</label>
+                          <div className="detail-label">Designation:</div>
                           <span>{selectedAgreement.secondary_contact_designation || '-'}</span>
                         </div>
                         <div className="detail-item">
-                          <label>Vendor Department Email:</label>
+                          <div className="detail-label">Vendor Department Email:</div>
                           <span>{selectedAgreement.owner_contact || '-'}</span>
                         </div>
                         <div className="detail-item full-width">
-                          <label>File Description:</label>
+                          <div className="detail-label">File Description:</div>
                           <span>{selectedAgreement.file_description || '-'}</span>
                         </div>
                         <div className="detail-item full-width">
-                          <label>Frequency Description:</label>
+                          <div className="detail-label">Frequency Description:</div>
                           <span>{selectedAgreement.frequency_description || '-'}</span>
                         </div>
                       </div>

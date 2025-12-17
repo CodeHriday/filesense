@@ -2,6 +2,7 @@ import { motion } from 'framer-motion';
 import { Line } from 'react-chartjs-2';
 import { FaArrowUp, FaArrowDown } from 'react-icons/fa';
 import { COLORS, getStatusColor } from '../config/colors';
+import PropTypes from 'prop-types';
 
 const HeroKPICard = ({ 
   title, 
@@ -151,5 +152,23 @@ const HeroKPICard = ({
     </motion.div>
   );
 };
+HeroKPICard.propTypes = {
+  title: PropTypes.string.isRequired,
+  value: PropTypes.number.isRequired,
+  unit: PropTypes.string,
+  delta: PropTypes.number,
+  trend: PropTypes.oneOf(['up', 'down']),
+  status: PropTypes.oneOf(['excellent', 'good', 'warning', 'critical']),
+  sparklineData: PropTypes.arrayOf(PropTypes.number),
+  pillarGradient: PropTypes.string,
+  isPercentage: PropTypes.bool,
+  delay: PropTypes.number
+};
 
+HeroKPICard.defaultProps = {
+  unit: '',
+  sparklineData: [],
+  isPercentage: false,
+  delay: 0
+};
 export default HeroKPICard;

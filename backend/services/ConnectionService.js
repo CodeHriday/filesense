@@ -88,17 +88,6 @@ class ConnectionService {
         break;
       
       case 'gmail_oauth2':
-        if (config.client_secret) {
-          encryptedConfig.client_secret = encrypt(config.client_secret);
-        }
-        if (config.refresh_token) {
-          encryptedConfig.refresh_token = encrypt(config.refresh_token);
-        }
-        if (config.access_token) {
-          encryptedConfig.access_token = encrypt(config.access_token);
-        }
-        break;
-      
       case 'outlook_oauth2':
         if (config.client_secret) {
           encryptedConfig.client_secret = encrypt(config.client_secret);
@@ -235,17 +224,6 @@ class ConnectionService {
         break;
       
       case 'gmail_oauth2':
-        if (config.client_secret) {
-          decryptedConfig.client_secret = decrypt(config.client_secret);
-        }
-        if (config.refresh_token) {
-          decryptedConfig.refresh_token = decrypt(config.refresh_token);
-        }
-        if (config.access_token) {
-          decryptedConfig.access_token = decrypt(config.access_token);
-        }
-        break;
-      
       case 'outlook_oauth2':
         if (config.client_secret) {
           decryptedConfig.client_secret = decrypt(config.client_secret);
@@ -430,8 +408,7 @@ class ConnectionService {
       const { 
         name, 
         type, 
-        config, 
-        created_by, 
+        config,  
         description, 
         project_id,
         connection_user = 'Internal',

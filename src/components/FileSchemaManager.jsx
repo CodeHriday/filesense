@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { FiPlus, FiEdit2, FiTrash2, FiSave, FiX, FiAlertCircle, FiFileText, FiInfo, FiShield } from 'react-icons/fi';
 import axios from 'axios';
 import './FileSchemaManager.css';
+import PropTypes from 'prop-types';
 
 function FileSchemaManager({ agreementId }) {
   const [fileSchemas, setFileSchemas] = useState([]);
@@ -310,8 +311,9 @@ function FileSchemaManager({ agreementId }) {
 
             <div className="form-grid">
               <div className="form-group full-width">
-                <label>File Name Pattern *</label>
+                <label htmlFor="fileNamePattern">File Name Pattern *</label>
                 <input
+                  id="fileNamePattern"
                   type="text"
                   value={formData.file_name_pattern}
                   onChange={(e) => setFormData({ ...formData, file_name_pattern: e.target.value })}
@@ -322,8 +324,9 @@ function FileSchemaManager({ agreementId }) {
               </div>
 
               <div className="form-group full-width">
-                <label>File Description</label>
+                <label htmlFor="fileDescription">File Description</label>
                 <input
+                  id="fileDescription"
                   type="text"
                   value={formData.file_description}
                   onChange={(e) => setFormData({ ...formData, file_description: e.target.value })}
@@ -332,8 +335,9 @@ function FileSchemaManager({ agreementId }) {
               </div>
 
               <div className="form-group full-width">
-                <label>Schema (JSON)</label>
+                <label htmlFor="schemaJson">Schema (JSON)</label>
                 <textarea
+                  id="schemaJson"
                   value={formData.schema}
                   onChange={(e) => setFormData({ ...formData, schema: e.target.value })}
                   placeholder='{"fields": [{"name": "column_name", "type": "string"}]}'
@@ -359,7 +363,7 @@ function FileSchemaManager({ agreementId }) {
                         <span>Action</span>
                       </div>
                       {columnList.map((col, idx) => (
-                        <div key={idx} className="column-table-row">
+                        <div key={`col-${col.name || col.column_name || idx}`} className="column-table-row">
                           <input
                             type="text"
                             value={col.name}
@@ -430,8 +434,9 @@ function FileSchemaManager({ agreementId }) {
               </div>
 
               <div className="form-group">
-                <label className="checkbox-label">
+                <label htmlFor="isActive" className="checkbox-label">
                   <input
+                    id="isActive"
                     type="checkbox"
                     checked={formData.is_active}
                     onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
@@ -470,8 +475,9 @@ function FileSchemaManager({ agreementId }) {
                   <form className="schema-edit-form" onSubmit={(e) => { e.preventDefault(); handleUpdate(schema.id); }}>
                     <div className="form-grid">
                       <div className="form-group full-width">
-                        <label>File Name Pattern *</label>
+                        <label htmlFor="editFileNamePattern">File Name Pattern *</label>
                         <input
+                          id="editFileNamePattern"
                           type="text"
                           value={formData.file_name_pattern}
                           onChange={(e) => setFormData({ ...formData, file_name_pattern: e.target.value })}
@@ -480,8 +486,9 @@ function FileSchemaManager({ agreementId }) {
                       </div>
 
                       <div className="form-group full-width">
-                        <label>File Description</label>
+                        <label htmlFor="editFileDescription">File Description</label>
                         <input
+                          id="editFileDescription"
                           type="text"
                           value={formData.file_description}
                           onChange={(e) => setFormData({ ...formData, file_description: e.target.value })}
@@ -489,8 +496,9 @@ function FileSchemaManager({ agreementId }) {
                       </div>
 
                       <div className="form-group full-width">
-                        <label>Schema (JSON)</label>
+                        <label htmlFor="editSchemaJson">Schema (JSON)</label>
                         <textarea
+                          id="editSchemaJson"
                           value={formData.schema}
                           onChange={(e) => setFormData({ ...formData, schema: e.target.value })}
                           rows="6"
@@ -514,7 +522,7 @@ function FileSchemaManager({ agreementId }) {
                                 <span>Action</span>
                               </div>
                               {columnList.map((col, idx) => (
-                                <div key={idx} className="column-table-row">
+                                <div key={`edit-col-${col.name || col.column_name || idx}`} className="column-table-row">
                                   <input
                                     type="text"
                                     value={col.name}
@@ -585,8 +593,9 @@ function FileSchemaManager({ agreementId }) {
                       </div>
 
                       <div className="form-group">
-                        <label className="checkbox-label">
+                        <label htmlFor="editIsActive" className="checkbox-label">
                           <input
+                            id="editIsActive"
                             type="checkbox"
                             checked={formData.is_active}
                             onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
@@ -652,5 +661,10 @@ function FileSchemaManager({ agreementId }) {
     </div>
   );
 }
-
+FileSchemaManager.propTypes = {
+  agreementId: PropTypes.oneOfType([
+    PropTypes.string,
+    PropTypes.number
+  ]).isRequired
+};
 export default FileSchemaManager;

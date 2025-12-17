@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import PropTypes from 'prop-types';
 import { 
   FiHeart, 
   FiCheckCircle, 
@@ -648,6 +649,129 @@ export const CollapsiblePanel = ({
       </div>
     </div>
   );
+};
+
+
+/* HoverCard */
+HoverCard.propTypes = {
+  children: PropTypes.node.isRequired,
+  hoverContent: PropTypes.node,
+  direction: PropTypes.oneOf(['up', 'down', 'left', 'right']),
+  className: PropTypes.string,
+  delay: PropTypes.number,
+  distance: PropTypes.number,
+  style: PropTypes.object
+};
+
+/* LikeButton */
+LikeButton.propTypes = {
+  initialState: PropTypes.bool,
+  activeColor: PropTypes.string,
+  count: PropTypes.number,
+  iconType: PropTypes.oneOf(['heart', 'star', 'thumbsup', 'bookmark']),
+  onChange: PropTypes.func,
+  withCounter: PropTypes.bool,
+  size: PropTypes.oneOf(['small', 'medium', 'large']),
+  className: PropTypes.string,
+  style: PropTypes.object
+};
+
+/* Accordion */
+Accordion.propTypes = {
+  title: PropTypes.node.isRequired,
+  children: PropTypes.node.isRequired,
+  initialOpen: PropTypes.bool,
+  className: PropTypes.string,
+  style: PropTypes.object
+};
+
+/* ToggleSwitch */
+ToggleSwitch.propTypes = {
+  isOn: PropTypes.bool,
+  onToggle: PropTypes.func,
+  activeColor: PropTypes.string,
+  size: PropTypes.oneOf(['small', 'medium', 'large']),
+  label: PropTypes.string,
+  labelPosition: PropTypes.oneOf(['left', 'right']),
+  disabled: PropTypes.bool,
+  className: PropTypes.string,
+  style: PropTypes.object
+};
+
+/* RippleButton */
+RippleButton.propTypes = {
+  children: PropTypes.node.isRequired,
+  onClick: PropTypes.func,
+  color: PropTypes.string,
+  variant: PropTypes.oneOf(['filled', 'outlined', 'text']),
+  size: PropTypes.oneOf(['small', 'medium', 'large']),
+  rippleColor: PropTypes.string,
+  disabled: PropTypes.bool,
+  loading: PropTypes.bool,
+  icon: PropTypes.node,
+  className: PropTypes.string,
+  style: PropTypes.object
+};
+
+/* AnimatedCounter */
+AnimatedCounter.propTypes = {
+  initialValue: PropTypes.number,
+  min: PropTypes.number,
+  max: PropTypes.number,
+  step: PropTypes.number,
+  onChange: PropTypes.func,
+  size: PropTypes.oneOf(['small', 'medium', 'large']),
+  label: PropTypes.string,
+  className: PropTypes.string,
+  style: PropTypes.object
+};
+
+/* NotificationBadge */
+NotificationBadge.propTypes = {
+  count: PropTypes.number,
+  max: PropTypes.number,
+  color: PropTypes.string,
+  size: PropTypes.oneOf(['small', 'medium', 'large']),
+  animated: PropTypes.bool,
+  children: PropTypes.node,
+  onClick: PropTypes.func,
+  className: PropTypes.string,
+  style: PropTypes.object
+};
+
+/* ProgressIndicator */
+ProgressIndicator.propTypes = {
+  value: PropTypes.number,
+  maxValue: PropTypes.number,
+  showPercentage: PropTypes.bool,
+  color: PropTypes.string,
+  trailColor: PropTypes.string,
+  height: PropTypes.number,
+  animated: PropTypes.bool,
+  label: PropTypes.string,
+  className: PropTypes.string,
+  style: PropTypes.object
+};
+
+/* ExpandableSearch */
+ExpandableSearch.propTypes = {
+  placeholder: PropTypes.string,
+  onSearch: PropTypes.func,
+  expandedWidth: PropTypes.string,
+  collapsedWidth: PropTypes.string,
+  autoFocus: PropTypes.bool,
+  className: PropTypes.string,
+  style: PropTypes.object
+};
+
+/* CollapsiblePanel */
+CollapsiblePanel.propTypes = {
+  header: PropTypes.node.isRequired,
+  children: PropTypes.node.isRequired,
+  initialExpanded: PropTypes.bool,
+  onToggle: PropTypes.func,
+  className: PropTypes.string,
+  style: PropTypes.object
 };
 
 export default {

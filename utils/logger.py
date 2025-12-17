@@ -10,7 +10,7 @@ import sys
 import json
 import logging
 import logging.handlers
-from datetime import datetime
+from datetime import datetime, timezone
 import concurrent.futures
 from functools import wraps
 import time
@@ -128,7 +128,7 @@ def setup_structured_logging(log_to_file=True, log_level=logging.INFO):
     class JsonFormatter(logging.Formatter):
         def format(self, record):
             log_record = {
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
                 "level": record.levelname,
                 "logger": record.name,
                 "message": record.getMessage(),

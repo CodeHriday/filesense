@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { FaLightbulb, FaChartLine, FaExclamationTriangle, FaTimes, FaArrowRight } from 'react-icons/fa';
 import LoadingSpinner from './LoadingSpinner';
 import '../styles/AIPredictiveInsights.css';
+import PropTypes from 'prop-types';
 
 const AIPredictiveInsights = ({ fileId, onClose }) => {
   const [insights, setInsights] = useState(null);
@@ -94,7 +95,7 @@ const AIPredictiveInsights = ({ fileId, onClose }) => {
     return (
       <div className="column-insights">
         {insights.columnInsights.map((column, index) => (
-          <div key={index} className="column-insight-item">
+          <div key={`column-insight-${column.name || column.id || index}`} className="column-insight-item">
             <h4>{column.name}</h4>
             <div className="column-metadata">
               <span className="column-type">{column.type}</span>
@@ -110,7 +111,7 @@ const AIPredictiveInsights = ({ fileId, onClose }) => {
                 <h5>Recommendations:</h5>
                 <ul>
                   {column.recommendations.map((rec, idx) => (
-                    <li key={idx}>{rec}</li>
+                    <li key={`col-rec-${rec.substring(0, 20)}-${idx}`}>{rec}</li>
                   ))}
                 </ul>
               </div>
@@ -165,7 +166,7 @@ const AIPredictiveInsights = ({ fileId, onClose }) => {
             <h4>Identified Issues:</h4>
             <ul>
               {issues.map((issue, index) => (
-                <li key={index} className={`issue-severity-${issue.severity}`}>
+                <li key={`issue-${issue.type || issue.description?.substring(0, 20) || index}`} className={`issue-severity-${issue.severity}`}>
                   <div className="issue-header">
                     <FaExclamationTriangle />
                     <span>{issue.title}</span>
@@ -188,7 +189,7 @@ const AIPredictiveInsights = ({ fileId, onClose }) => {
     return (
       <div className="insights-recommendations">
         {insights.recommendations.map((rec, index) => (
-          <div key={index} className={`recommendation-item priority-${rec.priority}`}>
+          <div key={`rec-${rec.id || rec.type || rec.title?.substring(0, 20) || index}`} className={`recommendation-item priority-${rec.priority}`}>
             <div className="recommendation-header">
               <FaLightbulb className="recommendation-icon" />
               <h4>{rec.title}</h4>
@@ -263,6 +264,18 @@ const AIPredictiveInsights = ({ fileId, onClose }) => {
       )}
     </div>
   );
+};
+
+
+AIPredictiveInsights.propTypes = {
+  /** File ID for which AI insights are fetched */
+  fileId: PropTypes.oneOfType([
+    PropTypes.string,
+    PropTypes.number
+  ]).isRequired,
+
+  /** Callback to close the insights sidebar */
+  onClose: PropTypes.func.isRequired
 };
 
 export default AIPredictiveInsights;

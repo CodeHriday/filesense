@@ -3,6 +3,7 @@ import { FiPlus, FiEdit2, FiTrash2, FiSave, FiX, FiFileText, FiShield, FiCheckCi
 import axios from 'axios';
 import SchemaFieldEditor from './SchemaFieldEditor';
 import './FileConfigurationsSection.css';
+import PropTypes from 'prop-types';
 
 function FileConfigurationsSection({ fileConfigurations, onChange }) {
   const [showAddForm, setShowAddForm] = useState(false);
@@ -630,8 +631,9 @@ function FileConfigurationsSection({ fileConfigurations, onChange }) {
 
           <div className="form-grid-inline">
             <div className="form-group">
-              <label>File Name Pattern * (Base pattern without extension)</label>
+              <label htmlFor="fileNamePatternBase">File Name Pattern * (Base pattern without extension)</label>
               <input
+                id="fileNamePatternBase"
                 type="text"
                 value={formData.file_name_pattern_base}
                 onChange={(e) => setFormData({ ...formData, file_name_pattern_base: e.target.value })}
@@ -640,8 +642,9 @@ function FileConfigurationsSection({ fileConfigurations, onChange }) {
             </div>
 
             <div className="form-group">
-              <label>File Type *</label>
+              <label htmlFor="fileType">File Type *</label>
               <select
+                id="fileType"
                 value={formData.file_type}
                 onChange={(e) => {
                   const newType = e.target.value;
@@ -674,7 +677,7 @@ function FileConfigurationsSection({ fileConfigurations, onChange }) {
 
             {isArchiveType(formData.file_type) && (
               <div className="form-group">
-                <label>Archive Password (Optional)</label>
+                <label htmlFor="archivePassword">Archive Password (Optional)</label>
                 {formData.has_archive_password && !formData.archive_password && (
                   <div className="password-configured-notice">
                     <FiLock size={14} />
@@ -683,6 +686,7 @@ function FileConfigurationsSection({ fileConfigurations, onChange }) {
                 )}
                 <div className="password-input-wrapper">
                   <input
+                    id="archivePassword"
                     type={showPassword ? 'text' : 'password'}
                     value={formData.archive_password}
                     onChange={(e) => setFormData({ ...formData, archive_password: e.target.value })}
@@ -700,8 +704,9 @@ function FileConfigurationsSection({ fileConfigurations, onChange }) {
             )}
 
             <div className="form-group">
-              <label>File Description</label>
+              <label htmlFor="fileDescription">File Description</label>
               <input
+                id="fileDescription"
                 type="text"
                 value={formData.file_description}
                 onChange={(e) => setFormData({ ...formData, file_description: e.target.value })}
@@ -710,8 +715,9 @@ function FileConfigurationsSection({ fileConfigurations, onChange }) {
             </div>
 
             <div className="form-group">
-              <label>Priority (Lower = higher priority)</label>
+              <label htmlFor="priority">Priority (Lower = higher priority)</label>
               <input
+                id="priority"
                 type="number"
                 value={formData.priority}
                 onChange={(e) => setFormData({ ...formData, priority: parseInt(e.target.value) || 0 })}
@@ -729,8 +735,9 @@ function FileConfigurationsSection({ fileConfigurations, onChange }) {
               
               <div className="governance-controls">
                 <div className="form-group">
-                  <label className="checkbox-label">
+                  <label htmlFor="containsPii" className="checkbox-label">
                     <input
+                      id="containsPii"
                       type="checkbox"
                       checked={formData.contains_pii}
                       onChange={(e) => setFormData({ ...formData, contains_pii: e.target.checked })}
@@ -741,8 +748,9 @@ function FileConfigurationsSection({ fileConfigurations, onChange }) {
                 </div>
 
                 <div className="form-group">
-                  <label>Data Classification</label>
+                  <label htmlFor="dataClassification">Data Classification</label>
                   <select
+                    id="dataClassification"
                     value={formData.data_classification}
                     onChange={(e) => setFormData({ ...formData, data_classification: e.target.value })}
                   >
@@ -754,8 +762,8 @@ function FileConfigurationsSection({ fileConfigurations, onChange }) {
                 </div>
 
                 <div className="form-group full-width">
-                  <label>Quality Rules</label>
-                  <div className="quality-rules-selector">
+                  <label htmlFor="qualityRules">Quality Rules</label>
+                  <div id="qualityRules" className="quality-rules-selector">
                     {qualityRules.length === 0 ? (
                       <small className="no-rules-message">No quality rules available</small>
                     ) : (
@@ -879,7 +887,7 @@ function FileConfigurationsSection({ fileConfigurations, onChange }) {
           {fileConfigurations
             .sort((a, b) => (a.priority ?? 100) - (b.priority ?? 100))
             .map((config, index) => (
-              <div key={index} className={`file-config-item ${editingIndex === index ? 'editing' : ''}`}>
+              <div key={`config-${config.id || config.pattern || index}`} className={`file-config-item ${editingIndex === index ? 'editing' : ''}`}>
                 <div className="config-main-info">
                   <div className="config-pattern">
                     <FiFileText className="pattern-icon-inline" />
@@ -1059,5 +1067,30 @@ function FileConfigurationsSection({ fileConfigurations, onChange }) {
     </div>
   );
 }
-
+FileConfigurationsSection.propTypes = {
+  fileConfigurations: PropTypes.arrayOf(
+    PropTypes.shape({
+      file_name_pattern: PropTypes.string,
+      file_name_pattern_base: PropTypes.string,
+      file_type: PropTypes.string,
+      file_description: PropTypes.string,
+      schema: PropTypes.oneOfType([
+        PropTypes.array,
+        PropTypes.object,
+        PropTypes.string
+      ]),
+      is_active: PropTypes.bool,
+      contains_pii: PropTypes.bool,
+      data_classification: PropTypes.string,
+      quality_rule_ids: PropTypes.arrayOf(PropTypes.number),
+      quality_rule_assignments: PropTypes.object,
+      archive_password: PropTypes.string,
+      has_archive_password: PropTypes.bool,
+      has_header: PropTypes.bool,
+      header_definition: PropTypes.array,
+      priority: PropTypes.number
+    })
+  ).isRequired,
+  onChange: PropTypes.func.isRequired
+};
 export default FileConfigurationsSection;

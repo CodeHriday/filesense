@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import ReactFlow, {
   ReactFlowProvider,
   addEdge,
@@ -92,6 +92,9 @@ function WorkflowCanvasStandalone() {
             <div
               className="workflow-component"
               draggable
+              role="button"
+              tabIndex="0"
+              aria-label="Drag Input Node to canvas or press Enter to add"
               onDragStart={(e) => {
                 e.dataTransfer.setData('application/reactflow', 'input');
                 e.dataTransfer.effectAllowed = 'move';
@@ -103,6 +106,9 @@ function WorkflowCanvasStandalone() {
             <div
               className="workflow-component"
               draggable
+              role="button"
+              tabIndex="0"
+              aria-label="Drag Process Node to canvas or press Enter to add"
               onDragStart={(e) => {
                 e.dataTransfer.setData('application/reactflow', 'process');
                 e.dataTransfer.effectAllowed = 'move';
@@ -114,6 +120,9 @@ function WorkflowCanvasStandalone() {
             <div
               className="workflow-component"
               draggable
+              role="button"
+              tabIndex="0"
+              aria-label="Drag Output Node to canvas or press Enter to add"
               onDragStart={(e) => {
                 e.dataTransfer.setData('application/reactflow', 'output');
                 e.dataTransfer.effectAllowed = 'move';

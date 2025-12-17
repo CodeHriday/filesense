@@ -3,6 +3,7 @@ import { FiInfo, FiAlertTriangle, FiCheckCircle, FiFilter } from 'react-icons/fi
 import { ContextualTooltip, MetricTooltip } from './ContextualTooltip';
 import { LoadingSkeleton, TableSkeleton } from './LoadingSkeleton';
 import './DataQualityHeatmap.css';
+import PropTypes from 'prop-types';
 
 /**
  * Data Quality Heatmap Component
@@ -298,8 +299,9 @@ const DataQualityHeatmap = ({
         <div className="filter-panel">
           <div className="filter-controls">
             <div className="filter-item">
-              <label>Filename</label>
+              <label htmlFor="filenameFilter">Filename</label>
               <input 
+                id="filenameFilter"
                 type="text" 
                 placeholder="Filter by name..."
                 value={filters.filename || ''}
@@ -308,8 +310,9 @@ const DataQualityHeatmap = ({
             </div>
             
             <div className="filter-item">
-              <label>File Type</label>
+              <label htmlFor="fileTypeFilter">File Type</label>
               <select
+                id="fileTypeFilter"
                 value={filters.file_type || ''}
                 onChange={(e) => handleFilterChange('file_type', e.target.value)}
               >
@@ -321,9 +324,10 @@ const DataQualityHeatmap = ({
             </div>
             
             <div className="filter-item">
-              <label>Quality Score</label>
+              <label htmlFor="qualityScoreMinFilter">Quality Score</label>
               <div className="filter-range">
                 <input 
+                  id="qualityScoreMinFilter"
                   type="number" 
                   min="0" 
                   max="100" 
@@ -336,6 +340,7 @@ const DataQualityHeatmap = ({
                 />
                 <span>to</span>
                 <input 
+                  id="qualityScoreMaxFilter"
                   type="number" 
                   min="0" 
                   max="100" 
@@ -544,6 +549,28 @@ const DataQualityHeatmap = ({
       </div>
     </div>
   );
+};
+DataQualityHeatmap.propTypes = {
+  data: PropTypes.arrayOf(PropTypes.object),
+  metrics: PropTypes.arrayOf(PropTypes.string),
+  autoRefresh: PropTypes.bool,
+  refreshInterval: PropTypes.number,
+  loading: PropTypes.bool,
+  onRefresh: PropTypes.func,
+  onFileClick: PropTypes.func,
+  className: PropTypes.string,
+  style: PropTypes.object
+};
+DataQualityHeatmap.defaultProps = {
+  data: [],
+  metrics: ['completeness', 'accuracy', 'consistency', 'timeliness'],
+  autoRefresh: true,
+  refreshInterval: 30000,
+  loading: false,
+  onRefresh: undefined,
+  onFileClick: undefined,
+  className: '',
+  style: {}
 };
 
 export default DataQualityHeatmap;

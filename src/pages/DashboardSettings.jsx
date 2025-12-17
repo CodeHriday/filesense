@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { FiSave, FiRotateCcw, FiEye, FiSettings, FiLayout, FiX } from 'react-icons/fi';
+import { FiSave, FiRotateCcw, FiEye, FiSettings, FiLayout } from 'react-icons/fi';
 import DashboardLayoutCreator from '../components/DashboardLayoutCreator';
 import LoadingSpinner from '../components/LoadingSpinner';
-import { PageTransition, AnimatedButton, SuccessAnimation } from '../components/MicroAnimations';
+import { PageTransition, SuccessAnimation } from '../components/MicroAnimations';
 import ContextualTooltip from '../components/ContextualTooltip';
 import axios from 'axios';
 import '../styles/global-page-styles.css';
@@ -238,8 +238,8 @@ const DashboardSettings = () => {
               
               <div style={{ marginTop: '16px' }}>
                 <div className="gps-form-group" style={{ marginBottom: '20px' }}>
-                  <label className="gps-label">Color Scheme</label>
-                  <div style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
+                  <label htmlFor="color-scheme-group" className="gps-label">Color Scheme</label>
+                  <div id="color-scheme-group" style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
                     {[
                       { value: 'light', label: 'Light', bg: '#ffffff', border: '#e2e8f0' },
                       { value: 'dark', label: 'Dark', bg: '#1f2937', border: '#374151' },
@@ -265,7 +265,7 @@ const DashboardSettings = () => {
                 </div>
                 
                 <div className="gps-form-group" style={{ marginBottom: '20px' }}>
-                  <label className="gps-label">Accent Color</label>
+                  <label htmlFor="accent-color-input" className="gps-label">Accent Color</label>
                   <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: '8px' }}>
                     {['#2196f3', '#4caf50', '#f44336', '#ff9800', '#9c27b0', '#607d8b'].map(color => (
                       <button 
@@ -283,6 +283,7 @@ const DashboardSettings = () => {
                       ></button>
                     ))}
                     <input
+                      id="accent-color-input"
                       type="color"
                       value={themeSettings.accentColor || '#2196f3'} 
                       onChange={(e) => handleThemeChange('accentColor', e.target.value)}
@@ -292,8 +293,8 @@ const DashboardSettings = () => {
                 </div>
                 
                 <div className="gps-form-group" style={{ marginBottom: '20px' }}>
-                  <label className="gps-label">Text Size</label>
-                  <div style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
+                  <label htmlFor="text-size-group" className="gps-label">Text Size</label>
+                  <div id="text-size-group" style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
                     {[
                       { value: 'small', label: 'Small', preview: '12px' },
                       { value: 'medium', label: 'Medium', preview: '14px' },
@@ -314,8 +315,9 @@ const DashboardSettings = () => {
                 
                 <div className="gps-form-group" style={{ marginBottom: '20px' }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                    <label className="gps-checkbox-label" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <label htmlFor="compact-mode-checkbox" className="gps-checkbox-label" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <input
+                        id="compact-mode-checkbox"
                         type="checkbox"
                         checked={!!themeSettings.compactMode}
                         onChange={(e) => handleThemeChange('compactMode', e.target.checked)}
@@ -327,8 +329,9 @@ const DashboardSettings = () => {
                       />
                     </label>
                     
-                    <label className="gps-checkbox-label" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <label htmlFor="animations-checkbox" className="gps-checkbox-label" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <input
+                        id="animations-checkbox"
                         type="checkbox"
                         checked={themeSettings.animationsEnabled !== false}
                         onChange={(e) => handleThemeChange('animationsEnabled', e.target.checked)}

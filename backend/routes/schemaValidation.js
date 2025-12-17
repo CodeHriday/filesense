@@ -189,7 +189,7 @@ router.get('/jobs/:jobId/report', authenticateToken, async (req, res) => {
     }
 
     const fileName = path.basename(reportPath).trim();
-    const safeFileName = fileName.replace(/[^\w\-\.]/g, '_');
+    const safeFileName = fileName.replace(/[^\w-.]/g, '_');
     
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition', `attachment; filename="${safeFileName}"; filename*=UTF-8''${encodeURIComponent(fileName)}`);

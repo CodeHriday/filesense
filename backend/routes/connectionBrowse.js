@@ -142,13 +142,18 @@ async function browseGCP(config, prefix, delimiter) {
   }
   
   // Parse service account key (if it's a string)
+
   let credentials;
   try {
     credentials = typeof service_account_key === 'string'
       ? JSON.parse(service_account_key)
       : service_account_key;
   } catch (error) {
-    throw new Error('Invalid service account key format');
+    const message = 'Invalid service account key format';
+    if (error instanceof SyntaxError) {
+      throw new Error(`${message}: ${error.message}`);
+    }
+    throw new Error(message);
   }
   
   // Create GCS client
@@ -430,7 +435,11 @@ async function inferSchemaFromGCP(config, prefix, pattern) {
       ? JSON.parse(service_account_key)
       : service_account_key;
   } catch (error) {
-    throw new Error('Invalid service account key format');
+    const message = 'Invalid service account key format';
+    if (error instanceof SyntaxError) {
+      throw new Error(`${message}: ${error.message}`);
+    }
+    throw new Error(message);
   }
   
   const storage = new Storage({
@@ -561,11 +570,15 @@ function inferSchemaFromCSV(lines) {
   }
   
   // Parse header
-  const header = lines[0].split(',').map(col => col.trim().replace(/^"|"$/g, ''));
+  const header = lines[0]
+  .split(',')
+  .map(col => col.trim().replace(/^"/g, '').replace(/"$/g, ''));
   
   // Parse sample rows to infer types
-  const sampleRows = lines.slice(1, Math.min(11, lines.length)).map(line => 
-    line.split(',').map(val => val.trim().replace(/^"|"$/g, ''))
+  const sampleRows = lines
+  .slice(1, Math.min(11, lines.length))
+  .map(line => 
+    line.split(',').map(val => val.trim().replace(/^"/g, '').replace(/"$/g, ''))
   );
   
   return header.map((colName, idx) => {

@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { FaFolder, FaFile, FaChevronRight, FaHome } from 'react-icons/fa';
 import './MappingConfigModal.css';
+import PropTypes from 'prop-types';
+
 
 const FileBrowserModal = ({ isOpen, onClose, onSelect, connectionId, connectionName }) => {
   const [currentPath, setCurrentPath] = useState('');
@@ -223,6 +225,18 @@ const FileBrowserModal = ({ isOpen, onClose, onSelect, connectionId, connectionN
       </div>
     </div>
   );
+};
+FileBrowserModal.propTypes = {
+  isOpen: PropTypes.bool.isRequired,
+  onClose: PropTypes.func.isRequired,
+  onSelect: PropTypes.func.isRequired,
+
+  connectionId: PropTypes.oneOfType([
+    PropTypes.string,
+    PropTypes.number
+  ]).isRequired,
+
+  connectionName: PropTypes.string
 };
 
 export default FileBrowserModal;

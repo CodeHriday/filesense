@@ -9,6 +9,7 @@ const router = express.Router();
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const crypto = require('crypto');
 const { authenticateAPIToken, requireScope } = require('../middleware/apiTokenAuth');
 const UploadBatchService = require('../services/UploadBatchService');
 const FileService = require('../services/FileService');
@@ -34,7 +35,9 @@ const storage = multer.diskStorage({
     cb(null, uploadDir);
   },
   filename: (req, file, cb) => {
-    const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1E9)}`;
+    const timestamp = Date.now();
+    const randomBytes = crypto.randomBytes(4).toString('hex');
+    const uniqueSuffix = `${timestamp}-${randomBytes}`;
     cb(null, `${file.fieldname}-${uniqueSuffix}${path.extname(file.originalname)}`);
   }
 });

@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { FiCheck, FiArrowRight, FiTrash2, FiEdit2, FiX, FiPlus, FiChevronDown, FiChevronUp, FiChevronRight, FiLock, FiShield } from 'react-icons/fi';
 import './TableBasedMapper.css';
+import PropTypes from 'prop-types';
+
 
 const TRANSFORMATION_OPTIONS = [
   { value: 'none', label: 'None (Direct Copy)', group: 'Basic', params: [] },
@@ -1219,8 +1221,9 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
             </div>
             <div className="modal-body">
               <div className="form-group">
-                <label>Source Field</label>
+                <label htmlFor="editing-source-field">Source Field</label>
                 <input
+                  id="editing-source-field"
                   type="text"
                   value={editingExpression.sourceField}
                   disabled
@@ -1229,8 +1232,9 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
               </div>
 
               <div className="form-group">
-                <label>Transformation</label>
+                <label htmlFor="editing-transformation">Transformation</label>
                 <select
+                  id="editing-transformation"
                   className="form-control"
                   value={editingExpression.transformation}
                   onChange={(e) => handleTransformationChange(e.target.value)}
@@ -1257,9 +1261,10 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
 
               {TRANSFORMATION_OPTIONS.find(t => t.value === editingExpression.transformation)?.params.map(param => (
                 <div key={param.name} className="form-group">
-                  <label>{param.name}</label>
+                  <label htmlFor={`editing-param-${param.name}`}>{param.name}</label>
                   {param.type === 'select' ? (
                     <select
+                      id={`editing-param-${param.name}`}
                       className="form-control"
                       value={editingExpression.params[param.name] || ''}
                       onChange={(e) => handleParamChange(param.name, e.target.value)}
@@ -1273,6 +1278,7 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
                     </select>
                   ) : (
                     <input
+                      id={`editing-param-${param.name}`}
                       type={param.type}
                       className="form-control"
                       value={editingExpression.params[param.name] || ''}
@@ -1284,8 +1290,8 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
               ))}
 
               <div className="form-group">
-                <label>Preview</label>
-                <div className="expression-preview">
+                <div className="form-label">Preview</div>
+                <div id="editing-preview" className="expression-preview">
                   {buildExpression({
                     source_field: editingExpression.sourceField,
                     transformation: editingExpression.transformation,
@@ -1318,8 +1324,9 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
             </div>
             <div className="modal-body">
               <div className="form-group">
-                <label>Target Field Name *</label>
+                <label htmlFor="newcol-target-field">Target Field Name *</label>
                 <input
+                  id="newcol-target-field"
                   type="text"
                   className="form-control"
                   value={newColumn.targetField}
@@ -1329,8 +1336,9 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
               </div>
 
               <div className="form-group">
-                <label>Source Field (Optional)</label>
+                <label htmlFor="newcol-source-field">Source Field (Optional)</label>
                 <select
+                  id="newcol-source-field"
                   className="form-control"
                   value={newColumn.sourceField}
                   onChange={(e) => handleNewColumnChange('sourceField', e.target.value)}
@@ -1351,8 +1359,9 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
               </div>
 
               <div className="form-group">
-                <label>Transformation</label>
+                <label htmlFor="newcol-transformation">Transformation</label>
                 <select
+                  id="newcol-transformation"
                   className="form-control"
                   value={newColumn.transformation}
                   onChange={(e) => handleNewColumnTransformationChange(e.target.value)}
@@ -1379,8 +1388,9 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
 
               {TRANSFORMATION_OPTIONS.find(t => t.value === newColumn.transformation)?.params.map(param => (
                 <div key={param.name} className="form-group">
-                  <label>{param.name} *</label>
+                  <label htmlFor={`newcol-param-${param.name}`}>{param.name} *</label>
                   <input
+                    id={`newcol-param-${param.name}`}
                     type={param.type}
                     className="form-control"
                     value={newColumn.params[param.name] || ''}
@@ -1391,8 +1401,8 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
               ))}
 
               <div className="form-group">
-                <label>Preview</label>
-                <div className="expression-preview">
+                <div className="form-label">Preview</div>
+                <div id="newcol-preview" className="expression-preview">
                   {newColumn.sourceField ? 
                     buildExpression({
                       source_field: newColumn.sourceField,
@@ -1516,8 +1526,9 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
                   <div className="variable-pane-content">
                     <div className="expression-builder">
                       <div className="variable-name-input">
-                        <label>Variable Name *</label>
+                        <label htmlFor="newvar-name">Variable Name *</label>
                         <input
+                          id="newvar-name"
                           type="text"
                           value={newVariable.name}
                           onChange={(e) => setNewVariable({ ...newVariable, name: e.target.value })}
@@ -1527,8 +1538,9 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
                       </div>
 
                       <div className="variable-name-input">
-                        <label>Data Type</label>
+                        <label htmlFor="newvar-data-type">Data Type</label>
                         <select
+                          id="newvar-data-type"
                           className="form-control"
                           value={newVariable.data_type || ''}
                           onChange={(e) => setNewVariable({ ...newVariable, data_type: e.target.value })}
@@ -1544,10 +1556,11 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
                       </div>
 
                       <div className="expression-builder-header">
-                        <label>Expression *</label>
+                        <label htmlFor="newvar-expression">Expression *</label>
                       </div>
                       <div className="expression-editor-container">
                         <textarea
+                          id="newvar-expression"
                           ref={expressionTextareaRef}
                           className="expression-code-input"
                           value={newVariable.expression}
@@ -1580,8 +1593,8 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
 
                       {newVariable.expression && (
                         <div className="expression-preview-section">
-                          <label>Preview</label>
-                          <div className="expression-preview">
+                          <div className="form-label">Preview</div>
+                          <div id="newvar-preview" className="expression-preview">
                             {newVariable.expression}
                           </div>
                         </div>
@@ -1699,8 +1712,9 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
                   <div className="variable-pane-content">
                     <div className="expression-builder">
                       <div className="variable-name-input">
-                        <label>Variable Name</label>
+                        <label htmlFor="editvar-name">Variable Name</label>
                         <input
+                          id="editvar-name"
                           type="text"
                           value={editingVariable.name}
                           disabled
@@ -1709,8 +1723,9 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
                       </div>
 
                       <div className="variable-name-input">
-                        <label>Data Type</label>
+                        <label htmlFor="editvar-data-type">Data Type</label>
                         <select
+                          id="editvar-data-type"
                           className="form-control"
                           value={editingVariable.data_type || ''}
                           onChange={(e) => setEditingVariable({ ...editingVariable, data_type: e.target.value })}
@@ -1726,10 +1741,11 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
                       </div>
 
                       <div className="expression-builder-header">
-                        <label>Expression *</label>
+                        <label htmlFor="editvar-expression">Expression *</label>
                       </div>
                       <div className="expression-editor-container">
                         <textarea
+                          id="editvar-expression"
                           ref={editExpressionTextareaRef}
                           className="expression-code-input"
                           value={editingVariable.expression || ''}
@@ -1762,8 +1778,8 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
 
                       {editingVariable.expression && (
                         <div className="expression-preview-section">
-                          <label>Preview</label>
-                          <div className="expression-preview">
+                          <div className="form-label">Preview</div>
+                          <div id="editvar-preview" className="expression-preview">
                             {editingVariable.expression}
                           </div>
                         </div>
@@ -1847,8 +1863,9 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
                   </div>
                   <div className="dq-panel-section-actions">
                     <div className="dq-error-action-selector">
-                      <label style={{ fontSize: '10px', fontFamily: 'Inter', marginRight: '6px' }}>On Failure:</label>
+                      <label htmlFor="dq-on-failure" style={{ fontSize: '10px', fontFamily: 'Inter', marginRight: '6px' }}>On Failure:</label>
                       <select
+                        id="dq-on-failure"
                         value={selectedErrorAction}
                         onChange={(e) => setSelectedErrorAction(e.target.value)}
                         style={{ fontSize: '10px', fontFamily: 'Inter', padding: '2px 4px' }}
@@ -1929,6 +1946,52 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
       </div>
     </div>
   );
+};
+TableBasedMapper.propTypes = {
+  schema: PropTypes.arrayOf(
+    PropTypes.shape({
+      name: PropTypes.string.isRequired,
+      contains_pii: PropTypes.bool,
+      is_pii: PropTypes.bool,
+      pii: PropTypes.bool
+    })
+  ).isRequired,
+
+  fieldMappings: PropTypes.arrayOf(
+    PropTypes.shape({
+      source_field: PropTypes.string.isRequired,
+      target_field: PropTypes.string.isRequired,
+      transformation: PropTypes.string,
+      transformation_params: PropTypes.object,
+      is_custom: PropTypes.bool
+    })
+  ),
+
+  variables: PropTypes.arrayOf(
+    PropTypes.shape({
+      id: PropTypes.string,
+      name: PropTypes.string.isRequired,
+      expression: PropTypes.string,
+      data_type: PropTypes.string,
+      source_field: PropTypes.string,
+      transformation: PropTypes.string,
+      transformation_params: PropTypes.object
+    })
+  ),
+
+  piiColumns: PropTypes.arrayOf(PropTypes.string),
+
+  dqRuleAssignments: PropTypes.objectOf(
+    PropTypes.arrayOf(
+      PropTypes.shape({
+        ruleId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
+        errorAction: PropTypes.oneOf(['log_continue', 'log_abort']),
+        applyTo: PropTypes.string
+      })
+    )
+  ),
+
+  onMappingsChange: PropTypes.func.isRequired
 };
 
 export default TableBasedMapper;

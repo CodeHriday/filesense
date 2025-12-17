@@ -134,7 +134,7 @@ class HealingRecommender:
         recommendations.append({
             'id': 'create_transformation',
             'title': f'Create ETL transformation to filter {metric_name}',
-            'description': f'Add a transformation step to filter or cap values outside the acceptable range',
+            'description': 'Add a transformation step to filter or cap values outside the acceptable range',
             'category': 'transformation',
             'priority': 'high',
             'action_type': 'create_etl_transformation',
@@ -269,7 +269,7 @@ class HealingRecommender:
         # Recommendation 1: Run detailed quality profiling
         recommendations.append({
             'id': 'detailed_profiling',
-            'title': f'Run detailed quality profiling',
+            'title': 'Run detailed quality profiling',
             'description': f'Perform in-depth analysis to identify specific quality issues causing {score_label} degradation',
             'category': 'investigation',
             'priority': 'critical' if degradation_pct > 50 else 'high',
@@ -441,8 +441,7 @@ class HealingRecommender:
     
     def _recommend_generic_fixes(
         self,
-        anomaly: Dict[str, Any],
-        file_context: Optional[Dict[str, Any]]
+        anomaly: Dict[str, Any]
     ) -> List[Dict[str, Any]]:
         """Generic recommendations for unknown anomaly types"""
         return [

@@ -5,6 +5,8 @@ import LoadingSpinner from './LoadingSpinner';
 import { formatBytes, formatDate, formatNumber } from '../utils/formatters';
 import '../styles/global-page-styles.css';
 import './TransformationProfilingModal.css';
+import PropTypes from 'prop-types';
+
 
 const TransformationProfilingModal = ({ jobId, onClose }) => {
   const [loading, setLoading] = useState(true);
@@ -46,36 +48,36 @@ const TransformationProfilingModal = ({ jobId, onClose }) => {
       <div className="profile-attributes">
         <div className="attr-grid">
           <div className="attr-item">
-            <label>File Name</label>
-            <div>{data.filename || '-'}</div>
+            <label htmlFor={`tp-file-name-${jobId}-${data.file_id || 'unknown'}`}>File Name</label>
+            <div id={`tp-file-name-${jobId}-${data.file_id || 'unknown'}`}>{data.filename || '-'}</div>
           </div>
           <div className="attr-item">
-            <label>File Type</label>
-            <div>{data.file_type?.toUpperCase() || '-'}</div>
+            <label htmlFor={`tp-file-type-${jobId}-${data.file_id || 'unknown'}`}>File Type</label>
+            <div id={`tp-file-type-${jobId}-${data.file_id || 'unknown'}`}>{data.file_type?.toUpperCase() || '-'}</div>
           </div>
           <div className="attr-item">
-            <label>File Size</label>
-            <div>{formatBytes(parseInt(data.file_size) || 0)}</div>
+            <label htmlFor={`tp-file-size-${jobId}-${data.file_id || 'unknown'}`}>File Size</label>
+            <div id={`tp-file-size-${jobId}-${data.file_id || 'unknown'}`}>{formatBytes(parseInt(data.file_size) || 0)}</div>
           </div>
           <div className="attr-item">
-            <label>Row Count</label>
-            <div>{formatNumber(data.row_count || 0)}</div>
+            <label htmlFor={`tp-row-count-${jobId}-${data.file_id || 'unknown'}`}>Row Count</label>
+            <div id={`tp-row-count-${jobId}-${data.file_id || 'unknown'}`}>{formatNumber(data.row_count || 0)}</div>
           </div>
           <div className="attr-item">
-            <label>Column Count</label>
-            <div>{data.column_count || '-'}</div>
+            <label htmlFor={`tp-column-count-${jobId}-${data.file_id || 'unknown'}`}>Column Count</label>
+            <div id={`tp-column-count-${jobId}-${data.file_id || 'unknown'}`}>{data.column_count || '-'}</div>
           </div>
           <div className="attr-item">
-            <label>Quality Score</label>
-            <div>{data.quality_score ? `${parseFloat(data.quality_score).toFixed(2)}%` : '-'}</div>
+            <label htmlFor={`tp-quality-score-${jobId}-${data.file_id || 'unknown'}`}>Quality Score</label>
+            <div id={`tp-quality-score-${jobId}-${data.file_id || 'unknown'}`}>{data.quality_score ? `${parseFloat(data.quality_score).toFixed(2)}%` : '-'}</div>
           </div>
           <div className="attr-item">
-            <label>Created Date</label>
-            <div>{formatDate(data.created_at)}</div>
+            <label htmlFor={`tp-created-date-${jobId}-${data.file_id || 'unknown'}`}>Created Date</label>
+            <div id={`tp-created-date-${jobId}-${data.file_id || 'unknown'}`}>{formatDate(data.created_at)}</div>
           </div>
           <div className="attr-item">
-            <label>File ID</label>
-            <div style={{ wordBreak: 'break-all', fontSize: '12px' }}>{data.file_id || '-'}</div>
+            <label htmlFor={`tp-file-id-${jobId}-${data.file_id || 'unknown'}`}>File ID</label>
+            <div id={`tp-file-id-${jobId}-${data.file_id || 'unknown'}`} style={{ wordBreak: 'break-all', fontSize: '12px' }}>{data.file_id || '-'}</div>
           </div>
         </div>
       </div>
@@ -192,6 +194,14 @@ const TransformationProfilingModal = ({ jobId, onClose }) => {
       </div>
     </div>
   );
+};
+TransformationProfilingModal.propTypes = {
+  jobId: PropTypes.oneOfType([
+    PropTypes.string,
+    PropTypes.number
+  ]).isRequired,
+
+  onClose: PropTypes.func.isRequired
 };
 
 export default TransformationProfilingModal;

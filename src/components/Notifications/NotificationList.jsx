@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { useNotifications } from '../../hooks';
 import './Notifications.css';
+import PropTypes from 'prop-types';
 
 export const NotificationList = () => {
   const { notifications, removeNotification } = useNotifications();
@@ -47,5 +48,17 @@ const Notification = ({ notification, onClose }) => {
     </div>
   );
 };
+
+
+Notification.propTypes = {
+  notification: PropTypes.shape({
+    id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
+    message: PropTypes.string.isRequired,
+    type: PropTypes.oneOf(['success', 'error', 'warning', 'info']).isRequired,
+    duration: PropTypes.number
+  }).isRequired,
+  onClose: PropTypes.func.isRequired
+};
+
 
 export default NotificationList;

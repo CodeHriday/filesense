@@ -1,5 +1,6 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
+import PropTypes from 'prop-types';
 import { FiAlertTriangle, FiX } from 'react-icons/fi';
 
 const ConfirmModal = ({ 
@@ -156,5 +157,22 @@ const ConfirmModal = ({
 
   return ReactDOM.createPortal(modalContent, document.body);
 };
+// Add PropTypes validation
+ConfirmModal.propTypes = {
+  isOpen: PropTypes.bool.isRequired,
+  onClose: PropTypes.func.isRequired,
+  onConfirm: PropTypes.func.isRequired,
+  title: PropTypes.string,
+  message: PropTypes.string.isRequired,  // assuming message is always provided
+  confirmText: PropTypes.string,
+  cancelText: PropTypes.string,
+  variant: PropTypes.oneOf(['danger', 'warning', 'info']),
+};
 
+ConfirmModal.defaultProps = {
+  title: 'Confirm Action',
+  confirmText: 'Confirm',
+  cancelText: 'Cancel',
+  variant: 'danger'
+};
 export default ConfirmModal;

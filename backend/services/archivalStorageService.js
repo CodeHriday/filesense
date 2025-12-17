@@ -215,8 +215,8 @@ class ArchivalStorageService {
     // Read file from local storage
     const fileData = await fs.readFile(fileInfo.file_path);
     
-    // Calculate checksum
-    const checksum = crypto.createHash('md5').update(fileData).digest('hex');
+    // Calculate checksum using SHA-256 for better security
+    const checksum = crypto.createHash('sha256').update(fileData).digest('hex');
 
     // Upload to S3
     const params = {
@@ -284,7 +284,7 @@ class ArchivalStorageService {
 
     // Read file data
     const fileData = await fs.readFile(fileInfo.file_path);
-    const checksum = crypto.createHash('md5').update(fileData).digest('hex');
+    const checksum = crypto.createHash('sha256').update(fileData).digest('hex');
 
     await file.save(fileData, {
       metadata: {
@@ -342,11 +342,11 @@ class ArchivalStorageService {
 
   async archiveToAzure(fileInfo, archivePath, connectionId) {
     const connection = await this.getConnectionConfig(connectionId);
-    const { containerClient, blobClient } = this.createAzureClient(connection, archivePath);
+    const { blobClient } = this.createAzureClient(connection, archivePath);
 
     // Read file data
     const fileData = await fs.readFile(fileInfo.file_path);
-    const checksum = crypto.createHash('md5').update(fileData).digest('hex');
+    const checksum = crypto.createHash('sha256').update(fileData).digest('hex');
 
     const blockBlobClient = blobClient.getBlockBlobClient();
     await blockBlobClient.upload(fileData, fileData.length, {
@@ -369,14 +369,14 @@ class ArchivalStorageService {
 
   async restoreFromAzure(archivePath, destinationPath, connectionId) {
     const connection = await this.getConnectionConfig(connectionId);
-    const { containerClient, blobClient } = this.createAzureClient(connection, archivePath);
+    const { blobClient } = this.createAzureClient(connection, archivePath);
 
     await blobClient.downloadToFile(destinationPath);
   }
 
   async deleteFromAzure(archivePath, connectionId) {
     const connection = await this.getConnectionConfig(connectionId);
-    const { containerClient, blobClient } = this.createAzureClient(connection, archivePath);
+    const { blobClient } = this.createAzureClient(connection, archivePath);
 
     await blobClient.delete();
   }
@@ -404,7 +404,7 @@ class ArchivalStorageService {
 
     // Copy file to archive location
     const fileData = await fs.readFile(fileInfo.file_path);
-    const checksum = crypto.createHash('md5').update(fileData).digest('hex');
+    const checksum = crypto.createHash('sha256').update(fileData).digest('hex');
 
     await fs.writeFile(fullArchivePath, fileData);
 

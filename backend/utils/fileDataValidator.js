@@ -122,13 +122,13 @@ function checkForDuplicateHeaders(headerRow, firstDataRow) {
       if (char === '"' && (i === 0 || row[i-1] !== '\\')) {
         inQuotes = !inQuotes;
       } else if (char === ',' && !inQuotes) {
-        values.push(current.trim().replace(/^["']|["']$/g, ''));
+        values.push(current.trim().replace(/^["']/g, '').replace(/["']$/g, ''));
         current = '';
       } else {
         current += char;
       }
     }
-    values.push(current.trim().replace(/^["']|["']$/g, ''));
+    values.push(current.trim().replace(/^["']/g, '').replace(/["']$/g, ''));
     return values;
   };
   
@@ -297,7 +297,10 @@ async function validateXMLHasData(filePath) {
         });
       }
       
-      const tagMatches = trimmed.match(/<[^?!/][^>]*>/g);
+      // Use more specific pattern to prevent ReDoS attacks
+      // Match XML tags while excluding declarations, comments, and CDATA
+      // Limited to 200 characters per tag to prevent catastrophic backtracking
+      const tagMatches = trimmed.match(/<[^?!/][^>]{0,200}>/g);
       if (!tagMatches || tagMatches.length < 2) {
         return resolve({
           valid: false,

@@ -1,5 +1,6 @@
 import React from 'react';
 import { useAccessibility } from '../../context/AccessibilityContext';
+import PropTypes from 'prop-types';
 
 /**
  * DataTableAccessible - A screen reader friendly data table component
@@ -49,7 +50,7 @@ const DataTableAccessible = ({
           <tr>
             {columns.map((column, index) => (
               <th 
-                key={`header-${index}`}
+                key={`header-${column.accessor || column.header || index}`}
                 scope="col"
                 aria-sort={sortable ? 'none' : undefined}
               >
@@ -72,7 +73,7 @@ const DataTableAccessible = ({
         <tbody>
           {data.map((row, rowIndex) => (
             <tr 
-              key={`row-${rowIndex}`}
+              key={`row-${row.id || row.name || rowIndex}`}
               onClick={onRowClick ? () => onRowClick(row) : undefined}
               className={onRowClick ? 'clickable-row' : ''}
               tabIndex={onRowClick ? 0 : undefined}
@@ -93,7 +94,7 @@ const DataTableAccessible = ({
                   
                 return (
                   <td 
-                    key={`cell-${rowIndex}-${colIndex}`}
+                    key={`cell-${rowIndex}-${column.accessor || colIndex}`}
                     data-label={column.header} // For responsive tables
                   >
                     {/* Render cell content */}
@@ -123,6 +124,27 @@ const DataTableAccessible = ({
       </div>
     </div>
   );
+};
+DataTableAccessible.propTypes = {
+  data: PropTypes.arrayOf(PropTypes.object).isRequired,
+
+  columns: PropTypes.arrayOf(
+    PropTypes.shape({
+      key: PropTypes.string.isRequired,
+      header: PropTypes.string.isRequired,
+      description: PropTypes.string,
+      formatter: PropTypes.func,
+      screenReaderInfo: PropTypes.oneOfType([
+        PropTypes.string,
+        PropTypes.func
+      ])
+    })
+  ).isRequired,
+
+  caption: PropTypes.string.isRequired,
+  summary: PropTypes.string,
+  sortable: PropTypes.bool,
+  onRowClick: PropTypes.func
 };
 
 export default DataTableAccessible;

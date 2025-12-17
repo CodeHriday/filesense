@@ -574,7 +574,7 @@ function BulkProfilingTab({ selectedProject: initialProject }) {
                   </thead>
                   <tbody>
                     {jobStatus.files.map((file, index) => (
-                      <tr key={index} style={{ borderBottom: '1px solid #f3f4f6' }}>
+                      <tr key={`job-file-${file.file_name || file.id || index}`} style={{ borderBottom: '1px solid #f3f4f6' }}>
                         <td style={{ padding: '0.5rem' }}>{file.file_name}</td>
                         <td style={{ padding: '0.5rem', textAlign: 'center' }}>
                           <span style={{
@@ -815,9 +815,9 @@ function BulkProfilingTab({ selectedProject: initialProject }) {
           </div>
 
           <div className="gps-bulk-field">
-            <label className="gps-bulk-label" htmlFor="pattern">File Pattern</label>
+            <label className="gps-bulk-label" htmlFor="filePattern">File Pattern</label>
             <input
-              id="pattern"
+              id="filePattern"
               type="text"
               className="gps-bulk-input"
               placeholder="*"
@@ -831,9 +831,9 @@ function BulkProfilingTab({ selectedProject: initialProject }) {
 
           {/* Row 4: Duplicate Handling | Recursive Checkbox */}
           <div className="gps-bulk-field">
-            <label className="gps-bulk-label" htmlFor="duplicate">Duplicate Handling</label>
+            <label className="gps-bulk-label" htmlFor="duplicateHandling">Duplicate Handling</label>
             <select
-              id="duplicate"
+              id="duplicateHandling"
               className="gps-bulk-select"
               value={duplicateHandling}
               onChange={(e) => setDuplicateHandling(e.target.value)}
@@ -863,12 +863,12 @@ function BulkProfilingTab({ selectedProject: initialProject }) {
 
         {/* Row 3: S3 Path (Full Width) */}
         <div className="gps-bulk-field gps-bulk-field--full">
-          <label className="gps-bulk-label" htmlFor="s3path">
+          <label className="gps-bulk-label" htmlFor="s3Path">
             S3 Path <span className="required">*</span>
           </label>
           <div className="gps-bulk-input-group">
             <input
-              id="s3path"
+              id="s3Path"
               type="text"
               className="gps-bulk-input"
               placeholder="s3://bucket-name/path/to/files/ or /path/to/files/"
@@ -976,7 +976,7 @@ function BulkProfilingTab({ selectedProject: initialProject }) {
         {/* Quality Rules Multi-Select Section (Full Width) */}
         {availableQualityRules.length > 0 && (
           <div className="gps-bulk-quality-section">
-            <label className="gps-bulk-label">Quality Rules (Optional)</label>
+            <label className="gps-bulk-label" htmlFor="qualityRules">Quality Rules (Optional)</label>
             <p className="gps-bulk-helper" style={{ marginBottom: '12px' }}>
               Select quality rules to apply during profiling. These rules will be validated against the profiled data.
             </p>
@@ -987,7 +987,7 @@ function BulkProfilingTab({ selectedProject: initialProject }) {
                 </p>
               </div>
             ) : (
-              <div className="gps-bulk-quality-grid">
+              <div id="qualityRules" className="gps-bulk-quality-grid">
                 {availableQualityRules.map((rule) => (
                   <label
                     key={rule.id}
@@ -1061,7 +1061,7 @@ function BulkProfilingTab({ selectedProject: initialProject }) {
               </thead>
               <tbody>
                 {discoveredFiles.map((file, index) => (
-                  <tr key={index}>
+                  <tr key={`discovered-file-${file.name || file.key || index}`}>
                     <td>{file.name}</td>
                     <td>
                       <span className="gps-bulk-status gps-bulk-status--processing">
@@ -1119,8 +1119,9 @@ function BulkProfilingTab({ selectedProject: initialProject }) {
             <h3 style={{ marginBottom: '1.5rem' }}>Edit Schedule</h3>
             
             <div className="form-group">
-              <label>Job Name</label>
+              <label htmlFor="editJobName">Job Name</label>
               <input
+                id="editJobName"
                 type="text"
                 className="form-control"
                 value={editingSchedule.job_name}
@@ -1147,8 +1148,9 @@ function BulkProfilingTab({ selectedProject: initialProject }) {
             </div>
 
             <div className="form-group">
-              <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <label htmlFor="editIsActive" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <input
+                  id="editIsActive"
                   type="checkbox"
                   checked={editingSchedule.is_active}
                   onChange={(e) => setEditingSchedule({

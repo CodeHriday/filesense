@@ -241,7 +241,7 @@ const Login = () => {
             <div className="features-grid">
               {features.map((feature, index) => (
                 <div
-                  key={index}
+                  key={`feature-${feature.title || feature.name || index}`}
                   className={`feature-card animate-on-scroll ${index === activeFeature ? 'active' : ''}`}
                   style={{ animationDelay: `${index * 0.1}s` }}
                 >

@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import LoadingSpinner from './LoadingSpinner';
+import PropTypes from 'prop-types';
 import ReactFlow, {
   Background,
   Controls,
@@ -39,6 +40,15 @@ const FileNode = ({ data }) => {
       </div>
     </div>
   );
+};
+FileNode.propTypes = {
+  data: PropTypes.shape({
+    id: PropTypes.string.isRequired,
+    label: PropTypes.string.isRequired,
+    fileType: PropTypes.string,
+    size: PropTypes.string,
+    isRoot: PropTypes.bool,
+  }).isRequired,
 };
 
 // Node types configuration
@@ -228,5 +238,30 @@ function LineageImpactGraph({ impactData, direction, onNodeClick }) {
     </div>
   );
 }
-
+LineageImpactGraph.propTypes = {
+  impactData: PropTypes.shape({
+    impactGraph: PropTypes.shape({
+      nodes: PropTypes.arrayOf(
+        PropTypes.shape({
+          id: PropTypes.string.isRequired,
+          label: PropTypes.string.isRequired,
+          type: PropTypes.string,
+          size: PropTypes.number,
+          level: PropTypes.number,
+          isRoot: PropTypes.bool,
+        })
+      ),
+      edges: PropTypes.arrayOf(
+        PropTypes.shape({
+          id: PropTypes.string,
+          source: PropTypes.string.isRequired,
+          target: PropTypes.string.isRequired,
+          label: PropTypes.string,
+        })
+      ),
+    }),
+  }),
+  direction: PropTypes.oneOf(['upstream', 'downstream']).isRequired,
+  onNodeClick: PropTypes.func,
+};
 export default LineageImpactGraph;

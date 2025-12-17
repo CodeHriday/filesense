@@ -1,12 +1,12 @@
 /**
  * Encryption utility for sensitive data
- * Uses AES-256-CBC encryption
+ * Uses AES-256-GCM authenticated encryption (with CBC fallback for legacy data)
  */
-
+require("dotenv").config();
 const crypto = require('crypto');
 const { systemLogger } = require('./logger');
 
-const ALGORITHM = 'aes-256-cbc';
+const ALGORITHM = 'aes-256-gcm';
 
 // CRITICAL: Encryption key must be a fixed 32-byte hex string
 // Generate with: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
@@ -37,15 +37,15 @@ if (!/^[0-9a-f]{64}$/i.test(ENCRYPTION_KEY)) {
 }
 
 /**
- * Encrypt text using AES-256-CBC
+ * Encrypt text using AES-256-GCM (authenticated encryption)
  * @param {string} text - Text to encrypt
- * @returns {string|null} Encrypted text in format "iv:encryptedData" or null if text is empty
+ * @returns {string|null} Encrypted text in format "iv:authTag:encryptedData" or null if text is empty
  */
 function encrypt(text) {
   if (!text) return null;
   
   try {
-    const iv = crypto.randomBytes(16);
+    const iv = crypto.randomBytes(12); // GCM uses 12-byte IV for optimal performance
     const cipher = crypto.createCipheriv(
       ALGORITHM, 
       Buffer.from(ENCRYPTION_KEY, 'hex'), 
@@ -55,7 +55,9 @@ function encrypt(text) {
     let encrypted = cipher.update(text);
     encrypted = Buffer.concat([encrypted, cipher.final()]);
     
-    return iv.toString('hex') + ':' + encrypted.toString('hex');
+    const authTag = cipher.getAuthTag();
+    
+    return iv.toString('hex') + ':' + authTag.toString('hex') + ':' + encrypted.toString('hex');
   } catch (error) {
     systemLogger.error('Encryption failed', { error: error.message });
     throw new Error('Failed to encrypt data');
@@ -63,8 +65,8 @@ function encrypt(text) {
 }
 
 /**
- * Decrypt text using AES-256-CBC
- * @param {string} text - Encrypted text in format "iv:encryptedData"
+ * Decrypt text using AES-256-GCM (authenticated encryption)
+ * @param {string} text - Encrypted text in format "iv:authTag:encryptedData" or legacy "iv:encryptedData"
  * @returns {string|null} Decrypted text or null if text is empty
  */
 function decrypt(text) {
@@ -72,23 +74,44 @@ function decrypt(text) {
   
   try {
     const parts = text.split(':');
-    if (parts.length !== 2) {
+    
+    // Handle both new GCM format (iv:authTag:encryptedData) and legacy CBC format (iv:encryptedData)
+    if (parts.length === 3) {
+      // New GCM format
+      const iv = Buffer.from(parts[0], 'hex');
+      const authTag = Buffer.from(parts[1], 'hex');
+      const encryptedText = Buffer.from(parts[2], 'hex');
+      
+      const decipher = crypto.createDecipheriv(
+        ALGORITHM, 
+        Buffer.from(ENCRYPTION_KEY, 'hex'), 
+        iv
+      );
+      
+      decipher.setAuthTag(authTag);
+      
+      let decrypted = decipher.update(encryptedText);
+      decrypted = Buffer.concat([decrypted, decipher.final()]);
+      
+      return decrypted.toString();
+    } else if (parts.length === 2) {
+      // Legacy CBC format - fallback for existing data
+      const iv = Buffer.from(parts[0], 'hex');
+      const encryptedText = Buffer.from(parts[1], 'hex');
+      
+      const decipher = crypto.createDecipheriv(
+        'aes-256-cbc', // Use CBC for legacy data
+        Buffer.from(ENCRYPTION_KEY, 'hex'), 
+        iv
+      );
+      
+      let decrypted = decipher.update(encryptedText);
+      decrypted = Buffer.concat([decrypted, decipher.final()]);
+      
+      return decrypted.toString();
+    } else {
       throw new Error('Invalid encrypted data format');
     }
-    
-    const iv = Buffer.from(parts[0], 'hex');
-    const encryptedText = Buffer.from(parts[1], 'hex');
-    
-    const decipher = crypto.createDecipheriv(
-      ALGORITHM, 
-      Buffer.from(ENCRYPTION_KEY, 'hex'), 
-      iv
-    );
-    
-    let decrypted = decipher.update(encryptedText);
-    decrypted = Buffer.concat([decrypted, decipher.final()]);
-    
-    return decrypted.toString();
   } catch (error) {
     systemLogger.error('Decryption failed', { 
       error: error.message,

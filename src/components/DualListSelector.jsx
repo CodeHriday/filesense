@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { FiChevronRight, FiChevronLeft, FiChevronsRight, FiChevronsLeft } from 'react-icons/fi';
 import './styles/DualListSelector.css';
+import PropTypes from 'prop-types';
 
 const DualListSelector = ({ 
   availableItems = [], 
@@ -145,5 +146,22 @@ const DualListSelector = ({
     </div>
   );
 };
+DualListSelector.propTypes = {
+  availableItems: PropTypes.arrayOf(PropTypes.object),
+  selectedItems: PropTypes.arrayOf(PropTypes.object),
+  onSelectionChange: PropTypes.func.isRequired,
+  availableTitle: PropTypes.string,
+  selectedTitle: PropTypes.string,
+  itemLabelKey: PropTypes.string,
+  itemValueKey: PropTypes.string
+};
 
+DualListSelector.defaultProps = {
+  availableItems: [],
+  selectedItems: [],
+  availableTitle: 'Available Mappings',
+  selectedTitle: 'Selected Mappings',
+  itemLabelKey: 'mapping_name',
+  itemValueKey: 'mapping_id'
+};
 export default DualListSelector;

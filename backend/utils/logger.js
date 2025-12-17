@@ -7,6 +7,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 const { createLogger, format, transports } = require('winston');
 const { combine, timestamp, printf, colorize, json } = format;
 
@@ -103,7 +104,7 @@ const performanceLogger = (req, res, next) => {
   const start = Date.now();
   
   // Add request ID for correlation
-  req.requestId = Date.now().toString(36) + Math.random().toString(36).substring(2, 15);
+  req.requestId = Date.now().toString(36) + crypto.randomBytes(6).toString('hex');
   
   // Log at completion
   res.on('finish', () => {

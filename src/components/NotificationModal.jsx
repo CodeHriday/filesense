@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { FiCheckCircle, FiXCircle, FiX } from 'react-icons/fi';
 import './NotificationModal.css';
+import PropTypes from 'prop-types';
 
 function NotificationModal({ 
   isOpen, 
@@ -50,5 +51,15 @@ function NotificationModal({
     </div>
   );
 }
+NotificationModal.propTypes = {
+  
+  isOpen: PropTypes.bool.isRequired,
+  onClose: PropTypes.func.isRequired,
+  type: PropTypes.oneOf(['success', 'error']),
+  title: PropTypes.string,
+  message: PropTypes.string.isRequired,
+  autoClose: PropTypes.bool,
+  autoCloseDelay: PropTypes.number
+};
 
 export default NotificationModal;

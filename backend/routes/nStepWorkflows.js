@@ -243,7 +243,7 @@ router.post('/',
 router.put('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, description, project_id, sub_project_id } = req.body;
+    const { name, description, _, sub_project_id } = req.body;
     const { getUserProjects } = require('../middleware/requireProjectAccess');
     
     // Get workflow to check project_id

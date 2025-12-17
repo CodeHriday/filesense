@@ -6,6 +6,8 @@ import LoadingSpinner from '../components/LoadingSpinner';
 import Pagination from '../components/Pagination';
 import { useToast } from '../context/ToastContext';
 import '../styles/FailedJobs.css';
+import PropTypes from 'prop-types';
+
 
 const FailedJobs = () => {
   const [jobs, setJobs] = useState([]);
@@ -151,8 +153,9 @@ const FailedJobs = () => {
         <div className="filters-section">
           <div className="filter-row">
             <div className="filter-group">
-              <label>Status</label>
+              <label htmlFor="status-select">Status</label>
               <select
+                id="status-select"
                 value={filters.status}
                 onChange={(e) => setFilters({ ...filters, status: e.target.value })}
               >
@@ -164,8 +167,9 @@ const FailedJobs = () => {
             </div>
 
             <div className="filter-group">
-              <label>Error Type</label>
+              <label htmlFor="error-type-select">Error Type</label>
               <select
+                id="error-type-select"
                 value={filters.errorCode}
                 onChange={(e) => setFilters({ ...filters, errorCode: e.target.value })}
               >
@@ -180,8 +184,9 @@ const FailedJobs = () => {
             </div>
 
             <div className="filter-group">
-              <label>From Date</label>
+              <label htmlFor="from-date-input">From Date</label>
               <input
+                id="from-date-input"
                 type="date"
                 value={filters.fromDate}
                 onChange={(e) => setFilters({ ...filters, fromDate: e.target.value })}
@@ -189,8 +194,9 @@ const FailedJobs = () => {
             </div>
 
             <div className="filter-group">
-              <label>To Date</label>
+              <label htmlFor="to-date-input">To Date</label>
               <input
+                id="to-date-input"
                 type="date"
                 value={filters.toDate}
                 onChange={(e) => setFilters({ ...filters, toDate: e.target.value })}

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FaCog, FaSave, FaTrash, FaInfoCircle, FaCheckCircle, FaExclamationTriangle } from 'react-icons/fa';
+import { FaCog, FaSave, FaTrash, FaCheckCircle, FaExclamationTriangle } from 'react-icons/fa';
 import ConfirmModal from './ConfirmModal';
 import '../styles/global-page-styles.css';
 
@@ -178,8 +178,9 @@ const SystemSettings = () => {
         </p>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
-          <label className="gps-label" style={{ marginBottom: 0, whiteSpace: 'nowrap' }}>Profiles to Retain per Mapping:</label>
+          <label htmlFor="retention-count-input" className="gps-label" style={{ marginBottom: 0, whiteSpace: 'nowrap' }}>Profiles to Retain per Mapping:</label>
           <input
+            id="retention-count-input"
             type="number"
             value={retentionCount}
             onChange={(e) => setRetentionCount(parseInt(e.target.value, 10) || 1)}

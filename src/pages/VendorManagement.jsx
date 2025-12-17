@@ -38,9 +38,7 @@ const VendorManagement = () => {
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-  const [totalPages, setTotalPages] = useState(1);
-  const [totalCount, setTotalCount] = useState(0);
-  
+
   // Search state
   const [searchTerm, setSearchTerm] = useState('');
   
@@ -242,7 +240,8 @@ const VendorManagement = () => {
   };
   
   const validateEmail = (email) => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    // Use a safer email regex to prevent ReDoS - limit quantifiers
+    const emailRegex = /^[^\s@]{1,64}@[^\s@]{1,253}\.[^\s@]{1,63}$/;
     return emailRegex.test(email);
   };
   

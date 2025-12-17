@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { FiDatabase, FiGitBranch, FiInfo, FiPlus, FiTrash2 } from 'react-icons/fi';
 import LoadingSpinner from '../LoadingSpinner';
+import PropTypes from 'prop-types';
 import ColumnMapper from '../ColumnMapper';
 import { API_BASE_URL } from '../../config';
 import './MappingConfigModal.css';
@@ -372,8 +373,9 @@ const RdmLookupModal = ({ isOpen, onClose, onSave, initialConfig = {}, cumulativ
           {activeTab === 'config' && (
             <>
               <div className="vm-form-group">
-                <label>Name *</label>
+                <label htmlFor="rdm-name">Name *</label>
                 <input
+                  id="rdm-name"
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
@@ -384,8 +386,9 @@ const RdmLookupModal = ({ isOpen, onClose, onSave, initialConfig = {}, cumulativ
               </div>
               
               <div className="vm-form-group">
-                <label>Description</label>
+                <label htmlFor="rdm-description">Description</label>
                 <textarea
+                  id="rdm-description"
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   placeholder="Optional description"
@@ -395,8 +398,9 @@ const RdmLookupModal = ({ isOpen, onClose, onSave, initialConfig = {}, cumulativ
               </div>
               
               <div className="vm-form-group">
-                <label>Lookup Type</label>
+                <label htmlFor="rdm-lookup-type">Lookup Type</label>
                 <select 
+                  id="rdm-lookup-type"
                   className="vm-select"
                   value={lookupType}
                   onChange={(e) => handleLookupTypeChange(e.target.value)}
@@ -435,8 +439,9 @@ const RdmLookupModal = ({ isOpen, onClose, onSave, initialConfig = {}, cumulativ
                       
                       <div className="vm-form-row-two-cols">
                         <div className="vm-form-group">
-                          <label>Reference Dataset</label>
+                          <label htmlFor="rdm-dataset-id">Reference Dataset</label>
                           <select
+                            id="rdm-dataset-id"
                             className="vm-select"
                             value={datasetConfig.datasetId || ''}
                             onChange={(e) => handleDatasetChange('datasetId', e.target.value)}
@@ -451,8 +456,9 @@ const RdmLookupModal = ({ isOpen, onClose, onSave, initialConfig = {}, cumulativ
                         </div>
                         
                         <div className="vm-form-group">
-                          <label>Join Type</label>
+                          <label htmlFor="rdm-join-type">Join Type</label>
                           <select
+                            id="rdm-join-type"
                             className="vm-select"
                             value={datasetConfig.join_type || 'inner'}
                             onChange={(e) => handleDatasetChange('join_type', e.target.value)}
@@ -472,8 +478,9 @@ const RdmLookupModal = ({ isOpen, onClose, onSave, initialConfig = {}, cumulativ
                           {joinConditions.map((condition, idx) => (
                             <div key={idx} className="vm-form-row-two-cols" style={{ alignItems: 'flex-end', marginBottom: '1rem' }}>
                               <div className="vm-form-group">
-                                <label>Dataset Column (Reference Data)</label>
+                                <label htmlFor={`rdm-dataset-column-${idx}`}>Dataset Column (Reference Data)</label>
                                 <select
+                                  id={`rdm-dataset-column-${idx}`}
                                   className="vm-select"
                                   value={condition.dataset_column}
                                   onChange={(e) => updateJoinCondition(idx, 'dataset_column', e.target.value)}
@@ -489,9 +496,10 @@ const RdmLookupModal = ({ isOpen, onClose, onSave, initialConfig = {}, cumulativ
                               </div>
                               
                               <div className="vm-form-group">
-                                <label>Source Column (Your Data)</label>
+                                <label htmlFor={`rdm-source-column-${idx}`}>Source Column (Your Data)</label>
                                 <div style={{ display: 'flex', gap: '0.5rem' }}>
                                   <select
+                                    id={`rdm-source-column-${idx}`}
                                     className="vm-select"
                                     style={{ flex: 1 }}
                                     value={condition.source_column}
@@ -558,8 +566,9 @@ const RdmLookupModal = ({ isOpen, onClose, onSave, initialConfig = {}, cumulativ
                       
                       <div className="vm-form-row-two-cols">
                         <div className="vm-form-group">
-                          <label>Crosswalk Table</label>
+                          <label htmlFor="rdm-crosswalk-id">Crosswalk Table</label>
                           <select
+                            id="rdm-crosswalk-id"
                             className="vm-select"
                             value={crosswalkConfig.crosswalkId || ''}
                             onChange={(e) => handleCrosswalkChange('crosswalkId', e.target.value)}
@@ -574,8 +583,9 @@ const RdmLookupModal = ({ isOpen, onClose, onSave, initialConfig = {}, cumulativ
                         </div>
                         
                         <div className="vm-form-group">
-                          <label>Source Column (Your Data)</label>
+                          <label htmlFor="rdm-crosswalk-source-column">Source Column (Your Data)</label>
                           <select
+                            id="rdm-crosswalk-source-column"
                             className="vm-select"
                             value={crosswalkConfig.source_column || ''}
                             onChange={(e) => handleCrosswalkChange('source_column', e.target.value)}
@@ -593,8 +603,9 @@ const RdmLookupModal = ({ isOpen, onClose, onSave, initialConfig = {}, cumulativ
                         <>
                           <div className="vm-form-row-two-cols">
                             <div className="vm-form-group">
-                              <label>Crosswalk Source Field</label>
+                              <label htmlFor="rdm-crosswalk-source-field">Crosswalk Source Field</label>
                               <select
+                                id="rdm-crosswalk-source-field"
                                 className="vm-select"
                                 value={crosswalkConfig.crosswalk_source_field || ''}
                                 onChange={(e) => handleCrosswalkChange('crosswalk_source_field', e.target.value)}
@@ -611,8 +622,9 @@ const RdmLookupModal = ({ isOpen, onClose, onSave, initialConfig = {}, cumulativ
                             </div>
                             
                             <div className="vm-form-group">
-                              <label>Behavior on No Match</label>
+                              <label htmlFor="rdm-no-match-behavior">Behavior on No Match</label>
                               <select
+                                id="rdm-no-match-behavior"
                                 className="vm-select"
                                 value={crosswalkConfig.no_match_behavior || 'keep_source'}
                                 onChange={(e) => handleCrosswalkChange('no_match_behavior', e.target.value)}
@@ -626,8 +638,9 @@ const RdmLookupModal = ({ isOpen, onClose, onSave, initialConfig = {}, cumulativ
                           
                           {crosswalkConfig.no_match_behavior === 'set_default' && (
                             <div className="vm-form-group">
-                              <label>Default Value</label>
+                              <label htmlFor="rdm-default-value">Default Value</label>
                               <input
+                                id="rdm-default-value"
                                 type="text"
                                 className="vm-input"
                                 value={crosswalkConfig.default_value || ''}
@@ -736,6 +749,43 @@ const RdmLookupModal = ({ isOpen, onClose, onSave, initialConfig = {}, cumulativ
       </div>
     </div>
   );
+};
+RdmLookupModal.propTypes = {
+  isOpen: PropTypes.bool.isRequired,
+  onClose: PropTypes.func.isRequired,
+  onSave: PropTypes.func.isRequired,
+
+  initialConfig: PropTypes.shape({
+    name: PropTypes.string,
+    description: PropTypes.string,
+    lookupType: PropTypes.oneOf(['dataset', 'crosswalk']),
+
+    // Dataset lookup
+    datasetId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    datasetName: PropTypes.string,
+    joinType: PropTypes.string,
+    joinKeys: PropTypes.array,
+    columnMappings: PropTypes.array,
+
+    // Crosswalk lookup
+    crosswalkId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    crosswalkName: PropTypes.string,
+    sourceColumn: PropTypes.string,
+    crosswalkSourceField: PropTypes.string,
+    noMatchBehavior: PropTypes.string,
+    defaultValue: PropTypes.string
+  }),
+
+  cumulativeSchema: PropTypes.arrayOf(
+    PropTypes.shape({
+      name: PropTypes.string.isRequired,
+      type: PropTypes.string,
+      dataType: PropTypes.string,
+      description: PropTypes.string,
+      contains_pii: PropTypes.bool,
+      isPii: PropTypes.bool
+    })
+  )
 };
 
 export default RdmLookupModal;

@@ -1,4 +1,5 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
+import PropTypes from 'prop-types';
 
 // Create the accessibility context
 const AccessibilityContext = createContext();
@@ -85,6 +86,9 @@ export const AccessibilityProvider = ({ children }) => {
       {children}
     </AccessibilityContext.Provider>
   );
+};
+AccessibilityProvider.propTypes = {
+  children: PropTypes.node.isRequired
 };
 
 export default AccessibilityContext;

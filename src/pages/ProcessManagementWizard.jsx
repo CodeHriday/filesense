@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import PropTypes from 'prop-types';
 import { useNavigate } from 'react-router-dom';
 import { 
   FiSave, 
@@ -569,6 +570,14 @@ const ProcessManagementWizard = () => {
       </div>
     );
   };
+
+  SourceNode.propTypes = {
+    data: PropTypes.shape({
+      label: PropTypes.string.isRequired,
+      type: PropTypes.string,
+      sourceId: PropTypes.string
+    }).isRequired
+  };
   
   const TargetNode = ({ data }) => {
     return (
@@ -580,6 +589,14 @@ const ProcessManagementWizard = () => {
         </div>
       </div>
     );
+  };
+
+  TargetNode.propTypes = {
+    data: PropTypes.shape({
+      label: PropTypes.string.isRequired,
+      type: PropTypes.string,
+      mappingId: PropTypes.string
+    }).isRequired
   };
   
   const FilterNode = ({ data, id }) => {
@@ -605,6 +622,16 @@ const ProcessManagementWizard = () => {
         <Handle type="source" position="right" id="filter-source" />
       </div>
     );
+  };
+
+  FilterNode.propTypes = {
+    data: PropTypes.shape({
+      condition: PropTypes.string,
+      column: PropTypes.string,
+      operator: PropTypes.string,
+      value: PropTypes.string
+    }).isRequired,
+    id: PropTypes.string.isRequired
   };
   
   const JoinNode = ({ data, id }) => {
@@ -632,6 +659,16 @@ const ProcessManagementWizard = () => {
       </div>
     );
   };
+
+  JoinNode.propTypes = {
+    data: PropTypes.shape({
+      joinType: PropTypes.string,
+      rightTable: PropTypes.string,
+      leftColumn: PropTypes.string,
+      rightColumn: PropTypes.string
+    }).isRequired,
+    id: PropTypes.string.isRequired
+  };
   
   const AggregateNode = ({ data, id }) => {
     return (
@@ -656,6 +693,16 @@ const ProcessManagementWizard = () => {
         <Handle type="source" position="right" id="aggregate-source" />
       </div>
     );
+  };
+
+  AggregateNode.propTypes = {
+    data: PropTypes.shape({
+      aggregation: PropTypes.string,
+      function: PropTypes.string,
+      column: PropTypes.string,
+      groupBy: PropTypes.string
+    }).isRequired,
+    id: PropTypes.string.isRequired
   };
   
   const LookupNode = ({ data, id }) => {
@@ -682,6 +729,16 @@ const ProcessManagementWizard = () => {
       </div>
     );
   };
+
+  LookupNode.propTypes = {
+    data: PropTypes.shape({
+      lookupTable: PropTypes.string,
+      keyColumn: PropTypes.string,
+      lookupColumn: PropTypes.string,
+      returnColumn: PropTypes.string
+    }).isRequired,
+    id: PropTypes.string.isRequired
+  };
   
   const FormatNode = ({ data, id }) => {
     return (
@@ -707,6 +764,18 @@ const ProcessManagementWizard = () => {
       </div>
     );
   };
+
+  FormatNode.propTypes = {
+    data: PropTypes.shape({
+      formatType: PropTypes.string,
+      column: PropTypes.string,
+      dateFormat: PropTypes.string,
+      decimalPlaces: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+      textOperation: PropTypes.string,
+      caseOperation: PropTypes.string
+    }).isRequired,
+    id: PropTypes.string.isRequired
+  };
   
   const CalculateNode = ({ data, id }) => {
     return (
@@ -731,6 +800,14 @@ const ProcessManagementWizard = () => {
         <Handle type="source" position="right" id="calculate-source" />
       </div>
     );
+  };
+
+  CalculateNode.propTypes = {
+    data: PropTypes.shape({
+      formula: PropTypes.string,
+      outputColumn: PropTypes.string
+    }).isRequired,
+    id: PropTypes.string.isRequired
   };
   
   // Define node types
@@ -888,8 +965,8 @@ const ProcessManagementWizard = () => {
     if (overlapping) {
       for (let i = 0; i < 10; i++) {
         // Use a slightly randomized position but still based on a grid
-        const randomOffsetX = Math.floor(Math.random() * 5) * gridSize;
-        const randomOffsetY = Math.floor(Math.random() * 5) * gridSize;
+        const randomOffsetX = Math.floor((crypto.getRandomValues(new Uint32Array(1))[0] / 0xFFFFFFFF) * 5) * gridSize;
+        const randomOffsetY = Math.floor((crypto.getRandomValues(new Uint32Array(1))[0] / 0xFFFFFFFF) * 5) * gridSize;
         
         newX = initialX + randomOffsetX;
         newY = initialY + randomOffsetY;
@@ -1230,8 +1307,9 @@ const ProcessManagementWizard = () => {
           <div className="node-config-form">
             <h3>Filter Configuration</h3>
             <div className="form-group">
-              <label>Column</label>
+              <label htmlFor={`node-column-${selectedNode.id}`}>Column</label>
               <select 
+                id={`node-column-${selectedNode.id}`}
                 value={nodeConfig.column || ''}
                 onChange={(e) => setNodeConfig({...nodeConfig, column: e.target.value})}
                 className="form-control"
@@ -1243,8 +1321,9 @@ const ProcessManagementWizard = () => {
               </select>
             </div>
             <div className="form-group">
-              <label>Operator</label>
+              <label htmlFor={`node-operator-${selectedNode.id}`}>Operator</label>
               <select 
+                id={`node-operator-${selectedNode.id}`}
                 value={nodeConfig.operator || ''}
                 onChange={(e) => setNodeConfig({...nodeConfig, operator: e.target.value})}
                 className="form-control"
@@ -1264,8 +1343,9 @@ const ProcessManagementWizard = () => {
               </select>
             </div>
             <div className="form-group">
-              <label>Value</label>
+              <label htmlFor={`node-value-${selectedNode.id}`}>Value</label>
               <input 
+                id={`node-value-${selectedNode.id}`}
                 type="text" 
                 value={nodeConfig.value || ''}
                 onChange={(e) => setNodeConfig({...nodeConfig, value: e.target.value})}
@@ -1276,7 +1356,7 @@ const ProcessManagementWizard = () => {
             {/* Update the condition display */}
             {nodeConfig.column && nodeConfig.operator && (
               <div className="form-group">
-                <label>Generated Condition</label>
+                <div className="form-label">Generated Condition</div>
                 <div className="condition-display">
                   {`${nodeConfig.column} ${nodeConfig.operator} ${nodeConfig.value || ''}`}
                 </div>
@@ -1298,8 +1378,9 @@ const ProcessManagementWizard = () => {
           <div className="node-config-form">
             <h3>Join Configuration</h3>
             <div className="form-group">
-              <label>Join Type</label>
+              <label htmlFor={`node-joinType-${selectedNode.id}`}>Join Type</label>
               <select 
+                id={`node-joinType-${selectedNode.id}`}
                 value={nodeConfig.joinType || ''}
                 onChange={(e) => setNodeConfig({...nodeConfig, joinType: e.target.value})}
                 className="form-control"
@@ -1312,8 +1393,9 @@ const ProcessManagementWizard = () => {
               </select>
             </div>
             <div className="form-group">
-              <label>Right Table</label>
+              <label htmlFor={`node-rightTable-${selectedNode.id}`}>Right Table</label>
               <select 
+                id={`node-rightTable-${selectedNode.id}`}
                 value={nodeConfig.rightTable || ''}
                 onChange={(e) => setNodeConfig({...nodeConfig, rightTable: e.target.value})}
                 className="form-control"
@@ -1325,8 +1407,9 @@ const ProcessManagementWizard = () => {
               </select>
             </div>
             <div className="form-group">
-              <label>Left Column</label>
+              <label htmlFor={`node-leftColumn-${selectedNode.id}`}>Left Column</label>
               <select 
+                id={`node-leftColumn-${selectedNode.id}`}
                 value={nodeConfig.leftColumn || ''}
                 onChange={(e) => setNodeConfig({...nodeConfig, leftColumn: e.target.value})}
                 className="form-control"
@@ -1338,8 +1421,9 @@ const ProcessManagementWizard = () => {
               </select>
             </div>
             <div className="form-group">
-              <label>Right Column</label>
+              <label htmlFor={`node-rightColumn-${selectedNode.id}`}>Right Column</label>
               <input 
+                id={`node-rightColumn-${selectedNode.id}`}
                 type="text" 
                 value={nodeConfig.rightColumn || ''}
                 onChange={(e) => setNodeConfig({...nodeConfig, rightColumn: e.target.value})}
@@ -1354,8 +1438,9 @@ const ProcessManagementWizard = () => {
           <div className="node-config-form">
             <h3>Aggregate Configuration</h3>
             <div className="form-group">
-              <label>Aggregation Function</label>
+              <label htmlFor={`node-function-${selectedNode.id}`}>Aggregation Function</label>
               <select 
+                id={`node-function-${selectedNode.id}`}
                 value={nodeConfig.function || ''}
                 onChange={(e) => setNodeConfig({...nodeConfig, function: e.target.value})}
                 className="form-control"
@@ -1369,8 +1454,9 @@ const ProcessManagementWizard = () => {
               </select>
             </div>
             <div className="form-group">
-              <label>Column</label>
+              <label htmlFor={`node-agg-column-${selectedNode.id}`}>Column</label>
               <select 
+                id={`node-agg-column-${selectedNode.id}`}
                 value={nodeConfig.column || ''}
                 onChange={(e) => setNodeConfig({...nodeConfig, column: e.target.value})}
                 className="form-control"
@@ -1382,8 +1468,9 @@ const ProcessManagementWizard = () => {
               </select>
             </div>
             <div className="form-group">
-              <label>Group By Column</label>
+              <label htmlFor={`node-groupBy-${selectedNode.id}`}>Group By Column</label>
               <select 
+                id={`node-groupBy-${selectedNode.id}`}
                 value={nodeConfig.groupBy || ''}
                 onChange={(e) => setNodeConfig({...nodeConfig, groupBy: e.target.value})}
                 className="form-control"
@@ -1397,10 +1484,10 @@ const ProcessManagementWizard = () => {
             {/* Update the aggregation display */}
             {nodeConfig.function && nodeConfig.column && (
               <div className="form-group">
-                <label>Generated Aggregation</label>
-                <div className="condition-display">
-                  {`${nodeConfig.function}(${nodeConfig.column})${nodeConfig.groupBy ? ` GROUP BY ${nodeConfig.groupBy}` : ''}`}
-                </div>
+                  <div className="form-label">Generated Aggregation</div>
+                  <div className="condition-display">
+                    {`${nodeConfig.function}(${nodeConfig.column})${nodeConfig.groupBy ? ` GROUP BY ${nodeConfig.groupBy}` : ''}`}
+                  </div>
                 <button 
                   className="btn btn-outline-primary"
                   onClick={() => setNodeConfig({
@@ -1419,8 +1506,9 @@ const ProcessManagementWizard = () => {
           <div className="node-config-form">
             <h3>Lookup Configuration</h3>
             <div className="form-group">
-              <label>Lookup Table</label>
+              <label htmlFor={`node-lookupTable-${selectedNode.id}`}>Lookup Table</label>
               <select 
+                id={`node-lookupTable-${selectedNode.id}`}
                 value={nodeConfig.lookupTable || ''}
                 onChange={(e) => setNodeConfig({...nodeConfig, lookupTable: e.target.value})}
                 className="form-control"
@@ -1432,8 +1520,9 @@ const ProcessManagementWizard = () => {
               </select>
             </div>
             <div className="form-group">
-              <label>Key Column (Source)</label>
+              <label htmlFor={`node-keyColumn-${selectedNode.id}`}>Key Column (Source)</label>
               <select 
+                id={`node-keyColumn-${selectedNode.id}`}
                 value={nodeConfig.keyColumn || ''}
                 onChange={(e) => setNodeConfig({...nodeConfig, keyColumn: e.target.value})}
                 className="form-control"
@@ -1445,8 +1534,9 @@ const ProcessManagementWizard = () => {
               </select>
             </div>
             <div className="form-group">
-              <label>Lookup Column</label>
+              <label htmlFor={`node-lookupColumn-${selectedNode.id}`}>Lookup Column</label>
               <input 
+                id={`node-lookupColumn-${selectedNode.id}`}
                 type="text" 
                 value={nodeConfig.lookupColumn || ''}
                 onChange={(e) => setNodeConfig({...nodeConfig, lookupColumn: e.target.value})}
@@ -1455,8 +1545,9 @@ const ProcessManagementWizard = () => {
               />
             </div>
             <div className="form-group">
-              <label>Return Column</label>
+              <label htmlFor={`node-returnColumn-${selectedNode.id}`}>Return Column</label>
               <input 
+                id={`node-returnColumn-${selectedNode.id}`}
                 type="text" 
                 value={nodeConfig.returnColumn || ''}
                 onChange={(e) => setNodeConfig({...nodeConfig, returnColumn: e.target.value})}
@@ -1471,8 +1562,9 @@ const ProcessManagementWizard = () => {
           <div className="node-config-form">
             <h3>Format Configuration</h3>
             <div className="form-group">
-              <label>Format Type</label>
+              <label htmlFor={`node-formatType-${selectedNode.id}`}>Format Type</label>
               <select 
+                id={`node-formatType-${selectedNode.id}`}
                 value={nodeConfig.formatType || ''}
                 onChange={(e) => setNodeConfig({...nodeConfig, formatType: e.target.value})}
                 className="form-control"
@@ -1485,8 +1577,9 @@ const ProcessManagementWizard = () => {
               </select>
             </div>
             <div className="form-group">
-              <label>Column</label>
+              <label htmlFor={`node-format-column-${selectedNode.id}`}>Column</label>
               <select 
+                id={`node-format-column-${selectedNode.id}`}
                 value={nodeConfig.column || ''}
                 onChange={(e) => setNodeConfig({...nodeConfig, column: e.target.value})}
                 className="form-control"
@@ -1499,8 +1592,9 @@ const ProcessManagementWizard = () => {
             </div>
             {nodeConfig.formatType === 'DATE' && (
               <div className="form-group">
-                <label>Date Format</label>
+                <label htmlFor={`node-dateFormat-${selectedNode.id}`}>Date Format</label>
                 <select 
+                  id={`node-dateFormat-${selectedNode.id}`}
                   value={nodeConfig.dateFormat || ''}
                   onChange={(e) => setNodeConfig({...nodeConfig, dateFormat: e.target.value})}
                   className="form-control"
@@ -1515,8 +1609,9 @@ const ProcessManagementWizard = () => {
             )}
             {nodeConfig.formatType === 'NUMBER' && (
               <div className="form-group">
-                <label>Decimal Places</label>
+                <label htmlFor={`node-decimalPlaces-${selectedNode.id}`}>Decimal Places</label>
                 <input 
+                  id={`node-decimalPlaces-${selectedNode.id}`}
                   type="number" 
                   min="0"
                   max="10"
@@ -1528,8 +1623,9 @@ const ProcessManagementWizard = () => {
             )}
             {nodeConfig.formatType === 'TEXT' && (
               <div className="form-group">
-                <label>Text Operation</label>
+                <label htmlFor={`node-textOperation-${selectedNode.id}`}>Text Operation</label>
                 <select 
+                  id={`node-textOperation-${selectedNode.id}`}
                   value={nodeConfig.textOperation || ''}
                   onChange={(e) => setNodeConfig({...nodeConfig, textOperation: e.target.value})}
                   className="form-control"
@@ -1544,8 +1640,9 @@ const ProcessManagementWizard = () => {
             )}
             {nodeConfig.formatType === 'CASE' && (
               <div className="form-group">
-                <label>Case Operation</label>
+                <label htmlFor={`node-caseOperation-${selectedNode.id}`}>Case Operation</label>
                 <select 
+                  id={`node-caseOperation-${selectedNode.id}`}
                   value={nodeConfig.caseOperation || ''}
                   onChange={(e) => setNodeConfig({...nodeConfig, caseOperation: e.target.value})}
                   className="form-control"
@@ -1564,8 +1661,9 @@ const ProcessManagementWizard = () => {
           <div className="node-config-form">
             <h3>Calculate Configuration</h3>
             <div className="form-group">
-              <label>Output Column</label>
+              <label htmlFor={`node-outputColumn-${selectedNode.id}`}>Output Column</label>
               <input 
+                id={`node-outputColumn-${selectedNode.id}`}
                 type="text" 
                 value={nodeConfig.outputColumn || ''}
                 onChange={(e) => setNodeConfig({...nodeConfig, outputColumn: e.target.value})}
@@ -1574,8 +1672,9 @@ const ProcessManagementWizard = () => {
               />
             </div>
             <div className="form-group">
-              <label>Formula</label>
+              <label htmlFor={`node-formula-${selectedNode.id}`}>Formula</label>
               <textarea 
+                id={`node-formula-${selectedNode.id}`}
                 value={nodeConfig.formula || ''}
                 onChange={(e) => setNodeConfig({...nodeConfig, formula: e.target.value})}
                 className="form-control"
@@ -1584,7 +1683,7 @@ const ProcessManagementWizard = () => {
               />
             </div>
             <div className="form-group">
-              <label>Available Columns</label>
+              <div className="form-label">Available Columns</div>
               <div className="available-columns">
                 {sourceColumns.map(col => (
                   <div key={col.id} className="available-column-chip">
@@ -1604,7 +1703,7 @@ const ProcessManagementWizard = () => {
               </div>
             </div>
             <div className="form-group">
-              <label>Operators</label>
+              <div className="form-label">Operators</div>
               <div className="operator-buttons">
                 {['+', '-', '*', '/', '(', ')', '>', '<', '=', 'AND', 'OR', 'NOT'].map(op => (
                   <button 
@@ -1720,12 +1819,13 @@ const ProcessManagementWizard = () => {
         </div>
       )}
       
-      <div className="create-new-item">
+        <div className="create-new-item">
         <h4>Create New Group</h4>
         <div className="form-row">
           <div className="form-group">
-            <label>Group Name</label>
+            <label htmlFor="group-name">Group Name</label>
             <input
+              id="group-name"
               type="text"
               value={newGroupName}
               onChange={(e) => setNewGroupName(e.target.value)}
@@ -1734,8 +1834,9 @@ const ProcessManagementWizard = () => {
             />
           </div>
           <div className="form-group">
-            <label>Description</label>
+            <label htmlFor="group-desc">Description</label>
             <input
+              id="group-desc"
               type="text"
               value={newGroupDesc}
               onChange={(e) => setNewGroupDesc(e.target.value)}
@@ -1781,8 +1882,9 @@ const ProcessManagementWizard = () => {
         <h4>Create New Business Process</h4>
         <div className="form-row">
           <div className="form-group">
-            <label>Process Name</label>
+            <label htmlFor="process-name">Process Name</label>
             <input
+              id="process-name"
               type="text"
               value={newProcessName}
               onChange={(e) => setNewProcessName(e.target.value)}
@@ -1791,8 +1893,9 @@ const ProcessManagementWizard = () => {
             />
           </div>
           <div className="form-group">
-            <label>Description</label>
+            <label htmlFor="process-desc">Description</label>
             <input
+              id="process-desc"
               type="text"
               value={newProcessDesc}
               onChange={(e) => setNewProcessDesc(e.target.value)}
@@ -1902,8 +2005,9 @@ const ProcessManagementWizard = () => {
           <>
             <div className="form-row">
               <div className="form-group">
-                <label>Job Name</label>
+                <label htmlFor="job-name">Job Name</label>
                 <input
+                  id="job-name"
                   type="text"
                   value={jobName}
                   onChange={(e) => setJobName(e.target.value)}
@@ -1913,8 +2017,9 @@ const ProcessManagementWizard = () => {
                 />
               </div>
               <div className="form-group">
-                <label>Description</label>
+                <label htmlFor="job-desc">Description</label>
                 <input
+                  id="job-desc"
                   type="text"
                   value={jobDesc}
                   onChange={(e) => setJobDesc(e.target.value)}
@@ -1925,8 +2030,9 @@ const ProcessManagementWizard = () => {
             </div>
             <div className="form-row">
               <div className="form-group">
-                <label>Status</label>
+                <label htmlFor="job-status">Status</label>
                 <select 
+                  id="job-status"
                   value={jobStatus} 
                   onChange={(e) => setJobStatus(e.target.value)}
                   className="form-control"
@@ -1978,9 +2084,10 @@ const ProcessManagementWizard = () => {
       
       <div className="form-section">
         <h4>Source</h4>
-        <div className="form-group">
-          <label>1. Select Source Connection</label>
+          <div className="form-group">
+          <label htmlFor="source-connection-select">1. Select Source Connection</label>
           <select 
+            id="source-connection-select"
             onChange={handleSourceConnectionChange}
             className="form-control"
             value={sourceConnection === "internal" ? "internal" : (sourceConnection ? sourceConnection.id : '')}
@@ -2002,8 +2109,9 @@ const ProcessManagementWizard = () => {
         
         {(sourceConnection) && (
           <div className="form-group">
-            <label>2. Select Source File</label>
+            <label htmlFor="source-file-select">2. Select Source File</label>
             <select 
+              id="source-file-select"
               onChange={(e) => handleSourceFileChange(e.target.value)}
               className="form-control"
               value={selectedSourceFile ? selectedSourceFile.file_id : ''}
@@ -2050,8 +2158,9 @@ const ProcessManagementWizard = () => {
       <div className="form-section">
         <h4>Target</h4>
         <div className="form-group">
-          <label>1. Select Target Connection</label>
+          <label htmlFor="target-connection-select">1. Select Target Connection</label>
           <select 
+            id="target-connection-select"
             onChange={handleTargetConnectionChange}
             className="form-control"
             value={targetConnection === "internal" ? "internal" : (targetConnection ? targetConnection.id : '')}
@@ -2074,8 +2183,8 @@ const ProcessManagementWizard = () => {
         {targetConnection && (
           <>
             <div className="target-file-options">
-              <div className="form-group">
-                <label className="checkbox-container">
+                <div className="form-group">
+                  <label className="checkbox-container">
                   <input
                     type="checkbox"
                     checked={isNewTargetFile}
@@ -2107,11 +2216,12 @@ const ProcessManagementWizard = () => {
               </div>
             </div>
             
-            {isNewTargetFile ? (
+              {isNewTargetFile ? (
               <div className="form-row">
                 <div className="form-group">
-                  <label>2. New Target File Name</label>
+                  <label htmlFor="target-file-name">2. New Target File Name</label>
                   <input
+                    id="target-file-name"
                     type="text"
                     value={targetFileName}
                     onChange={handleTargetFileNameChange}
@@ -2120,8 +2230,9 @@ const ProcessManagementWizard = () => {
                   />
                 </div>
                 <div className="form-group">
-                  <label>Output File Format</label>
+                  <label htmlFor="target-file-format">Output File Format</label>
                   <select 
+                    id="target-file-format"
                     value={selectedTargetType} 
                     onChange={(e) => handleTargetFileTypeChange(e.target.value)}
                     className="form-control"
@@ -2136,8 +2247,9 @@ const ProcessManagementWizard = () => {
               </div>
             ) : (
               <div className="form-group">
-                <label>2. Select Existing Target File to Overwrite</label>
+                <label htmlFor="existing-target-file-select">2. Select Existing Target File to Overwrite</label>
                 <select 
+                  id="existing-target-file-select"
                   onChange={(e) => handleExistingTargetFileChange(e.target.value)}
                   className="form-control"
                   value={selectedTargetFile ? selectedTargetFile.file_id : ''}
@@ -2728,10 +2840,10 @@ const ProcessManagementWizard = () => {
     <div className="step-container">
       <h3>Step 5: Schedule Job</h3>
       
-      <div className="form-row">
-        <div className="form-group">
-          <label>Schedule Type</label>
-          <div className="schedule-types">
+        <div className="form-row">
+          <div className="form-group">
+            <div className="form-label">Schedule Type</div>
+            <div className="schedule-types">
             <div className="schedule-type-option">
               <input
                 type="radio"
@@ -2761,8 +2873,9 @@ const ProcessManagementWizard = () => {
       {scheduleType === 'one-time' ? (
         <div className="form-row">
           <div className="form-group">
-            <label>Date</label>
+            <label htmlFor="schedule-date">Date</label>
             <input
+              id="schedule-date"
               type="date"
               className="form-control"
               value={scheduleDate}
@@ -2770,8 +2883,9 @@ const ProcessManagementWizard = () => {
             />
           </div>
           <div className="form-group">
-            <label>Time</label>
+            <label htmlFor="schedule-time">Time</label>
             <input
+              id="schedule-time"
               type="time"
               className="form-control"
               value={scheduleTime}
@@ -2782,8 +2896,9 @@ const ProcessManagementWizard = () => {
       ) : (
         <div className="form-row">
           <div className="form-group">
-            <label>Cron Expression</label>
+            <label htmlFor="schedule-cron">Cron Expression</label>
             <input
+              id="schedule-cron"
               type="text"
               className="form-control"
               value={scheduleCron}
@@ -2806,7 +2921,7 @@ const ProcessManagementWizard = () => {
       
       <div className="form-row">
         <div className="form-group">
-          <label>Schedule Status</label>
+          <div className="form-label">Schedule Status</div>
           <div className="schedule-status">
             <input
               type="checkbox"

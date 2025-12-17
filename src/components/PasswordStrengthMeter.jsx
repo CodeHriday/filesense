@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import './PasswordStrengthMeter.css';
+import PropTypes from 'prop-types';
 
 const PasswordStrengthMeter = ({ password }) => {
   const [strength, setStrength] = useState({ score: 0, label: '', checks: [] });
@@ -91,7 +92,7 @@ const PasswordStrengthMeter = ({ password }) => {
         <div className="requirements-title">Password must have:</div>
         <ul className="requirements-list">
           {strength.checks.map((check, index) => (
-            <li key={index} className={check.passed ? 'requirement-passed' : 'requirement-failed'}>
+            <li key={`check-${check.label || check.name || index}`} className={check.passed ? 'requirement-passed' : 'requirement-failed'}>
               <span className="requirement-icon">
                 {check.passed ? '✓' : '○'}
               </span>
@@ -103,5 +104,11 @@ const PasswordStrengthMeter = ({ password }) => {
     </div>
   );
 };
+PasswordStrengthMeter.propTypes = {
+  password: PropTypes.string
+};
 
+PasswordStrengthMeter.defaultProps = {
+  password: ''
+};
 export default PasswordStrengthMeter;

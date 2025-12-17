@@ -41,16 +41,17 @@ function safeRegex(pattern, flags = '', options = {}) {
   
   if (strict) {
     // Check for dangerous patterns that can cause catastrophic backtracking
+    // Use safer detection patterns with length limits to avoid ReDoS in the validator itself
     const dangerousPatterns = [
-      /(\.\*){2,}/, // Multiple .*
-      /(\.\+){2,}/, // Multiple .+
-      /(\(.*\)){2,}/, // Nested capturing groups with .*
-      /(\[.*\]){2,}/, // Multiple character classes with .*
-      /(\w\+){3,}/, // Repeated \w+
-      /(\d\+){3,}/, // Repeated \d+
-      /(a\+){3,}/, // Repeated a+
-      /(\*.*\*)/,    // Nested quantifiers
-      /(\+.*\+)/,    // Nested quantifiers
+      /\(\.\*\).*\(\.\*\)/, // Multiple .* patterns
+      /\(\.\+\).*\(\.\+\)/, // Multiple .+ patterns
+      /\([^)]{0,100}\*[^)]{0,100}\).*\([^)]{0,100}\*[^)]{0,100}\)/, // Nested capturing groups with quantifiers
+      /\[[^\]]{0,100}\*[^\]]{0,100}\].*\[[^\]]{0,100}\*[^\]]{0,100}\]/, // Multiple character classes with quantifiers
+      /\\w\+.*\\w\+.*\\w\+/, // Repeated \w+ patterns
+      /\\d\+.*\\d\+.*\\d\+/, // Repeated \d+ patterns
+      /[a-z]\+.*[a-z]\+.*[a-z]\+/i, // Repeated letter+ patterns
+      /\*[^*]{0,50}\*/, // Nested quantifiers with *
+      /\+[^+]{0,50}\+/, // Nested quantifiers with +
     ];
     
     for (const dangerous of dangerousPatterns) {
@@ -213,9 +214,25 @@ function globToRegex(pattern, caseSensitive = false) {
   return safeRegex(regexPattern, flags, { strict: false });
 }
 
+/**
+ * Validate regex safety without creating the RegExp object
+ * This is the function used by other services to validate user-provided patterns
+ * 
+ * @param {string} pattern - The regex pattern to validate
+ * @param {Object} options - Validation options
+ * @throws {Error} If pattern is unsafe
+ */
+function validateRegexSafety(pattern, options = {}) {
+  const result = isPatternSafe(pattern, options);
+  if (!result.safe) {
+    throw new Error(result.error);
+  }
+}
+
 module.exports = {
   safeRegex,
   isPatternSafe,
+  validateRegexSafety,
   createLiteralRegex,
   regexTestWithTimeout,
   regexMatchWithTimeout,

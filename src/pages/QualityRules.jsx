@@ -371,9 +371,10 @@ function QualityRules() {
         return (
           <div className="gps-section" style={{ marginTop: '16px', padding: '16px', backgroundColor: '#f9fafb', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
             <div className="gps-form-group">
-              <label className="gps-form-label">Completeness Threshold (%)</label>
+              <label htmlFor="completeness-threshold" className="gps-form-label">Completeness Threshold (%)</label>
               <span className="gps-form-hint" style={{ marginTop: 0, marginBottom: '8px' }}>Minimum percentage of non-null values required</span>
               <input
+                id="completeness-threshold"
                 type="range"
                 min="0"
                 max="100"
@@ -386,9 +387,10 @@ function QualityRules() {
             </div>
             
             <div className="gps-form-group" style={{ marginBottom: 0 }}>
-              <label className="gps-form-label">Column Name</label>
+              <label htmlFor="completeness-column-name" className="gps-form-label">Column Name</label>
               <span className="gps-form-hint" style={{ marginTop: 0, marginBottom: '8px' }}>The column to check for completeness</span>
               <input
+                id="completeness-column-name"
                 type="text"
                 className="gps-form-input"
                 value={formData.column_name}
@@ -404,8 +406,9 @@ function QualityRules() {
         return (
           <div className="gps-section" style={{ marginTop: '16px', padding: '16px', backgroundColor: '#f9fafb', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
             <div className="gps-form-group">
-              <label className="gps-form-label">Validation Type</label>
+              <label htmlFor="validity-type" className="gps-form-label">Validation Type</label>
               <select
+                id="validity-type"
                 className="gps-form-select"
                 value={config.validity_type || ''}
                 onChange={(e) => updateRuleConfig('validity_type', e.target.value)}
@@ -421,8 +424,9 @@ function QualityRules() {
             
             {config.validity_type === 'pattern' && (
               <div className="gps-form-group">
-                <label className="gps-form-label">Pattern (Regular Expression)</label>
+                <label htmlFor="validity-pattern" className="gps-form-label">Pattern (Regular Expression)</label>
                 <input
+                  id="validity-pattern"
                   type="text"
                   className="gps-form-input"
                   value={config.pattern || ''}
@@ -436,8 +440,9 @@ function QualityRules() {
             {config.validity_type === 'range' && (
               <div className="gps-form-row">
                 <div className="gps-form-group">
-                  <label className="gps-form-label">Minimum Value</label>
+                  <label htmlFor="validity-min" className="gps-form-label">Minimum Value</label>
                   <input
+                    id="validity-min"
                     type="number"
                     className="gps-form-input"
                     value={config.min || ''}
@@ -445,8 +450,9 @@ function QualityRules() {
                   />
                 </div>
                 <div className="gps-form-group">
-                  <label className="gps-form-label">Maximum Value</label>
+                  <label htmlFor="validity-max" className="gps-form-label">Maximum Value</label>
                   <input
+                    id="validity-max"
                     type="number"
                     className="gps-form-input"
                     value={config.max || ''}
@@ -459,8 +465,9 @@ function QualityRules() {
             
             {config.validity_type === 'enum' && (
               <div className="gps-form-group">
-                <label className="gps-form-label">Allowed Values (comma-separated)</label>
+                <label htmlFor="validity-allowed-values" className="gps-form-label">Allowed Values (comma-separated)</label>
                 <textarea
+                  id="validity-allowed-values"
                   className="gps-form-textarea"
                   rows="3"
                   value={(config.allowed_values || []).join(', ')}
@@ -473,8 +480,9 @@ function QualityRules() {
             
             {config.validity_type === 'datatype' && (
               <div className="gps-form-group">
-                <label className="gps-form-label">Expected Data Type</label>
+                <label htmlFor="validity-datatype" className="gps-form-label">Expected Data Type</label>
                 <select
+                  id="validity-datatype"
                   className="gps-form-select"
                   value={config.datatype || ''}
                   onChange={(e) => updateRuleConfig('datatype', e.target.value)}
@@ -492,8 +500,9 @@ function QualityRules() {
             )}
             
             <div className="gps-form-group" style={{ marginBottom: 0 }}>
-              <label className="gps-form-label">Column Name</label>
+              <label htmlFor="validity-column-name" className="gps-form-label">Column Name</label>
               <input
+                id="validity-column-name"
                 type="text"
                 className="gps-form-input"
                 value={formData.column_name}
@@ -508,8 +517,9 @@ function QualityRules() {
         return (
           <div className="gps-section" style={{ marginTop: '16px', padding: '16px', backgroundColor: '#f9fafb', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
             <div className="gps-form-group">
-              <label className="gps-form-label">Consistency Type</label>
+              <label htmlFor="consistency-type" className="gps-form-label">Consistency Type</label>
               <select
+                id="consistency-type"
                 className="gps-form-select"
                 value={config.consistency_type || ''}
                 onChange={(e) => updateRuleConfig('consistency_type', e.target.value)}
@@ -523,8 +533,9 @@ function QualityRules() {
             
             {config.consistency_type === 'cross_field' && (
               <div className="gps-form-group">
-                <label className="gps-form-label">Validation Expression</label>
+                <label htmlFor="consistency-expression" className="gps-form-label">Validation Expression</label>
                 <textarea
+                  id="consistency-expression"
                   className="gps-form-textarea"
                   rows="3"
                   value={config.expression || ''}
@@ -537,8 +548,9 @@ function QualityRules() {
             
             {config.consistency_type === 'format_consistency' && (
               <div className="gps-form-group">
-                <label className="gps-form-label">Expected Format Pattern</label>
+                <label htmlFor="consistency-format-pattern" className="gps-form-label">Expected Format Pattern</label>
                 <input
+                  id="consistency-format-pattern"
                   type="text"
                   className="gps-form-input"
                   value={config.format_pattern || ''}
@@ -549,8 +561,9 @@ function QualityRules() {
             )}
             
             <div className="gps-form-group" style={{ marginBottom: 0 }}>
-              <label className="gps-form-label">Column Name (Optional)</label>
+              <label htmlFor="consistency-column-name" className="gps-form-label">Column Name (Optional)</label>
               <input
+                id="consistency-column-name"
                 type="text"
                 className="gps-form-input"
                 value={formData.column_name}
@@ -565,9 +578,10 @@ function QualityRules() {
         return (
           <div className="gps-section" style={{ marginTop: '16px', padding: '16px', backgroundColor: '#f9fafb', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
             <div className="gps-form-group" style={{ marginBottom: 0 }}>
-              <label className="gps-form-label">Columns to Check for Uniqueness</label>
+              <label htmlFor="uniqueness-columns" className="gps-form-label">Columns to Check for Uniqueness</label>
               <span className="gps-form-hint" style={{ marginTop: 0, marginBottom: '8px' }}>Comma-separated list of columns that should form a unique key</span>
               <textarea
+                id="uniqueness-columns"
                 className="gps-form-textarea"
                 rows="2"
                 value={(config.columns || []).join(', ')}
@@ -583,9 +597,10 @@ function QualityRules() {
         return (
           <div className="gps-section" style={{ marginTop: '16px', padding: '16px', backgroundColor: '#f9fafb', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
             <div className="gps-form-group">
-              <label className="gps-form-label">Maximum Age (Hours)</label>
+              <label htmlFor="freshness-max-age" className="gps-form-label">Maximum Age (Hours)</label>
               <span className="gps-form-hint" style={{ marginTop: 0, marginBottom: '8px' }}>Data older than this will be flagged as stale</span>
               <input
+                id="freshness-max-age"
                 type="number"
                 className="gps-form-input"
                 min="1"
@@ -596,8 +611,9 @@ function QualityRules() {
             </div>
             
             <div className="gps-form-group" style={{ marginBottom: 0 }}>
-              <label className="gps-form-label">Timestamp Column</label>
+              <label htmlFor="freshness-timestamp-column" className="gps-form-label">Timestamp Column</label>
               <input
+                id="freshness-timestamp-column"
                 type="text"
                 className="gps-form-input"
                 value={config.timestamp_column || formData.column_name}
@@ -616,9 +632,10 @@ function QualityRules() {
         return (
           <div className="gps-section" style={{ marginTop: '16px', padding: '16px', backgroundColor: '#f9fafb', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
             <div className="gps-form-group">
-              <label className="gps-form-label">Pattern (Regex) - Optional</label>
+              <label htmlFor="validitycheck-pattern" className="gps-form-label">Pattern (Regex) - Optional</label>
               <span className="gps-form-hint" style={{ marginTop: 0, marginBottom: '8px' }}>Regular expression pattern to validate values</span>
               <input
+                id="validitycheck-pattern"
                 type="text"
                 className="gps-form-input"
                 value={config.pattern || ''}
@@ -628,8 +645,9 @@ function QualityRules() {
             </div>
             
             <div className="gps-form-group">
-              <label className="gps-form-label">Data Type - Optional</label>
+              <label htmlFor="validitycheck-datatype" className="gps-form-label">Data Type - Optional</label>
               <select
+                id="validitycheck-datatype"
                 className="gps-form-select"
                 value={config.datatype || ''}
                 onChange={(e) => updateRuleConfig('datatype', e.target.value)}
@@ -644,8 +662,9 @@ function QualityRules() {
             </div>
             
             <div className="gps-form-group">
-              <label className="gps-form-label">Custom Error Message - Optional</label>
+              <label htmlFor="validitycheck-custom-message" className="gps-form-label">Custom Error Message - Optional</label>
               <input
+                id="validitycheck-custom-message"
                 type="text"
                 className="gps-form-input"
                 value={config.custom_message || ''}
@@ -655,8 +674,9 @@ function QualityRules() {
             </div>
             
             <div className="gps-form-group" style={{ marginBottom: 0 }}>
-              <label className="gps-form-label">Column Name</label>
+              <label htmlFor="validitycheck-column-name" className="gps-form-label">Column Name</label>
               <input
+                id="validitycheck-column-name"
                 type="text"
                 className="gps-form-input"
                 value={formData.column_name}
@@ -672,8 +692,9 @@ function QualityRules() {
           <div className="gps-section" style={{ marginTop: '16px', padding: '16px', backgroundColor: '#f9fafb', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
             <div className="gps-form-row">
               <div className="gps-form-group">
-                <label className="gps-form-label">Minimum Length</label>
+                <label htmlFor="length-min-length" className="gps-form-label">Minimum Length</label>
                 <input
+                  id="length-min-length"
                   type="number"
                   className="gps-form-input"
                   min="0"
@@ -683,8 +704,9 @@ function QualityRules() {
                 />
               </div>
               <div className="gps-form-group">
-                <label className="gps-form-label">Maximum Length</label>
+                <label htmlFor="length-max-length" className="gps-form-label">Maximum Length</label>
                 <input
+                  id="length-max-length"
                   type="number"
                   className="gps-form-input"
                   min="0"
@@ -696,9 +718,10 @@ function QualityRules() {
             </div>
             
             <div className="gps-form-group">
-              <label className="gps-form-label">Exact Length (Optional)</label>
+              <label htmlFor="length-exact-length" className="gps-form-label">Exact Length (Optional)</label>
               <span className="gps-form-hint" style={{ marginTop: 0, marginBottom: '8px' }}>If set, overrides min/max and requires exact character count</span>
               <input
+                id="length-exact-length"
                 type="number"
                 className="gps-form-input"
                 min="0"
@@ -709,8 +732,9 @@ function QualityRules() {
             </div>
             
             <div className="gps-form-group" style={{ marginBottom: 0 }}>
-              <label className="gps-form-label">Column Name</label>
+              <label htmlFor="length-column-name" className="gps-form-label">Column Name</label>
               <input
+                id="length-column-name"
                 type="text"
                 className="gps-form-input"
                 value={formData.column_name}
@@ -726,8 +750,9 @@ function QualityRules() {
           <div className="gps-section" style={{ marginTop: '16px', padding: '16px', backgroundColor: '#f9fafb', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
             <div className="gps-form-row">
               <div className="gps-form-group">
-                <label className="gps-form-label">Minimum Value</label>
+                <label htmlFor="range-min" className="gps-form-label">Minimum Value</label>
                 <input
+                  id="range-min"
                   type="number"
                   className="gps-form-input"
                   value={config.min !== undefined ? config.min : ''}
@@ -736,8 +761,9 @@ function QualityRules() {
                 />
               </div>
               <div className="gps-form-group">
-                <label className="gps-form-label">Maximum Value</label>
+                <label htmlFor="range-max" className="gps-form-label">Maximum Value</label>
                 <input
+                  id="range-max"
                   type="number"
                   className="gps-form-input"
                   value={config.max !== undefined ? config.max : ''}
@@ -771,8 +797,9 @@ function QualityRules() {
             </div>
             
             <div className="gps-form-group" style={{ marginBottom: 0 }}>
-              <label className="gps-form-label">Column Name</label>
+              <label htmlFor="range-column-name" className="gps-form-label">Column Name</label>
               <input
+                id="range-column-name"
                 type="text"
                 className="gps-form-input"
                 value={formData.column_name}
@@ -1029,8 +1056,9 @@ function QualityRules() {
               <div className="gps-modal-body" style={{ maxHeight: '60vh', overflowY: 'auto' }}>
                 <div className="gps-form-row">
                   <div className="gps-form-group">
-                    <label className="gps-form-label">Rule Name *</label>
+                    <label htmlFor="rule-name" className="gps-form-label">Rule Name *</label>
                     <input
+                      id="rule-name"
                       type="text"
                       className="gps-form-input"
                       value={formData.rule_name}
@@ -1042,8 +1070,9 @@ function QualityRules() {
                   </div>
                   
                   <div className="gps-form-group">
-                    <label className="gps-form-label">Project (Optional)</label>
+                    <label htmlFor="project-select" className="gps-form-label">Project (Optional)</label>
                     <select
+                      id="project-select"
                       className="gps-form-select"
                       value={formData.project_id}
                       onChange={(e) => handleProjectChange(e.target.value)}
@@ -1060,8 +1089,9 @@ function QualityRules() {
                 
                 {formData.project_id && (
                   <div className="gps-form-group">
-                    <label className="gps-form-label">Sub-Project (Optional)</label>
+                    <label htmlFor="subproject-select" className="gps-form-label">Sub-Project (Optional)</label>
                     <select
+                      id="subproject-select"
                       className="gps-form-select"
                       value={formData.sub_project_id}
                       onChange={(e) => setFormData({ ...formData, sub_project_id: e.target.value })}
@@ -1077,8 +1107,9 @@ function QualityRules() {
                 )}
                 
                 <div className="gps-form-group">
-                  <label className="gps-form-label">Description</label>
+                  <label htmlFor="rule-description" className="gps-form-label">Description</label>
                   <textarea
+                    id="rule-description"
                     className="gps-form-textarea"
                     rows="2"
                     value={formData.description}
@@ -1089,8 +1120,9 @@ function QualityRules() {
                 
                 <div className="gps-form-row">
                   <div className="gps-form-group">
-                    <label className="gps-form-label">Rule Type *</label>
+                    <label htmlFor="rule-type" className="gps-form-label">Rule Type *</label>
                     <select
+                      id="rule-type"
                       className="gps-form-select"
                       value={formData.rule_type}
                       onChange={(e) => handleRuleTypeChange(e.target.value)}
@@ -1109,8 +1141,9 @@ function QualityRules() {
                   </div>
                   
                   <div className="gps-form-group">
-                    <label className="gps-form-label">Severity</label>
+                    <label htmlFor="severity-select" className="gps-form-label">Severity</label>
                     <select
+                      id="severity-select"
                       className="gps-form-select"
                       value={formData.severity}
                       onChange={(e) => setFormData({ ...formData, severity: e.target.value })}
@@ -1125,8 +1158,9 @@ function QualityRules() {
                 {renderRuleTypeFields()}
                 
                 <div className="gps-form-group" style={{ marginTop: '16px' }}>
-                  <label className="gps-checkbox-label">
+                  <label htmlFor="enable-rule" className="gps-checkbox-label">
                     <input
+                      id="enable-rule"
                       type="checkbox"
                       checked={formData.enabled}
                       onChange={(e) => setFormData({ ...formData, enabled: e.target.checked })}

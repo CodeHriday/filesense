@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { FiSettings, FiDatabase, FiEdit2, FiSave, FiRefreshCw } from 'react-icons/fi';
 import './Transform.css';
+import PropTypes from 'prop-types';
+
 
 /**
  * Target Schema Editor component for configuring target connection settings
@@ -49,8 +51,9 @@ const TargetSchemaEditor = ({ connection, schema, onSchemaChange }) => {
           <div className="connection-specific-settings">
             <h4>Snowflake Settings</h4>
             <div className="setting-group">
-              <label>Warehouse</label>
+              <label htmlFor="snowflake-warehouse">Warehouse</label>
               <input 
+                id="snowflake-warehouse"
                 type="text" 
                 value={settings.warehouse || ''}
                 onChange={(e) => handleSettingChange('warehouse', e.target.value)}
@@ -58,8 +61,9 @@ const TargetSchemaEditor = ({ connection, schema, onSchemaChange }) => {
               />
             </div>
             <div className="setting-group">
-              <label>Schema</label>
+              <label htmlFor="snowflake-schema">Schema</label>
               <input 
+                id="snowflake-schema"
                 type="text" 
                 value={settings.schema || ''}
                 onChange={(e) => handleSettingChange('schema', e.target.value)}
@@ -73,8 +77,9 @@ const TargetSchemaEditor = ({ connection, schema, onSchemaChange }) => {
           <div className="connection-specific-settings">
             <h4>Databricks Settings</h4>
             <div className="setting-group">
-              <label>Catalog</label>
+              <label htmlFor="databricks-catalog">Catalog</label>
               <input 
+                id="databricks-catalog"
                 type="text" 
                 value={settings.catalog || ''}
                 onChange={(e) => handleSettingChange('catalog', e.target.value)}
@@ -82,8 +87,9 @@ const TargetSchemaEditor = ({ connection, schema, onSchemaChange }) => {
               />
             </div>
             <div className="setting-group">
-              <label>Schema</label>
+              <label htmlFor="databricks-schema">Schema</label>
               <input 
+                id="databricks-schema"
                 type="text" 
                 value={settings.schema || ''}
                 onChange={(e) => handleSettingChange('schema', e.target.value)}
@@ -140,13 +146,14 @@ const TargetSchemaEditor = ({ connection, schema, onSchemaChange }) => {
           {isDatabase() && (
             <div className="setting-row">
               <div className="setting-group">
-                <label>
+                <label htmlFor="createTable">
                   <input 
+                    id="createTable"
                     type="checkbox" 
                     checked={settings.createTable}
                     onChange={(e) => handleSettingChange('createTable', e.target.checked)}
                   />
-                  Create table if it doesn't exist
+                  <span>Create table if it doesn't exist</span>
                 </label>
               </div>
             </div>
@@ -281,6 +288,25 @@ const TargetSchemaEditor = ({ connection, schema, onSchemaChange }) => {
       </div>
     </div>
   );
+};
+TargetSchemaEditor.propTypes = {
+  connection: PropTypes.shape({
+    id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    name: PropTypes.string,
+    connection_name: PropTypes.string,
+    type: PropTypes.string
+  }),
+
+  schema: PropTypes.arrayOf(
+    PropTypes.shape({
+      id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
+      name: PropTypes.string.isRequired,
+      type: PropTypes.string.isRequired,
+      nullable: PropTypes.bool
+    })
+  ).isRequired,
+
+  onSchemaChange: PropTypes.func.isRequired
 };
 
 export default TargetSchemaEditor;

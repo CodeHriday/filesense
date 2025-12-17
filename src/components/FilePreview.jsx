@@ -4,6 +4,7 @@ import LoadingSpinner from './LoadingSpinner';
 import axios from 'axios';
 import '../styles/global-page-styles.css';
 import './FilePreview.css';
+import PropTypes from 'prop-types';
 
 const FilePreview = ({ fileId, maxRows = 100, columnQualityData = [] }) => {
   const [loading, setLoading] = useState(true);
@@ -316,7 +317,7 @@ ${nullCount} null values`}
           <thead>
             <tr>
               {columnNames.map((column, index) => (
-                <th key={index}>
+                <th key={`header-${column}-${index}`}>
                   <div className="header-cell">
                     <span className="column-name">{column}</span>
                     {renderColumnAccessIndicator(column)}
@@ -328,9 +329,9 @@ ${nullCount} null values`}
           </thead>
           <tbody>
             {rows.map((row, rowIndex) => (
-              <tr key={rowIndex}>
+              <tr key={`row-${rowIndex}`}>
                 {columnNames.map((column, colIndex) => (
-                  <td key={colIndex}>
+                  <td key={`cell-${column}-${colIndex}`}>
                     {shouldMaskColumnValue(column) ? (
                       <span className="masked-value">****</span>
                     ) : (
@@ -356,5 +357,21 @@ ${nullCount} null values`}
     </div>
   );
 };
+FilePreview.propTypes = {
+  fileId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
+  maxRows: PropTypes.number,
+  columnQualityData: PropTypes.arrayOf(
+    PropTypes.shape({
+      name: PropTypes.string.isRequired,
+      missing: PropTypes.number,
+      accessLevel: PropTypes.string,
+      _accessLevel: PropTypes.string
+    })
+  )
+};
 
+FilePreview.defaultProps = {
+  maxRows: 100,
+  columnQualityData: []
+};
 export default FilePreview;

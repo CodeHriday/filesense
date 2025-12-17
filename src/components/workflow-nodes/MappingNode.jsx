@@ -1,4 +1,5 @@
 import React from 'react';
+import PropTypes from 'prop-types';  // <-- Add this import
 import { Handle, Position } from 'reactflow';
 import './WorkflowNodes.css';
 
@@ -34,5 +35,18 @@ function MappingNode({ data, isConnectable }) {
     </div>
   );
 }
+
+// Add PropTypes validation
+MappingNode.propTypes = {
+  data: PropTypes.shape({
+    assetName: PropTypes.string.isRequired,
+    description: PropTypes.string,        
+    assetId: PropTypes.oneOfType([
+      PropTypes.string,
+      PropTypes.number
+    ]).isRequired,
+  }).isRequired,
+  isConnectable: PropTypes.bool.isRequired,
+};
 
 export default MappingNode;

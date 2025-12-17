@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { FaCheckCircle, FaExclamationCircle, FaEnvelope, FaClock, FaFilter, FaChevronDown, FaChevronUp, FaEye } from 'react-icons/fa';
+import { FaCheckCircle, FaExclamationCircle, FaEnvelope, FaClock, FaFilter, FaChevronDown, FaChevronUp } from 'react-icons/fa';
 import PageLayout from '../components/PageLayout';
 import './AlertHistory.css';
 
@@ -176,23 +176,23 @@ const AlertHistory = () => {
         <div className="details-section">
           <h4>Delivery Information</h4>
           <div className="details-grid">
-            <div className="detail-item">
-              <label>Email Connection:</label>
-              <span>{details.run?.email_connection_name || 'N/A'} ({details.run?.provider_type || 'Unknown'})</span>
-            </div>
-            <div className="detail-item">
-              <label>Recipients Count:</label>
-              <span>{details.run?.recipients_count || 0}</span>
-            </div>
-            <div className="detail-item">
-              <label>Sent At:</label>
-              <span>{formatDate(details.run?.sent_at)}</span>
-            </div>
-            <div className="detail-item">
-              <label>Run Type:</label>
-              <span>{details.run?.run_type || 'N/A'}</span>
-            </div>
+          <div className="detail-item">
+            <strong>Email Connection:</strong>
+            <span>{details.run?.email_connection_name || 'N/A'} ({details.run?.provider_type || 'Unknown'})</span>
           </div>
+          <div className="detail-item">
+            <strong>Recipients Count:</strong>
+            <span>{details.run?.recipients_count || 0}</span>
+          </div>
+          <div className="detail-item">
+            <strong>Sent At:</strong>
+            <span>{formatDate(details.run?.sent_at)}</span>
+          </div>
+          <div className="detail-item">
+            <strong>Run Type:</strong>
+            <span>{details.run?.run_type || 'N/A'}</span>
+          </div>
+        </div>
           
           {details.run?.error_message && (
             <div className="error-message-box">
@@ -212,8 +212,10 @@ const AlertHistory = () => {
           <div className="details-section">
             <h4>Recipients ({details.recipients.length})</h4>
             <div className="recipients-list">
-              {details.recipients.map((recipient, idx) => (
-                <div key={idx} className="recipient-item">
+              {details.recipients.map((recipient, idx) => {
+                const recipientKey = recipient.user_email || recipient.email || recipient.username || `recipient-${idx}`;
+                return (
+                <div key={recipientKey} className="recipient-item">
                   <FaEnvelope className="recipient-icon" />
                   <span>
                     {recipient.recipient_type === 'user' 
@@ -221,7 +223,7 @@ const AlertHistory = () => {
                       : recipient.email}
                   </span>
                 </div>
-              ))}
+              );})}
             </div>
           </div>
         )}
@@ -230,8 +232,10 @@ const AlertHistory = () => {
           <div className="details-section">
             <h4>Attachments ({details.attachments.length})</h4>
             <div className="attachments-list">
-              {details.attachments.map((attachment, idx) => (
-                <div key={idx} className="attachment-item">
+              {details.attachments.map((attachment, idx) => {
+                const attachmentKey = attachment.filename || attachment.cloud_url || `attachment-${idx}`;
+                return (
+                <div key={attachmentKey} className="attachment-item">
                   <span className="attachment-name">{attachment.filename}</span>
                   <span className="attachment-size">{(attachment.file_size / 1024).toFixed(2)} KB</span>
                   {attachment.cloud_url && (
@@ -240,7 +244,7 @@ const AlertHistory = () => {
                     </a>
                   )}
                 </div>
-              ))}
+              );})}
             </div>
           </div>
         )}
@@ -249,8 +253,10 @@ const AlertHistory = () => {
           <div className="details-section">
             <h4>Events ({details.events.length})</h4>
             <div className="events-list">
-              {details.events.map((event, idx) => (
-                <div key={idx} className="event-item">
+              {details.events.map((event, idx) => {
+                const eventKey = event.id || `${event.entity_id || 'entity'}-${event.occurred_at || idx}-${event.event_type || ''}`;
+                return (
+                <div key={eventKey} className="event-item">
                   <div className="event-header">
                     {getStatusIcon(event.status)}
                     <span className="event-type">{event.entity_type}</span>
@@ -266,7 +272,7 @@ const AlertHistory = () => {
                     </div>
                   )}
                 </div>
-              ))}
+              );})}
             </div>
           </div>
         )}
@@ -290,8 +296,9 @@ const AlertHistory = () => {
           <div className="filters-panel">
             <div className="filters-grid">
               <div className="filter-group">
-                <label>Status</label>
+                <label htmlFor="filter-status">Status</label>
                 <select 
+                  id="filter-status"
                   value={filters.status} 
                   onChange={(e) => handleFilterChange('status', e.target.value)}
                 >
@@ -304,8 +311,9 @@ const AlertHistory = () => {
               </div>
               
               <div className="filter-group">
-                <label>Entity Type</label>
+                <label htmlFor="filter-entity">Entity Type</label>
                 <select 
+                  id="filter-entity"
                   value={filters.entity_type} 
                   onChange={(e) => handleFilterChange('entity_type', e.target.value)}
                 >
@@ -318,8 +326,9 @@ const AlertHistory = () => {
               </div>
               
               <div className="filter-group">
-                <label>Start Date</label>
+                <label htmlFor="filter-start-date">Start Date</label>
                 <input 
+                  id="filter-start-date"
                   type="datetime-local"
                   value={filters.start_date}
                   onChange={(e) => handleFilterChange('start_date', e.target.value)}
@@ -327,8 +336,9 @@ const AlertHistory = () => {
               </div>
               
               <div className="filter-group">
-                <label>End Date</label>
+                <label htmlFor="filter-end-date">End Date</label>
                 <input 
+                  id="filter-end-date"
                   type="datetime-local"
                   value={filters.end_date}
                   onChange={(e) => handleFilterChange('end_date', e.target.value)}

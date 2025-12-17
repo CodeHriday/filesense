@@ -359,8 +359,9 @@ const RetentionPolicies = () => {
               <div className="modal-body">
                 <div className="form-grid">
                   <div className="form-group">
-                    <label>Policy Name *</label>
+                    <label htmlFor="policy-name">Policy Name *</label>
                     <input
+                      id="policy-name"
                       type="text"
                       name="name"
                       value={formData.name}
@@ -371,8 +372,9 @@ const RetentionPolicies = () => {
                   </div>
 
                   <div className="form-group">
-                    <label>Priority</label>
+                    <label htmlFor="policy-priority">Priority</label>
                     <input
+                      id="policy-priority"
                       type="number"
                       name="priority"
                       value={formData.priority}
@@ -384,8 +386,9 @@ const RetentionPolicies = () => {
                   </div>
 
                   <div className="form-group full-width">
-                    <label>Description</label>
+                    <label htmlFor="policy-description">Description</label>
                     <textarea
+                      id="policy-description"
                       name="description"
                       value={formData.description}
                       onChange={handleInputChange}
@@ -395,8 +398,9 @@ const RetentionPolicies = () => {
                   </div>
 
                   <div className="form-group">
-                    <label>
+                    <label htmlFor="policy-enabled">
                       <input
+                        id="policy-enabled"
                         type="checkbox"
                         name="enabled"
                         checked={formData.enabled}
@@ -407,8 +411,9 @@ const RetentionPolicies = () => {
                   </div>
 
                   <div className="form-group">
-                    <label>Run Frequency</label>
+                    <label htmlFor="run-frequency">Run Frequency</label>
                     <select
+                      id="run-frequency"
                       name="run_frequency"
                       value={formData.run_frequency}
                       onChange={handleInputChange}
@@ -423,8 +428,9 @@ const RetentionPolicies = () => {
                 <h3 className="section-title">Archive Criteria</h3>
                 <div className="form-grid">
                   <div className="form-group">
-                    <label>Retention Days</label>
+                    <label htmlFor="retention-days">Retention Days</label>
                     <input
+                      id="retention-days"
                       type="number"
                       name="retention_days"
                       value={formData.retention_days}
@@ -435,8 +441,9 @@ const RetentionPolicies = () => {
                   </div>
 
                   <div className="form-group">
-                    <label>Min Quality Score (%)</label>
+                    <label htmlFor="min-quality-score">Min Quality Score (%)</label>
                     <input
+                      id="min-quality-score"
                       type="number"
                       name="min_quality_score"
                       value={formData.min_quality_score}
@@ -449,8 +456,9 @@ const RetentionPolicies = () => {
                   </div>
 
                   <div className="form-group">
-                    <label>Max File Size (MB)</label>
+                    <label htmlFor="max-file-size">Max File Size (MB)</label>
                     <input
+                      id="max-file-size"
                       type="number"
                       name="max_file_size_mb"
                       value={formData.max_file_size_mb}
@@ -461,8 +469,9 @@ const RetentionPolicies = () => {
                   </div>
 
                   <div className="form-group">
-                    <label>Access Pattern</label>
+                    <label htmlFor="access-pattern">Access Pattern</label>
                     <select
+                      id="access-pattern"
                       name="access_pattern"
                       value={formData.access_pattern}
                       onChange={handleInputChange}
@@ -475,8 +484,9 @@ const RetentionPolicies = () => {
                   </div>
 
                   <div className="form-group full-width">
-                    <label>File Types (comma-separated)</label>
+                    <label htmlFor="file-types">File Types (comma-separated)</label>
                     <input
+                      id="file-types"
                       type="text"
                       name="file_types"
                       value={formData.file_types.join(', ')}
@@ -486,8 +496,9 @@ const RetentionPolicies = () => {
                   </div>
 
                   <div className="form-group full-width">
-                    <label>Tags (comma-separated)</label>
+                    <label htmlFor="policy-tags">Tags (comma-separated)</label>
                     <input
+                      id="policy-tags"
                       type="text"
                       name="tags"
                       value={formData.tags.join(', ')}
@@ -497,8 +508,9 @@ const RetentionPolicies = () => {
                   </div>
 
                   <div className="form-group full-width">
-                    <label>Custom SQL Condition (Advanced)</label>
+                    <label htmlFor="custom-condition">Custom SQL Condition (Advanced)</label>
                     <textarea
+                      id="custom-condition"
                       name="custom_condition"
                       value={formData.custom_condition}
                       onChange={handleInputChange}
@@ -511,8 +523,9 @@ const RetentionPolicies = () => {
                 <h3 className="section-title">Archive Destination</h3>
                 <div className="form-grid">
                   <div className="form-group">
-                    <label>Storage Type *</label>
+                    <label htmlFor="storage-type">Storage Type *</label>
                     <select
+                      id="storage-type"
                       name="archive_storage_type"
                       value={formData.archive_storage_type}
                       onChange={handleInputChange}
@@ -527,8 +540,9 @@ const RetentionPolicies = () => {
 
                   {formData.archive_storage_type !== 'local' && (
                     <div className="form-group">
-                      <label>Storage Connection</label>
+                      <label htmlFor="storage-connection">Storage Connection</label>
                       <select
+                        id="storage-connection"
                         name="archive_connection_id"
                         value={formData.archive_connection_id}
                         onChange={handleInputChange}
@@ -546,8 +560,9 @@ const RetentionPolicies = () => {
                   )}
 
                   <div className="form-group full-width">
-                    <label>Archive Path Prefix</label>
+                    <label htmlFor="archive-path-prefix">Archive Path Prefix</label>
                     <input
+                      id="archive-path-prefix"
                       type="text"
                       name="archive_path_prefix"
                       value={formData.archive_path_prefix}

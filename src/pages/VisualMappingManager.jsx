@@ -4,7 +4,6 @@ import axios from 'axios';
 import './VisualMappingManager.css';
 import { 
   FaPlus, 
-  FaClock, 
   FaSearch,
   FaFilter,
   FaHistory,
@@ -250,14 +249,14 @@ const VisualMappingManager = () => {
       {error && (
         <div className="visual-mapping-manager-alert visual-mapping-manager-alert-error">
           {error}
-          <button onClick={() => setError(null)} className="visual-mapping-manager-alert-close">×</button>
+          <button onClick={() => setError(null)} className="visual-mapping-manager-alert-close" aria-label="Close error message">×</button>
         </div>
       )}
       
       {success && (
         <div className="visual-mapping-manager-alert visual-mapping-manager-alert-success">
           {success}
-          <button onClick={() => setSuccess(null)} className="visual-mapping-manager-alert-close">×</button>
+          <button onClick={() => setSuccess(null)} className="visual-mapping-manager-alert-close" aria-label="Close success message">×</button>
         </div>
       )}
       
@@ -265,7 +264,9 @@ const VisualMappingManager = () => {
       <div className="visual-mapping-manager-filters">
         <div className="visual-mapping-manager-filter-group">
           <FaSearch className="visual-mapping-manager-filter-icon" />
+          <label htmlFor="search-mappings-input" className="sr-only">Search mappings</label>
           <input
+            id="search-mappings-input"
             type="text"
             placeholder="Search mappings..."
             value={searchQuery}
@@ -276,7 +277,9 @@ const VisualMappingManager = () => {
         
         <div className="visual-mapping-manager-filter-group">
           <FaFilter className="visual-mapping-manager-filter-icon" />
+          <label htmlFor="project-filter-select" className="sr-only">Filter by project</label>
           <select
+            id="project-filter-select"
             value={selectedProject}
             onChange={(e) => {
               setSelectedProject(e.target.value);
@@ -294,7 +297,9 @@ const VisualMappingManager = () => {
         {selectedProject && (
           <div className="visual-mapping-manager-filter-group">
             <FaFilter className="visual-mapping-manager-filter-icon" />
+            <label htmlFor="subproject-filter-select" className="sr-only">Filter by sub-project</label>
             <select
+              id="subproject-filter-select"
               value={selectedSubProject}
               onChange={(e) => setSelectedSubProject(e.target.value)}
               className="visual-mapping-manager-filter-select"
@@ -331,7 +336,9 @@ const VisualMappingManager = () => {
             <thead>
               <tr>
                 <th>
+                  <label htmlFor="select-all-mappings" className="sr-only">Select all mappings</label>
                   <input
+                    id="select-all-mappings"
                     type="checkbox"
                     checked={selectedMappings.size === filteredMappings.length && filteredMappings.length > 0}
                     onChange={toggleSelectAll}
@@ -359,7 +366,9 @@ const VisualMappingManager = () => {
                 filteredMappings.map(mapping => (
                   <tr key={mapping.id}>
                     <td>
+                      <label htmlFor={`select-mapping-${mapping.id}`} className="sr-only">Select {mapping.name}</label>
                       <input
+                        id={`select-mapping-${mapping.id}`}
                         type="checkbox"
                         checked={selectedMappings.has(mapping.id)}
                         onChange={() => toggleSelectMapping(mapping.id)}
@@ -430,8 +439,12 @@ const VisualMappingManager = () => {
         <div className="visual-mapping-manager-modal-overlay" onClick={() => setShowHistoryModal(false)}>
           <div className="visual-mapping-manager-modal" onClick={(e) => e.stopPropagation()}>
             <div className="visual-mapping-manager-modal-header">
-              <h2>Execution History</h2>
-              <button onClick={() => setShowHistoryModal(false)} className="visual-mapping-manager-modal-close">
+              <h2 id="history-modal-title">Execution History</h2>
+              <button 
+                onClick={() => setShowHistoryModal(false)} 
+                className="visual-mapping-manager-modal-close"
+                aria-label="Close execution history modal"
+              >
                 ×
               </button>
             </div>

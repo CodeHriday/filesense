@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import PropTypes from 'prop-types';
 import { FiTag, FiPlus, FiEdit2, FiTrash2, FiAlertCircle, FiX } from 'react-icons/fi';
 import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
@@ -33,6 +34,12 @@ function ConfirmDeleteModal({ tagName, onConfirm, onCancel }) {
     </div>
   );
 }
+
+ConfirmDeleteModal.propTypes = {
+  tagName: PropTypes.string.isRequired,
+  onConfirm: PropTypes.func.isRequired,
+  onCancel: PropTypes.func.isRequired
+};
 
 function TagManagement() {
   const [tags, setTags] = useState([]);
@@ -275,8 +282,9 @@ function TagManagement() {
             <form onSubmit={handleSubmit}>
               <div className="gps-modal-body">
                 <div className="gps-form-group">
-                  <label className="gps-label">Tag Name *</label>
+                  <label htmlFor="tag-name" className="gps-label">Tag Name *</label>
                   <input
+                    id="tag-name"
                     type="text"
                     className="gps-input"
                     value={formData.tag_name}
@@ -287,8 +295,9 @@ function TagManagement() {
                 </div>
 
                 <div className="gps-form-group">
-                  <label className="gps-label">Description</label>
+                  <label htmlFor="tag-description" className="gps-label">Description</label>
                   <textarea
+                    id="tag-description"
                     className="gps-textarea"
                     value={formData.description}
                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
@@ -298,9 +307,10 @@ function TagManagement() {
                 </div>
 
                 <div className="gps-form-group">
-                  <label className="gps-label">Badge Color</label>
+                  <label htmlFor="badge-color" className="gps-label">Badge Color</label>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                     <input
+                      id="badge-color"
                       type="color"
                       value={formData.color}
                       onChange={(e) => setFormData({ ...formData, color: e.target.value })}
@@ -316,8 +326,9 @@ function TagManagement() {
                 </div>
 
                 <div className="gps-form-group">
-                  <label className="gps-label">Permission Level *</label>
+                  <label htmlFor="permission-level" className="gps-label">Permission Level *</label>
                   <select
+                    id="permission-level"
                     className="gps-select"
                     value={formData.permission_level}
                     onChange={(e) => setFormData({ ...formData, permission_level: e.target.value })}
@@ -333,8 +344,9 @@ function TagManagement() {
                 </div>
 
                 <div className="gps-form-group">
-                  <label className="gps-label">Sensitivity Level *</label>
+                  <label htmlFor="sensitivity-level" className="gps-label">Sensitivity Level *</label>
                   <select
+                    id="sensitivity-level"
                     className="gps-select"
                     value={formData.sensitivity_level}
                     onChange={(e) => setFormData({ ...formData, sensitivity_level: e.target.value })}

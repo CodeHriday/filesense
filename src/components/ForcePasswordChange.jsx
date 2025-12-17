@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import axios from 'axios';
 import PasswordInput from './PasswordInput';
 import '../styles/ForcePasswordChange.css';
+import PropTypes from 'prop-types';
 
 const ForcePasswordChange = ({ onPasswordChanged }) => {
   const [newPassword, setNewPassword] = useState('');
@@ -109,6 +110,9 @@ const ForcePasswordChange = ({ onPasswordChanged }) => {
       </div>
     </div>
   );
+};
+ForcePasswordChange.propTypes = {
+  onPasswordChanged: PropTypes.func.isRequired
 };
 
 export default ForcePasswordChange;

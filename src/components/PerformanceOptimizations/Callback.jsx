@@ -9,7 +9,7 @@ const CallbackExample = () => {
   const data = React.useMemo(() => {
     return Array.from({ length: 100 }, (_, i) => ({
       id: i,
-      value: Math.random() * 100,
+      value: (crypto.getRandomValues(new Uint32Array(1))[0] / 0xFFFFFFFF) * 100,
       version: dataVersion
     }));
   }, [dataVersion]); // Only regenerate when dataVersion changes

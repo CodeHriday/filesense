@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import PropTypes from 'prop-types';
 import {
   DndContext,
   closestCenter,
@@ -350,7 +351,9 @@ const DashboardLayoutCreator = ({
   useEffect(() => {
     // Generate random ID for widgets
     const generateLocalId = () => {
-      return `widget-${Math.random().toString(36).substr(2, 9)}`;
+      const array = new Uint8Array(5);
+      crypto.getRandomValues(array);
+      return `widget-${Array.from(array, byte => byte.toString(36)).join('')}`;
     };
 
     // Ensure initialLayout is always treated as an array
@@ -396,7 +399,9 @@ const DashboardLayoutCreator = ({
   
   // Generate random ID for widgets
   const generateId = () => {
-    return `widget-${Math.random().toString(36).substr(2, 9)}`;
+    const array = new Uint8Array(5);
+    crypto.getRandomValues(array);
+    return `widget-${Array.from(array, byte => byte.toString(36)).join('')}`;
   };
   
   // Handle drag start
@@ -563,6 +568,51 @@ const DashboardLayoutCreator = ({
       )}
     </div>
   );
+};
+SortableWidgetItem.propTypes = {
+  id: PropTypes.string.isRequired,
+  widget: PropTypes.shape({
+    id: PropTypes.string,
+    type: PropTypes.string.isRequired,
+    title: PropTypes.string,
+    width: PropTypes.number,
+    height: PropTypes.number,
+    position: PropTypes.number
+  }).isRequired,
+  onRemove: PropTypes.func,
+  onResize: PropTypes.func,
+  onConfigureWidget: PropTypes.func
+};
+
+DragOverlayWidget.propTypes = {
+  widget: PropTypes.shape({
+    id: PropTypes.string,
+    type: PropTypes.string.isRequired,
+    title: PropTypes.string,
+    width: PropTypes.number,
+    height: PropTypes.number
+  }).isRequired
+};
+
+AddWidgetPanel.propTypes = {
+  onAddWidget: PropTypes.func.isRequired,
+  onClose: PropTypes.func.isRequired
+};
+DashboardLayoutCreator.propTypes = {
+  initialLayout: PropTypes.arrayOf(
+    PropTypes.shape({
+      id: PropTypes.string,
+      type: PropTypes.string.isRequired,
+      title: PropTypes.string,
+      width: PropTypes.number,
+      height: PropTypes.number,
+      position: PropTypes.number
+    })
+  ),
+  onSaveLayout: PropTypes.func,
+  readOnly: PropTypes.bool,
+  maxColumns: PropTypes.number,
+  maxRows: PropTypes.number
 };
 
 export default DashboardLayoutCreator;

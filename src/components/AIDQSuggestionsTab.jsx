@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { FiZap, FiAlertTriangle, FiCheckCircle, FiPlus, FiRefreshCw, FiToggleLeft, FiToggleRight, FiInfo, FiCheck, FiX, FiCpu, FiCloud, FiLock, FiChevronDown } from 'react-icons/fi';
 import LoadingSpinner from './LoadingSpinner';
 import './AIDQSuggestionsTab.css';
+import PropTypes from 'prop-types';
 
 const STORAGE_KEY_PREFIX = 'ai_dq_suggestions_';
 
@@ -582,6 +583,44 @@ const AIDQSuggestionsTab = ({ fileId, filename, columns, projectId }) => {
       )}
     </div>
   );
+};
+
+
+AIDQSuggestionsTab.propTypes = {
+  /** Unique file identifier */
+  fileId: PropTypes.oneOfType([
+    PropTypes.string,
+    PropTypes.number
+  ]).isRequired,
+
+  /** File name */
+  filename: PropTypes.string.isRequired,
+
+  /** Columns metadata used for AI analysis */
+  columns: PropTypes.arrayOf(
+    PropTypes.shape({
+      name: PropTypes.string.isRequired,
+      type: PropTypes.string,
+      completeness: PropTypes.number,
+      nullPercentage: PropTypes.number,
+      null_count: PropTypes.number,
+      uniqueCount: PropTypes.number,
+      distinct_count: PropTypes.number,
+      patterns: PropTypes.arrayOf(PropTypes.string),
+      semanticType: PropTypes.string
+    })
+  ),
+
+  /** Optional project ID to associate created rules */
+  projectId: PropTypes.oneOfType([
+    PropTypes.string,
+    PropTypes.number
+  ])
+};
+
+AIDQSuggestionsTab.defaultProps = {
+  columns: [],
+  projectId: null
 };
 
 export default AIDQSuggestionsTab;

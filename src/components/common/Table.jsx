@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import PropTypes from 'prop-types';
+
 import './Table.css';
 
 const Table = ({ 
@@ -128,7 +130,7 @@ const Table = ({
               {paginatedData.map((row, rowIndex) => (
                 <tr key={row.id || rowIndex}>
                   {columns.map((column, colIndex) => (
-                    <td key={colIndex}>
+                    <td key={`col-${column.accessor || column.header || colIndex}`}>
                       {column.cell ? column.cell(row) : row[column.accessor]}
                     </td>
                   ))}
@@ -150,7 +152,7 @@ const Table = ({
               
               {getPageNumbers().map((page, index) => (
                 <button
-                  key={index}
+                  key={`page-btn-${page}-${index}`}
                   onClick={() => typeof page === 'number' && handlePageChange(page)}
                   className={`pagination-button ${currentPage === page ? 'active' : ''}`}
                   disabled={page === '...'}
@@ -173,6 +175,28 @@ const Table = ({
       )}
     </div>
   );
+};
+Table.propTypes = {
+  data: PropTypes.arrayOf(PropTypes.object),
+  
+  columns: PropTypes.arrayOf(
+    PropTypes.shape({
+      header: PropTypes.string.isRequired,
+      accessor: PropTypes.string,
+      cell: PropTypes.func
+    })
+  ),
+
+  pageSize: PropTypes.number,
+  sortable: PropTypes.bool,
+  className: PropTypes.string
+};
+Table.defaultProps = {
+  data: [],
+  columns: [],
+  pageSize: 10,
+  sortable: true,
+  className: ''
 };
 
 export default Table;

@@ -1,6 +1,7 @@
 import React from 'react';
 import { FiAlertCircle, FiLock, FiFileText, FiAlertTriangle, FiXCircle, FiShield } from 'react-icons/fi';
 import './DLQBadge.css';
+import PropTypes from 'prop-types';
 
 const DLQ_REASON_CONFIG = {
   virus_detected: {
@@ -85,7 +86,15 @@ export const DLQBadge = ({ reasonCode, errorMessage, compact = false }) => {
     </span>
   );
 };
+DLQBadge.propTypes = {
+  reasonCode: PropTypes.string,
+  errorMessage: PropTypes.string,
+  compact: PropTypes.bool
+};
 
+DLQBadge.defaultProps = {
+  compact: false
+};
 export const DLQReasonText = ({ reasonCode, errorMessage }) => {
   if (!reasonCode) {
     return <span className="dlq-reason-text" title={errorMessage || 'Processing failed'}>Failed</span>;
@@ -99,5 +108,8 @@ export const DLQReasonText = ({ reasonCode, errorMessage }) => {
     </span>
   );
 };
-
+DLQReasonText.propTypes = {
+  reasonCode: PropTypes.string,
+  errorMessage: PropTypes.string
+};
 export default DLQBadge;

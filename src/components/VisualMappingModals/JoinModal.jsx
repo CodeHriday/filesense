@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { FaPlus, FaTrash } from 'react-icons/fa';
 import './MappingConfigModal.css';
+import PropTypes from 'prop-types';
+
 
 const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [], rightSchema = [], leftNodeName = '', rightNodeName = '' }) => {
   const [name, setName] = useState('');
@@ -232,7 +234,7 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
       <div className="vm-modal vm-modal-large">
         <div className="vm-modal-header">
           <h2>Join Configuration</h2>
-          <button onClick={onClose} className="vm-modal-close">×</button>
+          <button onClick={onClose} className="vm-modal-close" aria-label="Close modal">×</button>
         </div>
 
         <div className="vm-tabs">
@@ -260,8 +262,9 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
           {activeTab === 'configuration' && (
             <div>
               <div className="vm-form-group">
-                <label>Name *</label>
+                <label htmlFor="join-name-input">Name *</label>
                 <input
+                  id="join-name-input"
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
@@ -272,8 +275,9 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
               </div>
               
               <div className="vm-form-group">
-                <label>Description</label>
+                <label htmlFor="join-description">Description</label>
                 <textarea
+                  id="join-description"
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   placeholder="Optional description"
@@ -283,8 +287,9 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
               </div>
               
               <div className="vm-form-group">
-                <label>Join Type</label>
+                <label htmlFor="join-type-select">Join Type</label>
                 <select 
+                  id="join-type-select"
                   className="vm-select"
                   value={joinType}
                   onChange={(e) => setJoinType(e.target.value)}
@@ -320,7 +325,9 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
                       {joinKeys.map((key, index) => (
                         <tr key={index}>
                           <td>
+                            <label htmlFor={`leftColumn-${index}`} className="sr-only">Left Column {index + 1}</label>
                             <select
+                              id={`leftColumn-${index}`}
                               className="vm-select"
                               value={key.leftColumn}
                               onChange={(e) => updateJoinKey(index, 'leftColumn', e.target.value)}
@@ -332,7 +339,9 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
                             </select>
                           </td>
                           <td>
+                            <label htmlFor={`operator-${index}`} className="sr-only">Operator {index + 1}</label>
                             <select
+                              id={`operator-${index}`}
                               className="vm-select"
                               value={key.operator}
                               onChange={(e) => updateJoinKey(index, 'operator', e.target.value)}
@@ -346,7 +355,9 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
                             </select>
                           </td>
                           <td>
+                            <label htmlFor={`rightColumn-${index}`} className="sr-only">Right Column {index + 1}</label>
                             <select
+                              id={`rightColumn-${index}`}
                               className="vm-select"
                               value={key.rightColumn}
                               onChange={(e) => updateJoinKey(index, 'rightColumn', e.target.value)}
@@ -362,6 +373,7 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
                               className="vm-btn vm-btn-secondary"
                               onClick={() => removeJoinKey(index)}
                               style={{ padding: '4px 8px', fontSize: '9px' }}
+                              aria-label={`Remove join key ${index + 1}`}
                             >
                               <FaTrash />
                             </button>
@@ -377,6 +389,7 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
                 className="vm-btn vm-btn-primary"
                 onClick={addJoinKey}
                 style={{ marginTop: '8px' }}
+                aria-label="Add new join key"
               >
                 <FaPlus /> Add Join Key
               </button>
@@ -390,7 +403,7 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
                   <span style={{ fontSize: '10px', fontFamily: 'Inter, sans-serif', fontWeight: 500, color: '#333' }}>
                     Include All {leftNodeName || 'Left'}
                   </span>
-                  <label style={{ 
+                  <label htmlFor="toggle-left-columns" style={{ 
                     position: 'relative', 
                     display: 'inline-block', 
                     width: '36px', 
@@ -398,6 +411,7 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
                     cursor: 'pointer'
                   }}>
                     <input
+                      id="toggle-left-columns"
                       type="checkbox"
                       checked={getLeftIncludeState()}
                       onChange={toggleAllLeftColumns}
@@ -429,7 +443,7 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
                   <span style={{ fontSize: '10px', fontFamily: 'Inter, sans-serif', fontWeight: 500, color: '#333' }}>
                     Include All {rightNodeName || 'Right'}
                   </span>
-                  <label style={{ 
+                  <label htmlFor="toggle-right-columns" style={{ 
                     position: 'relative', 
                     display: 'inline-block', 
                     width: '36px', 
@@ -437,6 +451,7 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
                     cursor: 'pointer'
                   }}>
                     <input
+                      id="toggle-right-columns"
                       type="checkbox"
                       checked={getRightIncludeState()}
                       onChange={toggleAllRightColumns}
@@ -480,7 +495,9 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
                     {columnMappings.map((mapping, index) => (
                       <tr key={index}>
                         <td>
+                          <label htmlFor={`sourceSide-${index}`} className="sr-only">Source Side {index + 1}</label>
                           <select
+                            id={`sourceSide-${index}`}
                             className="vm-select"
                             value={mapping.sourceSide}
                             onChange={(e) => updateColumnMapping(index, 'sourceSide', e.target.value)}
@@ -490,7 +507,9 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
                           </select>
                         </td>
                         <td>
+                          <label htmlFor={`sourceColumn-mapping-${index}`} className="sr-only">Source Column {index + 1}</label>
                           <select
+                            id={`sourceColumn-mapping-${index}`}
                             className="vm-select"
                             value={mapping.sourceColumn}
                             onChange={(e) => updateColumnMapping(index, 'sourceColumn', e.target.value)}
@@ -506,7 +525,9 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
                           </select>
                         </td>
                         <td>
+                          <label htmlFor={`outputColumn-${index}`} className="sr-only">Output Column Name {index + 1}</label>
                           <input
+                            id={`outputColumn-${index}`}
                             type="text"
                             className="vm-input"
                             value={mapping.outputColumn}
@@ -515,7 +536,9 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
                           />
                         </td>
                         <td style={{ textAlign: 'center' }}>
+                          <label htmlFor={`includeColumn-${index}`} className="sr-only">Include Column {index + 1}</label>
                           <input
+                            id={`includeColumn-${index}`}
                             type="checkbox"
                             checked={mapping.include}
                             onChange={(e) => updateColumnMapping(index, 'include', e.target.checked)}
@@ -526,6 +549,7 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
                             className="vm-btn vm-btn-secondary"
                             onClick={() => removeColumnMapping(index)}
                             style={{ padding: '4px 8px', fontSize: '9px' }}
+                            aria-label={`Remove column mapping ${index + 1}`}
                           >
                             <FaTrash />
                           </button>
@@ -540,6 +564,7 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
                 className="vm-btn vm-btn-primary"
                 onClick={addColumnMapping}
                 style={{ marginTop: '8px', marginBottom: '16px' }}
+                aria-label="Add new column mapping"
               >
                 <FaPlus /> Add Column Mapping
               </button>
@@ -572,6 +597,34 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
       </div>
     </div>
   );
+};
+JoinModal.propTypes = {
+  isOpen: PropTypes.bool.isRequired,
+  onClose: PropTypes.func.isRequired,
+  onSave: PropTypes.func.isRequired,
+
+  initialConfig: PropTypes.shape({
+    name: PropTypes.string,
+    description: PropTypes.string,
+    joinType: PropTypes.string,
+    joinKeys: PropTypes.array,
+    columnMappings: PropTypes.array
+  }),
+
+  leftSchema: PropTypes.arrayOf(
+    PropTypes.shape({
+      name: PropTypes.string.isRequired
+    })
+  ),
+
+  rightSchema: PropTypes.arrayOf(
+    PropTypes.shape({
+      name: PropTypes.string.isRequired
+    })
+  ),
+
+  leftNodeName: PropTypes.string,
+  rightNodeName: PropTypes.string
 };
 
 export default JoinModal;

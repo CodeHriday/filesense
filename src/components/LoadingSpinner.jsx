@@ -1,5 +1,6 @@
 import React from 'react';
 import './LoadingSpinner.css';
+import PropTypes from 'prop-types';
 
 const LoadingSpinner = ({ 
   size = 'medium', 
@@ -17,5 +18,11 @@ const LoadingSpinner = ({
     </div>
   );
 };
-
+LoadingSpinner.propTypes = {
+  size: PropTypes.oneOf(['small', 'medium', 'large']),
+  message: PropTypes.string,
+  fullPage: PropTypes.bool,
+  className: PropTypes.string,
+  showMessage: PropTypes.bool
+};
 export default LoadingSpinner;

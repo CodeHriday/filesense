@@ -231,10 +231,15 @@ class FastSchemaValidationService {
     const files = result.rows.map(row => {
       let validationResult = {};
       try {
-        validationResult = typeof row.validation_result === 'string' 
-          ? JSON.parse(row.validation_result) 
+        validationResult = typeof row.validation_result === 'string'
+          ? JSON.parse(row.validation_result)
           : (row.validation_result || {});
       } catch (e) {
+        systemLogger.warn('Invalid validation_result JSON, using empty object', {
+          error: e.message,
+          validation_result: row.validation_result,
+        });
+
         validationResult = {};
       }
       
@@ -762,12 +767,19 @@ class FastSchemaValidationService {
             'vendor_agreement_file_schema',
             schema.id.toString()
           );
+
           if (password) {
             passwordMap[schema.file_name_pattern] = password;
             passwordMap[`schema_${schema.id}`] = password;
           }
         } catch (err) {
-          // No password for this schema - that's okay
+          systemLogger.debug(
+            'No password found for vendor agreement file schema',
+            {
+              schemaId: schema.id,
+              error: err.message,
+            }
+          );
         }
       }
       
@@ -826,7 +838,6 @@ class FastSchemaValidationService {
     for (const file of files) {
       const filePath = file.file_path || file.filePath;
       const fileName = path.basename(filePath);
-      const ext = path.extname(fileName).toLowerCase();
       
       // Check if this is an archive file
       const isArchive = ARCHIVE_EXTENSIONS.some(archiveExt => 
@@ -972,7 +983,7 @@ except Exception as e:
     print(json.dumps({'success': False, 'error': str(e)}))
 `;
       
-      const pythonProcess = spawn('python3', ['-c', pythonScript, archivePath, outputDir, password || '__NO_PASSWORD__']);
+      const pythonProcess = spawn('python3', ['-c', pythonScript, archivePath, outputDir, password || '__NO_PASSWORD__']); // NOSONAR S4036 - PATH controlled in deployment environment, hardcoded python command with validated parameters
       let stdout = '';
       let stderr = '';
       
@@ -1097,7 +1108,7 @@ except Exception as e:
   static async getFileMetadata(s3, bucket, filePath) {
     try {
       const s3Key = this.extractS3Key(filePath, bucket);
-      
+
       // Check if this is a local extracted file
       if (fs.existsSync(filePath)) {
         const stats = fs.statSync(filePath);
@@ -1107,16 +1118,24 @@ except Exception as e:
           lastModified: stats.mtime
         };
       }
-      
+
       // Get metadata from S3
-      const headResponse = await s3.headObject({ Bucket: bucket, Key: s3Key }).promise();
-      
+      const headResponse = await s3
+        .headObject({ Bucket: bucket, Key: s3Key })
+        .promise();
+
       return {
         size: headResponse.ContentLength,
         fileType: path.extname(s3Key).slice(1).toLowerCase() || 'unknown',
         lastModified: headResponse.LastModified
       };
     } catch (error) {
+      systemLogger.warn('Failed to get file metadata, returning defaults', {
+        error: error.message,
+        filePath,
+        bucket
+      });
+
       return {
         size: null,
         fileType: path.extname(filePath).slice(1).toLowerCase() || 'unknown',
@@ -1389,7 +1408,6 @@ except Exception as e:
 
     const missingColumns = [];
     const extraColumns = [];
-    const typeMismatches = [];
 
     const actualColumnNames = actualColumns.map(c => c.toLowerCase());
     const expectedColumnNames = expectedColumns.map(c => c.name.toLowerCase());
@@ -1842,14 +1860,11 @@ except Exception as e:
     let buffer;
     
     // Handle local extracted files
-    if (isExtracted && fs.existsSync(filePath)) {
-      const fd = fs.openSync(filePath, 'r');
-      buffer = Buffer.alloc(65536);
-      const bytesRead = fs.readSync(fd, buffer, 0, 65536, 0);
-      fs.closeSync(fd);
-      buffer = buffer.slice(0, bytesRead);
-    } else if (!filePath.startsWith('s3://') && fs.existsSync(filePath)) {
-      // Local file path
+        if (
+      fs.existsSync(filePath) &&
+      (isExtracted || !filePath.startsWith('s3://'))
+    ) {
+      // Read from local file
       const fd = fs.openSync(filePath, 'r');
       buffer = Buffer.alloc(65536);
       const bytesRead = fs.readSync(fd, buffer, 0, 65536, 0);
@@ -1858,7 +1873,6 @@ except Exception as e:
     } else {
       // Read from S3
       const s3Key = this.extractS3Key(filePath, bucket);
-      
       const params = {
         Bucket: bucket,
         Key: s3Key,
@@ -1892,7 +1906,9 @@ except Exception as e:
       if (char === '"') {
         inQuotes = !inQuotes;
       } else if (char === ',' && !inQuotes) {
-        columns.push(current.trim().replace(/^"|"$/g, ''));
+        columns.push(
+        current.trim().replace(/^"/g, '').replace(/"$/g, '')
+        );
         current = '';
       } else {
         current += char;
@@ -1900,7 +1916,9 @@ except Exception as e:
     }
     
     if (current) {
-      columns.push(current.trim().replace(/^"|"$/g, ''));
+      columns.push(
+        current.trim().replace(/^"/g, '').replace(/"$/g, '')
+        );
     }
 
     return columns;
@@ -1914,25 +1932,32 @@ except Exception as e:
     
     try {
       const parsed = JSON.parse(content);
-      
+
       if (Array.isArray(parsed) && parsed.length > 0) {
         return Object.keys(parsed[0]);
       }
-      
-      if (typeof parsed === 'object') {
+
+      if (typeof parsed === 'object' && parsed !== null) {
         return Object.keys(parsed);
       }
-      
+
       return [];
     } catch (e) {
+      systemLogger.warn('Failed to parse JSON content, attempting fallback parsing', {
+        error: e.message,
+        contentPreview: content.slice(0, 200)
+      });
+
       const arrayMatch = content.match(/\[\s*\{([^}]+)\}/);
       if (arrayMatch) {
         const keyMatches = arrayMatch[1].match(/"([^"]+)"\s*:/g);
         if (keyMatches) {
-          return keyMatches.map(k => k.replace(/"/g, '').replace(':', '').trim());
+          return keyMatches.map(k =>
+            k.replace(/"/g, '').replace(':', '').trim()
+          );
         }
       }
-      throw new Error('Invalid JSON format');
+      throw new Error(`Invalid JSON format: ${e.message}`);
     }
   }
 
@@ -2226,9 +2251,6 @@ except Exception as e:
 
     for (const file of invalidFiles) {
       for (const col of file.missingColumns || []) {
-        const expectedCol = file.details?.expectedColumns?.find(c => 
-          c.toLowerCase() === col.toLowerCase()
-        );
         columnIssuesData.push([
           file.filePath,
           col,
@@ -2409,7 +2431,6 @@ except Exception as e:
    * @returns {Array} - Array of violations
    */
   static async executeRule(rule, data, metadata) {
-    const violations = [];
     const config = rule.rule_config || {};
     const ruleType = (rule.rule_type || '').toLowerCase();
     const columnName = rule.column_name;
@@ -2502,15 +2523,15 @@ except Exception as e:
       let reason = '';
 
       switch (validationType) {
-        case 'pattern':
+        case 'pattern': {
           if (config.pattern) {
             const regex = new RegExp(config.pattern);
             isValid = regex.test(String(value));
             reason = `Does not match pattern ${config.pattern}`;
           }
           break;
-        
-        case 'range':
+        }
+        case 'range': {
           const numValue = Number(value);
           if (!isNaN(numValue)) {
             if (config.min !== undefined && numValue < config.min) {
@@ -2523,13 +2544,14 @@ except Exception as e:
             }
           }
           break;
-        
-        case 'enum':
-          if (config.allowed_values && Array.isArray(config.allowed_values)) {
+        }
+        case 'enum': {
+          if (Array.isArray(config.allowed_values)) {
             isValid = config.allowed_values.includes(value);
             reason = `Value "${value}" not in allowed values`;
           }
           break;
+        }
       }
 
       if (!isValid) {
@@ -2571,9 +2593,9 @@ except Exception as e:
     // Define built-in patterns for common rule types
     const builtInPatterns = {
       'email_validity': /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/,
-      'phone_validity': /^[\d\s\-\+\(\)\.]{7,20}$/,
+      'phone_validity': /^[\d\s()+.-]{7,20}$/,
       'date_format': /^\d{4}-\d{2}-\d{2}$|^\d{2}\/\d{2}\/\d{4}$|^\d{2}-\d{2}-\d{4}$/,
-      'timestamp_format': /^\d{4}-\d{2}-\d{2}[T\s]\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:?\d{2})?$/
+      'timestamp_format': /^\d{4}-\d{2}-\d{2}[T\s]\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:?\d{2})?$/
     };
 
     // Use pattern from config if provided, otherwise use built-in pattern
@@ -2582,8 +2604,13 @@ except Exception as e:
       try {
         pattern = new RegExp(config.pattern);
       } catch (e) {
-        systemLogger.warn('Invalid regex pattern in rule config', { ruleId: rule.id, pattern: config.pattern });
-      }
+        systemLogger.warn('Invalid regex pattern in rule config', {
+          ruleId: rule.id,
+          pattern: config.pattern,
+          error: e.message
+      });
+      return; // or skip rule processing
+}
     } else if (builtInPatterns[ruleType]) {
       pattern = builtInPatterns[ruleType];
     }

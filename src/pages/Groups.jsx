@@ -6,6 +6,8 @@ import LoadingSpinner from '../components/LoadingSpinner';
 import PageHeader from '../components/PageHeader';
 import ConfirmModal from '../components/ConfirmModal';
 import '../styles/Groups.css';
+import PropTypes from 'prop-types';
+
 
 // Simple inline modal component to avoid component issues
 const SimpleModal = ({ show, title, onClose, children }) => {
@@ -468,6 +470,25 @@ const Groups = () => {
       />
     </div>
   );
+};
+SimpleModal.propTypes = {
+  show: PropTypes.bool.isRequired,
+  title: PropTypes.string.isRequired,
+  onClose: PropTypes.func.isRequired,
+  children: PropTypes.node.isRequired
+};
+SimpleButton.propTypes = {
+  primary: PropTypes.bool,
+  secondary: PropTypes.bool,
+  onClick: PropTypes.func,
+  type: PropTypes.oneOf(['button', 'submit', 'reset']),
+  children: PropTypes.node.isRequired
+};
+
+SimpleButton.defaultProps = {
+  primary: false,
+  secondary: false,
+  type: 'button'
 };
 
 export default Groups;

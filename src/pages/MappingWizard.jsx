@@ -10,8 +10,6 @@ import {
   FiArrowRight,
   FiSave,
   FiAlertCircle,
-  FiPlus,
-  FiTrash2,
   FiEdit,
   FiEdit2,
   FiPlay,
@@ -105,8 +103,6 @@ function MappingWizard() {
   const [loadingFiles, setLoadingFiles] = useState(false);
   const [validationStatus, setValidationStatus] = useState(null); // 'success', 'error', or null
   const [schemaDriftHandling, setSchemaDriftHandling] = useState('none'); // 'abort', 'alert', 'none'
-  const [schemaDriftDetected, setSchemaDriftDetected] = useState(false);
-  const [schemaDriftMessage, setSchemaDriftMessage] = useState('');
   const [sourceOwner, setSourceOwner] = useState('');
   const [availableSourceOwners, setAvailableSourceOwners] = useState([]);
   const [loadingSourceOwners, setLoadingSourceOwners] = useState(false);
@@ -1056,8 +1052,9 @@ function MappingWizard() {
             {/* Project and Sub Project side-by-side */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
               <div className="form-group">
-                <label style={{ fontSize: '10px', fontFamily: 'Inter', fontWeight: 600, textTransform: 'uppercase' }}>Project *</label>
+                <label htmlFor="project-select" style={{ fontSize: '10px', fontFamily: 'Inter', fontWeight: 600, textTransform: 'uppercase' }}>Project *</label>
                 <select
+                  id="project-select"
                   className="form-control"
                   value={projectId}
                   onChange={(e) => {
@@ -1079,8 +1076,9 @@ function MappingWizard() {
               </div>
 
               <div className="form-group">
-                <label style={{ fontSize: '10px', fontFamily: 'Inter', fontWeight: 600, textTransform: 'uppercase' }}>Sub Project</label>
+                <label htmlFor="subproject-select" style={{ fontSize: '10px', fontFamily: 'Inter', fontWeight: 600, textTransform: 'uppercase' }}>Sub Project</label>
                 <select
+                  id="subproject-select"
                   className="form-control"
                   value={subProjectId}
                   onChange={(e) => setSubProjectId(e.target.value ? parseInt(e.target.value) : '')}
@@ -1103,8 +1101,9 @@ function MappingWizard() {
             {/* Name and Description side-by-side */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
               <div className="form-group">
-                <label style={{ fontSize: '10px', fontFamily: 'Inter', fontWeight: 600, textTransform: 'uppercase' }}>Mapping Name *</label>
+                <label htmlFor="mapping-name" style={{ fontSize: '10px', fontFamily: 'Inter', fontWeight: 600, textTransform: 'uppercase' }}>Mapping Name *</label>
                 <input
+                  id="mapping-name"
                   type="text"
                   className="form-control"
                   value={mappingName}
@@ -1115,8 +1114,9 @@ function MappingWizard() {
               </div>
 
               <div className="form-group">
-                <label style={{ fontSize: '10px', fontFamily: 'Inter', fontWeight: 600, textTransform: 'uppercase' }}>Mapping Description</label>
+                <label htmlFor="mapping-description" style={{ fontSize: '10px', fontFamily: 'Inter', fontWeight: 600, textTransform: 'uppercase' }}>Mapping Description</label>
                 <input
+                  id="mapping-description"
                   type="text"
                   className="form-control"
                   value={mappingDescription}
@@ -1130,8 +1130,9 @@ function MappingWizard() {
             {/* Source Connection and Vendor Contract side-by-side */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
               <div className="form-group">
-                <label style={{ fontSize: '10px', fontFamily: 'Inter', fontWeight: 600, textTransform: 'uppercase' }}>Source Connection</label>
+                <label htmlFor="source-connection" style={{ fontSize: '10px', fontFamily: 'Inter', fontWeight: 600, textTransform: 'uppercase' }}>Source Connection</label>
                 <select
+                  id="source-connection"
                   className="form-control"
                   value={sourceConnectionId}
                   onChange={(e) => {
@@ -1157,8 +1158,9 @@ function MappingWizard() {
               </div>
 
               <div className="form-group">
-                <label style={{ fontSize: '10px', fontFamily: 'Inter', fontWeight: 600, textTransform: 'uppercase' }}>Vendor Contract</label>
+                <label htmlFor="vendor-contract" style={{ fontSize: '10px', fontFamily: 'Inter', fontWeight: 600, textTransform: 'uppercase' }}>Vendor Contract</label>
                 <select
+                  id="vendor-contract"
                   className="form-control"
                   value={selectedVendorAgreement}
                   onChange={(e) => {
@@ -1254,8 +1256,9 @@ function MappingWizard() {
             <div className="form-group">
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: '12px', alignItems: 'start' }}>
                 <div>
-                  <label style={{ fontSize: '10px', fontFamily: 'Inter', fontWeight: 600, textTransform: 'uppercase' }}>File Path *</label>
+                  <label htmlFor="file-path" style={{ fontSize: '10px', fontFamily: 'Inter', fontWeight: 600, textTransform: 'uppercase' }}>File Path *</label>
                   <input
+                    id="file-path"
                     type="text"
                     className="form-control"
                     value={filePath}
@@ -1269,8 +1272,9 @@ function MappingWizard() {
                   </small>
                 </div>
                 <div>
-                  <label style={{ fontSize: '10px', fontFamily: 'Inter', fontWeight: 600, textTransform: 'uppercase' }}>File Name/Pattern *</label>
+                  <label htmlFor="file-name-pattern" style={{ fontSize: '10px', fontFamily: 'Inter', fontWeight: 600, textTransform: 'uppercase' }}>File Name/Pattern *</label>
                   <input
+                    id="file-name-pattern"
                     type="text"
                     className="form-control"
                     value={fileNamePattern}
@@ -1308,11 +1312,12 @@ function MappingWizard() {
             {/* File Schema Selection - Show when agreement has multiple files */}
             {selectedVendorAgreement && agreementFileSchemas.length > 1 && (
               <div className="form-group">
-                <label style={{ fontSize: '10px', fontFamily: 'Inter', fontWeight: 600, textTransform: 'uppercase' }}>Select File Pattern * <span style={{ color: '#6b7280', fontWeight: 'normal', textTransform: 'none' }}>(From Vendor Contract)</span></label>
-                <select
-                  className="form-control"
-                  value={selectedFileSchema?.id || ''}
-                  onChange={(e) => {
+                  <label htmlFor="file-pattern-select" style={{ fontSize: '10px', fontFamily: 'Inter', fontWeight: 600, textTransform: 'uppercase' }}>Select File Pattern * <span style={{ color: '#6b7280', fontWeight: 'normal', textTransform: 'none' }}>(From Vendor Contract)</span></label>
+                  <select
+                    id="file-pattern-select"
+                    className="form-control"
+                    value={selectedFileSchema?.id || ''}
+                    onChange={(e) => {
                     const schemaId = parseInt(e.target.value);
                     const schema = agreementFileSchemas.find(s => s.id === schemaId);
                     setSelectedFileSchema(schema);
@@ -1404,8 +1409,9 @@ function MappingWizard() {
 
             {/* Source Owner Field */}
             <div className="form-group">
-              <label style={{ fontSize: '10px', fontFamily: 'Inter', fontWeight: 600, textTransform: 'uppercase' }}>Source File Owner</label>
+              <label htmlFor="source-owner" style={{ fontSize: '10px', fontFamily: 'Inter', fontWeight: 600, textTransform: 'uppercase' }}>Source File Owner</label>
               <select
+                id="source-owner"
                 className="form-control"
                 value={sourceOwner}
                 onChange={(e) => setSourceOwner(e.target.value)}
@@ -1660,8 +1666,9 @@ function MappingWizard() {
               marginBottom: '1.5rem'
             }}>
               <div className="form-group" style={{ marginBottom: 0 }}>
-                <label style={{ fontSize: '10px', fontFamily: 'Inter', fontWeight: 600, textTransform: 'uppercase' }}>Target Connection</label>
+                <label htmlFor="target-connection-select" style={{ fontSize: '10px', fontFamily: 'Inter', fontWeight: 600, textTransform: 'uppercase' }}>Target Connection</label>
                 <select
+                  id="target-connection-select"
                   className="form-control"
                   value={targetConnectionId}
                   onChange={(e) => setTargetConnectionId(e.target.value)}
@@ -1680,9 +1687,10 @@ function MappingWizard() {
               </div>
 
               <div className="form-group" style={{ marginBottom: 0 }}>
-                <label style={{ fontSize: '10px', fontFamily: 'Inter', fontWeight: 600, textTransform: 'uppercase' }}>Target File Path</label>
+                <label htmlFor="target-file-path-input" style={{ fontSize: '10px', fontFamily: 'Inter', fontWeight: 600, textTransform: 'uppercase' }}>Target File Path</label>
                 <div style={{ display: 'flex', gap: '8px' }}>
                   <input
+                    id="target-file-path-input"
                     type="text"
                     className="form-control"
                     value={targetFilePath}
@@ -1707,8 +1715,9 @@ function MappingWizard() {
               </div>
 
               <div className="form-group" style={{ marginBottom: 0 }}>
-                <label style={{ fontSize: '10px', fontFamily: 'Inter', fontWeight: 600, textTransform: 'uppercase' }}>Target File Name</label>
+                <label htmlFor="target-file-name-input" style={{ fontSize: '10px', fontFamily: 'Inter', fontWeight: 600, textTransform: 'uppercase' }}>Target File Name</label>
                 <input
+                  id="target-file-name-input"
                   type="text"
                   className="form-control"
                   value={targetFileName}
@@ -1722,8 +1731,9 @@ function MappingWizard() {
               </div>
 
               <div className="form-group" style={{ marginBottom: 0 }}>
-                <label style={{ fontSize: '10px', fontFamily: 'Inter', fontWeight: 600, textTransform: 'uppercase' }}>Target File Format</label>
+                <label htmlFor="target-file-format-select" style={{ fontSize: '10px', fontFamily: 'Inter', fontWeight: 600, textTransform: 'uppercase' }}>Target File Format</label>
                 <select
+                  id="target-file-format-select"
                   className="form-control"
                   value={targetFileFormat}
                   onChange={(e) => setTargetFileFormat(e.target.value)}
@@ -1740,8 +1750,9 @@ function MappingWizard() {
             </div>
 
             <div className="form-group">
-              <label style={{ fontSize: '10px', fontFamily: 'Inter', fontWeight: 600, textTransform: 'uppercase' }}>Target File Owner (Data Steward)</label>
+              <label htmlFor="target-owner-select" style={{ fontSize: '10px', fontFamily: 'Inter', fontWeight: 600, textTransform: 'uppercase' }}>Target File Owner (Data Steward)</label>
               <select
+                id="target-owner-select"
                 className="form-control"
                 value={targetOwner}
                 onChange={(e) => setTargetOwner(e.target.value)}

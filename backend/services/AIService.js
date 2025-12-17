@@ -8,7 +8,8 @@
 
 const NodeCache = require('node-cache');
 const path = require('path');
-const fs = require('fs'); 
+const fs = require('fs');
+const crypto = require('crypto');
 const { systemLogger: logger } = require('../utils/logger');
 
 // Use dynamic import for ES modules
@@ -858,7 +859,8 @@ class AIService {
         `Hi! I've taken a look at your "${filename}" file, and it looks interesting! With ${rowCount} rows and ${columnCount} columns, there's definitely some good data to explore. What questions do you have about it?`,
         `Hello! I'm your personal data analyst for this session. I can see you've got "${filename}" loaded up - it's a ${fileType} file with ${columnCount} different columns and ${rowCount} records. What would you like to discover about your data?`
       ];
-      return greetings[Math.floor(Math.random() * greetings.length)];
+      const randomIndex = crypto.randomInt(0, greetings.length);
+      return greetings[randomIndex];
     }
 
     // File overview questions
@@ -1030,7 +1032,8 @@ class AIService {
       `I'd love to help you with that! Your dataset looks quite interesting with ${rowCount} rows and columns including ${columnNames}${moreColumns}. What specifically would you like to explore? I can discuss data quality, column analysis, patterns, or suggest some insights to look for.`
     ];
     
-    return responses[Math.floor(Math.random() * responses.length)];
+    const randomIndex = crypto.randomInt(0, responses.length);
+    return responses[randomIndex];
   }
 }
 

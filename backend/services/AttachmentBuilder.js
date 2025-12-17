@@ -309,11 +309,17 @@ class AttachmentBuilder {
       // Include record snapshot if present
       if (v.record_snapshot) {
         try {
-          const snapshot = typeof v.record_snapshot === 'string' 
-            ? JSON.parse(v.record_snapshot) 
+          const snapshot = typeof v.record_snapshot === 'string'
+            ? JSON.parse(v.record_snapshot)
             : v.record_snapshot;
+
           flattened.record_snapshot = JSON.stringify(snapshot);
         } catch (e) {
+          systemLogger.warn('Failed to parse record_snapshot, using raw value', {
+            error: e.message,
+            record_snapshot: v.record_snapshot,
+          });
+
           flattened.record_snapshot = String(v.record_snapshot);
         }
       }

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import PropTypes from 'prop-types';
 import { FiPlus, FiEdit2, FiTrash2, FiShield, FiAlertCircle, FiCheckCircle, FiX } from 'react-icons/fi';
 import LoadingSpinner from '../components/LoadingSpinner';
 import axios from 'axios';
@@ -21,6 +22,11 @@ function Toast({ message, onClose }) {
     </div>
   );
 }
+
+Toast.propTypes = {
+  message: PropTypes.string.isRequired,
+  onClose: PropTypes.func.isRequired
+};
 
 function NotificationModal({ message, onClose }) {
   return (
@@ -47,6 +53,11 @@ function NotificationModal({ message, onClose }) {
     </div>
   );
 }
+
+NotificationModal.propTypes = {
+  message: PropTypes.string.isRequired,
+  onClose: PropTypes.func.isRequired
+};
 
 function ConfirmModal({ message, onConfirm, onCancel }) {
   return (
@@ -76,6 +87,12 @@ function ConfirmModal({ message, onConfirm, onCancel }) {
     </div>
   );
 }
+
+ConfirmModal.propTypes = {
+  message: PropTypes.string.isRequired,
+  onConfirm: PropTypes.func.isRequired,
+  onCancel: PropTypes.func.isRequired
+};
 
 function PolicyManagement() {
   const [policies, setPolicies] = useState([]);
@@ -330,8 +347,9 @@ function PolicyModal({ policy, onClose, onSave, onError }) {
         </div>
         <div className="gps-modal-body">
           <div className="gps-form-group">
-            <label className="gps-label">Policy Name</label>
+            <label htmlFor="policy-name" className="gps-label">Policy Name</label>
             <input
+              id="policy-name"
               type="text"
               className="gps-input"
               value={policyName}
@@ -341,8 +359,9 @@ function PolicyModal({ policy, onClose, onSave, onError }) {
           </div>
 
           <div className="gps-form-group">
-            <label className="gps-label">Description</label>
+            <label htmlFor="description" className="gps-label">Description</label>
             <textarea
+              id="description"
               className="gps-textarea"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
@@ -355,8 +374,9 @@ function PolicyModal({ policy, onClose, onSave, onError }) {
             <h3 className="gps-section-title">Policy Rules</h3>
 
             <div className="gps-form-group">
-              <label className="gps-label">Retention Period (days)</label>
+              <label htmlFor="retention-days" className="gps-label">Retention Period (days)</label>
               <input
+                id="retention-days"
                 type="number"
                 className="gps-input"
                 value={retentionDays}
@@ -366,8 +386,9 @@ function PolicyModal({ policy, onClose, onSave, onError }) {
             </div>
 
             <div className="gps-form-group">
-              <label className="gps-label">Access Control</label>
+              <label htmlFor="access-control" className="gps-label">Access Control</label>
               <select
+                id="access-control"
                 className="gps-select"
                 value={accessControl}
                 onChange={(e) => setAccessControl(e.target.value)}
@@ -380,8 +401,9 @@ function PolicyModal({ policy, onClose, onSave, onError }) {
             </div>
 
             <div className="gps-form-group">
-              <label className="gps-checkbox-label">
+              <label htmlFor="encryption-required" className="gps-checkbox-label">
                 <input
+                  id="encryption-required"
                   type="checkbox"
                   checked={encryptionRequired}
                   onChange={(e) => setEncryptionRequired(e.target.checked)}
@@ -403,5 +425,21 @@ function PolicyModal({ policy, onClose, onSave, onError }) {
     </div>
   );
 }
+
+PolicyModal.propTypes = {
+  policy: PropTypes.shape({
+    policy_id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    policy_name: PropTypes.string,
+    description: PropTypes.string,
+    rules: PropTypes.shape({
+      retention_days: PropTypes.number,
+      access_control: PropTypes.string,
+      encryption_required: PropTypes.bool
+    })
+  }),
+  onClose: PropTypes.func.isRequired,
+  onSave: PropTypes.func.isRequired,
+  onError: PropTypes.func.isRequired
+};
 
 export default PolicyManagement;

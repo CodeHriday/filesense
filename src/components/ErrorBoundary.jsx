@@ -1,5 +1,6 @@
 import React from 'react';
 import axios from 'axios';
+import PropTypes from 'prop-types';
 
 class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -108,5 +109,12 @@ class ErrorBoundary extends React.Component {
     return this.props.children;
   }
 }
+ErrorBoundary.propTypes = {
+  children: PropTypes.node.isRequired,
+  componentName: PropTypes.string
+};
 
+ErrorBoundary.defaultProps = {
+  componentName: 'Unknown'
+};
 export default ErrorBoundary;

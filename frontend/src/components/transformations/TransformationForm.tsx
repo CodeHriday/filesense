@@ -243,10 +243,11 @@ const TransformationForm: React.FC = () => {
         <h3>Join Configuration</h3>
         
         <div style={{ marginBottom: '16px' }}>
-          <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>
+          <label htmlFor="joinType" style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>
             Join Type
           </label>
           <select
+            id="joinType"
             value={config.joinType}
             onChange={(e) => {
               handleConfigChange({
@@ -269,10 +270,11 @@ const TransformationForm: React.FC = () => {
         </div>
         
         <div style={{ marginBottom: '16px' }}>
-          <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>
+          <label htmlFor="sourceKey" style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>
             Source Key Column
           </label>
           <input
+            id="sourceKey"
             type="text"
             value={config.sourceKey}
             onChange={(e) => {
@@ -291,10 +293,11 @@ const TransformationForm: React.FC = () => {
         </div>
         
         <div style={{ marginBottom: '16px' }}>
-          <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>
+          <label htmlFor="secondaryFileId" style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>
             Secondary File
           </label>
           <select
+            id="secondaryFileId"
             value={config.secondaryFileId}
             onChange={(e) => {
               handleConfigChange({
@@ -319,10 +322,11 @@ const TransformationForm: React.FC = () => {
         </div>
         
         <div style={{ marginBottom: '16px' }}>
-          <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>
+          <label htmlFor="targetKey" style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>
             Target Key Column
           </label>
           <input
+            id="targetKey"
             type="text"
             value={config.targetKey}
             onChange={(e) => {

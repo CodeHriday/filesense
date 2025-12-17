@@ -87,7 +87,12 @@ class RuleBasedProvider(AIProvider):
         sample_values = sample_values or []
         
         if has_nulls or completeness < 100:
-            severity = "critical" if completeness < 80 else ("error" if completeness < 95 else "warning")
+            if completeness < 80:
+                severity = "critical"
+            elif completeness < 95:
+                severity = "error"
+            else:
+                severity = "warning"
             suggestions.append({
                 "rule_name": f"{col_name.replace('_', ' ').title()} Null Check",
                 "rule_type": "completeness",
@@ -133,7 +138,7 @@ class RuleBasedProvider(AIProvider):
                 "rule_type": "uniqueness",
                 "column_name": col_name,
                 "description": f"Ensures {col_name} is unique across all records",
-                "reason": f"Column appears to be an identifier field" + 
+                "reason": "Column appears to be an identifier field" + 
                          (f" but has only {unique_count} unique values" if unique_count > 0 else ""),
                 "rule_config": {"columns": [col_name]},
                 "severity": severity
@@ -156,7 +161,12 @@ class RuleBasedProvider(AIProvider):
             duplicate_percentage = (duplicate_count / total_count) * 100 if total_count > 0 else 0
             
             if duplicate_percentage > 0:
-                severity = "critical" if duplicate_percentage > 10 else ("error" if duplicate_percentage > 5 else "warning")
+                if duplicate_percentage > 10:
+                    severity = "critical"
+                elif duplicate_percentage > 5:
+                    severity = "error"
+                else:
+                    severity = "warning"
                 suggestions.append({
                     "rule_name": f"{col_name.replace('_', ' ').title()} Duplicate Check",
                     "rule_type": "uniqueness",

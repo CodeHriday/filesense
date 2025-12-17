@@ -160,7 +160,7 @@ const DataStories = () => {
             <p className="story-description">{story.description}</p>
             <div className="story-preview">
               {story.visualizations.slice(0, 2).map((viz, index) => (
-                <div key={index} className="viz-preview">
+                <div key={`viz-preview-${viz.type || viz.id || index}`} className="viz-preview">
                   {getVisualizationIcon(viz.type)}
                   <span>{viz.type}</span>
                 </div>
@@ -168,7 +168,7 @@ const DataStories = () => {
             </div>
             <div className="story-tags">
               {story.tags.map((tag, index) => (
-                <span key={index} className="story-tag">{tag}</span>
+                <span key={`story-tag-${tag}-${index}`} className="story-tag">{tag}</span>
               ))}
             </div>
           </div>
@@ -199,7 +199,7 @@ const DataStories = () => {
         
         <div className="story-visualizations">
           {activeStory.visualizations.map((viz, index) => (
-            <div key={index} className="visualization-card">
+            <div key={`viz-${viz.id || viz.type || index}`} className="visualization-card">
               <div className="viz-header">
                 {getVisualizationIcon(viz.type)}
                 <h3>{viz.title}</h3>
@@ -223,7 +223,7 @@ const DataStories = () => {
           <h2>Key Insights</h2>
           <ul className="insights-list">
             {activeStory.insights.map((insight, index) => (
-              <li key={index}>{insight}</li>
+              <li key={`insight-${insight.substring(0, 20)}-${index}`}>{insight}</li>
             ))}
           </ul>
         </div>
@@ -251,25 +251,25 @@ const DataStories = () => {
       
       <div className="editor-form">
         <div className="form-group">
-          <label>Story Title</label>
-          <input type="text" placeholder="Enter a descriptive title" className="editor-input" />
+          <label htmlFor="story-title-input">Story Title</label>
+          <input id="story-title-input" type="text" placeholder="Enter a descriptive title" className="editor-input" />
         </div>
         
         <div className="form-group">
-          <label>Description</label>
-          <textarea placeholder="Enter a short description of this data story" className="editor-textarea"></textarea>
+          <label htmlFor="story-description">Description</label>
+          <textarea id="story-description" placeholder="Enter a short description of this data story" className="editor-textarea"></textarea>
         </div>
         
         <div className="form-group">
-          <label>Select Data Files</label>
+          <label htmlFor="data-files-select">Select Data Files</label>
           <div className="file-selector">
-            <select className="editor-select">
+            <select id="data-files-select" className="editor-select">
               <option value="">Select a data file</option>
               <option value="file1">sales_data.csv</option>
               <option value="file2">customer_metrics.csv</option>
               <option value="file3">production_quality.csv</option>
             </select>
-            <button className="add-file-btn">Add</button>
+            <button id="add-file-btn" className="add-file-btn">Add</button>
           </div>
           <div className="selected-files">
             <p>No files selected</p>
@@ -277,18 +277,18 @@ const DataStories = () => {
         </div>
         
         <div className="form-group">
-          <label>Visualizations</label>
-          <button className="add-viz-btn">Add Visualization</button>
+          <label htmlFor="add-viz-btn">Visualizations</label>
+          <button id="add-viz-btn" className="add-viz-btn">Add Visualization</button>
           <div className="viz-placeholder editor-placeholder">
             <p>Add visualizations to tell your data story</p>
           </div>
         </div>
         
         <div className="form-group">
-          <label>Key Insights</label>
+          <label htmlFor="insight-input">Key Insights</label>
           <div className="insight-editor">
-            <input type="text" placeholder="Add a key insight" className="editor-input" />
-            <button className="add-insight-btn">Add</button>
+            <input id="insight-input" type="text" placeholder="Add a key insight" className="editor-input" />
+            <button id="add-insight-btn" className="add-insight-btn">Add</button>
           </div>
           <div className="insights-placeholder">
             <p>No insights added yet</p>
@@ -296,10 +296,10 @@ const DataStories = () => {
         </div>
         
         <div className="form-group">
-          <label>Tags</label>
+          <label htmlFor="tags-input">Tags</label>
           <div className="tag-editor">
-            <input type="text" placeholder="Add tags (e.g., sales, quarterly)" className="editor-input" />
-            <button className="add-tag-btn">Add</button>
+            <input id="tags-input" type="text" placeholder="Add tags (e.g., sales, quarterly)" className="editor-input" />
+            <button id="add-tag-btn" className="add-tag-btn">Add</button>
           </div>
           <div className="tags-placeholder">
             <p>No tags added yet</p>

@@ -2,6 +2,8 @@ import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import ErrorBoundary from './components/ErrorBoundary';
 import { initializeAuditInterceptor } from './utils/auditInterceptor';
+import PropTypes from 'prop-types';
+
 
 // Loading fallback component
 const LoadingFallback = () => (
@@ -154,6 +156,12 @@ const ProtectedRoute = ({ children }) => {
   }
   
   return children;
+};
+ProtectedRoute.propTypes = {
+  children: PropTypes.oneOfType([
+    PropTypes.node,
+    PropTypes.func
+  ]).isRequired
 };
 
 // Component to redirect vendor users to vendor file upload page, others to executive dashboard
@@ -399,5 +407,9 @@ function AppContent({ showOnboarding, setShowOnboarding }) {
     </div>
   );
 }
+AppContent.propTypes = {
+  showOnboarding: PropTypes.bool.isRequired,
+  setShowOnboarding: PropTypes.func.isRequired
+};
 
 export default App;

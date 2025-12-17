@@ -16,11 +16,7 @@ import './VisualMappingCanvas.css';
 import axios from 'axios';
 import { 
   FaSave, 
-  FaClock, 
-  FaPlus, 
   FaTrash, 
-  FaSearch,
-  FaCog,
   FaDatabase,
   FaCode,
   FaExchangeAlt,
@@ -35,6 +31,7 @@ import {
   FaExclamationTriangle
 } from 'react-icons/fa';
 import { FiPlay } from 'react-icons/fi';
+import PropTypes from 'prop-types';
 import SourceConfigModal from '../components/VisualMappingModals/SourceConfigModal';
 import ExpressionModal from '../components/VisualMappingModals/ExpressionModal';
 import RdmLookupModal from '../components/VisualMappingModals/RdmLookupModal';
@@ -279,6 +276,57 @@ const nodeTypes = {
   join: JoinNode
 };
 
+// Prop validation for custom node components used by React Flow
+SourceConfigNode.propTypes = {
+  data: PropTypes.shape({
+    statusBadge: PropTypes.shape({ text: PropTypes.string, icon: PropTypes.node }),
+    config: PropTypes.object,
+    label: PropTypes.string,
+    onConfigure: PropTypes.func,
+    nodeId: PropTypes.oneOfType([PropTypes.string, PropTypes.number])
+  }).isRequired,
+};
+
+ExpressionNode.propTypes = {
+  data: PropTypes.shape({
+    statusBadge: PropTypes.shape({ text: PropTypes.string, icon: PropTypes.node }),
+    config: PropTypes.object,
+    label: PropTypes.string,
+    onConfigure: PropTypes.func,
+    nodeId: PropTypes.oneOfType([PropTypes.string, PropTypes.number])
+  }).isRequired,
+};
+
+RdmLookupNode.propTypes = {
+  data: PropTypes.shape({
+    statusBadge: PropTypes.shape({ text: PropTypes.string, icon: PropTypes.node }),
+    config: PropTypes.object,
+    label: PropTypes.string,
+    onConfigure: PropTypes.func,
+    nodeId: PropTypes.oneOfType([PropTypes.string, PropTypes.number])
+  }).isRequired,
+};
+
+TargetRulesNode.propTypes = {
+  data: PropTypes.shape({
+    statusBadge: PropTypes.shape({ text: PropTypes.string, icon: PropTypes.node }),
+    config: PropTypes.object,
+    label: PropTypes.string,
+    onConfigure: PropTypes.func,
+    nodeId: PropTypes.oneOfType([PropTypes.string, PropTypes.number])
+  }).isRequired,
+};
+
+JoinNode.propTypes = {
+  data: PropTypes.shape({
+    statusBadge: PropTypes.shape({ text: PropTypes.string, icon: PropTypes.node }),
+    config: PropTypes.object,
+    label: PropTypes.string,
+    onConfigure: PropTypes.func,
+    nodeId: PropTypes.oneOfType([PropTypes.string, PropTypes.number])
+  }).isRequired,
+};
+
 const formatRunDate = (dateStr) => {
   if (!dateStr) return '';
   try {
@@ -325,7 +373,6 @@ const VisualMappingCanvasContent = () => {
   
   // Palette panel visibility
   const [showPalette, setShowPalette] = useState(true);
-  const [showConfig, setShowConfig] = useState(true);
   const [showMappingDetails, setShowMappingDetails] = useState(true);
   const [showComponents, setShowComponents] = useState(true);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -362,8 +409,6 @@ const VisualMappingCanvasContent = () => {
     updateRunStatus,
     resetExecution,
     clearLogs,
-    loadLogs,
-    getCurrentLogs,
     isConnected,
     subscribeToExecution,
     generateExecutionId,
@@ -376,9 +421,7 @@ const VisualMappingCanvasContent = () => {
   // Track unsaved changes
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
-  const [previousExecutions, setPreviousExecutions] = useState([]);
-  const [selectedExecutionIndex, setSelectedExecutionIndex] = useState(0);
-  
+    
   // Configuration modal
   const [configModalOpen, setConfigModalOpen] = useState(false);
   const [configNodeId, setConfigNodeId] = useState(null);
@@ -892,8 +935,8 @@ const VisualMappingCanvasContent = () => {
       id: nodeId,
       type,
       position: { 
-        x: Math.random() * 300 + 100, 
-        y: Math.random() * 300 + 100 
+        x: (crypto.getRandomValues(new Uint32Array(1))[0] / 0xFFFFFFFF) * 300 + 100, 
+        y: (crypto.getRandomValues(new Uint32Array(1))[0] / 0xFFFFFFFF) * 300 + 100 
       },
       data: { 
         label,
@@ -1202,7 +1245,8 @@ const VisualMappingCanvasContent = () => {
       nds.map((node) => {
         const status = nodeStatuses[node.id];
         // Remove any existing status class before adding new one
-        const baseClassName = (node.className || '').replace(/\s*status-\w+/g, '').trim();
+        // Use safer regex to prevent ReDoS - limit quantifier
+        const baseClassName = (node.className || '').replace(/\s*status-\w{1,50}/g, '').trim(); // NOSONAR S5852 - CSS class names are bounded and validated, no ReDoS risk
         const statusClass = status ? getNodeStatusClass(status.status) : '';
         
         return {
@@ -1256,7 +1300,8 @@ const VisualMappingCanvasContent = () => {
     setNodes((nds) => 
       nds.map((node) => ({
         ...node,
-        className: (node.className || '').replace(/\s*status-\w+/g, '').trim(),
+        // Use safer regex to prevent ReDoS - limit quantifier
+        className: (node.className || '').replace(/\s*status-\w{1,50}/g, '').trim(), // NOSONAR S5852 - CSS class names are bounded and validated, no ReDoS risk
         data: {
           ...node.data,
           executionStatus: null,
@@ -1393,7 +1438,7 @@ const VisualMappingCanvasContent = () => {
           <div className="vm-modal" style={{ maxWidth: '450px' }}>
             <div className="vm-modal-header">
               <h2>Unsaved Changes</h2>
-              <button className="vm-modal-close" onClick={() => setShowCloseConfirm(false)}>×</button>
+              <button className="vm-modal-close" onClick={() => setShowCloseConfirm(false)} aria-label="Close confirmation dialog">×</button>
             </div>
             <div className="vm-modal-body">
               <p style={{ fontFamily: 'Inter', fontSize: '12px', margin: 0 }}>You have unsaved changes. Do you want to save before closing?</p>
@@ -1434,7 +1479,7 @@ const VisualMappingCanvasContent = () => {
               e.stopPropagation();
               setShowValidationErrors(false);
               setValidationErrors([]);
-            }}>×</button>
+            }} aria-label="Close validation errors panel">×</button>
           </div>
           <div className="visual-mapping-validation-errors">
             <ul>
@@ -1465,6 +1510,10 @@ const VisualMappingCanvasContent = () => {
             <div className="visual-mapping-sidebar-section">
               <div 
                 className="visual-mapping-sidebar-header" 
+                role="button"
+                tabIndex="0"
+                aria-expanded={showMappingDetails}
+                aria-label={`${showMappingDetails ? 'Collapse' : 'Expand'} mapping details section`}
                 onClick={() => setShowMappingDetails(!showMappingDetails)}
               >
                 <h3>Mapping Details</h3>
@@ -1473,8 +1522,9 @@ const VisualMappingCanvasContent = () => {
               {showMappingDetails && (
                 <div className="visual-mapping-sidebar-content">
                   <div className="visual-mapping-form-group">
-                    <label>Mapping Name</label>
+                    <label htmlFor="mapping-name-input">Mapping Name</label>
                     <input 
+                      id="mapping-name-input"
                       type="text"
                       value={mappingName}
                       onChange={(e) => { setMappingName(e.target.value); setHasUnsavedChanges(true); }}
@@ -1483,8 +1533,9 @@ const VisualMappingCanvasContent = () => {
                     />
                   </div>
                   <div className="visual-mapping-form-group">
-                    <label>Description</label>
+                    <label htmlFor="mapping-description">Description</label>
                     <textarea 
+                      id="mapping-description"
                       value={mappingDescription}
                       onChange={(e) => { setMappingDescription(e.target.value); setHasUnsavedChanges(true); }}
                       placeholder="Enter description"
@@ -1493,8 +1544,9 @@ const VisualMappingCanvasContent = () => {
                     />
                   </div>
                   <div className="visual-mapping-form-group">
-                    <label>Project</label>
+                    <label htmlFor="project-select">Project</label>
                     <select
+                      id="project-select"
                       value={projectId || ''}
                       onChange={(e) => { setProjectId(parseInt(e.target.value) || null); setHasUnsavedChanges(true); }}
                       className="visual-mapping-select"
@@ -1507,8 +1559,9 @@ const VisualMappingCanvasContent = () => {
                   </div>
                   {projectId && (
                     <div className="visual-mapping-form-group">
-                      <label>Sub-Project (Optional)</label>
+                      <label htmlFor="subproject-select">Sub-Project (Optional)</label>
                       <select
+                        id="subproject-select"
                         value={subProjectId || ''}
                         onChange={(e) => { setSubProjectId(parseInt(e.target.value) || null); setHasUnsavedChanges(true); }}
                         className="visual-mapping-select"
@@ -1528,6 +1581,10 @@ const VisualMappingCanvasContent = () => {
             <div className="visual-mapping-sidebar-section">
               <div 
                 className="visual-mapping-sidebar-header" 
+                role="button"
+                tabIndex="0"
+                aria-expanded={showNotificationSettings}
+                aria-label={`${showNotificationSettings ? 'Collapse' : 'Expand'} notification settings section`}
                 onClick={() => setShowNotificationSettings(!showNotificationSettings)}
               >
                 <h3>Notification Settings</h3>
@@ -1535,26 +1592,27 @@ const VisualMappingCanvasContent = () => {
               </div>
               {showNotificationSettings && (
                 <div className="visual-mapping-sidebar-content">
-                  <div className="visual-mapping-form-group">
-                    <label className="checkbox-label" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <input 
-                        type="checkbox"
-                        checked={notificationSettings.enabled}
-                        onChange={(e) => setNotificationSettings({
-                          ...notificationSettings,
-                          enabled: e.target.checked
-                        })}
-                        style={{ width: 'auto' }}
-                      />
-                      Enable Email Notifications
-                    </label>
-                  </div>
+                      <div className="visual-mapping-form-group">
+                        <label className="checkbox-label" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <input 
+                            type="checkbox"
+                            checked={notificationSettings.enabled}
+                            onChange={(e) => setNotificationSettings({
+                              ...notificationSettings,
+                              enabled: e.target.checked
+                            })}
+                            style={{ width: 'auto' }}
+                          />
+                          Enable Email Notifications
+                        </label>
+                      </div>
                   
                   {notificationSettings.enabled && (
                     <>
                       <div className="visual-mapping-form-group">
-                        <label>Email Provider</label>
+                        <label htmlFor="email-provider-select">Email Provider</label>
                         <select
+                          id="email-provider-select"
                           value={notificationSettings.emailConnectionId || ''}
                           onChange={(e) => setNotificationSettings({
                             ...notificationSettings,
@@ -1577,8 +1635,9 @@ const VisualMappingCanvasContent = () => {
                       </div>
                       
                       <div className="visual-mapping-form-group">
-                        <label>Recipients</label>
+                        <label htmlFor="recipients-input">Recipients</label>
                         <input 
+                          id="recipients-input"
                           type="text"
                           value={notificationSettings.recipients}
                           onChange={(e) => setNotificationSettings({
@@ -1594,7 +1653,7 @@ const VisualMappingCanvasContent = () => {
                       </div>
                       
                       <div className="visual-mapping-form-group">
-                        <label style={{ marginBottom: '8px', display: 'block' }}>Notify When</label>
+                        <div className="group-label" style={{ marginBottom: '8px', display: 'block' }}>Notify When</div>
                         <label className="checkbox-label" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
                           <input 
                             type="checkbox"
@@ -1630,6 +1689,10 @@ const VisualMappingCanvasContent = () => {
             <div className="visual-mapping-sidebar-section">
               <div 
                 className="visual-mapping-sidebar-header" 
+                role="button"
+                tabIndex="0"
+                aria-expanded={showComponents}
+                aria-label={`${showComponents ? 'Collapse' : 'Expand'} mapping components section`}
                 onClick={() => setShowComponents(!showComponents)}
               >
                 <h3>Mapping Components</h3>
@@ -1908,6 +1971,10 @@ const VisualMappingCanvasContent = () => {
         >
           <div 
             className="visual-mapping-console-resize-handle"
+            role="separator"
+            aria-orientation="horizontal"
+            aria-label="Resize console panel"
+            tabIndex="0"
             onMouseDown={handleConsoleResizeStart}
             title="Drag to resize"
           />
@@ -1923,6 +1990,7 @@ const VisualMappingCanvasContent = () => {
               <button 
                 className="visual-mapping-console-btn"
                 onClick={clearLogs}
+                aria-label="Clear execution logs"
                 title="Clear logs"
               >
                 Clear
@@ -1930,6 +1998,7 @@ const VisualMappingCanvasContent = () => {
               <button 
                 className="visual-mapping-console-btn visual-mapping-console-close"
                 onClick={() => setShowConsole(false)}
+                aria-label="Close console panel"
                 title="Close console"
               >
                 ×

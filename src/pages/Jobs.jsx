@@ -588,7 +588,7 @@ const Jobs = () => {
                       ) : (
                         jobLogs.map((log, index) => (
                           <div 
-                            key={index} 
+                            key={`job-log-${log.timestamp || log.level || index}`} 
                             style={{ 
                               marginBottom: '0.5rem',
                               color: log.log_level === 'error' ? '#fca5a5' : 

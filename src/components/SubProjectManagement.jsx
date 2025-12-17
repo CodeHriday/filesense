@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { FiPlus, FiEdit2, FiTrash2, FiFolder, FiFolderPlus, FiSave, FiX, FiAlertCircle, FiChevronDown, FiChevronRight, FiUsers } from 'react-icons/fi';
+import { FiEdit2, FiTrash2, FiFolder, FiFolderPlus, FiSave, FiX, FiAlertCircle, FiChevronDown, FiChevronRight, FiUsers } from 'react-icons/fi';
 import axios from 'axios';
 import SubProjectMemberManagement from './SubProjectMemberManagement';
 import './SubProjectManagement.css';
+import PropTypes from 'prop-types';
+
 
 function SubProjectManagement({ projectId, projectName }) {
   const [subProjects, setSubProjects] = useState([]);
@@ -156,8 +158,9 @@ function SubProjectManagement({ projectId, projectName }) {
           </div>
           <form onSubmit={handleCreate} className="sub-project-form">
             <div className="form-group">
-              <label>Sub-Project Name <span className="required">*</span></label>
+              <label htmlFor="subproject-name-create">Sub-Project Name <span className="required">*</span></label>
               <input
+                id="subproject-name-create"
                 type="text"
                 className="form-input"
                 value={formData.name}
@@ -169,8 +172,9 @@ function SubProjectManagement({ projectId, projectName }) {
               />
             </div>
             <div className="form-group">
-              <label>Description</label>
+              <label htmlFor="subproject-description-create">Description</label>
               <textarea
+                id="subproject-description-create"
                 className="form-input"
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
@@ -213,8 +217,9 @@ function SubProjectManagement({ projectId, projectName }) {
                       <div className="inline-edit-form">
                         <div className="edit-form-grid">
                           <div className="form-group">
-                            <label>Name</label>
+                            <label htmlFor="subproject-name-edit">Name</label>
                             <input
+                              id="subproject-name-edit"
                               type="text"
                               className="form-input"
                               value={formData.name}
@@ -223,8 +228,9 @@ function SubProjectManagement({ projectId, projectName }) {
                             />
                           </div>
                           <div className="form-group">
-                            <label>Description</label>
+                            <label htmlFor="subproject-description-edit">Description</label>
                             <input
+                              id="subproject-description-edit"
                               type="text"
                               className="form-input"
                               value={formData.description}
@@ -233,8 +239,9 @@ function SubProjectManagement({ projectId, projectName }) {
                             />
                           </div>
                           <div className="form-group-checkbox">
-                            <label>
+                            <label htmlFor="subproject-active-checkbox">
                               <input
+                                id="subproject-active-checkbox"
                                 type="checkbox"
                                 checked={formData.is_active}
                                 onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
@@ -338,5 +345,13 @@ function formatBytes(bytes) {
   const i = Math.floor(Math.log(numBytes) / Math.log(k));
   return Math.round((numBytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i];
 }
+SubProjectManagement.propTypes = {
+  projectId: PropTypes.oneOfType([
+    PropTypes.string,
+    PropTypes.number
+  ]).isRequired,
+
+  projectName: PropTypes.string.isRequired
+};
 
 export default SubProjectManagement;

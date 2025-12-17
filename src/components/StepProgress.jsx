@@ -1,5 +1,7 @@
 import React from 'react';
 import './StepProgress.css';
+import PropTypes from 'prop-types';
+
 
 const STEPS = [
   {
@@ -120,6 +122,23 @@ const StepProgress = ({ currentStep, uploadProgress = null }) => {
       )}
     </div>
   );
+};
+StepProgress.propTypes = {
+  currentStep: PropTypes.oneOf([
+    'uploading',
+    'scanning',
+    'analyzing',
+    'profiling',
+    'duplicates',
+    'schema',
+    'processing',
+    'complete'
+  ]).isRequired,
+
+  uploadProgress: PropTypes.oneOfType([
+    PropTypes.number,
+    PropTypes.oneOf([null])
+  ])
 };
 
 export default StepProgress;

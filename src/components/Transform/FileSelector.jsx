@@ -3,6 +3,8 @@ import { FiFile, FiDatabase, FiRefreshCw, FiAlertCircle, FiInfo } from 'react-ic
 import axios from 'axios';
 import LoadingSpinner from '../LoadingSpinner';
 import './Transform.css';
+import PropTypes from 'prop-types';
+
 
 /**
  * File Selector component for choosing a source file and loading its schema
@@ -219,6 +221,28 @@ const FileSelector = ({ connection, selectedFile, onFileSelect }) => {
 
     </div>
   );
+};
+
+FileSelector.propTypes = {
+  connection: PropTypes.shape({
+    id: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
+    name: PropTypes.string,
+    connection_name: PropTypes.string,
+    type: PropTypes.string
+  }),
+
+  selectedFile: PropTypes.shape({
+    file_id: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
+    filename: PropTypes.string,
+    file_type: PropTypes.string,
+    file_size: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
+    row_count: PropTypes.number,
+    column_count: PropTypes.number,
+    quality_score: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
+    updated_at: PropTypes.string
+  }),
+
+  onFileSelect: PropTypes.func.isRequired
 };
 
 export default FileSelector;

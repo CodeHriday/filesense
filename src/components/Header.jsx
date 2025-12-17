@@ -7,6 +7,7 @@ import { FiHome } from 'react-icons/fi';
 import NotificationBell from './NotificationBell';
 import ThemeToggle from './ThemeToggle';
 import './Header.css';
+import PropTypes from 'prop-types';
 
 function Header({ showAIInsights }) {
   const { currentUser, logout, hasPermission } = useAuth();
@@ -111,5 +112,8 @@ function Header({ showAIInsights }) {
     </header>
   );
 }
+Header.propTypes = {
+  showAIInsights: PropTypes.bool
+};
 
 export default Header;

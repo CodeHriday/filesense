@@ -138,8 +138,9 @@ const Anomalies = () => {
 
       <div className="anomaly-filters">
         <div className="filter-group">
-          <label>Severity:</label>
+          <label htmlFor="severity-filter">Severity:</label>
           <select 
+            id="severity-filter"
             value={filters.severity} 
             onChange={(e) => setFilters({...filters, severity: e.target.value})}
           >
@@ -152,8 +153,9 @@ const Anomalies = () => {
         </div>
 
         <div className="filter-group">
-          <label>Status:</label>
+          <label htmlFor="status-filter">Status:</label>
           <select 
+            id="status-filter"
             value={filters.status} 
             onChange={(e) => setFilters({...filters, status: e.target.value})}
           >
@@ -164,8 +166,9 @@ const Anomalies = () => {
         </div>
 
         <div className="filter-group">
-          <label>Type:</label>
+          <label htmlFor="type-filter">Type:</label>
           <select 
+            id="type-filter"
             value={filters.anomaly_type} 
             onChange={(e) => setFilters({...filters, anomaly_type: e.target.value})}
           >
@@ -269,8 +272,9 @@ const Anomalies = () => {
             </div>
 
             <div className="form-group">
-              <label>Resolution Notes:</label>
+              <label htmlFor="resolution-notes">Resolution Notes:</label>
               <textarea
+                id="resolution-notes"
                 value={resolutionNotes}
                 onChange={(e) => setResolutionNotes(e.target.value)}
                 placeholder="Describe how this anomaly was resolved..."

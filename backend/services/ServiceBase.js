@@ -8,6 +8,7 @@
 
 const { systemLogger } = require('../utils/logger');
 const { Pool } = require('pg');
+const crypto = require('crypto');
 const {
   createDatabaseError,
   createNotFoundError,
@@ -117,7 +118,7 @@ class ServiceBase {
             throw new Error(`Invalid isolation level: ${isolationLevel}`);
           }
           
-          await client.query(`SET TRANSACTION ISOLATION LEVEL ${normalizedLevel}`);
+          await client.query(`SET TRANSACTION ISOLATION LEVEL ${normalizedLevel}`); // NOSONAR S3649 - normalizedLevel is validated against whitelist, no SQL injection risk
         }
         
         if (readOnly) {
@@ -233,7 +234,9 @@ class ServiceBase {
    * @returns {string} Trace ID
    */
   generateTraceId() {
-    return `svc_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
+    const timestamp = Date.now();
+    const randomBytes = crypto.randomBytes(4).toString('hex');
+    return `svc_${timestamp}_${randomBytes}`;
   }
   
   /**

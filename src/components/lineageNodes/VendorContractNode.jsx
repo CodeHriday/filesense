@@ -1,6 +1,8 @@
 import React from 'react';
 import { Handle, Position } from 'reactflow';
 import { FaFileContract } from 'react-icons/fa';
+import PropTypes from 'prop-types';
+
 
 const VendorContractNode = ({ data }) => {
   const sourcePosition = data.sourcePosition || Position.Right;
@@ -26,6 +28,30 @@ const VendorContractNode = ({ data }) => {
       <Handle type="source" position={sourcePosition} />
     </div>
   );
+};
+VendorContractNode.propTypes = {
+  data: PropTypes.shape({
+    label: PropTypes.string.isRequired,
+
+    vendorName: PropTypes.string,
+    effectiveFrom: PropTypes.oneOfType([
+      PropTypes.string,
+      PropTypes.number,
+      PropTypes.instanceOf(Date)
+    ]),
+
+    hasIncidents: PropTypes.bool,
+    incidents: PropTypes.shape({
+      totalViolations: PropTypes.number
+    }),
+
+    sourcePosition: PropTypes.oneOf([
+      Position.Left,
+      Position.Right,
+      Position.Top,
+      Position.Bottom
+    ])
+  }).isRequired
 };
 
 export default VendorContractNode;

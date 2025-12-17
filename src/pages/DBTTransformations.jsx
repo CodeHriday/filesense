@@ -268,7 +268,7 @@ const DBTTransformations = () => {
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex gap-1 flex-wrap">
                           {model.tags?.map((tag, idx) => (
-                            <span key={idx} className="px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded">
+                            <span key={`tag-${tag}-${idx}`} className="px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded">
                               {tag}
                             </span>
                           ))}
@@ -373,30 +373,30 @@ const DBTTransformations = () => {
             <div className="p-6 overflow-y-auto flex-1">
               <div className="grid grid-cols-2 gap-4 mb-6">
                 <div>
-                  <label className="text-sm font-medium text-gray-600">Status</label>
-                  <div className="flex items-center gap-2 mt-1">
+                  <label htmlFor="execution-status" className="text-sm font-medium text-gray-600">Status</label>
+                  <div id="execution-status" className="flex items-center gap-2 mt-1">
                     {getStatusIcon(selectedExecution.status)}
                     <span className="font-semibold">{selectedExecution.status}</span>
                   </div>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-gray-600">Command</label>
-                  <p className="mt-1">dbt {selectedExecution.command}</p>
+                  <label htmlFor="execution-command" className="text-sm font-medium text-gray-600">Command</label>
+                  <p id="execution-command" className="mt-1">dbt {selectedExecution.command}</p>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-gray-600">Duration</label>
-                  <p className="mt-1">{formatDuration(selectedExecution.duration_ms)}</p>
+                  <label htmlFor="execution-duration" className="text-sm font-medium text-gray-600">Duration</label>
+                  <p id="execution-duration" className="mt-1">{formatDuration(selectedExecution.duration_ms)}</p>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-gray-600">Models Run</label>
-                  <p className="mt-1">{selectedExecution.models_run || 0}</p>
+                  <label htmlFor="execution-models-run" className="text-sm font-medium text-gray-600">Models Run</label>
+                  <p id="execution-models-run" className="mt-1">{selectedExecution.models_run || 0}</p>
                 </div>
               </div>
 
               {selectedExecution.error_message && (
                 <div className="mb-6">
-                  <label className="text-sm font-medium text-gray-600">Error</label>
-                  <pre className="mt-1 p-4 bg-red-50 text-red-800 rounded-lg overflow-auto text-sm">
+                  <label htmlFor="execution-error" className="text-sm font-medium text-gray-600">Error</label>
+                  <pre id="execution-error" className="mt-1 p-4 bg-red-50 text-red-800 rounded-lg overflow-auto text-sm">
                     {selectedExecution.error_message}
                   </pre>
                 </div>
@@ -404,8 +404,8 @@ const DBTTransformations = () => {
 
               {selectedExecution.logs && (
                 <div>
-                  <label className="text-sm font-medium text-gray-600">Logs</label>
-                  <pre className="mt-1 p-4 bg-gray-50 rounded-lg overflow-auto text-xs font-mono max-h-96">
+                  <label htmlFor="execution-logs" className="text-sm font-medium text-gray-600">Logs</label>
+                  <pre id="execution-logs" className="mt-1 p-4 bg-gray-50 rounded-lg overflow-auto text-xs font-mono max-h-96">
                     {selectedExecution.logs}
                   </pre>
                 </div>

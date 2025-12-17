@@ -1,6 +1,7 @@
 import React from 'react';
 import { FiX, FiAlertTriangle, FiDatabase, FiFileText, FiZap, FiTrash2, FiLoader } from 'react-icons/fi';
 import './DeleteConfirmationModal.css';
+import PropTypes from 'prop-types';
 
 function ConnectionDeleteModal({ 
   isOpen, 
@@ -84,7 +85,7 @@ function ConnectionDeleteModal({
                 <h3>Dependencies</h3>
                 <div className="dependencies-list">
                   {deps.map((dep, index) => (
-                    <div key={index} className="dependency-item-detailed">
+                    <div key={`dep-${dep.type || dep.name || index}`} className="dependency-item-detailed">
                       <div className="dependency-header">
                         {getDependencyIcon(dep.type)}
                         <span className="dep-label">{dep.type}:</span>
@@ -93,7 +94,7 @@ function ConnectionDeleteModal({
                       {dep.items && dep.items.length > 0 && (
                         <div className="dependency-items-list">
                           {dep.items.map((item, idx) => (
-                            <div key={idx} className="dependency-item-name">
+                            <div key={`item-${typeof item === 'string' ? item : item.name || idx}`} className="dependency-item-name">
                               • {typeof item === 'string' ? item : item.name}
                             </div>
                           ))}
@@ -152,3 +153,44 @@ function ConnectionDeleteModal({
 }
 
 export default ConnectionDeleteModal;
+
+ConnectionDeleteModal.propTypes = {
+  isOpen: PropTypes.bool,
+  onClose: PropTypes.func.isRequired,
+  connection: PropTypes.shape({
+    connection_name: PropTypes.string,
+    name: PropTypes.string,
+    connection_type: PropTypes.string,
+    type: PropTypes.string,
+    connection_direction: PropTypes.string,
+  }),
+  dependencies: PropTypes.shape({
+    canDelete: PropTypes.bool,
+    inUse: PropTypes.bool,
+    dependencies: PropTypes.arrayOf(
+      PropTypes.shape({
+        type: PropTypes.string,
+        count: PropTypes.number,
+        items: PropTypes.arrayOf(PropTypes.oneOfType([
+          PropTypes.string,
+          PropTypes.shape({ name: PropTypes.string })
+        ])),
+      })
+    ),
+  }),
+  onConfirmDelete: PropTypes.func.isRequired,
+  isDeleting: PropTypes.bool,
+  checkingDependencies: PropTypes.bool,
+  deleteError: PropTypes.oneOfType([PropTypes.string, PropTypes.node]),
+};
+
+ConnectionDeleteModal.defaultProps = {
+  isOpen: false,
+  onClose: () => {},
+  connection: {},
+  dependencies: { canDelete: true, inUse: false, dependencies: [] },
+  onConfirmDelete: () => {},
+  isDeleting: false,
+  checkingDependencies: false,
+  deleteError: null,
+};

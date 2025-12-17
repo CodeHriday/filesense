@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { FiPlus, FiTrash2, FiMove, FiEdit2 } from 'react-icons/fi';
+import PropTypes from 'prop-types';
 
 const ColumnMapper = ({
   sourceColumns = [],
@@ -81,7 +82,7 @@ const ColumnMapper = ({
           ) : (
             sourceColumns.map((col, idx) => (
               <div
-                key={idx}
+                key={`source-${col.name || col.column_name || idx}`}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -174,7 +175,7 @@ const ColumnMapper = ({
               </div>
               {existingTargetColumns.map((col, idx) => (
                 <div
-                  key={`existing-${idx}`}
+                  key={`existing-${col.name || col.column_name || idx}`}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -220,7 +221,7 @@ const ColumnMapper = ({
               )}
               {mappings.map((mapping, idx) => (
                 <div
-                  key={idx}
+                  key={`mapping-${mapping.source || mapping.target || idx}`}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -335,5 +336,38 @@ const ColumnMapper = ({
     </div>
   );
 };
+ColumnMapper.propTypes = {
+  sourceColumns: PropTypes.arrayOf(
+    PropTypes.shape({
+      name: PropTypes.string.isRequired,
+      type: PropTypes.string
+    })
+  ),
+  existingTargetColumns: PropTypes.arrayOf(
+    PropTypes.shape({
+      name: PropTypes.string.isRequired,
+      type: PropTypes.string
+    })
+  ),
+  mappings: PropTypes.arrayOf(
+    PropTypes.shape({
+      sourceColumn: PropTypes.string.isRequired,
+      targetColumn: PropTypes.string.isRequired,
+      dataType: PropTypes.string
+    })
+  ),
+  onMappingsChange: PropTypes.func.isRequired,
+  sourceLabel: PropTypes.string,
+  targetLabel: PropTypes.string,
+  allowRename: PropTypes.bool
+};
 
+ColumnMapper.defaultProps = {
+  sourceColumns: [],
+  existingTargetColumns: [],
+  mappings: [],
+  sourceLabel: 'Available Columns',
+  targetLabel: 'Target Columns',
+  allowRename: true
+};
 export default ColumnMapper;

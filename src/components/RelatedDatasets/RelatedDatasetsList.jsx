@@ -4,13 +4,10 @@ import { FiLink, FiEye, FiInfo, FiBarChart2, FiCalendar, FiFile } from 'react-ic
 import LoadingSpinner from '../LoadingSpinner';
 import { useAIFeatures } from '../../hooks';
 import './RelatedDatasets.css';
+import PropTypes from 'prop-types';
 
 // Utility functions
-const formatDate = (date) => {
-  if (!date) return '';
-  const d = new Date(date);
-  return d.toLocaleDateString();
-};
+
 
 const getTimeSince = (date) => {
   if (!date) return '';
@@ -199,6 +196,19 @@ const RelatedDatasetsList = ({ fileId, limit = 5, threshold = 0.5 }) => {
       )}
     </div>
   );
+};
+
+
+RelatedDatasetsList.propTypes = {
+ 
+  fileId: PropTypes.oneOfType([
+    PropTypes.string,
+    PropTypes.number
+  ]).isRequired,
+
+  limit: PropTypes.number,
+
+  threshold: PropTypes.number
 };
 
 export default RelatedDatasetsList;

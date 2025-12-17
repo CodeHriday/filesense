@@ -18,11 +18,11 @@ async function getEntityProjectId(entity_type, entity_id) {
   
   switch (entity_type) {
     case 'mapping':
-      table = 'transformation_mappings';
+      // table = 'transformation_mappings';
       query = 'SELECT project_id FROM transformation_mappings WHERE mapping_id = $1';
       break;
     case 'mapping_group':
-      table = 'mapping_groups';
+      // table = 'mapping_groups';
       query = 'SELECT project_id FROM mapping_groups WHERE id = $1';
       break;
     case 'workflow':
@@ -129,7 +129,6 @@ router.post('/', async (req, res) => {
       interval_value,
       interval_unit,
       timezone = 'UTC',
-      project_id,
       sub_project_id,
       created_by,
       enabled

@@ -382,8 +382,9 @@ function GroupManagement() {
             <div className="gps-modal-body">
               <form onSubmit={handleCreate}>
                 <div className="gps-form-group">
-                  <label className="gps-form-label">Group Name *</label>
+                  <label htmlFor="create-group-name" className="gps-form-label">Group Name *</label>
                   <input
+                    id="create-group-name"
                     type="text"
                     className="gps-form-input"
                     value={formData.name}
@@ -392,8 +393,9 @@ function GroupManagement() {
                   />
                 </div>
                 <div className="gps-form-group">
-                  <label className="gps-form-label">Description</label>
+                  <label htmlFor="create-group-description" className="gps-form-label">Description</label>
                   <textarea
+                    id="create-group-description"
                     className="gps-form-textarea"
                     value={formData.description}
                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
@@ -401,8 +403,9 @@ function GroupManagement() {
                   />
                 </div>
                 <div className="gps-form-group">
-                  <label className="gps-form-label">Group Type</label>
+                  <label htmlFor="create-group-type" className="gps-form-label">Group Type</label>
                   <select
+                    id="create-group-type"
                     className="gps-form-select"
                     value={formData.group_type}
                     onChange={(e) => setFormData({ ...formData, group_type: e.target.value })}
@@ -424,17 +427,18 @@ function GroupManagement() {
                 </div>
                 <div className="gps-form-row">
                   <div className="gps-form-group">
-                    <label className="gps-form-label">Add Members</label>
-                    <select
-                      multiple
-                      className="gps-form-select"
-                      value={formData.member_ids}
-                      onChange={(e) => {
-                        const selected = Array.from(e.target.selectedOptions, option => parseInt(option.value));
-                        setFormData({ ...formData, member_ids: selected });
-                      }}
-                      style={{ minHeight: '120px' }}
-                    >
+                    <label htmlFor="create-add-members" className="gps-form-label">Add Members</label>
+                      <select
+                        id="create-add-members"
+                        multiple
+                        className="gps-form-select"
+                        value={formData.member_ids}
+                        onChange={(e) => {
+                          const selected = Array.from(e.target.selectedOptions, option => parseInt(option.value));
+                          setFormData({ ...formData, member_ids: selected });
+                        }}
+                        style={{ minHeight: '120px' }}
+                      >
                       {availableUsers.map(user => (
                         <option key={user.id} value={user.id}>
                           {user.full_name || user.username} ({user.email})
@@ -444,8 +448,9 @@ function GroupManagement() {
                     <small className="gps-form-hint">Hold Ctrl/Cmd to select multiple users</small>
                   </div>
                   <div className="gps-form-group">
-                    <label className="gps-form-label">Assign Roles</label>
+                    <label htmlFor="create-assign-roles" className="gps-form-label">Assign Roles</label>
                     <select
+                      id="create-assign-roles"
                       multiple
                       className="gps-form-select"
                       value={formData.role_ids}
@@ -489,8 +494,9 @@ function GroupManagement() {
                 <form onSubmit={handleUpdate}>
                   <h3 className="gps-section-header">Group Details</h3>
                   <div className="gps-form-group">
-                    <label className="gps-form-label">Group Name *</label>
+                    <label htmlFor="edit-group-name" className="gps-form-label">Group Name *</label>
                     <input
+                      id="edit-group-name"
                       type="text"
                       className="gps-form-input"
                       value={formData.name}
@@ -499,8 +505,9 @@ function GroupManagement() {
                     />
                   </div>
                   <div className="gps-form-group">
-                    <label className="gps-form-label">Description</label>
+                    <label htmlFor="edit-group-description" className="gps-form-label">Description</label>
                     <textarea
+                      id="edit-group-description"
                       className="gps-form-textarea"
                       value={formData.description}
                       onChange={(e) => setFormData({ ...formData, description: e.target.value })}

@@ -4,6 +4,7 @@ import { FiGitBranch, FiInfo } from 'react-icons/fi';
 import LoadingSpinner from './LoadingSpinner';
 import ColumnMapper from './ColumnMapper';
 import { API_BASE_URL } from '../config';
+import PropTypes from 'prop-types';
 
 const CrosswalkLookupStep = ({
   crosswalkConfig,
@@ -114,8 +115,9 @@ const CrosswalkLookupStep = ({
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.5rem' }}>
           <div className="form-group" style={{ marginBottom: 0 }}>
-            <label style={{ fontSize: '10px', fontFamily: 'Inter', fontWeight: '500', marginBottom: '0.25rem' }}>Crosswalk Table</label>
+            <label htmlFor="crosswalkTable" style={{ fontSize: '10px', fontFamily: 'Inter', fontWeight: '500', marginBottom: '0.25rem' }}>Crosswalk Table</label>
             <select
+              id="crosswalkTable"
               className="form-control"
               style={{ fontSize: '10px', fontFamily: 'Inter', padding: '0.25rem', height: '24px' }}
               value={crosswalkConfig?.crosswalk_id || ''}
@@ -131,8 +133,9 @@ const CrosswalkLookupStep = ({
           </div>
 
           <div className="form-group" style={{ marginBottom: 0 }}>
-            <label style={{ fontSize: '10px', fontFamily: 'Inter', fontWeight: '500', marginBottom: '0.25rem' }}>Source Column (Your Data)</label>
+            <label htmlFor="sourceColumn" style={{ fontSize: '10px', fontFamily: 'Inter', fontWeight: '500', marginBottom: '0.25rem' }}>Source Column (Your Data)</label>
             <select
+              id="sourceColumn"
               className="form-control"
               style={{ fontSize: '10px', fontFamily: 'Inter', padding: '0.25rem', height: '24px' }}
               value={crosswalkConfig?.source_column || ''}
@@ -147,8 +150,9 @@ const CrosswalkLookupStep = ({
           </div>
 
           <div className="form-group" style={{ marginBottom: 0 }}>
-            <label style={{ fontSize: '10px', fontFamily: 'Inter', fontWeight: '500', marginBottom: '0.25rem' }}>Crosswalk Source Field</label>
+            <label htmlFor="crosswalkSourceField" style={{ fontSize: '10px', fontFamily: 'Inter', fontWeight: '500', marginBottom: '0.25rem' }}>Crosswalk Source Field</label>
             <select
+              id="crosswalkSourceField"
               className="form-control"
               style={{ fontSize: '10px', fontFamily: 'Inter', padding: '0.25rem', height: '24px' }}
               value={crosswalkConfig?.crosswalk_source_field || ''}
@@ -168,8 +172,9 @@ const CrosswalkLookupStep = ({
           </div>
 
           <div className="form-group" style={{ marginBottom: 0 }}>
-            <label style={{ fontSize: '10px', fontFamily: 'Inter', fontWeight: '500', marginBottom: '0.25rem' }}>Behavior on No Match</label>
+            <label htmlFor="noMatchBehavior" style={{ fontSize: '10px', fontFamily: 'Inter', fontWeight: '500', marginBottom: '0.25rem' }}>Behavior on No Match</label>
             <select
+              id="noMatchBehavior"
               className="form-control"
               style={{ fontSize: '10px', fontFamily: 'Inter', padding: '0.25rem', height: '24px' }}
               value={crosswalkConfig?.no_match_behavior || 'keep_source'}
@@ -184,8 +189,9 @@ const CrosswalkLookupStep = ({
 
           {crosswalkConfig?.no_match_behavior === 'set_default' && (
             <div className="form-group" style={{ marginBottom: 0, gridColumn: 'span 2' }}>
-              <label style={{ fontSize: '10px', fontFamily: 'Inter', fontWeight: '500', marginBottom: '0.25rem' }}>Default Value</label>
+              <label htmlFor="defaultValue" style={{ fontSize: '10px', fontFamily: 'Inter', fontWeight: '500', marginBottom: '0.25rem' }}>Default Value</label>
               <input
+                id="defaultValue"
                 type="text"
                 className="form-control"
                 style={{ fontSize: '10px', fontFamily: 'Inter', padding: '0.25rem' }}
@@ -269,5 +275,21 @@ const CrosswalkLookupStep = ({
     </div>
   );
 };
+CrosswalkLookupStep.propTypes = {
+  crosswalkConfig: PropTypes.shape({
+    crosswalk_id: PropTypes.string,
+    source_column: PropTypes.string,
+    crosswalk_source_field: PropTypes.string,
+    no_match_behavior: PropTypes.string,
+    default_value: PropTypes.string,
+    column_mappings: PropTypes.array
+  }),
+  schema: PropTypes.array,
+  onCrosswalkConfigChange: PropTypes.func.isRequired
+};
 
+CrosswalkLookupStep.defaultProps = {
+  crosswalkConfig: {},
+  schema: []
+};
 export default CrosswalkLookupStep;

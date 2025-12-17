@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import './NodeDetailDrawer.css';
+import PropTypes from 'prop-types';
 import { FaTimes, FaFileContract, FaFile, FaCog, FaCalculator, FaTable, FaPlayCircle, FaExclamationTriangle, FaShieldAlt, FaLock, FaArrowRight, FaColumns, FaChevronDown, FaChevronRight, FaTag } from 'react-icons/fa';
 import { fetchNodeDetails } from '../services/lineageGraphService';
 
@@ -113,7 +114,7 @@ const NodeDetailDrawer = ({ node, open, onClose }) => {
         <h3>Details</h3>
         <div className="drawer-metadata">
           {resolvedFields.map((field, index) => (
-            <div className="drawer-metadata-item" key={index}>
+            <div className="drawer-metadata-item" key={`field-${field.key || field.label || index}`}>
               <span className="drawer-metadata-key">{field.label}:</span>
               <span className="drawer-metadata-value">{formatFieldValue(field.value)}</span>
             </div>
@@ -162,7 +163,7 @@ const NodeDetailDrawer = ({ node, open, onClose }) => {
                 <span className="column-mapping-transform">Transformation</span>
               </div>
               {regularMappings.map((mapping, index) => (
-                <div className="column-mapping-row" key={index}>
+                <div className="column-mapping-row" key={`mapping-${mapping.source_field || mapping.sourceField || index}`}>
                   <span className="column-mapping-source">
                     {mapping.source_field || mapping.sourceField || '-'}
                   </span>
@@ -191,7 +192,7 @@ const NodeDetailDrawer = ({ node, open, onClose }) => {
             <h3><FaCalculator style={{ marginRight: '8px' }} />Derived Columns</h3>
             <div className="derived-columns-table">
               {derivedMappings.map((mapping, index) => (
-                <div className="derived-column-card" key={index}>
+                <div className="derived-column-card" key={`derived-${mapping.target_field || mapping.targetField || index}`}>
                   <div className="derived-column-header">
                     <span className="derived-column-target">{mapping.target_field || mapping.targetField}</span>
                     <span className="derived-column-type">{mapping.transformation_type}</span>
@@ -356,7 +357,7 @@ const NodeDetailDrawer = ({ node, open, onClose }) => {
                   </span>
                   <div className="drawer-pii-columns-list">
                     {node.data.piiColumns.map((col, index) => (
-                      <span key={index} className="drawer-pii-column-badge">
+                      <span key={`pii-col-${col}-${index}`} className="drawer-pii-column-badge">
                         {col}
                       </span>
                     ))}
@@ -384,7 +385,7 @@ const NodeDetailDrawer = ({ node, open, onClose }) => {
                   const isPii = col.governance_tags?.includes('tag_pii');
                   const hasTags = col.governance_tags && col.governance_tags.length > 0;
                   return (
-                    <div className={`drawer-column-item ${isPii ? 'drawer-column-pii' : ''}`} key={index}>
+                    <div className={`drawer-column-item ${isPii ? 'drawer-column-pii' : ''}`} key={`col-${col.column_name || index}`}>
                       <div className="drawer-column-header">
                         <span className="drawer-column-name">{col.column_name}</span>
                         <span className="drawer-column-type">{col.column_type || 'unknown'}</span>
@@ -424,7 +425,7 @@ const NodeDetailDrawer = ({ node, open, onClose }) => {
             <h3>Derived Columns ({node.data.derivedColumns.length})</h3>
             <div className="drawer-derived-columns">
               {node.data.derivedColumns.map((col, index) => (
-                <div className="drawer-derived-column" key={index}>
+                <div className="drawer-derived-column" key={`derived-col-${col.name || col.column_name || index}`}>
                   <div className="drawer-derived-column-name">
                     <FaCalculator size={12} style={{ color: '#8B5CF6' }} />
                     {col.target_field}
@@ -471,7 +472,7 @@ const NodeDetailDrawer = ({ node, open, onClose }) => {
             
             <div className="drawer-incidents-list">
               {node.data.incidents.violations.map((violation, index) => (
-                <div className="drawer-incident-item" key={index}>
+                <div className="drawer-incident-item" key={`violation-${violation.id || violation.type || index}`}>
                   <div className={`drawer-incident-severity drawer-incident-severity-${violation.severity}`}>
                     {violation.severity}
                   </div>
@@ -560,6 +561,55 @@ const NodeDetailDrawer = ({ node, open, onClose }) => {
       </div>
     </div>
   );
+};
+NodeDetailDrawer.propTypes = {
+  /** Graph node object */
+  node: PropTypes.shape({
+    id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
+    type: PropTypes.string,
+    data: PropTypes.shape({
+      label: PropTypes.string,
+      type: PropTypes.string,
+      projectId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+
+      /* Governance / Quality */
+      containsPii: PropTypes.bool,
+      dataClassification: PropTypes.string,
+      piiColumns: PropTypes.arrayOf(PropTypes.string),
+
+      /* Incidents */
+      hasIncidents: PropTypes.bool,
+      incidents: PropTypes.shape({
+        criticalCount: PropTypes.number,
+        warningCount: PropTypes.number,
+        totalViolations: PropTypes.number,
+        violations: PropTypes.arrayOf(
+          PropTypes.shape({
+            severity: PropTypes.string,
+            ruleName: PropTypes.string,
+            ruleType: PropTypes.string,
+            count: PropTypes.number
+          })
+        )
+      }),
+
+      /* Derived Columns */
+      derivedColumns: PropTypes.arrayOf(
+        PropTypes.shape({
+          target_field: PropTypes.string,
+          expression: PropTypes.string,
+          transformation_type: PropTypes.string,
+          source_fields: PropTypes.arrayOf(PropTypes.string)
+        })
+      )
+    }).isRequired
+  }),
+
+  /** Controls drawer visibility */
+  open: PropTypes.bool.isRequired,
+
+  /** Close handler */
+  onClose: PropTypes.func.isRequired
 };
 
 export default NodeDetailDrawer;
