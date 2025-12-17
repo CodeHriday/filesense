@@ -16,6 +16,7 @@ class QualityValidationEngine {
   /**
    * Detect the primary key column from data
    * Looks for columns with names like *_id, id, *_number, etc.
+   * Uses length-limited patterns to prevent ReDoS attacks
    * @param {Array} data - Data rows
    * @returns {string|null} - Primary key column name or null
    */
@@ -26,11 +27,12 @@ class QualityValidationEngine {
     const columns = Object.keys(firstRow);
     
     // Priority order for primary key detection
+    // Use more specific patterns to prevent ReDoS attacks
     const idPatterns = [
       /^id$/i,                    // exact match 'id'
-      /^.*_id$/i,                 // ends with '_id' (order_id, shipment_id, customer_id, etc.)
-      /^.*_number$/i,             // ends with '_number' (order_number, invoice_number, etc.)
-      /^.*_code$/i,               // ends with '_code' (product_code, etc.)
+      /^[a-zA-Z0-9_]{1,50}_id$/i, // ends with '_id' with reasonable length limit
+      /^[a-zA-Z0-9_]{1,50}_number$/i, // ends with '_number' with length limit
+      /^[a-zA-Z0-9_]{1,50}_code$/i,   // ends with '_code' with length limit
       /^(order|shipment|invoice|customer|product|transaction|record)$/i  // common entity names
     ];
     
@@ -376,9 +378,12 @@ class QualityValidationEngine {
           message: 'Value must be a valid email address'
         };
       case 'phone':
-        const phoneRegex = /^[\d\s\-\(\)\+]+$/;
+        // Use a more specific pattern to prevent ReDoS attacks
+        // Allow digits, spaces, hyphens, parentheses, and plus signs with reasonable limits
+        const phoneRegex = /^[\d\s\-\(\)\+]{7,20}$/;
+        const phoneStr = String(value);
         return {
-          valid: phoneRegex.test(String(value)) && String(value).replace(/\D/g, '').length >= 10,
+          valid: phoneRegex.test(phoneStr) && phoneStr.replace(/\D/g, '').length >= 10,
           message: 'Value must be a valid phone number'
         };
       case 'date':

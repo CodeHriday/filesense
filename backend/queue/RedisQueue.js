@@ -31,7 +31,7 @@ class RedisQueue extends QueueInterface {
     this.queues = new Map(); // queueName -> Queue instance
     this.workers = new Map(); // queueName -> Worker instance
 
-    console.log('✅ Redis queue initialized:', redisUrl.replace(/\/\/.*@/, '//*****@'));
+    
   }
 
   _getQueue(queueName) {

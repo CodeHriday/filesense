@@ -170,6 +170,7 @@ async function profileETLOutputFile(pool, fileData) {
 /**
  * Extract file pattern from filename
  * Replaces date-like patterns and timestamps with wildcards
+ * Uses length-limited regex patterns to prevent ReDoS attacks
  * @param {string} filename - Original filename
  * @returns {string} - File pattern with wildcards
  */
@@ -182,19 +183,21 @@ function extractFilePattern(filename) {
   const extension = lastDotIndex > 0 ? filename.substring(lastDotIndex) : '';
 
   // Replace common date/timestamp patterns with wildcards
+  // Use more specific patterns to avoid ReDoS vulnerabilities
   let pattern = baseName
-    // YYYY-MM-DD or YYYYMMDD
+    // YYYY-MM-DD or YYYYMMDD (specific lengths)
     .replace(/\d{4}-\d{2}-\d{2}/g, '*')
     .replace(/\d{8}/g, '*')
-    // Timestamps (unix or similar)
-    .replace(/\d{10,}/g, '*')
-    // Sequential numbers at the end
-    .replace(/_\d+$/g, '_*')
-    .replace(/\d+$/g, '*');
+    // Timestamps (unix or similar) - limit to reasonable lengths
+    .replace(/\d{10,20}/g, '*')
+    // Sequential numbers at the end - limit length to prevent ReDoS
+    .replace(/_\d{1,10}$/g, '_*')
+    .replace(/\d{1,10}$/g, '*');
 
   // If no wildcards were added and there are numbers, add wildcard after the base name
+  // Limit digit sequences to prevent ReDoS
   if (!pattern.includes('*') && /\d/.test(baseName)) {
-    pattern = baseName.replace(/\d+/g, '*');
+    pattern = baseName.replace(/\d{1,10}/g, '*');
   }
 
   // If still no wildcards (simple filename), just use it as-is with wildcard
