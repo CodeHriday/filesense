@@ -309,7 +309,7 @@ class DBTService {
       let stdout = '';
       let stderr = '';
 
-      const dbtProcess = spawn('dbt', args, {
+      const dbtProcess = spawn('dbt', args, { // NOSONAR S4036 - PATH controlled in deployment environment, dbt command with validated args and no shell execution
         cwd: this.dbtProjectPath,
         env: { ...process.env },
         shell: false

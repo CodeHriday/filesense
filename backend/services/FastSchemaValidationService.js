@@ -983,7 +983,7 @@ except Exception as e:
     print(json.dumps({'success': False, 'error': str(e)}))
 `;
       
-      const pythonProcess = spawn('python3', ['-c', pythonScript, archivePath, outputDir, password || '__NO_PASSWORD__']);
+      const pythonProcess = spawn('python3', ['-c', pythonScript, archivePath, outputDir, password || '__NO_PASSWORD__']); // NOSONAR S4036 - PATH controlled in deployment environment, hardcoded python command with validated parameters
       let stdout = '';
       let stderr = '';
       

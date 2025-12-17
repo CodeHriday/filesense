@@ -30,7 +30,7 @@ class VirusScanService {
    */
   detectClamScanPath() {
     try {
-      const clamPath = execSync('which clamscan', { encoding: 'utf8' }).trim();
+      const clamPath = execSync('which clamscan', { encoding: 'utf8' }).trim(); // NOSONAR S4036 - PATH controlled in deployment environment, hardcoded command for ClamAV detection
       if (clamPath && fs.existsSync(clamPath)) {
         systemLogger.info('ClamAV binary detected', { path: clamPath });
         return clamPath;

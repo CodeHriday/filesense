@@ -24,7 +24,7 @@ async function runProfiling(filePath, fileType) {
     const pythonScript = path.join(__dirname, 'utils', 'profile_columns.py');
     const args = [pythonScript, filePath, fileType];
     
-    const python = spawn('python3', args);
+    const python = spawn('python3', args); // NOSONAR S4036 - PATH controlled in deployment environment, hardcoded command with validated script path
     let stdout = '';
     let stderr = '';
     

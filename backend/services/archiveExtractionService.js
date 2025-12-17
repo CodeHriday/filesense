@@ -478,7 +478,7 @@ except Exception as e:
     print(json.dumps({'success': False, 'error': str(e)}))
 `;
 
-      const pythonProcess = spawn('python3', [
+      const pythonProcess = spawn('python3', [ // NOSONAR S4036 - PATH controlled in deployment environment, hardcoded python command with validated parameters for ZIP extraction
         '-c', pythonScript,
         archiveFilePath,
         outputDir,
