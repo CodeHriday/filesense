@@ -49,8 +49,9 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 
 # Secure CORS configuration - match main server settings
+# Use HTTPS for security, HTTP only allowed for local development via environment variable
 allowed_origins = os.environ.get('ALLOWED_ORIGINS', 
-    'http://localhost:5000,http://localhost:3000,https://*.replit.dev,https://*.replit.app').split(',')
+    'https://localhost:5000,https://localhost:3000,https://*.replit.dev,https://*.replit.app').split(',')
 
 CORS(app, 
     origins=allowed_origins,
