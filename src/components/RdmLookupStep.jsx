@@ -322,6 +322,8 @@ const RdmLookupStep = ({
             }}
             onMouseOver={(e) => e.target.style.backgroundColor = 'hsl(210, 100%, 45%)'}
             onMouseOut={(e) => e.target.style.backgroundColor = 'hsl(210, 100%, 50%)'}
+            onFocus={(e) => e.target.style.backgroundColor = 'hsl(210, 100%, 45%)'}
+            onBlur={(e) => e.target.style.backgroundColor = 'hsl(210, 100%, 50%)'}
           >
             Retry Connection
           </button>
@@ -482,6 +484,9 @@ const RdmLookupStep = ({
                     }}
                     onMouseOver={(e) => e.target.style.backgroundColor = '#b91c1c'}
                     onMouseOut={(e) => e.target.style.backgroundColor = '#dc2626'}
+                    onFocus={(e) => e.target.style.backgroundColor = '#b91c1c'}
+                    onBlur={(e) => e.target.style.backgroundColor = '#dc2626'}
+                    aria-label={`Remove join condition ${idx + 1}`}
                   >
                     <FiTrash2 size={12} />
                   </button>
@@ -504,6 +509,9 @@ const RdmLookupStep = ({
                     }}
                     onMouseOver={(e) => e.target.style.backgroundColor = 'hsl(210, 100%, 45%)'}
                     onMouseOut={(e) => e.target.style.backgroundColor = 'hsl(210, 100%, 50%)'}
+                    onFocus={(e) => e.target.style.backgroundColor = 'hsl(210, 100%, 45%)'}
+                    onBlur={(e) => e.target.style.backgroundColor = 'hsl(210, 100%, 50%)'}
+                    aria-label="Add join condition"
                   >
                     <FiPlus size={12} />
                   </button>

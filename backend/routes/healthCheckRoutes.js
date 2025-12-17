@@ -88,6 +88,8 @@ router.get('/python', async (req, res) => {
  */
 function checkPythonEnvironment() {
   return new Promise((resolve) => {
+    // eslint-disable-next-line security/detect-child-process
+    // Note: PATH is controlled in deployment environment for security
     const python = spawn('python3', ['-c', `
 import sys
 import json

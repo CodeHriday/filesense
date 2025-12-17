@@ -443,7 +443,7 @@ const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
       <div className="vm-modal vm-modal-large">
         <div className="vm-modal-header">
           <h2>Source Configuration</h2>
-          <button onClick={onClose} className="vm-modal-close">×</button>
+          <button onClick={onClose} className="vm-modal-close" aria-label="Close modal">×</button>
         </div>
         
         {/* Tab Navigation */}
@@ -451,6 +451,8 @@ const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
           <button 
             className={`vm-tab ${activeTab === 'configuration' ? 'vm-tab-active' : ''}`}
             onClick={() => setActiveTab('configuration')}
+            aria-pressed={activeTab === 'configuration'}
+            aria-label="Configuration tab"
           >
             Configuration
           </button>
@@ -458,6 +460,8 @@ const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
             <button 
               className={`vm-tab ${activeTab === 'schema' ? 'vm-tab-active' : ''}`}
               onClick={() => setActiveTab('schema')}
+              aria-pressed={activeTab === 'schema'}
+              aria-label="Schema tab"
             >
               Schema
             </button>
@@ -632,12 +636,13 @@ const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
             )}
             
             <div className="vm-form-group vm-form-group-no-margin vm-form-group-browse">
-              <label htmlFor="browse-button">&nbsp;</label>
+              <label htmlFor="browse-button" className="sr-only">Browse files</label>
               <button 
                 id="browse-button"
                 onClick={handleBrowse}
                 disabled={!connectionId || loading || !!vendorAgreementId}
                 className="vm-btn vm-btn-browse"
+                aria-label="Browse files in selected connection"
               >
                 Browse
               </button>

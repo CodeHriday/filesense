@@ -153,7 +153,7 @@ const TargetSchemaEditor = ({ connection, schema, onSchemaChange }) => {
                     checked={settings.createTable}
                     onChange={(e) => handleSettingChange('createTable', e.target.checked)}
                   />
-                  Create table if it doesn't exist
+                  <span>Create table if it doesn't exist</span>
                 </label>
               </div>
             </div>

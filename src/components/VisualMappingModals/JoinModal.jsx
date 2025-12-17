@@ -234,7 +234,7 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
       <div className="vm-modal vm-modal-large">
         <div className="vm-modal-header">
           <h2>Join Configuration</h2>
-          <button onClick={onClose} className="vm-modal-close">×</button>
+          <button onClick={onClose} className="vm-modal-close" aria-label="Close modal">×</button>
         </div>
 
         <div className="vm-tabs">
@@ -373,6 +373,7 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
                               className="vm-btn vm-btn-secondary"
                               onClick={() => removeJoinKey(index)}
                               style={{ padding: '4px 8px', fontSize: '9px' }}
+                              aria-label={`Remove join key ${index + 1}`}
                             >
                               <FaTrash />
                             </button>
@@ -388,6 +389,7 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
                 className="vm-btn vm-btn-primary"
                 onClick={addJoinKey}
                 style={{ marginTop: '8px' }}
+                aria-label="Add new join key"
               >
                 <FaPlus /> Add Join Key
               </button>
@@ -547,6 +549,7 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
                             className="vm-btn vm-btn-secondary"
                             onClick={() => removeColumnMapping(index)}
                             style={{ padding: '4px 8px', fontSize: '9px' }}
+                            aria-label={`Remove column mapping ${index + 1}`}
                           >
                             <FaTrash />
                           </button>
@@ -561,6 +564,7 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
                 className="vm-btn vm-btn-primary"
                 onClick={addColumnMapping}
                 style={{ marginTop: '8px', marginBottom: '16px' }}
+                aria-label="Add new column mapping"
               >
                 <FaPlus /> Add Column Mapping
               </button>

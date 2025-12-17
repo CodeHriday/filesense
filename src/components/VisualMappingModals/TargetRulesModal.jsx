@@ -107,7 +107,7 @@ const TargetRulesModal = ({ isOpen, onClose, onSave, initialConfig = {}, project
       }
     });
   };
-  
+
   const handleSave = () => {
     const selectedConnection = connections.find(c => c.id === parseInt(connectionId));
     const selectedOwner = datastewards.find(ds => ds.id === parseInt(targetFileOwnerId));
@@ -141,7 +141,7 @@ const TargetRulesModal = ({ isOpen, onClose, onSave, initialConfig = {}, project
       <div className="vm-modal vm-modal-large">
         <div className="vm-modal-header">
           <h2>Target Configuration</h2>
-          <button onClick={onClose} className="vm-modal-close">×</button>
+          <button onClick={onClose} className="vm-modal-close" aria-label="Close modal">×</button>
         </div>
         
         {/* Tab Navigation */}
@@ -149,6 +149,8 @@ const TargetRulesModal = ({ isOpen, onClose, onSave, initialConfig = {}, project
           <button 
             className={`vm-tab ${activeTab === 'configuration' ? 'vm-tab-active' : ''}`}
             onClick={() => setActiveTab('configuration')}
+            aria-pressed={activeTab === 'configuration'}
+            aria-label="Configuration tab"
           >
             Configuration
           </button>
@@ -156,6 +158,8 @@ const TargetRulesModal = ({ isOpen, onClose, onSave, initialConfig = {}, project
             <button 
               className={`vm-tab ${activeTab === 'schema' ? 'vm-tab-active' : ''}`}
               onClick={() => setActiveTab('schema')}
+              aria-pressed={activeTab === 'schema'}
+              aria-label="Output Schema tab"
             >
               Output Schema
             </button>
@@ -238,12 +242,13 @@ const TargetRulesModal = ({ isOpen, onClose, onSave, initialConfig = {}, project
             </div>
             
             <div className="vm-form-group vm-form-group-no-margin vm-form-group-browse">
-              <label htmlFor="target-browse-button">&nbsp;</label>
+              <label htmlFor="target-browse-button" className="sr-only">Browse files</label>
               <button 
                 id="target-browse-button"
                 onClick={handleBrowse}
                 disabled={!connectionId || loading}
                 className="vm-btn vm-btn-browse"
+                aria-label="Browse files in selected connection"
               >
                 Browse
               </button>
@@ -296,7 +301,7 @@ const TargetRulesModal = ({ isOpen, onClose, onSave, initialConfig = {}, project
                 checked={anomalyDetection}
                 onChange={(e) => setAnomalyDetection(e.target.checked)}
               />
-              Enable anomaly detection for numeric deviation, row count, and null spikes
+              <span>Enable anomaly detection for numeric deviation, row count, and null spikes</span>
             </label>
           </div>
           </div>

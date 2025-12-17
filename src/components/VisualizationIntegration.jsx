@@ -557,28 +557,28 @@ const VisualizationIntegration = ({
                               checked={includeMetadata} 
                               onChange={(e) => setIncludeMetadata(e.target.checked)} 
                             />
-                            Include file metadata
+                            <span>Include file metadata</span>
                           </label>
                         </div>
                         
                         <div className="advanced-option">
                           <label htmlFor="include-quality-metrics">
                             <input id="include-quality-metrics" type="checkbox" defaultChecked={true} />
-                            Include quality metrics
+                            <span>Include quality metrics</span>
                           </label>
                         </div>
                         
                         <div className="advanced-option">
                           <label htmlFor="include-lineage-info">
                             <input id="include-lineage-info" type="checkbox" defaultChecked={false} />
-                            Include lineage information
+                            <span>Include lineage information</span>
                           </label>
                         </div>
                         
                         <div className="advanced-option">
                           <label htmlFor="include-historical-versions">
                             <input id="include-historical-versions" type="checkbox" defaultChecked={false} />
-                            Include historical versions
+                            <span>Include historical versions</span>
                           </label>
                         </div>
                         
