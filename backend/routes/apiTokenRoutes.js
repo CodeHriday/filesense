@@ -10,7 +10,7 @@ router.post('/', authenticateToken, async (req, res) => {
   try {
     const { name, projectId, scopes, rateLimit, rateWindowHours, expiresAt } = req.body;
 
-    const userRoles = Array.isArray(req.user.role) ? req.user.role : [req.user.role];
+    const userRoles = req.user.roles || [];
     const isAdmin = req.user.is_admin || userRoles.some(r => r?.toLowerCase() === 'admin');
     if (!isAdmin) {
       return res.status(403).json({ error: 'Admin privileges required' });
@@ -49,7 +49,7 @@ router.post('/', authenticateToken, async (req, res) => {
 
 router.get('/', authenticateToken, async (req, res) => {
   try {
-    const userRoles = Array.isArray(req.user.role) ? req.user.role : [req.user.role];
+    const userRoles = req.user.roles || [];
     const isAdmin = req.user.is_admin || userRoles.some(r => r?.toLowerCase() === 'admin');
     if (!isAdmin) {
       return res.status(403).json({ error: 'Admin privileges required' });
@@ -75,7 +75,7 @@ router.get('/', authenticateToken, async (req, res) => {
 
 router.get('/:tokenId/usage', authenticateToken, async (req, res) => {
   try {
-    const userRoles = Array.isArray(req.user.role) ? req.user.role : [req.user.role];
+    const userRoles = req.user.roles || [];
     const isAdmin = req.user.is_admin || userRoles.some(r => r?.toLowerCase() === 'admin');
     if (!isAdmin) {
       return res.status(403).json({ error: 'Admin privileges required' });
@@ -96,7 +96,7 @@ router.get('/:tokenId/usage', authenticateToken, async (req, res) => {
 
 router.delete('/:tokenId', authenticateToken, async (req, res) => {
   try {
-    const userRoles = Array.isArray(req.user.role) ? req.user.role : [req.user.role];
+    const userRoles = req.user.roles || [];
     const isAdmin = req.user.is_admin || userRoles.some(r => r?.toLowerCase() === 'admin');
     if (!isAdmin) {
       return res.status(403).json({ error: 'Admin privileges required' });
