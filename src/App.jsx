@@ -1,5 +1,5 @@
 import React, { useState, useEffect, Suspense, lazy } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import ErrorBoundary from './components/ErrorBoundary';
 import { initializeAuditInterceptor } from './utils/auditInterceptor';
 import PropTypes from 'prop-types';
@@ -124,7 +124,8 @@ import './styles/global-page-styles.css';
 // Protected route component
 const ProtectedRoute = ({ children }) => {
   const { currentUser, authStatus } = useAuth();
-  const location = window.location.pathname;
+  const location = useLocation();
+  const pathname = location.pathname;
   
   // Use authStatus for atomic routing decisions
   // This prevents the race condition where loading=false before currentUser is set
@@ -133,7 +134,8 @@ const ProtectedRoute = ({ children }) => {
   }
   
   if (authStatus === AUTH_STATUS.UNAUTHENTICATED || !currentUser) {
-    return <Navigate to="/login" replace />;
+    // Pass current location so Login can redirect back after authentication
+    return <Navigate to="/login" state={{ from: location }} replace />;
   }
   
   // Extract route parameters to pass to children if it's a function
@@ -141,10 +143,10 @@ const ProtectedRoute = ({ children }) => {
   if (typeof children === 'function') {
     // Extract fileId from the path based on various possible route patterns
     let fileId = null;
-    const profileMatch = location.match(/\/profile\/([^\/]+)/);
-    const qualityMatch = location.match(/\/quality\/([^\/]+)/);
-    const reportMatch = location.match(/\/report\/([^\/]+)/);
-    const lineageMatch = location.match(/\/lineage\/impact\/([^\/]+)/);
+    const profileMatch = pathname.match(/\/profile\/([^\/]+)/);
+    const qualityMatch = pathname.match(/\/quality\/([^\/]+)/);
+    const reportMatch = pathname.match(/\/report\/([^\/]+)/);
+    const lineageMatch = pathname.match(/\/lineage\/impact\/([^\/]+)/);
     
     if (profileMatch) fileId = profileMatch[1];
     else if (qualityMatch) fileId = qualityMatch[1];
