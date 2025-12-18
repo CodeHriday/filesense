@@ -1,4 +1,4 @@
-import React, { createContext, useState, useEffect, useContext, useRef } from 'react';
+import React, { createContext, useState, useEffect, useContext, useRef, useReducer } from 'react';
 import axios from 'axios';
 import { API_BASE_URL } from '../config';
 import PropTypes from 'prop-types';
@@ -6,6 +6,68 @@ import ForcePasswordChange from '../components/ForcePasswordChange';
 
 // Create context
 const AuthContext = createContext(null);
+
+// Auth status constants for atomic state transitions - exported for use in routing
+export const AUTH_STATUS = {
+  CHECKING: 'checking',      // Initial state, validating token
+  AUTHENTICATED: 'authenticated',
+  UNAUTHENTICATED: 'unauthenticated'
+};
+
+// Reducer action types
+const AUTH_ACTIONS = {
+  AUTH_SUCCESS: 'AUTH_SUCCESS',
+  AUTH_FAILURE: 'AUTH_FAILURE',
+  LOGOUT: 'LOGOUT',
+  SET_ERROR: 'SET_ERROR',
+  CLEAR_ERROR: 'CLEAR_ERROR'
+};
+
+// Initial auth state
+const initialAuthState = {
+  status: AUTH_STATUS.CHECKING,
+  user: null,
+  error: ''
+};
+
+// Auth reducer for atomic state updates
+function authReducer(state, action) {
+  switch (action.type) {
+    case AUTH_ACTIONS.AUTH_SUCCESS:
+      return {
+        ...state,
+        status: AUTH_STATUS.AUTHENTICATED,
+        user: action.payload.user,
+        error: ''
+      };
+    case AUTH_ACTIONS.AUTH_FAILURE:
+      return {
+        ...state,
+        status: AUTH_STATUS.UNAUTHENTICATED,
+        user: null,
+        error: action.payload?.error || ''
+      };
+    case AUTH_ACTIONS.LOGOUT:
+      return {
+        ...state,
+        status: AUTH_STATUS.UNAUTHENTICATED,
+        user: null,
+        error: ''
+      };
+    case AUTH_ACTIONS.SET_ERROR:
+      return {
+        ...state,
+        error: action.payload.error
+      };
+    case AUTH_ACTIONS.CLEAR_ERROR:
+      return {
+        ...state,
+        error: ''
+      };
+    default:
+      return state;
+  }
+}
 
 // Custom hook for using the auth context
 export const useAuth = () => {
@@ -18,14 +80,18 @@ export const useAuth = () => {
 
 // Auth provider component
 export const AuthProvider = ({ children }) => {
-  const [currentUser, setCurrentUser] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [authState, dispatch] = useReducer(authReducer, initialAuthState);
   const [showForcePasswordChange, setShowForcePasswordChange] = useState(false);
   
   // Ref to track if initial auth check is in progress
   // This prevents the response interceptor from interfering during initialization
   const isInitializingRef = useRef(true);
+  
+  // Derived state for backward compatibility
+  const currentUser = authState.user;
+  const loading = authState.status === AUTH_STATUS.CHECKING;
+  const error = authState.error;
+  const authStatus = authState.status;
   
   // Check if there's a token in localStorage on initial load
   useEffect(() => {
@@ -35,12 +101,13 @@ export const AuthProvider = ({ children }) => {
       fetchUserData(token);
     } else {
       isInitializingRef.current = false;
-      setLoading(false);
+      dispatch({ type: AUTH_ACTIONS.AUTH_FAILURE });
     }
   }, []);
+  
   AuthProvider.propTypes = {
-  children: PropTypes.node.isRequired
-};
+    children: PropTypes.node.isRequired
+  };
 
   const fetchUserData = async (token) => {
     try {
@@ -52,33 +119,38 @@ export const AuthProvider = ({ children }) => {
       
       const userData = response.data;
       
-      // Set user data first, then mark loading complete
-      // This ensures currentUser is set before loading becomes false
-      setCurrentUser(userData);
+      // Mark initialization complete
+      isInitializingRef.current = false;
+      
+      // Atomic state update: set user and status together
+      dispatch({ 
+        type: AUTH_ACTIONS.AUTH_SUCCESS, 
+        payload: { user: userData } 
+      });
       
       // Check if user needs to change password
       if (userData.force_password_change) {
         console.log('User must change password (detected on token refresh)');
         setShowForcePasswordChange(true);
       }
-      
-      // Mark initialization complete before setting loading to false
-      isInitializingRef.current = false;
-      setLoading(false);
     } catch (error) {
       console.error('Error fetching user data:', error);
       // If token is invalid or expired, clear it
       localStorage.removeItem('token');
       localStorage.removeItem('refreshToken');
-      setCurrentUser(null);
       // Mark initialization complete
       isInitializingRef.current = false;
-      setLoading(false);
+      // Atomic state update
+      dispatch({ type: AUTH_ACTIONS.AUTH_FAILURE });
     }
   };
   
+  const setError = (errorMsg) => {
+    dispatch({ type: AUTH_ACTIONS.SET_ERROR, payload: { error: errorMsg } });
+  };
+  
   const login = async (username, password) => {
-    setError('');
+    dispatch({ type: AUTH_ACTIONS.CLEAR_ERROR });
     try {
       console.log('Attempting login with:', username);
       
@@ -109,7 +181,7 @@ export const AuthProvider = ({ children }) => {
       if (force_password_change) {
         console.log('User must change password');
         // Set user first (so they're authenticated)
-        setCurrentUser(user);
+        dispatch({ type: AUTH_ACTIONS.AUTH_SUCCESS, payload: { user } });
         // Show force password change modal
         setShowForcePasswordChange(true);
         return true; // Login successful but will show password change modal
@@ -124,24 +196,25 @@ export const AuthProvider = ({ children }) => {
         });
         
         // This will include all the user's permissions directly from the database
-        setCurrentUser(userResponse.data);
+        dispatch({ type: AUTH_ACTIONS.AUTH_SUCCESS, payload: { user: userResponse.data } });
       } catch (userError) {
         console.error('Error fetching complete user data:', userError);
         // Fall back to basic user data if /me endpoint fails
-        setCurrentUser(user);
+        dispatch({ type: AUTH_ACTIONS.AUTH_SUCCESS, payload: { user } });
       }
       
       return true;
     } catch (error) {
       console.error('Login error:', error);
       
+      let errorMsg = 'Invalid username or password. Please try again.';
       if (error.response && error.response.data && error.response.data.error) {
-        setError(error.response.data.error);
+        errorMsg = error.response.data.error;
       } else if (error.message) {
-        setError(error.message);
-      } else {
-        setError('Invalid username or password. Please try again.');
+        errorMsg = error.message;
       }
+      
+      dispatch({ type: AUTH_ACTIONS.SET_ERROR, payload: { error: errorMsg } });
       
       return false;
     }
@@ -176,7 +249,7 @@ export const AuthProvider = ({ children }) => {
       // Always clear user data and tokens, even if API call fails
       localStorage.removeItem('token');
       localStorage.removeItem('refreshToken');
-      setCurrentUser(null);
+      dispatch({ type: AUTH_ACTIONS.LOGOUT });
     }
   };
   
@@ -221,7 +294,9 @@ export const AuthProvider = ({ children }) => {
       if (!isInitializingRef.current) {
         localStorage.removeItem('token');
         localStorage.removeItem('refreshToken');
-        setCurrentUser(null);
+        // Use LOGOUT instead of AUTH_FAILURE to ensure clean state transition
+        // This prevents infinite refresh loops and ensures consistent state
+        dispatch({ type: AUTH_ACTIONS.LOGOUT });
       }
       return null;
     }
@@ -630,6 +705,7 @@ export const AuthProvider = ({ children }) => {
     logout,
     loading,
     error,
+    authStatus,
     hasPermission,
     hasFeaturePermission,
     hasRole,

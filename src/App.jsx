@@ -29,7 +29,7 @@ import Login from './pages/Login';
 
 // Context providers (needed immediately)
 import { AccessibilityProvider } from './context/AccessibilityContext';
-import AuthProvider, { useAuth } from './context/AuthContext';
+import AuthProvider, { useAuth, AUTH_STATUS } from './context/AuthContext';
 import { SidebarProvider, useSidebar } from './context/SidebarContext';
 import { AnnouncementProvider } from './components/accessibility';
 import { ToastProvider } from './context/ToastContext';
@@ -123,15 +123,16 @@ import './styles/global-page-styles.css';
 
 // Protected route component
 const ProtectedRoute = ({ children }) => {
-  const { currentUser, loading } = useAuth();
-  const params = new URLSearchParams(window.location.search);
+  const { currentUser, authStatus } = useAuth();
   const location = window.location.pathname;
   
-  if (loading) {
+  // Use authStatus for atomic routing decisions
+  // This prevents the race condition where loading=false before currentUser is set
+  if (authStatus === AUTH_STATUS.CHECKING) {
     return <div className="loading-screen">Loading...</div>;
   }
   
-  if (!currentUser) {
+  if (authStatus === AUTH_STATUS.UNAUTHENTICATED || !currentUser) {
     return <Navigate to="/login" replace />;
   }
   
