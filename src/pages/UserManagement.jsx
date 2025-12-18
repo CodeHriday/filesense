@@ -1166,36 +1166,30 @@ const UserManagement = () => {
       
       {/* Delete User Confirmation Modal */}
       {deleteModalOpen && userToDelete && (
-        <div className="modal-overlay">
-          <div className="delete-confirmation-modal">
-            <div className="modal-header">
-              <h2>Delete User</h2>
-              <button className="close-modal-btn" onClick={closeDeleteModal} aria-label="Close">
-                ×
-              </button>
+        <div className="gps-modal-overlay" onClick={closeDeleteModal}>
+          <div className="gps-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="gps-modal-header">
+              <h2 className="gps-modal-title">Delete User</h2>
+              <button className="gps-modal-close" onClick={closeDeleteModal}>×</button>
             </div>
-            
-            <div className="modal-body">
-              <div className="delete-warning-icon">⚠️</div>
-              <p className="delete-confirmation-text">
-                Are you sure you want to delete the user <strong>{userToDelete.username}</strong>?
-              </p>
-              {userToDelete.full_name && (
-                <p className="user-detail">Full Name: {userToDelete.full_name}</p>
-              )}
-              {userToDelete.email && (
-                <p className="user-detail">Email: {userToDelete.email}</p>
-              )}
-              <p className="delete-warning-text">
-                This action cannot be undone.
-              </p>
+            <div className="gps-modal-body">
+              <div className="gps-alert gps-alert--danger">
+                Are you sure you want to delete the user <strong>{userToDelete.username}</strong>? This action cannot be undone.
+              </div>
+              <div style={{ marginTop: '16px' }}>
+                {userToDelete.full_name && (
+                  <p><strong>Full Name:</strong> {userToDelete.full_name}</p>
+                )}
+                {userToDelete.email && (
+                  <p><strong>Email:</strong> {userToDelete.email}</p>
+                )}
+              </div>
             </div>
-            
-            <div className="modal-actions">
-              <button type="button" className="cancel-btn" onClick={closeDeleteModal}>
+            <div className="gps-modal-footer">
+              <button className="gps-btn gps-btn--secondary" onClick={closeDeleteModal}>
                 Cancel
               </button>
-              <button type="button" className="delete-confirm-btn" onClick={confirmDeleteUser}>
+              <button className="gps-btn gps-btn--danger" onClick={confirmDeleteUser}>
                 Delete User
               </button>
             </div>
@@ -1205,30 +1199,22 @@ const UserManagement = () => {
       
       {/* Bulk Delete Confirmation Modal */}
       {bulkDeleteModalOpen && (
-        <div className="modal-overlay">
-          <div className="delete-confirmation-modal">
-            <div className="modal-header">
-              <h2>Delete Multiple Users</h2>
-              <button className="close-modal-btn" onClick={closeBulkDeleteModal} aria-label="Close">
-                ×
-              </button>
+        <div className="gps-modal-overlay" onClick={closeBulkDeleteModal}>
+          <div className="gps-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="gps-modal-header">
+              <h2 className="gps-modal-title">Delete Multiple Users</h2>
+              <button className="gps-modal-close" onClick={closeBulkDeleteModal}>×</button>
             </div>
-            
-            <div className="modal-body">
-              <div className="delete-warning-icon">⚠️</div>
-              <p className="delete-confirmation-text">
-                Are you sure you want to delete <strong>{selectedUserIds.length}</strong> selected user(s)?
-              </p>
-              <p className="delete-warning-text">
-                This action cannot be undone.
-              </p>
+            <div className="gps-modal-body">
+              <div className="gps-alert gps-alert--danger">
+                Are you sure you want to delete <strong>{selectedUserIds.length}</strong> selected user(s)? This action cannot be undone.
+              </div>
             </div>
-            
-            <div className="modal-actions">
-              <button type="button" className="cancel-btn" onClick={closeBulkDeleteModal}>
+            <div className="gps-modal-footer">
+              <button className="gps-btn gps-btn--secondary" onClick={closeBulkDeleteModal}>
                 Cancel
               </button>
-              <button type="button" className="delete-confirm-btn" onClick={confirmBulkDelete}>
+              <button className="gps-btn gps-btn--danger" onClick={confirmBulkDelete}>
                 Delete {selectedUserIds.length} User(s)
               </button>
             </div>
