@@ -273,7 +273,7 @@ function Sidebar() {
             </button>
             
             {dropdownOpen && (
-              <div className={`sidebar-dropdown-menu ${isCollapsed ? 'sidebar-dropdown-collapsed' : ''}`}>
+              <div className="sidebar-dropdown-menu">
                 <div className="sidebar-dropdown-header">
                   <div className="sidebar-user-info">
                     <strong>{currentUser.username}</strong>

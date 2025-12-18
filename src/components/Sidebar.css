@@ -512,42 +512,67 @@
 
 .sidebar.collapsed .sidebar-footer {
   flex-direction: column;
+  align-items: center;
   gap: var(--space-2);
+  padding: var(--space-3);
+}
+
+/* Collapsed state: User menu container */
+.sidebar.collapsed .sidebar-user-menu {
+  width: 100%;
+  display: flex;
+  justify-content: center;
 }
 
 /* Collapsed state: User button shows as icon only */
 .sidebar.collapsed .sidebar-user-btn {
   justify-content: center;
   padding: var(--space-2);
-  width: 100%;
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  border-radius: var(--radius);
 }
 
 .sidebar.collapsed .sidebar-user-btn svg {
   font-size: 18px;
+  color: var(--foreground);
 }
 
-/* Collapsed state: Dropdown positioned to the right */
-.sidebar-dropdown-collapsed {
-  left: 100% !important;
-  right: auto !important;
-  bottom: 0 !important;
-  margin-left: var(--space-2);
+/* Collapsed state: Dropdown positioned to the right of user button */
+.sidebar.collapsed .sidebar-dropdown-menu {
+  position: absolute;
+  left: calc(100% + var(--space-2));
+  bottom: 0;
+  right: auto;
+  top: auto;
   margin-bottom: 0;
   min-width: 220px;
+  z-index: 1001;
 }
 
-/* Collapsed state: Hide logout text, show icon only */
-.sidebar.collapsed .sidebar-logout-text {
-  display: none;
+/* Keep full dropdown content visible in collapsed mode */
+.sidebar.collapsed .sidebar-dropdown-header {
+  display: block;
 }
 
+.sidebar.collapsed .sidebar-dropdown-content {
+  display: block;
+}
+
+/* Logout button in collapsed dropdown - show text */
 .sidebar.collapsed .sidebar-dropdown-item {
-  justify-content: center;
-  padding: var(--space-3);
+  justify-content: flex-start;
+  padding: var(--space-3) var(--space-4);
+  gap: var(--space-3);
+}
+
+.sidebar.collapsed .sidebar-logout-text {
+  display: inline;
 }
 
 .sidebar.collapsed .sidebar-dropdown-item svg {
-  font-size: 18px;
+  font-size: 16px;
 }
 
 /* Help Button in Footer */
