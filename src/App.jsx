@@ -228,10 +228,17 @@ function App() {
 
 // Separate component to use useAuth() hook inside Router context
 function AppContent({ showOnboarding, setShowOnboarding }) {
-  const { currentUser } = useAuth();
+  const { currentUser, authStatus } = useAuth();
+  const location = useLocation();
   const { isCollapsed } = useSidebar();
   const [showAIInsights, setShowAIInsights] = useState(false);
   const [selectedFileId, setSelectedFileId] = useState(null);
+  
+  // Show loading while auth status is being determined
+  // This prevents premature redirect to login before auth check completes
+  if (authStatus === AUTH_STATUS.CHECKING) {
+    return <div className="loading-screen">Loading...</div>;
+  }
   
   // Function to toggle AI Insights sidebar
   const toggleAIInsights = (fileId = null) => {
@@ -392,11 +399,11 @@ function AppContent({ showOnboarding, setShowOnboarding }) {
         </>
       )}
       
-      {/* Login route when not logged in */}
-      {!currentUser && (
+      {/* Login route when not logged in - only show after auth check confirms unauthenticated */}
+      {authStatus === AUTH_STATUS.UNAUTHENTICATED && (
         <Routes>
           <Route path="/login" element={<Login />} />
-          <Route path="*" element={<Navigate to="/login" replace />} />
+          <Route path="*" element={<Navigate to="/login" state={{ from: location }} replace />} />
         </Routes>
       )}
       
