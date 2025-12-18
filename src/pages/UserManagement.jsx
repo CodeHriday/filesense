@@ -75,6 +75,9 @@ const UserManagement = () => {
   const [userDependencies, setUserDependencies] = useState(null);
   const [vendorContacts, setVendorContacts] = useState([]);
   
+  // Field validation errors
+  const [fieldErrors, setFieldErrors] = useState({});
+  
   const { currentUser, hasPermission, hasRole } = useAuth();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -220,6 +223,7 @@ const UserManagement = () => {
     setModalMode('create');
     setError('');
     setModalError('');
+    setFieldErrors({});
     setModalOpen(true);
   };
   
@@ -240,6 +244,7 @@ const UserManagement = () => {
     });
     setModalMode('edit');
     setModalError('');
+    setFieldErrors({});
     setModalOpen(true);
   };
   
@@ -269,6 +274,7 @@ const UserManagement = () => {
       setModalMode('create');
       setError('');
       setModalError('');
+      setFieldErrors({});
       setModalOpen(true);
       
       // Clear URL parameters
@@ -304,12 +310,51 @@ const UserManagement = () => {
     setModalError('');
   };
   
+  const validatePhone = (phone) => {
+    if (!phone) return '';
+    const phoneRegex = /^[0-9+().\-\s]*$/;
+    if (!phoneRegex.test(phone)) {
+      return 'Phone number can only contain numbers, +, (), -, and spaces';
+    }
+    return '';
+  };
+
+  const validateEmail = (email) => {
+    if (!email) return '';
+    if (!email.includes('@')) {
+      return 'Email must contain @';
+    }
+    if (!email.toLowerCase().endsWith('.com') && 
+        !email.toLowerCase().endsWith('.org') && 
+        !email.toLowerCase().endsWith('.net') && 
+        !email.toLowerCase().endsWith('.edu') && 
+        !email.toLowerCase().endsWith('.gov') &&
+        !email.toLowerCase().includes('.')) {
+      return 'Email must have a valid domain (e.g., .com)';
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return 'Please enter a valid email address';
+    }
+    return '';
+  };
+
   const handleInputChange = (e) => {
     const { name, type, value, checked } = e.target;
+    const newValue = type === 'checkbox' ? checked : value;
+    
     setFormData(prev => ({
       ...prev,
-      [name]: type === 'checkbox' ? checked : value
+      [name]: newValue
     }));
+
+    if (name === 'phone_number') {
+      const error = validatePhone(newValue);
+      setFieldErrors(prev => ({ ...prev, phone_number: error }));
+    } else if (name === 'email') {
+      const error = validateEmail(newValue);
+      setFieldErrors(prev => ({ ...prev, email: error }));
+    }
   };
   
   const handleRoleChange = (e) => {
@@ -330,6 +375,20 @@ const UserManagement = () => {
   
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // Validate phone and email fields
+    const phoneError = validatePhone(formData.phone_number);
+    const emailError = validateEmail(formData.email);
+    
+    setFieldErrors({
+      phone_number: phoneError,
+      email: emailError
+    });
+    
+    if (phoneError || emailError) {
+      setModalError('Please fix the validation errors before submitting');
+      return;
+    }
     
     // Validate that at least one role is selected
     if (formData.roles.length === 0) {
@@ -916,7 +975,11 @@ const UserManagement = () => {
                   value={formData.phone_number}
                   onChange={handleInputChange}
                   placeholder="+1-555-123-4567"
+                  className={fieldErrors.phone_number ? 'input-error' : ''}
                 />
+                {fieldErrors.phone_number && (
+                  <span className="field-error">{fieldErrors.phone_number}</span>
+                )}
               </div>
             </div>
             
@@ -928,7 +991,11 @@ const UserManagement = () => {
                 name="email"
                 value={formData.email}
                 onChange={handleInputChange}
+                className={fieldErrors.email ? 'input-error' : ''}
               />
+              {fieldErrors.email && (
+                <span className="field-error">{fieldErrors.email}</span>
+              )}
             </div>
           </div>
           
