@@ -12,7 +12,7 @@
   top: 0;
   bottom: 0;
   left: 0;
-  z-index: var(--z-base);
+  z-index: var(--z-sticky);
   transition: width var(--transition-base), min-width var(--transition-base);
   display: flex;
   flex-direction: column;
