@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { FaTrash, FaSearch } from 'react-icons/fa';
 import '../styles/global-page-styles.css';
 
 const APITokens = () => {
@@ -7,7 +8,13 @@ const APITokens = () => {
   const [creating, setCreating] = useState(false);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [showTokenModal, setShowTokenModal] = useState(false);
+  const [showRevokeModal, setShowRevokeModal] = useState(false);
+  const [tokenToRevoke, setTokenToRevoke] = useState(null);
+  const [revoking, setRevoking] = useState(false);
   const [generatedToken, setGeneratedToken] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(10);
   const [formData, setFormData] = useState({
     name: '',
     scopes: [],
@@ -21,6 +28,15 @@ const APITokens = () => {
     { value: 'projects:upload', label: 'Project Upload', description: 'Upload files to internal projects' },
     { value: 'bulk:upload', label: 'Bulk Upload', description: 'Upload multiple files at once' }
   ];
+
+  const formatScopes = (scopes) => {
+    try {
+      const scopeArray = typeof scopes === 'string' ? JSON.parse(scopes) : scopes;
+      return scopeArray?.join(', ') || '';
+    } catch (e) {
+      return scopes || '';
+    }
+  };
 
   useEffect(() => {
     fetchTokens();
@@ -41,6 +57,33 @@ const APITokens = () => {
       setLoading(false);
     }
   };
+
+  const filteredTokens = useMemo(() => {
+    if (!searchQuery.trim()) return tokens;
+    const query = searchQuery.toLowerCase();
+    return tokens.filter(token => 
+      token.name?.toLowerCase().includes(query) ||
+      token.token_prefix?.toLowerCase().includes(query) ||
+      (formatScopes(token.scopes) || '').toLowerCase().includes(query)
+    );
+  }, [tokens, searchQuery]);
+
+  const paginatedTokens = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return filteredTokens.slice(startIndex, startIndex + itemsPerPage);
+  }, [filteredTokens, currentPage, itemsPerPage]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredTokens.length / itemsPerPage));
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery]);
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [filteredTokens.length, totalPages, currentPage]);
 
   const handleCreateToken = async (e) => {
     e.preventDefault();
@@ -94,13 +137,22 @@ const APITokens = () => {
     }
   };
 
-  const handleRevokeToken = async (tokenId) => {
-    if (!confirm('Are you sure you want to revoke this token? This action cannot be undone.')) {
-      return;
-    }
+  const openRevokeModal = (token) => {
+    setTokenToRevoke(token);
+    setShowRevokeModal(true);
+  };
 
+  const closeRevokeModal = () => {
+    setTokenToRevoke(null);
+    setShowRevokeModal(false);
+  };
+
+  const handleRevokeToken = async () => {
+    if (!tokenToRevoke || revoking) return;
+    
+    setRevoking(true);
     try {
-      const response = await fetch(`/api/tokens/${tokenId}`, {
+      const response = await fetch(`/api/tokens/${tokenToRevoke.id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -109,6 +161,7 @@ const APITokens = () => {
 
       if (response.ok) {
         fetchTokens();
+        closeRevokeModal();
       } else {
         const data = await response.json();
         alert(data.error || 'Failed to revoke token');
@@ -116,6 +169,8 @@ const APITokens = () => {
     } catch (error) {
       console.error('Failed to revoke token:', error);
       alert('Failed to revoke token');
+    } finally {
+      setRevoking(false);
     }
   };
 
@@ -136,15 +191,6 @@ const APITokens = () => {
   const formatDate = (dateString) => {
     if (!dateString) return 'Never';
     return new Date(dateString).toLocaleString();
-  };
-
-  const formatScopes = (scopes) => {
-    try {
-      const scopeArray = typeof scopes === 'string' ? JSON.parse(scopes) : scopes;
-      return scopeArray.join(', ');
-    } catch (e) {
-      return scopes;
-    }
   };
 
   return (
@@ -193,7 +239,6 @@ const APITokens = () => {
             </div>
 
             <div className="gps-form-group">
-              {/* Use a <div> or <span> with id instead of <label> */}
               <div id="scopes-label" className="gps-form-label" role="heading" aria-level="3">
                 Scopes *
               </div>
@@ -211,7 +256,7 @@ const APITokens = () => {
                         type="checkbox"
                         checked={formData.scopes.includes(scope.value)}
                         onChange={() => handleScopeToggle(scope.value)}
-                        aria-label={`${scope.label}${scope.description ? `, ${scope.description}` : ''}`}  // Fallback accessible name
+                        aria-label={`${scope.label}${scope.description ? `, ${scope.description}` : ''}`}
                       />
                       <div className="gps-checkbox-card-content">
                         <span className="gps-checkbox-card-title">{scope.label}</span>
@@ -310,58 +355,132 @@ const APITokens = () => {
         </div>
       )}
 
+      {showRevokeModal && tokenToRevoke && (
+        <div className="gps-modal-overlay" onClick={closeRevokeModal}>
+          <div className="gps-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="gps-modal-header">
+              <h2 className="gps-modal-title">Revoke API Token</h2>
+              <button className="gps-modal-close" onClick={closeRevokeModal}>×</button>
+            </div>
+            <div className="gps-modal-body">
+              <div className="gps-alert gps-alert--danger">
+                Are you sure you want to revoke this token? This action cannot be undone.
+              </div>
+              <div style={{ marginTop: '16px' }}>
+                <p><strong>Token Name:</strong> {tokenToRevoke.name}</p>
+                <p><strong>API ID:</strong> <code className="gps-code">{tokenToRevoke.token_prefix}</code></p>
+              </div>
+            </div>
+            <div className="gps-modal-footer">
+              <button
+                className="gps-btn gps-btn--secondary"
+                onClick={closeRevokeModal}
+                disabled={revoking}
+              >
+                Cancel
+              </button>
+              <button
+                className="gps-btn gps-btn--danger"
+                onClick={handleRevokeToken}
+                disabled={revoking}
+              >
+                {revoking ? 'Revoking...' : 'Revoke Token'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="gps-table-container">
-        <div className="gps-table-header-section">
-          <h3 className="gps-section-header">Active Tokens</h3>
+        <div className="gps-table-header-section" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
+          <h3 className="gps-section-header" style={{ margin: 0 }}>Active Tokens</h3>
+          <div className="gps-search-box" style={{ position: 'relative', minWidth: '250px' }}>
+            <FaSearch style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#6b7280' }} />
+            <input
+              type="text"
+              className="gps-form-input"
+              placeholder="Search tokens..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              style={{ paddingLeft: '36px' }}
+            />
+          </div>
         </div>
         {loading ? (
           <div className="gps-loading">Loading tokens...</div>
-        ) : tokens.length === 0 ? (
+        ) : filteredTokens.length === 0 ? (
           <div className="gps-empty-state">
-            <p>No API tokens created yet. Click "Create New Token" to get started.</p>
+            <p>{searchQuery ? 'No tokens match your search.' : 'No API tokens created yet. Click "Create New Token" to get started.'}</p>
           </div>
         ) : (
-          <table className="gps-table">
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>API_ID</th>
-                <th>Scopes</th>
-                <th>Rate Limit</th>
-                <th>Last Used</th>
-                <th>Created</th>
-                <th>Status</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {tokens.map(token => (
-                <tr key={token.id}>
-                  <td><span className="gps-cell-primary">{token.name}</span></td>
-                  <td><code className="gps-code">{token.token_prefix}</code></td>
-                  <td className="gps-cell-secondary">{formatScopes(token.scopes)}</td>
-                  <td className="gps-cell-secondary">{token.rate_limit}/{token.rate_window_hours}h</td>
-                  <td className="gps-cell-secondary">{formatDate(token.last_used_at)}</td>
-                  <td className="gps-cell-secondary">{formatDate(token.created_at)}</td>
-                  <td>
-                    <span className={`gps-badge ${token.is_active ? 'gps-badge--success' : 'gps-badge--danger'}`}>
-                      {token.is_active ? 'Active' : 'Revoked'}
-                    </span>
-                  </td>
-                  <td>
-                    {token.is_active && (
-                      <button
-                        className="gps-btn gps-btn--danger gps-btn--sm"
-                        onClick={() => handleRevokeToken(token.id)}
-                      >
-                        Revoke
-                      </button>
-                    )}
-                  </td>
+          <>
+            <table className="gps-table">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>API_ID</th>
+                  <th>Scopes</th>
+                  <th>Rate Limit</th>
+                  <th>Last Used</th>
+                  <th>Created</th>
+                  <th>Status</th>
+                  <th>Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {paginatedTokens.map(token => (
+                  <tr key={token.id}>
+                    <td><span className="gps-cell-primary">{token.name}</span></td>
+                    <td><code className="gps-code">{token.token_prefix}</code></td>
+                    <td className="gps-cell-secondary">{formatScopes(token.scopes)}</td>
+                    <td className="gps-cell-secondary">{token.rate_limit}/{token.rate_window_hours}h</td>
+                    <td className="gps-cell-secondary">{formatDate(token.last_used_at)}</td>
+                    <td className="gps-cell-secondary">{formatDate(token.created_at)}</td>
+                    <td>
+                      <span className={`gps-badge ${token.is_active ? 'gps-badge--success' : 'gps-badge--danger'}`}>
+                        {token.is_active ? 'Active' : 'Revoked'}
+                      </span>
+                    </td>
+                    <td>
+                      {token.is_active && (
+                        <button
+                          className="gps-btn gps-btn--danger gps-btn--sm"
+                          onClick={() => openRevokeModal(token)}
+                          title="Revoke Token"
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                        >
+                          <FaTrash size={12} />
+                          Revoke
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            
+            {totalPages > 1 && (
+              <div className="gps-pagination" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', marginTop: '20px', padding: '16px' }}>
+                <button
+                  className="gps-btn gps-btn--secondary gps-btn--sm"
+                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                  disabled={currentPage === 1}
+                >
+                  Previous
+                </button>
+                <span style={{ color: '#6b7280', fontSize: '14px' }}>
+                  Page {currentPage} of {totalPages}
+                </span>
+                <button
+                  className="gps-btn gps-btn--secondary gps-btn--sm"
+                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                  disabled={currentPage === totalPages}
+                >
+                  Next
+                </button>
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>
