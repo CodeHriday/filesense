@@ -56,6 +56,70 @@ const Connections = () => {
   // Must have either saved connection or successful test, AND no modifications since
   const canBrowse = ((editMode && editId) || testSuccessful) && !connectionDetailsModified;
   
+  // Validation function to check if all required fields are filled
+  const isFormValid = () => {
+    // Base required fields
+    if (!formData.connection_name?.trim()) return false;
+    if (!formData.connection_type) return false;
+    if (!formData.connection_direction) return false;
+    if (!formData.connection_user) return false;
+    if (!formData.authentication_method) return false;
+    
+    const providerType = formData._provider || formData.connection_type;
+    
+    // Provider-specific validation
+    if (providerType === 'aws') {
+      if (!formData.region?.trim()) return false;
+      if (!formData.bucket_name?.trim()) return false;
+      if (!editMode || !formData.has_access_key) {
+        if (!formData.access_key?.trim()) return false;
+      }
+      if (!editMode || !formData.has_secret_key) {
+        if (!formData.secret_key?.trim()) return false;
+      }
+    } else if (providerType === 'gcp') {
+      if (!formData.project_id?.trim()) return false;
+      if (!formData.bucket_name?.trim()) return false;
+      if (!formData.client_email?.trim()) return false;
+      if (!editMode || !formData.has_private_key) {
+        if (!formData.private_key?.trim()) return false;
+      }
+    } else if (providerType === 'azure') {
+      if (!formData.account_name?.trim()) return false;
+      if (!formData.container_name?.trim()) return false;
+      if (!editMode || !formData.has_account_key) {
+        if (!formData.account_key?.trim()) return false;
+      }
+    } else if (providerType === 'snowflake') {
+      if (!formData.snowflake_account?.trim()) return false;
+      if (!formData.snowflake_username?.trim()) return false;
+      if (!editMode || !formData.has_snowflake_password) {
+        if (!formData.snowflake_password?.trim()) return false;
+      }
+    } else if (providerType === 'databricks') {
+      if (!formData.databricks_host?.trim()) return false;
+      if (!editMode || !formData.has_databricks_token) {
+        if (!formData.databricks_token?.trim()) return false;
+      }
+    } else if (providerType === 'sharepoint') {
+      if (!formData.sharepoint_tenant_id?.trim()) return false;
+      if (!formData.sharepoint_client_id?.trim()) return false;
+      if (!editMode || !formData.has_sharepoint_client_secret) {
+        if (!formData.sharepoint_client_secret?.trim()) return false;
+      }
+      if (!formData.sharepoint_site_url?.trim()) return false;
+    } else if (providerType === 'outlook') {
+      if (!formData.outlook_tenant_id?.trim()) return false;
+      if (!formData.outlook_client_id?.trim()) return false;
+      if (!editMode || !formData.has_outlook_client_secret) {
+        if (!formData.outlook_client_secret?.trim()) return false;
+      }
+      if (!formData.outlook_user_email?.trim()) return false;
+    }
+    
+    return true;
+  };
+  
   // Compact styling - Inter 12px medium weight, minimal spacing
   const compactStyles = {
     formGroup: {
@@ -613,7 +677,7 @@ const Connections = () => {
     const commonFields = (
       <div className="form-grid">
         <div className="form-group form-group-full" style={compactStyles.formGroup}>
-          <label htmlFor="connection_name" style={compactStyles.label}>Connection Name</label>
+          <label htmlFor="connection_name" style={compactStyles.label}>Connection Name <span style={{ color: '#dc2626' }}>*</span></label>
           <input
             type="text"
             id="connection_name"
@@ -627,7 +691,7 @@ const Connections = () => {
         </div>
         
         <div className="form-group" style={compactStyles.formGroup}>
-          <label htmlFor="connection_type" style={compactStyles.label}>Connection Type</label>
+          <label htmlFor="connection_type" style={compactStyles.label}>Connection Type <span style={{ color: '#dc2626' }}>*</span></label>
           <select
             id="connection_type"
             name="connection_type"
@@ -648,7 +712,7 @@ const Connections = () => {
         </div>
         
         <div className="form-group" style={compactStyles.formGroup}>
-          <label htmlFor="connection_direction" style={compactStyles.label}>Connection Direction</label>
+          <label htmlFor="connection_direction" style={compactStyles.label}>Connection Direction <span style={{ color: '#dc2626' }}>*</span></label>
           <select
             id="connection_direction"
             name="connection_direction"
@@ -664,7 +728,7 @@ const Connections = () => {
         </div>
         
         <div className="form-group" style={compactStyles.formGroup}>
-          <label htmlFor="connection_user" style={compactStyles.label}>Connection User</label>
+          <label htmlFor="connection_user" style={compactStyles.label}>Connection User <span style={{ color: '#dc2626' }}>*</span></label>
           <select
             id="connection_user"
             name="connection_user"
@@ -683,7 +747,7 @@ const Connections = () => {
         </div>
         
         <div className="form-group" style={compactStyles.formGroup}>
-          <label htmlFor="authentication_method" style={compactStyles.label}>Authentication Method</label>
+          <label htmlFor="authentication_method" style={compactStyles.label}>Authentication Method <span style={{ color: '#dc2626' }}>*</span></label>
           <select
             id="authentication_method"
             name="authentication_method"
@@ -729,7 +793,7 @@ const Connections = () => {
       specificFields = (
         <div className="form-grid">
           <div className="form-group" style={compactStyles.formGroup}>
-            <label htmlFor="region" style={compactStyles.label}>AWS Region</label>
+            <label htmlFor="region" style={compactStyles.label}>AWS Region <span style={{ color: '#dc2626' }}>*</span></label>
             <input
               type="text"
               id="region"
@@ -743,7 +807,7 @@ const Connections = () => {
           </div>
           
           <div className="form-group" style={compactStyles.formGroup}>
-            <label htmlFor="bucket_name" style={compactStyles.label}>S3 Bucket Name</label>
+            <label htmlFor="bucket_name" style={compactStyles.label}>S3 Bucket Name <span style={{ color: '#dc2626' }}>*</span></label>
             <input
               type="text"
               id="bucket_name"
@@ -799,7 +863,7 @@ const Connections = () => {
           </div>
           
           <div className="form-group" style={compactStyles.formGroup}>
-            <label htmlFor="access_key" style={compactStyles.label}>Access Key ID</label>
+            <label htmlFor="access_key" style={compactStyles.label}>Access Key ID <span style={{ color: '#dc2626' }}>*</span></label>
             <input
               type="text"
               id="access_key"
@@ -819,7 +883,7 @@ const Connections = () => {
           </div>
           
           <div className="form-group" style={compactStyles.formGroup}>
-            <label htmlFor="secret_key" style={compactStyles.label}>Secret Access Key</label>
+            <label htmlFor="secret_key" style={compactStyles.label}>Secret Access Key <span style={{ color: '#dc2626' }}>*</span></label>
             <input
               type="password"
               id="secret_key"
@@ -843,7 +907,7 @@ const Connections = () => {
       specificFields = (
         <div className="form-grid">
           <div className="form-group" style={compactStyles.formGroup}>
-            <label htmlFor="project_id" style={compactStyles.label}>GCP Project ID</label>
+            <label htmlFor="project_id" style={compactStyles.label}>GCP Project ID <span style={{ color: '#dc2626' }}>*</span></label>
             <input
               type="text"
               id="project_id"
@@ -857,7 +921,7 @@ const Connections = () => {
           </div>
           
           <div className="form-group" style={compactStyles.formGroup}>
-            <label htmlFor="bucket_name" style={compactStyles.label}>Storage Bucket Name</label>
+            <label htmlFor="bucket_name" style={compactStyles.label}>Storage Bucket Name <span style={{ color: '#dc2626' }}>*</span></label>
             <input
               type="text"
               id="bucket_name"
@@ -913,7 +977,7 @@ const Connections = () => {
           </div>
           
           <div className="form-group form-group-full" style={compactStyles.formGroup}>
-            <label htmlFor="client_email" style={compactStyles.label}>Service Account Email</label>
+            <label htmlFor="client_email" style={compactStyles.label}>Service Account Email <span style={{ color: '#dc2626' }}>*</span></label>
             <input
               type="text"
               id="client_email"
@@ -927,7 +991,7 @@ const Connections = () => {
           </div>
           
           <div className="form-group form-group-full" style={compactStyles.formGroup}>
-            <label htmlFor="private_key" style={compactStyles.label}>Service Account Private Key</label>
+            <label htmlFor="private_key" style={compactStyles.label}>Service Account Private Key <span style={{ color: '#dc2626' }}>*</span></label>
             <textarea
               id="private_key"
               name="private_key"
@@ -951,7 +1015,7 @@ const Connections = () => {
       specificFields = (
         <div className="form-grid">
           <div className="form-group" style={compactStyles.formGroup}>
-            <label htmlFor="account_name" style={compactStyles.label}>Storage Account Name</label>
+            <label htmlFor="account_name" style={compactStyles.label}>Storage Account Name <span style={{ color: '#dc2626' }}>*</span></label>
             <input
               type="text"
               id="account_name"
@@ -965,7 +1029,7 @@ const Connections = () => {
           </div>
           
           <div className="form-group" style={compactStyles.formGroup}>
-            <label htmlFor="container_name" style={compactStyles.label}>Container Name</label>
+            <label htmlFor="container_name" style={compactStyles.label}>Container Name <span style={{ color: '#dc2626' }}>*</span></label>
             <input
               type="text"
               id="container_name"
@@ -996,7 +1060,7 @@ const Connections = () => {
           </div>
           
           <div className="form-group form-group-full" style={compactStyles.formGroup}>
-            <label htmlFor="account_key" style={compactStyles.label}>Storage Account Key</label>
+            <label htmlFor="account_key" style={compactStyles.label}>Storage Account Key <span style={{ color: '#dc2626' }}>*</span></label>
             <input
               type="password"
               id="account_key"
@@ -1020,7 +1084,7 @@ const Connections = () => {
       specificFields = (
         <div className="form-grid">
           <div className="form-group form-group-full" style={compactStyles.formGroup}>
-            <label htmlFor="snowflake_account" style={compactStyles.label}>Snowflake Account</label>
+            <label htmlFor="snowflake_account" style={compactStyles.label}>Snowflake Account <span style={{ color: '#dc2626' }}>*</span></label>
             <input
               type="text"
               id="snowflake_account"
@@ -1037,7 +1101,7 @@ const Connections = () => {
           </div>
           
           <div className="form-group" style={compactStyles.formGroup}>
-            <label htmlFor="snowflake_username" style={compactStyles.label}>Username</label>
+            <label htmlFor="snowflake_username" style={compactStyles.label}>Username <span style={{ color: '#dc2626' }}>*</span></label>
             <input
               type="text"
               id="snowflake_username"
@@ -1051,7 +1115,7 @@ const Connections = () => {
           </div>
           
           <div className="form-group" style={compactStyles.formGroup}>
-            <label htmlFor="snowflake_password" style={compactStyles.label}>Password</label>
+            <label htmlFor="snowflake_password" style={compactStyles.label}>Password <span style={{ color: '#dc2626' }}>*</span></label>
             <input
               type="password"
               id="snowflake_password"
@@ -1133,7 +1197,7 @@ const Connections = () => {
       specificFields = (
         <div className="form-grid">
           <div className="form-group form-group-full" style={compactStyles.formGroup}>
-            <label htmlFor="databricks_host" style={compactStyles.label}>Databricks Host</label>
+            <label htmlFor="databricks_host" style={compactStyles.label}>Databricks Host <span style={{ color: '#dc2626' }}>*</span></label>
             <input
               type="text"
               id="databricks_host"
@@ -1150,7 +1214,7 @@ const Connections = () => {
           </div>
           
           <div className="form-group form-group-full" style={compactStyles.formGroup}>
-            <label htmlFor="databricks_token" style={compactStyles.label}>Access Token</label>
+            <label htmlFor="databricks_token" style={compactStyles.label}>Access Token <span style={{ color: '#dc2626' }}>*</span></label>
             <input
               type="password"
               id="databricks_token"
@@ -1202,7 +1266,7 @@ const Connections = () => {
       specificFields = (
         <div className="form-grid">
           <div className="form-group" style={compactStyles.formGroup}>
-            <label htmlFor="sharepoint_tenant_id" style={compactStyles.label}>Microsoft Tenant ID</label>
+            <label htmlFor="sharepoint_tenant_id" style={compactStyles.label}>Microsoft Tenant ID <span style={{ color: '#dc2626' }}>*</span></label>
             <input
               type="text"
               id="sharepoint_tenant_id"
@@ -1219,7 +1283,7 @@ const Connections = () => {
           </div>
           
           <div className="form-group" style={compactStyles.formGroup}>
-            <label htmlFor="sharepoint_client_id" style={compactStyles.label}>Application (Client) ID</label>
+            <label htmlFor="sharepoint_client_id" style={compactStyles.label}>Application (Client) ID <span style={{ color: '#dc2626' }}>*</span></label>
             <input
               type="text"
               id="sharepoint_client_id"
@@ -1236,7 +1300,7 @@ const Connections = () => {
           </div>
           
           <div className="form-group form-group-full" style={compactStyles.formGroup}>
-            <label htmlFor="sharepoint_client_secret" style={compactStyles.label}>Client Secret</label>
+            <label htmlFor="sharepoint_client_secret" style={compactStyles.label}>Client Secret <span style={{ color: '#dc2626' }}>*</span></label>
             <input
               type="password"
               id="sharepoint_client_secret"
@@ -1256,7 +1320,7 @@ const Connections = () => {
           </div>
           
           <div className="form-group form-group-full" style={compactStyles.formGroup}>
-            <label htmlFor="sharepoint_site_url" style={compactStyles.label}>SharePoint Site URL</label>
+            <label htmlFor="sharepoint_site_url" style={compactStyles.label}>SharePoint Site URL <span style={{ color: '#dc2626' }}>*</span></label>
             <input
               type="text"
               id="sharepoint_site_url"
@@ -1294,7 +1358,7 @@ const Connections = () => {
       specificFields = (
         <div className="form-grid">
           <div className="form-group" style={compactStyles.formGroup}>
-            <label htmlFor="outlook_tenant_id" style={compactStyles.label}>Microsoft Tenant ID</label>
+            <label htmlFor="outlook_tenant_id" style={compactStyles.label}>Microsoft Tenant ID <span style={{ color: '#dc2626' }}>*</span></label>
             <input
               type="text"
               id="outlook_tenant_id"
@@ -1311,7 +1375,7 @@ const Connections = () => {
           </div>
           
           <div className="form-group" style={compactStyles.formGroup}>
-            <label htmlFor="outlook_client_id" style={compactStyles.label}>Application (Client) ID</label>
+            <label htmlFor="outlook_client_id" style={compactStyles.label}>Application (Client) ID <span style={{ color: '#dc2626' }}>*</span></label>
             <input
               type="text"
               id="outlook_client_id"
@@ -1328,7 +1392,7 @@ const Connections = () => {
           </div>
           
           <div className="form-group form-group-full" style={compactStyles.formGroup}>
-            <label htmlFor="outlook_client_secret" style={compactStyles.label}>Client Secret</label>
+            <label htmlFor="outlook_client_secret" style={compactStyles.label}>Client Secret <span style={{ color: '#dc2626' }}>*</span></label>
             <input
               type="password"
               id="outlook_client_secret"
@@ -1348,7 +1412,7 @@ const Connections = () => {
           </div>
           
           <div className="form-group" style={compactStyles.formGroup}>
-            <label htmlFor="outlook_user_email" style={compactStyles.label}>User Email</label>
+            <label htmlFor="outlook_user_email" style={compactStyles.label}>User Email <span style={{ color: '#dc2626' }}>*</span></label>
             <input
               type="email"
               id="outlook_user_email"
@@ -1512,7 +1576,16 @@ const Connections = () => {
                       {testingInModal ? 'Testing...' : 'Test Connection'}
                     </button>
                   )}
-                  <button type="submit" className="btn btn-primary">
+                  <button 
+                    type="submit" 
+                    className="btn btn-primary"
+                    disabled={!isFormValid()}
+                    style={{ 
+                      opacity: !isFormValid() ? 0.5 : 1,
+                      cursor: !isFormValid() ? 'not-allowed' : 'pointer'
+                    }}
+                    title={!isFormValid() ? 'Please fill in all required fields' : ''}
+                  >
                     {editMode ? 'Update' : 'Save'} Connection
                   </button>
                 </div>
