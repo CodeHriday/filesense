@@ -170,7 +170,20 @@ const APITokens = () => {
         <div className="gps-header-actions">
           <button
             className={`gps-btn ${showCreateForm ? 'gps-btn--secondary' : 'gps-btn--primary'}`}
-            onClick={() => setShowCreateForm(!showCreateForm)}
+            onClick={() => {
+              if (showCreateForm) {
+                // Reset form data when canceling
+                setFormData({
+                  name: '',
+                  projectId: '',
+                  scopes: [],
+                  rateLimit: 100,
+                  rateWindowHours: 1,
+                  expiresAt: ''
+                });
+              }
+              setShowCreateForm(!showCreateForm);
+            }}
           >
             {showCreateForm ? 'Cancel' : 'Create New Token'}
           </button>
