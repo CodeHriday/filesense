@@ -441,18 +441,24 @@ const APITokens = () => {
                         {token.is_active ? 'Active' : 'Revoked'}
                       </span>
                     </td>
-                    <td>
+                    <td style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       {token.is_active && (
                         <button
                           className="gps-btn gps-btn--danger gps-btn--sm"
                           onClick={() => openRevokeModal(token)}
                           title="Revoke Token"
-                          style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
                         >
-                          <FaTrash size={12} />
                           Revoke
                         </button>
                       )}
+                      <button
+                        className="gps-btn gps-btn--icon gps-btn--sm"
+                        onClick={() => openRevokeModal(token)}
+                        title="Delete Token"
+                        style={{ color: '#dc2626', background: 'transparent', border: 'none', cursor: 'pointer', padding: '4px' }}
+                      >
+                        <FaTrash size={14} />
+                      </button>
                     </td>
                   </tr>
                 ))}
