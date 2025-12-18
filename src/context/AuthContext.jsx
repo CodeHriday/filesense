@@ -1,4 +1,4 @@
-import React, { createContext, useState, useEffect, useContext } from 'react';
+import React, { createContext, useState, useEffect, useContext, useRef } from 'react';
 import axios from 'axios';
 import { API_BASE_URL } from '../config';
 import PropTypes from 'prop-types';
@@ -23,6 +23,10 @@ export const AuthProvider = ({ children }) => {
   const [error, setError] = useState('');
   const [showForcePasswordChange, setShowForcePasswordChange] = useState(false);
   
+  // Ref to track if initial auth check is in progress
+  // This prevents the response interceptor from interfering during initialization
+  const isInitializingRef = useRef(true);
+  
   // Check if there's a token in localStorage on initial load
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -30,6 +34,7 @@ export const AuthProvider = ({ children }) => {
     if (token) {
       fetchUserData(token);
     } else {
+      isInitializingRef.current = false;
       setLoading(false);
     }
   }, []);
@@ -46,6 +51,9 @@ export const AuthProvider = ({ children }) => {
       });
       
       const userData = response.data;
+      
+      // Set user data first, then mark loading complete
+      // This ensures currentUser is set before loading becomes false
       setCurrentUser(userData);
       
       // Check if user needs to change password
@@ -54,12 +62,17 @@ export const AuthProvider = ({ children }) => {
         setShowForcePasswordChange(true);
       }
       
+      // Mark initialization complete before setting loading to false
+      isInitializingRef.current = false;
       setLoading(false);
     } catch (error) {
       console.error('Error fetching user data:', error);
       // If token is invalid or expired, clear it
       localStorage.removeItem('token');
+      localStorage.removeItem('refreshToken');
       setCurrentUser(null);
+      // Mark initialization complete
+      isInitializingRef.current = false;
       setLoading(false);
     }
   };
@@ -203,10 +216,13 @@ export const AuthProvider = ({ children }) => {
       return null;
     } catch (error) {
       console.error('Token refresh failed:', error);
-      // Clear tokens if refresh fails
-      localStorage.removeItem('token');
-      localStorage.removeItem('refreshToken');
-      setCurrentUser(null);
+      // Only clear user state if we're not in the initialization phase
+      // During initialization, fetchUserData handles the state cleanup
+      if (!isInitializingRef.current) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('refreshToken');
+        setCurrentUser(null);
+      }
       return null;
     }
   };
@@ -235,6 +251,11 @@ export const AuthProvider = ({ children }) => {
       response => response,
       async error => {
         const originalRequest = error.config;
+        
+        // Skip token refresh during initialization - let fetchUserData handle auth errors
+        if (isInitializingRef.current) {
+          return Promise.reject(error);
+        }
         
         // If error is 401 or 403 and we haven't already retried
         if ((error.response?.status === 401 || error.response?.status === 403) && !originalRequest._retry) {
