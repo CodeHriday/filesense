@@ -266,13 +266,14 @@ function Sidebar() {
               aria-expanded={dropdownOpen}
               aria-haspopup="true"
               aria-label="User menu"
+              title={isCollapsed ? `${currentUser.username} - Click for options` : ''}
             >
               <FaUser />
               <span className="sidebar-username">{currentUser.username}</span>
             </button>
             
             {dropdownOpen && (
-              <div className="sidebar-dropdown-menu">
+              <div className={`sidebar-dropdown-menu ${isCollapsed ? 'sidebar-dropdown-collapsed' : ''}`}>
                 <div className="sidebar-dropdown-header">
                   <div className="sidebar-user-info">
                     <strong>{currentUser.username}</strong>
@@ -287,7 +288,7 @@ function Sidebar() {
                 
                 <div className="sidebar-dropdown-content">
                   <button className="sidebar-dropdown-item" onClick={handleLogout}>
-                    <FaSignOutAlt /> Logout
+                    <FaSignOutAlt /> <span className="sidebar-logout-text">Logout</span>
                   </button>
                 </div>
               </div>

@@ -515,6 +515,41 @@
   gap: var(--space-2);
 }
 
+/* Collapsed state: User button shows as icon only */
+.sidebar.collapsed .sidebar-user-btn {
+  justify-content: center;
+  padding: var(--space-2);
+  width: 100%;
+}
+
+.sidebar.collapsed .sidebar-user-btn svg {
+  font-size: 18px;
+}
+
+/* Collapsed state: Dropdown positioned to the right */
+.sidebar-dropdown-collapsed {
+  left: 100% !important;
+  right: auto !important;
+  bottom: 0 !important;
+  margin-left: var(--space-2);
+  margin-bottom: 0;
+  min-width: 220px;
+}
+
+/* Collapsed state: Hide logout text, show icon only */
+.sidebar.collapsed .sidebar-logout-text {
+  display: none;
+}
+
+.sidebar.collapsed .sidebar-dropdown-item {
+  justify-content: center;
+  padding: var(--space-3);
+}
+
+.sidebar.collapsed .sidebar-dropdown-item svg {
+  font-size: 18px;
+}
+
 /* Help Button in Footer */
 .sidebar-help-btn {
   display: flex;
