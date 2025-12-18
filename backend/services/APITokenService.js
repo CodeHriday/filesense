@@ -34,6 +34,15 @@ class APITokenService {
     expiresAt = null,
     createdBy
   }) {
+    // Check if token name already exists (includes revoked tokens for true uniqueness)
+    const existingToken = await query(
+      `SELECT id FROM api_tokens WHERE name = $1`,
+      [name]
+    );
+    if (existingToken.rows.length > 0) {
+      throw new Error('A token with this name already exists');
+    }
+
     // Generate random token
     const token = `dfo_${crypto.randomBytes(32).toString('hex')}`;
     const tokenPrefix = token.substring(0, 11); // 'dfo_' + first 7 chars

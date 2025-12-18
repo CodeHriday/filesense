@@ -3,14 +3,13 @@ import '../styles/global-page-styles.css';
 
 const APITokens = () => {
   const [tokens, setTokens] = useState([]);
-  const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [creating, setCreating] = useState(false);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [showTokenModal, setShowTokenModal] = useState(false);
   const [generatedToken, setGeneratedToken] = useState(null);
   const [formData, setFormData] = useState({
     name: '',
-    projectId: '',
     scopes: [],
     rateLimit: 100,
     rateWindowHours: 1,
@@ -25,7 +24,6 @@ const APITokens = () => {
 
   useEffect(() => {
     fetchTokens();
-    fetchProjects();
   }, []);
 
   const fetchTokens = async () => {
@@ -44,20 +42,6 @@ const APITokens = () => {
     }
   };
 
-  const fetchProjects = async () => {
-    try {
-      const response = await fetch('/api/projects', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      });
-      const data = await response.json();
-      setProjects(data.projects || []);
-    } catch (error) {
-      console.error('Failed to fetch projects:', error);
-    }
-  };
-
   const handleCreateToken = async (e) => {
     e.preventDefault();
 
@@ -65,6 +49,9 @@ const APITokens = () => {
       alert('Please select at least one scope');
       return;
     }
+
+    if (creating) return;
+    setCreating(true);
 
     try {
       const response = await fetch('/api/tokens', {
@@ -75,7 +62,6 @@ const APITokens = () => {
         },
         body: JSON.stringify({
           name: formData.name,
-          projectId: formData.projectId || null,
           scopes: formData.scopes,
           rateLimit: parseInt(formData.rateLimit),
           rateWindowHours: parseInt(formData.rateWindowHours),
@@ -91,7 +77,6 @@ const APITokens = () => {
         setShowCreateForm(false);
         setFormData({
           name: '',
-          projectId: '',
           scopes: [],
           rateLimit: 100,
           rateWindowHours: 1,
@@ -104,6 +89,8 @@ const APITokens = () => {
     } catch (error) {
       console.error('Failed to create token:', error);
       alert('Failed to create token');
+    } finally {
+      setCreating(false);
     }
   };
 
@@ -172,10 +159,8 @@ const APITokens = () => {
             className={`gps-btn ${showCreateForm ? 'gps-btn--secondary' : 'gps-btn--primary'}`}
             onClick={() => {
               if (showCreateForm) {
-                // Reset form data when canceling
                 setFormData({
                   name: '',
-                  projectId: '',
                   scopes: [],
                   rateLimit: 100,
                   rateWindowHours: 1,
@@ -205,24 +190,6 @@ const APITokens = () => {
                 placeholder="e.g., Production Upload Service"
                 required
               />
-            </div>
-
-            <div className="gps-form-group">
-              <label htmlFor="token-project" className="gps-form-label">Project (Optional)</label>
-              <select
-                id="token-project"
-                className="gps-form-select"
-                value={formData.projectId}
-                onChange={(e) => setFormData({ ...formData, projectId: e.target.value })}
-              >
-                <option value="">All Projects (Wildcard)</option>
-                {projects.map(project => (
-                  <option key={project.id} value={project.id}>
-                    {project.name}
-                  </option>
-                  ))}
-                </select>
-              <small className="gps-form-hint">Leave empty for wildcard access, or select a specific project to restrict token scope</small>
             </div>
 
             <div className="gps-form-group">
@@ -295,8 +262,12 @@ const APITokens = () => {
               <small className="gps-form-hint">Leave empty for tokens that never expire</small>
             </div>
 
-            <button type="submit" className="gps-btn gps-btn--primary">
-              Generate Token
+            <button 
+              type="submit" 
+              className="gps-btn gps-btn--primary"
+              disabled={creating}
+            >
+              {creating ? 'Creating...' : 'Generate Token'}
             </button>
           </form>
         </div>
@@ -354,9 +325,8 @@ const APITokens = () => {
             <thead>
               <tr>
                 <th>Name</th>
-                <th>Prefix</th>
+                <th>API_ID</th>
                 <th>Scopes</th>
-                <th>Project</th>
                 <th>Rate Limit</th>
                 <th>Last Used</th>
                 <th>Created</th>
@@ -370,7 +340,6 @@ const APITokens = () => {
                   <td><span className="gps-cell-primary">{token.name}</span></td>
                   <td><code className="gps-code">{token.token_prefix}</code></td>
                   <td className="gps-cell-secondary">{formatScopes(token.scopes)}</td>
-                  <td className="gps-cell-secondary">{token.project_id || 'All Projects'}</td>
                   <td className="gps-cell-secondary">{token.rate_limit}/{token.rate_window_hours}h</td>
                   <td className="gps-cell-secondary">{formatDate(token.last_used_at)}</td>
                   <td className="gps-cell-secondary">{formatDate(token.created_at)}</td>
