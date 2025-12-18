@@ -9,8 +9,13 @@ const APITokens = () => {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [showTokenModal, setShowTokenModal] = useState(false);
   const [showRevokeModal, setShowRevokeModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
   const [tokenToRevoke, setTokenToRevoke] = useState(null);
+  const [tokenToDelete, setTokenToDelete] = useState(null);
   const [revoking, setRevoking] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [selectedTokens, setSelectedTokens] = useState([]);
   const [generatedToken, setGeneratedToken] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -173,6 +178,96 @@ const APITokens = () => {
       setRevoking(false);
     }
   };
+
+  const openDeleteModal = (token) => {
+    setTokenToDelete(token);
+    setShowDeleteModal(true);
+  };
+
+  const closeDeleteModal = () => {
+    setTokenToDelete(null);
+    setShowDeleteModal(false);
+  };
+
+  const handleDeleteToken = async () => {
+    if (!tokenToDelete || deleting) return;
+    
+    setDeleting(true);
+    try {
+      const response = await fetch(`/api/tokens/${tokenToDelete.id}/permanent`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+
+      if (response.ok) {
+        setSelectedTokens(prev => prev.filter(id => id !== tokenToDelete.id));
+        fetchTokens();
+        closeDeleteModal();
+      } else {
+        const data = await response.json();
+        alert(data.error || 'Failed to delete token');
+      }
+    } catch (error) {
+      console.error('Failed to delete token:', error);
+      alert('Failed to delete token');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedTokens.length === 0 || deleting) return;
+    
+    setDeleting(true);
+    try {
+      const response = await fetch('/api/tokens/bulk-delete', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({ tokenIds: selectedTokens })
+      });
+
+      if (response.ok) {
+        setSelectedTokens([]);
+        setShowBulkDeleteModal(false);
+        fetchTokens();
+      } else {
+        const data = await response.json();
+        alert(data.error || 'Failed to delete tokens');
+      }
+    } catch (error) {
+      console.error('Failed to delete tokens:', error);
+      alert('Failed to delete tokens');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const toggleSelectToken = (tokenId) => {
+    setSelectedTokens(prev => 
+      prev.includes(tokenId) 
+        ? prev.filter(id => id !== tokenId)
+        : [...prev, tokenId]
+    );
+  };
+
+  const toggleSelectAll = () => {
+    const currentPageIds = paginatedTokens.map(t => t.id);
+    const allSelected = currentPageIds.every(id => selectedTokens.includes(id));
+    
+    if (allSelected) {
+      setSelectedTokens(prev => prev.filter(id => !currentPageIds.includes(id)));
+    } else {
+      setSelectedTokens(prev => [...new Set([...prev, ...currentPageIds])]);
+    }
+  };
+
+  const isAllCurrentPageSelected = paginatedTokens.length > 0 && 
+    paginatedTokens.every(t => selectedTokens.includes(t.id));
 
   const handleScopeToggle = (scope) => {
     setFormData(prev => ({
@@ -391,9 +486,89 @@ const APITokens = () => {
         </div>
       )}
 
+      {showDeleteModal && tokenToDelete && (
+        <div className="gps-modal-overlay" onClick={closeDeleteModal}>
+          <div className="gps-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="gps-modal-header">
+              <h2 className="gps-modal-title">Delete API Token</h2>
+              <button className="gps-modal-close" onClick={closeDeleteModal}>×</button>
+            </div>
+            <div className="gps-modal-body">
+              <div className="gps-alert gps-alert--danger">
+                Are you sure you want to permanently delete this token? This will remove it from the database and cannot be undone.
+              </div>
+              <div style={{ marginTop: '16px' }}>
+                <p><strong>Token Name:</strong> {tokenToDelete.name}</p>
+                <p><strong>API ID:</strong> <code className="gps-code">{tokenToDelete.token_prefix}</code></p>
+              </div>
+            </div>
+            <div className="gps-modal-footer">
+              <button
+                className="gps-btn gps-btn--secondary"
+                onClick={closeDeleteModal}
+                disabled={deleting}
+              >
+                Cancel
+              </button>
+              <button
+                className="gps-btn gps-btn--danger"
+                onClick={handleDeleteToken}
+                disabled={deleting}
+              >
+                {deleting ? 'Deleting...' : 'Delete Permanently'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showBulkDeleteModal && (
+        <div className="gps-modal-overlay" onClick={() => setShowBulkDeleteModal(false)}>
+          <div className="gps-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="gps-modal-header">
+              <h2 className="gps-modal-title">Delete Selected Tokens</h2>
+              <button className="gps-modal-close" onClick={() => setShowBulkDeleteModal(false)}>×</button>
+            </div>
+            <div className="gps-modal-body">
+              <div className="gps-alert gps-alert--danger">
+                Are you sure you want to permanently delete {selectedTokens.length} token(s)? This will remove them from the database and cannot be undone.
+              </div>
+            </div>
+            <div className="gps-modal-footer">
+              <button
+                className="gps-btn gps-btn--secondary"
+                onClick={() => setShowBulkDeleteModal(false)}
+                disabled={deleting}
+              >
+                Cancel
+              </button>
+              <button
+                className="gps-btn gps-btn--danger"
+                onClick={handleBulkDelete}
+                disabled={deleting}
+              >
+                {deleting ? 'Deleting...' : `Delete ${selectedTokens.length} Token(s)`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="gps-table-container">
         <div className="gps-table-header-section" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
-          <h3 className="gps-section-header" style={{ margin: 0 }}>Active Tokens</h3>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            <h3 className="gps-section-header" style={{ margin: 0 }}>Active Tokens</h3>
+            {selectedTokens.length > 0 && (
+              <button
+                className="gps-btn gps-btn--danger gps-btn--sm"
+                onClick={() => setShowBulkDeleteModal(true)}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+              >
+                <FaTrash size={12} />
+                Delete Selected ({selectedTokens.length})
+              </button>
+            )}
+          </div>
           <div className="gps-search-box" style={{ position: 'relative', minWidth: '250px' }}>
             <FaSearch style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#6b7280' }} />
             <input
@@ -417,6 +592,15 @@ const APITokens = () => {
             <table className="gps-table">
               <thead>
                 <tr>
+                  <th style={{ width: '40px' }}>
+                    <input
+                      type="checkbox"
+                      checked={isAllCurrentPageSelected}
+                      onChange={toggleSelectAll}
+                      title="Select all on this page"
+                      style={{ cursor: 'pointer' }}
+                    />
+                  </th>
                   <th>Name</th>
                   <th>API_ID</th>
                   <th>Scopes</th>
@@ -429,7 +613,15 @@ const APITokens = () => {
               </thead>
               <tbody>
                 {paginatedTokens.map(token => (
-                  <tr key={token.id}>
+                  <tr key={token.id} style={{ backgroundColor: selectedTokens.includes(token.id) ? '#f0f9ff' : 'inherit' }}>
+                    <td>
+                      <input
+                        type="checkbox"
+                        checked={selectedTokens.includes(token.id)}
+                        onChange={() => toggleSelectToken(token.id)}
+                        style={{ cursor: 'pointer' }}
+                      />
+                    </td>
                     <td><span className="gps-cell-primary">{token.name}</span></td>
                     <td><code className="gps-code">{token.token_prefix}</code></td>
                     <td className="gps-cell-secondary">{formatScopes(token.scopes)}</td>
@@ -453,7 +645,7 @@ const APITokens = () => {
                       )}
                       <button
                         className="gps-btn gps-btn--icon gps-btn--sm"
-                        onClick={() => openRevokeModal(token)}
+                        onClick={() => openDeleteModal(token)}
                         title="Delete Token"
                         style={{ color: '#dc2626', background: 'transparent', border: 'none', cursor: 'pointer', padding: '4px' }}
                       >

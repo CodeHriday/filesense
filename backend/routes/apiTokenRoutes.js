@@ -116,4 +116,58 @@ router.delete('/:tokenId', authenticateToken, async (req, res) => {
   }
 });
 
+router.delete('/:tokenId/permanent', authenticateToken, async (req, res) => {
+  try {
+    const userRoles = req.user.roles || [];
+    const isAdmin = req.user.is_admin || userRoles.some(r => r?.toLowerCase() === 'admin');
+    if (!isAdmin) {
+      return res.status(403).json({ error: 'Admin privileges required' });
+    }
+
+    const { tokenId } = req.params;
+    await apiTokenService.deleteToken(parseInt(tokenId), req.user.id);
+
+    res.json({ message: 'Token permanently deleted' });
+  } catch (error) {
+    systemLogger.error('Failed to permanently delete API token', {
+      error: error.message,
+      tokenId: req.params.tokenId,
+      userId: req.user.id
+    });
+    res.status(500).json({ error: error.message || 'Failed to delete token' });
+  }
+});
+
+router.post('/bulk-delete', authenticateToken, async (req, res) => {
+  try {
+    const userRoles = req.user.roles || [];
+    const isAdmin = req.user.is_admin || userRoles.some(r => r?.toLowerCase() === 'admin');
+    if (!isAdmin) {
+      return res.status(403).json({ error: 'Admin privileges required' });
+    }
+
+    const { tokenIds } = req.body;
+    
+    if (!tokenIds || !Array.isArray(tokenIds) || tokenIds.length === 0) {
+      return res.status(400).json({ error: 'tokenIds array is required' });
+    }
+
+    const deletedCount = await apiTokenService.bulkDeleteTokens(
+      tokenIds.map(id => parseInt(id)),
+      req.user.id
+    );
+
+    res.json({ 
+      message: `${deletedCount} token(s) permanently deleted`,
+      deletedCount
+    });
+  } catch (error) {
+    systemLogger.error('Failed to bulk delete API tokens', {
+      error: error.message,
+      userId: req.user.id
+    });
+    res.status(500).json({ error: 'Failed to delete tokens' });
+  }
+});
+
 module.exports = router;
