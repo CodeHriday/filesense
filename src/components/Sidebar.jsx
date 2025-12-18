@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { NavLink, Link, useNavigate } from 'react-router-dom';
-import { FiChevronDown, FiChevronRight, FiChevronLeft, FiHome } from 'react-icons/fi';
+import { FiChevronDown, FiChevronRight, FiChevronLeft, FiHome, FiHelpCircle } from 'react-icons/fi';
 import { FaUser, FaSignOutAlt} from 'react-icons/fa';
 import { useAuth } from '../context/AuthContext';
 import { useSidebar } from '../context/SidebarContext';
@@ -293,6 +293,14 @@ function Sidebar() {
               </div>
             )}
           </div>
+          <Link 
+            to="/documentation" 
+            className="sidebar-help-btn"
+            title="Help & Documentation"
+            aria-label="Help & Documentation"
+          >
+            <FiHelpCircle />
+          </Link>
         </div>
       </aside>
 

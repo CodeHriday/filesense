@@ -514,3 +514,34 @@
   flex-direction: column;
   gap: var(--space-2);
 }
+
+/* Help Button in Footer */
+.sidebar-help-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  background: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-decoration: none;
+  flex-shrink: 0;
+}
+
+.sidebar-help-btn:hover {
+  background: var(--color-primary-50);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.sidebar-help-btn svg {
+  font-size: 18px;
+}
+
+.sidebar.collapsed .sidebar-help-btn {
+  width: 100%;
+}

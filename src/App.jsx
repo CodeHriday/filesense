@@ -105,6 +105,7 @@ const WorkflowBuilder = lazy(() => import('./pages/archived/WorkflowBuilder'));
 const WorkflowManager = lazy(() => import('./pages/WorkflowManager'));
 const VisualMappingCanvas = lazy(() => import('./pages/VisualMappingCanvas'));
 const VisualMappingManager = lazy(() => import('./pages/VisualMappingManager'));
+const Documentation = lazy(() => import('./pages/Documentation'));
 
 // Styles
 import './App.css';
@@ -363,6 +364,8 @@ function AppContent({ showOnboarding, setShowOnboarding }) {
                 <Route path="/oauth2-callback" element={<OAuth2Callback />} />
                 <Route path="/workflow-canvas" element={<ProtectedRoute><WorkflowCanvasStandalone /></ProtectedRoute>} />
                 <Route path="/workflow-test" element={<ProtectedRoute><WorkflowTest /></ProtectedRoute>} />
+                <Route path="/documentation" element={<ProtectedRoute><Documentation /></ProtectedRoute>} />
+                <Route path="/help" element={<ProtectedRoute><Documentation /></ProtectedRoute>} />
                 {/* Development Routes */}
                 <Route path="/hooks-demo" element={<ProtectedRoute><HooksDemo /></ProtectedRoute>} />
                 <Route path="/performance-optimizations" element={<ProtectedRoute><PerformanceOptimizations /></ProtectedRoute>} />
