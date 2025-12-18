@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FiPlus, FiTrash2, FiEdit2, FiFolder, FiLink, FiCheckCircle, FiAlertCircle, FiSearch, FiActivity, FiServer } from 'react-icons/fi';
+import { FiPlus, FiTrash2, FiEdit2, FiFolder, FiLink, FiCheckCircle, FiAlertCircle, FiSearch, FiActivity, FiServer, FiCloud, FiDatabase, FiMail } from 'react-icons/fi';
 import Card from '../components/Card';
 import LoadingSpinner from '../components/LoadingSpinner';
 import Pagination from '../components/Pagination';
