@@ -126,21 +126,22 @@ const TargetRulesModal = ({ isOpen, onClose, onSave, initialConfig = {}, project
           source: 'upstream',
           columns: outputSchema
         });
-        // Initialize ordered columns with unique IDs
-        // If initialConfig has savedColumnOrder, use that order
-        const savedOrder = initialConfig.orderedColumns || [];
-        if (savedOrder.length > 0) {
-          // Merge saved order with current schema (handle new/removed columns)
-          const schemaNames = new Set(outputSchema.map(c => c.name));
-          const orderedFromSaved = savedOrder.filter(c => schemaNames.has(c.name));
-          const savedNames = new Set(savedOrder.map(c => c.name));
-          const newColumns = outputSchema.filter(c => !savedNames.has(c.name));
-          setOrderedColumns([
-            ...orderedFromSaved.map((col, idx) => ({ ...col, id: `col-${col.name}-${idx}` })),
-            ...newColumns.map((col, idx) => ({ ...col, id: `col-${col.name}-${orderedFromSaved.length + idx}` }))
-          ]);
+        // Initialize ordered columns with stable IDs based on index
+        // If initialConfig has orderedColumns (saved order by name), use that order
+        const savedOrderNames = initialConfig.orderedColumns || [];
+        if (savedOrderNames.length > 0) {
+          // savedOrderNames is an array of column names in saved order
+          const schemaMap = new Map(outputSchema.map(c => [c.name, c]));
+          const orderedFromSaved = savedOrderNames
+            .filter(name => schemaMap.has(name))
+            .map((name, idx) => ({ ...schemaMap.get(name), id: `col-${idx}` }));
+          const savedNameSet = new Set(savedOrderNames);
+          const newColumns = outputSchema
+            .filter(c => !savedNameSet.has(c.name))
+            .map((col, idx) => ({ ...col, id: `col-${orderedFromSaved.length + idx}` }));
+          setOrderedColumns([...orderedFromSaved, ...newColumns]);
         } else {
-          setOrderedColumns(outputSchema.map((col, idx) => ({ ...col, id: `col-${col.name}-${idx}` })));
+          setOrderedColumns(outputSchema.map((col, idx) => ({ ...col, id: `col-${idx}` })));
         }
       } else {
         setSchema(null);
@@ -277,7 +278,7 @@ const TargetRulesModal = ({ isOpen, onClose, onSave, initialConfig = {}, project
       anomalyDetection,
       targetFileOwnerId,
       targetFileOwnerName: selectedOwner?.full_name || selectedOwner?.username || '',
-      orderedColumns: orderedColumns.map(({ id, ...col }) => col)
+      orderedColumns: orderedColumns.map(col => col.name)
     };
     onSave(config);
     onClose();

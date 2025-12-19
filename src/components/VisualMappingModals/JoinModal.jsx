@@ -83,7 +83,10 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
               outputColumn: col.name,
               sourceColumn: col.name,
               sourceSide: 'left',
-              include: true
+              include: true,
+              type: col.type || col.data_type || 'STRING',
+              pii: col.pii || col.contains_pii || false,
+              dqRules: col.dqRules || []
             });
           });
           rightSchema.forEach(col => {
@@ -93,7 +96,10 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
                 outputColumn: col.name,
                 sourceColumn: col.name,
                 sourceSide: 'right',
-                include: true
+                include: true,
+                type: col.type || col.data_type || 'STRING',
+                pii: col.pii || col.contains_pii || false,
+                dqRules: col.dqRules || []
               });
             }
           });
@@ -175,7 +181,10 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
         outputColumn: col.name,
         sourceColumn: col.name,
         sourceSide: 'left',
-        include: true
+        include: true,
+        type: col.type || col.data_type || 'STRING',
+        pii: col.pii || col.contains_pii || false,
+        dqRules: col.dqRules || []
       });
     });
     
@@ -186,7 +195,10 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
           outputColumn: col.name,
           sourceColumn: col.name,
           sourceSide: 'right',
-          include: true
+          include: true,
+          type: col.type || col.data_type || 'STRING',
+          pii: col.pii || col.contains_pii || false,
+          dqRules: col.dqRules || []
         });
       }
     });
@@ -218,11 +230,15 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
 
   const addColumnMapping = () => {
     userHasEditedRef.current = true;
+    const firstCol = leftSchema.length > 0 ? leftSchema[0] : null;
     const newMapping = {
       outputColumn: '',
-      sourceColumn: leftSchema.length > 0 ? leftSchema[0].name : '',
+      sourceColumn: firstCol?.name || '',
       sourceSide: 'left',
-      include: true
+      include: true,
+      type: firstCol?.type || firstCol?.data_type || 'STRING',
+      pii: firstCol?.pii || firstCol?.contains_pii || false,
+      dqRules: firstCol?.dqRules || []
     };
     setColumnMappings([...columnMappings, newMapping]);
   };
@@ -237,10 +253,21 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
     const updated = [...columnMappings];
     updated[index][field] = value;
     
-    if (field === 'sourceSide' && value === 'left') {
-      updated[index].sourceColumn = leftSchema.length > 0 ? leftSchema[0].name : '';
-    } else if (field === 'sourceSide' && value === 'right') {
-      updated[index].sourceColumn = rightSchema.length > 0 ? rightSchema[0].name : '';
+    if (field === 'sourceSide') {
+      const schema = value === 'left' ? leftSchema : rightSchema;
+      const firstCol = schema.length > 0 ? schema[0] : null;
+      updated[index].sourceColumn = firstCol?.name || '';
+      updated[index].type = firstCol?.type || firstCol?.data_type || 'STRING';
+      updated[index].pii = firstCol?.pii || firstCol?.contains_pii || false;
+      updated[index].dqRules = firstCol?.dqRules || [];
+    } else if (field === 'sourceColumn') {
+      const schema = updated[index].sourceSide === 'left' ? leftSchema : rightSchema;
+      const col = schema.find(c => c.name === value);
+      if (col) {
+        updated[index].type = col.type || col.data_type || 'STRING';
+        updated[index].pii = col.pii || col.contains_pii || false;
+        updated[index].dqRules = col.dqRules || [];
+      }
     }
     
     setColumnMappings(updated);
@@ -302,7 +329,10 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
           outputColumn: col.name,
           sourceColumn: col.name,
           sourceSide: 'left',
-          include: true
+          include: true,
+          type: col.type || col.data_type || 'STRING',
+          pii: col.pii || col.contains_pii || false,
+          dqRules: col.dqRules || []
         });
         usedColumns.add(col.name);
       });
@@ -312,7 +342,10 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
             outputColumn: col.name,
             sourceColumn: col.name,
             sourceSide: 'right',
-            include: true
+            include: true,
+            type: col.type || col.data_type || 'STRING',
+            pii: col.pii || col.contains_pii || false,
+            dqRules: col.dqRules || []
           });
           usedColumns.add(col.name);
         }
@@ -323,7 +356,10 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
           outputColumn: col.name,
           sourceColumn: col.name,
           sourceSide: 'right',
-          include: true
+          include: true,
+          type: col.type || col.data_type || 'STRING',
+          pii: col.pii || col.contains_pii || false,
+          dqRules: col.dqRules || []
         });
         usedColumns.add(col.name);
       });
@@ -333,7 +369,10 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
             outputColumn: col.name,
             sourceColumn: col.name,
             sourceSide: 'left',
-            include: true
+            include: true,
+            type: col.type || col.data_type || 'STRING',
+            pii: col.pii || col.contains_pii || false,
+            dqRules: col.dqRules || []
           });
           usedColumns.add(col.name);
         }
