@@ -336,15 +336,17 @@ const VisualMappingManager = () => {
             <thead>
               <tr>
                 <th>
-                  <label htmlFor="select-all-mappings" className="sr-only">Select all mappings</label>
-                  <input
-                    id="select-all-mappings"
-                    type="checkbox"
-                    checked={selectedMappings.size === filteredMappings.length && filteredMappings.length > 0}
-                    onChange={toggleSelectAll}
-                  />
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <label htmlFor="select-all-mappings" className="sr-only">Select all mappings</label>
+                    <input
+                      id="select-all-mappings"
+                      type="checkbox"
+                      checked={selectedMappings.size === filteredMappings.length && filteredMappings.length > 0}
+                      onChange={toggleSelectAll}
+                    />
+                    <span>Name</span>
+                  </div>
                 </th>
-                <th>Name</th>
                 <th>Description</th>
                 <th>Project</th>
                 <th>Sub-Project</th>
@@ -358,29 +360,29 @@ const VisualMappingManager = () => {
             <tbody>
               {filteredMappings.length === 0 ? (
                 <tr>
-                  <td colSpan="10" className="visual-mapping-manager-empty">
+                  <td colSpan="9" className="visual-mapping-manager-empty">
                     No visual mappings found. Create your first visual mapping to get started.
                   </td>
                 </tr>
               ) : (
                 filteredMappings.map(mapping => (
                   <tr key={mapping.id}>
-                    <td>
-                      <label htmlFor={`select-mapping-${mapping.id}`} className="sr-only">Select {mapping.name}</label>
-                      <input
-                        id={`select-mapping-${mapping.id}`}
-                        type="checkbox"
-                        checked={selectedMappings.has(mapping.id)}
-                        onChange={() => toggleSelectMapping(mapping.id)}
-                      />
-                    </td>
                     <td className="visual-mapping-manager-name-cell">
-                      <button
-                        onClick={() => handleEdit(mapping.id)}
-                        className="visual-mapping-manager-link"
-                      >
-                        {mapping.name}
-                      </button>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <label htmlFor={`select-mapping-${mapping.id}`} className="sr-only">Select {mapping.name}</label>
+                        <input
+                          id={`select-mapping-${mapping.id}`}
+                          type="checkbox"
+                          checked={selectedMappings.has(mapping.id)}
+                          onChange={() => toggleSelectMapping(mapping.id)}
+                        />
+                        <button
+                          onClick={() => handleEdit(mapping.id)}
+                          className="visual-mapping-manager-link"
+                        >
+                          {mapping.name}
+                        </button>
+                      </div>
                     </td>
                     <td>{mapping.description || '-'}</td>
                     <td>{mapping.project_name || '-'}</td>
