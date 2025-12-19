@@ -45,29 +45,31 @@ const ExpressionModal = ({ isOpen, onClose, onSave, initialConfig = {}, schema =
         </div>
         
         <div className="vm-modal-body vm-modal-body-scroll">
-          <div className="vm-form-group">
-            <label htmlFor="expression-name">Name *</label>
-            <input
-              id="expression-name"
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Enter a name for this expression configuration"
-              className="vm-input"
-              required
-            />
-          </div>
-          
-          <div className="vm-form-group">
-            <label htmlFor="expression-description">Description</label>
-            <textarea
-              id="expression-description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Optional description"
-              className="vm-input"
-              rows="2"
-            />
+          <div style={{ display: 'flex', gap: '16px', marginBottom: '12px' }}>
+            <div className="vm-form-group" style={{ flex: 1, marginBottom: 0 }}>
+              <label htmlFor="expression-name">Name *</label>
+              <input
+                id="expression-name"
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Enter a name for this expression configuration"
+                className="vm-input"
+                required
+              />
+            </div>
+            
+            <div className="vm-form-group" style={{ flex: 2, marginBottom: 0 }}>
+              <label htmlFor="expression-description">Description</label>
+              <input
+                id="expression-description"
+                type="text"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Optional description"
+                className="vm-input"
+              />
+            </div>
           </div>
           
           <TableBasedMapper
