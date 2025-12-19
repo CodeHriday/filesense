@@ -319,8 +319,10 @@ const UserManagement = () => {
     return '';
   };
 
-  const validateEmail = (email) => {
-    if (!email) return '';
+  const validateEmail = (email, checkRequired = false) => {
+    if (!email) {
+      return checkRequired ? 'Email is required' : '';
+    }
     if (!email.includes('@')) {
       return 'Email must contain @';
     }
@@ -376,9 +378,9 @@ const UserManagement = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // Validate phone and email fields
+    // Validate phone and email fields (email is required)
     const phoneError = validatePhone(formData.phone_number);
-    const emailError = validateEmail(formData.email);
+    const emailError = validateEmail(formData.email, true);
     
     setFieldErrors({
       phone_number: phoneError,
@@ -984,7 +986,7 @@ const UserManagement = () => {
             </div>
             
             <div className="form-group">
-              <label htmlFor="email">Email</label>
+              <label htmlFor="email">Email <span className="required-field">*</span></label>
               <input
                 type="email"
                 id="email"
@@ -992,6 +994,7 @@ const UserManagement = () => {
                 value={formData.email}
                 onChange={handleInputChange}
                 className={fieldErrors.email ? 'input-error' : ''}
+                required
               />
               {fieldErrors.email && (
                 <span className="field-error">{fieldErrors.email}</span>
