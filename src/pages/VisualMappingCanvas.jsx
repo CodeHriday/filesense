@@ -1018,7 +1018,6 @@ const VisualMappingCanvasContent = () => {
     // Check join nodes
     const joinNodes = nodes.filter(n => n.type === 'join');
     joinNodes.forEach(node => {
-      console.log('Validating join node:', node.id, 'config:', JSON.stringify(node.data?.config, null, 2));
       if (!node.data.config || !node.data.config.joinType) {
         errors.push(`Join node "${node.data.label}" is not configured - missing join type`);
       }

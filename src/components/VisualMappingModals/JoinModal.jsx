@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { FaPlus, FaTrash } from 'react-icons/fa';
 import './MappingConfigModal.css';
 import PropTypes from 'prop-types';
@@ -12,9 +12,31 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
   const [joinKeys, setJoinKeys] = useState([]);
   const [columnMappings, setColumnMappings] = useState([]);
   const [validationError, setValidationError] = useState('');
+  
+  const lastConfigSignatureRef = useRef('');
+  const userHasEditedRef = useRef(false);
+  
+  const configSignature = useMemo(() => {
+    return JSON.stringify({
+      joinType: initialConfig.joinType,
+      joinKeysLen: initialConfig.joinKeys?.length || 0,
+      name: initialConfig.name
+    });
+  }, [initialConfig.joinType, initialConfig.joinKeys?.length, initialConfig.name]);
 
   useEffect(() => {
-    if (isOpen) {
+    if (!isOpen) {
+      lastConfigSignatureRef.current = '';
+      userHasEditedRef.current = false;
+      return;
+    }
+    
+    const isNewConfig = configSignature !== lastConfigSignatureRef.current;
+    const hasRealConfig = initialConfig.joinType || (initialConfig.joinKeys && initialConfig.joinKeys.length > 0);
+    
+    if (isNewConfig && hasRealConfig && !userHasEditedRef.current) {
+      lastConfigSignatureRef.current = configSignature;
+      
       setName(initialConfig.name || '');
       setDescription(initialConfig.description || '');
       setJoinType(initialConfig.joinType || 'INNER');
@@ -22,23 +44,60 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
       
       if (initialConfig.columnMappings && initialConfig.columnMappings.length > 0) {
         setColumnMappings(initialConfig.columnMappings);
-      } else {
-        generateDefaultMappings();
       }
       
       setActiveTab('configuration');
       setValidationError('');
+    } else if (isNewConfig && !hasRealConfig && lastConfigSignatureRef.current === '') {
+      lastConfigSignatureRef.current = configSignature;
+      setName('');
+      setDescription('');
+      setJoinType('INNER');
+      setJoinKeys([]);
+      setColumnMappings([]);
+      setActiveTab('configuration');
+      setValidationError('');
     }
-  }, [isOpen]);
+  }, [isOpen, configSignature, initialConfig]);
 
   useEffect(() => {
     if (isOpen && leftSchema.length > 0 && rightSchema.length > 0) {
-      if (joinKeys.length === 0) {
-        addJoinKey();
-      }
-      if (columnMappings.length === 0) {
-        generateDefaultMappings();
-      }
+      setJoinKeys(prevKeys => {
+        if (prevKeys.length === 0) {
+          return [{
+            leftColumn: leftSchema.length > 0 ? leftSchema[0].name : '',
+            operator: '=',
+            rightColumn: rightSchema.length > 0 ? rightSchema[0].name : ''
+          }];
+        }
+        return prevKeys;
+      });
+      setColumnMappings(prevMappings => {
+        if (prevMappings.length === 0) {
+          const mappings = [];
+          leftSchema.forEach(col => {
+            mappings.push({
+              outputColumn: col.name,
+              sourceColumn: col.name,
+              sourceSide: 'left',
+              include: true
+            });
+          });
+          rightSchema.forEach(col => {
+            const isDuplicate = leftSchema.some(leftCol => leftCol.name === col.name);
+            if (!isDuplicate) {
+              mappings.push({
+                outputColumn: col.name,
+                sourceColumn: col.name,
+                sourceSide: 'right',
+                include: true
+              });
+            }
+          });
+          return mappings;
+        }
+        return prevMappings;
+      });
     }
   }, [leftSchema, rightSchema, isOpen]);
 
@@ -70,6 +129,7 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
   };
 
   const addJoinKey = () => {
+    userHasEditedRef.current = true;
     const newKey = {
       leftColumn: leftSchema.length > 0 ? leftSchema[0].name : '',
       operator: '=',
@@ -79,16 +139,19 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
   };
 
   const removeJoinKey = (index) => {
+    userHasEditedRef.current = true;
     setJoinKeys(joinKeys.filter((_, i) => i !== index));
   };
 
   const updateJoinKey = (index, field, value) => {
+    userHasEditedRef.current = true;
     const updated = [...joinKeys];
     updated[index][field] = value;
     setJoinKeys(updated);
   };
 
   const addColumnMapping = () => {
+    userHasEditedRef.current = true;
     const newMapping = {
       outputColumn: '',
       sourceColumn: leftSchema.length > 0 ? leftSchema[0].name : '',
@@ -99,10 +162,12 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
   };
 
   const removeColumnMapping = (index) => {
+    userHasEditedRef.current = true;
     setColumnMappings(columnMappings.filter((_, i) => i !== index));
   };
 
   const updateColumnMapping = (index, field, value) => {
+    userHasEditedRef.current = true;
     const updated = [...columnMappings];
     updated[index][field] = value;
     
@@ -116,6 +181,7 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
   };
 
   const toggleAllLeftColumns = () => {
+    userHasEditedRef.current = true;
     const leftMappings = columnMappings.filter(m => m.sourceSide === 'left');
     const allIncluded = leftMappings.length > 0 && leftMappings.every(m => m.include);
     
@@ -129,6 +195,7 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
   };
 
   const toggleAllRightColumns = () => {
+    userHasEditedRef.current = true;
     const rightMappings = columnMappings.filter(m => m.sourceSide === 'right');
     const allIncluded = rightMappings.length > 0 && rightMappings.every(m => m.include);
     
@@ -267,7 +334,7 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
                   id="join-name-input"
                   type="text"
                   value={name}
-                  onChange={(e) => setName(e.target.value)}
+                  onChange={(e) => { userHasEditedRef.current = true; setName(e.target.value); }}
                   placeholder="Enter a name for this join configuration"
                   className="vm-input"
                   required
@@ -279,7 +346,7 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
                 <textarea
                   id="join-description"
                   value={description}
-                  onChange={(e) => setDescription(e.target.value)}
+                  onChange={(e) => { userHasEditedRef.current = true; setDescription(e.target.value); }}
                   placeholder="Optional description"
                   className="vm-input"
                   rows="2"
@@ -292,7 +359,7 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
                   id="join-type-select"
                   className="vm-select"
                   value={joinType}
-                  onChange={(e) => setJoinType(e.target.value)}
+                  onChange={(e) => { userHasEditedRef.current = true; setJoinType(e.target.value); }}
                 >
                   <option value="INNER">INNER JOIN</option>
                   <option value="LEFT">LEFT JOIN</option>
