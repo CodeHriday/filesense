@@ -56,7 +56,7 @@ function QualityRules() {
 
   useEffect(() => {
     if (filterProjectId) {
-      const subProjectsForFilter = projects.filter(p => String(p.parent_project_id) === String(filterProjectId));
+      const subProjectsForFilter = projects.filter(p => String(p.parent_id) === String(filterProjectId));
       setFilterSubProjects(subProjectsForFilter);
     } else {
       setFilterSubProjects([]);
@@ -859,7 +859,7 @@ function QualityRules() {
               style={{ width: '100%' }}
             >
               <option value="">All Projects</option>
-              {projects.filter(p => !p.parent_project_id).map(project => (
+              {projects.filter(p => !p.parent_id).map(project => (
                 <option key={project.id} value={project.id}>
                   {project.name}
                 </option>
