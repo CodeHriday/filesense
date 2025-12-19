@@ -56,11 +56,13 @@ function QualityRules() {
 
   useEffect(() => {
     if (filterProjectId) {
-      const subProjectsForFilter = projects.filter(p => p.parent_project_id === parseInt(filterProjectId));
+      const subProjectsForFilter = projects.filter(p => String(p.parent_project_id) === String(filterProjectId));
       setFilterSubProjects(subProjectsForFilter);
     } else {
       setFilterSubProjects([]);
-      setFilterSubProjectId('');
+      if (filterSubProjectId) {
+        setFilterSubProjectId('');
+      }
     }
   }, [filterProjectId, projects]);
 
@@ -930,6 +932,7 @@ function QualityRules() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginLeft: 'auto' }}>
               <label style={{ fontSize: '10px', fontWeight: 500, color: 'transparent', textTransform: 'uppercase', letterSpacing: '0.5px' }}>&nbsp;</label>
               <button 
+                type="button"
                 className="gps-btn gps-btn--secondary" 
                 onClick={handleClearFilters}
                 style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
