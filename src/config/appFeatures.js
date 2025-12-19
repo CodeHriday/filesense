@@ -471,6 +471,7 @@ export const FEATURE_CATEGORIES_ORDER = [
   'Job Design',
   'Jobs and Monitoring',
   'Governance',
+  'Insights',
   'Vendor Management'
 ];
 

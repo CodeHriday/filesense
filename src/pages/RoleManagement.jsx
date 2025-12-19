@@ -295,6 +295,65 @@ const RoleManagement = () => {
     });
   };
 
+  // Handle Select All for all features globally
+  const handleSelectAllGlobal = (checked) => {
+    setFormData(prev => {
+      const updatedPermissions = { ...prev.permissions };
+      APP_FEATURES.forEach(feature => {
+        if (feature.isParentOnly) return;
+        updatedPermissions[feature.id] = {
+          read: checked,
+          write: checked,
+          execute: feature.supportsExecute ? checked : undefined,
+          approve: feature.supportsApprove ? checked : undefined
+        };
+      });
+      return { ...prev, permissions: updatedPermissions };
+    });
+  };
+
+  // Handle Select All for a specific category
+  const handleSelectAllCategory = (category, checked) => {
+    const categoryFeatures = FEATURE_CATEGORIES[category] || [];
+    setFormData(prev => {
+      const updatedPermissions = { ...prev.permissions };
+      categoryFeatures.forEach(feature => {
+        if (feature.isParentOnly) return;
+        updatedPermissions[feature.id] = {
+          read: checked,
+          write: checked,
+          execute: feature.supportsExecute ? checked : undefined,
+          approve: feature.supportsApprove ? checked : undefined
+        };
+      });
+      return { ...prev, permissions: updatedPermissions };
+    });
+  };
+
+  // Check if all features globally are selected
+  const isAllGlobalSelected = () => {
+    const allFeatures = APP_FEATURES.filter(f => !f.isParentOnly);
+    return allFeatures.length > 0 && allFeatures.every(feature => {
+      const perms = formData.permissions[feature.id];
+      if (!perms?.read || !perms?.write) return false;
+      if (feature.supportsExecute && !perms?.execute) return false;
+      if (feature.supportsApprove && !perms?.approve) return false;
+      return true;
+    });
+  };
+
+  // Check if all features in a category are selected
+  const isCategoryAllSelected = (category) => {
+    const categoryFeatures = (FEATURE_CATEGORIES[category] || []).filter(f => !f.isParentOnly);
+    return categoryFeatures.length > 0 && categoryFeatures.every(feature => {
+      const perms = formData.permissions[feature.id];
+      if (!perms?.read || !perms?.write) return false;
+      if (feature.supportsExecute && !perms?.execute) return false;
+      if (feature.supportsApprove && !perms?.approve) return false;
+      return true;
+    });
+  };
+
   // Convert permissions object to array format for API
   const formatPermissionsForAPI = (permissions, tagPermissions) => {
     const result = [];
@@ -726,10 +785,10 @@ const RoleManagement = () => {
       >
         <form id="role-form" onSubmit={handleSubmit}>
           <div className="form-section">
-            <h3 className="section-title">ROLE INFORMATION</h3>
+            <h3 className="section-title" style={{ fontSize: '11px' }}>ROLE INFORMATION</h3>
             
             <div className="form-group">
-              <label htmlFor="name">Role Name <span className="required-field">*</span></label>
+              <label htmlFor="name" style={{ fontSize: '10px' }}>Role Name <span className="required-field">*</span></label>
               <input
                 type="text"
                 id="name"
@@ -738,11 +797,16 @@ const RoleManagement = () => {
                 onChange={handleInputChange}
                 disabled={modalMode === 'edit' && formData.name.toLowerCase() === 'admin'}
                 required
+                maxLength={50}
+                style={{ fontSize: '10px' }}
               />
+              <div style={{ fontSize: '9px', color: '#6b7280', textAlign: 'right', marginTop: '2px' }}>
+                {formData.name.length}/50 characters
+              </div>
             </div>
             
             <div className="form-group">
-              <label htmlFor="description">Description</label>
+              <label htmlFor="description" style={{ fontSize: '10px' }}>Description</label>
               <textarea
                 id="description"
                 name="description"
@@ -750,15 +814,33 @@ const RoleManagement = () => {
                 onChange={handleInputChange}
                 placeholder="Describe the purpose of this role"
                 rows={3}
+                maxLength={500}
+                style={{ fontSize: '10px' }}
               />
+              <div style={{ fontSize: '9px', color: '#6b7280', textAlign: 'right', marginTop: '2px' }}>
+                {formData.description.length}/500 characters
+              </div>
             </div>
           </div>
           
           <div className="form-section">
-            <h3 className="section-title">FEATURE PERMISSIONS</h3>
-            <small style={{ display: 'block', marginBottom: '16px', color: '#666', fontSize: '10px' }}>
+            <h3 className="section-title" style={{ fontSize: '11px' }}>FEATURE PERMISSIONS</h3>
+            <small style={{ display: 'block', marginBottom: '12px', color: '#666', fontSize: '10px' }}>
               Select which features this role can access and modify.
             </small>
+            
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px', padding: '8px 12px', backgroundColor: '#f8fafc', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
+              <input
+                type="checkbox"
+                id="select-all-global"
+                checked={isAllGlobalSelected()}
+                onChange={(e) => handleSelectAllGlobal(e.target.checked)}
+                style={{ cursor: 'pointer' }}
+              />
+              <label htmlFor="select-all-global" style={{ fontSize: '10px', fontWeight: '600', color: '#374151', cursor: 'pointer', margin: 0 }}>
+                Select All Permissions
+              </label>
+            </div>
             
             {Object.entries(FEATURE_CATEGORIES).map(([category, features]) => {
               const displayFeatures = features.filter(f => !f.isParentOnly);
@@ -779,17 +861,27 @@ const RoleManagement = () => {
               return (
                 <div key={category} className="permission-category">
                   <div className={gridClass}>
-                    <div className="permission-header feature-name">{category}</div>
-                    <div className="permission-header">View</div>
-                    <div className="permission-header">Edit</div>
-                    {hasExecuteFeatures && <div className="permission-header">Execute</div>}
-                    {hasApproveFeatures && <div className="permission-header">Approve</div>}
+                    <div className="permission-header feature-name" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '10px' }}>
+                      <input
+                        type="checkbox"
+                        id={`select-all-${category.replace(/\s+/g, '-')}`}
+                        checked={isCategoryAllSelected(category)}
+                        onChange={(e) => handleSelectAllCategory(category, e.target.checked)}
+                        style={{ cursor: 'pointer' }}
+                        title={`Select all in ${category}`}
+                      />
+                      {category}
+                    </div>
+                    <div className="permission-header" style={{ fontSize: '10px' }}>View</div>
+                    <div className="permission-header" style={{ fontSize: '10px' }}>Edit</div>
+                    {hasExecuteFeatures && <div className="permission-header" style={{ fontSize: '10px' }}>Execute</div>}
+                    {hasApproveFeatures && <div className="permission-header" style={{ fontSize: '10px' }}>Approve</div>}
                     
                     <div className="section-divider"></div>
                     
                     {displayFeatures.map(feature => (
                       <React.Fragment key={feature.id}>
-                        <div className={`feature-name ${feature.isNested || feature.isVendorSubmodule ? 'nested-feature' : ''}`}>
+                        <div className={`feature-name ${feature.isNested || feature.isVendorSubmodule ? 'nested-feature' : ''}`} style={{ fontSize: '10px' }}>
                           {(feature.isNested || feature.isVendorSubmodule) && <span className="nested-indicator">↳ </span>}
                           {feature.name}
                         </div>
