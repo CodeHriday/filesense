@@ -443,34 +443,34 @@ const AuditTrail = () => {
         </>
       )}
 
-      <div className="gps-section" style={{ padding: '16px', backgroundColor: '#f9fafb', borderRadius: '8px', marginBottom: '24px' }}>
-        <div className="gps-section-header" style={{ marginBottom: '16px' }}>
-          <h2 className="gps-section-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <FiFilter style={{ color: '#666' }} />
+      <div className="gps-card" style={{ marginBottom: '24px' }}>
+        <div className="gps-card-header" style={{ borderBottom: '1px solid #e5e7eb', paddingBottom: '12px', marginBottom: '16px' }}>
+          <h3 className="gps-card-title" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', fontWeight: 600, color: '#374151', margin: 0 }}>
+            <FiFilter style={{ color: '#6b7280' }} />
             Filters
-          </h2>
+          </h3>
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '16px', marginBottom: '16px' }}>
-          <div className="gps-form-group">
-            <label htmlFor="filter-user-id" className="gps-label">User Id</label>
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <label htmlFor="filter-user-id" style={{ display: 'block', fontSize: '11px', fontWeight: 500, color: '#374151', marginBottom: '6px' }}>User ID</label>
             <input
               id="filter-user-id"
               type="text"
               placeholder="Enter user ID"
               value={filters.userId}
               onChange={(e) => handleFilterChange('userId', e.target.value)}
-              className="gps-input"
+              style={{ width: '100%', padding: '8px 12px', fontSize: '11px', border: '1px solid #d1d5db', borderRadius: '6px', backgroundColor: '#fff', color: '#374151' }}
             />
           </div>
 
-          <div className="gps-form-group">
-            <label htmlFor="filter-action-type" className="gps-label">Action Type</label>
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <label htmlFor="filter-action-type" style={{ display: 'block', fontSize: '11px', fontWeight: 500, color: '#374151', marginBottom: '6px' }}>Action Type</label>
             <select
               id="filter-action-type"
               value={filters.actionType}
               onChange={(e) => handleFilterChange('actionType', e.target.value)}
-              className="gps-select"
+              style={{ width: '100%', padding: '8px 12px', fontSize: '11px', border: '1px solid #d1d5db', borderRadius: '6px', backgroundColor: '#fff', color: '#374151', cursor: 'pointer' }}
             >
               <option value="">All Actions</option>
               {actionTypes.map(action => (
@@ -479,13 +479,13 @@ const AuditTrail = () => {
             </select>
           </div>
 
-          <div className="gps-form-group">
-            <label htmlFor="filter-entity-type" className="gps-label">Entity Type</label>
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <label htmlFor="filter-entity-type" style={{ display: 'block', fontSize: '11px', fontWeight: 500, color: '#374151', marginBottom: '6px' }}>Entity Type</label>
             <select
               id="filter-entity-type"
               value={filters.entityType}
               onChange={(e) => handleFilterChange('entityType', e.target.value)}
-              className="gps-select"
+              style={{ width: '100%', padding: '8px 12px', fontSize: '11px', border: '1px solid #d1d5db', borderRadius: '6px', backgroundColor: '#fff', color: '#374151', cursor: 'pointer' }}
             >
               <option value="">All Entities</option>
               {entityTypes.map(entity => (
@@ -494,39 +494,39 @@ const AuditTrail = () => {
             </select>
           </div>
 
-          <div className="gps-form-group">
-            <label htmlFor="filter-start-date" className="gps-label">Start Date</label>
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <label htmlFor="filter-start-date" style={{ display: 'block', fontSize: '11px', fontWeight: 500, color: '#374151', marginBottom: '6px' }}>Start Date</label>
             <input
               id="filter-start-date"
               type="datetime-local"
               value={filters.startDate}
               onChange={(e) => handleFilterChange('startDate', e.target.value)}
-              className="gps-input"
+              style={{ width: '100%', padding: '8px 12px', fontSize: '11px', border: '1px solid #d1d5db', borderRadius: '6px', backgroundColor: '#fff', color: '#374151' }}
             />
           </div>
 
-          <div className="gps-form-group">
-            <label htmlFor="filter-end-date" className="gps-label">End Date</label>
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <label htmlFor="filter-end-date" style={{ display: 'block', fontSize: '11px', fontWeight: 500, color: '#374151', marginBottom: '6px' }}>End Date</label>
             <input
               id="filter-end-date"
               type="datetime-local"
               value={filters.endDate}
               onChange={(e) => handleFilterChange('endDate', e.target.value)}
-              className="gps-input"
+              style={{ width: '100%', padding: '8px 12px', fontSize: '11px', border: '1px solid #d1d5db', borderRadius: '6px', backgroundColor: '#fff', color: '#374151' }}
             />
           </div>
         </div>
 
-        <div style={{ display: 'flex', gap: '12px' }}>
-          <button onClick={handleSearch} className="gps-btn gps-btn--primary">
-            <FiSearch />
+        <div style={{ display: 'flex', gap: '12px', paddingTop: '8px' }}>
+          <button onClick={handleSearch} className="gps-btn gps-btn--primary" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+            <FiSearch size={14} />
             Search
           </button>
           <button onClick={handleClearFilters} className="gps-btn gps-btn--secondary">
             Clear Filters
           </button>
-          <button onClick={handleExport} className="gps-btn gps-btn--secondary" style={{ marginLeft: 'auto', borderColor: '#16a34a', color: '#16a34a' }}>
-            <FiDownload />
+          <button onClick={handleExport} className="gps-btn gps-btn--secondary" style={{ marginLeft: 'auto', borderColor: '#16a34a', color: '#16a34a', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+            <FiDownload size={14} />
             Export CSV
           </button>
         </div>
