@@ -239,33 +239,55 @@ const TargetRulesModal = ({ isOpen, onClose, onSave, initialConfig = {}, project
 
       if (selectedRows.has(active.id) && selectedRows.size > 1) {
         const selectedItems = items.filter(item => selectedRows.has(item.id));
-        const unselectedItems = items.filter(item => !selectedRows.has(item.id));
+        const remainingItems = items.filter(item => !selectedRows.has(item.id));
         
-        const overItem = items[overIndex];
-        const overIsSelected = selectedRows.has(overItem.id);
+        if (remainingItems.length === 0) {
+          return items;
+        }
+        
+        const dragDirection = activeIndex < overIndex ? 'down' : 'up';
+        
+        let insertIndex;
+        const overIsSelected = selectedRows.has(over.id);
         
         if (overIsSelected) {
-          return arrayMove(items, activeIndex, overIndex);
-        }
-        
-        const newOverIndex = unselectedItems.findIndex(item => item.id === over.id);
-        
-        const result = [];
-        let insertedSelected = false;
-        
-        for (let i = 0; i <= unselectedItems.length; i++) {
-          if (i === newOverIndex + (activeIndex < overIndex ? 1 : 0) && !insertedSelected) {
-            result.push(...selectedItems);
-            insertedSelected = true;
+          if (dragDirection === 'down') {
+            let nearestBelow = null;
+            for (let i = overIndex + 1; i < items.length; i++) {
+              if (!selectedRows.has(items[i].id)) {
+                nearestBelow = items[i];
+                break;
+              }
+            }
+            if (nearestBelow) {
+              insertIndex = remainingItems.findIndex(item => item.id === nearestBelow.id);
+            } else {
+              insertIndex = remainingItems.length;
+            }
+          } else {
+            let nearestAbove = null;
+            for (let i = overIndex - 1; i >= 0; i--) {
+              if (!selectedRows.has(items[i].id)) {
+                nearestAbove = items[i];
+                break;
+              }
+            }
+            if (nearestAbove) {
+              insertIndex = remainingItems.findIndex(item => item.id === nearestAbove.id) + 1;
+            } else {
+              insertIndex = 0;
+            }
           }
-          if (i < unselectedItems.length) {
-            result.push(unselectedItems[i]);
-          }
+        } else {
+          const overIndexInRemaining = remainingItems.findIndex(item => item.id === over.id);
+          insertIndex = dragDirection === 'down' ? overIndexInRemaining + 1 : overIndexInRemaining;
         }
         
-        if (!insertedSelected) {
-          result.push(...selectedItems);
-        }
+        const result = [
+          ...remainingItems.slice(0, insertIndex),
+          ...selectedItems,
+          ...remainingItems.slice(insertIndex)
+        ];
         
         return result;
       } else {
