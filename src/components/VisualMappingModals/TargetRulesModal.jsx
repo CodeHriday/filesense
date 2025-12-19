@@ -354,7 +354,11 @@ const TargetRulesModal = ({ isOpen, onClose, onSave, initialConfig = {}, project
       targetFileOwnerName: selectedOwner?.full_name || selectedOwner?.username || '',
       orderedColumns: orderedColumns.map(col => col.name)
     };
-    onSave(config);
+    try {
+      onSave(config);
+    } catch (error) {
+      console.error('Error saving target configuration:', error);
+    }
     onClose();
   };
   
