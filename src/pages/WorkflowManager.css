@@ -40,6 +40,54 @@
   box-shadow: 0 0 0 1px #025043;
 }
 
+/* Actions Bar */
+.workflow-manager-actions-bar {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.bulk-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.375rem 0.75rem;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 0.375rem;
+}
+
+.bulk-count {
+  font-size: 10px;
+  font-weight: 600;
+  color: #991b1b;
+  font-family: 'Inter', sans-serif;
+}
+
+.btn-bulk-delete {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.375rem 0.625rem;
+  background: #dc2626;
+  color: white;
+  border: none;
+  border-radius: 0.25rem;
+  font-size: 10px;
+  font-weight: 600;
+  font-family: 'Inter', sans-serif;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.btn-bulk-delete:hover {
+  background: #991b1b;
+}
+
+.btn-bulk-delete svg {
+  font-size: 11px;
+}
+
 /* Create Workflow Button */
 .btn-create-workflow {
   display: inline-flex;
