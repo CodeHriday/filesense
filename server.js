@@ -1055,7 +1055,9 @@ app.get('/api/files', authenticateToken, attachVendorProfile, cacheMiddleware(30
       filterOptions.subProjectId = parseInt(req.query.sub_project_id);
     }
     
-    let files = await fileService.getAllFiles(filterOptions);
+    const result = await fileService.getAllFiles(filterOptions);
+    let files = result.files || result;
+    let totalCount = result.totalCount || files.length;
     
     // Apply vendor-specific filtering if user is a vendor
     if (req.isVendor && req.vendorProfile) {
@@ -1068,6 +1070,8 @@ app.get('/api/files', authenticateToken, attachVendorProfile, cacheMiddleware(30
           const filePath = file.file_path || file.location || '';
           return filePath.startsWith(vendorPath);
         });
+        // Adjust total count for vendor filtering
+        totalCount = files.length;
       }
       
       logger.info('Applied vendor file filtering', {
@@ -1078,7 +1082,7 @@ app.get('/api/files', authenticateToken, attachVendorProfile, cacheMiddleware(30
       });
     }
     
-    res.json(files);
+    res.json({ files, totalCount });
   } catch (err) {
     logger.error('Error fetching files', { error: err.message });
     res.status(500).json({ error: 'Failed to fetch files' });
