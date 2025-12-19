@@ -106,7 +106,9 @@ export const FileCatalog = ({ onFileSelect }) => {
   });
   
   // Properly handle the file data format from the API
-  const files = fileData || [];
+  // API now returns { files: Array, totalCount: number }
+  const files = fileData?.files || fileData || [];
+  const totalFilesCount = fileData?.totalCount || files.length;
   
   // Get unique projects for filtering
   const uniqueProjects = React.useMemo(() => {
@@ -614,7 +616,7 @@ export const FileCatalog = ({ onFileSelect }) => {
         </div>
         <div className="gps-header-actions">
           <div className="gps-stat-card" style={{ padding: '8px 16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontSize: '18px', fontWeight: 700, color: '#025043' }}>{files.length}</span>
+            <span style={{ fontSize: '18px', fontWeight: 700, color: '#025043' }}>{totalFilesCount.toLocaleString()}</span>
             <span style={{ fontSize: '10px', color: '#666' }}>Total Files</span>
           </div>
         </div>
