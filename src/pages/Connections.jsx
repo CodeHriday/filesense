@@ -49,7 +49,12 @@ const Connections = () => {
   const [testSuccessful, setTestSuccessful] = useState(false);
   const [testCredentials, setTestCredentials] = useState(null);
   
-  const isAdmin = currentUser?.roles?.includes('Admin');
+  // Check for admin-level access (uses permission-based check for backward compatibility)
+  const isAdmin = currentUser?.permissions?.some(p => 
+    typeof p === 'string' 
+      ? ['users:write', 'roles:write', 'project_management:write'].includes(p)
+      : ['users:write', 'roles:write', 'project_management:write'].includes(p.name)
+  ) || currentUser?.roles?.includes('Admin');
 
   
   // Compute whether user can browse folders

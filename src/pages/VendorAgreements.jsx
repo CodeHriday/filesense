@@ -148,7 +148,8 @@ const VendorAgreements = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   
-  const isAdmin = hasRole && hasRole('Admin');
+  // Check for admin-level access (uses permission-based check for backward compatibility)
+  const isAdmin = hasPermission('users:write') || hasPermission('project_management:write') || (hasRole && hasRole('Admin'));
   const isVendor = isVendorUser(currentUser);
   
   useEffect(() => {

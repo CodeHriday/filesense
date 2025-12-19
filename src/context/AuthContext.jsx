@@ -30,6 +30,38 @@ const initialAuthState = {
   error: ''
 };
 
+/**
+ * Helper function to check if a user has admin-level access
+ * This checks both the Admin role name (backward compatibility) AND permission-based access
+ * @param {Object} user - User object with roles and permissions
+ * @returns {boolean}
+ */
+const hasAdminLevelAccess = (user) => {
+  if (!user) return false;
+  
+  // Check for Admin role (backward compatibility)
+  if (user.roles && (
+    user.roles.includes('Admin') || 
+    user.roles.includes('admin')
+  )) {
+    return true;
+  }
+  
+  // Check for admin-equivalent permissions
+  // If user has users:write or roles:write, they have admin-level access
+  if (user.permissions && Array.isArray(user.permissions)) {
+    const adminPermissions = ['users:write', 'roles:write', 'project_management:write'];
+    return user.permissions.some(p => {
+      if (typeof p === 'string') {
+        return adminPermissions.includes(p);
+      }
+      return adminPermissions.includes(p.name);
+    });
+  }
+  
+  return false;
+};
+
 // Auth reducer for atomic state updates
 function authReducer(state, action) {
   switch (action.type) {
@@ -364,8 +396,8 @@ export const AuthProvider = ({ children }) => {
       return false;
     }
     
-    // Admin role has access to everything
-    if (currentUser.roles && currentUser.roles.includes('Admin')) {
+    // Users with admin-level access have access to everything
+    if (hasAdminLevelAccess(currentUser)) {
       return true;
     }
     
@@ -448,8 +480,8 @@ export const AuthProvider = ({ children }) => {
       return false;
     }
     
-    // Admin role has access to everything
-    if (currentUser.roles && currentUser.roles.includes('Admin')) {
+    // Users with admin-level access have access to everything
+    if (hasAdminLevelAccess(currentUser)) {
       return true;
     }
     
@@ -662,8 +694,8 @@ export const AuthProvider = ({ children }) => {
       return false;
     }
     
-    // Admin role has access to all tagged data
-    if (currentUser.roles && currentUser.roles.includes('Admin')) {
+    // Users with admin-level access have access to all tagged data
+    if (hasAdminLevelAccess(currentUser)) {
       return true;
     }
     

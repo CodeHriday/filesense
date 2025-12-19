@@ -123,6 +123,102 @@ const sanitizeError = (error, genericMessage = 'An error occurred') => {
   return error.message || genericMessage;
 };
 
+// Permission-based access control helper functions
+// These replace hardcoded "Admin" role name checks with actual permission checks
+
+/**
+ * Check if user has a specific permission
+ * @param {Object} user - User object with permissions array
+ * @param {string} permissionName - Permission to check (e.g., 'file_catalog:read')
+ * @returns {boolean}
+ */
+const userHasPermission = (user, permissionName) => {
+  if (!user || !user.permissions) return false;
+  
+  return user.permissions.some(p => {
+    if (typeof p === 'string') {
+      return p === permissionName;
+    }
+    return p.name === permissionName || p.permission_name === permissionName;
+  });
+};
+
+/**
+ * Check if user has any of the specified permissions
+ * @param {Object} user - User object with permissions array
+ * @param {string[]} permissionNames - Array of permissions to check
+ * @returns {boolean}
+ */
+const userHasAnyPermission = (user, permissionNames) => {
+  if (!user || !user.permissions) return false;
+  
+  return permissionNames.some(perm => userHasPermission(user, perm));
+};
+
+/**
+ * Check if user has all-project access (admin-level access to all resources)
+ * This replaces the hardcoded Admin role check with permission-based check
+ * Users with project_management:write, users:write, or roles:write typically have admin-level access
+ * @param {Object} user - User object with roles and permissions
+ * @returns {boolean}
+ */
+const userHasAllProjectAccess = (user) => {
+  if (!user) return false;
+  
+  // First check if user has the Admin role (backward compatibility)
+  const hasAdminRole = user.roles && (
+    user.roles.includes('Admin') || 
+    user.roles.includes('admin') ||
+    user.roles.some(r => typeof r === 'object' && (
+      r.name === 'Admin' || r.name === 'admin' ||
+      r.role_name === 'Admin' || r.role_name === 'admin'
+    ))
+  );
+  
+  if (hasAdminRole) return true;
+  
+  // Check for admin-equivalent permissions
+  // Users with these permissions have admin-level access to all projects
+  const adminPermissions = [
+    'project_management:write',
+    'all_projects:read',
+    'users:write',
+    'roles:write'
+  ];
+  
+  return userHasAnyPermission(user, adminPermissions);
+};
+
+/**
+ * Check if user has admin-level access for user/role management
+ * @param {Object} user - User object with roles and permissions
+ * @returns {boolean}
+ */
+const userHasAdminAccess = (user) => {
+  if (!user) return false;
+  
+  // First check if user has the Admin role (backward compatibility)
+  const hasAdminRole = user.roles && (
+    user.roles.includes('Admin') || 
+    user.roles.includes('admin') ||
+    user.roles.some(r => typeof r === 'object' && (
+      r.name === 'Admin' || r.name === 'admin' ||
+      r.role_name === 'Admin' || r.role_name === 'admin'
+    ))
+  );
+  
+  if (hasAdminRole) return true;
+  
+  // Check for admin-equivalent permissions (comprehensive access)
+  // Users with these permissions have admin-level access
+  const adminPermissions = [
+    'users:write',
+    'roles:write'
+  ];
+  
+  return userHasAnyPermission(user, adminPermissions);
+};
+
 // Import authentication middleware from backend/src
 const { authenticateToken } = require('./backend/src/middleware/authenticate');
 
@@ -347,15 +443,8 @@ app.get('/api/files/:fileId/status',
       const { fileId } = req.params;
       const userId = req.user.id;
       
-      // Check if user is admin (admin bypass)
-      const isAdmin = req.user.roles && (
-        req.user.roles.includes('Admin') || 
-        req.user.roles.includes('admin') ||
-        req.user.roles.some(r => typeof r === 'object' && (
-          r.name === 'Admin' || r.name === 'admin' ||
-          r.role_name === 'Admin' || r.role_name === 'admin'
-        ))
-      );
+      // Check if user has all-project access (permission-based, not role-name based)
+      const isAdmin = userHasAllProjectAccess(req.user);
       
       // Get file with project_id
       const fileResult = await dbPool.query(
@@ -1019,7 +1108,7 @@ app.get('/api/files', authenticateToken, attachVendorProfile, cacheMiddleware(30
     
     // Get user's accessible projects for filtering
     const { getUserProjects } = require('./backend/middleware/requireProjectAccess');
-    const isAdmin = req.user?.roles?.includes('Admin');
+    const isAdmin = userHasAllProjectAccess(req.user);
     let projectIds = null;
     
     if (!isAdmin) {
@@ -1114,7 +1203,7 @@ app.get('/api/vendor-files', authenticateToken, attachVendorProfile, cacheMiddle
     
     // Get user's accessible projects for filtering
     const { getUserProjects } = require('./backend/middleware/requireProjectAccess');
-    const isAdmin = req.user?.roles?.includes('Admin');
+    const isAdmin = userHasAllProjectAccess(req.user);
     let projectIds = null;
     
     if (!isAdmin) {
@@ -1806,7 +1895,7 @@ app.post('/api/files/upload', authenticateToken, invalidateCache('cache:*:*files
     
     // Validate and get project_id and sub_project_id
     const { getUserProjects } = require('./backend/middleware/requireProjectAccess');
-    const isAdmin = req.user?.roles?.includes('Admin');
+    const isAdmin = userHasAllProjectAccess(req.user);
     let projectId = req.body.project_id ? parseInt(req.body.project_id) : null;
     let subProjectId = req.body.sub_project_id ? parseInt(req.body.sub_project_id) : null;
     
@@ -2555,7 +2644,7 @@ app.post('/api/files/drop', authenticateToken, uploadLimiter, upload.single('fil
     
     // Validate and get project_id
     const { getUserProjects } = require('./backend/middleware/requireProjectAccess');
-    const isAdmin = req.user?.roles?.includes('Admin');
+    const isAdmin = userHasAllProjectAccess(req.user);
     let projectId = req.body.project_id ? parseInt(req.body.project_id) : null;
     
     // Get quality_rule_ids if provided
@@ -3643,7 +3732,7 @@ app.post('/api/files/:fileId/password', authenticateToken, async (req, res) => {
     `;
     const accessResult = await pool.query(projectAccessQuery, [file.project_id, userId]);
     
-    if (accessResult.rows.length === 0 && !req.user.roles?.includes('Admin')) {
+    if (accessResult.rows.length === 0 && !userHasAllProjectAccess(req.user)) {
       return res.status(403).json({ error: 'Unauthorized to access this file' });
     }
 
@@ -3712,7 +3801,7 @@ app.post('/api/files/:fileId/retry', authenticateToken, async (req, res) => {
     `;
     const accessResult = await dbPool.query(projectAccessQuery, [file.project_id, userId]);
     
-    if (accessResult.rows.length === 0 && !req.user.roles?.includes('Admin')) {
+    if (accessResult.rows.length === 0 && !userHasAllProjectAccess(req.user)) {
       return res.status(403).json({ error: 'Unauthorized to access this file' });
     }
 
@@ -4092,7 +4181,7 @@ app.get('/api/alerts/history', authenticateToken, async (req, res) => {
     const { getUserProjects } = require('./backend/middleware/requireProjectAccess');
     const userProjects = await getUserProjects(req.user.id);
     const projectIds = userProjects.map(p => p.id);
-    const isAdmin = req.user?.roles?.includes('Admin');
+    const isAdmin = userHasAllProjectAccess(req.user);
     
     // Return empty if user has no projects and is not admin
     if (projectIds.length === 0 && !isAdmin) {
@@ -4381,15 +4470,15 @@ try {
   console.error('✗ Failed to register /api/retention-policies:', error.message);
 }
 
-// Admin authorization middleware for sensitive routes
+// Admin authorization middleware for sensitive routes (uses permission-based check)
 const requireAdmin = (req, res, next) => {
-  if (!req.user || !req.user.roles || !req.user.roles.includes('Admin')) {
+  if (!userHasAdminAccess(req.user)) {
     logger.warn('Unauthorized audit access attempt', {
       userId: req.user?.id,
       roles: req.user?.roles,
       path: req.path
     });
-    return res.status(403).json({ error: 'Access denied. Admin role required.' });
+    return res.status(403).json({ error: 'Access denied. Admin privileges required.' });
   }
   next();
 };
@@ -6803,7 +6892,7 @@ app.post('/api/files/:fileId/delimiter', authenticateToken, async (req, res) => 
     `;
     const accessResult = await dbPool.query(projectAccessQuery, [file.project_id, userId]);
     
-    if (accessResult.rows.length === 0 && !req.user.roles?.includes('Admin')) {
+    if (accessResult.rows.length === 0 && !userHasAllProjectAccess(req.user)) {
       return res.status(403).json({ error: 'Unauthorized to access this file' });
     }
     
@@ -7552,8 +7641,8 @@ app.post('/api/files/:fileId/columns/:columnName/policies', authenticateToken, i
       [fileId, decodedColumnName]
     );
     
-    // Check if user is Admin or has edit permission for ALL column's tags
-    const isAdmin = req.user.roles && req.user.roles.includes('Admin');
+    // Check if user has admin access or has edit permission for ALL column's tags
+    const isAdmin = userHasAdminAccess(req.user);
     
     if (!isAdmin) {
       // If column has tags, user must have edit permission for ALL tags
@@ -7570,9 +7659,9 @@ app.post('/api/files/:fileId/columns/:columnName/policies', authenticateToken, i
           });
         }
       } else {
-        // Column has no tags - only Admin can assign policies
+        // Column has no tags - only users with admin access can assign policies
         return res.status(403).json({ 
-          error: 'You do not have permission to assign policies to this column. Required: Admin role.' 
+          error: 'You do not have permission to assign policies to this column. Required: Admin privileges.' 
         });
       }
     }
@@ -8046,11 +8135,11 @@ app.post('/api/files/:fileId/quality/recalculate', authenticateToken, async (req
 app.get('/api/alerts', authenticateToken, async (req, res) => {
   try {
     // Alert rules are system-wide configuration, admin-only access
-    const isAdmin = req.user?.roles?.includes('Admin');
+    const isAdmin = userHasAdminAccess(req.user);
     if (!isAdmin) {
       return res.status(403).json({ 
         error: 'Access denied',
-        message: 'Only administrators can view alert rules'
+        message: 'Only users with admin privileges can view alert rules'
       });
     }
     
@@ -8559,8 +8648,8 @@ app.post('/api/auth/force-change-password', authenticateToken, async (req, res) 
 // Get password reset requests (admin only)
 app.get('/api/password-reset-requests', authenticateToken, async (req, res) => {
   try {
-    // Check if user is admin
-    const isAdmin = req.user.roles && req.user.roles.includes('Admin');
+    // Check if user has admin access
+    const isAdmin = userHasAdminAccess(req.user);
     if (!isAdmin) {
       return res.status(403).json({ error: 'Access denied. Admin privileges required.' });
     }
@@ -8597,8 +8686,8 @@ app.get('/api/password-reset-requests', authenticateToken, async (req, res) => {
 // Approve password reset request (admin only)
 app.post('/api/password-reset-requests/:id/approve', authenticateToken, async (req, res) => {
   try {
-    // Check if user is admin
-    const isAdmin = req.user.roles && req.user.roles.includes('Admin');
+    // Check if user has admin access
+    const isAdmin = userHasAdminAccess(req.user);
     if (!isAdmin) {
       return res.status(403).json({ error: 'Access denied. Admin privileges required.' });
     }
@@ -8663,8 +8752,8 @@ app.post('/api/password-reset-requests/:id/approve', authenticateToken, async (r
 // Deny password reset request (admin only)
 app.post('/api/password-reset-requests/:id/deny', authenticateToken, async (req, res) => {
   try {
-    // Check if user is admin
-    const isAdmin = req.user.roles && req.user.roles.includes('Admin');
+    // Check if user has admin access
+    const isAdmin = userHasAdminAccess(req.user);
     if (!isAdmin) {
       return res.status(403).json({ error: 'Access denied. Admin privileges required.' });
     }
@@ -11144,8 +11233,8 @@ app.get('/api/job-groups', authenticateToken, async (req, res) => {
       // Just include the current user
       usersWithSameRoleIds = [userId.toString()];
       
-      // If the user is an admin, fetch all users to see all groups
-      if (userRoles.includes('Admin')) {
+      // If the user has admin access, fetch all users to see all groups
+      if (userHasAdminAccess(req.user)) {
         const allUsers = await dbPool.query(`SELECT id FROM users`);
         if (allUsers.rows.length > 0) {
           allUsers.rows.forEach(user => {
@@ -11203,12 +11292,12 @@ app.get('/api/job-groups/:id', authenticateToken, async (req, res) => {
       return res.status(404).json({ error: 'Group not found' });
     }
     
-    // Check if user has access to this group (created by them or by someone with the same role)
+    // Check if user has access to this group (created by them or by someone with admin access)
     const createdBy = jobGroupResult.rows[0].created_by;
     if (createdBy !== userId.toString()) {
-      // Simplified access control - Admin can see all groups
+      // Simplified access control - Users with admin access can see all groups
       // Other users can only see their own groups
-      if (!userRoles.includes('Admin')) {
+      if (!userHasAdminAccess(req.user)) {
         return res.status(403).json({ error: 'You do not have access to this group' });
       }
     }

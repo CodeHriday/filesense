@@ -55,8 +55,9 @@ function TagManagement() {
     permission_level: 'Public',
     sensitivity_level: 'Low'
   });
-  const { currentUser } = useAuth();
-  const isAdmin = currentUser?.roles?.includes('Admin');
+  const { currentUser, hasPermission } = useAuth();
+  // Check for admin-level access (uses permission-based check for backward compatibility)
+  const isAdmin = hasPermission('governance_tags:write') || hasPermission('users:write') || currentUser?.roles?.includes('Admin');
 
   useEffect(() => {
     fetchTags();

@@ -927,13 +927,20 @@ function DataProfile() {
       return false;
     }
     
-    // Admin can always edit
-    if (currentUser.roles && Array.isArray(currentUser.roles) && currentUser.roles.includes('Admin')) {
-      console.log('[canEditColumnGovernance] User is Admin, returning true');
+    // Users with admin-level access can always edit
+    const hasAdminAccess = (currentUser.roles && Array.isArray(currentUser.roles) && currentUser.roles.includes('Admin')) ||
+      (currentUser.permissions && currentUser.permissions.some(p => 
+        typeof p === 'string' 
+          ? ['users:write', 'roles:write', 'project_management:write'].includes(p)
+          : ['users:write', 'roles:write', 'project_management:write'].includes(p.name)
+      ));
+    
+    if (hasAdminAccess) {
+      console.log('[canEditColumnGovernance] User has admin access, returning true');
       return true;
     }
     
-    console.log('[canEditColumnGovernance] User is NOT admin, checking tag permissions');
+    console.log('[canEditColumnGovernance] User does NOT have admin access, checking tag permissions');
     
     // Get the tags assigned to this column
     const columnTagsData = allColumnGovernanceTags[columnName] || [];
@@ -3112,8 +3119,8 @@ function DataProfile() {
                       className="gps-icon-btn gps-icon-btn--edit"
                       style={{ width: '22px', height: '22px' }}
                       onClick={() => setShowOwnershipModal(true)}
-                      disabled={!currentUser?.roles?.includes('Admin')}
-                      title={currentUser?.roles?.includes('Admin') ? "Edit ownership" : "Only Admin can edit file ownership"}
+                      disabled={!hasPermission('users:write') && !currentUser?.roles?.includes('Admin')}
+                      title={(hasPermission('users:write') || currentUser?.roles?.includes('Admin')) ? "Edit ownership" : "Only users with admin privileges can edit file ownership"}
                     >
                       <FiEdit2 size={12} />
                     </button>
