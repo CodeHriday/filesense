@@ -36,10 +36,11 @@ const FIXED_WIDTH_EXTENSIONS = ['dat', 'fixed_width', 'txt'];
  * SAS formats, and archives (ZIP, 7z, TAR, GZ, TGZ, BZ2)
  * @param {Buffer} buffer - File content buffer
  * @param {string} filename - Filename for extension detection
- * @param {Object} pool - Database pool (optional, for archive extraction)
+ * @param {Object} pool - Database pool (required for archive password retrieval)
+ * @param {number} vendorAgreementId - Vendor agreement ID for password lookup
  * @returns {Promise<Array<Object>>} - Array of row objects
  */
-async function parseFileToRows(buffer, filename, pool = null) {
+async function parseFileToRows(buffer, filename, pool = null, vendorAgreementId = null) {
   const rows = [];
   const ext = filename.split('.').pop()?.toLowerCase();
   
@@ -224,22 +225,70 @@ async function parseFileToRows(buffer, filename, pool = null) {
       const archivePath = path.join(tempDir, filename);
       fs.writeFileSync(archivePath, buffer);
       
-      const archiveService = new ArchiveExtractionService();
-      const extractedFiles = await archiveService.extractArchive(archivePath, tempDir);
+      // Get password from vendor agreement if available
+      let archivePassword = null;
+      if (pool && vendorAgreementId) {
+        try {
+          archivePassword = await getArchivePasswordFromVault(pool, vendorAgreementId, filename);
+          if (archivePassword) {
+            systemLogger.info('Retrieved archive password from vendor agreement for secondary source', {
+              filename,
+              vendorAgreementId,
+              hasPassword: true
+            });
+          }
+        } catch (pwdError) {
+          systemLogger.warn('Failed to retrieve archive password:', pwdError.message);
+        }
+      }
+      
+      // Create mock virus scanner for extraction service
+      const virusScanService = {
+        scanFile: async (filePath) => ({ isInfected: false, skipped: true, viruses: [] })
+      };
+      
+      // Create extraction service with proper dependencies
+      const archiveService = new ArchiveExtractionService(pool, virusScanService, systemLogger);
+      const extractionResult = await archiveService.extractArchive(
+        archivePath,
+        null, // No file ID for join lookups
+        archivePassword,
+        null // userId
+      );
       
       // Find and parse the first supported data file
       const supportedDataExtensions = ['csv', 'json', 'jsonl', 'xlsx', 'xls', 'parquet', 'xml', 'txt', 'tsv', 'avro', 'dat'];
+      const extractedFiles = extractionResult.files || [];
+      
+      systemLogger.info('Archive extraction completed for secondary source', {
+        filename,
+        extractedCount: extractedFiles.length,
+        files: extractedFiles.map(f => f.fileName || f)
+      });
+      
       for (const extractedFile of extractedFiles) {
-        const extractedExt = extractedFile.split('.').pop()?.toLowerCase();
+        const extractedFileName = extractedFile.fileName || extractedFile;
+        const extractedPath = extractedFile.fullPath || path.join(tempDir, extractedFileName);
+        const extractedExt = extractedFileName.split('.').pop()?.toLowerCase();
+        
         if (supportedDataExtensions.includes(extractedExt)) {
-          const extractedBuffer = fs.readFileSync(path.join(tempDir, extractedFile));
-          const extractedRows = await parseFileToRows(extractedBuffer, extractedFile, pool);
+          const extractedBuffer = fs.readFileSync(extractedPath);
+          const extractedRows = await parseFileToRows(extractedBuffer, extractedFileName, pool, vendorAgreementId);
           rows.push(...extractedRows);
+          systemLogger.info('Parsed extracted file from archive', {
+            extractedFile: extractedFileName,
+            rowCount: extractedRows.length
+          });
           break; // Only parse the first supported file
         }
       }
     } catch (archiveError) {
-      systemLogger.error('Archive extraction error in parseFileToRows:', archiveError);
+      systemLogger.error('Archive extraction error in parseFileToRows:', {
+        filename,
+        vendorAgreementId,
+        error: archiveError.message,
+        stack: archiveError.stack
+      });
     } finally {
       // Cleanup temp directory in finally block to ensure cleanup even on errors
       if (tempDir) {
@@ -1682,7 +1731,7 @@ async function executeTransformationJob(pool, mappingId, userId, options = {}) {
           
           // Download and parse the file
           const fileBuffer = await downloadFileFromConnection(pool, source.connectionId, sourceFile.filename);
-          const rows = await parseFileToRows(fileBuffer, sourceFile.filename, pool);
+          const rows = await parseFileToRows(fileBuffer, sourceFile.filename, pool, mapping.vendor_agreement_id);
           
           // Find which join specs use this source
           const relevantJoinSpecs = joinSpecs.filter(js => 
