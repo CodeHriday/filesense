@@ -3,6 +3,7 @@ const router = express.Router();
 const { authenticateToken } = require('../src/middleware/authenticate');
 const { systemLogger } = require('../utils/logger');
 const { requireProjectAccess, getUserProjects } = require('../middleware/requireProjectAccess');
+const { userHasAdminAccess } = require('../utils/permissionHelpers');
 
 /**
  * Get all sub-projects for a given parent project
@@ -13,7 +14,7 @@ router.get('/:projectId/sub-projects', authenticateToken, async (req, res) => {
     const { projectId } = req.params;
     const pool = req.app.locals.pool;
     const userId = req.user.id;
-    const isAdmin = req.user?.roles?.includes('Admin');
+    const isAdmin = userHasAdminAccess(req.user);
 
     // Check if user has access to parent project
     if (!isAdmin) {
@@ -77,7 +78,7 @@ router.post('/:projectId/sub-projects', authenticateToken, async (req, res) => {
     const { name, description } = req.body;
     const pool = req.app.locals.pool;
     const userId = req.user.id;
-    const isAdmin = req.user?.roles?.includes('Admin');
+    const isAdmin = userHasAdminAccess(req.user);
 
     // Validation
     if (!name || name.trim().length === 0) {
@@ -169,7 +170,7 @@ router.put('/:projectId/sub-projects/:subProjectId', authenticateToken, async (r
     const { name, description, is_active } = req.body;
     const pool = req.app.locals.pool;
     const userId = req.user.id;
-    const isAdmin = req.user?.roles?.includes('Admin');
+    const isAdmin = userHasAdminAccess(req.user);
 
     // Check if user has access to parent project
     if (!isAdmin) {
@@ -272,7 +273,7 @@ router.delete('/:projectId/sub-projects/:subProjectId', authenticateToken, async
     const { projectId, subProjectId } = req.params;
     const pool = req.app.locals.pool;
     const userId = req.user.id;
-    const isAdmin = req.user?.roles?.includes('Admin');
+    const isAdmin = userHasAdminAccess(req.user);
 
     // Check if user has access to parent project
     if (!isAdmin) {
@@ -345,7 +346,7 @@ router.get('/:projectId/sub-projects/:subProjectId/members', authenticateToken, 
     const { projectId, subProjectId } = req.params;
     const pool = req.app.locals.pool;
     const userId = req.user.id;
-    const isAdmin = req.user?.roles?.includes('Admin');
+    const isAdmin = userHasAdminAccess(req.user);
 
     // Check access to parent project
     if (!isAdmin) {
@@ -415,7 +416,7 @@ router.post('/:projectId/sub-projects/:subProjectId/members', authenticateToken,
     const { user_id, role } = req.body;
     const pool = req.app.locals.pool;
     const userId = req.user.id;
-    const isAdmin = req.user?.roles?.includes('Admin');
+    const isAdmin = userHasAdminAccess(req.user);
 
     // Validation
     if (!user_id) {
@@ -498,7 +499,7 @@ router.delete('/:projectId/sub-projects/:subProjectId/members/:memberId', authen
     const { projectId, subProjectId, memberId } = req.params;
     const pool = req.app.locals.pool;
     const userId = req.user.id;
-    const isAdmin = req.user?.roles?.includes('Admin');
+    const isAdmin = userHasAdminAccess(req.user);
 
     // Check access to parent project
     if (!isAdmin) {
@@ -568,7 +569,7 @@ router.get('/:projectId/sub-projects/:subProjectId/groups', authenticateToken, a
     const { projectId, subProjectId } = req.params;
     const pool = req.app.locals.pool;
     const userId = req.user.id;
-    const isAdmin = req.user?.roles?.includes('Admin');
+    const isAdmin = userHasAdminAccess(req.user);
 
     // Check access to parent project
     if (!isAdmin) {
@@ -638,7 +639,7 @@ router.post('/:projectId/sub-projects/:subProjectId/groups', authenticateToken, 
     const { group_id } = req.body;
     const pool = req.app.locals.pool;
     const userId = req.user.id;
-    const isAdmin = req.user?.roles?.includes('Admin');
+    const isAdmin = userHasAdminAccess(req.user);
 
     // Validation
     if (!group_id) {
@@ -721,7 +722,7 @@ router.delete('/:projectId/sub-projects/:subProjectId/groups/:groupAssignmentId'
     const { projectId, subProjectId, groupAssignmentId } = req.params;
     const pool = req.app.locals.pool;
     const userId = req.user.id;
-    const isAdmin = req.user?.roles?.includes('Admin');
+    const isAdmin = userHasAdminAccess(req.user);
 
     // Check access to parent project
     if (!isAdmin) {

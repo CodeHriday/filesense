@@ -6,6 +6,7 @@ const visualMappingCompiler = require('../services/visualMappingCompiler');
 const { v4: uuidv4 } = require('uuid');
 const EmailProviderFactory = require('../services/email/EmailProviderFactory');
 const emailComposer = require('../services/EmailComposer');
+const { userHasAdminAccess } = require('../utils/permissionHelpers');
 
 /**
  * Send email notification for visual mapping execution
@@ -156,8 +157,8 @@ router.get('/', async (req, res) => {
     const userProjects = await getUserProjects(req.user.id);
     const projectIds = userProjects.map(p => p.id);
     
-    // Admin bypass check
-    const isAdmin = req.user?.roles?.includes('Admin');
+    // Admin bypass check - uses permission-based check for admin-equivalent roles
+    const isAdmin = userHasAdminAccess(req.user);
     
     let query = `
       SELECT 
@@ -267,7 +268,7 @@ router.get('/:id', async (req, res) => {
     if (mapping.project_id) {
       const { getUserProjects } = require('../middleware/requireProjectAccess');
       const userProjects = await getUserProjects(req.user.id);
-      const hasAccess = userProjects.some(p => p.id === mapping.project_id) || req.user?.roles?.includes('Admin');
+      const hasAccess = userProjects.some(p => p.id === mapping.project_id) || userHasAdminAccess(req.user);
       
       if (!hasAccess) {
         return res.status(403).json({ error: 'Access denied to this visual mapping' });
@@ -674,7 +675,7 @@ router.post('/:id/execute', async (req, res) => {
     // Check user has permission to execute in this project
     const { getUserProjects } = require('../middleware/requireProjectAccess');
     const userProjects = await getUserProjects(req.user.id);
-    const hasAccess = userProjects.some(p => p.id === mapping.project_id) || req.user?.roles?.includes('Admin');
+    const hasAccess = userProjects.some(p => p.id === mapping.project_id) || userHasAdminAccess(req.user);
     
     if (!hasAccess) {
       return res.status(403).json({ error: 'You do not have permission to execute this visual mapping' });
