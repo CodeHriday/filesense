@@ -55,7 +55,10 @@ const hasAdminLevelAccess = (user) => {
       if (typeof p === 'string') {
         return adminPermissions.includes(p);
       }
-      return adminPermissions.includes(p.name);
+      // Check all possible field names for permission code
+      return adminPermissions.includes(p.name) || 
+             adminPermissions.includes(p.permission_name) || 
+             adminPermissions.includes(p.permission_code);
     });
   }
   
@@ -462,9 +465,19 @@ export const AuthProvider = ({ children }) => {
           return p === permission;
         }
         
-        // Handle object format permissions (older format)
-        if (typeof p === 'object' && p.name === permission) {
-          return true;
+        // Handle object format permissions (check all possible field names)
+        if (typeof p === 'object') {
+          const permCode = p.name || p.permission_name || p.permission_code;
+          if (permCode === permission) {
+            return true;
+          }
+          
+          // Also check for resource:action format matching
+          if (permCode && permCode.includes(':')) {
+            const [permResource, permAction] = permCode.split(':');
+            return resourceVariations.includes(permResource) && 
+                   (permAction === action || permAction === '*');
+          }
         }
         
         return false;
@@ -593,8 +606,13 @@ export const AuthProvider = ({ children }) => {
       return false;
     }
     
-    // Admin role has access to everything
+    // Admin role has access to everything (backward compatibility)
     if (hasRole('Admin')) {
+      return true;
+    }
+    
+    // Admin-level permissions also have full access (e.g., dp_admin role)
+    if (hasPermission('users:write') || hasPermission('project_management:write')) {
       return true;
     }
     
@@ -645,8 +663,13 @@ export const AuthProvider = ({ children }) => {
       return false;
     }
     
-    // Admin role has access to everything
+    // Admin role has access to everything (backward compatibility)
     if (hasRole('Admin')) {
+      return true;
+    }
+    
+    // Admin-level permissions also have full access (e.g., dp_admin role)
+    if (hasPermission('users:write') || hasPermission('project_management:write')) {
       return true;
     }
     
