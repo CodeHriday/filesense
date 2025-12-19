@@ -1,8 +1,81 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
+import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { FaGripVertical } from 'react-icons/fa';
 import FileBrowserModal from './FileBrowserModal';
 import './MappingConfigModal.css';
 import PropTypes from 'prop-types';
+
+
+const SortableSchemaRow = ({ column, index, selectedRows, onToggleSelect }) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging
+  } = useSortable({ id: column.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    backgroundColor: isDragging ? '#e0f2fe' : selectedRows.has(column.id) ? '#f0fdf4' : 'white',
+    opacity: isDragging ? 0.8 : 1
+  };
+
+  const isPII = column.contains_pii || column.pii || false;
+  const dqRules = column.dqRules || [];
+  const dqStatus = column.dqStatus || null;
+
+  return (
+    <tr ref={setNodeRef} style={style}>
+      <td style={{ width: '30px', textAlign: 'center' }}>
+        <input
+          type="checkbox"
+          checked={selectedRows.has(column.id)}
+          onChange={() => onToggleSelect(column.id)}
+        />
+      </td>
+      <td style={{ width: '30px', cursor: 'grab' }} {...attributes} {...listeners}>
+        <FaGripVertical style={{ color: '#9ca3af' }} />
+      </td>
+      <td style={{ width: '40px', textAlign: 'center' }}>{index + 1}</td>
+      <td className="vm-schema-col-name">{column.name}</td>
+      <td className="vm-schema-col-type">{column.type || 'STRING'}</td>
+      <td className="vm-schema-col-pii">
+        <span className={`vm-pii-badge ${isPII ? 'vm-pii-yes' : 'vm-pii-no'}`}>
+          {isPII ? 'YES' : 'NO'}
+        </span>
+      </td>
+      <td className="vm-schema-col-dq">
+        {dqRules.length > 0 ? (
+          <span style={{ fontSize: '9px', color: '#6b7280' }}>
+            {dqRules.map(r => r.name || r.rule_type).join(', ')}
+          </span>
+        ) : '—'}
+      </td>
+      <td className="vm-schema-col-status">
+        {dqStatus === 'passed' && (
+          <span style={{ color: '#16a34a', fontSize: '9px', fontWeight: 500 }}>Passed</span>
+        )}
+        {dqStatus === 'failed' && (
+          <span style={{ color: '#dc2626', fontSize: '9px', fontWeight: 500 }}>Failed</span>
+        )}
+        {!dqStatus && '—'}
+      </td>
+    </tr>
+  );
+};
+
+SortableSchemaRow.propTypes = {
+  column: PropTypes.object.isRequired,
+  index: PropTypes.number.isRequired,
+  selectedRows: PropTypes.instanceOf(Set).isRequired,
+  onToggleSelect: PropTypes.func.isRequired
+};
 
 
 const TargetRulesModal = ({ isOpen, onClose, onSave, initialConfig = {}, projectId, outputSchema = null }) => {
@@ -23,8 +96,17 @@ const TargetRulesModal = ({ isOpen, onClose, onSave, initialConfig = {}, project
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('configuration');
   const [schema, setSchema] = useState(null);
+  const [orderedColumns, setOrderedColumns] = useState([]);
+  const [selectedRows, setSelectedRows] = useState(new Set());
   const [fileBrowserOpen, setFileBrowserOpen] = useState(false);
   const [validationError, setValidationError] = useState('');
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates
+    })
+  );
   
   useEffect(() => {
     if (isOpen) {
@@ -36,6 +118,7 @@ const TargetRulesModal = ({ isOpen, onClose, onSave, initialConfig = {}, project
       // Reset to configuration tab when modal opens
       setActiveTab('configuration');
       setValidationError('');
+      setSelectedRows(new Set());
       
       // Set output schema from upstream nodes
       if (outputSchema && outputSchema.length > 0) {
@@ -43,11 +126,28 @@ const TargetRulesModal = ({ isOpen, onClose, onSave, initialConfig = {}, project
           source: 'upstream',
           columns: outputSchema
         });
+        // Initialize ordered columns with unique IDs
+        // If initialConfig has savedColumnOrder, use that order
+        const savedOrder = initialConfig.orderedColumns || [];
+        if (savedOrder.length > 0) {
+          // Merge saved order with current schema (handle new/removed columns)
+          const schemaNames = new Set(outputSchema.map(c => c.name));
+          const orderedFromSaved = savedOrder.filter(c => schemaNames.has(c.name));
+          const savedNames = new Set(savedOrder.map(c => c.name));
+          const newColumns = outputSchema.filter(c => !savedNames.has(c.name));
+          setOrderedColumns([
+            ...orderedFromSaved.map((col, idx) => ({ ...col, id: `col-${col.name}-${idx}` })),
+            ...newColumns.map((col, idx) => ({ ...col, id: `col-${col.name}-${orderedFromSaved.length + idx}` }))
+          ]);
+        } else {
+          setOrderedColumns(outputSchema.map((col, idx) => ({ ...col, id: `col-${col.name}-${idx}` })));
+        }
       } else {
         setSchema(null);
+        setOrderedColumns([]);
       }
     }
-  }, [isOpen, projectId, outputSchema]);
+  }, [isOpen, projectId, outputSchema, initialConfig.orderedColumns]);
   
   const fetchConnections = async () => {
     try {
@@ -110,6 +210,37 @@ const TargetRulesModal = ({ isOpen, onClose, onSave, initialConfig = {}, project
     });
   };
 
+  const handleDragEnd = (event) => {
+    const { active, over } = event;
+    if (active.id !== over?.id) {
+      setOrderedColumns((items) => {
+        const oldIndex = items.findIndex(i => i.id === active.id);
+        const newIndex = items.findIndex(i => i.id === over.id);
+        return arrayMove(items, oldIndex, newIndex);
+      });
+    }
+  };
+
+  const toggleRowSelect = (columnId) => {
+    setSelectedRows(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(columnId)) {
+        newSet.delete(columnId);
+      } else {
+        newSet.add(columnId);
+      }
+      return newSet;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedRows.size === orderedColumns.length) {
+      setSelectedRows(new Set());
+    } else {
+      setSelectedRows(new Set(orderedColumns.map(c => c.id)));
+    }
+  };
+
   const handleSave = () => {
     if (!name.trim()) {
       setValidationError('Name is required');
@@ -145,7 +276,8 @@ const TargetRulesModal = ({ isOpen, onClose, onSave, initialConfig = {}, project
       qualityRulesCount: selectedQualityRules.length,
       anomalyDetection,
       targetFileOwnerId,
-      targetFileOwnerName: selectedOwner?.full_name || selectedOwner?.username || ''
+      targetFileOwnerName: selectedOwner?.full_name || selectedOwner?.username || '',
+      orderedColumns: orderedColumns.map(({ id, ...col }) => col)
     };
     onSave(config);
     onClose();
@@ -344,53 +476,67 @@ const TargetRulesModal = ({ isOpen, onClose, onSave, initialConfig = {}, project
                     </div>
                     <div className="vm-schema-meta-row">
                       <span className="vm-schema-label">Total Columns:</span>
-                      <span className="vm-schema-value">{schema.columns.length}</span>
+                      <span className="vm-schema-value">{orderedColumns.length}</span>
+                    </div>
+                    <div className="vm-schema-meta-row">
+                      <span className="vm-schema-label">Selected:</span>
+                      <span className="vm-schema-value">{selectedRows.size} columns</span>
                     </div>
                   </div>
                   
-                  <div className="vm-schema-table-container">
-                    <table className="vm-schema-table">
-                      <thead>
-                        <tr>
-                          <th>#</th>
-                          <th>Column Name</th>
-                          <th>Data Type</th>
-                          <th>PII</th>
-                          <th>Description</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {schema.columns && schema.columns.length > 0 ? (
-                          schema.columns.map((col, idx) => {
-                            const isPII = col.contains_pii || col.pii || false;
-                            return (
-                              <tr key={idx}>
-                                <td>{idx + 1}</td>
-                                <td className="vm-schema-col-name">{col.name}</td>
-                                <td className="vm-schema-col-type">{col.type || 'unknown'}</td>
-                                <td className="vm-schema-col-pii">
-                                  <span className={`vm-pii-indicator ${isPII ? 'vm-pii-yes' : 'vm-pii-no'}`}>
-                                    {isPII ? 'Yes' : 'No'}
-                                  </span>
-                                </td>
-                                <td className="vm-schema-col-desc">{col.description || '—'}</td>
-                              </tr>
-                            );
-                          })
-                        ) : (
+                  <div style={{ marginBottom: '8px', fontSize: '10px', fontFamily: 'Inter, sans-serif', color: '#6b7280' }}>
+                    Drag rows to reorder output columns. Select multiple rows with checkboxes to move them together.
+                  </div>
+                  
+                  <div className="vm-schema-table-container" style={{ maxHeight: '400px', overflowY: 'auto' }}>
+                    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                      <table className="vm-schema-table">
+                        <thead>
                           <tr>
-                            <td colSpan="5" style={{ textAlign: 'center', color: '#9ca3af', fontStyle: 'italic' }}>
-                              No columns in schema
-                            </td>
+                            <th style={{ width: '30px' }}>
+                              <input
+                                type="checkbox"
+                                checked={selectedRows.size === orderedColumns.length && orderedColumns.length > 0}
+                                onChange={toggleSelectAll}
+                              />
+                            </th>
+                            <th style={{ width: '30px' }}></th>
+                            <th style={{ width: '40px' }}>#</th>
+                            <th>Column Name</th>
+                            <th>Data Type</th>
+                            <th>PII</th>
+                            <th>DQ Rules</th>
+                            <th>DQ Status</th>
                           </tr>
-                        )}
-                      </tbody>
-                    </table>
+                        </thead>
+                        <SortableContext items={orderedColumns.map(c => c.id)} strategy={verticalListSortingStrategy}>
+                          <tbody>
+                            {orderedColumns.length > 0 ? (
+                              orderedColumns.map((col, idx) => (
+                                <SortableSchemaRow
+                                  key={col.id}
+                                  column={col}
+                                  index={idx}
+                                  selectedRows={selectedRows}
+                                  onToggleSelect={toggleRowSelect}
+                                />
+                              ))
+                            ) : (
+                              <tr>
+                                <td colSpan="8" style={{ textAlign: 'center', color: '#9ca3af', fontStyle: 'italic' }}>
+                                  No columns in schema
+                                </td>
+                              </tr>
+                            )}
+                          </tbody>
+                        </SortableContext>
+                      </table>
+                    </DndContext>
                   </div>
                   
                   <div className="vm-schema-note">
                     <strong>Note:</strong> This schema represents the data structure that will be written to the target. 
-                    It is determined by transformations applied in upstream nodes (Source Configuration, Expressions, RDM Lookups).
+                    Drag rows to reorder output columns. Column properties (data type, PII, DQ rules) are set in upstream Expression nodes.
                   </div>
                 </>
               ) : (
@@ -450,7 +596,8 @@ TargetRulesModal.propTypes = {
     violationHandling: PropTypes.string,
     selectedQualityRules: PropTypes.arrayOf(PropTypes.number),
     anomalyDetection: PropTypes.bool,
-    targetFileOwnerId: PropTypes.oneOfType([PropTypes.string, PropTypes.number])
+    targetFileOwnerId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    orderedColumns: PropTypes.array
   })
 };
 

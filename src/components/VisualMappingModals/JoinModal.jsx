@@ -440,6 +440,12 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
           >
             Mapping
           </button>
+          <button
+            className={`vm-tab ${activeTab === 'schema' ? 'vm-tab-active' : ''}`}
+            onClick={() => setActiveTab('schema')}
+          >
+            Output Schema
+          </button>
         </div>
 
         <div className="vm-modal-body vm-modal-body-scroll">
@@ -902,6 +908,92 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
                     {getOutputSchema().join(', ') || 'None'}
                   </span>
                 </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'schema' && (
+            <div className="vm-schema-container">
+              <div className="vm-schema-meta">
+                <div className="vm-schema-meta-row">
+                  <span className="vm-schema-label">Total Output Columns:</span>
+                  <span className="vm-schema-value">{columnMappings.filter(m => m.include).length}</span>
+                </div>
+                <div className="vm-schema-meta-row">
+                  <span className="vm-schema-label">Left Source:</span>
+                  <span className="vm-schema-value">{leftNodeName || 'Left Input'}</span>
+                </div>
+                <div className="vm-schema-meta-row">
+                  <span className="vm-schema-label">Right Source:</span>
+                  <span className="vm-schema-value">{rightNodeName || 'Right Input'}</span>
+                </div>
+              </div>
+
+              <div className="vm-schema-table-container" style={{ maxHeight: '400px', overflowY: 'auto' }}>
+                <table className="vm-schema-table">
+                  <thead>
+                    <tr>
+                      <th style={{ width: '40px' }}>#</th>
+                      <th>Column Name</th>
+                      <th>Data Type</th>
+                      <th>Source</th>
+                      <th>PII</th>
+                      <th>DQ Rules</th>
+                      <th>DQ Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {columnMappings.filter(m => m.include).length > 0 ? (
+                      columnMappings.filter(m => m.include).map((col, idx) => {
+                        const isPII = col.pii || col.contains_pii || false;
+                        const dqRules = col.dqRules || [];
+                        const dqStatus = col.dqStatus || null;
+                        return (
+                          <tr key={idx}>
+                            <td style={{ textAlign: 'center' }}>{idx + 1}</td>
+                            <td className="vm-schema-col-name">{col.outputColumn}</td>
+                            <td className="vm-schema-col-type">{col.type || 'STRING'}</td>
+                            <td style={{ fontSize: '9px', color: '#6b7280' }}>
+                              {col.sourceSide === 'left' ? (leftNodeName || 'Left') : (rightNodeName || 'Right')}
+                            </td>
+                            <td className="vm-schema-col-pii">
+                              <span className={`vm-pii-badge ${isPII ? 'vm-pii-yes' : 'vm-pii-no'}`}>
+                                {isPII ? 'YES' : 'NO'}
+                              </span>
+                            </td>
+                            <td>
+                              {dqRules.length > 0 ? (
+                                <span style={{ fontSize: '9px', color: '#6b7280' }}>
+                                  {dqRules.map(r => r.name || r.rule_type).join(', ')}
+                                </span>
+                              ) : '—'}
+                            </td>
+                            <td>
+                              {dqStatus === 'passed' && (
+                                <span style={{ color: '#16a34a', fontSize: '9px', fontWeight: 500 }}>Passed</span>
+                              )}
+                              {dqStatus === 'failed' && (
+                                <span style={{ color: '#dc2626', fontSize: '9px', fontWeight: 500 }}>Failed</span>
+                              )}
+                              {!dqStatus && '—'}
+                            </td>
+                          </tr>
+                        );
+                      })
+                    ) : (
+                      <tr>
+                        <td colSpan="7" style={{ textAlign: 'center', color: '#9ca3af', fontStyle: 'italic' }}>
+                          No columns selected. Go to Mapping tab to include columns.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="vm-schema-note">
+                <strong>Note:</strong> This tab shows a read-only summary of the join output schema. 
+                Data types, PII settings, and DQ rules are inherited from upstream Expression nodes.
               </div>
             </div>
           )}

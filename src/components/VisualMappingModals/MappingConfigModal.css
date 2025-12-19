@@ -738,3 +738,25 @@
 .vm-schema-note strong {
   font-weight: 700;
 }
+
+.vm-pii-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 3px;
+  font-weight: 600;
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.vm-pii-badge.vm-pii-yes {
+  background: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fca5a5;
+}
+
+.vm-pii-badge.vm-pii-no {
+  background: #f0fdf4;
+  color: #16a34a;
+  border: 1px solid #86efac;
+}
