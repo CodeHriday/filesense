@@ -435,6 +435,7 @@ const RoleManagement = () => {
         //   return;
         // }
         
+        console.log('Creating role with data:', JSON.stringify(roleData, null, 2));
         await createRole(roleData);
       } else {
         // Temporarily bypass permission checks
@@ -472,7 +473,9 @@ const RoleManagement = () => {
       fetchData();
     } catch (error) {
       console.error('Error saving role:', error);
-      setError('Failed to save role: ' + (error.response?.data?.error || error.message));
+      console.error('Error response data:', error.response?.data);
+      const errorMessage = error.response?.data?.error || error.response?.data?.message || error.message;
+      setError(errorMessage);
     }
   };
 
