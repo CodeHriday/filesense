@@ -866,7 +866,7 @@ function QualityRules() {
           }}
         >
           <option value="">All Projects</option>
-          {(uniqueProjects.length > 0 ? uniqueProjects : projects).map(project => (
+          {projects.filter(p => !p.parent_project_id).map(project => (
             <option key={project.id} value={project.id}>
               {project.name}
             </option>
