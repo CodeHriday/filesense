@@ -1882,7 +1882,7 @@ const VisualMappingCanvasContent = () => {
                 });
               }
               if (node.type === 'expression' && config.fieldMappings) {
-                return config.fieldMappings.map(m => ({ name: m.targetField, type: 'STRING' }));
+                return config.fieldMappings.map(m => ({ name: m.target_field, type: 'STRING' }));
               }
               if (node.type === 'join' && config.outputSchema) {
                 return config.outputSchema;
@@ -1931,7 +1931,7 @@ const VisualMappingCanvasContent = () => {
                 });
               }
               if (node.type === 'expression' && config.fieldMappings) {
-                return config.fieldMappings.map(m => ({ name: m.targetField, type: 'STRING' }));
+                return config.fieldMappings.map(m => ({ name: m.target_field, type: 'STRING' }));
               }
               if (node.type === 'join' && config.outputSchema) {
                 return config.outputSchema;
