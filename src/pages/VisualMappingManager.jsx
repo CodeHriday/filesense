@@ -337,10 +337,9 @@ const VisualMappingManager = () => {
               <tr>
                 <th>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <label htmlFor="select-all-mappings" className="sr-only">Select all mappings</label>
                     <input
-                      id="select-all-mappings"
                       type="checkbox"
+                      aria-label="Select all mappings"
                       checked={selectedMappings.size === filteredMappings.length && filteredMappings.length > 0}
                       onChange={toggleSelectAll}
                     />
@@ -369,10 +368,9 @@ const VisualMappingManager = () => {
                   <tr key={mapping.id}>
                     <td className="visual-mapping-manager-name-cell">
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <label htmlFor={`select-mapping-${mapping.id}`} className="sr-only">Select {mapping.name}</label>
                         <input
-                          id={`select-mapping-${mapping.id}`}
                           type="checkbox"
+                          aria-label={`Select ${mapping.name}`}
                           checked={selectedMappings.has(mapping.id)}
                           onChange={() => toggleSelectMapping(mapping.id)}
                         />
