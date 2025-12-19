@@ -5,7 +5,7 @@
 
 const { v4: uuidv4 } = require('uuid');
 const AWS = require('aws-sdk');
-const pool = require('../config/database');
+const { pool } = require('../config/database');
 const { systemLogger } = require('../utils/logger');
 const connectionService = require('./ConnectionService');
 const path = require('path');

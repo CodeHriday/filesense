@@ -7,7 +7,7 @@
  * Refresh intervals can be configured per view based on data freshness requirements.
  */
 
-const pool = require('../config/database');
+const { pool } = require('../config/database');
 const { systemLogger } = require('../utils/logger');
 
 // View refresh configurations
