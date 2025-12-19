@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { FaPlus, FaTrash } from 'react-icons/fa';
+import { FaPlus, FaTrash, FaExclamationTriangle } from 'react-icons/fa';
 import './MappingConfigModal.css';
 import PropTypes from 'prop-types';
 
@@ -100,6 +100,55 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
       });
     }
   }, [leftSchema, rightSchema, isOpen]);
+
+  const leftFieldNames = useMemo(() => new Set(leftSchema.map(c => c.name)), [leftSchema]);
+  const rightFieldNames = useMemo(() => new Set(rightSchema.map(c => c.name)), [rightSchema]);
+
+  const invalidMappings = useMemo(() => {
+    const invalid = [];
+    columnMappings.forEach((mapping, index) => {
+      const fieldSet = mapping.sourceSide === 'left' ? leftFieldNames : rightFieldNames;
+      if (mapping.sourceColumn && !fieldSet.has(mapping.sourceColumn)) {
+        invalid.push({
+          index,
+          type: 'columnMapping',
+          field: mapping.sourceColumn,
+          side: mapping.sourceSide
+        });
+      }
+    });
+    return invalid;
+  }, [columnMappings, leftFieldNames, rightFieldNames]);
+
+  const invalidJoinKeys = useMemo(() => {
+    const invalid = [];
+    joinKeys.forEach((key, index) => {
+      if (key.leftColumn && !leftFieldNames.has(key.leftColumn)) {
+        invalid.push({ index, side: 'left', field: key.leftColumn });
+      }
+      if (key.rightColumn && !rightFieldNames.has(key.rightColumn)) {
+        invalid.push({ index, side: 'right', field: key.rightColumn });
+      }
+    });
+    return invalid;
+  }, [joinKeys, leftFieldNames, rightFieldNames]);
+
+  const hasInvalidMappings = invalidMappings.length > 0 || invalidJoinKeys.length > 0;
+
+  const isMappingInvalid = (index) => invalidMappings.some(inv => inv.index === index);
+  const isJoinKeyInvalid = (index, side) => invalidJoinKeys.some(inv => inv.index === index && inv.side === side);
+
+  const removeInvalidMappings = () => {
+    userHasEditedRef.current = true;
+    const validMappingIndices = new Set(invalidMappings.map(inv => inv.index));
+    const filteredMappings = columnMappings.filter((_, idx) => !validMappingIndices.has(idx));
+    setColumnMappings(filteredMappings);
+
+    const invalidJoinKeyIndices = new Set();
+    invalidJoinKeys.forEach(inv => invalidJoinKeyIndices.add(inv.index));
+    const filteredJoinKeys = joinKeys.filter((_, idx) => !invalidJoinKeyIndices.has(idx));
+    setJoinKeys(filteredJoinKeys);
+  };
 
   const generateDefaultMappings = () => {
     const mappings = [];
@@ -320,6 +369,39 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
         </div>
 
         <div className="vm-modal-body vm-modal-body-scroll">
+          {hasInvalidMappings && (
+            <div className="vm-warning-banner" style={{
+              backgroundColor: '#fff3cd',
+              border: '1px solid #ffc107',
+              borderRadius: '4px',
+              padding: '12px',
+              marginBottom: '16px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '12px'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <FaExclamationTriangle style={{ color: '#856404', fontSize: '16px' }} />
+                <span style={{ color: '#856404', fontSize: '10px', fontFamily: 'Inter, sans-serif' }}>
+                  {invalidMappings.length + invalidJoinKeys.length} mapping(s) reference fields that no longer exist in upstream nodes.
+                </span>
+              </div>
+              <button
+                onClick={removeInvalidMappings}
+                className="vm-btn vm-btn-secondary"
+                style={{ 
+                  padding: '4px 8px', 
+                  fontSize: '9px',
+                  backgroundColor: '#856404',
+                  color: 'white',
+                  border: 'none'
+                }}
+              >
+                Remove Invalid
+              </button>
+            </div>
+          )}
           {validationError && (
             <div className="vm-error-message">
               {validationError}
@@ -389,21 +471,29 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
                       </tr>
                     </thead>
                     <tbody>
-                      {joinKeys.map((key, index) => (
-                        <tr key={index}>
+                      {joinKeys.map((key, index) => {
+                        const leftInvalid = isJoinKeyInvalid(index, 'left');
+                        const rightInvalid = isJoinKeyInvalid(index, 'right');
+                        return (
+                        <tr key={index} style={leftInvalid || rightInvalid ? { backgroundColor: '#fff3cd' } : {}}>
                           <td>
-                            <select
-                              id={`leftColumn-${index}`}
-                              className="vm-select"
-                              value={key.leftColumn}
-                              onChange={(e) => updateJoinKey(index, 'leftColumn', e.target.value)}
-                              aria-label={`Left Column ${index + 1}`}
-                            >
-                              <option value="">-- Select Column --</option>
-                              {leftSchema.map((col, i) => (
-                                <option key={i} value={col.name}>{col.name}</option>
-                              ))}
-                            </select>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                              {leftInvalid && <FaExclamationTriangle style={{ color: '#856404', fontSize: '12px' }} title={`Field "${key.leftColumn}" no longer exists`} />}
+                              <select
+                                id={`leftColumn-${index}`}
+                                className="vm-select"
+                                style={leftInvalid ? { borderColor: '#ffc107', backgroundColor: '#fffbe6' } : {}}
+                                value={key.leftColumn}
+                                onChange={(e) => updateJoinKey(index, 'leftColumn', e.target.value)}
+                                aria-label={`Left Column ${index + 1}`}
+                              >
+                                <option value="">-- Select Column --</option>
+                                {leftInvalid && <option value={key.leftColumn} style={{ color: '#856404' }}>{key.leftColumn} (missing)</option>}
+                                {leftSchema.map((col, i) => (
+                                  <option key={i} value={col.name}>{col.name}</option>
+                                ))}
+                              </select>
+                            </div>
                           </td>
                           <td>
                             <select
@@ -422,18 +512,23 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
                             </select>
                           </td>
                           <td>
-                            <select
-                              id={`rightColumn-${index}`}
-                              className="vm-select"
-                              value={key.rightColumn}
-                              onChange={(e) => updateJoinKey(index, 'rightColumn', e.target.value)}
-                              aria-label={`Right Column ${index + 1}`}
-                            >
-                              <option value="">-- Select Column --</option>
-                              {rightSchema.map((col, i) => (
-                                <option key={i} value={col.name}>{col.name}</option>
-                              ))}
-                            </select>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                              {rightInvalid && <FaExclamationTriangle style={{ color: '#856404', fontSize: '12px' }} title={`Field "${key.rightColumn}" no longer exists`} />}
+                              <select
+                                id={`rightColumn-${index}`}
+                                className="vm-select"
+                                style={rightInvalid ? { borderColor: '#ffc107', backgroundColor: '#fffbe6' } : {}}
+                                value={key.rightColumn}
+                                onChange={(e) => updateJoinKey(index, 'rightColumn', e.target.value)}
+                                aria-label={`Right Column ${index + 1}`}
+                              >
+                                <option value="">-- Select Column --</option>
+                                {rightInvalid && <option value={key.rightColumn} style={{ color: '#856404' }}>{key.rightColumn} (missing)</option>}
+                                {rightSchema.map((col, i) => (
+                                  <option key={i} value={col.name}>{col.name}</option>
+                                ))}
+                              </select>
+                            </div>
                           </td>
                           <td>
                             <button
@@ -446,7 +541,7 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
                             </button>
                           </td>
                         </tr>
-                      ))}
+                      );})}
                     </tbody>
                   </table>
                 </div>
@@ -559,8 +654,10 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
                     </tr>
                   </thead>
                   <tbody>
-                    {columnMappings.map((mapping, index) => (
-                      <tr key={index}>
+                    {columnMappings.map((mapping, index) => {
+                      const isInvalid = isMappingInvalid(index);
+                      return (
+                      <tr key={index} style={isInvalid ? { backgroundColor: '#fff3cd' } : {}}>
                         <td>
                           <select
                             id={`sourceSide-${index}`}
@@ -574,22 +671,27 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
                           </select>
                         </td>
                         <td>
-                          <select
-                            id={`sourceColumn-mapping-${index}`}
-                            className="vm-select"
-                            value={mapping.sourceColumn}
-                            onChange={(e) => updateColumnMapping(index, 'sourceColumn', e.target.value)}
-                            aria-label={`Source Column ${index + 1}`}
-                          >
-                            {mapping.sourceSide === 'left' 
-                              ? leftSchema.map((col, i) => (
-                                  <option key={i} value={col.name}>{col.name}</option>
-                                ))
-                              : rightSchema.map((col, i) => (
-                                  <option key={i} value={col.name}>{col.name}</option>
-                                ))
-                            }
-                          </select>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            {isInvalid && <FaExclamationTriangle style={{ color: '#856404', fontSize: '12px' }} title={`Field "${mapping.sourceColumn}" no longer exists`} />}
+                            <select
+                              id={`sourceColumn-mapping-${index}`}
+                              className="vm-select"
+                              style={isInvalid ? { borderColor: '#ffc107', backgroundColor: '#fffbe6' } : {}}
+                              value={mapping.sourceColumn}
+                              onChange={(e) => updateColumnMapping(index, 'sourceColumn', e.target.value)}
+                              aria-label={`Source Column ${index + 1}`}
+                            >
+                              {isInvalid && <option value={mapping.sourceColumn} style={{ color: '#856404' }}>{mapping.sourceColumn} (missing)</option>}
+                              {mapping.sourceSide === 'left' 
+                                ? leftSchema.map((col, i) => (
+                                    <option key={i} value={col.name}>{col.name}</option>
+                                  ))
+                                : rightSchema.map((col, i) => (
+                                    <option key={i} value={col.name}>{col.name}</option>
+                                  ))
+                              }
+                            </select>
+                          </div>
                         </td>
                         <td>
                           <input
@@ -622,7 +724,7 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
                           </button>
                         </td>
                       </tr>
-                    ))}
+                    );})}
                   </tbody>
                 </table>
               </div>
