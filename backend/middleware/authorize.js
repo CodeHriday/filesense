@@ -6,6 +6,7 @@
 
 const { systemLogger } = require('../utils/logger');
 const db = require('../config/database');
+const { userHasAdminAccess } = require('../utils/permissionHelpers');
 
 /**
  * Middleware factory to authorize users based on permissions
@@ -26,9 +27,9 @@ function authorize(requiredPermissions) {
         ? requiredPermissions 
         : [requiredPermissions];
       
-      // Check if user has admin role (bypass permission check)
-      if (req.user.roles && req.user.roles.includes('Admin')) {
-        systemLogger.info('User has Admin role, bypassing permission check');
+      // Check if user has admin-level access (bypass permission check)
+      if (userHasAdminAccess(req.user)) {
+        systemLogger.info('User has admin-level access, bypassing permission check');
         return next();
       }
       

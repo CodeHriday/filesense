@@ -10,6 +10,7 @@ const authenticateToken = require('../middleware/authenticate');
 const { asyncHandler } = require('../src/middleware/error-handler');
 const db = require('../config/database');
 const userRepository = require('../src/repositories/userRepository');
+const { userHasAdminAccess } = require('../utils/permissionHelpers');
 
 /**
  * GET /api/users
@@ -171,7 +172,7 @@ router.get('/roles/:id', authenticateToken, asyncHandler(async (req, res) => {
   
   // Check if user has admin permissions
   const userRoles = req.user.roles || [];
-  if (!userRoles.includes('Admin')) {
+  if (!userHasAdminAccess(req.user)) {
     return res.status(403).json({ 
       error: 'Insufficient permissions',
       message: 'Only administrators can view role details'
@@ -414,7 +415,7 @@ router.get('/:id', authenticateToken, asyncHandler(async (req, res) => {
   
   // Check if user has admin permissions
   const userRoles = req.user.roles || [];
-  if (!userRoles.includes('Admin')) {
+  if (!userHasAdminAccess(req.user)) {
     return res.status(403).json({ 
       error: 'Insufficient permissions',
       message: 'Only administrators can view user details'
@@ -479,7 +480,7 @@ router.put('/:id', authenticateToken, asyncHandler(async (req, res) => {
   
   // Check if user has admin permissions
   const userRoles = req.user.roles || [];
-  if (!userRoles.includes('Admin')) {
+  if (!userHasAdminAccess(req.user)) {
     return res.status(403).json({ 
       error: 'Insufficient permissions',
       message: 'Only administrators can update user information'
@@ -683,7 +684,7 @@ router.post('/:id/unlock', authenticateToken, asyncHandler(async (req, res) => {
   
   // Check if user has admin permissions
   const userRoles = req.user.roles || [];
-  if (!userRoles.includes('Admin')) {
+  if (!userHasAdminAccess(req.user)) {
     return res.status(403).json({ 
       error: 'Insufficient permissions',
       message: 'Only administrators can unlock user accounts'
@@ -724,7 +725,7 @@ router.get('/:id/dependencies', authenticateToken, asyncHandler(async (req, res)
   
   // Check if user has admin permissions
   const userRoles = req.user.roles || [];
-  if (!userRoles.includes('Admin')) {
+  if (!userHasAdminAccess(req.user)) {
     return res.status(403).json({ 
       error: 'Insufficient permissions',
       message: 'Only administrators can check user dependencies'
@@ -811,7 +812,7 @@ router.get('/:id/eligible-replacements', authenticateToken, asyncHandler(async (
   
   // Check if user has admin permissions
   const userRoles = req.user.roles || [];
-  if (!userRoles.includes('Admin')) {
+  if (!userHasAdminAccess(req.user)) {
     return res.status(403).json({ 
       error: 'Insufficient permissions',
       message: 'Only administrators can fetch eligible replacements'
@@ -896,7 +897,7 @@ router.post('/bulk-dependencies', authenticateToken, asyncHandler(async (req, re
   
   // Check if user has admin permissions
   const userRoles = req.user.roles || [];
-  if (!userRoles.includes('Admin')) {
+  if (!userHasAdminAccess(req.user)) {
     return res.status(403).json({ 
       error: 'Insufficient permissions',
       message: 'Only administrators can check user dependencies'
@@ -982,7 +983,7 @@ router.post('/:id/transfer-ownership', authenticateToken, asyncHandler(async (re
   
   // Check if user has admin permissions
   const userRoles = req.user.roles || [];
-  if (!userRoles.includes('Admin')) {
+  if (!userHasAdminAccess(req.user)) {
     return res.status(403).json({ 
       error: 'Insufficient permissions',
       message: 'Only administrators can transfer ownership'
@@ -1132,7 +1133,7 @@ router.delete('/:id', authenticateToken, asyncHandler(async (req, res) => {
   
   // Check if user has admin permissions
   const userRoles = req.user.roles || [];
-  if (!userRoles.includes('Admin')) {
+  if (!userHasAdminAccess(req.user)) {
     return res.status(403).json({ 
       error: 'Insufficient permissions',
       message: 'Only administrators can delete users'
@@ -1213,7 +1214,7 @@ router.post('/bulk-delete', authenticateToken, asyncHandler(async (req, res) => 
   
   // Check if user has admin permissions
   const userRoles = req.user.roles || [];
-  if (!userRoles.includes('Admin')) {
+  if (!userHasAdminAccess(req.user)) {
     return res.status(403).json({ 
       error: 'Insufficient permissions',
       message: 'Only administrators can delete users'
@@ -1296,7 +1297,7 @@ router.post('/roles/bulk-delete', authenticateToken, asyncHandler(async (req, re
   
   // Check if user has admin permissions
   const userRoles = req.user.roles || [];
-  if (!userRoles.includes('Admin')) {
+  if (!userHasAdminAccess(req.user)) {
     return res.status(403).json({ 
       error: 'Insufficient permissions',
       message: 'Only administrators can delete roles'

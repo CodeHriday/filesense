@@ -3,6 +3,7 @@ const router = express.Router();
 const db = require('../db');
 const xlsx = require('xlsx');
 const { systemLogger } = require('../utils/logger');
+const { userHasAdminAccess } = require('../utils/permissionHelpers');
 
 /**
  * Helper function to validate and parse project_id from query params
@@ -34,7 +35,7 @@ router.get('/file-upload-violations', async (req, res) => {
     const offset = (parseInt(page) - 1) * parseInt(limit);
     const userId = parseInt(req.user.id);
     const userRoles = req.user.roles || [];
-    const isAdmin = userRoles.some(role => role.toLowerCase() === 'admin');
+    const isAdmin = userHasAdminAccess(req.user);
 
     let whereConditions = ['(qrv.job_id IS NULL OR qrv.job_id = \'\')'];
     let params = [];
@@ -171,7 +172,7 @@ router.get('/mapping-job-violations', async (req, res) => {
     const offset = (parseInt(page) - 1) * parseInt(limit);
     const userId = parseInt(req.user.id);
     const userRoles = req.user.roles || [];
-    const isAdmin = userRoles.some(role => role.toLowerCase() === 'admin');
+    const isAdmin = userHasAdminAccess(req.user);
 
     let whereConditions = ['qrv.job_id IS NOT NULL', 'qrv.job_id != \'\''];
     let params = [];
@@ -403,7 +404,7 @@ router.get('/file-upload-violations/download', async (req, res) => {
 
     const userId = parseInt(req.user.id);
     const userRoles = req.user.roles || [];
-    const isAdmin = userRoles.some(role => role.toLowerCase() === 'admin');
+    const isAdmin = userHasAdminAccess(req.user);
 
     let whereConditions = ['(qrv.job_id IS NULL OR qrv.job_id = \'\')'];
     let params = [];
@@ -568,7 +569,7 @@ router.get('/mapping-job-violations/download', async (req, res) => {
 
     const userId = parseInt(req.user.id);
     const userRoles = req.user.roles || [];
-    const isAdmin = userRoles.some(role => role.toLowerCase() === 'admin');
+    const isAdmin = userHasAdminAccess(req.user);
 
     let whereConditions = ['qrv.job_id IS NOT NULL', 'qrv.job_id != \'\''];
     let params = [];
@@ -733,7 +734,7 @@ router.post('/bulk-delete', async (req, res) => {
     // Check for required permissions
     const userPermissions = req.user?.permissions || [];
     const userRoles = req.user?.roles || [];
-    const isAdmin = userRoles.some(role => role.toLowerCase() === 'admin');
+    const isAdmin = userHasAdminAccess(req.user);
     
     const hasPermission = isAdmin || 
                          userPermissions.includes('quality:write') || 

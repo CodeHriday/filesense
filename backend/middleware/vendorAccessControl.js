@@ -6,6 +6,7 @@
 const { pool } = require('../config/database');
 const { systemLogger } = require('../utils/logger');
 const { isVendorUser } = require('../utils/userHelpers');
+const { userHasAdminAccess } = require('../utils/permissionHelpers');
 
 /**
  * Middleware to check if user is a vendor and get their vendor profile
@@ -43,8 +44,8 @@ async function attachVendorProfile(req, res, next) {
  * Use this on vendor-specific routes that include vendor ID in params
  */
 function requireOwnVendorAccess(req, res, next) {
-  // Admin can access everything
-  if (req.user && req.user.roles && req.user.roles.includes('Admin')) {
+  // Admin-level access can access everything (uses permission-based check)
+  if (userHasAdminAccess(req.user)) {
     return next();
   }
   

@@ -8,6 +8,7 @@ const {
   getGroupExecutionHistory 
 } = require('../services/mappingGroupExecutionEngine');
 const authorizeProjectResource = require('../middleware/authorizeProjectResource');
+const { userHasAdminAccess } = require('../utils/permissionHelpers');
 
 /**
  * Mapping Groups API Routes
@@ -20,7 +21,7 @@ router.get('/', async (req, res) => {
     const { getUserProjects } = require('../middleware/requireProjectAccess');
     
     // Get user's accessible projects
-    const isAdmin = req.user?.roles?.includes('Admin');
+    const isAdmin = userHasAdminAccess(req.user);
     let projectIds = [];
     
     if (!isAdmin) {

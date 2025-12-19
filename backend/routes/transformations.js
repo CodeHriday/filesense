@@ -9,6 +9,7 @@ const { findMatchingFiles, countMatchingFiles } = require('../utils/filePatternM
 const { validateSchemaConsistency } = require('../services/schemaService');
 const { validateFileSchema } = require('../services/schemaValidationService');
 const authorizeProjectResource = require('../middleware/authorizeProjectResource');
+const { userHasAdminAccess } = require('../utils/permissionHelpers');
 
 /**
  * Validate variables array
@@ -54,7 +55,7 @@ router.get('/', async (req, res) => {
     const { getUserProjects } = require('../middleware/requireProjectAccess');
     
     // Get user's accessible projects
-    const isAdmin = req.user?.roles?.includes('Admin');
+    const isAdmin = userHasAdminAccess(req.user);
     let projectIds = [];
     
     if (!isAdmin) {

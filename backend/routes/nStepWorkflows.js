@@ -4,6 +4,7 @@ const pool = require('../db');
 const { systemLogger } = require('../utils/logger');
 const { executeNStepWorkflow, getWorkflowRunStatus } = require('../services/nStepWorkflowExecutionEngine');
 const authorizeProjectResource = require('../middleware/authorizeProjectResource');
+const { userHasAdminAccess } = require('../utils/permissionHelpers');
 
 /**
  * Helper function to validate workflow project access
@@ -27,7 +28,7 @@ async function validateWorkflowAccess(workflowId, user) {
   const workflowProjectId = result.rows[0].project_id;
   
   // Check access (admins bypass)
-  const isAdmin = user?.roles?.includes('Admin');
+  const isAdmin = userHasAdminAccess(user);
   if (!isAdmin) {
     const userProjects = await getUserProjects(user.id);
     const projectIds = userProjects.map(p => p.id);
@@ -51,7 +52,7 @@ router.get('/', async (req, res) => {
     const { getUserProjects } = require('../middleware/requireProjectAccess');
     
     // Get user's accessible projects
-    const isAdmin = req.user?.roles?.includes('Admin');
+    const isAdmin = userHasAdminAccess(req.user);
     let projectIds = [];
     
     if (!isAdmin) {
@@ -128,7 +129,7 @@ router.get('/:id', async (req, res) => {
     const workflow = workflowResult.rows[0];
     
     // Check project access (unless admin)
-    const isAdmin = req.user?.roles?.includes('Admin');
+    const isAdmin = userHasAdminAccess(req.user);
     if (!isAdmin) {
       const userProjects = await getUserProjects(req.user.id);
       const projectIds = userProjects.map(p => p.id);
@@ -260,7 +261,7 @@ router.put('/:id', async (req, res) => {
     }
     
     // Check project access (unless admin)
-    const isAdmin = req.user?.roles?.includes('Admin');
+    const isAdmin = userHasAdminAccess(req.user);
     if (!isAdmin) {
       const userProjects = await getUserProjects(req.user.id);
       const projectIds = userProjects.map(p => p.id);

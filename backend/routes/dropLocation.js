@@ -3,10 +3,11 @@ const router = express.Router();
 const db = require('../config/database');
 const { systemLogger } = require('../utils/logger');
 const { encrypt, decrypt } = require('../utils/encryption');
+const { userHasAdminAccess } = require('../utils/permissionHelpers');
 
-// Middleware to check admin access (applied at route registration in server.js)
+// Middleware to check admin access (uses permission-based check for admin-equivalent roles)
 const requireAdmin = (req, res, next) => {
-  if (!req.user || !req.user.roles || !req.user.roles.includes('Admin')) {
+  if (!userHasAdminAccess(req.user)) {
     systemLogger.warn('Unauthorized drop location access attempt', {
       userId: req.user?.id,
       roles: req.user?.roles,

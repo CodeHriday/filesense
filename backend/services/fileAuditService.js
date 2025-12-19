@@ -365,8 +365,15 @@ async function getAuditRecords(pool, filters = {}) {
   } = filters;
 
   try {
-    // Check if user is admin
-    const isAdmin = userRoles.includes('Admin');
+    // Check if user has admin-level access
+    // Note: This function receives userRoles as role names, so we check for Admin role name
+    // and also check if the calling context passed userPermissions for admin-equivalent roles
+    const isAdmin = userRoles.includes('Admin') || 
+                   (filters.userPermissions && filters.userPermissions.some(p => 
+                     ['users:write', 'roles:write', 'project_management:write'].includes(
+                       typeof p === 'object' ? p.permission_code || p.permission_name || p.name : p
+                     )
+                   ));
     
     // Get user's accessible projects (unless admin)
     let projectIds = [];

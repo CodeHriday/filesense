@@ -177,7 +177,9 @@ async function checkRateLimit(key, limit, windowMs) {
  */
 function getUserTier(user) {
   if (!user) return 'basic';
-  if (user.roles?.includes('Admin')) return 'admin';
+  // Check for admin-level access using permission-based check
+  const { userHasAdminAccess } = require('../utils/permissionHelpers');
+  if (userHasAdminAccess(user)) return 'admin';
   if (user.tier) return user.tier;
   if (user.subscription === 'enterprise') return 'enterprise';
   if (user.subscription === 'premium') return 'premium';

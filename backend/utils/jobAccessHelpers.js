@@ -4,6 +4,7 @@
  */
 
 const pool = require('../db');
+const { userHasAdminAccess } = require('./permissionHelpers');
 
 /**
  * Validate user has access to a job's project via its parent transformation
@@ -44,8 +45,8 @@ async function validateJobAccess(jobId, user) {
     }
   }
   
-  // Check access (admins bypass)
-  const isAdmin = user?.roles?.includes('Admin');
+  // Check access (admin-level access bypasses)
+  const isAdmin = userHasAdminAccess(user);
   if (!isAdmin && jobProjectId) {
     const userProjects = await getUserProjects(user.id);
     const projectIds = userProjects.map(p => p.id);

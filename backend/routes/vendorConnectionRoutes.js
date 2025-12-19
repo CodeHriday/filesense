@@ -9,10 +9,11 @@ const { pool } = require('../config/database');
 const { systemLogger } = require('../utils/logger');
 const { encrypt, decrypt } = require('../utils/encryption');
 const { v4: uuidv4 } = require('uuid');
+const { userHasAdminAccess } = require('../utils/permissionHelpers');
 
-// Middleware to check admin access
+// Middleware to check admin access (uses permission-based check for admin-equivalent roles)
 const requireAdmin = (req, res, next) => {
-  if (!req.user || !req.user.roles || !req.user.roles.includes('Admin')) {
+  if (!userHasAdminAccess(req.user)) {
     systemLogger.warn('Unauthorized vendor connection access attempt', {
       userId: req.user?.id,
       roles: req.user?.roles,

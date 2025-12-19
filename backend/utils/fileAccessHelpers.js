@@ -4,6 +4,7 @@
  */
 
 const pool = require('../db');
+const { userHasAdminAccess } = require('./permissionHelpers');
 
 /**
  * Validate user has access to a file's project
@@ -29,8 +30,8 @@ async function validateFileAccess(fileId, user) {
   
   const fileProjectId = result.rows[0].project_id;
   
-  // Check access (admins bypass)
-  const isAdmin = user?.roles?.includes('Admin');
+  // Check access (admin-level access bypasses)
+  const isAdmin = userHasAdminAccess(user);
   if (!isAdmin) {
     const userProjects = await getUserProjects(user.id);
     const projectIds = userProjects.map(p => p.id);
@@ -67,8 +68,8 @@ async function validateBulkFileAccess(fileIds, user) {
     throw error;
   }
   
-  // Check access (admins bypass)
-  const isAdmin = user?.roles?.includes('Admin');
+  // Check access (admin-level access bypasses)
+  const isAdmin = userHasAdminAccess(user);
   if (!isAdmin) {
     const userProjects = await getUserProjects(user.id);
     const projectIds = userProjects.map(p => p.id);
