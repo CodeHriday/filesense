@@ -10,6 +10,7 @@ const crypto = require('crypto');
 const { systemLogger } = require('../utils/logger');
 const { createIdempotencyMiddleware } = require('../src/middleware/idempotency');
 const AuditService = require('../services/AuditService');
+const { userHasAllProjectAccess } = require('../utils/permissionHelpers');
 
 function createProjectRoutes(dbPool) {
   const router = express.Router();
@@ -158,8 +159,8 @@ function createProjectRoutes(dbPool) {
       const { archived, search, project_type } = req.query;
       const userId = req.user?.id;
       
-      // Check if user is admin
-      const isAdmin = req.user?.roles?.includes('Admin') || false;
+      // Check if user has admin-level access (permission-based, not role-name based)
+      const isAdmin = userHasAllProjectAccess(req.user);
       
       let query = `
         SELECT 
