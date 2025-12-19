@@ -7,7 +7,6 @@ import { useSidebar } from '../context/SidebarContext';
 import { APP_FEATURES, getSidebarCategoryName, FEATURE_CATEGORIES_ORDER } from '../config/appFeatures';
 import OnboardingWizard from './OnboardingWizard';
 import NotificationBell from './NotificationBell';
-import ThemeToggle from './ThemeToggle';
 import { isVendorUser } from '../utils/userHelpers';
 import './Sidebar.css';
 
@@ -256,9 +255,8 @@ function Sidebar() {
           </ul>
         </nav>
 
-        {/* Bottom Section: User Menu and Theme Toggle */}
+        {/* Bottom Section: User Menu */}
         <div className="sidebar-footer">
-          <ThemeToggle />
           <div className="sidebar-user-menu" ref={dropdownRef}>
             <button
               className="sidebar-user-btn"

@@ -5,7 +5,6 @@ import { THEME } from '../config';
 import { FaUser, FaCog, FaSignOutAlt, FaChartBar, FaLightbulb, FaUsers } from 'react-icons/fa';
 import { FiHome } from 'react-icons/fi';
 import NotificationBell from './NotificationBell';
-import ThemeToggle from './ThemeToggle';
 import './Header.css';
 import PropTypes from 'prop-types';
 
@@ -69,7 +68,6 @@ function Header({ showAIInsights }) {
             <FiHome />
           </button>
         )}
-        <ThemeToggle />
         {currentUser && <NotificationBell />}
         
         {currentUser && (

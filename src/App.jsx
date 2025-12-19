@@ -23,7 +23,6 @@ const BlumeETLRedirect = () => {
 // Core components (loaded immediately)
 import Sidebar from './components/Sidebar';
 import NotificationList from './components/Notifications/NotificationList';
-import AccessibilityWidget from './components/AccessibilityWidget';
 import ToastContainer from './components/ToastContainer';
 import Login from './pages/Login';
 
@@ -407,8 +406,7 @@ function AppContent({ showOnboarding, setShowOnboarding }) {
         </Routes>
       )}
       
-      {/* Accessibility Widget - always show */}
-      <AccessibilityWidget />
+      {/* Accessibility Widget - hidden */}
       
       {/* Onboarding Wizard removed - no longer displayed */}
       
