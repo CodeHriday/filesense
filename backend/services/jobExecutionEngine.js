@@ -1446,8 +1446,30 @@ async function executeTransformationJob(pool, mappingId, userId, options = {}) {
     // Step 2.5: Multi-Source Join Preparation
     // Load secondary source files into memory lookup tables for join enrichment
     let joinLookupTables = {};
-    // Track row counts per source node for accurate edge display (needs to be in outer scope for callback access)
-    const sourceRowCounts = {};
+    // Track row counts per node for accurate edge display (needs to be in outer scope for callback access)
+    // This tracks output row counts for ALL nodes: source, expression, join, target
+    const nodeOutputCounts = {};
+    
+    // Build node parent map for lineage tracking (which node feeds into which)
+    // Key: child node ID, Value: array of parent node IDs
+    const nodeParentMap = {};
+    // Key: child node ID + handle, Value: parent node ID (for join left/right inputs)
+    const nodeParentByHandle = {};
+    
+    if (visualMappingEdges && Array.isArray(visualMappingEdges)) {
+      visualMappingEdges.forEach(edge => {
+        if (!nodeParentMap[edge.target]) {
+          nodeParentMap[edge.target] = [];
+        }
+        nodeParentMap[edge.target].push(edge.source);
+        
+        // Track by target handle for join nodes (left vs right input)
+        if (edge.targetHandle) {
+          nodeParentByHandle[`${edge.target}_${edge.targetHandle}`] = edge.source;
+        }
+      });
+    }
+    
     const hasMultiSourceJoin = mapping.has_multi_source_join && 
                                 mapping.source_catalog && mapping.source_catalog.length > 1 &&
                                 mapping.join_specs && mapping.join_specs.length > 0;
@@ -1551,7 +1573,7 @@ async function executeTransformationJob(pool, mappingId, userId, options = {}) {
           }
           
           // Track this source's row count for accurate edge display
-          sourceRowCounts[source.nodeId] = rows.length;
+          nodeOutputCounts[source.nodeId] = rows.length;
           
           emitNodeStatus(source.nodeId, 'completed', { rowsLoaded: rows.length });
           
@@ -1600,50 +1622,140 @@ async function executeTransformationJob(pool, mappingId, userId, options = {}) {
         const onTransformComplete = visualExecutionId ? async (progressData) => {
           const currentRowsWritten = totalRowsWritten + progressData.rowsWritten;
           const currentRowsRead = totalRowsRead + progressData.rowsRead;
+          const primarySourceNodeId = mapping.primary_source_node_id;
           
-          // Emit edge row counts immediately after transformation completes
-          // Use per-source counts for secondary sources (lookup tables), primary source count for primary, output count for others
-          if (visualMappingEdges && Array.isArray(visualMappingEdges)) {
-            const primarySourceNodeId = mapping.primary_source_node_id;
+          // Track primary source row count
+          if (primarySourceNodeId) {
+            nodeOutputCounts[primarySourceNodeId] = currentRowsRead;
+          }
+          
+          // Helper function to get a node's output row count by following lineage
+          // Uses post-order traversal with separate visited sets per branch for join nodes
+          const getNodeOutputCount = (nodeId, visited = new Set()) => {
+            // Prevent infinite loops
+            if (visited.has(nodeId)) return nodeOutputCounts[nodeId] || 0;
             
-            visualMappingEdges.forEach(edge => {
-              let edgeRowCount;
+            // If we have a cached count for this node, use it directly
+            if (nodeOutputCounts[nodeId] !== undefined) {
+              return nodeOutputCounts[nodeId];
+            }
+            
+            // Mark as visited before recursion
+            visited.add(nodeId);
+            
+            // Get the node type to determine how to calculate
+            const node = nodeMap[nodeId];
+            const nodeType = node?.type;
+            
+            // Get parent nodes
+            const parents = nodeParentMap[nodeId] || [];
+            
+            if (nodeType === 'sourceConfig') {
+              // Source nodes should have been populated already
+              // If not found, return 0 (no files matched)
+              nodeOutputCounts[nodeId] = 0;
+              return 0;
+            } else if (nodeType === 'expression' || nodeType === 'rdmLookup' || nodeType === 'rdmDataset' || nodeType === 'rdmCrosswalk') {
+              // Expression and RDM nodes pass through rows from their single parent
+              if (parents.length > 0) {
+                const parentCount = getNodeOutputCount(parents[0], visited);
+                nodeOutputCounts[nodeId] = parentCount;
+                return parentCount;
+              }
+              nodeOutputCounts[nodeId] = 0;
+              return 0;
+            } else if (nodeType === 'join') {
+              // Join nodes need to calculate based on join type and both inputs
+              // Use SEPARATE visited sets for each branch to handle shared parents correctly
+              const leftParentId = nodeParentByHandle[`${nodeId}_left`] || parents[0];
+              const rightParentId = nodeParentByHandle[`${nodeId}_right`] || parents[1];
               
-              // Check if this edge comes from a secondary source (lookup table)
-              if (sourceRowCounts && sourceRowCounts[edge.source] !== undefined) {
-                // Use the secondary source's actual row count
-                edgeRowCount = sourceRowCounts[edge.source];
-              } else if (edge.source === primarySourceNodeId) {
-                // Edge from primary source - use primary source row count
-                edgeRowCount = currentRowsRead;
-              } else {
-                // Edge from transformation/join/target nodes - use output count
-                edgeRowCount = currentRowsWritten;
+              // Clone visited set for each branch to avoid interference
+              const leftVisited = new Set(visited);
+              const rightVisited = new Set(visited);
+              
+              const leftCount = leftParentId ? getNodeOutputCount(leftParentId, leftVisited) : 0;
+              const rightCount = rightParentId ? getNodeOutputCount(rightParentId, rightVisited) : 0;
+              
+              // Find the join spec for this node to get join type
+              let joinType = 'INNER';
+              if (mapping.parsed_join_specs && Array.isArray(mapping.parsed_join_specs)) {
+                const joinSpec = mapping.parsed_join_specs.find(js => js.nodeId === nodeId);
+                if (joinSpec) {
+                  joinType = (joinSpec.joinType || 'INNER').toUpperCase();
+                }
               }
               
+              // Calculate output based on join type using actual parent counts
+              // For non-empty joins, use the primary source count (left side drives the output)
+              let joinOutput;
+              if (joinType === 'INNER') {
+                // INNER JOIN: if either side is 0, output is 0; otherwise use actual written rows
+                joinOutput = (leftCount === 0 || rightCount === 0) ? 0 : currentRowsWritten;
+              } else if (joinType === 'LEFT' || joinType === 'LEFT OUTER') {
+                // LEFT JOIN: if left is 0, output is 0; otherwise left count (or written if available)
+                joinOutput = leftCount === 0 ? 0 : (currentRowsWritten || leftCount);
+              } else if (joinType === 'RIGHT' || joinType === 'RIGHT OUTER') {
+                // RIGHT JOIN: if right is 0, output is 0
+                joinOutput = rightCount === 0 ? 0 : (currentRowsWritten || rightCount);
+              } else if (joinType === 'FULL OUTER') {
+                // FULL OUTER JOIN: always has output if either side has rows
+                joinOutput = (leftCount === 0 && rightCount === 0) ? 0 : currentRowsWritten;
+              } else {
+                joinOutput = currentRowsWritten;
+              }
+              
+              nodeOutputCounts[nodeId] = joinOutput;
+              return joinOutput;
+            } else if (nodeType === 'targetRules') {
+              // Target nodes output what they receive
+              if (parents.length > 0) {
+                const parentCount = getNodeOutputCount(parents[0], visited);
+                nodeOutputCounts[nodeId] = parentCount;
+                return parentCount;
+              }
+              nodeOutputCounts[nodeId] = currentRowsWritten;
+              return currentRowsWritten;
+            }
+            
+            // Default fallback for unknown node types
+            nodeOutputCounts[nodeId] = currentRowsWritten;
+            return currentRowsWritten;
+          };
+          
+          // Emit edge row counts immediately after transformation completes
+          // Use per-node lineage tracking for accurate counts
+          if (visualMappingEdges && Array.isArray(visualMappingEdges)) {
+            visualMappingEdges.forEach(edge => {
+              const edgeRowCount = getNodeOutputCount(edge.source);
               visualMappingWS.emitEdgeRowCount(visualExecutionId, edge.id, edge.source, edge.target, edgeRowCount);
             });
           }
           
-          // Emit node completion status for expression, join, rdm nodes
+          // Emit node completion status with accurate per-node counts
           nodesByType.expression.forEach(nodeId => {
-            emitNodeStatus(nodeId, 'completed', { rowsProcessed: currentRowsRead });
+            const count = nodeOutputCounts[nodeId] !== undefined ? nodeOutputCounts[nodeId] : currentRowsRead;
+            emitNodeStatus(nodeId, 'completed', { rowsProcessed: count });
           });
           nodesByType.join.forEach(nodeId => {
-            emitNodeStatus(nodeId, 'completed', { rowsProcessed: currentRowsRead });
+            const count = nodeOutputCounts[nodeId] !== undefined ? nodeOutputCounts[nodeId] : currentRowsWritten;
+            emitNodeStatus(nodeId, 'completed', { rowsProcessed: count });
           });
           nodesByType.rdmLookup.forEach(nodeId => {
-            emitNodeStatus(nodeId, 'completed', { rowsProcessed: currentRowsRead });
+            const count = nodeOutputCounts[nodeId] !== undefined ? nodeOutputCounts[nodeId] : currentRowsRead;
+            emitNodeStatus(nodeId, 'completed', { rowsProcessed: count });
           });
           nodesByType.targetRules.forEach(nodeId => {
-            emitNodeStatus(nodeId, 'completed', { rowsWritten: currentRowsWritten });
+            const count = nodeOutputCounts[nodeId] !== undefined ? nodeOutputCounts[nodeId] : currentRowsWritten;
+            emitNodeStatus(nodeId, 'completed', { rowsWritten: count });
           });
           
           systemLogger.info('Real-time progress callback executed - edge counts and node status emitted before profiling', {
             visualExecutionId,
             rowsWritten: currentRowsWritten,
             rowsRead: currentRowsRead,
-            filename: progressData.filename
+            filename: progressData.filename,
+            nodeOutputCounts: Object.keys(nodeOutputCounts).length
           });
         } : null;
         
@@ -1683,22 +1795,13 @@ async function executeTransformationJob(pool, mappingId, userId, options = {}) {
         
         // Edge row counts already emitted by onTransformComplete callback (before profiling)
         // This secondary emission serves as a final confirmation after all processing completes
-        // Use per-source counts for secondary sources (lookup tables)
+        // Use per-node lineage tracking for accurate counts
         if (visualExecutionId && visualMappingEdges && Array.isArray(visualMappingEdges)) {
-          const primarySourceNodeId = mapping.primary_source_node_id;
-          
           visualMappingEdges.forEach(edge => {
-            let edgeRowCount;
-            
-            // Check if this edge comes from a secondary source (lookup table)
-            if (sourceRowCounts && sourceRowCounts[edge.source] !== undefined) {
-              edgeRowCount = sourceRowCounts[edge.source];
-            } else if (edge.source === primarySourceNodeId) {
-              edgeRowCount = totalRowsRead;
-            } else {
-              edgeRowCount = totalRowsWritten;
-            }
-            
+            // Use cached nodeOutputCounts from the callback (already computed via lineage)
+            const edgeRowCount = nodeOutputCounts[edge.source] !== undefined 
+              ? nodeOutputCounts[edge.source] 
+              : totalRowsWritten;
             visualMappingWS.emitEdgeRowCount(visualExecutionId, edge.id, edge.source, edge.target, edgeRowCount);
           });
         }
@@ -1786,22 +1889,13 @@ async function executeTransformationJob(pool, mappingId, userId, options = {}) {
       await new Promise(resolve => setImmediate(resolve));
       
       // Final edge row count confirmation (already sent by callback, this is just a redundant final update)
-      // Use per-source counts for secondary sources (lookup tables)
+      // Use per-node lineage tracking for accurate counts
       if (visualMappingEdges && Array.isArray(visualMappingEdges)) {
-        const primarySourceNodeId = mapping.primary_source_node_id;
-        
         visualMappingEdges.forEach(edge => {
-          let edgeRowCount;
-          
-          // Check if this edge comes from a secondary source (lookup table)
-          if (sourceRowCounts && sourceRowCounts[edge.source] !== undefined) {
-            edgeRowCount = sourceRowCounts[edge.source];
-          } else if (edge.source === primarySourceNodeId) {
-            edgeRowCount = totalRowsRead;
-          } else {
-            edgeRowCount = totalRowsWritten;
-          }
-          
+          // Use cached nodeOutputCounts from the callback (already computed via lineage)
+          const edgeRowCount = nodeOutputCounts[edge.source] !== undefined 
+            ? nodeOutputCounts[edge.source] 
+            : totalRowsWritten;
           visualMappingWS.emitEdgeRowCount(visualExecutionId, edge.id, edge.source, edge.target, edgeRowCount);
         });
       }
