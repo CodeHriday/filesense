@@ -8,6 +8,16 @@ import FileBrowserModal from './FileBrowserModal';
 import './MappingConfigModal.css';
 import PropTypes from 'prop-types';
 
+const formatTypeWithPrecision = (type, precision, scale) => {
+  const baseType = type || 'STRING';
+  if (precision && scale !== null && scale !== undefined) {
+    return `${baseType}(${precision},${scale})`;
+  } else if (precision) {
+    return `${baseType}(${precision})`;
+  }
+  return baseType;
+};
+
 
 const SortableSchemaRow = ({ column, index, selectedRows, onToggleSelect }) => {
   const {
@@ -44,7 +54,7 @@ const SortableSchemaRow = ({ column, index, selectedRows, onToggleSelect }) => {
       </td>
       <td style={{ width: '40px', textAlign: 'center' }}>{index + 1}</td>
       <td className="vm-schema-col-name">{column.name}</td>
-      <td className="vm-schema-col-type">{column.type || 'STRING'}</td>
+      <td className="vm-schema-col-type">{formatTypeWithPrecision(column.type, column.precision, column.scale)}</td>
       <td className="vm-schema-col-pii">
         <span className={`vm-pii-badge ${isPII ? 'vm-pii-yes' : 'vm-pii-no'}`}>
           {isPII ? 'YES' : 'NO'}
@@ -213,13 +223,49 @@ const TargetRulesModal = ({ isOpen, onClose, onSave, initialConfig = {}, project
 
   const handleDragEnd = (event) => {
     const { active, over } = event;
-    if (active.id !== over?.id) {
-      setOrderedColumns((items) => {
-        const oldIndex = items.findIndex(i => i.id === active.id);
-        const newIndex = items.findIndex(i => i.id === over.id);
-        return arrayMove(items, oldIndex, newIndex);
-      });
-    }
+    if (!over || active.id === over.id) return;
+
+    setOrderedColumns((items) => {
+      const activeIndex = items.findIndex(i => i.id === active.id);
+      const overIndex = items.findIndex(i => i.id === over.id);
+      
+      if (activeIndex === -1 || overIndex === -1) return items;
+
+      if (selectedRows.has(active.id) && selectedRows.size > 1) {
+        const selectedItems = items.filter(item => selectedRows.has(item.id));
+        const unselectedItems = items.filter(item => !selectedRows.has(item.id));
+        
+        const overItem = items[overIndex];
+        const overIsSelected = selectedRows.has(overItem.id);
+        
+        if (overIsSelected) {
+          return arrayMove(items, activeIndex, overIndex);
+        }
+        
+        const newOverIndex = unselectedItems.findIndex(item => item.id === over.id);
+        
+        const result = [];
+        let insertedSelected = false;
+        
+        for (let i = 0; i <= unselectedItems.length; i++) {
+          if (i === newOverIndex + (activeIndex < overIndex ? 1 : 0) && !insertedSelected) {
+            result.push(...selectedItems);
+            insertedSelected = true;
+          }
+          if (i < unselectedItems.length) {
+            result.push(unselectedItems[i]);
+          }
+        }
+        
+        if (!insertedSelected) {
+          result.push(...selectedItems);
+        }
+        
+        return result;
+      } else {
+        return arrayMove(items, activeIndex, overIndex);
+      }
+    });
   };
 
   const toggleRowSelect = (columnId) => {

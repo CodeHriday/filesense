@@ -4,6 +4,16 @@ import { FiCheck, FiArrowRight, FiTrash2, FiEdit2, FiX, FiPlus, FiChevronDown, F
 import './TableBasedMapper.css';
 import PropTypes from 'prop-types';
 
+const formatTypeWithPrecision = (type, precision, scale) => {
+  const baseType = type || 'STRING';
+  if (precision && scale !== null && scale !== undefined) {
+    return `${baseType}(${precision},${scale})`;
+  } else if (precision) {
+    return `${baseType}(${precision})`;
+  }
+  return baseType;
+};
+
 
 const TRANSFORMATION_OPTIONS = [
   { value: 'none', label: 'None (Direct Copy)', group: 'Basic', params: [] },
@@ -402,11 +412,15 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
       onMappingsChange(newMappings, variables, Array.from(piiColumns), dqRuleAssignments);
     } else {
       newSelected.add(fieldName);
+      const sourceField = schema.find(s => s.name === fieldName);
       const newMapping = {
         source_field: fieldName,
         target_field: fieldName,
         transformation: 'none',
-        transformation_params: {}
+        transformation_params: {},
+        data_type: sourceField?.type || sourceField?.data_type || sourceField?.column_type || 'STRING',
+        precision: sourceField?.precision ?? null,
+        scale: sourceField?.scale ?? null
       };
       const newMappings = [...mappings, newMapping];
       setMappings(newMappings);
@@ -421,7 +435,10 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
       source_field: field.name,
       target_field: field.name,
       transformation: 'none',
-      transformation_params: {}
+      transformation_params: {},
+      data_type: field.type || field.data_type || field.column_type || 'STRING',
+      precision: field.precision ?? null,
+      scale: field.scale ?? null
     }));
     
     setMappings(newMappings);
@@ -1113,6 +1130,7 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
                 <tr>
                   <th style={{ width: '40px' }}>Status</th>
                   <th style={{ width: '200px' }}>Name</th>
+                  <th style={{ width: '100px' }}>Type</th>
                   <th style={{ width: '60px', textAlign: 'center' }} title="Mark as PII (Personally Identifiable Information)">
                     <FiLock /> PII
                   </th>
@@ -1124,7 +1142,12 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
                 </tr>
               </thead>
               <tbody>
-                {filteredMappings.map(mapping => (
+                {filteredMappings.map(mapping => {
+                  const sourceCol = schema.find(s => s.name === mapping.source_field);
+                  const colType = mapping.data_type || mapping.type || sourceCol?.type || sourceCol?.data_type || sourceCol?.column_type || 'STRING';
+                  const colPrecision = mapping.precision ?? sourceCol?.precision ?? null;
+                  const colScale = mapping.scale ?? sourceCol?.scale ?? null;
+                  return (
                   <tr key={mapping.source_field}>
                     <td className="status-cell">
                       <FiCheck className="status-icon mapped" />
@@ -1136,6 +1159,9 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
                         onChange={(e) => handleTargetNameChange(mapping.source_field, e.target.value)}
                         className="target-name-input"
                       />
+                    </td>
+                    <td style={{ fontSize: '9px', color: '#6b7280' }}>
+                      {formatTypeWithPrecision(colType, colPrecision, colScale)}
                     </td>
                     <td style={{ textAlign: 'center' }}>
                       <input
@@ -1196,10 +1222,11 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
                       </span>
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
                 {filteredMappings.length === 0 && (
                   <tr>
-                    <td colSpan="6" className="no-mappings">
+                    <td colSpan="7" className="no-mappings">
                       No field mappings. Select source fields from the left panel or click Automap.
                     </td>
                   </tr>

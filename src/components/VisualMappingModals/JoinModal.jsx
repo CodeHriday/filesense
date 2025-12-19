@@ -3,6 +3,16 @@ import { FaPlus, FaTrash, FaExclamationTriangle, FaMagic, FaEraser } from 'react
 import './MappingConfigModal.css';
 import PropTypes from 'prop-types';
 
+const formatTypeWithPrecision = (type, precision, scale) => {
+  const baseType = type || 'STRING';
+  if (precision && scale !== null && scale !== undefined) {
+    return `${baseType}(${precision},${scale})`;
+  } else if (precision) {
+    return `${baseType}(${precision})`;
+  }
+  return baseType;
+};
+
 
 const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [], rightSchema = [], leftNodeName = '', rightNodeName = '' }) => {
   const [name, setName] = useState('');
@@ -84,7 +94,9 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
               sourceColumn: col.name,
               sourceSide: 'left',
               include: true,
-              type: col.type || col.data_type || 'STRING',
+              type: col.type || col.data_type || col.column_type || 'STRING',
+              precision: col.precision ?? null,
+              scale: col.scale ?? null,
               pii: col.pii || col.contains_pii || false,
               dqRules: col.dqRules || []
             });
@@ -97,7 +109,9 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
                 sourceColumn: col.name,
                 sourceSide: 'right',
                 include: true,
-                type: col.type || col.data_type || 'STRING',
+                type: col.type || col.data_type || col.column_type || 'STRING',
+                precision: col.precision ?? null,
+                scale: col.scale ?? null,
                 pii: col.pii || col.contains_pii || false,
                 dqRules: col.dqRules || []
               });
@@ -182,7 +196,9 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
         sourceColumn: col.name,
         sourceSide: 'left',
         include: true,
-        type: col.type || col.data_type || 'STRING',
+        type: col.type || col.data_type || col.column_type || 'STRING',
+        precision: col.precision ?? null,
+        scale: col.scale ?? null,
         pii: col.pii || col.contains_pii || false,
         dqRules: col.dqRules || []
       });
@@ -196,7 +212,9 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
           sourceColumn: col.name,
           sourceSide: 'right',
           include: true,
-          type: col.type || col.data_type || 'STRING',
+          type: col.type || col.data_type || col.column_type || 'STRING',
+          precision: col.precision ?? null,
+          scale: col.scale ?? null,
           pii: col.pii || col.contains_pii || false,
           dqRules: col.dqRules || []
         });
@@ -236,7 +254,9 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
       sourceColumn: firstCol?.name || '',
       sourceSide: 'left',
       include: true,
-      type: firstCol?.type || firstCol?.data_type || 'STRING',
+      type: firstCol?.type || firstCol?.data_type || firstCol?.column_type || 'STRING',
+      precision: firstCol?.precision ?? null,
+      scale: firstCol?.scale ?? null,
       pii: firstCol?.pii || firstCol?.contains_pii || false,
       dqRules: firstCol?.dqRules || []
     };
@@ -257,14 +277,18 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
       const schema = value === 'left' ? leftSchema : rightSchema;
       const firstCol = schema.length > 0 ? schema[0] : null;
       updated[index].sourceColumn = firstCol?.name || '';
-      updated[index].type = firstCol?.type || firstCol?.data_type || 'STRING';
+      updated[index].type = firstCol?.type || firstCol?.data_type || firstCol?.column_type || 'STRING';
+      updated[index].precision = firstCol?.precision ?? null;
+      updated[index].scale = firstCol?.scale ?? null;
       updated[index].pii = firstCol?.pii || firstCol?.contains_pii || false;
       updated[index].dqRules = firstCol?.dqRules || [];
     } else if (field === 'sourceColumn') {
       const schema = updated[index].sourceSide === 'left' ? leftSchema : rightSchema;
       const col = schema.find(c => c.name === value);
       if (col) {
-        updated[index].type = col.type || col.data_type || 'STRING';
+        updated[index].type = col.type || col.data_type || col.column_type || 'STRING';
+        updated[index].precision = col.precision ?? null;
+        updated[index].scale = col.scale ?? null;
         updated[index].pii = col.pii || col.contains_pii || false;
         updated[index].dqRules = col.dqRules || [];
       }
@@ -330,7 +354,9 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
           sourceColumn: col.name,
           sourceSide: 'left',
           include: true,
-          type: col.type || col.data_type || 'STRING',
+          type: col.type || col.data_type || col.column_type || 'STRING',
+          precision: col.precision ?? null,
+          scale: col.scale ?? null,
           pii: col.pii || col.contains_pii || false,
           dqRules: col.dqRules || []
         });
@@ -343,7 +369,9 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
             sourceColumn: col.name,
             sourceSide: 'right',
             include: true,
-            type: col.type || col.data_type || 'STRING',
+            type: col.type || col.data_type || col.column_type || 'STRING',
+            precision: col.precision ?? null,
+            scale: col.scale ?? null,
             pii: col.pii || col.contains_pii || false,
             dqRules: col.dqRules || []
           });
@@ -357,7 +385,9 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
           sourceColumn: col.name,
           sourceSide: 'right',
           include: true,
-          type: col.type || col.data_type || 'STRING',
+          type: col.type || col.data_type || col.column_type || 'STRING',
+          precision: col.precision ?? null,
+          scale: col.scale ?? null,
           pii: col.pii || col.contains_pii || false,
           dqRules: col.dqRules || []
         });
@@ -370,7 +400,9 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
             sourceColumn: col.name,
             sourceSide: 'left',
             include: true,
-            type: col.type || col.data_type || 'STRING',
+            type: col.type || col.data_type || col.column_type || 'STRING',
+            precision: col.precision ?? null,
+            scale: col.scale ?? null,
             pii: col.pii || col.contains_pii || false,
             dqRules: col.dqRules || []
           });
@@ -991,7 +1023,7 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
                           <tr key={idx}>
                             <td style={{ textAlign: 'center' }}>{idx + 1}</td>
                             <td className="vm-schema-col-name">{col.outputColumn}</td>
-                            <td className="vm-schema-col-type">{col.type || 'STRING'}</td>
+                            <td className="vm-schema-col-type">{formatTypeWithPrecision(col.type, col.precision, col.scale)}</td>
                             <td style={{ fontSize: '9px', color: '#6b7280' }}>
                               {col.sourceSide === 'left' ? (leftNodeName || 'Left') : (rightNodeName || 'Right')}
                             </td>

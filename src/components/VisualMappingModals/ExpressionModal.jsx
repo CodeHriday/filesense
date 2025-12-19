@@ -3,6 +3,16 @@ import PropTypes from 'prop-types';
 import TableBasedMapper from '../TableBasedMapper';
 import './MappingConfigModal.css';
 
+const formatTypeWithPrecision = (type, precision, scale) => {
+  const baseType = type || 'STRING';
+  if (precision && scale !== null && scale !== undefined) {
+    return `${baseType}(${precision},${scale})`;
+  } else if (precision) {
+    return `${baseType}(${precision})`;
+  }
+  return baseType;
+};
+
 const ExpressionModal = ({ isOpen, onClose, onSave, initialConfig = {}, schema = [] }) => {
   const [name, setName] = useState(initialConfig.name || '');
   const [description, setDescription] = useState(initialConfig.description || '');
@@ -29,12 +39,16 @@ const ExpressionModal = ({ isOpen, onClose, onSave, initialConfig = {}, schema =
   const outputSchema = useMemo(() => {
     return fieldMappings.map(mapping => {
       const targetField = mapping.target_field || mapping.targetField || '';
-      const dataType = mapping.data_type || mapping.dataType || 'STRING';
+      const dataType = mapping.data_type || mapping.dataType || mapping.type || mapping.column_type || 'STRING';
+      const precision = mapping.precision ?? null;
+      const scale = mapping.scale ?? null;
       const isPII = piiColumns.includes(targetField);
       const dqRules = dqRuleAssignments[targetField] || [];
       return {
         name: targetField,
         type: dataType,
+        precision: precision,
+        scale: scale,
         pii: isPII,
         dqRules: dqRules,
         dqStatus: null
@@ -201,7 +215,7 @@ const ExpressionModal = ({ isOpen, onClose, onSave, initialConfig = {}, schema =
                         <tr key={idx}>
                           <td style={{ textAlign: 'center' }}>{idx + 1}</td>
                           <td className="vm-schema-col-name">{col.name}</td>
-                          <td className="vm-schema-col-type">{col.type}</td>
+                          <td className="vm-schema-col-type">{formatTypeWithPrecision(col.type, col.precision, col.scale)}</td>
                           <td className="vm-schema-col-pii">
                             <span className={`vm-pii-badge ${col.pii ? 'vm-pii-yes' : 'vm-pii-no'}`}>
                               {col.pii ? 'YES' : 'NO'}
