@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { FiSearch, FiFilter, FiDownload, FiEye, FiClock, FiUser, FiDatabase, FiArchive, FiTrash2, FiSettings, FiChevronLeft, FiChevronRight, FiX } from 'react-icons/fi';
 import axios from 'axios';
+import PageLayout from '../components/PageLayout';
 import '../styles/global-page-styles.css';
 
 const AuditTrail = () => {
@@ -283,22 +284,19 @@ const AuditTrail = () => {
   };
 
   return (
-    <div className="gps-page-container">
-      <div className="gps-page-header">
-        <div className="gps-page-header-left">
-          <h1 className="gps-page-title">Audit Trail</h1>
-          <p className="gps-page-subtitle">Track all system activities and changes</p>
-        </div>
-        <div className="gps-header-actions">
-          <button
-            onClick={() => setShowRetentionPanel(!showRetentionPanel)}
-            className="gps-btn gps-btn--secondary"
-          >
-            <FiSettings />
-            {showRetentionPanel ? 'Hide' : 'Show'} Retention Management
-          </button>
-        </div>
-      </div>
+    <PageLayout
+      title="Audit Trail"
+      subtitle="Track all system activities and changes"
+      headerActions={
+        <button
+          onClick={() => setShowRetentionPanel(!showRetentionPanel)}
+          className="gps-btn gps-btn--secondary"
+        >
+          <FiSettings />
+          {showRetentionPanel ? 'Hide' : 'Show'} Retention Management
+        </button>
+      }
+    >
 
       {showRetentionPanel && (
         <>
@@ -738,7 +736,7 @@ const AuditTrail = () => {
           </div>
         </div>
       )}
-    </div>
+    </PageLayout>
   );
 };
 
