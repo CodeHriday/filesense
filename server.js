@@ -139,7 +139,10 @@ const userHasPermission = (user, permissionName) => {
     if (typeof p === 'string') {
       return p === permissionName;
     }
-    return p.name === permissionName || p.permission_name === permissionName;
+    // Check all possible permission field names from different sources
+    return p.name === permissionName || 
+           p.permission_name === permissionName || 
+           p.permission_code === permissionName;
   });
 };
 
