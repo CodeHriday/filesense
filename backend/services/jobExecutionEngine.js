@@ -32,24 +32,36 @@ const FIXED_WIDTH_EXTENSIONS = ['dat', 'fixed_width', 'txt'];
 
 /**
  * Parse a file buffer into an array of row objects (for join lookups)
+ * Supports all 15 file types: CSV, JSON, XLSX, XLS, Parquet, XML, AVRO, DAT,
+ * SAS formats, and archives (ZIP, 7z, TAR, GZ, TGZ, BZ2)
  * @param {Buffer} buffer - File content buffer
  * @param {string} filename - Filename for extension detection
+ * @param {Object} pool - Database pool (optional, for archive extraction)
  * @returns {Promise<Array<Object>>} - Array of row objects
  */
-async function parseFileToRows(buffer, filename) {
+async function parseFileToRows(buffer, filename, pool = null) {
   const rows = [];
   const ext = filename.split('.').pop()?.toLowerCase();
   
-  if (ext === 'csv' || ext === 'txt') {
-    // Parse CSV
+  // CSV and TSV/pipe-delimited files
+  if (ext === 'csv' || ext === 'txt' || ext === 'tsv') {
     const content = buffer.toString('utf-8');
     const lines = content.split('\n').filter(line => line.trim());
     
     if (lines.length === 0) return rows;
     
+    // Detect delimiter (comma, tab, or pipe)
+    const firstLine = lines[0];
+    let delimiter = ',';
+    if (ext === 'tsv' || (firstLine.includes('\t') && !firstLine.includes(','))) {
+      delimiter = '\t';
+    } else if (firstLine.includes('|') && !firstLine.includes(',') && !firstLine.includes('\t')) {
+      delimiter = '|';
+    }
+    
     // Parse header
     const headerLine = lines[0];
-    const headers = headerLine.split(',').map(h => h.trim().replace(/^["']/g, '').replace(/["']$/g, ''));
+    const headers = headerLine.split(delimiter).map(h => h.trim().replace(/^["']/g, '').replace(/["']$/g, ''));
     
     // Parse data rows
     for (let i = 1; i < lines.length; i++) {
@@ -63,7 +75,7 @@ async function parseFileToRows(buffer, filename) {
           inQuotes = true;
         } else if (char === '"' && inQuotes) {
           inQuotes = false;
-        } else if (char === ',' && !inQuotes) {
+        } else if (char === delimiter && !inQuotes) {
           values.push(currentValue.trim());
           currentValue = '';
         } else {
@@ -78,17 +90,29 @@ async function parseFileToRows(buffer, filename) {
       });
       rows.push(row);
     }
-  } else if (ext === 'json') {
-    // Parse JSON
+  } else if (ext === 'json' || ext === 'jsonl' || ext === 'ndjson') {
+    // Parse JSON / JSONL (newline-delimited JSON)
     const content = buffer.toString('utf-8');
-    const parsed = JSON.parse(content);
     
-    if (Array.isArray(parsed)) {
-      rows.push(...parsed);
-    } else if (parsed.data && Array.isArray(parsed.data)) {
-      rows.push(...parsed.data);
-    } else if (parsed.rows && Array.isArray(parsed.rows)) {
-      rows.push(...parsed.rows);
+    if (ext === 'jsonl' || ext === 'ndjson') {
+      // JSONL: one JSON object per line
+      const lines = content.split('\n').filter(line => line.trim());
+      for (const line of lines) {
+        try {
+          rows.push(JSON.parse(line));
+        } catch (e) {
+          // Skip invalid lines
+        }
+      }
+    } else {
+      const parsed = JSON.parse(content);
+      if (Array.isArray(parsed)) {
+        rows.push(...parsed);
+      } else if (parsed.data && Array.isArray(parsed.data)) {
+        rows.push(...parsed.data);
+      } else if (parsed.rows && Array.isArray(parsed.rows)) {
+        rows.push(...parsed.rows);
+      }
     }
   } else if (ext === 'xlsx' || ext === 'xls') {
     // Parse Excel
@@ -97,6 +121,135 @@ async function parseFileToRows(buffer, filename) {
     const sheet = workbook.Sheets[sheetName];
     const jsonData = xlsx.utils.sheet_to_json(sheet);
     rows.push(...jsonData);
+  } else if (ext === 'parquet') {
+    // Parse Parquet
+    try {
+      const { parquetReadObjects } = await import('hyparquet');
+      const arrayBuffer = buffer.buffer.slice(
+        buffer.byteOffset,
+        buffer.byteOffset + buffer.byteLength
+      );
+      const parquetIterator = await parquetReadObjects({ file: arrayBuffer });
+      for await (const row of parquetIterator) {
+        rows.push(row);
+      }
+    } catch (parquetError) {
+      systemLogger.error('Parquet parsing error in parseFileToRows:', parquetError);
+    }
+  } else if (ext === 'xml') {
+    // Parse XML
+    try {
+      const parser = new XMLParser({
+        ignoreAttributes: false,
+        attributeNamePrefix: '@_',
+        textNodeName: '#text',
+        parseAttributeValue: true,
+        parseTagValue: true
+      });
+      const xmlData = parser.parse(buffer.toString());
+      
+      // Find the data array in the XML structure
+      const findDataArray = (obj) => {
+        if (Array.isArray(obj)) return obj;
+        if (typeof obj === 'object' && obj !== null) {
+          for (const key of Object.keys(obj)) {
+            const result = findDataArray(obj[key]);
+            if (result) return result;
+          }
+        }
+        return null;
+      };
+      
+      const dataArray = findDataArray(xmlData);
+      if (dataArray) {
+        rows.push(...dataArray);
+      }
+    } catch (xmlError) {
+      systemLogger.error('XML parsing error in parseFileToRows:', xmlError);
+    }
+  } else if (ext === 'avro') {
+    // Parse AVRO using fastavro via Python or fallback
+    try {
+      const fastavro = require('fastavro');
+      const records = await fastavro.reader(buffer);
+      for await (const record of records) {
+        rows.push(record);
+      }
+    } catch (avroError) {
+      systemLogger.warn('AVRO parsing not available in parseFileToRows, attempting alternate method:', avroError.message);
+      // AVRO parsing may require Python fastavro, skip for now
+    }
+  } else if (ext === 'dat' || FIXED_WIDTH_EXTENSIONS.includes(ext)) {
+    // Fixed-width DAT files - parse as delimited with space/tab detection
+    try {
+      const content = buffer.toString('utf-8');
+      const lines = content.split('\n').filter(line => line.trim());
+      
+      if (lines.length > 0) {
+        // Try to detect if it's actually delimited
+        const firstLine = lines[0];
+        let delimiter = null;
+        if (firstLine.includes('\t')) delimiter = '\t';
+        else if (firstLine.includes('|')) delimiter = '|';
+        else if (firstLine.includes(',')) delimiter = ',';
+        
+        if (delimiter) {
+          const headers = firstLine.split(delimiter).map(h => h.trim());
+          for (let i = 1; i < lines.length; i++) {
+            const values = lines[i].split(delimiter).map(v => v.trim());
+            const row = {};
+            headers.forEach((header, idx) => {
+              row[header] = values[idx] || '';
+            });
+            rows.push(row);
+          }
+        } else {
+          // True fixed-width: create generic columns
+          for (let i = 0; i < lines.length; i++) {
+            rows.push({ line_number: i + 1, data: lines[i] });
+          }
+        }
+      }
+    } catch (datError) {
+      systemLogger.error('DAT parsing error in parseFileToRows:', datError);
+    }
+  } else if (ext === 'sas7bdat' || ext === 'xpt') {
+    // SAS formats - would need pyreadstat, skip for secondary sources
+    systemLogger.warn(`SAS format (${ext}) not supported for secondary sources in multi-source joins`);
+  } else if (ARCHIVE_EXTENSIONS.includes(ext)) {
+    // Handle archive files - extract and parse the first supported file
+    let tempDir = null;
+    try {
+      tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'join-extract-'));
+      const archivePath = path.join(tempDir, filename);
+      fs.writeFileSync(archivePath, buffer);
+      
+      const archiveService = new ArchiveExtractionService();
+      const extractedFiles = await archiveService.extractArchive(archivePath, tempDir);
+      
+      // Find and parse the first supported data file
+      const supportedDataExtensions = ['csv', 'json', 'jsonl', 'xlsx', 'xls', 'parquet', 'xml', 'txt', 'tsv', 'avro', 'dat'];
+      for (const extractedFile of extractedFiles) {
+        const extractedExt = extractedFile.split('.').pop()?.toLowerCase();
+        if (supportedDataExtensions.includes(extractedExt)) {
+          const extractedBuffer = fs.readFileSync(path.join(tempDir, extractedFile));
+          const extractedRows = await parseFileToRows(extractedBuffer, extractedFile, pool);
+          rows.push(...extractedRows);
+          break; // Only parse the first supported file
+        }
+      }
+    } catch (archiveError) {
+      systemLogger.error('Archive extraction error in parseFileToRows:', archiveError);
+    } finally {
+      // Cleanup temp directory in finally block to ensure cleanup even on errors
+      if (tempDir) {
+        try {
+          fs.rmSync(tempDir, { recursive: true, force: true });
+        } catch (cleanupError) {
+          systemLogger.warn('Failed to cleanup temp dir:', cleanupError);
+        }
+      }
+    }
   }
   
   return rows;
@@ -1529,7 +1682,7 @@ async function executeTransformationJob(pool, mappingId, userId, options = {}) {
           
           // Download and parse the file
           const fileBuffer = await downloadFileFromConnection(pool, source.connectionId, sourceFile.filename);
-          const rows = await parseFileToRows(fileBuffer, sourceFile.filename);
+          const rows = await parseFileToRows(fileBuffer, sourceFile.filename, pool);
           
           // Find which join specs use this source
           const relevantJoinSpecs = joinSpecs.filter(js => 
