@@ -97,6 +97,7 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
               type: col.type || col.data_type || col.column_type || 'STRING',
               precision: col.precision ?? null,
               scale: col.scale ?? null,
+              nullable: col.nullable ?? true,
               pii: col.pii || col.contains_pii || false,
               dqRules: col.dqRules || []
             });
@@ -112,6 +113,7 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
                 type: col.type || col.data_type || col.column_type || 'STRING',
                 precision: col.precision ?? null,
                 scale: col.scale ?? null,
+                nullable: col.nullable ?? true,
                 pii: col.pii || col.contains_pii || false,
                 dqRules: col.dqRules || []
               });
@@ -199,6 +201,7 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
         type: col.type || col.data_type || col.column_type || 'STRING',
         precision: col.precision ?? null,
         scale: col.scale ?? null,
+        nullable: col.nullable ?? true,
         pii: col.pii || col.contains_pii || false,
         dqRules: col.dqRules || []
       });
@@ -215,6 +218,7 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
           type: col.type || col.data_type || col.column_type || 'STRING',
           precision: col.precision ?? null,
           scale: col.scale ?? null,
+          nullable: col.nullable ?? true,
           pii: col.pii || col.contains_pii || false,
           dqRules: col.dqRules || []
         });
@@ -257,6 +261,7 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
       type: firstCol?.type || firstCol?.data_type || firstCol?.column_type || 'STRING',
       precision: firstCol?.precision ?? null,
       scale: firstCol?.scale ?? null,
+      nullable: firstCol?.nullable ?? true,
       pii: firstCol?.pii || firstCol?.contains_pii || false,
       dqRules: firstCol?.dqRules || []
     };
@@ -280,6 +285,7 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
       updated[index].type = firstCol?.type || firstCol?.data_type || firstCol?.column_type || 'STRING';
       updated[index].precision = firstCol?.precision ?? null;
       updated[index].scale = firstCol?.scale ?? null;
+      updated[index].nullable = firstCol?.nullable ?? true;
       updated[index].pii = firstCol?.pii || firstCol?.contains_pii || false;
       updated[index].dqRules = firstCol?.dqRules || [];
     } else if (field === 'sourceColumn') {
@@ -289,6 +295,7 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
         updated[index].type = col.type || col.data_type || col.column_type || 'STRING';
         updated[index].precision = col.precision ?? null;
         updated[index].scale = col.scale ?? null;
+        updated[index].nullable = col.nullable ?? true;
         updated[index].pii = col.pii || col.contains_pii || false;
         updated[index].dqRules = col.dqRules || [];
       }
@@ -357,6 +364,7 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
           type: col.type || col.data_type || col.column_type || 'STRING',
           precision: col.precision ?? null,
           scale: col.scale ?? null,
+          nullable: col.nullable ?? true,
           pii: col.pii || col.contains_pii || false,
           dqRules: col.dqRules || []
         });
@@ -372,6 +380,7 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
             type: col.type || col.data_type || col.column_type || 'STRING',
             precision: col.precision ?? null,
             scale: col.scale ?? null,
+            nullable: col.nullable ?? true,
             pii: col.pii || col.contains_pii || false,
             dqRules: col.dqRules || []
           });
@@ -388,6 +397,7 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
           type: col.type || col.data_type || col.column_type || 'STRING',
           precision: col.precision ?? null,
           scale: col.scale ?? null,
+          nullable: col.nullable ?? true,
           pii: col.pii || col.contains_pii || false,
           dqRules: col.dqRules || []
         });
@@ -403,6 +413,7 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
             type: col.type || col.data_type || col.column_type || 'STRING',
             precision: col.precision ?? null,
             scale: col.scale ?? null,
+            nullable: col.nullable ?? true,
             pii: col.pii || col.contains_pii || false,
             dqRules: col.dqRules || []
           });
@@ -472,7 +483,12 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
         .filter(m => m.include)
         .map(m => ({
           name: m.outputColumn,
-          type: 'STRING',
+          type: m.type || 'STRING',
+          precision: m.precision ?? null,
+          scale: m.scale ?? null,
+          nullable: m.nullable ?? true,
+          pii: m.pii || m.contains_pii || false,
+          dqRules: m.dqRules || [],
           source: m.sourceSide
         }))
     };
@@ -1007,6 +1023,7 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
                       <th style={{ width: '40px' }}>#</th>
                       <th>Column Name</th>
                       <th>Data Type</th>
+                      <th>Nullable</th>
                       <th>Source</th>
                       <th>PII</th>
                       <th>DQ Rules</th>
@@ -1017,6 +1034,7 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
                     {columnMappings.filter(m => m.include).length > 0 ? (
                       columnMappings.filter(m => m.include).map((col, idx) => {
                         const isPII = col.pii || col.contains_pii || false;
+                        const isNullable = col.nullable ?? true;
                         const dqRules = col.dqRules || [];
                         const dqStatus = col.dqStatus || null;
                         return (
@@ -1024,6 +1042,11 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
                             <td style={{ textAlign: 'center' }}>{idx + 1}</td>
                             <td className="vm-schema-col-name">{col.outputColumn}</td>
                             <td className="vm-schema-col-type">{formatTypeWithPrecision(col.type, col.precision, col.scale)}</td>
+                            <td className="vm-schema-col-nullable">
+                              <span className={`vm-nullable-badge ${isNullable ? 'vm-nullable-yes' : 'vm-nullable-no'}`}>
+                                {isNullable ? 'YES' : 'NO'}
+                              </span>
+                            </td>
                             <td style={{ fontSize: '9px', color: '#6b7280' }}>
                               {col.sourceSide === 'left' ? (leftNodeName || 'Left') : (rightNodeName || 'Right')}
                             </td>
@@ -1053,7 +1076,7 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
                       })
                     ) : (
                       <tr>
-                        <td colSpan="7" style={{ textAlign: 'center', color: '#9ca3af', fontStyle: 'italic' }}>
+                        <td colSpan="8" style={{ textAlign: 'center', color: '#9ca3af', fontStyle: 'italic' }}>
                           No columns selected. Go to Mapping tab to include columns.
                         </td>
                       </tr>

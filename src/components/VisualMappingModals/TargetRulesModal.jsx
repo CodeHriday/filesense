@@ -37,6 +37,7 @@ const SortableSchemaRow = ({ column, index, selectedRows, onToggleSelect }) => {
   };
 
   const isPII = column.contains_pii || column.pii || false;
+  const isNullable = column.nullable ?? true;
   const dqRules = column.dqRules || [];
   const dqStatus = column.dqStatus || null;
 
@@ -55,6 +56,11 @@ const SortableSchemaRow = ({ column, index, selectedRows, onToggleSelect }) => {
       <td style={{ width: '40px', textAlign: 'center' }}>{index + 1}</td>
       <td className="vm-schema-col-name">{column.name}</td>
       <td className="vm-schema-col-type">{formatTypeWithPrecision(column.type, column.precision, column.scale)}</td>
+      <td className="vm-schema-col-nullable">
+        <span className={`vm-nullable-badge ${isNullable ? 'vm-nullable-yes' : 'vm-nullable-no'}`}>
+          {isNullable ? 'YES' : 'NO'}
+        </span>
+      </td>
       <td className="vm-schema-col-pii">
         <span className={`vm-pii-badge ${isPII ? 'vm-pii-yes' : 'vm-pii-no'}`}>
           {isPII ? 'YES' : 'NO'}
@@ -551,6 +557,7 @@ const TargetRulesModal = ({ isOpen, onClose, onSave, initialConfig = {}, project
                             <th style={{ width: '40px' }}>#</th>
                             <th>Column Name</th>
                             <th>Data Type</th>
+                            <th>Nullable</th>
                             <th>PII</th>
                             <th>DQ Rules</th>
                             <th>DQ Status</th>
@@ -570,7 +577,7 @@ const TargetRulesModal = ({ isOpen, onClose, onSave, initialConfig = {}, project
                               ))
                             ) : (
                               <tr>
-                                <td colSpan="8" style={{ textAlign: 'center', color: '#9ca3af', fontStyle: 'italic' }}>
+                                <td colSpan="9" style={{ textAlign: 'center', color: '#9ca3af', fontStyle: 'italic' }}>
                                   No columns in schema
                                 </td>
                               </tr>

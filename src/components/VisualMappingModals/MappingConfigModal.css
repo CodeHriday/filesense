@@ -760,3 +760,25 @@
   color: #16a34a;
   border: 1px solid #86efac;
 }
+
+.vm-nullable-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 3px;
+  font-weight: 600;
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.vm-nullable-badge.vm-nullable-yes {
+  background: #f0fdf4;
+  color: #16a34a;
+  border: 1px solid #86efac;
+}
+
+.vm-nullable-badge.vm-nullable-no {
+  background: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fca5a5;
+}

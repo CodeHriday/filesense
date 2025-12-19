@@ -42,6 +42,7 @@ const ExpressionModal = ({ isOpen, onClose, onSave, initialConfig = {}, schema =
       const dataType = mapping.data_type || mapping.dataType || mapping.type || mapping.column_type || 'STRING';
       const precision = mapping.precision ?? null;
       const scale = mapping.scale ?? null;
+      const nullable = mapping.nullable ?? true;
       const isPII = piiColumns.includes(targetField);
       const dqRules = dqRuleAssignments[targetField] || [];
       return {
@@ -49,6 +50,7 @@ const ExpressionModal = ({ isOpen, onClose, onSave, initialConfig = {}, schema =
         type: dataType,
         precision: precision,
         scale: scale,
+        nullable: nullable,
         pii: isPII,
         dqRules: dqRules,
         dqStatus: null
@@ -71,7 +73,16 @@ const ExpressionModal = ({ isOpen, onClose, onSave, initialConfig = {}, schema =
       dqRuleAssignments,
       mappingCount: fieldMappings.length,
       variableCount: variables.length,
-      dqRuleCount: Object.keys(dqRuleAssignments).length
+      dqRuleCount: Object.keys(dqRuleAssignments).length,
+      outputSchema: fieldMappings.map(m => ({
+        name: m.target_field || m.targetField || '',
+        type: m.data_type || m.type || m.column_type || 'STRING',
+        precision: m.precision ?? null,
+        scale: m.scale ?? null,
+        nullable: m.nullable ?? true,
+        pii: piiColumns.includes(m.target_field || m.targetField || ''),
+        dqRules: dqRuleAssignments[m.target_field || m.targetField || ''] || []
+      }))
     };
     onSave(config);
     onClose();
@@ -204,6 +215,7 @@ const ExpressionModal = ({ isOpen, onClose, onSave, initialConfig = {}, schema =
                       <th style={{ width: '40px' }}>#</th>
                       <th>Column Name</th>
                       <th>Data Type</th>
+                      <th>Nullable</th>
                       <th>PII</th>
                       <th>DQ Rules</th>
                       <th>DQ Status</th>
@@ -216,6 +228,11 @@ const ExpressionModal = ({ isOpen, onClose, onSave, initialConfig = {}, schema =
                           <td style={{ textAlign: 'center' }}>{idx + 1}</td>
                           <td className="vm-schema-col-name">{col.name}</td>
                           <td className="vm-schema-col-type">{formatTypeWithPrecision(col.type, col.precision, col.scale)}</td>
+                          <td className="vm-schema-col-nullable">
+                            <span className={`vm-nullable-badge ${col.nullable ? 'vm-nullable-yes' : 'vm-nullable-no'}`}>
+                              {col.nullable ? 'YES' : 'NO'}
+                            </span>
+                          </td>
                           <td className="vm-schema-col-pii">
                             <span className={`vm-pii-badge ${col.pii ? 'vm-pii-yes' : 'vm-pii-no'}`}>
                               {col.pii ? 'YES' : 'NO'}
@@ -241,7 +258,7 @@ const ExpressionModal = ({ isOpen, onClose, onSave, initialConfig = {}, schema =
                       ))
                     ) : (
                       <tr>
-                        <td colSpan="6" style={{ textAlign: 'center', color: '#9ca3af', fontStyle: 'italic' }}>
+                        <td colSpan="7" style={{ textAlign: 'center', color: '#9ca3af', fontStyle: 'italic' }}>
                           No mappings defined yet. Go to Mappings tab to add columns.
                         </td>
                       </tr>

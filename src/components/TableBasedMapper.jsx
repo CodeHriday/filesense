@@ -420,7 +420,8 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
         transformation_params: {},
         data_type: sourceField?.type || sourceField?.data_type || sourceField?.column_type || 'STRING',
         precision: sourceField?.precision ?? null,
-        scale: sourceField?.scale ?? null
+        scale: sourceField?.scale ?? null,
+        nullable: sourceField?.nullable ?? true
       };
       const newMappings = [...mappings, newMapping];
       setMappings(newMappings);
@@ -438,7 +439,8 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
       transformation_params: {},
       data_type: field.type || field.data_type || field.column_type || 'STRING',
       precision: field.precision ?? null,
-      scale: field.scale ?? null
+      scale: field.scale ?? null,
+      nullable: field.nullable ?? true
     }));
     
     setMappings(newMappings);
@@ -496,6 +498,56 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
     setDqRuleAssignments(newDqAssignments);
     lastReportedDqAssignmentsRef.current = newDqAssignments;
     onMappingsChange(newMappings, variables, Array.from(piiColumns), newDqAssignments);
+  };
+
+  const SQL_TYPE_OPTIONS = [
+    'STRING', 'VARCHAR', 'INTEGER', 'BIGINT', 'DECIMAL', 'DOUBLE', 'FLOAT',
+    'DATE', 'TIMESTAMP', 'BOOLEAN', 'BINARY', 'ARRAY', 'MAP', 'STRUCT'
+  ];
+
+  const TYPES_WITH_PRECISION = ['DECIMAL', 'VARCHAR', 'CHAR', 'NUMERIC'];
+  const TYPES_WITH_SCALE = ['DECIMAL', 'NUMERIC'];
+
+  const handleTypeChange = (sourceField, newType) => {
+    const newMappings = mappings.map(m => {
+      if (m.source_field === sourceField) {
+        const updatedMapping = { ...m, data_type: newType };
+        if (!TYPES_WITH_PRECISION.includes(newType)) {
+          updatedMapping.precision = null;
+        }
+        if (!TYPES_WITH_SCALE.includes(newType)) {
+          updatedMapping.scale = null;
+        }
+        return updatedMapping;
+      }
+      return m;
+    });
+    setMappings(newMappings);
+    onMappingsChange(newMappings, variables, Array.from(piiColumns), dqRuleAssignments);
+  };
+
+  const handlePrecisionChange = (sourceField, newPrecision) => {
+    const newMappings = mappings.map(m => 
+      m.source_field === sourceField ? { ...m, precision: newPrecision === '' ? null : parseInt(newPrecision, 10) || null } : m
+    );
+    setMappings(newMappings);
+    onMappingsChange(newMappings, variables, Array.from(piiColumns), dqRuleAssignments);
+  };
+
+  const handleScaleChange = (sourceField, newScale) => {
+    const newMappings = mappings.map(m => 
+      m.source_field === sourceField ? { ...m, scale: newScale === '' ? null : parseInt(newScale, 10) || null } : m
+    );
+    setMappings(newMappings);
+    onMappingsChange(newMappings, variables, Array.from(piiColumns), dqRuleAssignments);
+  };
+
+  const handleNullableChange = (sourceField, newNullable) => {
+    const newMappings = mappings.map(m => 
+      m.source_field === sourceField ? { ...m, nullable: newNullable } : m
+    );
+    setMappings(newMappings);
+    onMappingsChange(newMappings, variables, Array.from(piiColumns), dqRuleAssignments);
   };
 
   const handleEditExpression = (sourceField) => {
@@ -595,12 +647,17 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
       return;
     }
 
+    const sourceField = newColumn.sourceField ? schema.find(s => s.name === newColumn.sourceField) : null;
     const newMapping = {
       source_field: newColumn.sourceField || `__custom_${Date.now()}__`,
       target_field: newColumn.targetField,
       transformation: newColumn.transformation,
       transformation_params: newColumn.params,
-      is_custom: !newColumn.sourceField
+      is_custom: !newColumn.sourceField,
+      data_type: sourceField?.type || sourceField?.data_type || sourceField?.column_type || 'STRING',
+      precision: sourceField?.precision ?? null,
+      scale: sourceField?.scale ?? null,
+      nullable: sourceField?.nullable ?? true
     };
 
     const newMappings = [...mappings, newMapping];
@@ -1129,15 +1186,18 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
               <thead>
                 <tr>
                   <th style={{ width: '40px' }}>Status</th>
-                  <th style={{ width: '200px' }}>Name</th>
+                  <th style={{ width: '180px' }}>Name</th>
                   <th style={{ width: '100px' }}>Type</th>
-                  <th style={{ width: '60px', textAlign: 'center' }} title="Mark as PII (Personally Identifiable Information)">
+                  <th style={{ width: '60px' }}>Precision</th>
+                  <th style={{ width: '50px' }}>Scale</th>
+                  <th style={{ width: '50px', textAlign: 'center' }} title="Allow NULL values">Nullable</th>
+                  <th style={{ width: '50px', textAlign: 'center' }} title="Mark as PII (Personally Identifiable Information)">
                     <FiLock /> PII
                   </th>
-                  <th style={{ width: '200px', textAlign: 'left' }} title="Data Quality Rules assigned to this field">
+                  <th style={{ width: '180px', textAlign: 'left' }} title="Data Quality Rules assigned to this field">
                     <FiShield /> DQ Rules
                   </th>
-                  <th style={{ width: '80px' }}>Actions</th>
+                  <th style={{ width: '70px' }}>Actions</th>
                   <th>Expression</th>
                 </tr>
               </thead>
@@ -1147,6 +1207,9 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
                   const colType = mapping.data_type || mapping.type || sourceCol?.type || sourceCol?.data_type || sourceCol?.column_type || 'STRING';
                   const colPrecision = mapping.precision ?? sourceCol?.precision ?? null;
                   const colScale = mapping.scale ?? sourceCol?.scale ?? null;
+                  const colNullable = mapping.nullable ?? sourceCol?.nullable ?? true;
+                  const showPrecision = TYPES_WITH_PRECISION.includes(colType.toUpperCase());
+                  const showScale = TYPES_WITH_SCALE.includes(colType.toUpperCase());
                   return (
                   <tr key={mapping.source_field}>
                     <td className="status-cell">
@@ -1160,8 +1223,56 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
                         className="target-name-input"
                       />
                     </td>
-                    <td style={{ fontSize: '9px', color: '#6b7280' }}>
-                      {formatTypeWithPrecision(colType, colPrecision, colScale)}
+                    <td>
+                      <select
+                        value={colType}
+                        onChange={(e) => handleTypeChange(mapping.source_field, e.target.value)}
+                        style={{ fontSize: '9px', padding: '2px 4px', width: '100%', border: '1px solid #d1d5db', borderRadius: '3px' }}
+                        title="Data type"
+                      >
+                        {SQL_TYPE_OPTIONS.map(t => (
+                          <option key={t} value={t}>{t}</option>
+                        ))}
+                      </select>
+                    </td>
+                    <td>
+                      {showPrecision ? (
+                        <input
+                          type="number"
+                          value={colPrecision ?? ''}
+                          onChange={(e) => handlePrecisionChange(mapping.source_field, e.target.value)}
+                          style={{ fontSize: '9px', padding: '2px 4px', width: '100%', border: '1px solid #d1d5db', borderRadius: '3px' }}
+                          placeholder="—"
+                          min="0"
+                          title="Precision (total digits)"
+                        />
+                      ) : (
+                        <span style={{ fontSize: '9px', color: '#9ca3af' }}>—</span>
+                      )}
+                    </td>
+                    <td>
+                      {showScale ? (
+                        <input
+                          type="number"
+                          value={colScale ?? ''}
+                          onChange={(e) => handleScaleChange(mapping.source_field, e.target.value)}
+                          style={{ fontSize: '9px', padding: '2px 4px', width: '100%', border: '1px solid #d1d5db', borderRadius: '3px' }}
+                          placeholder="—"
+                          min="0"
+                          title="Scale (decimal places)"
+                        />
+                      ) : (
+                        <span style={{ fontSize: '9px', color: '#9ca3af' }}>—</span>
+                      )}
+                    </td>
+                    <td style={{ textAlign: 'center' }}>
+                      <input
+                        type="checkbox"
+                        checked={colNullable}
+                        onChange={(e) => handleNullableChange(mapping.source_field, e.target.checked)}
+                        title="Allow NULL values"
+                        style={{ cursor: 'pointer' }}
+                      />
                     </td>
                     <td style={{ textAlign: 'center' }}>
                       <input
@@ -1226,7 +1337,7 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
                 })}
                 {filteredMappings.length === 0 && (
                   <tr>
-                    <td colSpan="7" className="no-mappings">
+                    <td colSpan="10" className="no-mappings">
                       No field mappings. Select source fields from the left panel or click Automap.
                     </td>
                   </tr>
