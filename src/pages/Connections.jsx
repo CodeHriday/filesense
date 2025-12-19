@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FiPlus, FiTrash2, FiEdit2, FiFolder, FiLink, FiCheckCircle, FiAlertCircle, FiSearch, FiActivity } from 'react-icons/fi';
+import { FiPlus, FiTrash2, FiEdit2, FiFolder, FiMail, FiLink, FiDatabase, FiCloud, FiCheckCircle, FiAlertCircle, FiSearch, FiActivity, FiServer } from 'react-icons/fi';
 import Card from '../components/Card';
 import LoadingSpinner from '../components/LoadingSpinner';
 import Pagination from '../components/Pagination';
@@ -16,6 +16,7 @@ import { getConnections, createConnection, updateConnection, deleteConnection, t
 const Connections = () => {
   const { hasWritePermission, hasExecutePermission, currentUser } = useAuth();
   const [connections, setConnections] = useState([]);
+  const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showForm, setShowForm] = useState(false);

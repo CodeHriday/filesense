@@ -28,7 +28,64 @@ function configureDI() {
   // Register improved database pool with connection retry logic
   container.register('dbPool', () => {
     systemLogger.info('Registering database pool from improved configuration');
-    return database.pool;
+    // Return a comprehensive proxy that ensures pool initialization on method calls
+    return {
+      query: async (...args) => {
+        const pool = await database.initializePool();
+        if (!pool) {
+          throw new Error('Database pool not initialized');
+        }
+        return pool.query(...args);
+      },
+      connect: async (...args) => {
+        const pool = await database.initializePool();
+        if (!pool) {
+          throw new Error('Database pool not initialized');
+        }
+        return pool.connect(...args);
+      },
+      end: async (...args) => {
+        const pool = await database.initializePool();
+        if (!pool) {
+          throw new Error('Database pool not initialized');
+        }
+        return pool.end(...args);
+      },
+      // Event listener methods that ServiceBase expects
+      on: (event, listener) => {
+        // Initialize pool first, then add listener
+        database.initializePool().then((pool) => {
+          if (pool && pool.on) {
+            pool.on(event, listener);
+          }
+        }).catch(err => {
+          systemLogger.error('Failed to initialize pool for event listener', { error: err.message });
+        });
+      },
+      off: (event, listener) => {
+        if (database.pool && database.pool.off) {
+          database.pool.off(event, listener);
+        }
+      },
+      removeListener: (event, listener) => {
+        if (database.pool && database.pool.removeListener) {
+          database.pool.removeListener(event, listener);
+        }
+      },
+      // Synchronous properties
+      get totalCount() {
+        return database.pool?.totalCount;
+      },
+      get idleCount() {
+        return database.pool?.idleCount;
+      },
+      get waitingCount() {
+        return database.pool?.waitingCount;
+      },
+      get options() {
+        return database.pool?.options;
+      }
+    };
   });
   
   // Register database module (for initialization and health checks)

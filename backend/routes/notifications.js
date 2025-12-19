@@ -5,19 +5,100 @@
 
 const express = require('express');
 const router = express.Router();
-const { pool } = require('../config/database');
+const { pool, query } = require('../config/database');
 const { systemLogger } = require('../utils/logger');
 const { authenticateToken } = require('../src/middleware/authenticate');
 
-// All routes require authentication
+// Health check endpoint (no auth required for debugging)
+router.get('/health', async (req, res) => {
+  try {
+    console.log('🔍 Notifications health check requested - NO AUTH REQUIRED');
+    console.log('🔍 Request headers:', req.headers);
+    
+
+    
+    // Test basic connection
+    await query('SELECT NOW() as current_time');
+    
+    // Check if notifications table exists
+    const tableCheck = await query(`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_schema = 'public' 
+        AND table_name = 'notifications'
+      );
+    `);
+    
+    res.json({
+      healthy: true,
+      database_connected: true,
+      notifications_table_exists: tableCheck.rows[0].exists,
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('❌ Health check failed:', error.message);
+    res.status(503).json({
+      healthy: false,
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// All other routes require authentication
 router.use(authenticateToken);
 
 // GET /api/notifications - Get all notifications for current user
 router.get('/', async (req, res) => {
   try {
+    // Ensure request object is valid
+    if (!req || typeof req.query === 'undefined') {
+      systemLogger.error('Invalid request object in notifications route');
+      return res.status(500).json({ 
+        error: 'Internal server error'
+      });
+    }
+    
+    // Ensure user is authenticated
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({ 
+        error: 'Authentication required'
+      });
+    }
+    
     const { unread_only } = req.query;
     
-    let query = `
+    // Test database connection and table existence
+    try {
+      await query('SELECT 1');
+      console.log('✅ Database connection test successful');
+      
+      // Check if notifications table exists
+      const tableCheck = await query(`
+        SELECT EXISTS (
+          SELECT FROM information_schema.tables 
+          WHERE table_schema = 'public' 
+          AND table_name = 'notifications'
+        );
+      `);
+      
+      if (!tableCheck.rows[0].exists) {
+        console.error('❌ Notifications table does not exist');
+        return res.status(503).json({ 
+          error: 'Notifications table not found in database'
+        });
+      }
+      
+      console.log('✅ Notifications table exists');
+    } catch (dbError) {
+      console.error('❌ Database connection test failed:', dbError.message);
+      return res.status(503).json({ 
+        error: 'Database connection failed: ' + dbError.message
+      });
+    }
+    
+    let queryText = `
       SELECT *
       FROM notifications
       WHERE user_id = $1
@@ -26,12 +107,12 @@ router.get('/', async (req, res) => {
     const params = [req.user.id];
     
     if (unread_only === 'true') {
-      query += ` AND is_read = FALSE`;
+      queryText += ` AND is_read = FALSE`;
     }
     
-    query += ` ORDER BY created_at DESC LIMIT 100`;
+    queryText += ` ORDER BY created_at DESC LIMIT 100`;
     
-    const result = await pool.query(query, params);
+    const result = await query(queryText, params);
     
     res.json({
       success: true,
@@ -49,7 +130,7 @@ router.get('/', async (req, res) => {
 // GET /api/notifications/count - Get count of unread notifications
 router.get('/count', async (req, res) => {
   try {
-    const result = await pool.query(
+    const result = await query(
       `SELECT COUNT(*) as unread_count
        FROM notifications
        WHERE user_id = $1 AND is_read = FALSE`,
@@ -79,7 +160,7 @@ router.put('/:id/read', async (req, res) => {
     }
     
     // Verify notification belongs to current user
-    const checkResult = await pool.query(
+    const checkResult = await query(
       `SELECT id FROM notifications WHERE id = $1 AND user_id = $2`,
       [notificationId, req.user.id]
     );
@@ -89,7 +170,7 @@ router.put('/:id/read', async (req, res) => {
     }
     
     // Mark as read
-    await pool.query(
+    await query(
       `UPDATE notifications 
        SET is_read = TRUE, read_at = CURRENT_TIMESTAMP
        WHERE id = $1`,
@@ -119,7 +200,7 @@ router.put('/:id/unread', async (req, res) => {
     }
     
     // Verify notification belongs to current user
-    const checkResult = await pool.query(
+    const checkResult = await query(
       `SELECT id FROM notifications WHERE id = $1 AND user_id = $2`,
       [notificationId, req.user.id]
     );
@@ -129,7 +210,7 @@ router.put('/:id/unread', async (req, res) => {
     }
     
     // Mark as unread
-    await pool.query(
+    await query(
       `UPDATE notifications 
        SET is_read = FALSE, read_at = NULL
        WHERE id = $1`,
@@ -152,7 +233,7 @@ router.put('/:id/unread', async (req, res) => {
 // PUT /api/notifications/read-all - Mark all notifications as read
 router.put('/read-all', async (req, res) => {
   try {
-    await pool.query(
+    await query(
       `UPDATE notifications 
        SET is_read = TRUE, read_at = CURRENT_TIMESTAMP
        WHERE user_id = $1 AND is_read = FALSE`,
@@ -182,7 +263,7 @@ router.delete('/:id', async (req, res) => {
     }
     
     // Verify notification belongs to current user
-    const checkResult = await pool.query(
+    const checkResult = await query(
       `SELECT id FROM notifications WHERE id = $1 AND user_id = $2`,
       [notificationId, req.user.id]
     );
@@ -192,7 +273,7 @@ router.delete('/:id', async (req, res) => {
     }
     
     // Delete notification
-    await pool.query(
+    await query(
       `DELETE FROM notifications WHERE id = $1`,
       [notificationId]
     );
@@ -230,7 +311,7 @@ router.post('/', async (req, res) => {
       });
     }
     
-    const result = await pool.query(
+    const result = await query(
       `INSERT INTO notifications (
         user_id, notification_type, title, message,
         entity_type, entity_id, action_url, metadata

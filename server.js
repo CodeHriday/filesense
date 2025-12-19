@@ -47,10 +47,11 @@ const schedulerWorker = new SchedulerWorker(
   diContainer.get('logger'),
   60000 // Check every 60 seconds
 );
-schedulerWorker.start();
+// Note: Scheduler worker startup moved to startServer() function after database initialization
 
 // Initialize SLA monitor worker (checks vendor file arrival SLAs every 15 minutes)
 const slaMonitorWorker = new SLAMonitorWorker(
+  diContainer.get('slaMonitorService'),
   diContainer.get('logger'),
   900000 // Check every 15 minutes
 );
@@ -540,39 +541,42 @@ const upload = multer({
 // Use the database pool from the DI container
 // const pool = dbPool; // Removed to avoid confusion - using dbPool directly
 
-// Test database connection
-dbPool.query('SELECT NOW()', (err, res) => {
-  if (err) {
+// Test database connection (async to handle pool initialization)
+(async () => {
+  try {
+    const result = await dbPool.query('SELECT NOW()');
+    console.log('Database connected successfully');
+  } catch (err) {
     console.error('Error connecting to the database:', err);
     console.error(err.stack);
-  } else {
-    console.log('Database connected successfully');
   }
-});
+})();
 
 // Initialize file schedules table (if not exists)
-dbPool.query(`
-  CREATE TABLE IF NOT EXISTS file_schedules (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    file_id TEXT NOT NULL,
-    schedule TEXT NOT NULL,
-    last_run TIMESTAMP,
-    next_run TIMESTAMP,
-    enabled BOOLEAN DEFAULT true,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-  );
-`).then(() => {
-  console.log('File schedules table initialized');
-}).catch(err => {
-  console.error('Error initializing file schedules table:', err);
-});
+(async () => {
+  try {
+    await dbPool.query(`
+      CREATE TABLE IF NOT EXISTS file_schedules (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        file_id TEXT NOT NULL,
+        schedule TEXT NOT NULL,
+        last_run TIMESTAMP,
+        next_run TIMESTAMP,
+        enabled BOOLEAN DEFAULT true,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+    console.log('File schedules table initialized');
+  } catch (err) {
+    console.error('Error initializing file schedules table:', err);
+  }
+})();
 
 // Import our improved implementation
 const initBusinessProcessTables = require('./initBusinessProcessTables');
 
-// Run table initialization
-initBusinessProcessTables(dbPool);
+// Note: Table initialization moved to startServer() function after database initialization
 
 // Business Process Management API Routes
 // NOTE: Group management routes have been moved to /api/groups (RBAC access groups)
@@ -11462,7 +11466,7 @@ console.log('Added vendor connections routes');
 
 // Vendor user routes
 const vendorUserRoutes = require('./backend/routes/vendorUserRoutes');
-app.use('/api', authenticateToken, vendorUserRoutes);
+app.use('/api', vendorUserRoutes);
 console.log('Added vendor user routes');
 
 // Vendor access routes (for vendor file upload)
@@ -11572,6 +11576,24 @@ async function startServer() {
     logger.info('Initializing database connection...');
     await initializeDatabase();
     logger.info('Database connection established successfully');
+    
+    // Initialize business process tables after database is ready
+    try {
+      logger.info('Initializing business process tables...');
+      await initBusinessProcessTables(diContainer.get('dbPool'));
+      logger.info('Business process tables initialized successfully');
+    } catch (error) {
+      logger.error('Error initializing business process tables:', error.message);
+    }
+    
+    // Start scheduler worker after database is ready
+    try {
+      logger.info('Starting scheduler worker...');
+      schedulerWorker.start();
+      logger.info('Scheduler worker started successfully');
+    } catch (error) {
+      logger.error('Error starting scheduler worker:', error.message);
+    }
     
     // Validate ENCRYPTION_KEY environment variable
     const encryptionKey = process.env.ENCRYPTION_KEY;

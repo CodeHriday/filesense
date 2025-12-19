@@ -3,7 +3,10 @@
  * Handles vendor agreements, schema management, and dual approval workflow
  */
 
-const { pool } = require('../config/database');
+// Use DI container for database pool to ensure proper initialization
+const { getContainer } = require('../di/bootstrapper');
+const container = getContainer();
+const pool = container.get('dbPool');
 const { systemLogger } = require('../utils/logger');
 const { parseSchemaFile, validateSchema } = require('../utils/schemaParser');
 const crypto = require('crypto');

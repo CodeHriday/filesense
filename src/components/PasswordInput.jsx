@@ -75,11 +75,4 @@ PasswordInput.propTypes = {
   className: PropTypes.string
 };
 
-PasswordInput.defaultProps = {
-  placeholder: 'Enter password',
-  disabled: false,
-  required: false,
-  autoFocus: false,
-  className: ''
-};
 export default PasswordInput;

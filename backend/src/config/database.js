@@ -2,29 +2,77 @@
  * Database configuration module
  * 
  * This module provides a configured PostgreSQL pool for database access.
+ * Updated to use AWS Secrets Manager integration with .env fallback.
  */
 const { Pool } = require('pg');
 const { DATABASE_CONFIG } = require('./environment');
 
-// Create a connection pool
-const pool = new Pool({
-  connectionString: DATABASE_CONFIG.CONNECTION_STRING,
-  ssl: DATABASE_CONFIG.SSL_ENABLED ? {
-    rejectUnauthorized: DATABASE_CONFIG.SSL_REJECT_UNAUTHORIZED
-  } : false,
-  max: DATABASE_CONFIG.POOL_MAX || 20,
-  idleTimeoutMillis: DATABASE_CONFIG.POOL_IDLE_TIMEOUT || 30000,
-  connectionTimeoutMillis: DATABASE_CONFIG.CONNECTION_TIMEOUT || 5000
-});
+// Import AWS Secrets Manager integration
+const { initializeSecrets } = require('../../config/config-secrets');
 
-// Log connection events
-pool.on('connect', () => {
-  console.log('New client connected to PostgreSQL');
-});
+// Initialize pool with AWS Secrets Manager support
+let pool;
+let poolInitialized = false;
 
-pool.on('error', (err) => {
-  console.error('Unexpected error on PostgreSQL client', err);
-});
+async function initializePool() {
+  if (poolInitialized) return pool;
+  
+  try {
+    // Initialize AWS Secrets Manager first
+    await initializeSecrets();
+    
+    // Create a connection pool using the updated DATABASE_URL (from secrets manager or .env)
+    // Automatically enable SSL for AWS RDS connections
+    const isAWSRDS = process.env.DATABASE_URL && process.env.DATABASE_URL.includes('.rds.amazonaws.com');
+    const sslConfig = isAWSRDS ? { rejectUnauthorized: false } : (
+      DATABASE_CONFIG.SSL_ENABLED ? {
+        rejectUnauthorized: DATABASE_CONFIG.SSL_REJECT_UNAUTHORIZED
+      } : false
+    );
+    
+    pool = new Pool({
+      connectionString: process.env.DATABASE_URL,
+      ssl: sslConfig,
+      max: DATABASE_CONFIG.POOL_MAX || 20,
+      idleTimeoutMillis: DATABASE_CONFIG.POOL_IDLE_TIMEOUT || 30000,
+      connectionTimeoutMillis: DATABASE_CONFIG.CONNECTION_TIMEOUT || 5000
+    });
+    
+    // Set up event listeners
+    pool.on('connect', () => {
+      console.log('New client connected to PostgreSQL');
+    });
+
+    pool.on('error', (err) => {
+      console.error('Unexpected error on PostgreSQL client', err);
+    });
+    
+    poolInitialized = true;
+    return pool;
+  } catch (error) {
+    console.error('Failed to initialize database pool with secrets manager:', error.message);
+    // Fallback to original configuration
+    const isAWSRDSFallback = DATABASE_CONFIG.CONNECTION_STRING && DATABASE_CONFIG.CONNECTION_STRING.includes('.rds.amazonaws.com');
+    const sslConfigFallback = isAWSRDSFallback ? { rejectUnauthorized: false } : (
+      DATABASE_CONFIG.SSL_ENABLED ? {
+        rejectUnauthorized: DATABASE_CONFIG.SSL_REJECT_UNAUTHORIZED
+      } : false
+    );
+    
+    pool = new Pool({
+      connectionString: DATABASE_CONFIG.CONNECTION_STRING,
+      ssl: sslConfigFallback,
+      max: DATABASE_CONFIG.POOL_MAX || 20,
+      idleTimeoutMillis: DATABASE_CONFIG.POOL_IDLE_TIMEOUT || 30000,
+      connectionTimeoutMillis: DATABASE_CONFIG.CONNECTION_TIMEOUT || 5000
+    });
+    poolInitialized = true;
+    return pool;
+  }
+}
+
+// Initialize pool immediately
+initializePool();
 
 /**
  * Execute a SQL query
@@ -33,6 +81,9 @@ pool.on('error', (err) => {
  * @returns {Promise<Object>} Query result
  */
 const query = async (text, params) => {
+  // Ensure pool is initialized before executing query
+  await initializePool();
+  
   const start = Date.now();
   const res = await pool.query(text, params);
   const duration = Date.now() - start;
@@ -55,6 +106,9 @@ const query = async (text, params) => {
  * @returns {Promise<Object>} Database client
  */
 const getClient = async () => {
+  // Ensure pool is initialized before getting client
+  await initializePool();
+  
   const client = await pool.connect();
   
   // Monkey patch the client's query method to add logging
@@ -86,8 +140,10 @@ const getClient = async () => {
  * @returns {Promise<void>}
  */
 const closePool = async () => {
-  await pool.end();
-  console.log('Database connection pool closed');
+  if (pool) {
+    await pool.end();
+    console.log('Database connection pool closed');
+  }
 };
 
 // Export the database interface

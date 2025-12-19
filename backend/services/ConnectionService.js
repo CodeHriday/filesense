@@ -1,4 +1,4 @@
-const { pool, query } = require('../config/database');
+const { pool, query: dbQuery, getClient } = require('../config/database');
 const AWS = require('aws-sdk');
 const { Storage } = require('@google-cloud/storage');
 const { BlobServiceClient } = require('@azure/storage-blob');
@@ -359,7 +359,7 @@ class ConnectionService {
         query += ` LIMIT ${parseInt(limit)}`;
       }
       
-      const result = await pool.query(query, params);
+      const result = await dbQuery(query, params);
       return result.rows;
     } catch (error) {
       console.error('Error fetching connections:', error);
@@ -376,7 +376,7 @@ class ConnectionService {
   async getConnectionById(id) {
     try {
       // All connections are now in storage_connections with UUID connection_id
-      const result = await pool.query(
+      const result = await dbQuery(
         'SELECT * FROM storage_connections WHERE connection_id = $1',
         [id]
       );
@@ -399,7 +399,7 @@ class ConnectionService {
    * @returns {Promise<Object>} - Created connection
    */
   async createConnection(connectionData) {
-    const client = await pool.connect();
+    const client = await getClient();
     const { v4: uuidv4 } = require('uuid');
     
     try {
@@ -492,7 +492,7 @@ class ConnectionService {
    * @returns {Promise<Object>} - Updated connection
    */
   async updateConnection(id, connectionData) {
-    const client = await pool.connect();
+    const client = await getClient();
     
     try {
       await client.query('BEGIN');
@@ -639,7 +639,7 @@ class ConnectionService {
    */
   async deleteConnection(id) {
     try {
-      const result = await pool.query(
+      const result = await dbQuery(
         'DELETE FROM storage_connections WHERE connection_id = $1 RETURNING connection_id',
         [id]
       );
@@ -1153,7 +1153,7 @@ class ConnectionService {
    */
   async updateLastUsedTimestamp(id) {
     try {
-      await pool.query(
+      await dbQuery(
         'UPDATE transform_connections SET last_used_at = NOW() WHERE id = $1',
         [id]
       );

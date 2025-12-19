@@ -8,21 +8,44 @@
 const { Pool } = require('pg');
 const { databaseLogger } = require('../utils/logger');
 
+
+
+/**
+ * Get database URL from AWS Secrets Manager or environment
+ */
+async function getDatabaseUrl() {
+  // Try AWS Secrets Manager first
+  try {
+    const { initializeSecrets } = require('./config-secrets');
+    await initializeSecrets();
+    
+    if (process.env.DATABASE_URL) {
+      databaseLogger.info('Using database URL from AWS Secrets Manager');
+      return process.env.DATABASE_URL;
+    }
+  } catch (error) {
+    databaseLogger.warn('AWS Secrets Manager not available, using .env fallback:', error.message);
+  }
+  
+  // No fallback to .env - force use of secrets only
+  throw new Error('DATABASE_URL not found in AWS Secrets Manager. Please configure AWS credentials (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION) and ensure the "filevantage-prod" secret exists.');
+}
+
 /**
  * Validate required database environment variables
  */
-function validateDatabaseConfig() {
-  const required = ['DATABASE_URL'];
-  const missing = required.filter(varName => !process.env[varName]);
-  
-  if (missing.length > 0) {
-    const error = `Missing required database environment variables: ${missing.join(', ')}`;
-    databaseLogger.error(error);
-    throw new Error(error);
+async function validateDatabaseConfig() {
+  try {
+    const databaseUrl = await getDatabaseUrl();
+    // Override the environment variable for all subsequent usage
+    process.env.DATABASE_URL = databaseUrl;
+    
+    databaseLogger.info('Database configuration validated');
+    return true;
+  } catch (error) {
+    databaseLogger.error('Database configuration validation failed:', error.message);
+    throw error;
   }
-  
-  databaseLogger.info('Database environment variables validated');
-  return true;
 }
 
 /**
@@ -52,52 +75,73 @@ function getPoolConfig() {
   };
 }
 
-// Validate environment before creating pool
+// Initialize pool asynchronously
 let pool;
-try {
-  validateDatabaseConfig();
-  pool = new Pool(getPoolConfig());
-  databaseLogger.info('Database pool created', {
-    environment: process.env.NODE_ENV,
-    poolSize: pool.options.max
-  });
-} catch (err) {
-  databaseLogger.error('Failed to create database pool', { error: err.message });
-  // Create a dummy pool that will fail gracefully
-  pool = {
-    query: async () => {
-      throw new Error('Database not configured. Missing DATABASE_URL environment variable.');
-    },
-    connect: async () => {
-      throw new Error('Database not configured. Missing DATABASE_URL environment variable.');
-    },
-    end: async () => {}
-  };
+let poolInitialized = false;
+
+async function initializePool() {
+  if (poolInitialized) return pool;
+  
+  try {
+    console.log('🔄 Initializing database pool...');
+    await validateDatabaseConfig();
+    console.log('✅ Database config validated');
+    
+    pool = new Pool(getPoolConfig());
+    poolInitialized = true;
+    
+    console.log('✅ Database pool created successfully');
+    databaseLogger.info('Database pool created', {
+      environment: process.env.NODE_ENV,
+      poolSize: pool.options.max
+    });
+    
+    // Set up event listeners
+    pool.on('error', (err, client) => {
+      databaseLogger.error('Unexpected error on idle client', { 
+        error: err.message, 
+        stack: err.stack,
+        code: err.code 
+      });
+    });
+
+    // Log connection events in development
+    if (process.env.NODE_ENV !== 'production') {
+      pool.on('connect', () => {
+        databaseLogger.debug('New client connected to PostgreSQL');
+      });
+      
+      pool.on('acquire', (client) => {
+        databaseLogger.debug('Client acquired from pool');
+      });
+      
+      pool.on('remove', () => {
+        databaseLogger.debug('Client removed from pool');
+      });
+    }
+    
+    return pool;
+  } catch (err) {
+    databaseLogger.error('Failed to create database pool', { error: err.message });
+    // Create a dummy pool that will fail gracefully
+    pool = {
+      query: async () => {
+        throw new Error('Database not configured. Failed to get DATABASE_URL from Secrets Manager or environment.');
+      },
+      connect: async () => {
+        throw new Error('Database not configured. Failed to get DATABASE_URL from Secrets Manager or environment.');
+      },
+      end: async () => {}
+    };
+    poolInitialized = true;
+    return pool;
+  }
 }
 
-// Log pool errors
-pool.on && pool.on('error', (err, client) => {
-  databaseLogger.error('Unexpected error on idle client', { 
-    error: err.message, 
-    stack: err.stack,
-    code: err.code 
-  });
-});
+// Initialize pool immediately
+initializePool();
 
-// Log connection events in development
-if (process.env.NODE_ENV !== 'production' && pool.on) {
-  pool.on('connect', () => {
-    databaseLogger.debug('New client connected to PostgreSQL');
-  });
-  
-  pool.on('acquire', (client) => {
-    databaseLogger.debug('Client acquired from pool');
-  });
-  
-  pool.on('remove', () => {
-    databaseLogger.debug('Client removed from pool');
-  });
-}
+// Event listeners will be set up after pool initialization
 
 /**
  * Sleep utility for retry logic
@@ -161,6 +205,8 @@ async function testConnection(maxRetries = 5, initialDelay = 1000) {
  * @returns {Promise<Object>} - Query result
  */
 async function query(text, params) {
+  await initializePool();
+  
   const start = Date.now();
   
   try {
@@ -309,8 +355,10 @@ async function initialize() {
  */
 async function close() {
   try {
-    await pool.end();
-    databaseLogger.info('Database pool closed');
+    if (pool && pool.end) {
+      await pool.end();
+      databaseLogger.info('Database pool closed');
+    }
   } catch (err) {
     databaseLogger.error('Error closing database pool', { error: err.message });
   }
@@ -344,6 +392,7 @@ async function getHealthStatus() {
  * Get a client from the pool for transactions
  */
 async function getClient() {
+  await initializePool();
   return await pool.connect();
 }
 
@@ -353,6 +402,7 @@ module.exports = {
   pool,
   getClient,
   initialize,
+  initializePool,
   testConnection,
   close,
   getHealthStatus

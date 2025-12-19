@@ -231,14 +231,7 @@ SuccessAnimation.propTypes = {
 SuccessAnimation.defaultProps = {
   duration: 2000
 };
-PageTransition.propTypes = {
-  children: PropTypes.node.isRequired,
-  className: PropTypes.string
-};
 
-PageTransition.defaultProps = {
-  className: ''
-};
 
 export const PageTransition = ({ children, className = "" }) => {
   return (
@@ -255,4 +248,12 @@ export const PageTransition = ({ children, className = "" }) => {
       </motion.div>
     </AnimatePresence>
   );
+};
+PageTransition.propTypes = {
+  children: PropTypes.node.isRequired,
+  className: PropTypes.string
+};
+
+PageTransition.defaultProps = {
+  className: ''
 };

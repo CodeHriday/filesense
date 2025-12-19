@@ -436,6 +436,7 @@ async function processDueSchedules() {
           );
         } else if (schedule.entity_type === 'vendor_agreement_expiration') {
           // Auto-disable expired vendor agreements
+          // Use the service instance directly (it exports an instance, not a class)
           const vendorAgreementService = require('./vendorAgreementService');
           executionResult = await vendorAgreementService.autoDisableExpiredAgreements();
         } else {

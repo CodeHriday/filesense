@@ -10,10 +10,9 @@
  * Runs independently every 15 minutes for proactive monitoring
  */
 
-const slaMonitorService = require('../services/slaMonitorService');
-
 class SLAMonitorWorker {
-  constructor(logger, intervalMs = 900000) { // Default: check every 15 minutes
+  constructor(slaMonitorService, logger, intervalMs = 900000) { // Default: check every 15 minutes
+    this.slaMonitorService = slaMonitorService;
     this.logger = logger;
     this.intervalMs = intervalMs;
     this.intervalHandle = null;
@@ -51,7 +50,7 @@ class SLAMonitorWorker {
     this.isProcessing = true;
 
     try {
-      const result = await slaMonitorService.processVendorSLAs();
+      const result = await this.slaMonitorService.processVendorSLAs();
       
       if (result.processed > 0) {
         this.logger.info('SLA monitor processed vendor agreements', {

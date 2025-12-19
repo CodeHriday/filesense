@@ -3,11 +3,13 @@
  * Monitors vendor agreement file arrival SLAs and creates violation records
  */
 
-const { pool } = require('../config/database');
-const { systemLogger } = require('../utils/logger');
+const ServiceBase = require('./ServiceBase');
 const slaCalculationService = require('./slaCalculationService');
 
-class SLAMonitorService {
+class SLAMonitorService extends ServiceBase {
+  constructor(dbPool, logger) {
+    super(dbPool, logger);
+  }
   /**
    * Process all active vendor agreements with SLA monitoring enabled
    * @returns {Object} Summary of processing results
@@ -44,10 +46,10 @@ class SLAMonitorService {
         AND va.expected_arrival_time IS NOT NULL
       `;
 
-      const agreementsResult = await pool.query(agreementsQuery);
+      const agreementsResult = await this.executeQuery(agreementsQuery);
       const agreements = agreementsResult.rows;
 
-      systemLogger.info('Processing SLA checks for vendor agreements', {
+      this.logger.info('Processing SLA checks for vendor agreements', {
         agreementCount: agreements.length
       });
 
@@ -64,7 +66,7 @@ class SLAMonitorService {
             results.compliant++;
           }
         } catch (error) {
-          systemLogger.error('Error checking SLA for agreement', {
+          this.logger.error('Error checking SLA for agreement', {
             agreementId: agreement.id,
             error: error.message
           });
@@ -76,7 +78,7 @@ class SLAMonitorService {
       }
 
       const duration = Date.now() - startTime;
-      systemLogger.info('SLA monitoring completed', {
+      this.logger.info('SLA monitoring completed', {
         processed: results.processed,
         violations: results.violations,
         compliant: results.compliant,
@@ -86,7 +88,7 @@ class SLAMonitorService {
 
       return results;
     } catch (error) {
-      systemLogger.error('Error in SLA monitoring service', {
+      this.logger.error('Error in SLA monitoring service', {
         error: error.message,
         stack: error.stack
       });
@@ -190,11 +192,11 @@ class SLAMonitorService {
         LIMIT 1
       `;
 
-      const result = await pool.query(query, [projectId, expectedTime, deadline, filePattern]);
+      const result = await this.executeQuery(query, [projectId, expectedTime, deadline, filePattern]);
 
       return result.rows.length > 0 ? result.rows[0] : null;
     } catch (error) {
-      systemLogger.error('Error checking file arrival', {
+      this.logger.error('Error checking file arrival', {
         projectId,
         fileName,
         error: error.message
@@ -222,7 +224,7 @@ class SLAMonitorService {
         AND resolved = false
       `;
 
-      const existingResult = await pool.query(existingQuery, [
+      const existingResult = await this.executeQuery(existingQuery, [
         agreement.id,
         window.expectedArrivalTime
       ]);
@@ -259,7 +261,7 @@ class SLAMonitorService {
         alert_threshold_minutes: agreement.alert_threshold_minutes
       };
 
-      const insertResult = await pool.query(insertQuery, [
+      const insertResult = await this.executeQuery(insertQuery, [
         agreement.id,
         window.expectedArrivalTime,
         now,
@@ -271,7 +273,7 @@ class SLAMonitorService {
 
       const violation = insertResult.rows[0];
 
-      systemLogger.info('SLA violation recorded', {
+      this.logger.info('SLA violation recorded', {
         agreementId: agreement.id,
         agreementCode: agreement.agreement_code,
         expectedTime: window.expectedArrivalTime,
@@ -283,7 +285,7 @@ class SLAMonitorService {
 
       return violation;
     } catch (error) {
-      systemLogger.error('Error recording SLA violation', {
+      this.logger.error('Error recording SLA violation', {
         agreementId: agreement.id,
         error: error.message
       });
@@ -327,7 +329,7 @@ class SLAMonitorService {
         message: message
       };
 
-      const result = await pool.query(insertEventQuery, [
+      const result = await this.executeQuery(insertEventQuery, [
         'vendor_sla',
         agreement.id.toString(), // entity_id as string
         'sla_violation',
@@ -337,13 +339,13 @@ class SLAMonitorService {
         violation.violation_detected_at
       ]);
 
-      systemLogger.info('Alert event created for SLA violation', {
+      this.logger.info('Alert event created for SLA violation', {
         violationId: violation.id,
         eventId: result.rows[0].id,
         agreementId: agreement.id
       });
     } catch (error) {
-      systemLogger.error('Error creating alert event for SLA violation', {
+      this.logger.error('Error creating alert event for SLA violation', {
         violationId: violation.id,
         error: error.message
       });
@@ -373,7 +375,7 @@ class SLAMonitorService {
         RETURNING id
       `;
 
-      const result = await pool.query(updateQuery, [
+      const result = await this.executeQuery(updateQuery, [
         new Date(),
         file.file_id,
         file.created_at,
@@ -382,14 +384,14 @@ class SLAMonitorService {
       ]);
 
       if (result.rows.length > 0) {
-        systemLogger.info('SLA violation resolved', {
+        this.logger.info('SLA violation resolved', {
           agreementId,
           violationId: result.rows[0].id,
           fileId: file.file_id
         });
       }
     } catch (error) {
-      systemLogger.error('Error resolving SLA violation', {
+      this.logger.error('Error resolving SLA violation', {
         agreementId,
         error: error.message
       });
@@ -397,4 +399,4 @@ class SLAMonitorService {
   }
 }
 
-module.exports = new SLAMonitorService();
+module.exports = SLAMonitorService;
