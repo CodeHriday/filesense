@@ -24,6 +24,7 @@ const TargetRulesModal = ({ isOpen, onClose, onSave, initialConfig = {}, project
   const [activeTab, setActiveTab] = useState('configuration');
   const [schema, setSchema] = useState(null);
   const [fileBrowserOpen, setFileBrowserOpen] = useState(false);
+  const [validationError, setValidationError] = useState('');
   
   useEffect(() => {
     if (isOpen) {
@@ -34,6 +35,7 @@ const TargetRulesModal = ({ isOpen, onClose, onSave, initialConfig = {}, project
       }
       // Reset to configuration tab when modal opens
       setActiveTab('configuration');
+      setValidationError('');
       
       // Set output schema from upstream nodes
       if (outputSchema && outputSchema.length > 0) {
@@ -109,6 +111,24 @@ const TargetRulesModal = ({ isOpen, onClose, onSave, initialConfig = {}, project
   };
 
   const handleSave = () => {
+    if (!name.trim()) {
+      setValidationError('Name is required');
+      return;
+    }
+    if (!connectionId) {
+      setValidationError('Target Connection is required');
+      return;
+    }
+    if (!filePath.trim()) {
+      setValidationError('File Path is required');
+      return;
+    }
+    if (!fileName.trim()) {
+      setValidationError('File Name is required');
+      return;
+    }
+    
+    setValidationError('');
     const selectedConnection = connections.find(c => c.id === parseInt(connectionId));
     const selectedOwner = datastewards.find(ds => ds.id === parseInt(targetFileOwnerId));
     const config = {
@@ -170,6 +190,11 @@ const TargetRulesModal = ({ isOpen, onClose, onSave, initialConfig = {}, project
           {/* Configuration Tab */}
           {activeTab === 'configuration' && (
           <div className="vm-modal-body-scroll">
+          {validationError && (
+            <div className="vm-validation-error" role="alert" style={{ marginBottom: '16px', padding: '10px 12px', backgroundColor: '#fef2f2', border: '1px solid #fca5a5', borderRadius: '4px', color: '#dc2626', fontSize: '13px' }}>
+              {validationError}
+            </div>
+          )}
           <div className="vm-form-group">
             <label htmlFor="target-name-input">Name *</label>
             <input

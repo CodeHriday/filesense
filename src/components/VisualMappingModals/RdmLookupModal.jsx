@@ -31,6 +31,7 @@ const RdmLookupModal = ({ isOpen, onClose, onSave, initialConfig = {}, cumulativ
   // Common state
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [validationError, setValidationError] = useState('');
   
   // Reset all state when modal opens or initialConfig changes
   useEffect(() => {
@@ -40,6 +41,7 @@ const RdmLookupModal = ({ isOpen, onClose, onSave, initialConfig = {}, cumulativ
       const currentLookupType = initialConfig.lookupType || 'dataset';
       setLookupType(currentLookupType);
       setActiveTab('config');
+      setValidationError('');
       
       // Reset dataset state
       if (currentLookupType === 'dataset') {
@@ -281,6 +283,20 @@ const RdmLookupModal = ({ isOpen, onClose, onSave, initialConfig = {}, cumulativ
   };
   
   const handleSave = () => {
+    if (!name.trim()) {
+      setValidationError('Name is required');
+      return;
+    }
+    if (!isConfigValid()) {
+      if (lookupType === 'dataset') {
+        setValidationError('Please select a dataset and configure at least one join condition');
+      } else {
+        setValidationError('Please select a crosswalk and configure the source column mapping');
+      }
+      return;
+    }
+    
+    setValidationError('');
     let config = { 
       name,
       description,
@@ -372,6 +388,11 @@ const RdmLookupModal = ({ isOpen, onClose, onSave, initialConfig = {}, cumulativ
         <div className="vm-modal-body vm-modal-body-scroll">
           {activeTab === 'config' && (
             <>
+              {validationError && (
+                <div className="vm-validation-error" role="alert" style={{ marginBottom: '16px', padding: '10px 12px', backgroundColor: '#fef2f2', border: '1px solid #fca5a5', borderRadius: '4px', color: '#dc2626', fontSize: '13px' }}>
+                  {validationError}
+                </div>
+              )}
               <div className="vm-form-group">
                 <label htmlFor="rdm-name">Name *</label>
                 <input

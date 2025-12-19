@@ -34,6 +34,7 @@ const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
   const [activeTab, setActiveTab] = useState('configuration');
   const [schema, setSchema] = useState(null);
   const [schemaLoading, setSchemaLoading] = useState(false);
+  const [validationError, setValidationError] = useState('');
   
   // Track the pending vendor agreement ID that needs to be processed after agreements load
   const pendingVendorAgreementRef = useRef(null);
@@ -67,6 +68,7 @@ const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
       fetchDatastewards();
       // Reset to configuration tab when modal opens
       setActiveTab('configuration');
+      setValidationError('');
       
       // Restore schema from saved config if available
       if (initialConfig.schema && initialConfig.schemaMetadata) {
@@ -379,6 +381,20 @@ const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
   };
   
   const handleSave = () => {
+    if (!name.trim()) {
+      setValidationError('Name is required');
+      return;
+    }
+    if (!connectionId) {
+      setValidationError('Source Connection is required');
+      return;
+    }
+    if (!filePath.trim()) {
+      setValidationError('File Path is required');
+      return;
+    }
+    
+    setValidationError('');
     const selectedConnection = connections.find(c => c.id === connectionId || c.connection_id === connectionId);
     const selectedAgreement = vendorAgreements.find(va => va.id === parseInt(vendorAgreementId));
     const selectedOwner = datastewards.find(ds => String(ds.id) === String(sourceFileOwnerId));
@@ -472,6 +488,11 @@ const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
           {/* Configuration Tab */}
           {activeTab === 'configuration' && (
             <>
+          {validationError && (
+            <div className="vm-validation-error" role="alert" style={{ marginBottom: '16px', padding: '10px 12px', backgroundColor: '#fef2f2', border: '1px solid #fca5a5', borderRadius: '4px', color: '#dc2626', fontSize: '13px' }}>
+              {validationError}
+            </div>
+          )}
           {/* Name and Description Fields */}
           <div className="vm-form-group">
             <label htmlFor="source-name-input">Name *</label>
