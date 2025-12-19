@@ -101,6 +101,9 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
   const [pendingCursorPos, setPendingCursorPos] = useState(null);
   const [pendingEditCursorPos, setPendingEditCursorPos] = useState(null);
   
+  // Validation error modal state
+  const [validationError, setValidationError] = useState(null);
+  
   // PII tagging state
   const [piiColumns, setPiiColumns] = useState(new Set(initialPiiColumns || []));
   
@@ -565,13 +568,13 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
 
   const handleSaveNewColumn = () => {
     if (!newColumn.targetField.trim()) {
-      alert('Please enter a target field name');
+      setValidationError('Please enter a target field name');
       return;
     }
 
     // Check if target field name already exists
     if (mappings.some(m => m.target_field === newColumn.targetField)) {
-      alert('A field with this target name already exists');
+      setValidationError('A field with this target name already exists');
       return;
     }
 
@@ -794,24 +797,24 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
 
   const handleSaveVariable = () => {
     if (!newVariable.name.trim()) {
-      alert('Please enter a variable name');
+      setValidationError('Please enter a variable name');
       return;
     }
 
     if (!newVariable.expression.trim()) {
-      alert('Please enter an expression for the variable');
+      setValidationError('Please enter an expression for the variable');
       return;
     }
 
     // Validate variable name format
     if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(newVariable.name)) {
-      alert('Variable name must start with a letter or underscore and contain only letters, numbers, and underscores');
+      setValidationError('Variable name must start with a letter or underscore and contain only letters, numbers, and underscores');
       return;
     }
 
     // Check if variable name already exists
     if (variables.some(v => v.name === newVariable.name)) {
-      alert('A variable with this name already exists');
+      setValidationError('A variable with this name already exists');
       return;
     }
 
@@ -843,7 +846,7 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
     if (!editingVariable) return;
 
     if (!editingVariable.expression.trim()) {
-      alert('Please enter an expression for the variable');
+      setValidationError('Please enter an expression for the variable');
       return;
     }
 
@@ -1933,6 +1936,33 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
                 onClick={() => setShowDqRulePanel(false)}
               >
                 Save
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {validationError && (
+        <div className="expression-editor-modal">
+          <div className="modal-overlay" onClick={() => setValidationError(null)}></div>
+          <div className="modal-content" style={{ maxWidth: '400px' }}>
+            <div className="modal-header">
+              <h4>Validation Error</h4>
+              <button className="btn-close" onClick={() => setValidationError(null)}>
+                <FiX />
+              </button>
+            </div>
+            <div className="modal-body">
+              <p style={{ margin: 0, fontFamily: 'Inter, sans-serif', fontSize: '10px', lineHeight: '1.5' }}>
+                {validationError}
+              </p>
+            </div>
+            <div className="modal-footer" style={{ justifyContent: 'flex-end' }}>
+              <button 
+                className="btn btn-primary btn-fixed-width" 
+                onClick={() => setValidationError(null)}
+              >
+                OK
               </button>
             </div>
           </div>
