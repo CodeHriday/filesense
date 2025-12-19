@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { FaPlus, FaTrash, FaExclamationTriangle } from 'react-icons/fa';
+import { FaPlus, FaTrash, FaExclamationTriangle, FaMagic, FaEraser } from 'react-icons/fa';
 import './MappingConfigModal.css';
 import PropTypes from 'prop-types';
 
@@ -12,6 +12,7 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
   const [joinKeys, setJoinKeys] = useState([]);
   const [columnMappings, setColumnMappings] = useState([]);
   const [validationError, setValidationError] = useState('');
+  const [mappingFilter, setMappingFilter] = useState('');
   
   const lastConfigSignatureRef = useRef('');
   const userHasEditedRef = useRef(false);
@@ -48,6 +49,7 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
       
       setActiveTab('configuration');
       setValidationError('');
+      setMappingFilter('');
     } else if (isNewConfig && !hasRealConfig && lastConfigSignatureRef.current === '') {
       lastConfigSignatureRef.current = configSignature;
       setName('');
@@ -57,6 +59,7 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
       setColumnMappings([]);
       setActiveTab('configuration');
       setValidationError('');
+      setMappingFilter('');
     }
   }, [isOpen, configSignature, initialConfig]);
 
@@ -134,6 +137,20 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
   }, [joinKeys, leftFieldNames, rightFieldNames]);
 
   const hasInvalidMappings = invalidMappings.length > 0 || invalidJoinKeys.length > 0;
+
+  const filteredMappingIndices = useMemo(() => {
+    if (!mappingFilter.trim()) {
+      return columnMappings.map((_, idx) => idx);
+    }
+    const lowerFilter = mappingFilter.toLowerCase();
+    return columnMappings
+      .map((mapping, idx) => ({ mapping, idx }))
+      .filter(({ mapping }) => 
+        mapping.sourceColumn?.toLowerCase().includes(lowerFilter) ||
+        mapping.outputColumn?.toLowerCase().includes(lowerFilter)
+      )
+      .map(({ idx }) => idx);
+  }, [columnMappings, mappingFilter]);
 
   const isMappingInvalid = (index) => invalidMappings.some(inv => inv.index === index);
   const isJoinKeyInvalid = (index, side) => invalidJoinKeys.some(inv => inv.index === index && inv.side === side);
@@ -267,6 +284,63 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
     const rightMappings = columnMappings.filter(m => m.sourceSide === 'right');
     if (rightMappings.length === 0) return false;
     return rightMappings.every(m => m.include);
+  };
+
+  const clearAllMappings = () => {
+    userHasEditedRef.current = true;
+    setColumnMappings([]);
+  };
+
+  const automapColumns = (preferSide = 'left') => {
+    userHasEditedRef.current = true;
+    const mappings = [];
+    const usedColumns = new Set();
+
+    if (preferSide === 'left') {
+      leftSchema.forEach(col => {
+        mappings.push({
+          outputColumn: col.name,
+          sourceColumn: col.name,
+          sourceSide: 'left',
+          include: true
+        });
+        usedColumns.add(col.name);
+      });
+      rightSchema.forEach(col => {
+        if (!usedColumns.has(col.name)) {
+          mappings.push({
+            outputColumn: col.name,
+            sourceColumn: col.name,
+            sourceSide: 'right',
+            include: true
+          });
+          usedColumns.add(col.name);
+        }
+      });
+    } else {
+      rightSchema.forEach(col => {
+        mappings.push({
+          outputColumn: col.name,
+          sourceColumn: col.name,
+          sourceSide: 'right',
+          include: true
+        });
+        usedColumns.add(col.name);
+      });
+      leftSchema.forEach(col => {
+        if (!usedColumns.has(col.name)) {
+          mappings.push({
+            outputColumn: col.name,
+            sourceColumn: col.name,
+            sourceSide: 'left',
+            include: true
+          });
+          usedColumns.add(col.name);
+        }
+      });
+    }
+
+    setColumnMappings(mappings);
   };
 
   const validateConfig = () => {
@@ -560,7 +634,64 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
 
           {activeTab === 'mapping' && (
             <div>
-              <div style={{ display: 'flex', gap: '16px', marginBottom: '12px', alignItems: 'center' }}>
+              <div style={{ 
+                display: 'flex', 
+                gap: '8px', 
+                marginBottom: '12px', 
+                padding: '8px 12px',
+                backgroundColor: '#f8f9fa',
+                borderRadius: '4px',
+                alignItems: 'center',
+                flexWrap: 'wrap'
+              }}>
+                <span style={{ fontSize: '10px', fontFamily: 'Inter, sans-serif', fontWeight: 600, color: '#333', marginRight: '8px' }}>
+                  Bulk Actions:
+                </span>
+                <button
+                  className="vm-btn vm-btn-secondary"
+                  onClick={clearAllMappings}
+                  style={{ 
+                    padding: '4px 10px', 
+                    fontSize: '9px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px'
+                  }}
+                  title="Remove all column mappings"
+                >
+                  <FaEraser /> Clear All
+                </button>
+                <button
+                  className="vm-btn vm-btn-secondary"
+                  onClick={() => automapColumns('left')}
+                  style={{ 
+                    padding: '4px 10px', 
+                    fontSize: '9px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px'
+                  }}
+                  title="Auto-map all columns, preferring left source for duplicates"
+                >
+                  <FaMagic /> Automap (Left Priority)
+                </button>
+                <button
+                  className="vm-btn vm-btn-secondary"
+                  onClick={() => automapColumns('right')}
+                  style={{ 
+                    padding: '4px 10px', 
+                    fontSize: '9px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px'
+                  }}
+                  title="Auto-map all columns, preferring right source for duplicates"
+                >
+                  <FaMagic /> Automap (Right Priority)
+                </button>
+              </div>
+
+              <div style={{ display: 'flex', gap: '16px', marginBottom: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <span style={{ fontSize: '10px', fontFamily: 'Inter, sans-serif', fontWeight: 500, color: '#333' }}>
                     Include All {leftNodeName || 'Left'}
@@ -641,8 +772,28 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
                     }} />
                   </label>
                 </div>
+                <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <input
+                    type="text"
+                    placeholder="Filter columns..."
+                    value={mappingFilter}
+                    onChange={(e) => setMappingFilter(e.target.value)}
+                    className="vm-input"
+                    style={{ 
+                      width: '200px', 
+                      padding: '4px 8px', 
+                      fontSize: '10px',
+                      fontFamily: 'Inter, sans-serif'
+                    }}
+                  />
+                  {mappingFilter && (
+                    <span style={{ fontSize: '9px', fontFamily: 'Inter, sans-serif', color: '#666' }}>
+                      Showing {filteredMappingIndices.length} of {columnMappings.length}
+                    </span>
+                  )}
+                </div>
               </div>
-              <div style={{ overflowX: 'auto' }}>
+              <div style={{ overflowX: 'auto', maxHeight: '400px', overflowY: 'auto' }}>
                 <table className="vm-schema-table" style={{ marginBottom: '16px' }}>
                   <thead>
                     <tr>
@@ -654,7 +805,8 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
                     </tr>
                   </thead>
                   <tbody>
-                    {columnMappings.map((mapping, index) => {
+                    {filteredMappingIndices.map((index) => {
+                      const mapping = columnMappings[index];
                       const isInvalid = isMappingInvalid(index);
                       return (
                       <tr key={index} style={isInvalid ? { backgroundColor: '#fff3cd' } : {}}>
