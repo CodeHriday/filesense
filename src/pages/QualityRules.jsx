@@ -56,7 +56,8 @@ function QualityRules() {
 
   useEffect(() => {
     if (filterProjectId) {
-      const subProjectsForFilter = projects.filter(p => String(p.parent_id) === String(filterProjectId));
+      const selectedProject = projects.find(p => String(p.id) === String(filterProjectId));
+      const subProjectsForFilter = selectedProject?.sub_projects || [];
       setFilterSubProjects(subProjectsForFilter);
     } else {
       setFilterSubProjects([]);
