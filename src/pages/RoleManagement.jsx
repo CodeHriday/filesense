@@ -295,6 +295,30 @@ const RoleManagement = () => {
     });
   };
 
+  // Handle Select All for tag permissions
+  const handleSelectAllTagPermissions = (checked) => {
+    setFormData(prev => {
+      const updatedTagPermissions = { ...prev.tagPermissions };
+      governanceTags.forEach(tag => {
+        const tagKey = tag.tag_name.toLowerCase();
+        updatedTagPermissions[tagKey] = {
+          read: checked,
+          edit: checked
+        };
+      });
+      return { ...prev, tagPermissions: updatedTagPermissions };
+    });
+  };
+
+  // Check if all tag permissions are selected
+  const isAllTagPermissionsSelected = () => {
+    return governanceTags.length > 0 && governanceTags.every(tag => {
+      const tagKey = tag.tag_name.toLowerCase();
+      const perms = formData.tagPermissions?.[tagKey];
+      return perms?.read && perms?.edit;
+    });
+  };
+
   // Handle Select All for all features globally
   const handleSelectAllGlobal = (checked) => {
     setFormData(prev => {
@@ -948,16 +972,29 @@ const RoleManagement = () => {
           {/* Tag Permissions Section */}
           {governanceTags.length > 0 && (
             <div className="form-section">
-              <h3 className="section-title">DATA GOVERNANCE TAG PERMISSIONS</h3>
-              <small style={{ display: 'block', marginBottom: '16px', color: '#666', fontSize: '10px' }}>
+              <h3 className="section-title" style={{ fontSize: '11px' }}>Data Governance Tag Permissions</h3>
+              <small style={{ display: 'block', marginBottom: '12px', color: '#666', fontSize: '10px' }}>
                 Control access to columns tagged with sensitive data classifications.
               </small>
               
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px', padding: '8px 12px', backgroundColor: '#f8fafc', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
+                <input
+                  type="checkbox"
+                  id="select-all-tags"
+                  checked={isAllTagPermissionsSelected()}
+                  onChange={(e) => handleSelectAllTagPermissions(e.target.checked)}
+                  style={{ cursor: 'pointer' }}
+                />
+                <label htmlFor="select-all-tags" style={{ fontSize: '10px', fontWeight: '600', color: '#374151', cursor: 'pointer', margin: 0 }}>
+                  Select All Tag Permissions
+                </label>
+              </div>
+              
               <div className="permission-category">
                 <div className="permissions-grid">
-                  <div className="permission-header feature-name">Tag</div>
-                  <div className="permission-header">View</div>
-                  <div className="permission-header">Edit</div>
+                  <div className="permission-header feature-name" style={{ fontSize: '10px' }}>Tag</div>
+                  <div className="permission-header" style={{ fontSize: '10px' }}>View</div>
+                  <div className="permission-header" style={{ fontSize: '10px' }}>Edit</div>
                   
                   <div className="section-divider"></div>
                   
@@ -965,15 +1002,15 @@ const RoleManagement = () => {
                     const tagKey = tag.tag_name.toLowerCase();
                     return (
                       <React.Fragment key={tag.tag_id}>
-                        <div className="feature-name">
+                        <div className="feature-name" style={{ fontSize: '10px' }}>
                           <span 
                             className="tag-badge-inline" 
-                            style={{ backgroundColor: tag.color || '#3B82F6' }}
+                            style={{ backgroundColor: tag.color || '#3B82F6', fontSize: '8px', padding: '2px 6px' }}
                           >
                             {tag.tag_name}
                           </span>
                           {tag.sensitivity_level && (
-                            <span className="tag-sensitivity-hint">
+                            <span className="tag-sensitivity-hint" style={{ fontSize: '9px' }}>
                               ({tag.sensitivity_level})
                             </span>
                           )}
