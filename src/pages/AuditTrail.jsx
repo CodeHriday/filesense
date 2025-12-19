@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { FiSearch, FiFilter, FiDownload, FiEye, FiClock, FiUser, FiDatabase, FiArchive, FiTrash2, FiSettings, FiChevronLeft, FiChevronRight, FiX } from 'react-icons/fi';
+import React, { useState, useEffect, useMemo } from 'react';
+import { FiSearch, FiFilter, FiDownload, FiEye, FiClock, FiUser, FiDatabase, FiArchive, FiTrash2, FiSettings, FiChevronLeft, FiChevronRight, FiX, FiCheckCircle, FiXCircle, FiActivity, FiAlertTriangle, FiGlobe, FiHash } from 'react-icons/fi';
 import axios from 'axios';
 import PageLayout from '../components/PageLayout';
 import '../styles/global-page-styles.css';
@@ -28,8 +28,46 @@ const AuditTrail = () => {
     actionType: '',
     startDate: '',
     endDate: '',
-    limit: 50
+    statusFilter: 'all',
+    datePreset: '',
+    limit: 100
   });
+
+  const datePresets = [
+    { label: 'Last Hour', value: 'last_hour' },
+    { label: 'Last 24 Hours', value: 'last_24h' },
+    { label: 'Last 7 Days', value: 'last_7d' },
+    { label: 'Last 30 Days', value: 'last_30d' },
+    { label: 'Custom', value: 'custom' }
+  ];
+
+  const applyDatePreset = (preset) => {
+    const now = new Date();
+    let startDate = '';
+    
+    switch (preset) {
+      case 'last_hour':
+        startDate = new Date(now.getTime() - 60 * 60 * 1000).toISOString().slice(0, 16);
+        break;
+      case 'last_24h':
+        startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString().slice(0, 16);
+        break;
+      case 'last_7d':
+        startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 16);
+        break;
+      case 'last_30d':
+        startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 16);
+        break;
+      default:
+        break;
+    }
+    
+    if (preset !== 'custom') {
+      setFilters(prev => ({ ...prev, startDate, endDate: '', datePreset: preset }));
+    } else {
+      setFilters(prev => ({ ...prev, datePreset: preset }));
+    }
+  };
 
   const actionTypes = [
     'CREATE', 'UPDATE', 'DELETE', 'READ', 'UPLOAD', 'DOWNLOAD', 'EXECUTE', 'VIEW'
@@ -198,15 +236,45 @@ const AuditTrail = () => {
       actionType: '',
       startDate: '',
       endDate: '',
-      limit: 50
+      statusFilter: 'all',
+      datePreset: '',
+      limit: 100
     });
     setCurrentPage(1);
   };
 
-  const totalPages = Math.ceil(auditLogs.length / pageSize);
-  const startIndex = (currentPage - 1) * pageSize;
+  const filteredLogs = useMemo(() => {
+    if (filters.statusFilter === 'all') return auditLogs;
+    return auditLogs.filter(log => {
+      if (filters.statusFilter === 'success') return log.status === 'SUCCESS';
+      if (filters.statusFilter === 'failure') return log.status === 'FAILURE' || log.status === 'ERROR';
+      return true;
+    });
+  }, [auditLogs, filters.statusFilter]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filters.statusFilter]);
+
+  const summaryStats = useMemo(() => {
+    const total = auditLogs.length;
+    const successCount = auditLogs.filter(log => log.status === 'SUCCESS').length;
+    const failureCount = auditLogs.filter(log => log.status === 'FAILURE' || log.status === 'ERROR').length;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayEvents = auditLogs.filter(log => new Date(log.timestamp) >= today).length;
+    const actionBreakdown = auditLogs.reduce((acc, log) => {
+      acc[log.action_type] = (acc[log.action_type] || 0) + 1;
+      return acc;
+    }, {});
+    return { total, successCount, failureCount, todayEvents, actionBreakdown };
+  }, [auditLogs]);
+
+  const totalPages = Math.ceil(filteredLogs.length / pageSize) || 1;
+  const clampedPage = Math.min(currentPage, totalPages);
+  const startIndex = (clampedPage - 1) * pageSize;
   const endIndex = startIndex + pageSize;
-  const paginatedLogs = auditLogs.slice(startIndex, endIndex);
+  const paginatedLogs = filteredLogs.slice(startIndex, endIndex);
 
   const handlePageChange = (newPage) => {
     setCurrentPage(newPage);
@@ -250,8 +318,50 @@ const AuditTrail = () => {
       case 'DELETE': return 'gps-badge--danger';
       case 'READ':
       case 'VIEW': return 'gps-badge--muted';
+      case 'UPLOAD': return 'gps-badge--success';
+      case 'DOWNLOAD': return 'gps-badge--info';
+      case 'EXECUTE': return 'gps-badge--warning';
       default: return 'gps-badge--info';
     }
+  };
+
+  const getStatusBadge = (status) => {
+    if (status === 'SUCCESS') {
+      return (
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '2px 8px', borderRadius: '12px', fontSize: '10px', fontWeight: 500, backgroundColor: '#dcfce7', color: '#166534' }}>
+          <FiCheckCircle size={10} />
+          Success
+        </span>
+      );
+    } else if (status === 'FAILURE' || status === 'ERROR') {
+      return (
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '2px 8px', borderRadius: '12px', fontSize: '10px', fontWeight: 500, backgroundColor: '#fee2e2', color: '#991b1b' }}>
+          <FiXCircle size={10} />
+          Failed
+        </span>
+      );
+    }
+    return (
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '2px 8px', borderRadius: '12px', fontSize: '10px', fontWeight: 500, backgroundColor: '#f3f4f6', color: '#6b7280' }}>
+        {status || 'N/A'}
+      </span>
+    );
+  };
+
+  const generateDescription = (log) => {
+    const action = log.action_type?.toLowerCase() || 'performed action on';
+    const entity = formatEntityType(log.entity_type);
+    const name = log.entity_name || log.entity_id || '';
+    
+    if (log.operation) {
+      return log.operation;
+    }
+    
+    let desc = `${action.charAt(0).toUpperCase() + action.slice(1)}d ${entity}`;
+    if (name) {
+      desc += `: ${name.length > 30 ? name.substring(0, 30) + '...' : name}`;
+    }
+    return desc;
   };
 
   const renderDiff = (changes) => {
@@ -443,15 +553,90 @@ const AuditTrail = () => {
         </>
       )}
 
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginBottom: '24px' }}>
+        <div style={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px', padding: '16px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={{ width: '40px', height: '40px', borderRadius: '8px', backgroundColor: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <FiActivity size={20} style={{ color: '#3b82f6' }} />
+          </div>
+          <div>
+            <div style={{ fontSize: '10px', color: '#6b7280', fontWeight: 500 }}>Total Events</div>
+            <div style={{ fontSize: '20px', fontWeight: 600, color: '#111827' }}>{summaryStats.total.toLocaleString()}</div>
+          </div>
+        </div>
+        <div style={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px', padding: '16px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={{ width: '40px', height: '40px', borderRadius: '8px', backgroundColor: '#dcfce7', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <FiCheckCircle size={20} style={{ color: '#16a34a' }} />
+          </div>
+          <div>
+            <div style={{ fontSize: '10px', color: '#6b7280', fontWeight: 500 }}>Successful</div>
+            <div style={{ fontSize: '20px', fontWeight: 600, color: '#16a34a' }}>{summaryStats.successCount.toLocaleString()}</div>
+          </div>
+        </div>
+        <div style={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px', padding: '16px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={{ width: '40px', height: '40px', borderRadius: '8px', backgroundColor: '#fee2e2', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <FiAlertTriangle size={20} style={{ color: '#dc2626' }} />
+          </div>
+          <div>
+            <div style={{ fontSize: '10px', color: '#6b7280', fontWeight: 500 }}>Failed</div>
+            <div style={{ fontSize: '20px', fontWeight: 600, color: '#dc2626' }}>{summaryStats.failureCount.toLocaleString()}</div>
+          </div>
+        </div>
+        <div style={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px', padding: '16px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={{ width: '40px', height: '40px', borderRadius: '8px', backgroundColor: '#fef3c7', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <FiClock size={20} style={{ color: '#d97706' }} />
+          </div>
+          <div>
+            <div style={{ fontSize: '10px', color: '#6b7280', fontWeight: 500 }}>Today</div>
+            <div style={{ fontSize: '20px', fontWeight: 600, color: '#d97706' }}>{summaryStats.todayEvents.toLocaleString()}</div>
+          </div>
+        </div>
+      </div>
+
       <div className="gps-card" style={{ marginBottom: '24px' }}>
-        <div className="gps-card-header" style={{ borderBottom: '1px solid #e5e7eb', paddingBottom: '12px', marginBottom: '16px' }}>
+        <div className="gps-card-header" style={{ borderBottom: '1px solid #e5e7eb', paddingBottom: '12px', marginBottom: '16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <h3 className="gps-card-title" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', fontWeight: 600, color: '#374151', margin: 0 }}>
             <FiFilter style={{ color: '#6b7280' }} />
             Filters
           </h3>
+          <div style={{ display: 'flex', gap: '4px' }}>
+            {['all', 'success', 'failure'].map(status => (
+              <button
+                key={status}
+                onClick={() => handleFilterChange('statusFilter', status)}
+                style={{
+                  padding: '4px 12px',
+                  fontSize: '10px',
+                  fontWeight: 500,
+                  border: '1px solid',
+                  borderRadius: '16px',
+                  cursor: 'pointer',
+                  backgroundColor: filters.statusFilter === status ? (status === 'success' ? '#dcfce7' : status === 'failure' ? '#fee2e2' : '#e0e7ff') : '#fff',
+                  borderColor: filters.statusFilter === status ? (status === 'success' ? '#16a34a' : status === 'failure' ? '#dc2626' : '#4f46e5') : '#d1d5db',
+                  color: filters.statusFilter === status ? (status === 'success' ? '#166534' : status === 'failure' ? '#991b1b' : '#4338ca') : '#6b7280'
+                }}
+              >
+                {status === 'all' ? 'All' : status === 'success' ? 'Success' : 'Failed'}
+              </button>
+            ))}
+          </div>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '16px', marginBottom: '16px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '16px', marginBottom: '16px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <label htmlFor="filter-date-preset" style={{ display: 'block', fontSize: '11px', fontWeight: 500, color: '#374151', marginBottom: '6px' }}>Date Range</label>
+            <select
+              id="filter-date-preset"
+              value={filters.datePreset}
+              onChange={(e) => applyDatePreset(e.target.value)}
+              style={{ width: '100%', padding: '8px 12px', fontSize: '11px', border: '1px solid #d1d5db', borderRadius: '6px', backgroundColor: '#fff', color: '#374151', cursor: 'pointer' }}
+            >
+              <option value="">Select Range</option>
+              {datePresets.map(preset => (
+                <option key={preset.value} value={preset.value}>{preset.label}</option>
+              ))}
+            </select>
+          </div>
+
           <div style={{ display: 'flex', flexDirection: 'column' }}>
             <label htmlFor="filter-user-id" style={{ display: 'block', fontSize: '11px', fontWeight: 500, color: '#374151', marginBottom: '6px' }}>User ID</label>
             <input
@@ -500,7 +685,7 @@ const AuditTrail = () => {
               id="filter-start-date"
               type="datetime-local"
               value={filters.startDate}
-              onChange={(e) => handleFilterChange('startDate', e.target.value)}
+              onChange={(e) => { handleFilterChange('startDate', e.target.value); handleFilterChange('datePreset', 'custom'); }}
               style={{ width: '100%', padding: '8px 12px', fontSize: '11px', border: '1px solid #d1d5db', borderRadius: '6px', backgroundColor: '#fff', color: '#374151' }}
             />
           </div>
@@ -543,33 +728,45 @@ const AuditTrail = () => {
             <table className="gps-table">
               <thead>
                 <tr>
-                  <th>Timestamp</th>
-                  <th>User</th>
-                  <th>Entity</th>
-                  <th>Actions</th>
+                  <th style={{ width: '80px' }}>Event ID</th>
+                  <th style={{ width: '160px' }}>Timestamp</th>
+                  <th style={{ width: '140px' }}>User</th>
+                  <th style={{ width: '80px' }}>Action</th>
+                  <th style={{ width: '100px' }}>Entity</th>
+                  <th style={{ width: '80px' }}>Status</th>
+                  <th>Description</th>
+                  <th style={{ width: '60px' }}>Details</th>
                 </tr>
               </thead>
               <tbody>
-                {auditLogs.length === 0 ? (
+                {filteredLogs.length === 0 ? (
                   <tr>
-                    <td colSpan="4" className="gps-table-empty">
+                    <td colSpan="8" className="gps-table-empty">
                       No audit logs found
                     </td>
                   </tr>
                 ) : (
                   paginatedLogs.map((log) => (
-                    <tr key={log.audit_id}>
+                    <tr key={log.audit_id} style={{ backgroundColor: log.status === 'FAILURE' || log.status === 'ERROR' ? '#fef2f2' : 'transparent' }}>
+                      <td>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <FiHash style={{ color: '#9aa0a6', flexShrink: 0, width: '10px', height: '10px' }} />
+                          <span style={{ fontFamily: 'monospace', fontSize: '9px', color: '#6b7280' }}>
+                            {log.audit_id?.toString().slice(-6) || 'N/A'}
+                          </span>
+                        </div>
+                      </td>
                       <td>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                           <FiClock style={{ color: '#9aa0a6', flexShrink: 0, width: '12px', height: '12px' }} />
-                          <span>{formatTimestamp(log.timestamp)}</span>
+                          <span style={{ fontSize: '10px' }}>{formatTimestamp(log.timestamp)}</span>
                         </div>
                       </td>
                       <td>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                           <FiUser style={{ color: '#9aa0a6', flexShrink: 0, width: '12px', height: '12px' }} />
                           <div>
-                            <div style={{ fontWeight: 500 }}>
+                            <div style={{ fontWeight: 500, fontSize: '10px' }}>
                               {log.user_email || log.user_id || 'System'}
                             </div>
                             {log.user_role && (
@@ -579,16 +776,34 @@ const AuditTrail = () => {
                         </div>
                       </td>
                       <td>
+                        <span className={`gps-badge ${getActionBadgeClass(log.action_type)}`} style={{ fontSize: '9px' }}>
+                          {log.action_type || 'N/A'}
+                        </span>
+                      </td>
+                      <td>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                          <span className={`gps-badge ${getActionBadgeClass(log.action_type)}`}>
+                          <span style={{ fontSize: '10px', fontWeight: 500, color: '#374151' }}>
                             {formatEntityType(log.entity_type)}
                           </span>
                           {log.entity_id && (
                             <span style={{ fontSize: '8px', color: '#5f6368', fontFamily: 'monospace' }}>
-                              {log.entity_id}
+                              {String(log.entity_id).length > 12 ? String(log.entity_id).slice(0, 12) + '...' : log.entity_id}
                             </span>
                           )}
                         </div>
+                      </td>
+                      <td>
+                        {getStatusBadge(log.status)}
+                      </td>
+                      <td>
+                        <span style={{ fontSize: '10px', color: '#374151' }} title={generateDescription(log)}>
+                          {generateDescription(log).length > 40 ? generateDescription(log).substring(0, 40) + '...' : generateDescription(log)}
+                        </span>
+                        {log.error_message && (
+                          <div style={{ fontSize: '9px', color: '#dc2626', marginTop: '2px' }}>
+                            {log.error_message.length > 50 ? log.error_message.substring(0, 50) + '...' : log.error_message}
+                          </div>
+                        )}
                       </td>
                       <td>
                         <button
@@ -606,12 +821,17 @@ const AuditTrail = () => {
             </table>
           </div>
 
-          {auditLogs.length > 0 && (
+          {filteredLogs.length > 0 && (
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '16px', padding: '12px 16px', backgroundColor: '#f9fafb', borderRadius: '8px' }}>
               <div style={{ fontSize: '10px', color: '#666' }}>
                 Showing <span style={{ fontWeight: 600 }}>{startIndex + 1}</span> to{' '}
-                <span style={{ fontWeight: 600 }}>{Math.min(endIndex, auditLogs.length)}</span> of{' '}
-                <span style={{ fontWeight: 600 }}>{auditLogs.length}</span> results
+                <span style={{ fontWeight: 600 }}>{Math.min(endIndex, filteredLogs.length)}</span> of{' '}
+                <span style={{ fontWeight: 600 }}>{filteredLogs.length}</span> results
+                {filters.statusFilter !== 'all' && (
+                  <span style={{ marginLeft: '8px', color: '#6b7280' }}>
+                    (filtered from {auditLogs.length} total)
+                  </span>
+                )}
               </div>
               
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -634,19 +854,19 @@ const AuditTrail = () => {
                 <div style={{ display: 'flex', gap: '4px' }}>
                   <button
                     className="gps-btn gps-btn--secondary"
-                    onClick={() => handlePageChange(currentPage - 1)}
-                    disabled={currentPage === 1}
+                    onClick={() => handlePageChange(clampedPage - 1)}
+                    disabled={clampedPage === 1}
                     style={{ padding: '4px 8px' }}
                   >
                     <FiChevronLeft />
                   </button>
                   <span style={{ padding: '4px 12px', fontSize: '10px' }}>
-                    Page {currentPage} of {totalPages || 1}
+                    Page {clampedPage} of {totalPages}
                   </span>
                   <button
                     className="gps-btn gps-btn--secondary"
-                    onClick={() => handlePageChange(currentPage + 1)}
-                    disabled={currentPage >= totalPages}
+                    onClick={() => handlePageChange(clampedPage + 1)}
+                    disabled={clampedPage >= totalPages}
                     style={{ padding: '4px 8px' }}
                   >
                     <FiChevronRight />
@@ -660,49 +880,117 @@ const AuditTrail = () => {
 
       {selectedLog && (
         <div className="gps-modal-overlay" onClick={() => setSelectedLog(null)}>
-          <div className="gps-modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '600px' }}>
-            <div className="gps-modal-header">
-              <h2 className="gps-modal-title">Audit Log Details</h2>
+          <div className="gps-modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '700px' }}>
+            <div className="gps-modal-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <h2 className="gps-modal-title">Audit Log Details</h2>
+                {getStatusBadge(selectedLog.status)}
+              </div>
               <button className="gps-modal-close" onClick={() => setSelectedLog(null)}>
                 <FiX />
               </button>
             </div>
-            <div className="gps-modal-body">
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+            <div className="gps-modal-body" style={{ maxHeight: '70vh', overflow: 'auto' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '20px' }}>
                 <div>
-                  <label htmlFor="selected-timestamp" className="gps-label">Timestamp</label>
-                  <p id="selected-timestamp" style={{ margin: 0, fontSize: '10px' }}>{formatTimestamp(selectedLog.timestamp)}</p>
+                  <label className="gps-label" style={{ fontSize: '10px', color: '#6b7280', marginBottom: '4px', display: 'block' }}>Event ID</label>
+                  <code style={{ fontSize: '11px', backgroundColor: '#f3f4f6', padding: '4px 8px', borderRadius: '4px', fontFamily: 'monospace' }}>
+                    {selectedLog.audit_id}
+                  </code>
                 </div>
                 <div>
-                  <label htmlFor="selected-user" className="gps-label">User</label>
-                  <p id="selected-user" style={{ margin: 0, fontSize: '10px' }}>{selectedLog.user_email || selectedLog.user_id || 'System'}</p>
+                  <label className="gps-label" style={{ fontSize: '10px', color: '#6b7280', marginBottom: '4px', display: 'block' }}>Timestamp</label>
+                  <p style={{ margin: 0, fontSize: '11px', fontWeight: 500 }}>{formatTimestamp(selectedLog.timestamp)}</p>
                 </div>
                 <div>
-                  <label htmlFor="selected-entity-type" className="gps-label">Entity Type</label>
-                  <p id="selected-entity-type" style={{ margin: 0, fontSize: '10px' }}>{formatEntityType(selectedLog.entity_type)}</p>
+                  <label className="gps-label" style={{ fontSize: '10px', color: '#6b7280', marginBottom: '4px', display: 'block' }}>User</label>
+                  <p style={{ margin: 0, fontSize: '11px', fontWeight: 500 }}>{selectedLog.user_email || selectedLog.user_id || 'System'}</p>
+                  {selectedLog.user_role && (
+                    <p style={{ margin: 0, fontSize: '9px', color: '#6b7280' }}>Role: {selectedLog.user_role}</p>
+                  )}
                 </div>
                 <div>
-                  <label htmlFor="selected-action-type" className="gps-label">Action Type</label>
-                  <span id="selected-action-type" className={`gps-badge ${getActionBadgeClass(selectedLog.action_type)}`}>
+                  <label className="gps-label" style={{ fontSize: '10px', color: '#6b7280', marginBottom: '4px', display: 'block' }}>Action</label>
+                  <span className={`gps-badge ${getActionBadgeClass(selectedLog.action_type)}`}>
                     {selectedLog.action_type}
                   </span>
                 </div>
-              </div>
-              
-              {selectedLog.entity_id && (
-                <div style={{ marginBottom: '16px' }}>
-                  <label htmlFor="selected-entity-id" className="gps-label">Entity Id</label>
-                  <code id="selected-entity-id" style={{ fontSize: '10px', backgroundColor: '#f3f4f6', padding: '4px 8px', borderRadius: '4px' }}>
-                    {selectedLog.entity_id}
+                <div>
+                  <label className="gps-label" style={{ fontSize: '10px', color: '#6b7280', marginBottom: '4px', display: 'block' }}>Entity Type</label>
+                  <p style={{ margin: 0, fontSize: '11px', fontWeight: 500 }}>{formatEntityType(selectedLog.entity_type)}</p>
+                </div>
+                <div>
+                  <label className="gps-label" style={{ fontSize: '10px', color: '#6b7280', marginBottom: '4px', display: 'block' }}>Entity ID</label>
+                  <code style={{ fontSize: '10px', backgroundColor: '#f3f4f6', padding: '4px 8px', borderRadius: '4px', fontFamily: 'monospace', wordBreak: 'break-all' }}>
+                    {selectedLog.entity_id || 'N/A'}
                   </code>
+                </div>
+              </div>
+
+              {selectedLog.entity_name && (
+                <div style={{ marginBottom: '16px', padding: '12px', backgroundColor: '#f0f9ff', borderRadius: '8px', border: '1px solid #bae6fd' }}>
+                  <label className="gps-label" style={{ fontSize: '10px', color: '#0369a1', marginBottom: '4px', display: 'block' }}>Entity Name</label>
+                  <p style={{ margin: 0, fontSize: '11px', fontWeight: 500, color: '#0c4a6e' }}>{selectedLog.entity_name}</p>
                 </div>
               )}
 
+              {selectedLog.operation && (
+                <div style={{ marginBottom: '16px', padding: '12px', backgroundColor: '#faf5ff', borderRadius: '8px', border: '1px solid #e9d5ff' }}>
+                  <label className="gps-label" style={{ fontSize: '10px', color: '#7c3aed', marginBottom: '4px', display: 'block' }}>Operation</label>
+                  <p style={{ margin: 0, fontSize: '11px', fontWeight: 500, color: '#581c87' }}>{selectedLog.operation}</p>
+                </div>
+              )}
+
+              {selectedLog.error_message && (
+                <div style={{ marginBottom: '16px', padding: '12px', backgroundColor: '#fef2f2', borderRadius: '8px', border: '1px solid #fecaca' }}>
+                  <label className="gps-label" style={{ fontSize: '10px', color: '#dc2626', marginBottom: '4px', display: 'block' }}>Error Message</label>
+                  <p style={{ margin: 0, fontSize: '11px', color: '#991b1b' }}>{selectedLog.error_message}</p>
+                </div>
+              )}
+
+              <div style={{ borderTop: '1px solid #e5e7eb', paddingTop: '16px', marginBottom: '16px' }}>
+                <h4 style={{ fontSize: '11px', fontWeight: 600, color: '#374151', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <FiGlobe size={12} />
+                  Request Metadata
+                </h4>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
+                  <div>
+                    <label className="gps-label" style={{ fontSize: '9px', color: '#6b7280', marginBottom: '2px', display: 'block' }}>IP Address</label>
+                    <code style={{ fontSize: '10px', backgroundColor: '#f3f4f6', padding: '2px 6px', borderRadius: '4px' }}>
+                      {selectedLog.ip_address || 'N/A'}
+                    </code>
+                  </div>
+                  <div>
+                    <label className="gps-label" style={{ fontSize: '9px', color: '#6b7280', marginBottom: '2px', display: 'block' }}>API Endpoint</label>
+                    <code style={{ fontSize: '10px', backgroundColor: '#f3f4f6', padding: '2px 6px', borderRadius: '4px' }}>
+                      {selectedLog.api_endpoint || 'N/A'}
+                    </code>
+                  </div>
+                  <div>
+                    <label className="gps-label" style={{ fontSize: '9px', color: '#6b7280', marginBottom: '2px', display: 'block' }}>HTTP Method</label>
+                    <code style={{ fontSize: '10px', backgroundColor: '#f3f4f6', padding: '2px 6px', borderRadius: '4px' }}>
+                      {selectedLog.http_method || 'N/A'}
+                    </code>
+                  </div>
+                </div>
+              </div>
+
               {selectedLog.changes && (
-                <div>
-                  <label htmlFor="selected-changes" className="gps-label">Changes</label>
-                  <div id="selected-changes" style={{ backgroundColor: '#f9fafb', padding: '12px', borderRadius: '8px', maxHeight: '300px', overflow: 'auto' }}>
+                <div style={{ borderTop: '1px solid #e5e7eb', paddingTop: '16px' }}>
+                  <h4 style={{ fontSize: '11px', fontWeight: 600, color: '#374151', marginBottom: '12px' }}>Changes (Before/After)</h4>
+                  <div style={{ backgroundColor: '#f9fafb', padding: '12px', borderRadius: '8px', maxHeight: '250px', overflow: 'auto', border: '1px solid #e5e7eb' }}>
                     {renderDiff(selectedLog.changes)}
+                  </div>
+                </div>
+              )}
+
+              {selectedLog.metadata && (
+                <div style={{ borderTop: '1px solid #e5e7eb', paddingTop: '16px', marginTop: '16px' }}>
+                  <h4 style={{ fontSize: '11px', fontWeight: 600, color: '#374151', marginBottom: '12px' }}>Additional Metadata</h4>
+                  <div style={{ backgroundColor: '#f9fafb', padding: '12px', borderRadius: '8px', maxHeight: '150px', overflow: 'auto', border: '1px solid #e5e7eb' }}>
+                    <pre style={{ margin: 0, fontSize: '9px', whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
+                      {typeof selectedLog.metadata === 'string' ? selectedLog.metadata : JSON.stringify(selectedLog.metadata, null, 2)}
+                    </pre>
                   </div>
                 </div>
               )}
