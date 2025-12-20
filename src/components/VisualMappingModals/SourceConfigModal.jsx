@@ -937,9 +937,9 @@ const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
                     <table className="vm-preview-table" style={{ width: '100%', fontSize: '10px', borderCollapse: 'collapse' }}>
                       <thead style={{ position: 'sticky', top: 0, backgroundColor: '#f9fafb' }}>
                         <tr>
-                          <th style={{ padding: '5px 8px', textAlign: 'left', borderBottom: '2px solid #e5e7eb', fontWeight: '600', whiteSpace: 'nowrap' }}>#</th>
+                          <th style={{ padding: '5px 8px', textAlign: 'left', borderBottom: '2px solid #e5e7eb', fontWeight: '600', whiteSpace: 'nowrap', fontSize: '10px' }}>#</th>
                           {previewData.columns?.map((col, idx) => (
-                            <th key={idx} style={{ padding: '5px 8px', textAlign: 'left', borderBottom: '2px solid #e5e7eb', fontWeight: '600', whiteSpace: 'nowrap' }}>
+                            <th key={idx} style={{ padding: '5px 8px', textAlign: 'left', borderBottom: '2px solid #e5e7eb', fontWeight: '600', whiteSpace: 'nowrap', fontSize: '10px' }}>
                               {col}
                             </th>
                           ))}

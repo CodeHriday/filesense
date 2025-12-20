@@ -31,6 +31,39 @@ const ARCHIVE_EXTENSIONS = ['zip', '7z', 'tar', 'gz', 'tgz', 'bz2', 'tar.gz', 't
 const FIXED_WIDTH_EXTENSIONS = ['dat', 'fixed_width', 'txt'];
 
 /**
+ * Deep clone an object with BigInt support
+ * Converts BigInt values to strings to avoid JSON serialization errors
+ * @param {any} obj - Object to clone
+ * @returns {any} - Cloned object with BigInt values converted to strings
+ */
+function deepCloneWithBigInt(obj) {
+  if (obj === null || obj === undefined) {
+    return obj;
+  }
+  if (typeof obj === 'bigint') {
+    // Convert BigInt to string to preserve precision
+    return obj.toString();
+  }
+  if (typeof obj !== 'object') {
+    return obj;
+  }
+  if (Array.isArray(obj)) {
+    return obj.map(item => deepCloneWithBigInt(item));
+  }
+  if (obj instanceof Date) {
+    return new Date(obj.getTime());
+  }
+  if (obj instanceof Buffer) {
+    return Buffer.from(obj);
+  }
+  const cloned = {};
+  for (const key of Object.keys(obj)) {
+    cloned[key] = deepCloneWithBigInt(obj[key]);
+  }
+  return cloned;
+}
+
+/**
  * Parse a file buffer into an array of row objects (for join lookups)
  * Supports all 15 file types: CSV, JSON, XLSX, XLS, Parquet, XML, AVRO, DAT,
  * SAS formats, and archives (ZIP, 7z, TAR, GZ, TGZ, BZ2)
@@ -329,8 +362,8 @@ function applyJoinEnrichment(transformedRows, joinLookupTables, joinSpecs, logge
     return transformedRows;
   }
   
-  // Deep clone the input rows to prevent mutation of original data
-  let currentRows = transformedRows.map(row => JSON.parse(JSON.stringify(row)));
+  // Deep clone the input rows to prevent mutation of original data (BigInt-safe)
+  let currentRows = transformedRows.map(row => deepCloneWithBigInt(row));
   let matchedCount = 0;
   let unmatchedCount = 0;
   
@@ -393,9 +426,9 @@ function applyJoinEnrichment(transformedRows, joinLookupTables, joinSpecs, logge
         
         // For each matching secondary row, create an enriched output row
         for (const matchedSecondaryRow of matchedSecondaryRows) {
-          // Deep clone both rows to prevent reference issues
-          const enrichedRow = JSON.parse(JSON.stringify(row));
-          const secondaryRowClone = JSON.parse(JSON.stringify(matchedSecondaryRow));
+          // Deep clone both rows to prevent reference issues (BigInt-safe)
+          const enrichedRow = deepCloneWithBigInt(row);
+          const secondaryRowClone = deepCloneWithBigInt(matchedSecondaryRow);
           
           // Apply column mappings from the join node configuration
           if (joinSpec.columnMappings && joinSpec.columnMappings.length > 0) {
@@ -428,7 +461,7 @@ function applyJoinEnrichment(transformedRows, joinLookupTables, joinSpecs, logge
         
         // For LEFT/LEFT OUTER joins, keep the row with nulls for secondary columns
         if (joinType === 'LEFT' || joinType === 'LEFT OUTER') {
-          nextRows.push(JSON.parse(JSON.stringify(row)));
+          nextRows.push(deepCloneWithBigInt(row));
         }
         // INNER JOIN: Skip rows with no match (don't add to nextRows)
       }
