@@ -120,20 +120,35 @@ function nullToValue(value, params) {
 
 /**
  * Concatenate multiple fields or add prefix/suffix
+ * Ensures all values are converted to primitive strings to avoid [object Object] issues
  */
 function concat(value, params) {
   const { fields = [], separator = '', prefix = '', suffix = '', concatParts = [] } = params;
+  
+  // Helper to safely convert value to string
+  const toSafeString = (val) => {
+    if (val === null || val === undefined) return '';
+    if (typeof val === 'object') {
+      // Handle objects (e.g., nested JSON) by serializing or returning empty
+      try {
+        return JSON.stringify(val);
+      } catch (e) {
+        return '';
+      }
+    }
+    return String(val);
+  };
   
   // NEW FORMAT: Use concatParts to maintain proper ordering of fields and literals
   if (concatParts.length > 0) {
     const parts = concatParts.map(part => {
       if (part.type === 'field') {
-        return value[part.value] || '';
+        return toSafeString(value[part.value]);
       } else if (part.type === 'literal') {
-        return part.value;
+        return String(part.value ?? '');
       } else if (part.type === 'variable') {
         // Variables should be in the enriched row as $var_name
-        return value[part.value] || '';
+        return toSafeString(value[part.value]);
       }
       return '';
     });
@@ -143,12 +158,12 @@ function concat(value, params) {
   // LEGACY FORMAT: Use fields with separator
   if (fields.length > 0) {
     // Concatenate multiple fields (value is a row object)
-    const values = fields.map(field => value[field] || '');
+    const values = fields.map(field => toSafeString(value[field]));
     return prefix + values.join(separator) + suffix;
   }
   
   // Single value with prefix/suffix
-  return prefix + (value || '') + suffix;
+  return prefix + toSafeString(value) + suffix;
 }
 
 /**

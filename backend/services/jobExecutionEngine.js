@@ -1165,6 +1165,11 @@ async function executeTransformationJob(pool, mappingId, userId, options = {}) {
       }
     };
     
+    // Emit execution start to reset all edge counts on the frontend
+    if (visualExecutionId && visualMappingEdges && Array.isArray(visualMappingEdges)) {
+      visualMappingWS.emitExecutionStart(visualExecutionId, visualMappingEdges);
+    }
+    
     // Mark all nodes as pending initially
     if (executionOrder && Array.isArray(executionOrder)) {
       executionOrder.forEach(nodeId => {
@@ -1789,6 +1794,15 @@ async function executeTransformationJob(pool, mappingId, userId, options = {}) {
           nodeOutputCounts[source.nodeId] = rows.length;
           
           emitNodeStatus(source.nodeId, 'completed', { rowsLoaded: rows.length });
+          
+          // Emit edge row count immediately for this secondary source node
+          // Find edges that have this source node as the source
+          if (visualMappingEdges && Array.isArray(visualMappingEdges)) {
+            const outgoingEdges = visualMappingEdges.filter(e => e.source === source.nodeId);
+            outgoingEdges.forEach(edge => {
+              emitEdgeRowCount(source.nodeId, edge.target, rows.length);
+            });
+          }
           
         } catch (loadError) {
           emitLog('error', `Failed to load secondary source ${source.nodeName}: ${loadError.message}`);
