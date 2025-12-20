@@ -2797,11 +2797,16 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
           let extractedParseResult = null;
           
           try {
+            // For multi-source joins, delay field mapping application until after join enrichment
+            const hasJoin = joinLookupTables && joinSpecs && joinSpecs.length > 0;
+            const parseMappings = hasJoin ? [] : mapping.field_mappings;
+            const parseVariables = hasJoin ? [] : mapping.variables;
+            
             if (extractedExtension === 'csv') {
               extractedParseResult = await parseAndTransformCSV(
                 extractedBuffer, 
-                mapping.field_mappings,
-                mapping.variables,
+                parseMappings,
+                parseVariables,
                 jobId, 
                 pool,
                 rdmContext
@@ -2809,8 +2814,8 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
             } else if (extractedExtension === 'json') {
               extractedParseResult = await parseAndTransformJSON(
                 extractedBuffer, 
-                mapping.field_mappings,
-                mapping.variables,
+                parseMappings,
+                parseVariables,
                 jobId, 
                 pool,
                 rdmContext
@@ -2818,8 +2823,8 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
             } else if (extractedExtension === 'xlsx' || extractedExtension === 'xls') {
               extractedParseResult = await parseAndTransformXLSX(
                 extractedBuffer, 
-                mapping.field_mappings,
-                mapping.variables,
+                parseMappings,
+                parseVariables,
                 jobId, 
                 pool,
                 rdmContext
@@ -2827,8 +2832,8 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
             } else if (extractedExtension === 'xml') {
               extractedParseResult = await parseAndTransformXML(
                 extractedBuffer, 
-                mapping.field_mappings,
-                mapping.variables,
+                parseMappings,
+                parseVariables,
                 jobId, 
                 pool,
                 rdmContext
@@ -2836,8 +2841,8 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
             } else if (extractedExtension === 'parquet') {
               extractedParseResult = await parseAndTransformParquet(
                 extractedBuffer, 
-                mapping.field_mappings,
-                mapping.variables,
+                parseMappings,
+                parseVariables,
                 jobId, 
                 pool,
                 rdmContext
@@ -3103,9 +3108,13 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
         { hasHeader: fixedWidthSchema.hasHeader }
       );
       
+      // For multi-source joins, delay field mapping application until after join enrichment
+      const hasJoin = joinLookupTables && joinSpecs && joinSpecs.length > 0;
+      
       // Convert field mappings and variables to expected format (same as other parsers)
-      const convertedMappings = convertFieldMappings(mapping.field_mappings);
-      const convertedVariables = convertVariables(mapping.variables);
+      // Use empty mappings for joins - they'll be applied after enrichment
+      const convertedMappings = hasJoin ? [] : convertFieldMappings(mapping.field_mappings);
+      const convertedVariables = hasJoin ? [] : convertVariables(mapping.variables);
       
       // Transform the parsed rows using the same pipeline as CSV/JSON
       const transformedFixedRows = [];
@@ -3150,57 +3159,66 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
       });
       
       // Pass column names to CSV parser
+      // For multi-source joins, delay field mapping application until after join enrichment
+      const hasJoin = joinLookupTables && joinSpecs && joinSpecs.length > 0;
       const columnNames = fixedWidthSchema.headerDefinition.map(col => col.name);
       parseResult = await parseAndTransformCSV(
         fileBuffer, 
-        mapping.field_mappings,
-        mapping.variables,
+        hasJoin ? [] : mapping.field_mappings,
+        hasJoin ? [] : mapping.variables,
         jobId, 
         pool,
         rdmContext,
         { headers: columnNames, skipFirstRow: false }
       );
     } else if (fileExtension === 'csv') {
+      // For multi-source joins, delay field mapping application until after join enrichment
+      // This allows expressions to reference columns from secondary sources
+      const hasJoin = joinLookupTables && joinSpecs && joinSpecs.length > 0;
       parseResult = await parseAndTransformCSV(
         fileBuffer, 
-        mapping.field_mappings,
-        mapping.variables,
+        hasJoin ? [] : mapping.field_mappings,  // Empty mappings if join - apply after enrichment
+        hasJoin ? [] : mapping.variables,       // Empty variables if join - apply after enrichment
         jobId, 
         pool,
         rdmContext
       );
     } else if (fileExtension === 'json') {
+      const hasJoin = joinLookupTables && joinSpecs && joinSpecs.length > 0;
       parseResult = await parseAndTransformJSON(
         fileBuffer, 
-        mapping.field_mappings,
-        mapping.variables,
+        hasJoin ? [] : mapping.field_mappings,
+        hasJoin ? [] : mapping.variables,
         jobId, 
         pool,
         rdmContext
       );
     } else if (fileExtension === 'xlsx' || fileExtension === 'xls') {
+      const hasJoin = joinLookupTables && joinSpecs && joinSpecs.length > 0;
       parseResult = await parseAndTransformXLSX(
         fileBuffer, 
-        mapping.field_mappings,
-        mapping.variables,
+        hasJoin ? [] : mapping.field_mappings,
+        hasJoin ? [] : mapping.variables,
         jobId, 
         pool,
         rdmContext
       );
     } else if (fileExtension === 'parquet') {
+      const hasJoin = joinLookupTables && joinSpecs && joinSpecs.length > 0;
       parseResult = await parseAndTransformParquet(
         fileBuffer, 
-        mapping.field_mappings,
-        mapping.variables,
+        hasJoin ? [] : mapping.field_mappings,
+        hasJoin ? [] : mapping.variables,
         jobId, 
         pool,
         rdmContext
       );
     } else if (fileExtension === 'xml') {
+      const hasJoin = joinLookupTables && joinSpecs && joinSpecs.length > 0;
       parseResult = await parseAndTransformXML(
         fileBuffer, 
-        mapping.field_mappings,
-        mapping.variables,
+        hasJoin ? [] : mapping.field_mappings,
+        hasJoin ? [] : mapping.variables,
         jobId, 
         pool,
         rdmContext
@@ -3257,6 +3275,45 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
           outputRows: transformedRows.length,
           droppedByJoin: droppedByJoin
         });
+        
+        // Step 3.1.6: Apply post-join field mappings transformation
+        // After join enrichment, the rows now have columns from both sources.
+        // Re-apply field mappings to evaluate expressions that reference secondary source columns.
+        if (mapping.field_mappings && mapping.field_mappings.length > 0) {
+          const { transformRow } = require('./transformationEngine');
+          const convertedMappings = convertFieldMappings(mapping.field_mappings);
+          const convertedVariables = convertVariables(mapping.variables || []);
+          
+          await logJobExecution(pool, jobId, 'info', `Applying post-join transformation to evaluate expressions with joined data`, {
+            inputRows: transformedRows.length,
+            fieldMappingCount: convertedMappings.length
+          });
+          
+          // Re-transform each row using field mappings (now with secondary source columns available)
+          const postJoinTransformedRows = [];
+          for (const row of transformedRows) {
+            try {
+              const transformedRow = transformRow(row, convertedMappings, convertedVariables, rdmContext);
+              if (transformedRow && Object.keys(transformedRow).length > 0) {
+                postJoinTransformedRows.push(transformedRow);
+              }
+            } catch (transformError) {
+              systemLogger.warn('Post-join transformation error', {
+                error: transformError.message
+              });
+              // Keep original row on error
+              postJoinTransformedRows.push(row);
+            }
+          }
+          
+          // Replace transformedRows with post-join transformed data
+          transformedRows.length = 0;
+          transformedRows.push(...postJoinTransformedRows);
+          
+          await logJobExecution(pool, jobId, 'info', `Post-join transformation complete`, {
+            outputRows: transformedRows.length
+          });
+        }
       } catch (joinError) {
         await logJobExecution(pool, jobId, 'error', `Multi-source join enrichment failed: ${joinError.message}`, {
           error: joinError.stack
