@@ -263,12 +263,13 @@ async function parseFileToRows(buffer, filename, pool = null, vendorAgreementId 
       systemLogger.info('Archive extraction completed for secondary source', {
         filename,
         extractedCount: extractedFiles.length,
-        files: extractedFiles.map(f => f.fileName || f)
+        files: extractedFiles.map(f => f.relativePath || path.basename(f.fullPath || ''))
       });
       
       for (const extractedFile of extractedFiles) {
-        const extractedFileName = extractedFile.fileName || extractedFile;
-        const extractedPath = extractedFile.fullPath || path.join(tempDir, extractedFileName);
+        // extractedFile has relativePath and fullPath from ArchiveExtractionService
+        const extractedPath = extractedFile.fullPath;
+        const extractedFileName = extractedFile.relativePath || path.basename(extractedPath);
         const extractedExt = extractedFileName.split('.').pop()?.toLowerCase();
         
         if (supportedDataExtensions.includes(extractedExt)) {
@@ -282,6 +283,14 @@ async function parseFileToRows(buffer, filename, pool = null, vendorAgreementId 
           break; // Only parse the first supported file
         }
       }
+      // Cleanup the extraction service's temp directory if returned
+      if (extractionResult.tempDir) {
+        try {
+          fs.rmSync(extractionResult.tempDir, { recursive: true, force: true });
+        } catch (cleanupError) {
+          systemLogger.warn('Failed to cleanup extraction temp dir:', cleanupError);
+        }
+      }
     } catch (archiveError) {
       systemLogger.error('Archive extraction error in parseFileToRows:', {
         filename,
@@ -290,7 +299,7 @@ async function parseFileToRows(buffer, filename, pool = null, vendorAgreementId 
         stack: archiveError.stack
       });
     } finally {
-      // Cleanup temp directory in finally block to ensure cleanup even on errors
+      // Cleanup our temp directory (where we wrote the archive) in finally block
       if (tempDir) {
         try {
           fs.rmSync(tempDir, { recursive: true, force: true });
