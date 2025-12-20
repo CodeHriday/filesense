@@ -4349,6 +4349,31 @@ function convertFieldMappings(dbFieldMappings) {
         // Map 'value' param to 'defaultValue'
         params.defaultValue = params.value;
         delete params.value;
+      } else if (transformationType === 'concat') {
+        // Handle legacy concat format with column2 parameter
+        // Convert to proper concatParts format for the transformation engine
+        const sourceField = converted.sourceFields[0];
+        const column2 = params.column2;
+        const separator = params.separator || '';
+        
+        if (sourceField && column2) {
+          // Build concatParts array with proper field references
+          params.concatParts = [
+            { type: 'field', value: sourceField },
+            { type: 'literal', value: separator },
+            { type: 'field', value: column2 }
+          ];
+          // Also add column2 to sourceFields for proper row context
+          if (!converted.sourceFields.includes(column2)) {
+            converted.sourceFields.push(column2);
+          }
+          // Clean up legacy params
+          delete params.column2;
+          delete params.separator;
+        } else if (sourceField && !column2) {
+          // Single field concat with possible prefix/suffix - build fields array
+          params.fields = [sourceField];
+        }
       }
       
       converted.transformations.push({
