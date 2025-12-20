@@ -329,7 +329,8 @@ function applyJoinEnrichment(transformedRows, joinLookupTables, joinSpecs, logge
     return transformedRows;
   }
   
-  let currentRows = [...transformedRows];
+  // Deep clone the input rows to prevent mutation of original data
+  let currentRows = transformedRows.map(row => JSON.parse(JSON.stringify(row)));
   let matchedCount = 0;
   let unmatchedCount = 0;
   
@@ -339,11 +340,31 @@ function applyJoinEnrichment(transformedRows, joinLookupTables, joinSpecs, logge
     const lookupTable = joinLookupTables[lookupKey];
     
     if (!lookupTable || !joinSpec.joinKeys || joinSpec.joinKeys.length === 0) {
+      if (logger) {
+        logger.warn('Join spec missing lookup table or join keys', {
+          nodeId: joinSpec.nodeId,
+          hasLookupTable: !!lookupTable,
+          joinKeysCount: joinSpec.joinKeys?.length || 0
+        });
+      }
       continue;
     }
     
     const joinType = (joinSpec.joinType || 'INNER').toUpperCase();
     const nextRows = [];
+    
+    // Log join configuration for first row debugging
+    if (logger && currentRows.length > 0) {
+      const firstLeftRow = currentRows[0];
+      const firstLookupKey = Object.keys(lookupTable)[0];
+      const firstRightRow = lookupTable[firstLookupKey]?.[0];
+      logger.info('Join enrichment debug - first rows', {
+        leftRowKeys: Object.keys(firstLeftRow),
+        rightRowKeys: firstRightRow ? Object.keys(firstRightRow) : [],
+        columnMappingsCount: joinSpec.columnMappings?.length || 0,
+        columnMappings: joinSpec.columnMappings?.slice(0, 5)
+      });
+    }
     
     for (const row of currentRows) {
       // Build composite key from the CURRENT enriched row (supports cascaded joins)
@@ -361,7 +382,9 @@ function applyJoinEnrichment(transformedRows, joinLookupTables, joinSpecs, logge
         
         // For each matching right row, create an enriched output row
         for (const matchedRightRow of matchedRightRows) {
-          const enrichedRow = { ...row };
+          // Deep clone both rows to prevent reference issues
+          const enrichedRow = JSON.parse(JSON.stringify(row));
+          const rightRowClone = JSON.parse(JSON.stringify(matchedRightRow));
           
           // Apply column mappings from the join node configuration
           if (joinSpec.columnMappings && joinSpec.columnMappings.length > 0) {
@@ -369,17 +392,18 @@ function applyJoinEnrichment(transformedRows, joinLookupTables, joinSpecs, logge
               const sourceCol = cm.sourceColumn || cm.source_column || cm.source;
               const targetCol = cm.targetColumn || cm.target_column || cm.target || sourceCol;
               
-              if (sourceCol && matchedRightRow[sourceCol] !== undefined) {
-                enrichedRow[targetCol] = matchedRightRow[sourceCol];
+              if (sourceCol && rightRowClone[sourceCol] !== undefined) {
+                enrichedRow[targetCol] = rightRowClone[sourceCol];
               }
             }
           } else {
             // If no column mappings, merge all columns from right source
-            for (const [col, value] of Object.entries(matchedRightRow)) {
-              // Prefix right columns if they conflict with left columns
-              if (enrichedRow[col] !== undefined) {
-                enrichedRow[`right_${col}`] = value;
-              } else {
+            // Prefix ALL right columns with 'src2_' to avoid conflicts and ensure clarity
+            for (const [col, value] of Object.entries(rightRowClone)) {
+              // Always prefix right-side columns to clearly distinguish from left side
+              enrichedRow[`src2_${col}`] = value;
+              // Also add unprefixed if no conflict, for backward compatibility
+              if (enrichedRow[col] === undefined) {
                 enrichedRow[col] = value;
               }
             }
@@ -392,7 +416,7 @@ function applyJoinEnrichment(transformedRows, joinLookupTables, joinSpecs, logge
         
         // For LEFT/LEFT OUTER joins, keep the row with nulls for right columns
         if (joinType === 'LEFT' || joinType === 'LEFT OUTER') {
-          nextRows.push({ ...row });
+          nextRows.push(JSON.parse(JSON.stringify(row)));
         }
         // INNER JOIN: Skip rows with no match (don't add to nextRows)
       }
@@ -400,6 +424,19 @@ function applyJoinEnrichment(transformedRows, joinLookupTables, joinSpecs, logge
     
     // Update currentRows for the next join in the chain
     currentRows = nextRows;
+    
+    // Debug log first enriched row
+    if (logger && currentRows.length > 0) {
+      const firstEnrichedRow = currentRows[0];
+      logger.info('Join enrichment debug - first enriched row', {
+        enrichedRowKeys: Object.keys(firstEnrichedRow),
+        sampleValues: Object.keys(firstEnrichedRow).slice(0, 10).reduce((acc, key) => {
+          const val = firstEnrichedRow[key];
+          acc[key] = typeof val === 'object' ? `[object: ${Object.keys(val || {}).join(',')}]` : String(val).substring(0, 50);
+          return acc;
+        }, {})
+      });
+    }
   }
   
   if (logger) {
@@ -3284,6 +3321,27 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
           const convertedMappings = convertFieldMappings(mapping.field_mappings);
           const convertedVariables = convertVariables(mapping.variables || []);
           
+          // Debug log: Show first enriched row structure before post-join transformation
+          if (transformedRows.length > 0) {
+            const firstRow = transformedRows[0];
+            const rowKeys = Object.keys(firstRow);
+            const valueTypes = rowKeys.reduce((acc, key) => {
+              const val = firstRow[key];
+              if (val === null) {
+                acc[key] = 'null';
+              } else if (typeof val === 'object') {
+                acc[key] = `object:${Object.keys(val).join(',')}`;
+              } else {
+                acc[key] = typeof val;
+              }
+              return acc;
+            }, {});
+            systemLogger.info('Post-join transformation debug - enriched row before transform', {
+              enrichedRowKeys: rowKeys,
+              valueTypes: valueTypes
+            });
+          }
+          
           await logJobExecution(pool, jobId, 'info', `Applying post-join transformation to evaluate expressions with joined data`, {
             inputRows: transformedRows.length,
             fieldMappingCount: convertedMappings.length
@@ -3291,15 +3349,39 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
           
           // Re-transform each row using field mappings (now with secondary source columns available)
           const postJoinTransformedRows = [];
+          let debugLoggedFirst = false;
           for (const row of transformedRows) {
             try {
               const transformedRow = transformRow(row, convertedMappings, convertedVariables, rdmContext);
+              
+              // Debug log first row transformation result
+              if (!debugLoggedFirst && transformedRow) {
+                const resultKeys = Object.keys(transformedRow);
+                const resultValueTypes = resultKeys.reduce((acc, key) => {
+                  const val = transformedRow[key];
+                  if (val === null || val === undefined) {
+                    acc[key] = 'null/undefined';
+                  } else if (typeof val === 'object') {
+                    acc[key] = `object:${Object.keys(val).slice(0, 5).join(',')}`;
+                  } else {
+                    acc[key] = typeof val + ':' + String(val).substring(0, 30);
+                  }
+                  return acc;
+                }, {});
+                systemLogger.info('Post-join transformation debug - first row after transform', {
+                  transformedRowKeys: resultKeys,
+                  valueTypes: resultValueTypes
+                });
+                debugLoggedFirst = true;
+              }
+              
               if (transformedRow && Object.keys(transformedRow).length > 0) {
                 postJoinTransformedRows.push(transformedRow);
               }
             } catch (transformError) {
               systemLogger.warn('Post-join transformation error', {
-                error: transformError.message
+                error: transformError.message,
+                stack: transformError.stack
               });
               // Keep original row on error
               postJoinTransformedRows.push(row);
