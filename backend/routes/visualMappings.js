@@ -1144,13 +1144,81 @@ router.get('/:id/logs', async (req, res) => {
 });
 
 /**
+ * Parse fixed-width file using column definitions from schema
+ * @param {Buffer} buffer - File buffer
+ * @param {Array} columns - Column definitions with name and width
+ * @returns {Array} Parsed rows
+ */
+function parseFixedWidthWithSchema(buffer, columns) {
+  const content = buffer.toString('utf-8');
+  const lines = content.split('\n').filter(line => line.trim());
+  const rows = [];
+  
+  // Check if there's a header row - skip it if column names match
+  let startLine = 0;
+  if (lines.length > 0 && columns.length > 0) {
+    const firstLine = lines[0];
+    // Check if first line looks like a header (contains column names)
+    const firstColumnName = columns[0].name || columns[0].column_name;
+    if (firstLine.toLowerCase().includes(firstColumnName.toLowerCase())) {
+      startLine = 1; // Skip header line
+    }
+  }
+  
+  for (let i = startLine; i < lines.length; i++) {
+    const line = lines[i];
+    const row = {};
+    let position = 0;
+    
+    for (const col of columns) {
+      const colName = col.name || col.column_name;
+      const width = parseInt(col.width || col.column_width, 10);
+      
+      if (!isNaN(width) && width > 0) {
+        row[colName] = line.substring(position, position + width).trim();
+        position += width;
+      }
+    }
+    
+    rows.push(row);
+  }
+  
+  return rows;
+}
+
+/**
+ * Recursively convert BigInt values to strings for JSON serialization
+ * @param {any} obj - Object to sanitize
+ * @returns {any} Sanitized object
+ */
+function sanitizeBigInt(obj) {
+  if (obj === null || obj === undefined) {
+    return obj;
+  }
+  if (typeof obj === 'bigint') {
+    return obj.toString();
+  }
+  if (Array.isArray(obj)) {
+    return obj.map(sanitizeBigInt);
+  }
+  if (typeof obj === 'object') {
+    const result = {};
+    for (const key of Object.keys(obj)) {
+      result[key] = sanitizeBigInt(obj[key]);
+    }
+    return result;
+  }
+  return obj;
+}
+
+/**
  * POST /api/visual-mappings/source-preview
  * Get preview data from a source configuration
- * Body: { connectionId, filePath, filePattern, limit }
+ * Body: { connectionId, filePath, filePattern, limit, vendorAgreementId, schema }
  */
 router.post('/source-preview', async (req, res) => {
   try {
-    const { connectionId, filePath, filePattern, limit = 25 } = req.body;
+    const { connectionId, filePath, filePattern, limit = 25, vendorAgreementId, schema } = req.body;
     
     if (!connectionId) {
       return res.status(400).json({ error: 'Connection ID is required' });
@@ -1195,31 +1263,55 @@ router.post('/source-preview', async (req, res) => {
     
     // Get the first matching file
     const sourceFile = matchingFiles[0];
+    const filename = sourceFile.filename;
+    const ext = filename.split('.').pop()?.toLowerCase();
     
     systemLogger.info('Fetching source preview', {
       connectionId,
       filePath,
       filePattern,
-      matchingFile: sourceFile.filename
+      matchingFile: filename,
+      vendorAgreementId: vendorAgreementId || 'none',
+      hasSchema: !!schema
     });
     
-    // Download and parse the file
-    const fileBuffer = await downloadFileFromConnection(pool, connectionId, sourceFile.filename);
-    const allRows = await parseFileToRows(fileBuffer, sourceFile.filename, pool);
+    // Download the file
+    const fileBuffer = await downloadFileFromConnection(pool, connectionId, filename);
+    
+    let allRows = [];
+    
+    // Check if this is a fixed-width file that needs schema-based parsing
+    const isFixedWidth = ext === 'dat' || ext === 'fixed_width';
+    const hasFixedWidthSchema = schema && schema.columns && schema.columns.some(col => col.width || col.column_width);
+    
+    if (isFixedWidth && hasFixedWidthSchema) {
+      // Use schema-based fixed-width parsing
+      systemLogger.info('Using schema-based fixed-width parsing', {
+        filename,
+        columnCount: schema.columns.length
+      });
+      allRows = parseFixedWidthWithSchema(fileBuffer, schema.columns);
+    } else {
+      // Use standard parsing with vendorAgreementId for archive password lookup
+      allRows = await parseFileToRows(fileBuffer, filename, pool, vendorAgreementId || null);
+    }
     
     // Take only the first N rows for preview
     const previewRows = allRows.slice(0, Math.min(limit, allRows.length));
     
+    // Sanitize BigInt values for JSON serialization (important for Parquet files)
+    const sanitizedRows = sanitizeBigInt(previewRows);
+    
     // Extract column names from the first row
-    const columns = previewRows.length > 0 ? Object.keys(previewRows[0]) : [];
+    const columns = sanitizedRows.length > 0 ? Object.keys(sanitizedRows[0]) : [];
     
     res.json({
       success: true,
-      filename: sourceFile.filename,
+      filename: filename,
       totalRows: allRows.length,
-      previewRowCount: previewRows.length,
+      previewRowCount: sanitizedRows.length,
       columns,
-      data: previewRows
+      data: sanitizedRows
     });
     
   } catch (error) {

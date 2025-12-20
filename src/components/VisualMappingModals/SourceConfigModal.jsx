@@ -364,7 +364,9 @@ const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
         connectionId,
         filePath,
         filePattern,
-        limit: 25
+        limit: 25,
+        vendorAgreementId: vendorAgreementId || null,
+        schema: schema || null
       });
       
       if (response.data.success) {
@@ -922,8 +924,8 @@ const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
                 </div>
               ) : previewData ? (
                 <>
-                  <div className="vm-preview-meta" style={{ marginBottom: '16px', padding: '12px', backgroundColor: '#f0f9ff', borderRadius: '4px' }}>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '20px', fontSize: '13px' }}>
+                  <div className="vm-preview-meta" style={{ marginBottom: '12px', padding: '10px', backgroundColor: '#f0f9ff', borderRadius: '4px' }}>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', fontSize: '10px' }}>
                       <div><strong>File:</strong> {previewData.filename}</div>
                       <div><strong>Total Rows:</strong> {previewData.totalRows?.toLocaleString()}</div>
                       <div><strong>Showing:</strong> {previewData.previewRowCount} rows</div>
@@ -932,12 +934,12 @@ const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
                   </div>
                   
                   <div className="vm-preview-table-container" style={{ maxHeight: '400px', overflowY: 'auto', overflowX: 'auto', border: '1px solid #e5e7eb', borderRadius: '4px' }}>
-                    <table className="vm-preview-table" style={{ width: '100%', fontSize: '12px', borderCollapse: 'collapse' }}>
+                    <table className="vm-preview-table" style={{ width: '100%', fontSize: '10px', borderCollapse: 'collapse' }}>
                       <thead style={{ position: 'sticky', top: 0, backgroundColor: '#f9fafb' }}>
                         <tr>
-                          <th style={{ padding: '8px 10px', textAlign: 'left', borderBottom: '2px solid #e5e7eb', fontWeight: '600', whiteSpace: 'nowrap' }}>#</th>
+                          <th style={{ padding: '5px 8px', textAlign: 'left', borderBottom: '2px solid #e5e7eb', fontWeight: '600', whiteSpace: 'nowrap' }}>#</th>
                           {previewData.columns?.map((col, idx) => (
-                            <th key={idx} style={{ padding: '8px 10px', textAlign: 'left', borderBottom: '2px solid #e5e7eb', fontWeight: '600', whiteSpace: 'nowrap' }}>
+                            <th key={idx} style={{ padding: '5px 8px', textAlign: 'left', borderBottom: '2px solid #e5e7eb', fontWeight: '600', whiteSpace: 'nowrap' }}>
                               {col}
                             </th>
                           ))}
@@ -946,9 +948,9 @@ const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
                       <tbody>
                         {previewData.data?.map((row, rowIdx) => (
                           <tr key={rowIdx} style={{ backgroundColor: rowIdx % 2 === 0 ? '#fff' : '#f9fafb' }}>
-                            <td style={{ padding: '6px 10px', borderBottom: '1px solid #e5e7eb', color: '#6b7280' }}>{rowIdx + 1}</td>
+                            <td style={{ padding: '4px 8px', borderBottom: '1px solid #e5e7eb', color: '#6b7280' }}>{rowIdx + 1}</td>
                             {previewData.columns?.map((col, colIdx) => (
-                              <td key={colIdx} style={{ padding: '6px 10px', borderBottom: '1px solid #e5e7eb', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              <td key={colIdx} style={{ padding: '4px 8px', borderBottom: '1px solid #e5e7eb', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                 {row[col] === null || row[col] === undefined ? (
                                   <span style={{ color: '#9ca3af', fontStyle: 'italic' }}>null</span>
                                 ) : typeof row[col] === 'boolean' ? (
@@ -964,24 +966,24 @@ const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
                     </table>
                   </div>
                   
-                  <div style={{ marginTop: '12px', display: 'flex', justifyContent: 'flex-end' }}>
+                  <div style={{ marginTop: '10px', display: 'flex', justifyContent: 'flex-end' }}>
                     <button
                       onClick={fetchPreviewData}
                       className="vm-btn vm-btn-secondary"
-                      style={{ fontSize: '12px', padding: '6px 12px' }}
+                      style={{ fontSize: '10px', padding: '5px 10px' }}
                     >
                       Refresh Preview
                     </button>
                   </div>
                 </>
               ) : (
-                <div className="vm-empty-state" style={{ padding: '40px', textAlign: 'center', color: '#666' }}>
-                  <div style={{ marginBottom: '8px' }}>No preview data available</div>
-                  <div style={{ fontSize: '12px' }}>Click the button below to load a preview</div>
+                <div className="vm-empty-state" style={{ padding: '30px', textAlign: 'center', color: '#666', fontSize: '10px' }}>
+                  <div style={{ marginBottom: '6px' }}>No preview data available</div>
+                  <div>Click the button below to load a preview</div>
                   <button
                     onClick={fetchPreviewData}
                     className="vm-btn vm-btn-primary"
-                    style={{ marginTop: '16px', fontSize: '12px' }}
+                    style={{ marginTop: '12px', fontSize: '10px', padding: '5px 10px' }}
                   >
                     Load Preview
                   </button>
