@@ -36,6 +36,10 @@ const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
   const [schemaLoading, setSchemaLoading] = useState(false);
   const [validationError, setValidationError] = useState('');
   
+  const [previewData, setPreviewData] = useState(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewError, setPreviewError] = useState('');
+  
   // Track the pending vendor agreement ID that needs to be processed after agreements load
   const pendingVendorAgreementRef = useRef(null);
   
@@ -347,6 +351,37 @@ const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
     }
   };
   
+  const fetchPreviewData = async () => {
+    if (!connectionId || !filePath || !filePattern) {
+      setPreviewError('Connection, file path, and file pattern are required');
+      return;
+    }
+    
+    setPreviewLoading(true);
+    setPreviewError('');
+    try {
+      const response = await axios.post('/api/visual-mappings/source-preview', {
+        connectionId,
+        filePath,
+        filePattern,
+        limit: 25
+      });
+      
+      if (response.data.success) {
+        setPreviewData(response.data);
+      } else {
+        setPreviewError(response.data.error || 'Failed to fetch preview data');
+        setPreviewData(null);
+      }
+    } catch (error) {
+      console.error('Error fetching preview data:', error);
+      setPreviewError(error.response?.data?.error || error.message || 'Failed to fetch preview data');
+      setPreviewData(null);
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
+  
   const handleBrowse = () => {
     if (!connectionId) {
       alert('Please select a connection first');
@@ -480,6 +515,16 @@ const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
               aria-label="Schema tab"
             >
               Schema
+            </button>
+          )}
+          {connectionId && filePath && filePattern && (
+            <button 
+              className={`vm-tab ${activeTab === 'preview' ? 'vm-tab-active' : ''}`}
+              onClick={() => { setActiveTab('preview'); fetchPreviewData(); }}
+              aria-pressed={activeTab === 'preview'}
+              aria-label="Data Preview tab"
+            >
+              Data Preview
             </button>
           )}
         </div>
@@ -859,6 +904,88 @@ const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
                 </>
               ) : (
                 <div className="vm-empty-state">No schema available</div>
+              )}
+            </div>
+          )}
+          
+          {/* Data Preview Tab */}
+          {activeTab === 'preview' && (
+            <div className="vm-preview-container">
+              {previewLoading ? (
+                <div className="vm-loading" style={{ padding: '40px', textAlign: 'center' }}>
+                  <div style={{ marginBottom: '12px' }}>Loading preview data...</div>
+                  <div style={{ fontSize: '12px', color: '#666' }}>This may take a moment for large files</div>
+                </div>
+              ) : previewError ? (
+                <div className="vm-error-state" style={{ padding: '20px', backgroundColor: '#fef2f2', border: '1px solid #fca5a5', borderRadius: '4px', color: '#dc2626' }}>
+                  <strong>Error:</strong> {previewError}
+                </div>
+              ) : previewData ? (
+                <>
+                  <div className="vm-preview-meta" style={{ marginBottom: '16px', padding: '12px', backgroundColor: '#f0f9ff', borderRadius: '4px' }}>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '20px', fontSize: '13px' }}>
+                      <div><strong>File:</strong> {previewData.filename}</div>
+                      <div><strong>Total Rows:</strong> {previewData.totalRows?.toLocaleString()}</div>
+                      <div><strong>Showing:</strong> {previewData.previewRowCount} rows</div>
+                      <div><strong>Columns:</strong> {previewData.columns?.length}</div>
+                    </div>
+                  </div>
+                  
+                  <div className="vm-preview-table-container" style={{ maxHeight: '400px', overflowY: 'auto', overflowX: 'auto', border: '1px solid #e5e7eb', borderRadius: '4px' }}>
+                    <table className="vm-preview-table" style={{ width: '100%', fontSize: '12px', borderCollapse: 'collapse' }}>
+                      <thead style={{ position: 'sticky', top: 0, backgroundColor: '#f9fafb' }}>
+                        <tr>
+                          <th style={{ padding: '8px 10px', textAlign: 'left', borderBottom: '2px solid #e5e7eb', fontWeight: '600', whiteSpace: 'nowrap' }}>#</th>
+                          {previewData.columns?.map((col, idx) => (
+                            <th key={idx} style={{ padding: '8px 10px', textAlign: 'left', borderBottom: '2px solid #e5e7eb', fontWeight: '600', whiteSpace: 'nowrap' }}>
+                              {col}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {previewData.data?.map((row, rowIdx) => (
+                          <tr key={rowIdx} style={{ backgroundColor: rowIdx % 2 === 0 ? '#fff' : '#f9fafb' }}>
+                            <td style={{ padding: '6px 10px', borderBottom: '1px solid #e5e7eb', color: '#6b7280' }}>{rowIdx + 1}</td>
+                            {previewData.columns?.map((col, colIdx) => (
+                              <td key={colIdx} style={{ padding: '6px 10px', borderBottom: '1px solid #e5e7eb', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                {row[col] === null || row[col] === undefined ? (
+                                  <span style={{ color: '#9ca3af', fontStyle: 'italic' }}>null</span>
+                                ) : typeof row[col] === 'boolean' ? (
+                                  row[col] ? 'true' : 'false'
+                                ) : (
+                                  String(row[col])
+                                )}
+                              </td>
+                            ))}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  
+                  <div style={{ marginTop: '12px', display: 'flex', justifyContent: 'flex-end' }}>
+                    <button
+                      onClick={fetchPreviewData}
+                      className="vm-btn vm-btn-secondary"
+                      style={{ fontSize: '12px', padding: '6px 12px' }}
+                    >
+                      Refresh Preview
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <div className="vm-empty-state" style={{ padding: '40px', textAlign: 'center', color: '#666' }}>
+                  <div style={{ marginBottom: '8px' }}>No preview data available</div>
+                  <div style={{ fontSize: '12px' }}>Click the button below to load a preview</div>
+                  <button
+                    onClick={fetchPreviewData}
+                    className="vm-btn vm-btn-primary"
+                    style={{ marginTop: '16px', fontSize: '12px' }}
+                  >
+                    Load Preview
+                  </button>
+                </div>
               )}
             </div>
           )}

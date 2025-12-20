@@ -336,14 +336,20 @@ function applyJoinEnrichment(transformedRows, joinLookupTables, joinSpecs, logge
   
   // Apply joins in sequence (for cascaded joins)
   for (const joinSpec of joinSpecs) {
-    const lookupKey = `${joinSpec.nodeId}_right`;
-    const lookupTable = joinLookupTables[lookupKey];
+    // Check for either 'right' or 'left' lookup table - depends on which source is secondary
+    const rightLookupKey = `${joinSpec.nodeId}_right`;
+    const leftLookupKey = `${joinSpec.nodeId}_left`;
+    const hasRightLookup = joinLookupTables[rightLookupKey] && Object.keys(joinLookupTables[rightLookupKey]).length > 0;
+    const hasLeftLookup = joinLookupTables[leftLookupKey] && Object.keys(joinLookupTables[leftLookupKey]).length > 0;
+    const lookupTable = hasRightLookup ? joinLookupTables[rightLookupKey] : joinLookupTables[leftLookupKey];
+    const isLeftLookup = !hasRightLookup && hasLeftLookup;
     
     if (!lookupTable || !joinSpec.joinKeys || joinSpec.joinKeys.length === 0) {
       if (logger) {
         logger.warn('Join spec missing lookup table or join keys', {
           nodeId: joinSpec.nodeId,
-          hasLookupTable: !!lookupTable,
+          hasRightLookup,
+          hasLeftLookup,
           joinKeysCount: joinSpec.joinKeys?.length || 0
         });
       }
@@ -355,12 +361,13 @@ function applyJoinEnrichment(transformedRows, joinLookupTables, joinSpecs, logge
     
     // Log join configuration for first row debugging
     if (logger && currentRows.length > 0) {
-      const firstLeftRow = currentRows[0];
+      const firstPrimaryRow = currentRows[0];
       const firstLookupKey = Object.keys(lookupTable)[0];
-      const firstRightRow = lookupTable[firstLookupKey]?.[0];
+      const firstSecondaryRow = lookupTable[firstLookupKey]?.[0];
       logger.info('Join enrichment debug - first rows', {
-        leftRowKeys: Object.keys(firstLeftRow),
-        rightRowKeys: firstRightRow ? Object.keys(firstRightRow) : [],
+        primaryRowKeys: Object.keys(firstPrimaryRow),
+        secondaryRowKeys: firstSecondaryRow ? Object.keys(firstSecondaryRow) : [],
+        isLeftLookup: isLeftLookup,
         columnMappingsCount: joinSpec.columnMappings?.length || 0,
         columnMappings: joinSpec.columnMappings?.slice(0, 5)
       });
@@ -368,23 +375,27 @@ function applyJoinEnrichment(transformedRows, joinLookupTables, joinSpecs, logge
     
     for (const row of currentRows) {
       // Build composite key from the CURRENT enriched row (supports cascaded joins)
+      // When right lookup: use leftColumn from primary to look up right rows
+      // When left lookup: use rightColumn from primary to look up left rows
       const keyParts = joinSpec.joinKeys.map(jk => {
-        const columnName = jk.leftColumn || jk.left_column || jk.left;
+        const columnName = isLeftLookup
+          ? (jk.rightColumn || jk.right_column || jk.right)
+          : (jk.leftColumn || jk.left_column || jk.left);
         return String(row[columnName] || '').trim().toLowerCase();
       });
       const compositeKey = keyParts.join('|');
       
-      // Look up matching rows from right source (array-based for one-to-many support)
-      const matchedRightRows = lookupTable[compositeKey];
+      // Look up matching rows from secondary source (array-based for one-to-many support)
+      const matchedSecondaryRows = lookupTable[compositeKey];
       
-      if (matchedRightRows && matchedRightRows.length > 0) {
-        matchedCount += matchedRightRows.length;
+      if (matchedSecondaryRows && matchedSecondaryRows.length > 0) {
+        matchedCount += matchedSecondaryRows.length;
         
-        // For each matching right row, create an enriched output row
-        for (const matchedRightRow of matchedRightRows) {
+        // For each matching secondary row, create an enriched output row
+        for (const matchedSecondaryRow of matchedSecondaryRows) {
           // Deep clone both rows to prevent reference issues
           const enrichedRow = JSON.parse(JSON.stringify(row));
-          const rightRowClone = JSON.parse(JSON.stringify(matchedRightRow));
+          const secondaryRowClone = JSON.parse(JSON.stringify(matchedSecondaryRow));
           
           // Apply column mappings from the join node configuration
           if (joinSpec.columnMappings && joinSpec.columnMappings.length > 0) {
@@ -392,16 +403,17 @@ function applyJoinEnrichment(transformedRows, joinLookupTables, joinSpecs, logge
               const sourceCol = cm.sourceColumn || cm.source_column || cm.source;
               const targetCol = cm.targetColumn || cm.target_column || cm.target || sourceCol;
               
-              if (sourceCol && rightRowClone[sourceCol] !== undefined) {
-                enrichedRow[targetCol] = rightRowClone[sourceCol];
+              if (sourceCol && secondaryRowClone[sourceCol] !== undefined) {
+                enrichedRow[targetCol] = secondaryRowClone[sourceCol];
               }
             }
           } else {
-            // If no column mappings, merge all columns from right source
-            // Prefix ALL right columns with 'src2_' to avoid conflicts and ensure clarity
-            for (const [col, value] of Object.entries(rightRowClone)) {
-              // Always prefix right-side columns to clearly distinguish from left side
-              enrichedRow[`src2_${col}`] = value;
+            // If no column mappings, merge all columns from secondary source
+            // Use appropriate prefix based on which side was loaded
+            const prefix = isLeftLookup ? 'src1_' : 'src2_';
+            for (const [col, value] of Object.entries(secondaryRowClone)) {
+              // Always prefix secondary-side columns to clearly distinguish from primary
+              enrichedRow[`${prefix}${col}`] = value;
               // Also add unprefixed if no conflict, for backward compatibility
               if (enrichedRow[col] === undefined) {
                 enrichedRow[col] = value;
@@ -414,7 +426,7 @@ function applyJoinEnrichment(transformedRows, joinLookupTables, joinSpecs, logge
       } else {
         unmatchedCount++;
         
-        // For LEFT/LEFT OUTER joins, keep the row with nulls for right columns
+        // For LEFT/LEFT OUTER joins, keep the row with nulls for secondary columns
         if (joinType === 'LEFT' || joinType === 'LEFT OUTER') {
           nextRows.push(JSON.parse(JSON.stringify(row)));
         }
@@ -1792,18 +1804,27 @@ async function executeTransformationJob(pool, mappingId, userId, options = {}) {
           );
           
           // Build lookup tables for each join key combination
+          // NOTE: We need to support loading EITHER left or right source into the lookup table
+          // depending on which one is the secondary (non-primary) source
           for (const joinSpec of relevantJoinSpecs) {
             const isRightSource = joinSpec.rightSourceNodeId === source.nodeId;
+            const isLeftSource = joinSpec.leftSourceNodeId === source.nodeId;
             
-            if (isRightSource && joinSpec.joinKeys && joinSpec.joinKeys.length > 0) {
-              // Build composite key lookup table with ARRAY values (supports multiple matches per key)
-              const lookupKey = `${joinSpec.nodeId}_right`;
+            // Load this source into lookup table if it has join keys
+            // The lookup key indicates which side: 'right' or 'left'
+            if (joinSpec.joinKeys && joinSpec.joinKeys.length > 0) {
+              // Use 'right' or 'left' suffix to indicate which side was loaded
+              const sideLabel = isRightSource ? 'right' : 'left';
+              const lookupKey = `${joinSpec.nodeId}_${sideLabel}`;
               joinLookupTables[lookupKey] = {};
               
               for (const row of rows) {
-                // Build composite key from all join keys
+                // Build composite key from the appropriate side's columns
                 const keyParts = joinSpec.joinKeys.map(jk => {
-                  const columnName = jk.rightColumn || jk.right_column || jk.right;
+                  // Use rightColumn if this is the right source, leftColumn if this is the left source
+                  const columnName = isRightSource 
+                    ? (jk.rightColumn || jk.right_column || jk.right)
+                    : (jk.leftColumn || jk.left_column || jk.left);
                   return String(row[columnName] || '').trim().toLowerCase();
                 });
                 const compositeKey = keyParts.join('|');
@@ -1815,12 +1836,13 @@ async function executeTransformationJob(pool, mappingId, userId, options = {}) {
                 joinLookupTables[lookupKey][compositeKey].push(row);
               }
               
-              emitLog('info', `Built lookup table for ${source.nodeName}: ${Object.keys(joinLookupTables[lookupKey]).length} unique keys`);
+              emitLog('info', `Built lookup table for ${source.nodeName} (${sideLabel} side): ${Object.keys(joinLookupTables[lookupKey]).length} unique keys`);
               systemLogger.info('Built join lookup table', {
                 sourceNodeId: source.nodeId,
                 sourceName: source.nodeName,
                 joinNodeId: joinSpec.nodeId,
                 lookupKey,
+                side: sideLabel,
                 uniqueKeys: Object.keys(joinLookupTables[lookupKey]).length,
                 totalRows: rows.length
               });
@@ -5316,5 +5338,8 @@ module.exports = {
   cancelJob,
   logJobExecution,
   getMappingConfig,
-  processFile
+  processFile,
+  downloadFileFromConnection,
+  parseFileToRows,
+  listAndFilterFiles
 };

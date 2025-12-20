@@ -1143,4 +1143,96 @@ router.get('/:id/logs', async (req, res) => {
   }
 });
 
+/**
+ * POST /api/visual-mappings/source-preview
+ * Get preview data from a source configuration
+ * Body: { connectionId, filePath, filePattern, limit }
+ */
+router.post('/source-preview', async (req, res) => {
+  try {
+    const { connectionId, filePath, filePattern, limit = 25 } = req.body;
+    
+    if (!connectionId) {
+      return res.status(400).json({ error: 'Connection ID is required' });
+    }
+    
+    if (!filePattern) {
+      return res.status(400).json({ error: 'File pattern is required' });
+    }
+    
+    // Fetch connection details
+    const connectionResult = await pool.query(
+      `SELECT connection_id, type, config FROM storage_connections WHERE connection_id = $1`,
+      [connectionId]
+    );
+    
+    if (connectionResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Connection not found' });
+    }
+    
+    const connection = connectionResult.rows[0];
+    
+    // Import the job execution engine functions for file processing
+    const { downloadFileFromConnection, parseFileToRows, listAndFilterFiles } = require('../services/jobExecutionEngine');
+    
+    // Build full pattern path
+    const fullPattern = filePath 
+      ? `${filePath.replace(/^\//, '').replace(/\/$/, '')}/${filePattern}`
+      : filePattern;
+    
+    // Find matching files
+    const matchingFiles = await listAndFilterFiles(pool, connectionId, fullPattern);
+    
+    if (matchingFiles.length === 0) {
+      return res.json({ 
+        success: false, 
+        error: 'No files found matching the pattern',
+        pattern: fullPattern,
+        data: [],
+        columns: []
+      });
+    }
+    
+    // Get the first matching file
+    const sourceFile = matchingFiles[0];
+    
+    systemLogger.info('Fetching source preview', {
+      connectionId,
+      filePath,
+      filePattern,
+      matchingFile: sourceFile.filename
+    });
+    
+    // Download and parse the file
+    const fileBuffer = await downloadFileFromConnection(pool, connectionId, sourceFile.filename);
+    const allRows = await parseFileToRows(fileBuffer, sourceFile.filename, pool);
+    
+    // Take only the first N rows for preview
+    const previewRows = allRows.slice(0, Math.min(limit, allRows.length));
+    
+    // Extract column names from the first row
+    const columns = previewRows.length > 0 ? Object.keys(previewRows[0]) : [];
+    
+    res.json({
+      success: true,
+      filename: sourceFile.filename,
+      totalRows: allRows.length,
+      previewRowCount: previewRows.length,
+      columns,
+      data: previewRows
+    });
+    
+  } catch (error) {
+    systemLogger.error('Failed to fetch source preview', {
+      error: error.message,
+      stack: error.stack,
+      body: req.body
+    });
+    res.status(500).json({ 
+      success: false,
+      error: 'Failed to fetch preview: ' + error.message 
+    });
+  }
+});
+
 module.exports = router;
