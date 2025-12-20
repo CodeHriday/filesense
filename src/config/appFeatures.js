@@ -209,7 +209,7 @@ export const APP_FEATURES = [
     category: 'Insights',
     icon: FiDatabase,
     route: '/retention-policies',
-    showInSidebar: true
+    showInSidebar: false
   },
   { 
     id: 'archived_files', 
@@ -217,7 +217,7 @@ export const APP_FEATURES = [
     category: 'Insights',
     icon: FiArchive,
     route: '/archived-files',
-    showInSidebar: true
+    showInSidebar: false
   },
   { 
     id: 'anomalies', 
@@ -225,7 +225,7 @@ export const APP_FEATURES = [
     category: 'Insights',
     icon: FiAlertTriangle,
     route: '/anomalies',
-    showInSidebar: true
+    showInSidebar: false
   },
   { 
     id: 'tags', 
