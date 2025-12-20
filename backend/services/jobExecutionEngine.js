@@ -222,7 +222,9 @@ async function parseFileToRows(buffer, filename, pool = null, vendorAgreementId 
     let tempDir = null;
     try {
       tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'join-extract-'));
-      const archivePath = path.join(tempDir, filename);
+      // Use basename to strip any directory prefix (e.g., 'fisher/dim_customer.csv.zip' -> 'dim_customer.csv.zip')
+      const archiveBasename = path.basename(filename);
+      const archivePath = path.join(tempDir, archiveBasename);
       fs.writeFileSync(archivePath, buffer);
       
       // Get password from vendor agreement if available
