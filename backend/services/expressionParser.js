@@ -757,6 +757,42 @@ function evaluateTransformationConfig(transformConfig, variableValues = {}) {
   const sourceFields = [];
   const transformations = [];
   
+  // Helper to extract source fields from nested configs WITHOUT pushing transformations
+  function extractSourceFieldsOnly(config) {
+    if (!config) return;
+    
+    if (config.type === 'column') {
+      sourceFields.push(config.sourceField);
+      return;
+    }
+    
+    if (config.type === 'transformation') {
+      // Extract from nestedArgs
+      if (config.nestedArgs) {
+        for (const arg of config.nestedArgs) {
+          if (arg.type === 'COLUMN') {
+            sourceFields.push(arg.name);
+          }
+        }
+      }
+      // Extract from compoundConditions
+      if (config.params?.compoundConditions) {
+        for (const cond of config.params.compoundConditions) {
+          if (cond.field && !cond.field.startsWith('$')) {
+            sourceFields.push(cond.field);
+          }
+        }
+      }
+      // Recursively extract from nested values
+      if (config.params?.thenValueNested) {
+        extractSourceFieldsOnly(config.params.thenValueNested);
+      }
+      if (config.params?.elseValueNested) {
+        extractSourceFieldsOnly(config.params.elseValueNested);
+      }
+    }
+  }
+  
   function extractFromConfig(config) {
     if (config.type === 'column') {
       sourceFields.push(config.sourceField);
@@ -863,14 +899,13 @@ function evaluateTransformationConfig(transformConfig, variableValues = {}) {
             }
           }
           
-          // Handle nested thenValueNested (recursive IF)
+          // Handle nested thenValueNested/elseValueNested - ONLY extract sourceFields
+          // Do NOT push nested transformations to the array (they're embedded in params)
           if (config.params.thenValueNested) {
-            extractFromConfig(config.params.thenValueNested);
+            extractSourceFieldsOnly(config.params.thenValueNested);
           }
-          
-          // Handle nested elseValueNested (recursive IF)
           if (config.params.elseValueNested) {
-            extractFromConfig(config.params.elseValueNested);
+            extractSourceFieldsOnly(config.params.elseValueNested);
           }
         } else {
           // For other functions, first arg is the value to transform
@@ -891,12 +926,13 @@ function evaluateTransformationConfig(transformConfig, variableValues = {}) {
             }
           }
         }
-        // Handle nested transformations for IF without nestedArgs
+        // Handle nested transformations for IF - ONLY extract sourceFields
+        // Do NOT push nested IFs as separate transformations (they're embedded in params)
         if (config.params.thenValueNested) {
-          extractFromConfig(config.params.thenValueNested);
+          extractSourceFieldsOnly(config.params.thenValueNested);
         }
         if (config.params.elseValueNested) {
-          extractFromConfig(config.params.elseValueNested);
+          extractSourceFieldsOnly(config.params.elseValueNested);
         }
       }
       
