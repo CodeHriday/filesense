@@ -701,6 +701,16 @@
   border-color: #d1d5db;
 }
 
+.insertable-item-editing {
+  background: #eff6ff;
+  border-color: #3b82f6;
+}
+
+.insertable-item-editing:hover {
+  background: #dbeafe;
+  border-color: #2563eb;
+}
+
 .insertable-item-name {
   font-size: 10px;
   color: #3B82F6;
@@ -752,6 +762,20 @@
 .insertable-item .btn-insert:hover {
   background: #eff6ff;
   color: #1e3a8a;
+}
+
+.insertable-item .btn-insert:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.insertable-item .btn-insert.btn-delete {
+  color: #dc2626;
+}
+
+.insertable-item .btn-insert.btn-delete:hover {
+  background: #fef2f2;
+  color: #b91c1c;
 }
 
 /* Function insert buttons - green text only */

@@ -115,8 +115,8 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
   // Variables state
   const [variables, setVariables] = useState([]);
   const [variablesExpanded, setVariablesExpanded] = useState(true);
-  const [editingVariable, setEditingVariable] = useState(null);
   const [addingVariable, setAddingVariable] = useState(false);
+  const [inlineEditingVariableId, setInlineEditingVariableId] = useState(null); // Track which variable is being edited in the modal
   const [newVariable, setNewVariable] = useState({
     name: '',
     expression: '',
@@ -261,16 +261,16 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
     }
   }, [newVariable.expression, pendingCursorPos]);
   
-  // Position cursor after React updates editingVariable expression in DOM
+  // Position cursor after React updates expression in DOM (for inline editing mode)
   useEffect(() => {
-    if (pendingEditCursorPos !== null && editExpressionTextareaRef.current) {
-      const textarea = editExpressionTextareaRef.current;
+    if (pendingEditCursorPos !== null && expressionTextareaRef.current && inlineEditingVariableId) {
+      const textarea = expressionTextareaRef.current;
       textarea.focus();
       textarea.setSelectionRange(pendingEditCursorPos, pendingEditCursorPos);
       // Clear pending position after applying
       setPendingEditCursorPos(null);
     }
-  }, [editingVariable?.expression, pendingEditCursorPos]);
+  }, [newVariable.expression, pendingEditCursorPos, inlineEditingVariableId]);
   
   // Toggle PII status for a field
   const togglePII = (targetField) => {
@@ -833,33 +833,22 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
     
     if (!textarea) {
       // Fallback: append to end if no textarea ref available
-      if (isEditMode) {
-        const currentValue = editingVariable?.expression || '';
-        setEditingVariable({ ...editingVariable, expression: currentValue + sanitizedText });
-      } else {
-        const currentValue = newVariable.expression || '';
-        setNewVariable({ ...newVariable, expression: currentValue + sanitizedText });
-      }
+      const currentValue = newVariable.expression || '';
+      setNewVariable({ ...newVariable, expression: currentValue + sanitizedText });
       return;
     }
 
     const start = textarea.selectionStart || 0;
     const end = textarea.selectionEnd || 0;
-    const currentValue = isEditMode ? (editingVariable?.expression || '') : (newVariable.expression || '');
+    const currentValue = newVariable.expression || '';
     const newValue = currentValue.substring(0, start) + sanitizedText + currentValue.substring(end);
     
     // Calculate where cursor should be after insertion
     const newPos = start + sanitizedText.length;
     
-    if (isEditMode) {
-      setEditingVariable({ ...editingVariable, expression: newValue });
-      // Set pending cursor position - useEffect will apply it after React updates DOM
-      setPendingEditCursorPos(newPos);
-    } else {
-      setNewVariable({ ...newVariable, expression: newValue });
-      // Set pending cursor position - useEffect will apply it after React updates DOM
-      setPendingCursorPos(newPos);
-    }
+    setNewVariable({ ...newVariable, expression: newValue });
+    // Set pending cursor position - useEffect will apply it after React updates DOM
+    setPendingCursorPos(newPos);
   };
 
   // Helper function to get function syntax template
@@ -955,26 +944,30 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
   };
 
   const handleEditVariable = (variable) => {
-    setEditingVariable({
-      ...variable,
+    // Load variable data into the form for inline editing
+    setInlineEditingVariableId(variable.id);
+    setNewVariable({
+      name: variable.name,
       expression: variable.expression || buildVariableExpression(variable),
-      params: variable.transformation_params || {}
+      data_type: variable.data_type || ''
     });
   };
 
-  const handleSaveEditedVariable = () => {
-    if (!editingVariable) return;
+  const handleUpdateVariable = () => {
+    // Update the variable but keep modal open
+    if (!inlineEditingVariableId) return;
 
-    if (!editingVariable.expression.trim()) {
+    if (!newVariable.expression.trim()) {
       setValidationError('Please enter an expression for the variable');
       return;
     }
 
     const updatedVariables = variables.map(v =>
-      v.id === editingVariable.id
+      v.id === inlineEditingVariableId
         ? {
             ...v,
-            expression: editingVariable.expression,
+            expression: newVariable.expression,
+            data_type: newVariable.data_type,
             source_field: null,
             transformation: 'none',
             transformation_params: {}
@@ -983,8 +976,65 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
     );
 
     setVariables(updatedVariables);
-    setEditingVariable(null);
     onMappingsChange(mappings, updatedVariables, Array.from(piiColumns), dqRuleAssignments);
+    // Clear the form and editing state but keep modal open
+    setInlineEditingVariableId(null);
+    setNewVariable({ name: '', expression: '', data_type: '' });
+  };
+
+  const handleSaveAndClose = () => {
+    // If editing, save the edit and close. If adding new, save new and close.
+    if (inlineEditingVariableId) {
+      if (!newVariable.expression.trim()) {
+        setValidationError('Please enter an expression for the variable');
+        return;
+      }
+
+      const updatedVariables = variables.map(v =>
+        v.id === inlineEditingVariableId
+          ? {
+              ...v,
+              expression: newVariable.expression,
+              data_type: newVariable.data_type,
+              source_field: null,
+              transformation: 'none',
+              transformation_params: {}
+            }
+          : v
+      );
+
+      setVariables(updatedVariables);
+      onMappingsChange(mappings, updatedVariables, Array.from(piiColumns), dqRuleAssignments);
+    } else if (newVariable.name.trim() && newVariable.expression.trim()) {
+      // Adding a new variable - validate and save
+      if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(newVariable.name)) {
+        setValidationError('Variable name must start with a letter or underscore and contain only letters, numbers, and underscores');
+        return;
+      }
+      if (variables.some(v => v.name === newVariable.name)) {
+        setValidationError('A variable with this name already exists');
+        return;
+      }
+
+      const variable = {
+        id: `var_${Date.now()}`,
+        name: newVariable.name,
+        expression: newVariable.expression,
+        data_type: newVariable.data_type,
+        source_field: null,
+        transformation: 'none',
+        transformation_params: {}
+      };
+
+      const newVariables = [...variables, variable];
+      setVariables(newVariables);
+      onMappingsChange(mappings, newVariables, Array.from(piiColumns), dqRuleAssignments);
+    }
+
+    // Close the modal
+    setAddingVariable(false);
+    setInlineEditingVariableId(null);
+    setNewVariable({ name: '', expression: '', data_type: '' });
   };
 
   const handleDeleteVariable = (variableId) => {
@@ -1011,39 +1061,21 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
 
   const handleVariableTransformationChange = (value) => {
     const transform = TRANSFORMATION_OPTIONS.find(t => t.value === value);
-    if (editingVariable) {
-      setEditingVariable({
-        ...editingVariable,
-        transformation: value,
-        params: transform && transform.params.length > 0 ? {} : {}
-      });
-    } else {
-      setNewVariable({
-        ...newVariable,
-        transformation: value,
-        params: transform && transform.params.length > 0 ? {} : {}
-      });
-    }
+    setNewVariable({
+      ...newVariable,
+      transformation: value,
+      params: transform && transform.params.length > 0 ? {} : {}
+    });
   };
 
   const handleVariableParamChange = (paramName, paramValue) => {
-    if (editingVariable) {
-      setEditingVariable({
-        ...editingVariable,
-        params: {
-          ...editingVariable.params,
-          [paramName]: paramValue
-        }
-      });
-    } else {
-      setNewVariable({
-        ...newVariable,
-        params: {
-          ...newVariable.params,
-          [paramName]: paramValue
-        }
-      });
-    }
+    setNewVariable({
+      ...newVariable,
+      params: {
+        ...newVariable.params,
+        [paramName]: paramValue
+      }
+    });
   };
 
   const buildVariableExpression = (variable) => {
@@ -1106,7 +1138,7 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
             onClick={(e) => { e.stopPropagation(); handleAddVariable(); }}
             style={{ fontSize: '10px', fontFamily: 'Inter', padding: '0.125rem 0.25rem', gap: '0.125rem' }}
           >
-            <FiPlus /> Add Variable
+            <FiPlus /> Add/Edit Expressions
           </button>
         </div>
 
@@ -1114,7 +1146,7 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
           <div className="variables-content">
             {variables.length === 0 ? (
               <div className="no-variables">
-                No variables defined. Click "Add Variable" to create pre-calculations that can be used in field mappings.
+                No variables defined. Click "Add/Edit Expressions" to create pre-calculations that can be used in field mappings.
               </div>
             ) : (
               <div className="variables-list">
@@ -1631,8 +1663,8 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
           <div className="modal-overlay"></div>
           <div className="modal-content">
             <div className="modal-header">
-              <h4>Add Variable</h4>
-              <button className="btn-close" onClick={() => setAddingVariable(false)}>
+              <h4>Add/Edit Expressions {inlineEditingVariableId && <span style={{ fontWeight: 'normal', fontSize: '10px', color: '#6b7280' }}>(Editing: ${newVariable.name})</span>}</h4>
+              <button className="btn-close" onClick={() => { setAddingVariable(false); setInlineEditingVariableId(null); setNewVariable({ name: '', expression: '', data_type: '' }); }}>
                 <FiX />
               </button>
             </div>
@@ -1654,18 +1686,29 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
                           {previousVariablesExpanded ? <FiChevronDown size={14} /> : <FiChevronRight size={14} />}
                         </div>
                         {previousVariablesExpanded && variables.map(variable => (
-                          <div key={variable.id} className="insertable-item">
+                          <div key={variable.id} className={`insertable-item ${inlineEditingVariableId === variable.id ? 'insertable-item-editing' : ''}`}>
                             <div className="insertable-item-name">${variable.name}</div>
                             <div className="insertable-item-actions">
                               <button 
                                 className="btn-insert"
-                                onClick={() => {
-                                  setAddingVariable(false);
-                                  handleEditVariable(variable);
-                                }}
+                                onClick={() => handleEditVariable(variable)}
                                 title="Edit variable"
+                                disabled={inlineEditingVariableId === variable.id}
                               >
                                 <FiEdit2 size={12} />
+                              </button>
+                              <button 
+                                className="btn-insert btn-delete"
+                                onClick={() => {
+                                  handleDeleteVariable(variable.id);
+                                  if (inlineEditingVariableId === variable.id) {
+                                    setInlineEditingVariableId(null);
+                                    setNewVariable({ name: '', expression: '', data_type: '' });
+                                  }
+                                }}
+                                title="Delete variable"
+                              >
+                                <FiTrash2 size={12} />
                               </button>
                               <button 
                                 className="btn-insert"
@@ -1765,15 +1808,17 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
                   <div className="variable-pane-content">
                     <div className="expression-builder">
                       <div className="variable-name-input">
-                        <label htmlFor="newvar-name">Variable Name *</label>
+                        <label htmlFor="newvar-name">Variable Name {!inlineEditingVariableId && '*'}</label>
                         <input
                           id="newvar-name"
                           type="text"
                           value={newVariable.name}
                           onChange={(e) => setNewVariable({ ...newVariable, name: e.target.value })}
                           placeholder="e.g., full_name, total_amount"
+                          disabled={!!inlineEditingVariableId}
+                          style={inlineEditingVariableId ? { backgroundColor: '#f3f4f6', cursor: 'not-allowed' } : {}}
                         />
-                        <small className="form-text">Can be referenced as $variable_name</small>
+                        <small className="form-text">{inlineEditingVariableId ? 'Variable name cannot be changed' : 'Can be referenced as $variable_name'}</small>
                       </div>
 
                       <div className="variable-name-input">
@@ -1845,18 +1890,23 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
               </div>
             </div>
             <div className="modal-footer">
-              <button className="btn btn-secondary btn-fixed-width" onClick={() => setAddingVariable(false)}>
+              <button className="btn btn-secondary btn-fixed-width" onClick={() => { setAddingVariable(false); setInlineEditingVariableId(null); setNewVariable({ name: '', expression: '', data_type: '' }); }}>
                 Cancel
               </button>
-              <button className="btn btn-primary btn-fixed-width" onClick={handleSaveVariable}>
-                Add Variable
+              {inlineEditingVariableId && (
+                <button className="btn btn-secondary btn-fixed-width" onClick={handleUpdateVariable}>
+                  Update
+                </button>
+              )}
+              <button className="btn btn-primary btn-fixed-width" onClick={handleSaveAndClose}>
+                Save
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {editingVariable && (
+      {false && (
         <div className="expression-editor-modal variable-builder-modal">
           <div className="modal-overlay"></div>
           <div className="modal-content">
