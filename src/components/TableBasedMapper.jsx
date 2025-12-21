@@ -106,10 +106,18 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
     data_type: ''
   });
   
-  // Collapsible sections state for variable modal
-  const [sourceColumnsExpanded, setSourceColumnsExpanded] = useState(true);
-  const [previousVariablesExpanded, setPreviousVariablesExpanded] = useState(true);
-  const [collapsedFunctionGroups, setCollapsedFunctionGroups] = useState({});
+  // Collapsible sections state for variable modal - all collapsed by default
+  const [sourceColumnsExpanded, setSourceColumnsExpanded] = useState(false);
+  const [previousVariablesExpanded, setPreviousVariablesExpanded] = useState(false);
+  const [collapsedFunctionGroups, setCollapsedFunctionGroups] = useState({
+    'Basic': true,
+    'Null Handling': true,
+    'String': true,
+    'Numeric': true,
+    'Date/Time': true,
+    'Type Cast': true,
+    'Conditional': true
+  });
   const expressionTextareaRef = useRef(null);
   const editExpressionTextareaRef = useRef(null);
   
@@ -1602,38 +1610,17 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
             </div>
             <div className="modal-body">
               <div className="variable-builder-panes">
-                {/* Left Pane: Source Columns */}
+                {/* Left Pane: Variables & Source Columns */}
                 <div className="variable-pane">
-                  <div className="variable-pane-header">Source Columns & Variables</div>
+                  <div className="variable-pane-header" style={{ textTransform: 'none' }}>Variables & Source Columns</div>
                   <div className="variable-pane-content">
-                    {/* Source Columns - Collapsible */}
-                    <div 
-                      className="function-group-header collapsible-header"
-                      onClick={() => setSourceColumnsExpanded(!sourceColumnsExpanded)}
-                      style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
-                    >
-                      <span>Source Columns</span>
-                      {sourceColumnsExpanded ? <FiChevronDown size={14} /> : <FiChevronRight size={14} />}
-                    </div>
-                    {sourceColumnsExpanded && schema.map(field => (
-                      <div key={field.name} className="insertable-item">
-                        <div className="insertable-item-name">{field.name}</div>
-                        <button 
-                          className="btn-insert"
-                          onClick={() => handleInsertColumn(field.name)}
-                          title="Insert column"
-                        >
-                          <FiPlus size={12} />
-                        </button>
-                      </div>
-                    ))}
-                    
+                    {/* Previous Variables - Collapsible (shown first) */}
                     {variables.length > 0 && (
                       <>
                         <div 
                           className="function-group-header collapsible-header"
                           onClick={() => setPreviousVariablesExpanded(!previousVariablesExpanded)}
-                          style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '8px' }}
+                          style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', textTransform: 'none' }}
                         >
                           <span>Previous Variables</span>
                           {previousVariablesExpanded ? <FiChevronDown size={14} /> : <FiChevronRight size={14} />}
@@ -1652,6 +1639,28 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
                         ))}
                       </>
                     )}
+                    
+                    {/* Source Columns - Collapsible */}
+                    <div 
+                      className="function-group-header collapsible-header"
+                      onClick={() => setSourceColumnsExpanded(!sourceColumnsExpanded)}
+                      style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', textTransform: 'none', marginTop: variables.length > 0 ? '8px' : '0' }}
+                    >
+                      <span>Source Columns</span>
+                      {sourceColumnsExpanded ? <FiChevronDown size={14} /> : <FiChevronRight size={14} />}
+                    </div>
+                    {sourceColumnsExpanded && schema.map(field => (
+                      <div key={field.name} className="insertable-item">
+                        <div className="insertable-item-name">{field.name}</div>
+                        <button 
+                          className="btn-insert"
+                          onClick={() => handleInsertColumn(field.name)}
+                          title="Insert column"
+                        >
+                          <FiPlus size={12} />
+                        </button>
+                      </div>
+                    ))}
                   </div>
                 </div>
 
@@ -1678,7 +1687,7 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
                           <div 
                             className={`function-group-header collapsible-header ${group.group === 'Conditional' ? 'conditional-header' : ''}`}
                             onClick={() => setCollapsedFunctionGroups(prev => ({ ...prev, [group.group]: !prev[group.group] }))}
-                            style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
+                            style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', textTransform: 'none' }}
                           >
                             <span>
                               {group.group === 'Conditional' && '⚡ '}
@@ -1712,7 +1721,7 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
 
                 {/* Right Pane: Expression Builder */}
                 <div className="variable-pane">
-                  <div className="variable-pane-header">Build Expression</div>
+                  <div className="variable-pane-header" style={{ textTransform: 'none' }}>Build Expression</div>
                   <div className="variable-pane-content">
                     <div className="expression-builder">
                       <div className="variable-name-input">
@@ -1819,38 +1828,17 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
             </div>
             <div className="modal-body">
               <div className="variable-builder-panes">
-                {/* Left Pane: Source Columns */}
+                {/* Left Pane: Variables & Source Columns */}
                 <div className="variable-pane">
-                  <div className="variable-pane-header">Source Columns & Variables</div>
+                  <div className="variable-pane-header" style={{ textTransform: 'none' }}>Variables & Source Columns</div>
                   <div className="variable-pane-content">
-                    {/* Source Columns - Collapsible */}
-                    <div 
-                      className="function-group-header collapsible-header"
-                      onClick={() => setSourceColumnsExpanded(!sourceColumnsExpanded)}
-                      style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
-                    >
-                      <span>Source Columns</span>
-                      {sourceColumnsExpanded ? <FiChevronDown size={14} /> : <FiChevronRight size={14} />}
-                    </div>
-                    {sourceColumnsExpanded && schema.map(field => (
-                      <div key={field.name} className="insertable-item">
-                        <div className="insertable-item-name">{field.name}</div>
-                        <button 
-                          className="btn-insert"
-                          onClick={() => handleInsertColumn(field.name, true)}
-                          title="Insert column"
-                        >
-                          <FiPlus size={12} />
-                        </button>
-                      </div>
-                    ))}
-                    
+                    {/* Previous Variables - Collapsible (shown first) */}
                     {variables.filter(v => v.id !== editingVariable.id).length > 0 && (
                       <>
                         <div 
                           className="function-group-header collapsible-header"
                           onClick={() => setPreviousVariablesExpanded(!previousVariablesExpanded)}
-                          style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '8px' }}
+                          style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', textTransform: 'none' }}
                         >
                           <span>Previous Variables</span>
                           {previousVariablesExpanded ? <FiChevronDown size={14} /> : <FiChevronRight size={14} />}
@@ -1869,12 +1857,34 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
                         ))}
                       </>
                     )}
+                    
+                    {/* Source Columns - Collapsible */}
+                    <div 
+                      className="function-group-header collapsible-header"
+                      onClick={() => setSourceColumnsExpanded(!sourceColumnsExpanded)}
+                      style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', textTransform: 'none', marginTop: variables.filter(v => v.id !== editingVariable.id).length > 0 ? '8px' : '0' }}
+                    >
+                      <span>Source Columns</span>
+                      {sourceColumnsExpanded ? <FiChevronDown size={14} /> : <FiChevronRight size={14} />}
+                    </div>
+                    {sourceColumnsExpanded && schema.map(field => (
+                      <div key={field.name} className="insertable-item">
+                        <div className="insertable-item-name">{field.name}</div>
+                        <button 
+                          className="btn-insert"
+                          onClick={() => handleInsertColumn(field.name, true)}
+                          title="Insert column"
+                        >
+                          <FiPlus size={12} />
+                        </button>
+                      </div>
+                    ))}
                   </div>
                 </div>
 
                 {/* Middle Pane: Transformation Functions */}
                 <div className="variable-pane">
-                  <div className="variable-pane-header">Functions</div>
+                  <div className="variable-pane-header" style={{ textTransform: 'none' }}>Functions</div>
                   <div className="variable-pane-content">
                     {TRANSFORMATION_OPTIONS.reduce((acc, option) => {
                       const lastGroup = acc[acc.length - 1];
@@ -1895,7 +1905,7 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
                           <div 
                             className={`function-group-header collapsible-header ${group.group === 'Conditional' ? 'conditional-header' : ''}`}
                             onClick={() => setCollapsedFunctionGroups(prev => ({ ...prev, [group.group]: !prev[group.group] }))}
-                            style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
+                            style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', textTransform: 'none' }}
                           >
                             <span>
                               {group.group === 'Conditional' && '⚡ '}
@@ -1929,7 +1939,7 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
 
                 {/* Right Pane: Expression Builder */}
                 <div className="variable-pane">
-                  <div className="variable-pane-header">Build Expression</div>
+                  <div className="variable-pane-header" style={{ textTransform: 'none' }}>Build Expression</div>
                   <div className="variable-pane-content">
                     <div className="expression-builder">
                       <div className="variable-name-input">
