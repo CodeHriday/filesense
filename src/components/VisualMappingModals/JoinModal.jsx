@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { FaPlus, FaTrash, FaExclamationTriangle, FaMagic, FaEraser } from 'react-icons/fa';
+import { FaPlus, FaTrash, FaExclamationTriangle, FaMagic, FaEraser, FaChevronRight, FaChevronLeft, FaAngleDoubleRight, FaAngleDoubleLeft, FaPencilAlt, FaCheck, FaTimes } from 'react-icons/fa';
 import './MappingConfigModal.css';
 import PropTypes from 'prop-types';
 
@@ -30,6 +30,12 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
   const [columnMappings, setColumnMappings] = useState([]);
   const [validationError, setValidationError] = useState('');
   const [mappingFilter, setMappingFilter] = useState('');
+  const [leftPanelSelection, setLeftPanelSelection] = useState(new Set());
+  const [rightPanelSelection, setRightPanelSelection] = useState(new Set());
+  const [leftPanelFilter, setLeftPanelFilter] = useState('');
+  const [rightPanelFilter, setRightPanelFilter] = useState('');
+  const [editingColumnKey, setEditingColumnKey] = useState(null);
+  const [editingColumnName, setEditingColumnName] = useState('');
   
   const lastConfigSignatureRef = useRef('');
   const userHasEditedRef = useRef(false);
@@ -432,6 +438,170 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
     setColumnMappings(mappings);
   };
 
+  // Dual-list picker: Get all available columns (not yet mapped)
+  const availableColumns = useMemo(() => {
+    const mappedKeys = new Set(columnMappings.map(m => `${m.sourceSide}:${m.sourceColumn}`));
+    const available = [];
+    leftSchema.forEach(col => {
+      const key = `left:${col.name}`;
+      if (!mappedKeys.has(key)) {
+        available.push({ ...col, sourceSide: 'left', key });
+      }
+    });
+    rightSchema.forEach(col => {
+      const key = `right:${col.name}`;
+      if (!mappedKeys.has(key)) {
+        available.push({ ...col, sourceSide: 'right', key });
+      }
+    });
+    return available;
+  }, [leftSchema, rightSchema, columnMappings]);
+
+  // Filter available columns
+  const filteredAvailableColumns = useMemo(() => {
+    if (!leftPanelFilter) return availableColumns;
+    const lower = leftPanelFilter.toLowerCase();
+    return availableColumns.filter(col => col.name.toLowerCase().includes(lower));
+  }, [availableColumns, leftPanelFilter]);
+
+  // Filter mapped columns
+  const filteredMappedColumns = useMemo(() => {
+    if (!rightPanelFilter) return columnMappings;
+    const lower = rightPanelFilter.toLowerCase();
+    return columnMappings.filter(m => 
+      m.outputColumn.toLowerCase().includes(lower) || 
+      m.sourceColumn.toLowerCase().includes(lower)
+    );
+  }, [columnMappings, rightPanelFilter]);
+
+  // Toggle selection in left panel (available)
+  const toggleLeftPanelSelection = (key) => {
+    const newSelection = new Set(leftPanelSelection);
+    if (newSelection.has(key)) {
+      newSelection.delete(key);
+    } else {
+      newSelection.add(key);
+    }
+    setLeftPanelSelection(newSelection);
+  };
+
+  // Toggle selection in right panel (mapped)
+  const toggleRightPanelSelection = (key) => {
+    const newSelection = new Set(rightPanelSelection);
+    if (newSelection.has(key)) {
+      newSelection.delete(key);
+    } else {
+      newSelection.add(key);
+    }
+    setRightPanelSelection(newSelection);
+  };
+
+  // Move selected columns from available to mapped (>)
+  const moveSelectedToMapped = () => {
+    if (leftPanelSelection.size === 0) return;
+    userHasEditedRef.current = true;
+    
+    const newMappings = [...columnMappings];
+    leftPanelSelection.forEach(key => {
+      const col = availableColumns.find(c => c.key === key);
+      if (col) {
+        newMappings.push({
+          outputColumn: col.name,
+          sourceColumn: col.name,
+          sourceSide: col.sourceSide,
+          include: true,
+          type: col.type || col.data_type || col.column_type || 'STRING',
+          precision: col.precision ?? null,
+          scale: col.scale ?? null,
+          nullable: col.nullable ?? true,
+          pii: col.pii || col.contains_pii || false,
+          dqRules: col.dqRules || []
+        });
+      }
+    });
+    
+    setColumnMappings(newMappings);
+    setLeftPanelSelection(new Set());
+  };
+
+  // Move selected columns from mapped back to available (<)
+  const moveSelectedToAvailable = () => {
+    if (rightPanelSelection.size === 0) return;
+    userHasEditedRef.current = true;
+    
+    const keysToRemove = rightPanelSelection;
+    const newMappings = columnMappings.filter(m => {
+      const key = `${m.sourceSide}:${m.sourceColumn}`;
+      return !keysToRemove.has(key);
+    });
+    
+    setColumnMappings(newMappings);
+    setRightPanelSelection(new Set());
+  };
+
+  // Move all available to mapped (>>)
+  const moveAllToMapped = () => {
+    if (availableColumns.length === 0) return;
+    userHasEditedRef.current = true;
+    
+    const newMappings = [...columnMappings];
+    availableColumns.forEach(col => {
+      newMappings.push({
+        outputColumn: col.name,
+        sourceColumn: col.name,
+        sourceSide: col.sourceSide,
+        include: true,
+        type: col.type || col.data_type || col.column_type || 'STRING',
+        precision: col.precision ?? null,
+        scale: col.scale ?? null,
+        nullable: col.nullable ?? true,
+        pii: col.pii || col.contains_pii || false,
+        dqRules: col.dqRules || []
+      });
+    });
+    
+    setColumnMappings(newMappings);
+    setLeftPanelSelection(new Set());
+  };
+
+  // Move all mapped back to available (<<)
+  const moveAllToAvailable = () => {
+    if (columnMappings.length === 0) return;
+    userHasEditedRef.current = true;
+    setColumnMappings([]);
+    setRightPanelSelection(new Set());
+  };
+
+  // Start editing a column name
+  const startEditingColumn = (key, currentName) => {
+    setEditingColumnKey(key);
+    setEditingColumnName(currentName);
+  };
+
+  // Save edited column name
+  const saveEditedColumn = () => {
+    if (!editingColumnKey) return;
+    userHasEditedRef.current = true;
+    
+    const newMappings = columnMappings.map(m => {
+      const key = `${m.sourceSide}:${m.sourceColumn}`;
+      if (key === editingColumnKey) {
+        return { ...m, outputColumn: editingColumnName || m.sourceColumn };
+      }
+      return m;
+    });
+    
+    setColumnMappings(newMappings);
+    setEditingColumnKey(null);
+    setEditingColumnName('');
+  };
+
+  // Cancel editing
+  const cancelEditingColumn = () => {
+    setEditingColumnKey(null);
+    setEditingColumnName('');
+  };
+
   const validateConfig = () => {
     if (joinKeys.length === 0) {
       setValidationError('At least one join key is required');
@@ -446,9 +616,7 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
       }
     }
 
-    const outputColumns = columnMappings
-      .filter(m => m.include)
-      .map(m => m.outputColumn);
+    const outputColumns = columnMappings.map(m => m.outputColumn || m.sourceColumn);
     
     if (outputColumns.length === 0) {
       setValidationError('At least one output column must be included');
@@ -461,12 +629,6 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
     
     if (duplicates.length > 0) {
       setValidationError(`Duplicate output column names: ${duplicates.join(', ')}`);
-      return false;
-    }
-
-    const emptyOutputColumns = columnMappings.filter(m => m.include && !m.outputColumn);
-    if (emptyOutputColumns.length > 0) {
-      setValidationError('All included columns must have output column names');
       return false;
     }
 
@@ -485,19 +647,17 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
       description,
       joinType,
       joinKeys,
-      columnMappings: columnMappings.filter(m => m.include),
-      outputSchema: columnMappings
-        .filter(m => m.include)
-        .map(m => ({
-          name: m.outputColumn,
-          type: m.type || 'STRING',
-          precision: m.precision ?? null,
-          scale: m.scale ?? null,
-          nullable: m.nullable ?? true,
-          pii: m.pii || m.contains_pii || false,
-          dqRules: m.dqRules || [],
-          source: m.sourceSide
-        }))
+      columnMappings: columnMappings.map(m => ({ ...m, include: true })),
+      outputSchema: columnMappings.map(m => ({
+        name: m.outputColumn || m.sourceColumn,
+        type: m.type || 'STRING',
+        precision: m.precision ?? null,
+        scale: m.scale ?? null,
+        nullable: m.nullable ?? true,
+        pii: m.pii || m.contains_pii || false,
+        dqRules: m.dqRules || [],
+        source: m.sourceSide
+      }))
     };
     
     onSave(config);
@@ -506,8 +666,7 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
 
   const getOutputSchema = () => {
     return columnMappings
-      .filter(m => m.include)
-      .map(m => m.outputColumn)
+      .map(m => m.outputColumn || m.sourceColumn)
       .filter(name => name);
   };
 
@@ -734,272 +893,251 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
 
           {activeTab === 'mapping' && (
             <div>
-              <div style={{ 
-                display: 'flex', 
-                gap: '8px', 
-                marginBottom: '12px', 
-                padding: '8px 12px',
-                backgroundColor: '#f8f9fa',
-                borderRadius: '4px',
-                alignItems: 'center',
-                flexWrap: 'wrap'
-              }}>
-                <span style={{ fontSize: '10px', fontFamily: 'Inter, sans-serif', fontWeight: 600, color: '#333', marginRight: '8px' }}>
-                  Bulk Actions:
-                </span>
-                <button
-                  className="vm-btn vm-btn-secondary"
-                  onClick={clearAllMappings}
-                  style={{ 
-                    padding: '4px 10px', 
-                    fontSize: '9px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '4px'
-                  }}
-                  title="Remove all column mappings"
-                >
-                  <FaEraser /> Clear All
-                </button>
-                <button
-                  className="vm-btn vm-btn-secondary"
-                  onClick={() => automapColumns('left')}
-                  style={{ 
-                    padding: '4px 10px', 
-                    fontSize: '9px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '4px'
-                  }}
-                  title="Auto-map all columns, preferring left source for duplicates"
-                >
-                  <FaMagic /> Automap (Left Priority)
-                </button>
-                <button
-                  className="vm-btn vm-btn-secondary"
-                  onClick={() => automapColumns('right')}
-                  style={{ 
-                    padding: '4px 10px', 
-                    fontSize: '9px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '4px'
-                  }}
-                  title="Auto-map all columns, preferring right source for duplicates"
-                >
-                  <FaMagic /> Automap (Right Priority)
-                </button>
-              </div>
-
-              <div style={{ display: 'flex', gap: '16px', marginBottom: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span style={{ fontSize: '10px', fontFamily: 'Inter, sans-serif', fontWeight: 500, color: '#333' }}>
-                    Include All {leftNodeName || 'Left'}
-                  </span>
-                  <label htmlFor="toggle-left-columns" style={{ 
-                    position: 'relative', 
-                    display: 'inline-block', 
-                    width: '36px', 
-                    height: '20px',
-                    cursor: 'pointer'
-                  }}>
+              <div style={{ display: 'flex', gap: '16px', height: '400px' }}>
+                {/* Left Panel - Available Columns */}
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', border: '1px solid #e2e8f0', borderRadius: '4px', overflow: 'hidden' }}>
+                  <div style={{ padding: '8px 12px', backgroundColor: '#f8f9fa', borderBottom: '1px solid #e2e8f0' }}>
+                    <div style={{ fontFamily: 'Inter, sans-serif', fontSize: '11px', fontWeight: 600, color: '#025043', marginBottom: '6px' }}>
+                      Available Columns ({availableColumns.length})
+                    </div>
                     <input
-                      id="toggle-left-columns"
-                      type="checkbox"
-                      checked={getLeftIncludeState()}
-                      onChange={toggleAllLeftColumns}
-                      style={{ opacity: 0, width: 0, height: 0 }}
+                      type="text"
+                      placeholder="Filter..."
+                      value={leftPanelFilter}
+                      onChange={(e) => setLeftPanelFilter(e.target.value)}
+                      className="vm-input"
+                      style={{ width: '100%', padding: '4px 8px', fontSize: '10px', fontFamily: 'Inter, sans-serif' }}
                     />
-                    <span style={{
-                      position: 'absolute',
-                      top: 0,
-                      left: 0,
-                      right: 0,
-                      bottom: 0,
-                      backgroundColor: getLeftIncludeState() ? '#025043' : '#ccc',
-                      borderRadius: '20px',
-                      transition: '0.3s'
-                    }} />
-                    <span style={{
-                      position: 'absolute',
-                      height: '14px',
-                      width: '14px',
-                      left: getLeftIncludeState() ? '19px' : '3px',
-                      bottom: '3px',
-                      backgroundColor: 'white',
-                      borderRadius: '50%',
-                      transition: '0.3s'
-                    }} />
-                  </label>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span style={{ fontSize: '10px', fontFamily: 'Inter, sans-serif', fontWeight: 500, color: '#333' }}>
-                    Include All {rightNodeName || 'Right'}
-                  </span>
-                  <label htmlFor="toggle-right-columns" style={{ 
-                    position: 'relative', 
-                    display: 'inline-block', 
-                    width: '36px', 
-                    height: '20px',
-                    cursor: 'pointer'
-                  }}>
-                    <input
-                      id="toggle-right-columns"
-                      type="checkbox"
-                      checked={getRightIncludeState()}
-                      onChange={toggleAllRightColumns}
-                      style={{ opacity: 0, width: 0, height: 0 }}
-                    />
-                    <span style={{
-                      position: 'absolute',
-                      top: 0,
-                      left: 0,
-                      right: 0,
-                      bottom: 0,
-                      backgroundColor: getRightIncludeState() ? '#025043' : '#ccc',
-                      borderRadius: '20px',
-                      transition: '0.3s'
-                    }} />
-                    <span style={{
-                      position: 'absolute',
-                      height: '14px',
-                      width: '14px',
-                      left: getRightIncludeState() ? '19px' : '3px',
-                      bottom: '3px',
-                      backgroundColor: 'white',
-                      borderRadius: '50%',
-                      transition: '0.3s'
-                    }} />
-                  </label>
-                </div>
-                <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <input
-                    type="text"
-                    placeholder="Filter columns..."
-                    value={mappingFilter}
-                    onChange={(e) => setMappingFilter(e.target.value)}
-                    className="vm-input"
-                    style={{ 
-                      width: '200px', 
-                      padding: '4px 8px', 
-                      fontSize: '10px',
-                      fontFamily: 'Inter, sans-serif'
-                    }}
-                  />
-                  {mappingFilter && (
-                    <span style={{ fontSize: '9px', fontFamily: 'Inter, sans-serif', color: '#666' }}>
-                      Showing {filteredMappingIndices.length} of {columnMappings.length}
-                    </span>
-                  )}
-                </div>
-              </div>
-              <div style={{ overflowX: 'auto', maxHeight: '400px', overflowY: 'auto' }}>
-                <table className="vm-schema-table" style={{ marginBottom: '16px' }}>
-                  <thead>
-                    <tr>
-                      <th>Source Side</th>
-                      <th>Source Column</th>
-                      <th>Output Column Name</th>
-                      <th style={{ width: '80px' }}>Include</th>
-                      <th style={{ width: '80px' }}>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredMappingIndices.map((index) => {
-                      const mapping = columnMappings[index];
-                      const isInvalid = isMappingInvalid(index);
-                      return (
-                      <tr key={index} style={isInvalid ? { backgroundColor: '#fff3cd' } : {}}>
-                        <td>
-                          <select
-                            id={`sourceSide-${index}`}
-                            className="vm-select"
-                            value={mapping.sourceSide}
-                            onChange={(e) => updateColumnMapping(index, 'sourceSide', e.target.value)}
-                            aria-label={`Source Side ${index + 1}`}
-                          >
-                            <option value="left">{leftNodeName || 'Left Input'}</option>
-                            <option value="right">{rightNodeName || 'Right Input'}</option>
-                          </select>
-                        </td>
-                        <td>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                            {isInvalid && <FaExclamationTriangle style={{ color: '#856404', fontSize: '12px' }} title={`Field "${mapping.sourceColumn}" no longer exists`} />}
-                            <select
-                              id={`sourceColumn-mapping-${index}`}
-                              className="vm-select"
-                              style={isInvalid ? { borderColor: '#ffc107', backgroundColor: '#fffbe6' } : {}}
-                              value={mapping.sourceColumn}
-                              onChange={(e) => updateColumnMapping(index, 'sourceColumn', e.target.value)}
-                              aria-label={`Source Column ${index + 1}`}
-                            >
-                              {isInvalid && <option value={mapping.sourceColumn} style={{ color: '#856404' }}>{mapping.sourceColumn} (missing)</option>}
-                              {mapping.sourceSide === 'left' 
-                                ? leftSchema.map((col, i) => (
-                                    <option key={i} value={col.name}>{col.name}</option>
-                                  ))
-                                : rightSchema.map((col, i) => (
-                                    <option key={i} value={col.name}>{col.name}</option>
-                                  ))
-                              }
-                            </select>
-                          </div>
-                        </td>
-                        <td>
+                  </div>
+                  <div style={{ flex: 1, overflowY: 'auto', padding: '4px' }}>
+                    {filteredAvailableColumns.length === 0 ? (
+                      <div style={{ padding: '16px', textAlign: 'center', color: '#9ca3af', fontSize: '10px', fontFamily: 'Inter, sans-serif' }}>
+                        {availableColumns.length === 0 ? 'All columns mapped' : 'No matching columns'}
+                      </div>
+                    ) : (
+                      filteredAvailableColumns.map(col => (
+                        <div
+                          key={col.key}
+                          onClick={() => toggleLeftPanelSelection(col.key)}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            padding: '6px 8px',
+                            cursor: 'pointer',
+                            borderRadius: '3px',
+                            marginBottom: '2px',
+                            backgroundColor: leftPanelSelection.has(col.key) ? '#e0f2fe' : 'transparent',
+                            border: leftPanelSelection.has(col.key) ? '1px solid #0284c7' : '1px solid transparent',
+                            transition: 'all 0.15s'
+                          }}
+                        >
                           <input
-                            id={`outputColumn-${index}`}
-                            type="text"
-                            className="vm-input"
-                            value={mapping.outputColumn}
-                            onChange={(e) => updateColumnMapping(index, 'outputColumn', e.target.value)}
-                            placeholder="Output column name"
-                            aria-label={`Output Column Name ${index + 1}`}
-                          />
-                        </td>
-                        <td style={{ textAlign: 'center' }}>
-                          <input
-                            id={`includeColumn-${index}`}
                             type="checkbox"
-                            checked={mapping.include}
-                            onChange={(e) => updateColumnMapping(index, 'include', e.target.checked)}
-                            aria-label={`Include Column ${index + 1}`}
+                            checked={leftPanelSelection.has(col.key)}
+                            onChange={() => {}}
+                            style={{ marginRight: '8px', cursor: 'pointer' }}
                           />
-                        </td>
-                        <td>
-                          <button
-                            className="vm-btn vm-btn-secondary"
-                            onClick={() => removeColumnMapping(index)}
-                            style={{ padding: '4px 8px', fontSize: '9px' }}
-                            aria-label={`Remove column mapping ${index + 1}`}
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontFamily: 'Inter, sans-serif', fontSize: '10px', color: '#1e293b' }}>
+                              {col.name}
+                            </div>
+                            <div style={{ fontFamily: 'Inter, sans-serif', fontSize: '8px', color: '#6b7280' }}>
+                              {toTitleCase(col.type || col.data_type || col.column_type || 'String')}
+                              {(col.pii || col.contains_pii) && <span style={{ marginLeft: '4px', color: '#dc2626' }}>(PII)</span>}
+                            </div>
+                          </div>
+                          <span style={{
+                            fontFamily: 'Inter, sans-serif',
+                            fontSize: '8px',
+                            padding: '2px 6px',
+                            borderRadius: '3px',
+                            backgroundColor: col.sourceSide === 'left' ? '#dbeafe' : '#fef3c7',
+                            color: col.sourceSide === 'left' ? '#1e40af' : '#92400e'
+                          }}>
+                            {col.sourceSide === 'left' ? (leftNodeName || 'Left') : (rightNodeName || 'Right')}
+                          </span>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+
+                {/* Chevron Buttons */}
+                <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: '8px', padding: '0 8px' }}>
+                  <button
+                    className="vm-btn vm-btn-secondary"
+                    onClick={moveSelectedToMapped}
+                    disabled={leftPanelSelection.size === 0}
+                    style={{ padding: '8px 12px', fontSize: '12px' }}
+                    title="Add selected columns to output"
+                  >
+                    <FaChevronRight />
+                  </button>
+                  <button
+                    className="vm-btn vm-btn-secondary"
+                    onClick={moveSelectedToAvailable}
+                    disabled={rightPanelSelection.size === 0}
+                    style={{ padding: '8px 12px', fontSize: '12px' }}
+                    title="Remove selected columns from output"
+                  >
+                    <FaChevronLeft />
+                  </button>
+                  <button
+                    className="vm-btn vm-btn-secondary"
+                    onClick={moveAllToMapped}
+                    disabled={availableColumns.length === 0}
+                    style={{ padding: '8px 12px', fontSize: '12px' }}
+                    title="Add all columns to output"
+                  >
+                    <FaAngleDoubleRight />
+                  </button>
+                  <button
+                    className="vm-btn vm-btn-secondary"
+                    onClick={moveAllToAvailable}
+                    disabled={columnMappings.length === 0}
+                    style={{ padding: '8px 12px', fontSize: '12px' }}
+                    title="Remove all columns from output"
+                  >
+                    <FaAngleDoubleLeft />
+                  </button>
+                </div>
+
+                {/* Right Panel - Mapped Columns (Output) */}
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', border: '1px solid #e2e8f0', borderRadius: '4px', overflow: 'hidden' }}>
+                  <div style={{ padding: '8px 12px', backgroundColor: '#f0fdf4', borderBottom: '1px solid #e2e8f0' }}>
+                    <div style={{ fontFamily: 'Inter, sans-serif', fontSize: '11px', fontWeight: 600, color: '#025043', marginBottom: '6px' }}>
+                      Output Columns ({columnMappings.length})
+                    </div>
+                    <input
+                      type="text"
+                      placeholder="Filter..."
+                      value={rightPanelFilter}
+                      onChange={(e) => setRightPanelFilter(e.target.value)}
+                      className="vm-input"
+                      style={{ width: '100%', padding: '4px 8px', fontSize: '10px', fontFamily: 'Inter, sans-serif' }}
+                    />
+                  </div>
+                  <div style={{ flex: 1, overflowY: 'auto', padding: '4px' }}>
+                    {filteredMappedColumns.length === 0 ? (
+                      <div style={{ padding: '16px', textAlign: 'center', color: '#9ca3af', fontSize: '10px', fontFamily: 'Inter, sans-serif' }}>
+                        {columnMappings.length === 0 ? 'No columns mapped yet' : 'No matching columns'}
+                      </div>
+                    ) : (
+                      filteredMappedColumns.map((mapping, idx) => {
+                        const key = `${mapping.sourceSide}:${mapping.sourceColumn}`;
+                        const isEditing = editingColumnKey === key;
+                        return (
+                          <div
+                            key={key}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              padding: '6px 8px',
+                              borderRadius: '3px',
+                              marginBottom: '2px',
+                              backgroundColor: rightPanelSelection.has(key) ? '#dcfce7' : 'transparent',
+                              border: rightPanelSelection.has(key) ? '1px solid #16a34a' : '1px solid transparent',
+                              transition: 'all 0.15s'
+                            }}
                           >
-                            <FaTrash />
-                          </button>
-                        </td>
-                      </tr>
-                    );})}
-                  </tbody>
-                </table>
+                            <input
+                              type="checkbox"
+                              checked={rightPanelSelection.has(key)}
+                              onChange={() => toggleRightPanelSelection(key)}
+                              style={{ marginRight: '8px', cursor: 'pointer' }}
+                            />
+                            {isEditing ? (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flex: 1 }}>
+                                <input
+                                  type="text"
+                                  value={editingColumnName}
+                                  onChange={(e) => setEditingColumnName(e.target.value)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') saveEditedColumn();
+                                    if (e.key === 'Escape') cancelEditingColumn();
+                                  }}
+                                  className="vm-input"
+                                  style={{ flex: 1, padding: '2px 6px', fontSize: '10px', fontFamily: 'Inter, sans-serif' }}
+                                  autoFocus
+                                />
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); saveEditedColumn(); }}
+                                  className="vm-btn vm-btn-primary"
+                                  style={{ padding: '2px 6px', fontSize: '10px' }}
+                                  title="Save"
+                                >
+                                  <FaCheck />
+                                </button>
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); cancelEditingColumn(); }}
+                                  className="vm-btn vm-btn-secondary"
+                                  style={{ padding: '2px 6px', fontSize: '10px' }}
+                                  title="Cancel"
+                                >
+                                  <FaTimes />
+                                </button>
+                              </div>
+                            ) : (
+                              <>
+                                <div style={{ flex: 1, minWidth: 0 }} onClick={() => toggleRightPanelSelection(key)}>
+                                  <div style={{ fontFamily: 'Inter, sans-serif', fontSize: '10px', color: '#1e293b', cursor: 'pointer' }}>
+                                    {mapping.outputColumn || mapping.sourceColumn}
+                                  </div>
+                                  <div style={{ fontFamily: 'Inter, sans-serif', fontSize: '8px', color: '#6b7280' }}>
+                                    {toTitleCase(mapping.type || 'String')}
+                                    {mapping.pii && <span style={{ marginLeft: '4px', color: '#dc2626' }}>(PII)</span>}
+                                  </div>
+                                </div>
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); startEditingColumn(key, mapping.outputColumn || mapping.sourceColumn); }}
+                                  className="vm-btn vm-btn-secondary"
+                                  style={{ padding: '2px 6px', fontSize: '9px', marginRight: '4px' }}
+                                  title="Rename output column"
+                                >
+                                  <FaPencilAlt />
+                                </button>
+                                <button
+                                  onClick={(e) => { 
+                                    e.stopPropagation(); 
+                                    userHasEditedRef.current = true;
+                                    setColumnMappings(columnMappings.filter(m => `${m.sourceSide}:${m.sourceColumn}` !== key));
+                                  }}
+                                  className="vm-btn vm-btn-secondary"
+                                  style={{ padding: '2px 6px', fontSize: '9px', marginRight: '6px', color: '#dc2626' }}
+                                  title="Remove from output"
+                                >
+                                  <FaTrash />
+                                </button>
+                                <span style={{
+                                  fontFamily: 'Inter, sans-serif',
+                                  fontSize: '8px',
+                                  padding: '2px 6px',
+                                  borderRadius: '3px',
+                                  backgroundColor: mapping.sourceSide === 'left' ? '#dbeafe' : '#fef3c7',
+                                  color: mapping.sourceSide === 'left' ? '#1e40af' : '#92400e'
+                                }}>
+                                  {mapping.sourceSide === 'left' ? (leftNodeName || 'Left') : (rightNodeName || 'Right')}
+                                </span>
+                              </>
+                            )}
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
               </div>
 
-              <button
-                className="vm-btn vm-btn-primary"
-                onClick={addColumnMapping}
-                style={{ marginTop: '8px', marginBottom: '16px' }}
-                aria-label="Add new column mapping"
-              >
-                <FaPlus /> Add Column Mapping
-              </button>
-
-              <div className="vm-section-title">Output Schema Preview</div>
+              <div className="vm-section-title" style={{ marginTop: '16px' }}>Output Schema Preview</div>
               <div className="vm-schema-meta">
                 <div className="vm-schema-meta-row">
                   <span className="vm-schema-label">Total Output Columns:</span>
-                  <span className="vm-schema-value">{getOutputSchema().length}</span>
+                  <span className="vm-schema-value">{columnMappings.length}</span>
                 </div>
                 <div className="vm-schema-meta-row">
                   <span className="vm-schema-label">Columns:</span>
-                  <span className="vm-schema-value">
-                    {getOutputSchema().join(', ') || 'None'}
+                  <span className="vm-schema-value" style={{ fontSize: '9px' }}>
+                    {columnMappings.map(m => m.outputColumn || m.sourceColumn).join(', ') || 'None'}
                   </span>
                 </div>
               </div>
@@ -1011,7 +1149,7 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
               <div className="vm-schema-meta">
                 <div className="vm-schema-meta-row">
                   <span className="vm-schema-label">Total Output Columns:</span>
-                  <span className="vm-schema-value">{columnMappings.filter(m => m.include).length}</span>
+                  <span className="vm-schema-value">{columnMappings.length}</span>
                 </div>
                 <div className="vm-schema-meta-row">
                   <span className="vm-schema-label">Left Source:</span>
@@ -1038,8 +1176,8 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
                     </tr>
                   </thead>
                   <tbody>
-                    {columnMappings.filter(m => m.include).length > 0 ? (
-                      columnMappings.filter(m => m.include).map((col, idx) => {
+                    {columnMappings.length > 0 ? (
+                      columnMappings.map((col, idx) => {
                         const isPII = col.pii || col.contains_pii || false;
                         const isNullable = col.nullable ?? true;
                         const dqRules = col.dqRules || [];
@@ -1047,7 +1185,7 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
                         return (
                           <tr key={idx}>
                             <td style={{ textAlign: 'center' }}>{idx + 1}</td>
-                            <td className="vm-schema-col-name">{col.outputColumn}</td>
+                            <td className="vm-schema-col-name">{col.outputColumn || col.sourceColumn}</td>
                             <td className="vm-schema-col-type">{formatTypeWithPrecision(col.type, col.precision, col.scale)}</td>
                             <td className="vm-schema-col-nullable">
                               <span className={`vm-nullable-badge ${isNullable ? 'vm-nullable-yes' : 'vm-nullable-no'}`}>
@@ -1084,7 +1222,7 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
                     ) : (
                       <tr>
                         <td colSpan="8" style={{ textAlign: 'center', color: '#9ca3af', fontStyle: 'italic' }}>
-                          No columns selected. Go to Mapping tab to include columns.
+                          No columns mapped. Go to Mapping tab to add columns.
                         </td>
                       </tr>
                     )}
