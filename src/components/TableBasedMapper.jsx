@@ -4,8 +4,15 @@ import { FiCheck, FiArrowRight, FiTrash2, FiEdit2, FiX, FiPlus, FiChevronDown, F
 import './TableBasedMapper.css';
 import PropTypes from 'prop-types';
 
+const toTitleCase = (str) => {
+  if (!str) return str;
+  return str.toLowerCase().split(/[\s_]+/).map(word => 
+    word.charAt(0).toUpperCase() + word.slice(1)
+  ).join(' ');
+};
+
 const formatTypeWithPrecision = (type, precision, scale) => {
-  const baseType = type || 'STRING';
+  const baseType = toTitleCase(type || 'String');
   if (precision && scale !== null && scale !== undefined) {
     return `${baseType}(${precision},${scale})`;
   } else if (precision) {
@@ -16,7 +23,7 @@ const formatTypeWithPrecision = (type, precision, scale) => {
 
 const formatTypeForDisplay = (type) => {
   if (!type) return 'String';
-  return type.charAt(0).toUpperCase() + type.slice(1).toLowerCase();
+  return toTitleCase(type);
 };
 
 const extractVariableReferences = (expression) => {
