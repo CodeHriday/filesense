@@ -484,17 +484,35 @@ function ifCondition(value, params, context = {}) {
     condition = evaluateSingleCondition(value, operator, compareValue);
   }
   
+  // Helper to resolve nestedArgs field values from row context
+  const resolveNestedValue = (nested) => {
+    if (!nested || !nested.nestedArgs || nested.nestedArgs.length === 0) {
+      return value;
+    }
+    const row = context.row || {};
+    const variableValues = context.variableValues || {};
+    const firstArg = nested.nestedArgs[0];
+    if (firstArg.type === 'COLUMN') {
+      return row[firstArg.name];
+    } else if (firstArg.type === 'VARIABLE') {
+      return variableValues[firstArg.name] || variableValues[firstArg.name.replace('$', '')];
+    }
+    return value;
+  };
+
   // Return result - handle nested if() calls
   if (condition) {
     if (thenValueNested) {
-      // Execute nested transformation
-      return applyTransformation(thenValueNested.transformation, value, thenValueNested.params, context);
+      // Execute nested transformation with resolved field value
+      const nestedValue = resolveNestedValue(thenValueNested);
+      return applyTransformation(thenValueNested.transformation, nestedValue, thenValueNested.params, context);
     }
     return thenValue;
   } else {
     if (elseValueNested) {
-      // Execute nested transformation (like nested if())
-      return applyTransformation(elseValueNested.transformation, value, elseValueNested.params, context);
+      // Execute nested transformation (like nested if()) with resolved field value
+      const nestedValue = resolveNestedValue(elseValueNested);
+      return applyTransformation(elseValueNested.transformation, nestedValue, elseValueNested.params, context);
     }
     return elseValue;
   }
