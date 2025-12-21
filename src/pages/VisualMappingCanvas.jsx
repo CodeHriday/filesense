@@ -1945,8 +1945,32 @@ const VisualMappingCanvasContent = () => {
                   return { name: colName, type: colType };
                 });
               }
-              if (node.type === 'expression' && config.fieldMappings) {
-                return config.fieldMappings.map(m => ({ name: m.target_field, type: 'STRING' }));
+              if (node.type === 'expression') {
+                if (config.outputSchema && config.outputSchema.length > 0) {
+                  return config.outputSchema.map(col => ({
+                    name: col.name || col.target_field || '',
+                    type: col.type || col.data_type || 'STRING',
+                    precision: col.precision ?? null,
+                    scale: col.scale ?? null,
+                    nullable: col.nullable ?? true,
+                    pii: col.pii || false,
+                    dqRules: col.dqRules || []
+                  }));
+                }
+                if (config.fieldMappings) {
+                  return config.fieldMappings
+                    .filter(m => m.include !== false)
+                    .map(m => ({
+                      name: m.target_field || m.targetField || '',
+                      type: m.data_type || m.dataType || m.type || m.column_type || 'STRING',
+                      precision: m.precision ?? null,
+                      scale: m.scale ?? null,
+                      nullable: m.nullable ?? true,
+                      pii: false,
+                      dqRules: []
+                    }));
+                }
+                return [];
               }
               if (node.type === 'join' && config.outputSchema) {
                 return config.outputSchema;
@@ -1994,8 +2018,32 @@ const VisualMappingCanvasContent = () => {
                   return { name: colName, type: colType };
                 });
               }
-              if (node.type === 'expression' && config.fieldMappings) {
-                return config.fieldMappings.map(m => ({ name: m.target_field, type: 'STRING' }));
+              if (node.type === 'expression') {
+                if (config.outputSchema && config.outputSchema.length > 0) {
+                  return config.outputSchema.map(col => ({
+                    name: col.name || col.target_field || '',
+                    type: col.type || col.data_type || 'STRING',
+                    precision: col.precision ?? null,
+                    scale: col.scale ?? null,
+                    nullable: col.nullable ?? true,
+                    pii: col.pii || false,
+                    dqRules: col.dqRules || []
+                  }));
+                }
+                if (config.fieldMappings) {
+                  return config.fieldMappings
+                    .filter(m => m.include !== false)
+                    .map(m => ({
+                      name: m.target_field || m.targetField || '',
+                      type: m.data_type || m.dataType || m.type || m.column_type || 'STRING',
+                      precision: m.precision ?? null,
+                      scale: m.scale ?? null,
+                      nullable: m.nullable ?? true,
+                      pii: false,
+                      dqRules: []
+                    }));
+                }
+                return [];
               }
               if (node.type === 'join' && config.outputSchema) {
                 return config.outputSchema;
