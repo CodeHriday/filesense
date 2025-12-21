@@ -791,38 +791,68 @@ const VisualMappingCanvasContent = () => {
         return transformedSchema;
       }
       
-      // Expression: output schema comes from fieldMappings
-      if (node.type === 'expression' && config.fieldMappings) {
-        // Get upstream schema first and deduplicate
-        const upstreamEdges = edges.filter(e => e.target === nodeId);
-        let upstreamSchemaRaw = [];
-        upstreamEdges.forEach(edge => {
-          upstreamSchemaRaw = [...upstreamSchemaRaw, ...getNodeOutputSchema(edge.source)];
-        });
-        // Deduplicate by column name
-        const upstreamSchemaMap = new Map();
-        upstreamSchemaRaw.forEach(col => {
-          if (!upstreamSchemaMap.has(col.name)) {
-            upstreamSchemaMap.set(col.name, col);
-          }
-        });
-        const upstreamSchema = Array.from(upstreamSchemaMap.values());
+      // Expression: output schema comes from saved outputSchema or fieldMappings
+      if (node.type === 'expression') {
+        // Prefer saved outputSchema (has correct types from ExpressionModal)
+        if (config.outputSchema && config.outputSchema.length > 0) {
+          const outputSchema = config.outputSchema
+            .filter(col => col.include !== false)
+            .map(col => ({
+              name: col.name || col.target_field || '',
+              type: col.type || col.data_type || 'STRING',
+              precision: col.precision ?? null,
+              scale: col.scale ?? null,
+              nullable: col.nullable ?? true,
+              description: col.description || '',
+              contains_pii: col.pii || col.contains_pii || false,
+              dqRules: col.dqRules || []
+            }));
+          console.log(`getCumulativeSchema: Expression node ${nodeId} output schema (from outputSchema):`, outputSchema.length, 'columns');
+          return outputSchema;
+        }
         
-        // Map to output columns based on field mappings
-        const outputSchema = config.fieldMappings.map(mapping => {
-          const sourceCol = upstreamSchema.find(col => col.name === mapping.source_field);
-          // Check if this target field is marked as PII in config.piiColumns
-          const isPiiFromConfig = config.piiColumns && config.piiColumns.includes(mapping.target_field);
+        // Fallback to fieldMappings
+        if (config.fieldMappings) {
+          // Get upstream schema for passthrough field types
+          const upstreamEdges = edges.filter(e => e.target === nodeId);
+          let upstreamSchemaRaw = [];
+          upstreamEdges.forEach(edge => {
+            upstreamSchemaRaw = [...upstreamSchemaRaw, ...getNodeOutputSchema(edge.source)];
+          });
+          // Deduplicate by column name
+          const upstreamSchemaMap = new Map();
+          upstreamSchemaRaw.forEach(col => {
+            if (!upstreamSchemaMap.has(col.name)) {
+              upstreamSchemaMap.set(col.name, col);
+            }
+          });
+          const upstreamSchema = Array.from(upstreamSchemaMap.values());
           
-          return {
-            name: mapping.target_field,
-            type: sourceCol?.type || 'unknown',
-            description: sourceCol?.description || '',
-            contains_pii: isPiiFromConfig || sourceCol?.contains_pii || false
-          };
-        });
-        console.log(`getCumulativeSchema: Expression node ${nodeId} output schema:`, outputSchema.length, 'columns');
-        return outputSchema;
+          // Map to output columns based on field mappings
+          const outputSchema = config.fieldMappings
+            .filter(mapping => mapping.include !== false)
+            .map(mapping => {
+              const sourceCol = upstreamSchema.find(col => col.name === mapping.source_field);
+              // Check if this target field is marked as PII in config.piiColumns
+              const isPiiFromConfig = config.piiColumns && config.piiColumns.includes(mapping.target_field);
+              // Use mapping's explicit type first, then source column type, then default
+              const mappingType = mapping.data_type || mapping.dataType || mapping.type || mapping.column_type;
+              
+              return {
+                name: mapping.target_field || mapping.targetField || '',
+                type: mappingType || sourceCol?.type || 'STRING',
+                precision: mapping.precision ?? null,
+                scale: mapping.scale ?? null,
+                nullable: mapping.nullable ?? true,
+                description: sourceCol?.description || '',
+                contains_pii: isPiiFromConfig || sourceCol?.contains_pii || false
+              };
+            });
+          console.log(`getCumulativeSchema: Expression node ${nodeId} output schema (from fieldMappings):`, outputSchema.length, 'columns');
+          return outputSchema;
+        }
+        
+        return [];
       }
       
       // RDM Lookup: handles both dataset joins and crosswalk lookups
