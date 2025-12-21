@@ -4,6 +4,21 @@ import FileBrowserModal from './FileBrowserModal';
 import './MappingConfigModal.css';
 import PropTypes from 'prop-types';
 
+const toTitleCase = (str) => {
+  if (!str) return str;
+  return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+};
+
+const formatTypeWithPrecision = (type, precision, scale) => {
+  const baseType = toTitleCase(type || 'String');
+  if (precision && scale !== null && scale !== undefined) {
+    return `${baseType}(${precision},${scale})`;
+  } else if (precision) {
+    return `${baseType}(${precision})`;
+  }
+  return baseType;
+};
+
 const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
   // Use ref to track if we have a saved file pattern - this won't trigger re-renders
   const hasSavedFilePatternRef = useRef(false);
@@ -832,7 +847,7 @@ const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
                     {schema.file_type && (
                       <div className="vm-schema-meta-row">
                         <span className="vm-schema-label">File Type:</span>
-                        <span className="vm-schema-value">{schema.file_type.toUpperCase()}</span>
+                        <span className="vm-schema-value">{toTitleCase(schema.file_type)}</span>
                       </div>
                     )}
                     {schema.data_classification && (
@@ -874,7 +889,7 @@ const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
                               <tr key={idx}>
                                 <td>{idx + 1}</td>
                                 <td className="vm-schema-col-name">{col.column_name || col.name}</td>
-                                <td className="vm-schema-col-type">{col.data_type || col.type}</td>
+                                <td className="vm-schema-col-type">{formatTypeWithPrecision(col.data_type || col.type, col.precision, col.scale)}</td>
                                 <td className="vm-schema-col-pii">
                                   {isPii ? (
                                     <span className="vm-pii-indicator vm-pii-yes">Yes</span>

@@ -8,8 +8,13 @@ import FileBrowserModal from './FileBrowserModal';
 import './MappingConfigModal.css';
 import PropTypes from 'prop-types';
 
+const toTitleCase = (str) => {
+  if (!str) return str;
+  return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+};
+
 const formatTypeWithPrecision = (type, precision, scale) => {
-  const baseType = type || 'STRING';
+  const baseType = toTitleCase(type || 'String');
   if (precision && scale !== null && scale !== undefined) {
     return `${baseType}(${precision},${scale})`;
   } else if (precision) {
