@@ -573,7 +573,7 @@
   font-family: 'Inter', sans-serif;
   font-size: 10px;
   font-weight: 600;
-  text-transform: uppercase;
+  text-transform: none;
   color: #64748b;
   cursor: pointer;
   border-bottom: 3px solid transparent;

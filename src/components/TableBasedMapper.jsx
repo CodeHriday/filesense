@@ -932,8 +932,8 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
 
     const newVariables = [...variables, variable];
     setVariables(newVariables);
-    setAddingVariable(false);
-    setNewVariable({ name: '', expression: '' });
+    // Keep modal open - user must click X to close
+    setNewVariable({ name: '', expression: '', data_type: '' });
     onMappingsChange(mappings, newVariables, Array.from(piiColumns), dqRuleAssignments);
   };
 
@@ -1622,7 +1622,7 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
                           onClick={() => setPreviousVariablesExpanded(!previousVariablesExpanded)}
                           style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', textTransform: 'none' }}
                         >
-                          <span>Previous Variables</span>
+                          <span>Variables</span>
                           {previousVariablesExpanded ? <FiChevronDown size={14} /> : <FiChevronRight size={14} />}
                         </div>
                         {previousVariablesExpanded && variables.map(variable => (
@@ -1840,7 +1840,7 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
                           onClick={() => setPreviousVariablesExpanded(!previousVariablesExpanded)}
                           style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', textTransform: 'none' }}
                         >
-                          <span>Previous Variables</span>
+                          <span>Variables</span>
                           {previousVariablesExpanded ? <FiChevronDown size={14} /> : <FiChevronRight size={14} />}
                         </div>
                         {previousVariablesExpanded && variables.filter(v => v.id !== editingVariable.id).map(variable => (
