@@ -837,6 +837,35 @@ function evaluateTransformationConfig(transformConfig, variableValues = {}) {
             transformation.params.fields = fields;
           }
           transformation.params.mathParts = mathParts;
+        } else if (config.transformation === 'if') {
+          // IF expressions: extract source fields from compoundConditions and nestedArgs
+          // Handle compoundConditions for compound IF syntax
+          if (config.params.compoundConditions && Array.isArray(config.params.compoundConditions)) {
+            for (const cond of config.params.compoundConditions) {
+              if (cond.field && !cond.field.startsWith('$')) {
+                sourceFields.push(cond.field);
+              }
+            }
+          }
+          
+          // Extract field from nestedArgs if present
+          if (config.nestedArgs && config.nestedArgs.length > 0) {
+            for (const arg of config.nestedArgs) {
+              if (arg.type === 'COLUMN') {
+                sourceFields.push(arg.name);
+              }
+            }
+          }
+          
+          // Handle nested thenValueNested (recursive IF)
+          if (config.params.thenValueNested) {
+            extractFromConfig(config.params.thenValueNested);
+          }
+          
+          // Handle nested elseValueNested (recursive IF)
+          if (config.params.elseValueNested) {
+            extractFromConfig(config.params.elseValueNested);
+          }
         } else {
           // For other functions, first arg is the value to transform
           if (config.nestedArgs[0].type === 'COLUMN') {
@@ -844,6 +873,24 @@ function evaluateTransformationConfig(transformConfig, variableValues = {}) {
           } else if (config.nestedArgs[0].type === 'FUNCTION' || config.nestedArgs[0].type === 'transformation') {
             extractFromConfig(config.nestedArgs[0]);
           }
+        }
+      }
+      
+      // Also check for IF compoundConditions outside nestedArgs handling
+      if (config.transformation === 'if' && config.params) {
+        if (config.params.compoundConditions && Array.isArray(config.params.compoundConditions)) {
+          for (const cond of config.params.compoundConditions) {
+            if (cond.field && !cond.field.startsWith('$')) {
+              sourceFields.push(cond.field);
+            }
+          }
+        }
+        // Handle nested transformations for IF without nestedArgs
+        if (config.params.thenValueNested) {
+          extractFromConfig(config.params.thenValueNested);
+        }
+        if (config.params.elseValueNested) {
+          extractFromConfig(config.params.elseValueNested);
         }
       }
       
