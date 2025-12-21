@@ -86,6 +86,19 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
     }
   }, [isOpen, configSignature, initialConfig]);
 
+  // Build lookup maps for quick schema access
+  const leftSchemaMap = useMemo(() => {
+    const map = new Map();
+    leftSchema.forEach(col => map.set(col.name, col));
+    return map;
+  }, [leftSchema]);
+
+  const rightSchemaMap = useMemo(() => {
+    const map = new Map();
+    rightSchema.forEach(col => map.set(col.name, col));
+    return map;
+  }, [rightSchema]);
+
   useEffect(() => {
     if (isOpen && leftSchema.length > 0 && rightSchema.length > 0) {
       setJoinKeys(prevKeys => {
@@ -100,6 +113,7 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
       });
       setColumnMappings(prevMappings => {
         if (prevMappings.length === 0) {
+          // Initial population - create mappings from scratch
           const mappings = [];
           leftSchema.forEach(col => {
             mappings.push({
@@ -134,10 +148,35 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
           });
           return mappings;
         }
-        return prevMappings;
+        
+        // Schema reconciliation - update existing mappings with fresh metadata from upstream
+        // Preserves user-controlled fields: outputColumn, ordering
+        // Updates schema-derived fields: type, precision, scale, nullable, pii, dqRules
+        const reconciledMappings = prevMappings.map(mapping => {
+          const schemaMap = mapping.sourceSide === 'left' ? leftSchemaMap : rightSchemaMap;
+          const upstreamCol = schemaMap.get(mapping.sourceColumn);
+          
+          if (upstreamCol) {
+            // Update with fresh metadata from upstream, preserve user edits
+            return {
+              ...mapping,
+              type: upstreamCol.type || upstreamCol.data_type || upstreamCol.column_type || 'STRING',
+              precision: upstreamCol.precision ?? null,
+              scale: upstreamCol.scale ?? null,
+              nullable: upstreamCol.nullable ?? true,
+              pii: upstreamCol.pii || upstreamCol.contains_pii || false,
+              dqRules: upstreamCol.dqRules || []
+            };
+          }
+          
+          // Column no longer exists upstream - keep as-is (will be flagged as invalid)
+          return mapping;
+        });
+        
+        return reconciledMappings;
       });
     }
-  }, [leftSchema, rightSchema, isOpen]);
+  }, [leftSchema, rightSchema, leftSchemaMap, rightSchemaMap, isOpen]);
 
   const leftFieldNames = useMemo(() => new Set(leftSchema.map(c => c.name)), [leftSchema]);
   const rightFieldNames = useMemo(() => new Set(rightSchema.map(c => c.name)), [rightSchema]);
