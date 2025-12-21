@@ -959,6 +959,13 @@ function transformRow(row, fieldMappings, variables = [], context = {}) {
       
       let value;
       
+      // Enrich context for variable evaluation (includes current variableValues)
+      const varContext = {
+        ...context,
+        row: enrichedRow,
+        variableValues
+      };
+      
       // Variables can reference source fields, other variables, or be system-generated
       if (sourceFields && sourceFields.length > 0) {
         // PRIORITY 1: Check if transformations require row-level context (concat/coalesce/math with multiple fields)
@@ -970,7 +977,7 @@ function transformRow(row, fieldMappings, variables = [], context = {}) {
         if (transformations.length > 0 && (transformations[0].type === 'concat' || transformations[0].type === 'coalesce' || isMathWithMultipleFields)) {
           // Multi-field operations - pass enriched row and transformations are applied inside
           // DO NOT apply transformations again (already applied with row context)
-          value = applyTransformationChain(enrichedRow, transformations, context);
+          value = applyTransformationChain(enrichedRow, transformations, varContext);
         } else {
           // PRIORITY 2: Check if source is a variable reference
           const firstSource = sourceFields[0];
@@ -979,17 +986,17 @@ function transformRow(row, fieldMappings, variables = [], context = {}) {
             const varName = firstSource.substring(1);
             value = variableValues[varName];
             // Apply transformations to variable value
-            value = applyTransformationChain(value, transformations, context);
+            value = applyTransformationChain(value, transformations, varContext);
           } else {
             // Single field reference
             value = enrichedRow[firstSource];
             // Apply transformations to single field value
-            value = applyTransformationChain(value, transformations, context);
+            value = applyTransformationChain(value, transformations, varContext);
           }
         }
       } else {
         // System-generated or static value
-        value = applyTransformationChain(null, transformations, context);
+        value = applyTransformationChain(null, transformations, varContext);
       }
       
       // Apply data type conversion if specified
@@ -1007,6 +1014,13 @@ function transformRow(row, fieldMappings, variables = [], context = {}) {
   // Step 2: Process field mappings
   const transformedRow = {};
   
+  // Enrich context with row and variableValues for IF conditions that need field lookups
+  const enrichedContext = {
+    ...context,
+    row: enrichedRow,
+    variableValues
+  };
+  
   for (const mapping of fieldMappings) {
     const { targetField, sourceFields, transformations = [] } = mapping;
     
@@ -1022,7 +1036,7 @@ function transformRow(row, fieldMappings, variables = [], context = {}) {
       
       if (transformations.length > 0 && (transformations[0].type === 'concat' || transformations[0].type === 'coalesce' || isMathWithMultipleFields)) {
         // Multi-field operations - pass enriched row
-        value = applyTransformationChain(enrichedRow, transformations, context);
+        value = applyTransformationChain(enrichedRow, transformations, enrichedContext);
       } else {
         // PRIORITY 2: Check if source is a variable reference
         const firstSource = sourceFields[0];
@@ -1031,7 +1045,7 @@ function transformRow(row, fieldMappings, variables = [], context = {}) {
           // Variable reference
           const varName = firstSource.substring(1);
           value = variableValues[varName];
-          value = applyTransformationChain(value, transformations, context);
+          value = applyTransformationChain(value, transformations, enrichedContext);
         } else {
           // Use first source field
           // First check if it exists in the row, then check variableValues as fallback
@@ -1039,12 +1053,12 @@ function transformRow(row, fieldMappings, variables = [], context = {}) {
           if (value === undefined && variableValues[firstSource] !== undefined) {
             value = variableValues[firstSource];
           }
-          value = applyTransformationChain(value, transformations, context);
+          value = applyTransformationChain(value, transformations, enrichedContext);
         }
       }
     } else {
       // Static or system-generated value
-      value = applyTransformationChain(null, transformations, context);
+      value = applyTransformationChain(null, transformations, enrichedContext);
     }
     
     transformedRow[targetField] = value;
