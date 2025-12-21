@@ -246,7 +246,9 @@ function astToTransformationChain(ast, context = {}) {
       'add': 'math_add',
       'subtract': 'math_subtract',
       'multiply': 'math_multiply',
-      'divide': 'math_divide'
+      'divide': 'math_divide',
+      'current_date': 'system_date',
+      'current_timestamp': 'system_timestamp'
     };
     
     // Apply alias if exists
@@ -278,6 +280,7 @@ function astToTransformationChain(ast, context = {}) {
       'hash': 'hash',
       'split': 'split',
       'system_date': 'system_date',
+      'system_timestamp': 'system_timestamp',
       'left_pad': 'left_pad',
       'right_pad': 'right_pad',
       'coalesce': 'coalesce'
@@ -439,9 +442,21 @@ function buildTransformation(transformationType, args) {
       break;
       
     case 'system_date':
-      // system_date(format)
+      // system_date(format) - defaults to YYYY-MM-DD for date only
       if (args.length > 0 && args[0].type === 'LITERAL') {
         config.params.format = args[0].value;
+      } else {
+        config.params.format = 'YYYY-MM-DD';
+      }
+      break;
+      
+    case 'system_timestamp':
+      // system_timestamp(format) - defaults to YYYY-MM-DD HH:mm:ss for full timestamp
+      config.transformation = 'system_date'; // Use same underlying transformation
+      if (args.length > 0 && args[0].type === 'LITERAL') {
+        config.params.format = args[0].value;
+      } else {
+        config.params.format = 'YYYY-MM-DD HH:mm:ss';
       }
       break;
       

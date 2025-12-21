@@ -328,28 +328,24 @@ class VisualMappingCompiler {
             
           case 'expression':
             // Expression nodes transform the schema based on field mappings
-            const upstreamSchema = this.getUpstreamSchema(nodeId, edges, nodeSchemas);
+            // IMPORTANT: Only explicitly mapped fields should pass through - no automatic pass-through
             const outputSchema = [];
             
             if (config.fieldMappings && Array.isArray(config.fieldMappings)) {
               config.fieldMappings.forEach(mapping => {
-                if (mapping.targetField) {
+                if (mapping.target_field || mapping.targetField) {
                   outputSchema.push({
-                    name: mapping.targetField,
-                    type: mapping.targetType || 'string',
+                    name: mapping.target_field || mapping.targetField,
+                    type: mapping.data_type || mapping.targetType || 'string',
                     source: 'expression',
-                    transformation: mapping.transformation
+                    transformation: mapping.transformation || mapping.expression
                   });
                 }
               });
             }
             
-            // Include pass-through fields not explicitly mapped
-            upstreamSchema.forEach(field => {
-              if (!outputSchema.find(f => f.name === field.name)) {
-                outputSchema.push({ ...field });
-              }
-            });
+            // NO pass-through: Only explicitly mapped fields appear in output
+            // This ensures Expression nodes act as a strict column boundary
             
             nodeSchemas[nodeId] = outputSchema;
             break;
@@ -729,6 +725,7 @@ class VisualMappingCompiler {
   
   /**
    * Extracts schema from upstream nodes for a given node
+   * Expression nodes act as strict column boundaries - only their explicit mappings pass through
    */
   extractUpstreamSchema(nodeId, nodes, edges) {
     const schema = [];
@@ -738,21 +735,22 @@ class VisualMappingCompiler {
     
     incomingEdges.forEach(edge => {
       const sourceNode = nodes.find(n => n.id === edge.source);
-      if (sourceNode && sourceNode.data?.config?.schema) {
-        schema.push(...sourceNode.data.config.schema);
-      }
       
-      // For expression nodes, add their output fields
+      // For expression nodes, ONLY use their explicitly mapped output fields (strict boundary)
       if (sourceNode && sourceNode.type === 'expression') {
         const fieldMappings = sourceNode.data?.config?.fieldMappings || [];
         fieldMappings.forEach(mapping => {
-          if (mapping.targetField) {
+          const targetField = mapping.target_field || mapping.targetField;
+          if (targetField) {
             schema.push({
-              name: mapping.targetField,
-              type: mapping.targetType || 'string'
+              name: targetField,
+              type: mapping.data_type || mapping.targetType || 'string'
             });
           }
         });
+      } else if (sourceNode && sourceNode.data?.config?.schema) {
+        // For source nodes, use their defined schema
+        schema.push(...sourceNode.data.config.schema);
       }
     });
     
