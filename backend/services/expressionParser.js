@@ -213,6 +213,12 @@ function parseExpression(tokens) {
       return { type: 'COLUMN', name: identifier.value };
     }
     
+    // Logical operators (& for AND, | for OR) - used in compound IF conditions
+    if (token.type === 'LOGICAL_OP') {
+      consume();
+      return { type: 'LOGICAL_OP', value: token.value };
+    }
+    
     throw new Error(`Unexpected token: ${token.type}`);
   }
   
