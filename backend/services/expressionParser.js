@@ -101,6 +101,19 @@ function tokenize(expression) {
       continue;
     }
     
+    // Logical operators (& for AND, | for OR)
+    if (char === '&') {
+      tokens.push({ type: 'LOGICAL_OP', value: '&' });
+      i++;
+      continue;
+    }
+    
+    if (char === '|') {
+      tokens.push({ type: 'LOGICAL_OP', value: '|' });
+      i++;
+      continue;
+    }
+    
     // Identifiers (function names, column names - including hyphenated)
     if (/[A-Za-z_]/.test(char)) {
       let identifier = '';
@@ -461,42 +474,166 @@ function buildTransformation(transformationType, args) {
       break;
       
     case 'if':
-      // if(field, operator, compareValue, thenValue, elseValue)
-      // Supports both mathematical symbols (>, <, >=, <=, =, !=) and English names
-      if (args.length > 0) {
-        config.nestedArgs = [args[0]];
-      }
-      if (args.length > 1 && args[1].type === 'LITERAL') {
-        config.params.operator = args[1].value;
-      }
-      if (args.length > 2) {
-        // compareValue can be literal, column, or variable
-        if (args[2].type === 'LITERAL') {
-          config.params.compareValue = args[2].value;
-        } else if (args[2].type === 'COLUMN') {
-          config.params.compareValue = args[2].name;
-        } else if (args[2].type === 'VARIABLE') {
-          config.params.compareValue = args[2].name;
+      // Enhanced IF syntax with compound conditions and nested if() support
+      // New syntax: if(field '>' value '&' field '<' value, 'thenValue', if(...))
+      // Old syntax: if(field, operator, compareValue, thenValue, elseValue)
+      // 
+      // The parser now supports:
+      // - Compound conditions: field '>' value '&' field '<' value
+      // - Logical operators: '&' (AND), '|' (OR) 
+      // - Nested if() in thenValue or elseValue positions
+      
+      // Detect new syntax: look for LOGICAL_OP in args or check for new pattern
+      // New pattern: args has format [field, op, val, logicalOp, field, op, val, ..., thenVal, elseVal]
+      // vs old pattern: [field, op, val, thenVal, elseVal]
+      
+      const hasLogicalOperators = args.some(arg => arg.type === 'LOGICAL_OP');
+      
+      if (hasLogicalOperators) {
+        // New compound condition syntax
+        // Parse conditions: groups of (field, operator, value) separated by logical operators
+        const conditions = [];
+        const logicalOps = [];
+        let currentCondition = {};
+        let conditionStep = 0; // 0=field, 1=operator, 2=value
+        let thenValueIndex = -1;
+        let elseValueIndex = -1;
+        
+        for (let i = 0; i < args.length; i++) {
+          const arg = args[i];
+          
+          if (arg.type === 'LOGICAL_OP') {
+            // Complete current condition and store logical operator
+            if (Object.keys(currentCondition).length > 0) {
+              conditions.push(currentCondition);
+              currentCondition = {};
+              conditionStep = 0;
+            }
+            logicalOps.push(arg.value);
+            continue;
+          }
+          
+          // Build condition parts
+          if (conditionStep === 0) {
+            // Field
+            if (arg.type === 'COLUMN') {
+              currentCondition.field = arg.name;
+            } else if (arg.type === 'VARIABLE') {
+              currentCondition.field = arg.name;
+            } else if (arg.type === 'LITERAL') {
+              // Could be a literal comparison
+              currentCondition.field = arg.value;
+            }
+            conditionStep = 1;
+          } else if (conditionStep === 1) {
+            // Operator (must be a string literal like '>')
+            if (arg.type === 'LITERAL') {
+              currentCondition.operator = arg.value;
+            }
+            conditionStep = 2;
+          } else if (conditionStep === 2) {
+            // Compare value
+            if (arg.type === 'LITERAL') {
+              currentCondition.compareValue = arg.value;
+            } else if (arg.type === 'COLUMN') {
+              currentCondition.compareValue = arg.name;
+            } else if (arg.type === 'VARIABLE') {
+              currentCondition.compareValue = arg.name;
+            }
+            
+            // Check if this is the last condition or there's more
+            // Look ahead - if next is not a logical op and we have a complete condition,
+            // remaining args are thenValue and elseValue
+            if (i + 1 < args.length && args[i + 1].type !== 'LOGICAL_OP') {
+              // Complete this condition
+              conditions.push(currentCondition);
+              thenValueIndex = i + 1;
+              elseValueIndex = i + 2 < args.length ? i + 2 : -1;
+              break;
+            }
+            
+            conditionStep = 0; // Reset for potential next condition after logical op
+          }
         }
-      }
-      if (args.length > 3) {
-        // thenValue can be literal, column, or variable
-        if (args[3].type === 'LITERAL') {
-          config.params.thenValue = args[3].value;
-        } else if (args[3].type === 'COLUMN') {
-          config.params.thenValue = args[3].name;
-        } else if (args[3].type === 'VARIABLE') {
-          config.params.thenValue = args[3].name;
+        
+        // Store compound conditions
+        config.params.compoundConditions = conditions;
+        config.params.logicalOperators = logicalOps;
+        
+        // Store first field for nestedArgs (primary field reference)
+        if (conditions.length > 0 && conditions[0].field) {
+          config.nestedArgs = [{ type: 'COLUMN', name: conditions[0].field }];
         }
-      }
-      if (args.length > 4) {
-        // elseValue can be literal, column, or variable
-        if (args[4].type === 'LITERAL') {
-          config.params.elseValue = args[4].value;
-        } else if (args[4].type === 'COLUMN') {
-          config.params.elseValue = args[4].name;
-        } else if (args[4].type === 'VARIABLE') {
-          config.params.elseValue = args[4].name;
+        
+        // Handle thenValue
+        if (thenValueIndex >= 0 && args[thenValueIndex]) {
+          const thenArg = args[thenValueIndex];
+          if (thenArg.type === 'LITERAL') {
+            config.params.thenValue = thenArg.value;
+          } else if (thenArg.type === 'COLUMN') {
+            config.params.thenValue = thenArg.name;
+          } else if (thenArg.type === 'VARIABLE') {
+            config.params.thenValue = thenArg.name;
+          } else if (thenArg.type === 'FUNCTION') {
+            // Nested function (like nested if())
+            config.params.thenValueNested = buildTransformation(thenArg.name.toLowerCase(), thenArg.arguments);
+          }
+        }
+        
+        // Handle elseValue (can be nested if())
+        if (elseValueIndex >= 0 && args[elseValueIndex]) {
+          const elseArg = args[elseValueIndex];
+          if (elseArg.type === 'LITERAL') {
+            config.params.elseValue = elseArg.value;
+          } else if (elseArg.type === 'COLUMN') {
+            config.params.elseValue = elseArg.name;
+          } else if (elseArg.type === 'VARIABLE') {
+            config.params.elseValue = elseArg.name;
+          } else if (elseArg.type === 'FUNCTION') {
+            // Nested if() or other function
+            config.params.elseValueNested = buildTransformation(elseArg.name.toLowerCase(), elseArg.arguments);
+          }
+        }
+      } else {
+        // Original simple if syntax: if(field, operator, compareValue, thenValue, elseValue)
+        if (args.length > 0) {
+          config.nestedArgs = [args[0]];
+        }
+        if (args.length > 1 && args[1].type === 'LITERAL') {
+          config.params.operator = args[1].value;
+        }
+        if (args.length > 2) {
+          if (args[2].type === 'LITERAL') {
+            config.params.compareValue = args[2].value;
+          } else if (args[2].type === 'COLUMN') {
+            config.params.compareValue = args[2].name;
+          } else if (args[2].type === 'VARIABLE') {
+            config.params.compareValue = args[2].name;
+          }
+        }
+        if (args.length > 3) {
+          const thenArg = args[3];
+          if (thenArg.type === 'LITERAL') {
+            config.params.thenValue = thenArg.value;
+          } else if (thenArg.type === 'COLUMN') {
+            config.params.thenValue = thenArg.name;
+          } else if (thenArg.type === 'VARIABLE') {
+            config.params.thenValue = thenArg.name;
+          } else if (thenArg.type === 'FUNCTION') {
+            config.params.thenValueNested = buildTransformation(thenArg.name.toLowerCase(), thenArg.arguments);
+          }
+        }
+        if (args.length > 4) {
+          const elseArg = args[4];
+          if (elseArg.type === 'LITERAL') {
+            config.params.elseValue = elseArg.value;
+          } else if (elseArg.type === 'COLUMN') {
+            config.params.elseValue = elseArg.name;
+          } else if (elseArg.type === 'VARIABLE') {
+            config.params.elseValue = elseArg.name;
+          } else if (elseArg.type === 'FUNCTION') {
+            config.params.elseValueNested = buildTransformation(elseArg.name.toLowerCase(), elseArg.arguments);
+          }
         }
       }
       break;

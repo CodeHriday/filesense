@@ -54,7 +54,7 @@ function applyTransformation(transformationType, value, params = {}, context = {
         return caseWhen(value, params);
       
       case 'if':
-        return ifCondition(value, params);
+        return ifCondition(value, params, context);
       
       case 'cast':
         return cast(value, params);
@@ -382,67 +382,122 @@ function caseWhen(value, params) {
 }
 
 /**
- * IF conditional logic - Simple if-then-else
+ * IF conditional logic - Enhanced with compound conditions support
  * @param {any} value - The value to evaluate
  * @param {Object} params - Parameters including operator, compareValue, thenValue, elseValue
+ *                          Also supports compoundConditions and logicalOperators for complex conditions
+ * @param {Object} context - Execution context with row data for resolving field values
  * @returns {any} - The result based on the condition
  */
-function ifCondition(value, params) {
+function ifCondition(value, params, context = {}) {
   const { 
     operator = 'equals', 
     compareValue = null, 
     thenValue = null, 
-    elseValue = null 
+    elseValue = null,
+    compoundConditions = null,
+    logicalOperators = [],
+    thenValueNested = null,
+    elseValueNested = null
   } = params;
+  
+  // Helper to evaluate a single condition
+  const evaluateSingleCondition = (fieldValue, op, compValue) => {
+    switch (op) {
+      case 'equals':
+      case '=':
+        return fieldValue == compValue;
+      case 'not_equals':
+      case '!=':
+        return fieldValue != compValue;
+      case 'greater_than':
+      case '>':
+        return parseFloat(fieldValue) > parseFloat(compValue);
+      case 'less_than':
+      case '<':
+        return parseFloat(fieldValue) < parseFloat(compValue);
+      case 'greater_than_or_equal':
+      case '>=':
+        return parseFloat(fieldValue) >= parseFloat(compValue);
+      case 'less_than_or_equal':
+      case '<=':
+        return parseFloat(fieldValue) <= parseFloat(compValue);
+      case 'contains':
+        return String(fieldValue).includes(String(compValue));
+      case 'starts_with':
+        return String(fieldValue).startsWith(String(compValue));
+      case 'ends_with':
+        return String(fieldValue).endsWith(String(compValue));
+      case 'is_null':
+        return fieldValue === null || fieldValue === undefined || fieldValue === '';
+      case 'is_not_null':
+        return fieldValue !== null && fieldValue !== undefined && fieldValue !== '';
+      default:
+        return Boolean(fieldValue);
+    }
+  };
   
   let condition = false;
   
-  switch (operator) {
-    case 'equals':
-    case '=':
-      condition = value == compareValue;
-      break;
-    case 'not_equals':
-    case '!=':
-      condition = value != compareValue;
-      break;
-    case 'greater_than':
-    case '>':
-      condition = parseFloat(value) > parseFloat(compareValue);
-      break;
-    case 'less_than':
-    case '<':
-      condition = parseFloat(value) < parseFloat(compareValue);
-      break;
-    case 'greater_than_or_equal':
-    case '>=':
-      condition = parseFloat(value) >= parseFloat(compareValue);
-      break;
-    case 'less_than_or_equal':
-    case '<=':
-      condition = parseFloat(value) <= parseFloat(compareValue);
-      break;
-    case 'contains':
-      condition = String(value).includes(String(compareValue));
-      break;
-    case 'starts_with':
-      condition = String(value).startsWith(String(compareValue));
-      break;
-    case 'ends_with':
-      condition = String(value).endsWith(String(compareValue));
-      break;
-    case 'is_null':
-      condition = value === null || value === undefined || value === '';
-      break;
-    case 'is_not_null':
-      condition = value !== null && value !== undefined && value !== '';
-      break;
-    default:
-      // If no specific operator, treat value as boolean
-      condition = Boolean(value);
+  // Check for compound conditions (new syntax)
+  if (compoundConditions && Array.isArray(compoundConditions) && compoundConditions.length > 0) {
+    // Evaluate each condition and combine with logical operators
+    const row = context.row || {};
+    const variableValues = context.variableValues || {};
+    
+    const conditionResults = compoundConditions.map(cond => {
+      // Resolve field value from row or variables
+      let fieldValue;
+      if (cond.field && cond.field.startsWith('$')) {
+        // Variable reference
+        fieldValue = variableValues[cond.field] || variableValues[cond.field.substring(1)];
+      } else {
+        // Column reference
+        fieldValue = row[cond.field];
+      }
+      
+      // Resolve compare value if it's a column or variable reference
+      let compValue = cond.compareValue;
+      if (typeof compValue === 'string') {
+        if (compValue.startsWith('$')) {
+          compValue = variableValues[compValue] || variableValues[compValue.substring(1)] || compValue;
+        } else if (row[compValue] !== undefined) {
+          compValue = row[compValue];
+        }
+      }
+      
+      return evaluateSingleCondition(fieldValue, cond.operator, compValue);
+    });
+    
+    // Combine results with logical operators
+    condition = conditionResults[0];
+    for (let i = 0; i < logicalOperators.length && i + 1 < conditionResults.length; i++) {
+      const logOp = logicalOperators[i];
+      if (logOp === '&') {
+        condition = condition && conditionResults[i + 1];
+      } else if (logOp === '|') {
+        condition = condition || conditionResults[i + 1];
+      }
+    }
+  } else {
+    // Simple single condition (original syntax)
+    condition = evaluateSingleCondition(value, operator, compareValue);
   }
   
-  return condition ? thenValue : elseValue;
+  // Return result - handle nested if() calls
+  if (condition) {
+    if (thenValueNested) {
+      // Execute nested transformation
+      return applyTransformation(thenValueNested.transformation, value, thenValueNested.params, context);
+    }
+    return thenValue;
+  } else {
+    if (elseValueNested) {
+      // Execute nested transformation (like nested if())
+      return applyTransformation(elseValueNested.transformation, value, elseValueNested.params, context);
+    }
+    return elseValue;
+  }
 }
 
 /**
