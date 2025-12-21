@@ -711,9 +711,42 @@ class VisualMappingCompiler {
             result.violationHandling = config.violationHandling;
             result.qualityRuleIds = config.selectedQualityRules || [];
             result.enableAnomalyDetection = config.anomalyDetection || false;
+            // Capture orderedColumns for filtering/reordering fieldMappings
+            result.orderedColumns = config.orderedColumns || [];
             break;
         }
       });
+      
+      // Filter and reorder fieldMappings based on Target's orderedColumns
+      if (result.orderedColumns && result.orderedColumns.length > 0) {
+        const orderedColumnSet = new Set(result.orderedColumns);
+        
+        // Create a map of target_field to mapping for quick lookup
+        const mappingsByTargetField = new Map();
+        result.fieldMappings.forEach(mapping => {
+          const targetField = mapping.target_field || mapping.targetField;
+          if (targetField && orderedColumnSet.has(targetField)) {
+            mappingsByTargetField.set(targetField, mapping);
+          }
+        });
+        
+        // Build new fieldMappings in the order specified by orderedColumns
+        const orderedFieldMappings = [];
+        result.orderedColumns.forEach(columnName => {
+          const mapping = mappingsByTargetField.get(columnName);
+          if (mapping) {
+            orderedFieldMappings.push(mapping);
+          }
+        });
+        
+        result.fieldMappings = orderedFieldMappings;
+        
+        systemLogger.info('Applied Target orderedColumns filter and reorder', {
+          originalCount: mappingsByTargetField.size,
+          filteredCount: orderedFieldMappings.length,
+          orderedColumns: result.orderedColumns.length
+        });
+      }
       
       return result;
       
