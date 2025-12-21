@@ -24,7 +24,7 @@ packages = [
 
 [deployment]
 deploymentTarget = "gce"
-run = ["sh", "-c", "NODE_ENV=production npm run start"]
+run = ["sh", "-c", "NODE_ENV=production node server.js"]
 build = ["sh", "-c", "npm run build"]
 
 [workflows]
