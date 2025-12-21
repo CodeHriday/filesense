@@ -4438,12 +4438,20 @@ function convertFieldMappings(dbFieldMappings) {
       });
     }
     // SIMPLE PASS-THROUGH: just source to target
+    // Handle both singular (source_field) and plural (sourceFields/source_fields) variants
     else if (mapping.source_field) {
       if (Array.isArray(mapping.source_field)) {
         converted.sourceFields = mapping.source_field;
       } else {
         converted.sourceFields = [mapping.source_field];
       }
+    }
+    // Handle passthrough mappings with pre-defined sourceFields (from compiler)
+    else if (mapping.sourceFields && Array.isArray(mapping.sourceFields) && mapping.sourceFields.length > 0) {
+      converted.sourceFields = mapping.sourceFields;
+    }
+    else if (mapping.source_fields && Array.isArray(mapping.source_fields) && mapping.source_fields.length > 0) {
+      converted.sourceFields = mapping.source_fields;
     }
     
     return converted;

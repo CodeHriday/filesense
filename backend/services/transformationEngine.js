@@ -982,6 +982,7 @@ function transformRow(row, fieldMappings, variables = [], context = {}) {
       // Store variable value
       variableValues[name] = value;
       enrichedRow[`$${name}`] = value; // Make available as $variable_name
+      enrichedRow[name] = value; // Also store without $ prefix for passthrough mappings
     }
   }
   
@@ -1015,7 +1016,11 @@ function transformRow(row, fieldMappings, variables = [], context = {}) {
           value = applyTransformationChain(value, transformations, context);
         } else {
           // Use first source field
+          // First check if it exists in the row, then check variableValues as fallback
           value = enrichedRow[firstSource];
+          if (value === undefined && variableValues[firstSource] !== undefined) {
+            value = variableValues[firstSource];
+          }
           value = applyTransformationChain(value, transformations, context);
         }
       }
