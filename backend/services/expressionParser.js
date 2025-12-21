@@ -16,8 +16,17 @@ function tokenize(expression) {
     return [];
   }
 
+  // Normalize curly/smart quotes to regular ASCII quotes
+  // This handles copy-paste from word processors, emails, etc.
+  let normalizedExpression = expression
+    .replace(/[\u2018\u2019\u201A\u201B\u2032\u2035]/g, "'")  // Single curly quotes → '
+    .replace(/[\u201C\u201D\u201E\u201F\u2033\u2036]/g, '"'); // Double curly quotes → "
+
   const tokens = [];
   let i = 0;
+  
+  // Use normalized expression for parsing
+  expression = normalizedExpression;
   
   while (i < expression.length) {
     const char = expression[i];
