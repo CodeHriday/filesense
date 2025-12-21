@@ -1014,24 +1014,68 @@ const VisualMappingCanvasContent = () => {
         errors.push(`Expression node "${node.data.label}" has no upstream connections`);
       }
       
-      // Check for deleted variable references in field mappings
+      // Check for deleted variable references in field mappings and variables
       const config = node.data.config;
-      if (config && config.fieldMappings) {
+      if (config) {
         // Get variables from config.variables array (if exists) - treat missing as empty
         const variableNames = new Set((config.variables || []).map(v => v.name));
         
-        config.fieldMappings.forEach(mapping => {
-          const expression = mapping.expression || mapping.customExpression || '';
-          if (expression && typeof expression === 'string') {
-            const varRefs = expression.match(/\$([a-zA-Z_][a-zA-Z0-9_]*)/g) || [];
-            varRefs.forEach(ref => {
-              const varName = ref.substring(1);
+        // Helper function to extract variable references from any string
+        const extractVarRefs = (str) => {
+          if (!str || typeof str !== 'string') return [];
+          const matches = str.match(/\$([a-zA-Z_][a-zA-Z0-9_]*)/g) || [];
+          return matches.map(m => m.substring(1));
+        };
+        
+        // Check field mappings for deleted variable references
+        if (config.fieldMappings) {
+          config.fieldMappings.forEach(mapping => {
+            // Check all possible places where a variable could be referenced
+            const expression = mapping.expression || mapping.customExpression || '';
+            const sourceField = mapping.source_field || '';
+            
+            // Combine all text to check for variable references
+            let allText = expression + ' ' + sourceField;
+            
+            // Also check transformation params
+            if (mapping.transformation_params) {
+              Object.values(mapping.transformation_params).forEach(param => {
+                if (typeof param === 'string') {
+                  allText += ' ' + param;
+                }
+              });
+            }
+            
+            const varRefs = extractVarRefs(allText);
+            varRefs.forEach(varName => {
               if (!variableNames.has(varName)) {
                 errors.push(`Expression node "${node.data.label}" - field "${mapping.target_field || mapping.targetField}" references deleted variable "$${varName}"`);
               }
             });
-          }
-        });
+          });
+        }
+        
+        // Check variables for references to other deleted variables
+        if (config.variables && config.variables.length > 0) {
+          config.variables.forEach((variable, index) => {
+            // Get names of variables that come BEFORE this one (since variables are evaluated in order)
+            const priorVarNames = new Set(config.variables.slice(0, index).map(v => v.name));
+            
+            const expression = variable.expression || '';
+            const varRefs = extractVarRefs(expression);
+            
+            varRefs.forEach(refName => {
+              // Check if the referenced variable exists at all in the variables list
+              if (!variableNames.has(refName)) {
+                errors.push(`Expression node "${node.data.label}" - variable "$${variable.name}" references deleted variable "$${refName}"`);
+              }
+              // Also check if a variable references a variable that comes AFTER it (circular/forward reference)
+              else if (!priorVarNames.has(refName) && refName !== variable.name) {
+                // It's referencing a variable that comes after it - this might be intentional, don't error
+              }
+            });
+          });
+        }
       }
     });
     

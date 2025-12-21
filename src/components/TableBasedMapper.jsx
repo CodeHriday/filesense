@@ -1257,7 +1257,10 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
                   const showPrecision = TYPES_WITH_PRECISION.includes(colType.toUpperCase());
                   const showScale = TYPES_WITH_SCALE.includes(colType.toUpperCase());
                   const mappingExpression = mapping.expression || mapping.customExpression || buildExpressionForCustom(mapping);
-                  const deletedVarRefs = findDeletedVariableReferences(mappingExpression, variables);
+                  // Also check source_field for variable references (e.g., when using a variable as the source)
+                  const sourceFieldVarRefs = extractVariableReferences(mapping.source_field || '');
+                  const expressionVarRefs = findDeletedVariableReferences(mappingExpression, variables);
+                  const deletedVarRefs = [...new Set([...expressionVarRefs, ...sourceFieldVarRefs.filter(ref => !variables.some(v => v.name === ref))])];
                   const hasDeletedVarRef = deletedVarRefs.length > 0;
                   return (
                   <tr key={mapping.source_field} className={hasDeletedVarRef ? 'row-has-error' : ''}>
