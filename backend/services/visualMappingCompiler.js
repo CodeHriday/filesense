@@ -718,34 +718,41 @@ class VisualMappingCompiler {
       });
       
       // Filter and reorder fieldMappings based on Target's orderedColumns
-      if (result.orderedColumns && result.orderedColumns.length > 0) {
-        const orderedColumnSet = new Set(result.orderedColumns);
+      if (result.orderedColumns && result.orderedColumns.length > 0 && Array.isArray(result.fieldMappings)) {
+        // Normalize orderedColumns to handle both string arrays and object arrays (backward compatibility)
+        const orderedNames = result.orderedColumns.map(col => 
+          typeof col === 'string' ? col : (col && col.name ? col.name : null)
+        ).filter(Boolean);
         
-        // Create a map of target_field to mapping for quick lookup
-        const mappingsByTargetField = new Map();
-        result.fieldMappings.forEach(mapping => {
-          const targetField = mapping.target_field || mapping.targetField;
-          if (targetField && orderedColumnSet.has(targetField)) {
-            mappingsByTargetField.set(targetField, mapping);
-          }
-        });
-        
-        // Build new fieldMappings in the order specified by orderedColumns
-        const orderedFieldMappings = [];
-        result.orderedColumns.forEach(columnName => {
-          const mapping = mappingsByTargetField.get(columnName);
-          if (mapping) {
-            orderedFieldMappings.push(mapping);
-          }
-        });
-        
-        result.fieldMappings = orderedFieldMappings;
-        
-        systemLogger.info('Applied Target orderedColumns filter and reorder', {
-          originalCount: mappingsByTargetField.size,
-          filteredCount: orderedFieldMappings.length,
-          orderedColumns: result.orderedColumns.length
-        });
+        if (orderedNames.length > 0) {
+          const orderedColumnSet = new Set(orderedNames);
+          
+          // Create a map of target_field to mapping for quick lookup
+          const mappingsByTargetField = new Map();
+          result.fieldMappings.forEach(mapping => {
+            const targetField = mapping.target_field || mapping.targetField;
+            if (targetField && orderedColumnSet.has(targetField)) {
+              mappingsByTargetField.set(targetField, mapping);
+            }
+          });
+          
+          // Build new fieldMappings in the order specified by orderedColumns
+          const orderedFieldMappings = [];
+          orderedNames.forEach(columnName => {
+            const mapping = mappingsByTargetField.get(columnName);
+            if (mapping) {
+              orderedFieldMappings.push(mapping);
+            }
+          });
+          
+          result.fieldMappings = orderedFieldMappings;
+          
+          systemLogger.info('Applied Target orderedColumns filter and reorder', {
+            originalCount: mappingsByTargetField.size,
+            filteredCount: orderedFieldMappings.length,
+            orderedColumns: orderedNames.length
+          });
+        }
       }
       
       return result;
