@@ -44,25 +44,28 @@ const ExpressionModal = ({ isOpen, onClose, onSave, initialConfig = {}, schema =
   }, [isOpen, initialConfig]);
 
   const outputSchema = useMemo(() => {
-    return fieldMappings.map(mapping => {
-      const targetField = mapping.target_field || mapping.targetField || '';
-      const dataType = mapping.data_type || mapping.dataType || mapping.type || mapping.column_type || 'STRING';
-      const precision = mapping.precision ?? null;
-      const scale = mapping.scale ?? null;
-      const nullable = mapping.nullable ?? true;
-      const isPII = piiColumns.includes(targetField);
-      const dqRules = dqRuleAssignments[targetField] || [];
-      return {
-        name: targetField,
-        type: dataType,
-        precision: precision,
-        scale: scale,
-        nullable: nullable,
-        pii: isPII,
-        dqRules: dqRules,
-        dqStatus: null
-      };
-    });
+    return fieldMappings
+      .filter(mapping => mapping.include !== false)
+      .map(mapping => {
+        const targetField = mapping.target_field || mapping.targetField || '';
+        const dataType = mapping.data_type || mapping.dataType || mapping.type || mapping.column_type || 'STRING';
+        const precision = mapping.precision ?? null;
+        const scale = mapping.scale ?? null;
+        const nullable = mapping.nullable ?? true;
+        const isPII = piiColumns.includes(targetField);
+        const dqRules = dqRuleAssignments[targetField] || [];
+        return {
+          name: targetField,
+          type: dataType,
+          precision: precision,
+          scale: scale,
+          nullable: nullable,
+          pii: isPII,
+          dqRules: dqRules,
+          dqStatus: null,
+          include: true
+        };
+      });
   }, [fieldMappings, piiColumns, dqRuleAssignments]);
   
   const handleSave = () => {
@@ -78,18 +81,21 @@ const ExpressionModal = ({ isOpen, onClose, onSave, initialConfig = {}, schema =
       variables,
       piiColumns,
       dqRuleAssignments,
-      mappingCount: fieldMappings.length,
+      mappingCount: fieldMappings.filter(m => m.include !== false).length,
       variableCount: variables.length,
       dqRuleCount: Object.keys(dqRuleAssignments).length,
-      outputSchema: fieldMappings.map(m => ({
-        name: m.target_field || m.targetField || '',
-        type: m.data_type || m.type || m.column_type || 'STRING',
-        precision: m.precision ?? null,
-        scale: m.scale ?? null,
-        nullable: m.nullable ?? true,
-        pii: piiColumns.includes(m.target_field || m.targetField || ''),
-        dqRules: dqRuleAssignments[m.target_field || m.targetField || ''] || []
-      }))
+      outputSchema: fieldMappings
+        .filter(m => m.include !== false)
+        .map(m => ({
+          name: m.target_field || m.targetField || '',
+          type: m.data_type || m.type || m.column_type || 'STRING',
+          precision: m.precision ?? null,
+          scale: m.scale ?? null,
+          nullable: m.nullable ?? true,
+          pii: piiColumns.includes(m.target_field || m.targetField || ''),
+          dqRules: dqRuleAssignments[m.target_field || m.targetField || ''] || [],
+          include: true
+        }))
     };
     onSave(config);
     onClose();

@@ -328,23 +328,25 @@ class VisualMappingCompiler {
             
           case 'expression':
             // Expression nodes transform the schema based on field mappings
-            // IMPORTANT: Only explicitly mapped fields should pass through - no automatic pass-through
+            // IMPORTANT: Only explicitly mapped fields with include=true should pass through
             const outputSchema = [];
             
             if (config.fieldMappings && Array.isArray(config.fieldMappings)) {
               config.fieldMappings.forEach(mapping => {
-                if (mapping.target_field || mapping.targetField) {
+                // Only include fields that have include !== false (default is true for backwards compatibility)
+                if ((mapping.target_field || mapping.targetField) && mapping.include !== false) {
                   outputSchema.push({
                     name: mapping.target_field || mapping.targetField,
                     type: mapping.data_type || mapping.targetType || 'string',
                     source: 'expression',
-                    transformation: mapping.transformation || mapping.expression
+                    transformation: mapping.transformation || mapping.expression,
+                    include: mapping.include !== false
                   });
                 }
               });
             }
             
-            // NO pass-through: Only explicitly mapped fields appear in output
+            // NO pass-through: Only explicitly included fields appear in output
             // This ensures Expression nodes act as a strict column boundary
             
             nodeSchemas[nodeId] = outputSchema;
