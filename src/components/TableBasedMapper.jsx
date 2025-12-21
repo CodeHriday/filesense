@@ -72,6 +72,20 @@ const TRANSFORMATION_OPTIONS = [
   { value: 'cast-integer', label: 'To Integer', group: 'Type Cast', params: [] },
   { value: 'cast-float', label: 'To Float', group: 'Type Cast', params: [] },
   { 
+    value: 'and', 
+    label: 'AND (&)', 
+    group: 'Logical', 
+    params: [],
+    description: 'Combine conditions: condition1 & condition2'
+  },
+  { 
+    value: 'or', 
+    label: 'OR (|)', 
+    group: 'Logical', 
+    params: [],
+    description: 'Either condition: condition1 | condition2'
+  },
+  { 
     value: 'if', 
     label: 'IF Condition', 
     group: 'Conditional', 
@@ -140,6 +154,7 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
     'Numeric': true,
     'Date/Time': true,
     'Type Cast': true,
+    'Logical': true,
     'Conditional': true
   });
   const expressionTextareaRef = useRef(null);
@@ -878,6 +893,15 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
     
     if (transformOption.value === 'case_when') {
       return `case_when(column, '=', 'A', 'Result A', '>', 50, 'High', 'Default')`;
+    }
+    
+    // Logical operators - insert just the operator symbol
+    if (transformOption.value === 'and') {
+      return ` & `;
+    }
+    
+    if (transformOption.value === 'or') {
+      return ` | `;
     }
     
     // Functions that don't take column input (e.g., current-date, current-timestamp)
@@ -1820,7 +1844,6 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
                             style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', textTransform: 'none' }}
                           >
                             <span>
-                              {group.group === 'Conditional' && '⚡ '}
                               {titleCaseGroup}
                             </span>
                             {isCollapsed ? <FiChevronRight size={14} /> : <FiChevronDown size={14} />}
@@ -2038,7 +2061,6 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
                             style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', textTransform: 'none' }}
                           >
                             <span>
-                              {group.group === 'Conditional' && '⚡ '}
                               {titleCaseGroup}
                             </span>
                             {isCollapsed ? <FiChevronRight size={14} /> : <FiChevronDown size={14} />}
