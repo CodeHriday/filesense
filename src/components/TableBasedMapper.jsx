@@ -167,6 +167,9 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
   // Validation error modal state
   const [validationError, setValidationError] = useState(null);
   
+  // Inline expression validation state
+  const [expressionValidation, setExpressionValidation] = useState({ valid: true, error: null });
+  
   // PII tagging state
   const [piiColumns, setPiiColumns] = useState(new Set(initialPiiColumns || []));
   
@@ -844,6 +847,8 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
       name: '',
       expression: ''
     });
+    setExpressionValidation({ valid: true, error: null });
+    setInlineEditingVariableId(null);
     setAddingVariable(true);
   };
 
@@ -947,7 +952,88 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
     }
   };
 
+  // Validate expression syntax
+  const validateExpression = (expression) => {
+    if (!expression || !expression.trim()) {
+      setExpressionValidation({ valid: true, error: null });
+      return true;
+    }
+    
+    try {
+      // Basic syntax validation
+      let parenCount = 0;
+      let inString = false;
+      let stringChar = null;
+      
+      for (let i = 0; i < expression.length; i++) {
+        const char = expression[i];
+        
+        if (!inString && (char === '"' || char === "'")) {
+          inString = true;
+          stringChar = char;
+        } else if (inString && char === stringChar && expression[i - 1] !== '\\') {
+          inString = false;
+          stringChar = null;
+        } else if (!inString) {
+          if (char === '(') parenCount++;
+          if (char === ')') parenCount--;
+        }
+      }
+      
+      if (parenCount !== 0) {
+        setExpressionValidation({ 
+          valid: false, 
+          error: parenCount > 0 ? `Missing ${parenCount} closing parenthesis` : `Extra ${-parenCount} closing parenthesis`
+        });
+        return false;
+      }
+      
+      if (inString) {
+        setExpressionValidation({ valid: false, error: 'Unclosed string literal' });
+        return false;
+      }
+      
+      // Check for known function patterns
+      const functionPattern = /^[a-zA-Z_][a-zA-Z0-9_-]*\s*\(/;
+      const hasFunction = functionPattern.test(expression.trim());
+      const isSimpleColumn = /^[a-zA-Z_][a-zA-Z0-9_-]*$/.test(expression.trim());
+      const isVariable = /^\$[a-zA-Z_][a-zA-Z0-9_]*$/.test(expression.trim());
+      
+      if (!hasFunction && !isSimpleColumn && !isVariable) {
+        // Could be a complex expression, check for common issues
+        if (expression.includes(',,')) {
+          setExpressionValidation({ valid: false, error: 'Double comma found - missing argument' });
+          return false;
+        }
+        if (expression.includes('()')) {
+          const match = expression.match(/(\w+)\(\)/);
+          if (match && !['current_date', 'current_timestamp', 'current-date', 'current-timestamp'].includes(match[1].toLowerCase())) {
+            setExpressionValidation({ valid: false, error: `Function ${match[1]} requires arguments` });
+            return false;
+          }
+        }
+      }
+      
+      setExpressionValidation({ valid: true, error: null });
+      return true;
+    } catch (err) {
+      setExpressionValidation({ valid: false, error: 'Invalid expression syntax' });
+      return false;
+    }
+  };
+
   const handleSaveVariable = () => {
+    // If editing an existing variable, delegate to handleUpdateVariable
+    if (inlineEditingVariableId) {
+      handleUpdateVariable();
+      return;
+    }
+    
+    // Validate expression before saving
+    if (!validateExpression(newVariable.expression)) {
+      return;
+    }
+    
     if (!newVariable.name.trim()) {
       setValidationError('Please enter a variable name');
       return;
@@ -995,6 +1081,8 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
       expression: variable.expression || buildVariableExpression(variable),
       data_type: variable.data_type || ''
     });
+    setExpressionValidation({ valid: true, error: null });
+    setAddingVariable(true);
   };
 
   const handleUpdateVariable = () => {
@@ -1010,22 +1098,26 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
       setValidationError('Please enter an expression for the variable');
       return;
     }
+    
+    // Validate expression before saving
+    if (!validateExpression(newVariable.expression)) {
+      return;
+    }
 
-    // Find the original variable to check if name changed
-    const originalVariable = variables.find(v => v.id === inlineEditingVariableId);
-    const oldName = originalVariable?.name || '';
+    // inlineEditingVariableId is now the original variable name (not id)
+    const oldName = inlineEditingVariableId;
     const newName = newVariable.name.trim();
     const nameChanged = oldName !== newName;
 
     // Check for duplicate name (excluding the variable being edited)
-    if (nameChanged && variables.some(v => v.id !== inlineEditingVariableId && v.name === newName)) {
+    if (nameChanged && variables.some(v => v.name !== oldName && v.name === newName)) {
       setValidationError(`Variable name "${newName}" already exists`);
       return;
     }
 
     // Update the variable with new name, expression, and data_type
     let updatedVariables = variables.map(v =>
-      v.id === inlineEditingVariableId
+      v.name === oldName
         ? {
             ...v,
             name: newName,
@@ -1486,22 +1578,6 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
                         {buildVariableExpression(variable)}
                       </div>
                     </div>
-                    <div className="variable-actions-compact">
-                      <button
-                        className="btn-icon-xs"
-                        onClick={() => handleEditVariable(variable)}
-                        title="Edit variable"
-                      >
-                        <FiEdit2 size={10} />
-                      </button>
-                      <button
-                        className="btn-icon-xs"
-                        onClick={() => handleDeleteVariable(variable.name)}
-                        title="Delete variable"
-                      >
-                        <FiTrash2 size={10} />
-                      </button>
-                    </div>
                   </div>
                 ))}
               </div>
@@ -1917,9 +1993,13 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
                         <textarea
                           id="newvar-expression"
                           ref={expressionTextareaRef}
-                          className="expression-code-input"
+                          className={`expression-code-input ${!expressionValidation.valid ? 'expression-invalid' : ''}`}
                           value={newVariable.expression}
-                          onChange={(e) => setNewVariable({ ...newVariable, expression: e.target.value })}
+                          onChange={(e) => {
+                            setNewVariable({ ...newVariable, expression: e.target.value });
+                            setExpressionValidation({ valid: true, error: null });
+                          }}
+                          onBlur={(e) => validateExpression(e.target.value)}
                           placeholder="Click + buttons to insert columns and functions, or type directly..."
                           spellCheck="false"
                           style={{
@@ -1928,12 +2008,17 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
                             minHeight: '200px',
                             width: '100%',
                             padding: '8px',
-                            border: '1px solid #d1d5db',
+                            border: `1px solid ${!expressionValidation.valid ? '#dc3545' : '#d1d5db'}`,
                             borderRadius: '6px',
                             backgroundColor: '#fff',
                             resize: 'vertical'
                           }}
                         />
+                        {!expressionValidation.valid && (
+                          <div className="expression-validation-error" style={{ color: '#dc3545', fontSize: '10px', marginTop: '4px', fontFamily: 'Inter, sans-serif' }}>
+                            ⚠️ {expressionValidation.error}
+                          </div>
+                        )}
                       </div>
 
                       <div className="expression-help">
@@ -1963,8 +2048,8 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
               <button className="btn btn-secondary btn-fixed-width" onClick={() => { setAddingVariable(false); setInlineEditingVariableId(null); setNewVariable({ name: '', expression: '', data_type: '' }); }}>
                 Close
               </button>
-              <button className="btn btn-primary btn-fixed-width" onClick={inlineEditingVariableId ? handleUpdateVariable : handleSaveVariable}>
-                Save
+              <button className="btn btn-primary btn-fixed-width" onClick={handleSaveVariable}>
+                {inlineEditingVariableId ? 'Update' : 'Save'}
               </button>
             </div>
           </div>
