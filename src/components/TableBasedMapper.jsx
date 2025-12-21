@@ -1051,37 +1051,45 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
       }
       
       // Check for column references - verify they exist in source columns
-      // First, strip out strings, function names, and variables to find column references
-      let exprForColCheck = trimmed;
-      // Remove string literals
-      exprForColCheck = exprForColCheck.replace(/'[^']*'/g, '').replace(/"[^"]*"/g, '');
-      // Remove variable references
-      exprForColCheck = exprForColCheck.replace(/\$[a-zA-Z_][a-zA-Z0-9_]*/g, '');
-      // Remove function names (word followed by paren)
-      exprForColCheck = exprForColCheck.replace(/[a-zA-Z_][a-zA-Z0-9_-]*\s*\(/g, '(');
-      // Remove operators and punctuation
-      exprForColCheck = exprForColCheck.replace(/[(),+\-*/%=<>!&|^~\s]/g, ' ');
-      // Extract remaining identifiers that could be column names
-      const potentialColumns = exprForColCheck.split(/\s+/).filter(s => /^[a-zA-Z_][a-zA-Z0-9_-]*$/.test(s));
-      
-      for (const colName of potentialColumns) {
-        // Skip if it looks like a number, known keyword, or comparison operator
-        const skipTokens = [
-          'true', 'false', 'null', 'and', 'or', 'not', 'as', 'is',
-          // Comparison operators (may remain after quote stripping in IF syntax)
-          'gt', 'lt', 'eq', 'ne', 'ge', 'le', 'gte', 'lte'
-        ];
-        if (/^\d/.test(colName) || skipTokens.includes(colName.toLowerCase())) {
-          continue;
-        }
-        // Skip short tokens that are likely operators or fragments
-        if (colName.length <= 2 && /^[<>=!]+$/.test(colName)) {
-          continue;
-        }
-        // Check if it exists in source columns
-        if (!sourceColumns.includes(colName)) {
-          setExpressionValidation({ valid: false, error: `Column '${colName}' not found in source columns` });
-          return false;
+      // Only validate column names if we have source columns defined
+      if (sourceColumns && sourceColumns.length > 0) {
+        // First, strip out strings, function names, and variables to find column references
+        let exprForColCheck = trimmed;
+        // Remove string literals (both single and double quotes)
+        exprForColCheck = exprForColCheck.replace(/'[^']*'/g, ' ').replace(/"[^"]*"/g, ' ');
+        // Remove numeric values
+        exprForColCheck = exprForColCheck.replace(/\b\d+\.?\d*\b/g, ' ');
+        // Remove variable references
+        exprForColCheck = exprForColCheck.replace(/\$[a-zA-Z_][a-zA-Z0-9_]*/g, ' ');
+        // Remove function names (word followed by paren)
+        exprForColCheck = exprForColCheck.replace(/[a-zA-Z_][a-zA-Z0-9_-]*\s*\(/g, '(');
+        // Remove operators and punctuation
+        exprForColCheck = exprForColCheck.replace(/[(),+\-*/%=<>!&|^~\s]/g, ' ');
+        // Extract remaining identifiers that could be column names
+        const potentialColumns = exprForColCheck.split(/\s+/).filter(s => s && /^[a-zA-Z_][a-zA-Z0-9_-]*$/.test(s));
+        
+        for (const colName of potentialColumns) {
+          // Skip if it looks like a number, known keyword, or comparison operator
+          const skipTokens = [
+            'true', 'false', 'null', 'and', 'or', 'not', 'as', 'is',
+            // Comparison operators (may remain after quote stripping in IF syntax)
+            'gt', 'lt', 'eq', 'ne', 'ge', 'le', 'gte', 'lte',
+            // Common string values that might appear
+            'high', 'medium', 'low', 'yes', 'no'
+          ];
+          if (/^\d/.test(colName) || skipTokens.includes(colName.toLowerCase())) {
+            continue;
+          }
+          // Skip short tokens that are likely operators or fragments
+          if (colName.length <= 2 && /^[<>=!]+$/.test(colName)) {
+            continue;
+          }
+          // Check if it exists in source columns (case-insensitive check)
+          const matchesColumn = sourceColumns.some(sc => sc.toLowerCase() === colName.toLowerCase());
+          if (!matchesColumn) {
+            setExpressionValidation({ valid: false, error: `Column '${colName}' not found in source columns` });
+            return false;
+          }
         }
       }
       
