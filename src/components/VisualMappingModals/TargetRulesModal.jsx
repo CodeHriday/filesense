@@ -171,7 +171,8 @@ const TargetRulesModal = ({ isOpen, onClose, onSave, initialConfig = {}, project
   const [selectedAvailableRows, setSelectedAvailableRows] = useState(new Set());
   const [fileBrowserOpen, setFileBrowserOpen] = useState(false);
   const [validationError, setValidationError] = useState('');
-  const [newColumnsCount, setNewColumnsCount] = useState(0);
+  // newColumnsCount is derived from availableColumns with isNew flag
+  const newColumnsCount = availableColumns.filter(c => c.isNew).length;
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -209,28 +210,24 @@ const TargetRulesModal = ({ isOpen, onClose, onSave, initialConfig = {}, project
           // Saved config is authoritative - only include columns that were explicitly saved
           const orderedFromSaved = savedOrderNames
             .filter(name => schemaMap.has(name))
-            .map(name => ({ ...schemaMap.get(name), id: generateUniqueId('col') }));
+            .map(name => ({ ...schemaMap.get(name), id: generateUniqueId('col'), isNew: false }));
           setOrderedColumns(orderedFromSaved);
           
-          // New columns go to available pool - NOT auto-appended
+          // New columns go to available pool - NOT auto-appended, marked as new
           const newCols = outputSchema
             .filter(c => !savedNameSet.has(c.name))
-            .map(col => ({ ...col, id: generateUniqueId('avail') }));
+            .map(col => ({ ...col, id: generateUniqueId('avail'), isNew: true }));
           setAvailableColumns(newCols);
-          // Only show "new columns" message for genuinely new upstream columns
-          setNewColumnsCount(newCols.length);
         } else {
           // No saved config - all columns go to available (user must explicitly add)
-          setOrderedColumns([]);
-          setAvailableColumns(outputSchema.map(col => ({ ...col, id: generateUniqueId('avail') })));
           // First time setup - these aren't "new", they're just all available
-          setNewColumnsCount(0);
+          setOrderedColumns([]);
+          setAvailableColumns(outputSchema.map(col => ({ ...col, id: generateUniqueId('avail'), isNew: false })));
         }
       } else {
         setSchema(null);
         setOrderedColumns([]);
         setAvailableColumns([]);
-        setNewColumnsCount(0);
       }
     }
   }, [isOpen, projectId, outputSchema, initialConfig.orderedColumns]);
@@ -409,9 +406,11 @@ const TargetRulesModal = ({ isOpen, onClose, onSave, initialConfig = {}, project
     if (selectedAvailableRows.size === 0) return;
     const toAdd = availableColumns.filter(c => selectedAvailableRows.has(c.id));
     const remaining = availableColumns.filter(c => !selectedAvailableRows.has(c.id));
+    // When adding to output, clear the isNew flag - column has been processed
     const newOrdered = [...orderedColumns, ...toAdd.map(col => ({
       ...col,
-      id: generateUniqueId('col')
+      id: generateUniqueId('col'),
+      isNew: false
     }))];
     setOrderedColumns(newOrdered);
     setAvailableColumns(remaining);
@@ -422,9 +421,11 @@ const TargetRulesModal = ({ isOpen, onClose, onSave, initialConfig = {}, project
     if (selectedRows.size === 0) return;
     const toRemove = orderedColumns.filter(c => selectedRows.has(c.id));
     const remaining = orderedColumns.filter(c => !selectedRows.has(c.id));
+    // Moved-back columns are not "new" - keep isNew: false
     const newAvailable = [...availableColumns, ...toRemove.map(col => ({
       ...col,
-      id: generateUniqueId('avail')
+      id: generateUniqueId('avail'),
+      isNew: false
     }))];
     setOrderedColumns(remaining);
     setAvailableColumns(newAvailable);
@@ -432,20 +433,23 @@ const TargetRulesModal = ({ isOpen, onClose, onSave, initialConfig = {}, project
   };
 
   const handleAddAll = () => {
+    // When adding to output, clear the isNew flag - all columns processed
     const newOrdered = [...orderedColumns, ...availableColumns.map(col => ({
       ...col,
-      id: generateUniqueId('col')
+      id: generateUniqueId('col'),
+      isNew: false
     }))];
     setOrderedColumns(newOrdered);
     setAvailableColumns([]);
     setSelectedAvailableRows(new Set());
-    setNewColumnsCount(0);
   };
 
   const handleRemoveAll = () => {
+    // Moved-back columns are not "new" - keep isNew: false
     const newAvailable = [...availableColumns, ...orderedColumns.map(col => ({
       ...col,
-      id: generateUniqueId('avail')
+      id: generateUniqueId('avail'),
+      isNew: false
     }))];
     setOrderedColumns([]);
     setAvailableColumns(newAvailable);
@@ -460,12 +464,13 @@ const TargetRulesModal = ({ isOpen, onClose, onSave, initialConfig = {}, project
       !currentOrderedNames.has(c.name) && !currentAvailableNames.has(c.name)
     );
     if (newUpstream.length > 0) {
+      // New upstream columns are marked as new
       const newAvailable = [...availableColumns, ...newUpstream.map(col => ({
         ...col,
-        id: generateUniqueId('avail')
+        id: generateUniqueId('avail'),
+        isNew: true
       }))];
       setAvailableColumns(newAvailable);
-      setNewColumnsCount(prev => prev + newUpstream.length);
     }
   };
 
