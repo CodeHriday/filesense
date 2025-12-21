@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
@@ -7,6 +7,9 @@ import { FaGripVertical } from 'react-icons/fa';
 import FileBrowserModal from './FileBrowserModal';
 import './MappingConfigModal.css';
 import PropTypes from 'prop-types';
+
+let idCounter = 0;
+const generateUniqueId = (prefix) => `${prefix}-${Date.now()}-${++idCounter}`;
 
 const toTitleCase = (str) => {
   if (!str) return str;
@@ -100,6 +103,49 @@ SortableSchemaRow.propTypes = {
   onToggleSelect: PropTypes.func.isRequired
 };
 
+const SortableOutputRow = ({ column, index, selectedRows, onToggleSelect }) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging
+  } = useSortable({ id: column.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    backgroundColor: isDragging ? '#d1fae5' : selectedRows.has(column.id) ? '#dbeafe' : 'white',
+    opacity: isDragging ? 0.8 : 1
+  };
+
+  return (
+    <tr ref={setNodeRef} style={style}>
+      <td style={{ padding: '4px' }}>
+        <input
+          type="checkbox"
+          checked={selectedRows.has(column.id)}
+          onChange={() => onToggleSelect(column.id)}
+        />
+      </td>
+      <td style={{ padding: '4px', cursor: 'grab' }} {...attributes} {...listeners}>
+        <FaGripVertical style={{ color: '#9ca3af', fontSize: '10px' }} />
+      </td>
+      <td style={{ padding: '4px', fontSize: '9px', color: '#6b7280' }}>{index + 1}</td>
+      <td style={{ padding: '4px', fontFamily: 'monospace', fontSize: '10px' }}>{column.name}</td>
+      <td style={{ padding: '4px', fontSize: '9px', color: '#6b7280' }}>{formatTypeWithPrecision(column.type, column.precision, column.scale)}</td>
+    </tr>
+  );
+};
+
+SortableOutputRow.propTypes = {
+  column: PropTypes.object.isRequired,
+  index: PropTypes.number.isRequired,
+  selectedRows: PropTypes.instanceOf(Set).isRequired,
+  onToggleSelect: PropTypes.func.isRequired
+};
+
 
 const TargetRulesModal = ({ isOpen, onClose, onSave, initialConfig = {}, projectId, outputSchema = null }) => {
   const [name, setName] = useState(initialConfig.name || '');
@@ -120,9 +166,12 @@ const TargetRulesModal = ({ isOpen, onClose, onSave, initialConfig = {}, project
   const [activeTab, setActiveTab] = useState('configuration');
   const [schema, setSchema] = useState(null);
   const [orderedColumns, setOrderedColumns] = useState([]);
+  const [availableColumns, setAvailableColumns] = useState([]);
   const [selectedRows, setSelectedRows] = useState(new Set());
+  const [selectedAvailableRows, setSelectedAvailableRows] = useState(new Set());
   const [fileBrowserOpen, setFileBrowserOpen] = useState(false);
   const [validationError, setValidationError] = useState('');
+  const [newColumnsCount, setNewColumnsCount] = useState(0);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -142,6 +191,7 @@ const TargetRulesModal = ({ isOpen, onClose, onSave, initialConfig = {}, project
       setActiveTab('configuration');
       setValidationError('');
       setSelectedRows(new Set());
+      setSelectedAvailableRows(new Set());
       
       // Set output schema from upstream nodes
       if (outputSchema && outputSchema.length > 0) {
@@ -150,25 +200,37 @@ const TargetRulesModal = ({ isOpen, onClose, onSave, initialConfig = {}, project
           columns: outputSchema
         });
         // Initialize ordered columns with stable IDs based on index
-        // If initialConfig has orderedColumns (saved order by name), use that order
+        // If initialConfig has orderedColumns (saved order by name), use that order - AUTHORITATIVE
         const savedOrderNames = initialConfig.orderedColumns || [];
+        const schemaMap = new Map(outputSchema.map(c => [c.name, c]));
+        const savedNameSet = new Set(savedOrderNames);
+        
         if (savedOrderNames.length > 0) {
-          // savedOrderNames is an array of column names in saved order
-          const schemaMap = new Map(outputSchema.map(c => [c.name, c]));
+          // Saved config is authoritative - only include columns that were explicitly saved
           const orderedFromSaved = savedOrderNames
             .filter(name => schemaMap.has(name))
-            .map((name, idx) => ({ ...schemaMap.get(name), id: `col-${idx}` }));
-          const savedNameSet = new Set(savedOrderNames);
-          const newColumns = outputSchema
+            .map(name => ({ ...schemaMap.get(name), id: generateUniqueId('col') }));
+          setOrderedColumns(orderedFromSaved);
+          
+          // New columns go to available pool - NOT auto-appended
+          const newCols = outputSchema
             .filter(c => !savedNameSet.has(c.name))
-            .map((col, idx) => ({ ...col, id: `col-${orderedFromSaved.length + idx}` }));
-          setOrderedColumns([...orderedFromSaved, ...newColumns]);
+            .map(col => ({ ...col, id: generateUniqueId('avail') }));
+          setAvailableColumns(newCols);
+          // Only show "new columns" message for genuinely new upstream columns
+          setNewColumnsCount(newCols.length);
         } else {
-          setOrderedColumns(outputSchema.map((col, idx) => ({ ...col, id: `col-${idx}` })));
+          // No saved config - all columns go to available (user must explicitly add)
+          setOrderedColumns([]);
+          setAvailableColumns(outputSchema.map(col => ({ ...col, id: generateUniqueId('avail') })));
+          // First time setup - these aren't "new", they're just all available
+          setNewColumnsCount(0);
         }
       } else {
         setSchema(null);
         setOrderedColumns([]);
+        setAvailableColumns([]);
+        setNewColumnsCount(0);
       }
     }
   }, [isOpen, projectId, outputSchema, initialConfig.orderedColumns]);
@@ -320,6 +382,90 @@ const TargetRulesModal = ({ isOpen, onClose, onSave, initialConfig = {}, project
       setSelectedRows(new Set());
     } else {
       setSelectedRows(new Set(orderedColumns.map(c => c.id)));
+    }
+  };
+
+  const toggleAvailableRowSelect = (columnId) => {
+    setSelectedAvailableRows(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(columnId)) {
+        newSet.delete(columnId);
+      } else {
+        newSet.add(columnId);
+      }
+      return newSet;
+    });
+  };
+
+  const toggleSelectAllAvailable = () => {
+    if (selectedAvailableRows.size === availableColumns.length) {
+      setSelectedAvailableRows(new Set());
+    } else {
+      setSelectedAvailableRows(new Set(availableColumns.map(c => c.id)));
+    }
+  };
+
+  const handleAddSelected = () => {
+    if (selectedAvailableRows.size === 0) return;
+    const toAdd = availableColumns.filter(c => selectedAvailableRows.has(c.id));
+    const remaining = availableColumns.filter(c => !selectedAvailableRows.has(c.id));
+    const newOrdered = [...orderedColumns, ...toAdd.map(col => ({
+      ...col,
+      id: generateUniqueId('col')
+    }))];
+    setOrderedColumns(newOrdered);
+    setAvailableColumns(remaining);
+    setSelectedAvailableRows(new Set());
+  };
+
+  const handleRemoveSelected = () => {
+    if (selectedRows.size === 0) return;
+    const toRemove = orderedColumns.filter(c => selectedRows.has(c.id));
+    const remaining = orderedColumns.filter(c => !selectedRows.has(c.id));
+    const newAvailable = [...availableColumns, ...toRemove.map(col => ({
+      ...col,
+      id: generateUniqueId('avail')
+    }))];
+    setOrderedColumns(remaining);
+    setAvailableColumns(newAvailable);
+    setSelectedRows(new Set());
+  };
+
+  const handleAddAll = () => {
+    const newOrdered = [...orderedColumns, ...availableColumns.map(col => ({
+      ...col,
+      id: generateUniqueId('col')
+    }))];
+    setOrderedColumns(newOrdered);
+    setAvailableColumns([]);
+    setSelectedAvailableRows(new Set());
+    setNewColumnsCount(0);
+  };
+
+  const handleRemoveAll = () => {
+    const newAvailable = [...availableColumns, ...orderedColumns.map(col => ({
+      ...col,
+      id: generateUniqueId('avail')
+    }))];
+    setOrderedColumns([]);
+    setAvailableColumns(newAvailable);
+    setSelectedRows(new Set());
+  };
+
+  const handleRefreshFromUpstream = () => {
+    if (!outputSchema || outputSchema.length === 0) return;
+    const currentOrderedNames = new Set(orderedColumns.map(c => c.name));
+    const currentAvailableNames = new Set(availableColumns.map(c => c.name));
+    const newUpstream = outputSchema.filter(c => 
+      !currentOrderedNames.has(c.name) && !currentAvailableNames.has(c.name)
+    );
+    if (newUpstream.length > 0) {
+      const newAvailable = [...availableColumns, ...newUpstream.map(col => ({
+        ...col,
+        id: generateUniqueId('avail')
+      }))];
+      setAvailableColumns(newAvailable);
+      setNewColumnsCount(prev => prev + newUpstream.length);
     }
   };
 
@@ -550,80 +696,183 @@ const TargetRulesModal = ({ isOpen, onClose, onSave, initialConfig = {}, project
           </div>
           )}
           
-          {/* Schema Tab */}
+          {/* Schema Tab - Dual List Picker */}
           {activeTab === 'schema' && (
             <div className="vm-schema-container">
               {schema ? (
                 <>
-                  <div className="vm-schema-meta">
+                  <div className="vm-schema-meta" style={{ marginBottom: '12px' }}>
                     <div className="vm-schema-meta-row">
                       <span className="vm-schema-label">Source:</span>
                       <span className="vm-schema-value">Output from Upstream Nodes</span>
                     </div>
-                    <div className="vm-schema-meta-row">
-                      <span className="vm-schema-label">Total Columns:</span>
-                      <span className="vm-schema-value">{orderedColumns.length}</span>
+                    <div style={{ display: 'flex', gap: '24px', marginTop: '8px' }}>
+                      <div className="vm-schema-meta-row">
+                        <span className="vm-schema-label">Available:</span>
+                        <span className="vm-schema-value">{availableColumns.length} columns</span>
+                      </div>
+                      <div className="vm-schema-meta-row">
+                        <span className="vm-schema-label">Output:</span>
+                        <span className="vm-schema-value">{orderedColumns.length} columns</span>
+                      </div>
                     </div>
-                    <div className="vm-schema-meta-row">
-                      <span className="vm-schema-label">Selected:</span>
-                      <span className="vm-schema-value">{selectedRows.size} columns</span>
-                    </div>
+                    {newColumnsCount > 0 && (
+                      <div style={{ marginTop: '8px', padding: '6px 10px', backgroundColor: '#fef3c7', border: '1px solid #f59e0b', borderRadius: '4px', fontSize: '10px', color: '#92400e' }}>
+                        {newColumnsCount} new column{newColumnsCount > 1 ? 's' : ''} available from upstream. Use the arrow buttons to add them to output.
+                      </div>
+                    )}
                   </div>
                   
                   <div style={{ marginBottom: '8px', fontSize: '10px', fontFamily: 'Inter, sans-serif', color: '#6b7280' }}>
-                    Drag rows to reorder output columns. Select multiple rows with checkboxes to move them together.
+                    Select columns from Available and use arrow buttons to move them to Output. Drag rows in Output to reorder.
                   </div>
                   
-                  <div className="vm-schema-table-container" style={{ maxHeight: '400px', overflowY: 'auto' }}>
-                    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-                      <table className="vm-schema-table">
-                        <thead>
-                          <tr>
-                            <th style={{ width: '30px' }}>
-                              <input
-                                type="checkbox"
-                                checked={selectedRows.size === orderedColumns.length && orderedColumns.length > 0}
-                                onChange={toggleSelectAll}
-                              />
-                            </th>
-                            <th style={{ width: '30px' }}></th>
-                            <th style={{ width: '40px' }}>#</th>
-                            <th>Column Name</th>
-                            <th>Data Type</th>
-                            <th>Nullable</th>
-                            <th>PII</th>
-                            <th>DQ Rules</th>
-                            <th>DQ Status</th>
-                          </tr>
-                        </thead>
-                        <SortableContext items={orderedColumns.map(c => c.id)} strategy={verticalListSortingStrategy}>
-                          <tbody>
-                            {orderedColumns.length > 0 ? (
-                              orderedColumns.map((col, idx) => (
-                                <SortableSchemaRow
-                                  key={col.id}
-                                  column={col}
-                                  index={idx}
-                                  selectedRows={selectedRows}
-                                  onToggleSelect={toggleRowSelect}
-                                />
-                              ))
-                            ) : (
+                  {/* Dual List Picker */}
+                  <div style={{ display: 'flex', gap: '12px', height: '360px' }}>
+                    {/* Available Columns Panel */}
+                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', border: '1px solid #e5e7eb', borderRadius: '6px', overflow: 'hidden' }}>
+                      <div style={{ padding: '8px 12px', backgroundColor: '#f9fafb', borderBottom: '1px solid #e5e7eb', fontWeight: 600, fontSize: '11px', color: '#374151', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span>Available Columns ({availableColumns.length})</span>
+                        <button
+                          onClick={handleRefreshFromUpstream}
+                          style={{ padding: '2px 8px', fontSize: '9px', backgroundColor: '#e5e7eb', border: 'none', borderRadius: '3px', cursor: 'pointer', color: '#374151' }}
+                          title="Check for new columns from upstream"
+                        >
+                          Refresh
+                        </button>
+                      </div>
+                      <div style={{ flex: 1, overflowY: 'auto', padding: '4px' }}>
+                        {availableColumns.length > 0 ? (
+                          <table className="vm-schema-table" style={{ fontSize: '10px' }}>
+                            <thead>
                               <tr>
-                                <td colSpan="9" style={{ textAlign: 'center', color: '#9ca3af', fontStyle: 'italic' }}>
-                                  No columns in schema
-                                </td>
+                                <th style={{ width: '24px', padding: '4px' }}>
+                                  <input
+                                    type="checkbox"
+                                    checked={selectedAvailableRows.size === availableColumns.length && availableColumns.length > 0}
+                                    onChange={toggleSelectAllAvailable}
+                                  />
+                                </th>
+                                <th style={{ padding: '4px' }}>Column Name</th>
+                                <th style={{ padding: '4px' }}>Type</th>
                               </tr>
-                            )}
-                          </tbody>
-                        </SortableContext>
-                      </table>
-                    </DndContext>
+                            </thead>
+                            <tbody>
+                              {availableColumns.map((col) => (
+                                <tr 
+                                  key={col.id}
+                                  style={{ backgroundColor: selectedAvailableRows.has(col.id) ? '#dbeafe' : 'white', cursor: 'pointer' }}
+                                  onClick={() => toggleAvailableRowSelect(col.id)}
+                                >
+                                  <td style={{ padding: '4px' }}>
+                                    <input
+                                      type="checkbox"
+                                      checked={selectedAvailableRows.has(col.id)}
+                                      onChange={() => toggleAvailableRowSelect(col.id)}
+                                      onClick={(e) => e.stopPropagation()}
+                                    />
+                                  </td>
+                                  <td style={{ padding: '4px', fontFamily: 'monospace', fontSize: '10px' }}>{col.name}</td>
+                                  <td style={{ padding: '4px', fontSize: '9px', color: '#6b7280' }}>{formatTypeWithPrecision(col.type, col.precision, col.scale)}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        ) : (
+                          <div style={{ padding: '20px', textAlign: 'center', color: '#9ca3af', fontStyle: 'italic', fontSize: '10px' }}>
+                            All columns added to output
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    
+                    {/* Arrow Buttons */}
+                    <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: '8px' }}>
+                      <button
+                        onClick={handleAddAll}
+                        disabled={availableColumns.length === 0}
+                        style={{ padding: '6px 10px', fontSize: '12px', backgroundColor: availableColumns.length > 0 ? '#3b82f6' : '#e5e7eb', color: availableColumns.length > 0 ? 'white' : '#9ca3af', border: 'none', borderRadius: '4px', cursor: availableColumns.length > 0 ? 'pointer' : 'not-allowed' }}
+                        title="Add all columns"
+                      >
+                        &gt;&gt;
+                      </button>
+                      <button
+                        onClick={handleAddSelected}
+                        disabled={selectedAvailableRows.size === 0}
+                        style={{ padding: '6px 10px', fontSize: '12px', backgroundColor: selectedAvailableRows.size > 0 ? '#3b82f6' : '#e5e7eb', color: selectedAvailableRows.size > 0 ? 'white' : '#9ca3af', border: 'none', borderRadius: '4px', cursor: selectedAvailableRows.size > 0 ? 'pointer' : 'not-allowed' }}
+                        title="Add selected columns"
+                      >
+                        &gt;
+                      </button>
+                      <button
+                        onClick={handleRemoveSelected}
+                        disabled={selectedRows.size === 0}
+                        style={{ padding: '6px 10px', fontSize: '12px', backgroundColor: selectedRows.size > 0 ? '#ef4444' : '#e5e7eb', color: selectedRows.size > 0 ? 'white' : '#9ca3af', border: 'none', borderRadius: '4px', cursor: selectedRows.size > 0 ? 'pointer' : 'not-allowed' }}
+                        title="Remove selected columns"
+                      >
+                        &lt;
+                      </button>
+                      <button
+                        onClick={handleRemoveAll}
+                        disabled={orderedColumns.length === 0}
+                        style={{ padding: '6px 10px', fontSize: '12px', backgroundColor: orderedColumns.length > 0 ? '#ef4444' : '#e5e7eb', color: orderedColumns.length > 0 ? 'white' : '#9ca3af', border: 'none', borderRadius: '4px', cursor: orderedColumns.length > 0 ? 'pointer' : 'not-allowed' }}
+                        title="Remove all columns"
+                      >
+                        &lt;&lt;
+                      </button>
+                    </div>
+                    
+                    {/* Output Columns Panel */}
+                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', border: '1px solid #e5e7eb', borderRadius: '6px', overflow: 'hidden' }}>
+                      <div style={{ padding: '8px 12px', backgroundColor: '#ecfdf5', borderBottom: '1px solid #a7f3d0', fontWeight: 600, fontSize: '11px', color: '#065f46' }}>
+                        Output Columns ({orderedColumns.length})
+                      </div>
+                      <div style={{ flex: 1, overflowY: 'auto', padding: '4px' }}>
+                        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                          {orderedColumns.length > 0 ? (
+                            <table className="vm-schema-table" style={{ fontSize: '10px' }}>
+                              <thead>
+                                <tr>
+                                  <th style={{ width: '24px', padding: '4px' }}>
+                                    <input
+                                      type="checkbox"
+                                      checked={selectedRows.size === orderedColumns.length && orderedColumns.length > 0}
+                                      onChange={toggleSelectAll}
+                                    />
+                                  </th>
+                                  <th style={{ width: '24px', padding: '4px' }}></th>
+                                  <th style={{ width: '30px', padding: '4px' }}>#</th>
+                                  <th style={{ padding: '4px' }}>Column Name</th>
+                                  <th style={{ padding: '4px' }}>Type</th>
+                                </tr>
+                              </thead>
+                              <SortableContext items={orderedColumns.map(c => c.id)} strategy={verticalListSortingStrategy}>
+                                <tbody>
+                                  {orderedColumns.map((col, idx) => (
+                                    <SortableOutputRow
+                                      key={col.id}
+                                      column={col}
+                                      index={idx}
+                                      selectedRows={selectedRows}
+                                      onToggleSelect={toggleRowSelect}
+                                    />
+                                  ))}
+                                </tbody>
+                              </SortableContext>
+                            </table>
+                          ) : (
+                            <div style={{ padding: '20px', textAlign: 'center', color: '#9ca3af', fontStyle: 'italic', fontSize: '10px' }}>
+                              No columns selected for output. Add columns from the left panel.
+                            </div>
+                          )}
+                        </DndContext>
+                      </div>
+                    </div>
                   </div>
                   
-                  <div className="vm-schema-note">
-                    <strong>Note:</strong> This schema represents the data structure that will be written to the target. 
-                    Drag rows to reorder output columns. Column properties (data type, PII, DQ rules) are set in upstream Expression nodes.
+                  <div className="vm-schema-note" style={{ marginTop: '12px' }}>
+                    <strong>Note:</strong> Only columns in the Output panel will be written to the target file. 
+                    Column properties (data type, PII, DQ rules) are set in upstream Expression nodes.
                   </div>
                 </>
               ) : (
