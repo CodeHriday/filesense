@@ -1891,14 +1891,9 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
             </div>
             <div className="modal-footer">
               <button className="btn btn-secondary btn-fixed-width" onClick={() => { setAddingVariable(false); setInlineEditingVariableId(null); setNewVariable({ name: '', expression: '', data_type: '' }); }}>
-                Cancel
+                Close
               </button>
-              {inlineEditingVariableId && (
-                <button className="btn btn-secondary btn-fixed-width" onClick={handleUpdateVariable}>
-                  Update
-                </button>
-              )}
-              <button className="btn btn-primary btn-fixed-width" onClick={handleSaveAndClose}>
+              <button className="btn btn-primary btn-fixed-width" onClick={inlineEditingVariableId ? handleUpdateVariable : handleSaveVariable}>
                 Save
               </button>
             </div>
