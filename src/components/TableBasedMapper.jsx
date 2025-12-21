@@ -1176,85 +1176,7 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
         <h3>Field Mapping Parameter Details</h3>
       </div>
 
-      {/* Variables Section */}
-      <div className="variables-section">
-        <div className="variables-header" onClick={() => setVariablesExpanded(!variablesExpanded)}>
-          <div className="variables-title">
-            {variablesExpanded ? <FiChevronDown /> : <FiChevronRight />}
-            <h4>Variables ({variables.length})</h4>
-            <span className="variables-info">Pre-calculations executed sequentially</span>
-          </div>
-          <button 
-            className="btn btn-primary btn-xs" 
-            onClick={(e) => { e.stopPropagation(); handleAddVariable(); }}
-            style={{ fontSize: '10px', fontFamily: 'Inter', padding: '0.125rem 0.25rem', gap: '0.125rem' }}
-          >
-            <FiPlus /> Add/Edit Expressions
-          </button>
-        </div>
-
-        {variablesExpanded && (
-          <div className="variables-content">
-            {variables.length === 0 ? (
-              <div className="no-variables">
-                No variables defined. Click "Add/Edit Expressions" to create pre-calculations that can be used in field mappings.
-              </div>
-            ) : (
-              <div className="variables-list">
-                {variables.map((variable, index) => (
-                  <div key={variable.id} className="variable-item">
-                    <div className="variable-order">
-                      <button
-                        className="btn-icon-small"
-                        onClick={() => handleMoveVariableUp(index)}
-                        disabled={index === 0}
-                        title="Move up"
-                      >
-                        <FiChevronUp />
-                      </button>
-                      <span className="order-number">{index + 1}</span>
-                      <button
-                        className="btn-icon-small"
-                        onClick={() => handleMoveVariableDown(index)}
-                        disabled={index === variables.length - 1}
-                        title="Move down"
-                      >
-                        <FiChevronDown />
-                      </button>
-                    </div>
-                    <div className="variable-info">
-                      <div className="variable-name">
-                        <strong>${variable.name}</strong> =
-                      </div>
-                      <div className="variable-expression">
-                        {buildVariableExpression(variable)}
-                      </div>
-                    </div>
-                    <div className="variable-actions">
-                      <button
-                        className="btn-icon-small"
-                        onClick={() => handleEditVariable(variable)}
-                        title="Edit variable"
-                      >
-                        <FiEdit2 />
-                      </button>
-                      <button
-                        className="btn-icon-small"
-                        onClick={() => handleDeleteVariable(variable.id)}
-                        title="Delete variable"
-                      >
-                        <FiTrash2 />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-
-      <div className="mapper-panels">
+      <div className="mapper-panels mapper-panels-three-col">
         <div className="source-panel">
           <h4>Incoming Fields</h4>
           <div className="field-search">
@@ -1298,6 +1220,9 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
               </button>
               <button className="btn btn-primary btn-xs" onClick={handleAddNewColumn} title="Add a new calculated column" style={{ fontSize: '10px', fontFamily: 'Inter', padding: '0.125rem 0.25rem', gap: '0.125rem' }}>
                 <FiPlus /> Add New Column
+              </button>
+              <button className="btn btn-primary btn-xs" onClick={handleAddVariable} title="Create pre-calculations that can be used in field mappings" style={{ fontSize: '10px', fontFamily: 'Inter', padding: '0.125rem 0.25rem', gap: '0.125rem' }}>
+                <FiPlus /> Add/Edit Expressions
               </button>
             </div>
           </div>
@@ -1490,6 +1415,71 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
                 )}
               </tbody>
             </table>
+          </div>
+        </div>
+
+        {/* Variables Panel - Third Column */}
+        <div className="variables-panel">
+          <div className="variables-panel-header">
+            <h4>Variables ({variables.length})</h4>
+            <span className="variables-info-compact">Pre-calculations</span>
+          </div>
+          <div className="variables-panel-content">
+            {variables.length === 0 ? (
+              <div className="no-variables-compact">
+                No variables defined. Click "Add/Edit Expressions" to create pre-calculations.
+              </div>
+            ) : (
+              <div className="variables-list-compact">
+                {variables.map((variable, index) => (
+                  <div key={variable.id} className="variable-item-compact">
+                    <div className="variable-order-compact">
+                      <button
+                        className="btn-icon-xs"
+                        onClick={() => handleMoveVariableUp(index)}
+                        disabled={index === 0}
+                        title="Move up"
+                      >
+                        <FiChevronUp size={10} />
+                      </button>
+                      <span className="order-number-compact">{index + 1}</span>
+                      <button
+                        className="btn-icon-xs"
+                        onClick={() => handleMoveVariableDown(index)}
+                        disabled={index === variables.length - 1}
+                        title="Move down"
+                      >
+                        <FiChevronDown size={10} />
+                      </button>
+                    </div>
+                    <div className="variable-info-compact">
+                      <div className="variable-name-compact">
+                        <strong>${variable.name}</strong>
+                      </div>
+                      <div className="variable-expression-compact" title={buildVariableExpression(variable)}>
+                        {buildVariableExpression(variable)}
+                      </div>
+                    </div>
+                    <div className="variable-actions-compact">
+                      <button
+                        className="btn-icon-xs"
+                        onClick={() => handleEditVariable(variable)}
+                        title="Edit variable"
+                      >
+                        <FiEdit2 size={10} />
+                      </button>
+                      <button
+                        className="btn-icon-xs"
+                        onClick={() => handleDeleteVariable(variable.id)}
+                        title="Delete variable"
+                      >
+                        <FiTrash2 size={10} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>
