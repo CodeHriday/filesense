@@ -887,8 +887,9 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
   // Helper function to get function syntax template
   const getFunctionSyntax = (transformOption) => {
     // Special syntax for conditional functions
+    // New enhanced syntax with compound conditions
     if (transformOption.value === 'if') {
-      return `if(column, '>', 100, 'High', 'Low')`;
+      return `if(col1 '>' 100 & col2 '<' 200, 'Match', 'NoMatch')`;
     }
     
     if (transformOption.value === 'case_when') {
