@@ -1065,8 +1065,17 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
       const potentialColumns = exprForColCheck.split(/\s+/).filter(s => /^[a-zA-Z_][a-zA-Z0-9_-]*$/.test(s));
       
       for (const colName of potentialColumns) {
-        // Skip if it looks like a number or known keyword
-        if (/^\d/.test(colName) || ['true', 'false', 'null', 'and', 'or', 'not', 'as', 'is'].includes(colName.toLowerCase())) {
+        // Skip if it looks like a number, known keyword, or comparison operator
+        const skipTokens = [
+          'true', 'false', 'null', 'and', 'or', 'not', 'as', 'is',
+          // Comparison operators (may remain after quote stripping in IF syntax)
+          'gt', 'lt', 'eq', 'ne', 'ge', 'le', 'gte', 'lte'
+        ];
+        if (/^\d/.test(colName) || skipTokens.includes(colName.toLowerCase())) {
+          continue;
+        }
+        // Skip short tokens that are likely operators or fragments
+        if (colName.length <= 2 && /^[<>=!]+$/.test(colName)) {
           continue;
         }
         // Check if it exists in source columns
