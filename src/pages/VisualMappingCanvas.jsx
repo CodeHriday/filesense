@@ -1013,6 +1013,26 @@ const VisualMappingCanvasContent = () => {
       if (!hasUpstream) {
         errors.push(`Expression node "${node.data.label}" has no upstream connections`);
       }
+      
+      // Check for deleted variable references in field mappings
+      const config = node.data.config;
+      if (config && config.fieldMappings) {
+        // Get variables from config.variables array (if exists) - treat missing as empty
+        const variableNames = new Set((config.variables || []).map(v => v.name));
+        
+        config.fieldMappings.forEach(mapping => {
+          const expression = mapping.expression || mapping.customExpression || '';
+          if (expression && typeof expression === 'string') {
+            const varRefs = expression.match(/\$([a-zA-Z_][a-zA-Z0-9_]*)/g) || [];
+            varRefs.forEach(ref => {
+              const varName = ref.substring(1);
+              if (!variableNames.has(varName)) {
+                errors.push(`Expression node "${node.data.label}" - field "${mapping.target_field || mapping.targetField}" references deleted variable "$${varName}"`);
+              }
+            });
+          }
+        });
+      }
     });
     
     // Check join nodes
