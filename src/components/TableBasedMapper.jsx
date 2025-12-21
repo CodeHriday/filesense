@@ -42,7 +42,8 @@ const TRANSFORMATION_OPTIONS = [
   { value: 'multiply', label: 'Multiply', group: 'Numeric', params: [{ name: 'value', type: 'number', placeholder: 'Multiplier' }] },
   { value: 'divide', label: 'Divide', group: 'Numeric', params: [{ name: 'value', type: 'number', placeholder: 'Divisor' }] },
   { value: 'date-format', label: 'Format Date', group: 'Date/Time', params: [{ name: 'format', type: 'text', placeholder: 'e.g., YYYY-MM-DD' }] },
-  { value: 'current-date', label: 'Current Date', group: 'Date/Time', params: [] },
+  { value: 'current-date', label: 'Current Date', group: 'Date/Time', params: [], noColumnInput: true, autoDataType: 'date' },
+  { value: 'current-timestamp', label: 'Current Timestamp', group: 'Date/Time', params: [], noColumnInput: true, autoDataType: 'timestamp' },
   { value: 'cast-string', label: 'To String', group: 'Type Cast', params: [] },
   { value: 'cast-integer', label: 'To Integer', group: 'Type Cast', params: [] },
   { value: 'cast-float', label: 'To Float', group: 'Type Cast', params: [] },
@@ -104,6 +105,11 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
     expression: '',
     data_type: ''
   });
+  
+  // Collapsible sections state for variable modal
+  const [sourceColumnsExpanded, setSourceColumnsExpanded] = useState(true);
+  const [previousVariablesExpanded, setPreviousVariablesExpanded] = useState(true);
+  const [collapsedFunctionGroups, setCollapsedFunctionGroups] = useState({});
   const expressionTextareaRef = useRef(null);
   const editExpressionTextareaRef = useRef(null);
   
@@ -842,6 +848,11 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
       return `case_when(column, '=', 'A', 'Result A', '>', 50, 'High', 'Default')`;
     }
     
+    // Functions that don't take column input (e.g., current-date, current-timestamp)
+    if (transformOption.noColumnInput) {
+      return `${transformOption.value}()`;
+    }
+    
     if (transformOption.params.length === 0) {
       return `${transformOption.value}(column)`;
     }
@@ -867,6 +878,16 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
   const handleInsertFunction = (transformOption, isEditMode = false) => {
     const syntax = getFunctionSyntax(transformOption);
     insertAtCursor(syntax, isEditMode);
+    
+    // Auto-set data type for functions that have it defined
+    // Use functional state updates to preserve the expression that was just inserted
+    if (transformOption.autoDataType) {
+      if (isEditMode) {
+        setEditingVariable(prev => prev ? { ...prev, data_type: transformOption.autoDataType } : prev);
+      } else {
+        setNewVariable(prev => ({ ...prev, data_type: transformOption.autoDataType }));
+      }
+    }
   };
 
   const handleSaveVariable = () => {
@@ -1583,9 +1604,18 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
               <div className="variable-builder-panes">
                 {/* Left Pane: Source Columns */}
                 <div className="variable-pane">
-                  <div className="variable-pane-header">Source Columns</div>
+                  <div className="variable-pane-header">Source Columns & Variables</div>
                   <div className="variable-pane-content">
-                    {schema.map(field => (
+                    {/* Source Columns - Collapsible */}
+                    <div 
+                      className="function-group-header collapsible-header"
+                      onClick={() => setSourceColumnsExpanded(!sourceColumnsExpanded)}
+                      style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
+                    >
+                      <span>Source Columns</span>
+                      {sourceColumnsExpanded ? <FiChevronDown size={14} /> : <FiChevronRight size={14} />}
+                    </div>
+                    {sourceColumnsExpanded && schema.map(field => (
                       <div key={field.name} className="insertable-item">
                         <div className="insertable-item-name">{field.name}</div>
                         <button 
@@ -1600,8 +1630,15 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
                     
                     {variables.length > 0 && (
                       <>
-                        <div className="function-group-header">Previous Variables</div>
-                        {variables.map(variable => (
+                        <div 
+                          className="function-group-header collapsible-header"
+                          onClick={() => setPreviousVariablesExpanded(!previousVariablesExpanded)}
+                          style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '8px' }}
+                        >
+                          <span>Previous Variables</span>
+                          {previousVariablesExpanded ? <FiChevronDown size={14} /> : <FiChevronRight size={14} />}
+                        </div>
+                        {previousVariablesExpanded && variables.map(variable => (
                           <div key={variable.id} className="insertable-item">
                             <div className="insertable-item-name">${variable.name}</div>
                             <button 
@@ -1630,32 +1667,46 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
                         lastGroup.options.push(option);
                       }
                       return acc;
-                    }, []).map((group, idx) => (
-                      <div key={idx} className={group.group === 'Conditional' ? 'function-group-conditional' : ''}>
-                        <div className={`function-group-header ${group.group === 'Conditional' ? 'conditional-header' : ''}`}>
-                          {group.group === 'Conditional' && '⚡ '}
-                          {group.group}
-                        </div>
-                        {group.options.map(opt => (
-                          <div key={opt.value} className={`function-item ${opt.group === 'Conditional' ? 'function-item-conditional' : ''}`}>
-                            <div className="function-item-header">
-                              <div className="function-item-name">{opt.label}</div>
-                              <button 
-                                className="btn-insert"
-                                onClick={() => handleInsertFunction(opt)}
-                                title="Insert function"
-                              >
-                                <FiPlus size={12} />
-                              </button>
-                            </div>
-                            <div className="function-item-syntax">{getFunctionSyntax(opt)}</div>
-                            {opt.description && (
-                              <div className="function-item-description">{opt.description}</div>
-                            )}
+                    }, []).map((group, idx) => {
+                      const isCollapsed = collapsedFunctionGroups[group.group];
+                      // Convert group name to Title Case
+                      const titleCaseGroup = group.group.split('/').map(word => 
+                        word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+                      ).join('/');
+                      return (
+                        <div key={idx} className={group.group === 'Conditional' ? 'function-group-conditional' : ''}>
+                          <div 
+                            className={`function-group-header collapsible-header ${group.group === 'Conditional' ? 'conditional-header' : ''}`}
+                            onClick={() => setCollapsedFunctionGroups(prev => ({ ...prev, [group.group]: !prev[group.group] }))}
+                            style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
+                          >
+                            <span>
+                              {group.group === 'Conditional' && '⚡ '}
+                              {titleCaseGroup}
+                            </span>
+                            {isCollapsed ? <FiChevronRight size={14} /> : <FiChevronDown size={14} />}
                           </div>
-                        ))}
-                      </div>
-                    ))}
+                          {!isCollapsed && group.options.map(opt => (
+                            <div key={opt.value} className={`function-item ${opt.group === 'Conditional' ? 'function-item-conditional' : ''}`}>
+                              <div className="function-item-header">
+                                <div className="function-item-name">{opt.label}</div>
+                                <button 
+                                  className="btn-insert"
+                                  onClick={() => handleInsertFunction(opt)}
+                                  title="Insert function"
+                                >
+                                  <FiPlus size={12} />
+                                </button>
+                              </div>
+                              <div className="function-item-syntax">{getFunctionSyntax(opt)}</div>
+                              {opt.description && (
+                                <div className="function-item-description">{opt.description}</div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
 
@@ -1689,6 +1740,7 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
                           <option value="integer">Integer</option>
                           <option value="float">Float</option>
                           <option value="date">Date</option>
+                          <option value="timestamp">Timestamp</option>
                           <option value="boolean">Boolean</option>
                         </select>
                         <small className="form-text">Output will be converted to this type</small>
@@ -1769,9 +1821,18 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
               <div className="variable-builder-panes">
                 {/* Left Pane: Source Columns */}
                 <div className="variable-pane">
-                  <div className="variable-pane-header">Source Columns</div>
+                  <div className="variable-pane-header">Source Columns & Variables</div>
                   <div className="variable-pane-content">
-                    {schema.map(field => (
+                    {/* Source Columns - Collapsible */}
+                    <div 
+                      className="function-group-header collapsible-header"
+                      onClick={() => setSourceColumnsExpanded(!sourceColumnsExpanded)}
+                      style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
+                    >
+                      <span>Source Columns</span>
+                      {sourceColumnsExpanded ? <FiChevronDown size={14} /> : <FiChevronRight size={14} />}
+                    </div>
+                    {sourceColumnsExpanded && schema.map(field => (
                       <div key={field.name} className="insertable-item">
                         <div className="insertable-item-name">{field.name}</div>
                         <button 
@@ -1786,8 +1847,15 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
                     
                     {variables.filter(v => v.id !== editingVariable.id).length > 0 && (
                       <>
-                        <div className="function-group-header">Previous Variables</div>
-                        {variables.filter(v => v.id !== editingVariable.id).map(variable => (
+                        <div 
+                          className="function-group-header collapsible-header"
+                          onClick={() => setPreviousVariablesExpanded(!previousVariablesExpanded)}
+                          style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '8px' }}
+                        >
+                          <span>Previous Variables</span>
+                          {previousVariablesExpanded ? <FiChevronDown size={14} /> : <FiChevronRight size={14} />}
+                        </div>
+                        {previousVariablesExpanded && variables.filter(v => v.id !== editingVariable.id).map(variable => (
                           <div key={variable.id} className="insertable-item">
                             <div className="insertable-item-name">${variable.name}</div>
                             <button 
@@ -1816,32 +1884,46 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
                         lastGroup.options.push(option);
                       }
                       return acc;
-                    }, []).map((group, idx) => (
-                      <div key={idx} className={group.group === 'Conditional' ? 'function-group-conditional' : ''}>
-                        <div className={`function-group-header ${group.group === 'Conditional' ? 'conditional-header' : ''}`}>
-                          {group.group === 'Conditional' && '⚡ '}
-                          {group.group}
-                        </div>
-                        {group.options.map(opt => (
-                          <div key={opt.value} className={`function-item ${opt.group === 'Conditional' ? 'function-item-conditional' : ''}`}>
-                            <div className="function-item-header">
-                              <div className="function-item-name">{opt.label}</div>
-                              <button 
-                                className="btn-insert"
-                                onClick={() => handleInsertFunction(opt, true)}
-                                title="Insert function"
-                              >
-                                <FiPlus size={12} />
-                              </button>
-                            </div>
-                            <div className="function-item-syntax">{getFunctionSyntax(opt)}</div>
-                            {opt.description && (
-                              <div className="function-item-description">{opt.description}</div>
-                            )}
+                    }, []).map((group, idx) => {
+                      const isCollapsed = collapsedFunctionGroups[group.group];
+                      // Convert group name to Title Case
+                      const titleCaseGroup = group.group.split('/').map(word => 
+                        word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+                      ).join('/');
+                      return (
+                        <div key={idx} className={group.group === 'Conditional' ? 'function-group-conditional' : ''}>
+                          <div 
+                            className={`function-group-header collapsible-header ${group.group === 'Conditional' ? 'conditional-header' : ''}`}
+                            onClick={() => setCollapsedFunctionGroups(prev => ({ ...prev, [group.group]: !prev[group.group] }))}
+                            style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
+                          >
+                            <span>
+                              {group.group === 'Conditional' && '⚡ '}
+                              {titleCaseGroup}
+                            </span>
+                            {isCollapsed ? <FiChevronRight size={14} /> : <FiChevronDown size={14} />}
                           </div>
-                        ))}
-                      </div>
-                    ))}
+                          {!isCollapsed && group.options.map(opt => (
+                            <div key={opt.value} className={`function-item ${opt.group === 'Conditional' ? 'function-item-conditional' : ''}`}>
+                              <div className="function-item-header">
+                                <div className="function-item-name">{opt.label}</div>
+                                <button 
+                                  className="btn-insert"
+                                  onClick={() => handleInsertFunction(opt, true)}
+                                  title="Insert function"
+                                >
+                                  <FiPlus size={12} />
+                                </button>
+                              </div>
+                              <div className="function-item-syntax">{getFunctionSyntax(opt)}</div>
+                              {opt.description && (
+                                <div className="function-item-description">{opt.description}</div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
 
@@ -1874,6 +1956,7 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
                           <option value="integer">Integer</option>
                           <option value="float">Float</option>
                           <option value="date">Date</option>
+                          <option value="timestamp">Timestamp</option>
                           <option value="boolean">Boolean</option>
                         </select>
                         <small className="form-text">Output will be converted to this type</small>
