@@ -1656,13 +1656,25 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
                         {previousVariablesExpanded && variables.map(variable => (
                           <div key={variable.id} className="insertable-item">
                             <div className="insertable-item-name">${variable.name}</div>
-                            <button 
-                              className="btn-insert"
-                              onClick={() => handleInsertVariable(variable.name)}
-                              title="Insert variable"
-                            >
-                              <FiPlus size={12} />
-                            </button>
+                            <div className="insertable-item-actions">
+                              <button 
+                                className="btn-insert"
+                                onClick={() => {
+                                  setAddingVariable(false);
+                                  handleEditVariable(variable);
+                                }}
+                                title="Edit variable"
+                              >
+                                <FiEdit2 size={12} />
+                              </button>
+                              <button 
+                                className="btn-insert"
+                                onClick={() => handleInsertVariable(variable.name)}
+                                title="Insert variable"
+                              >
+                                <FiPlus size={12} />
+                              </button>
+                            </div>
                           </div>
                         ))}
                       </>

@@ -719,6 +719,12 @@
   margin-right: 0.25rem;
 }
 
+.insertable-item-actions {
+  display: flex;
+  gap: 0.25rem;
+  align-items: center;
+}
+
 .btn-insert {
   background: white;
   border-radius: 4px;
