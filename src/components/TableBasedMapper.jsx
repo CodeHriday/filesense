@@ -975,15 +975,34 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
     // Update the variable but keep modal open
     if (!inlineEditingVariableId) return;
 
+    if (!newVariable.name.trim()) {
+      setValidationError('Please enter a name for the variable');
+      return;
+    }
+
     if (!newVariable.expression.trim()) {
       setValidationError('Please enter an expression for the variable');
       return;
     }
 
-    const updatedVariables = variables.map(v =>
+    // Find the original variable to check if name changed
+    const originalVariable = variables.find(v => v.id === inlineEditingVariableId);
+    const oldName = originalVariable?.name || '';
+    const newName = newVariable.name.trim();
+    const nameChanged = oldName !== newName;
+
+    // Check for duplicate name (excluding the variable being edited)
+    if (nameChanged && variables.some(v => v.id !== inlineEditingVariableId && v.name === newName)) {
+      setValidationError(`Variable name "${newName}" already exists`);
+      return;
+    }
+
+    // Update the variable with new name, expression, and data_type
+    let updatedVariables = variables.map(v =>
       v.id === inlineEditingVariableId
         ? {
             ...v,
+            name: newName,
             expression: newVariable.expression,
             data_type: newVariable.data_type,
             source_field: null,
@@ -992,6 +1011,20 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
           }
         : v
     );
+
+    // If name changed, update references in other variables' expressions
+    if (nameChanged && oldName) {
+      const oldRef = `$${oldName}`;
+      const newRef = `$${newName}`;
+      updatedVariables = updatedVariables.map(v => {
+        if (v.id !== inlineEditingVariableId && v.expression && v.expression.includes(oldRef)) {
+          // Replace all occurrences of the old variable reference with the new one
+          const updatedExpression = v.expression.split(oldRef).join(newRef);
+          return { ...v, expression: updatedExpression };
+        }
+        return v;
+      });
+    }
 
     setVariables(updatedVariables);
     onMappingsChange(mappings, updatedVariables, Array.from(piiColumns), dqRuleAssignments);
@@ -1832,17 +1865,15 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
                   <div className="variable-pane-content">
                     <div className="expression-builder">
                       <div className="variable-name-input">
-                        <label htmlFor="newvar-name">Variable Name {!inlineEditingVariableId && '*'}</label>
+                        <label htmlFor="newvar-name">Variable Name *</label>
                         <input
                           id="newvar-name"
                           type="text"
                           value={newVariable.name}
                           onChange={(e) => setNewVariable({ ...newVariable, name: e.target.value })}
                           placeholder="e.g., full_name, total_amount"
-                          disabled={!!inlineEditingVariableId}
-                          style={inlineEditingVariableId ? { backgroundColor: '#f3f4f6', cursor: 'not-allowed' } : {}}
                         />
-                        <small className="form-text">{inlineEditingVariableId ? 'Variable name cannot be changed' : 'Can be referenced as $variable_name'}</small>
+                        <small className="form-text">{inlineEditingVariableId ? 'Renaming will update all references in other variables' : 'Can be referenced as $variable_name'}</small>
                       </div>
 
                       <div className="variable-name-input">
