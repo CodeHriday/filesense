@@ -32,8 +32,8 @@ export default defineConfig({
       clientPort: 443
     },
     cors: true,
-    // Allow all hosts
-    allowedHosts: ['all', '.replit.dev', '.repl.co', '.replit.app'],
+    // Allow all hosts - custom domains handled by backend CORS via ALLOWED_ORIGINS env var
+    allowedHosts: true,
     origin: 'https://${host}',
     watch: {
       ignored: [
