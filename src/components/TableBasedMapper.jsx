@@ -14,6 +14,23 @@ const formatTypeWithPrecision = (type, precision, scale) => {
   return baseType;
 };
 
+const formatTypeForDisplay = (type) => {
+  if (!type) return 'String';
+  return type.charAt(0).toUpperCase() + type.slice(1).toLowerCase();
+};
+
+const extractVariableReferences = (expression) => {
+  if (!expression || typeof expression !== 'string') return [];
+  const matches = expression.match(/\$([a-zA-Z_][a-zA-Z0-9_]*)/g) || [];
+  return matches.map(m => m.substring(1));
+};
+
+const findDeletedVariableReferences = (expression, variables) => {
+  const refs = extractVariableReferences(expression);
+  const variableNames = new Set(variables.map(v => v.name));
+  return refs.filter(ref => !variableNames.has(ref));
+};
+
 
 const TRANSFORMATION_OPTIONS = [
   { value: 'none', label: 'None (Direct Copy)', group: 'Basic', params: [] },
@@ -1239,8 +1256,11 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
                   const colNullable = mapping.nullable ?? sourceCol?.nullable ?? true;
                   const showPrecision = TYPES_WITH_PRECISION.includes(colType.toUpperCase());
                   const showScale = TYPES_WITH_SCALE.includes(colType.toUpperCase());
+                  const mappingExpression = mapping.expression || mapping.customExpression || buildExpressionForCustom(mapping);
+                  const deletedVarRefs = findDeletedVariableReferences(mappingExpression, variables);
+                  const hasDeletedVarRef = deletedVarRefs.length > 0;
                   return (
-                  <tr key={mapping.source_field}>
+                  <tr key={mapping.source_field} className={hasDeletedVarRef ? 'row-has-error' : ''}>
                     <td className="status-cell">
                       <FiCheck className="status-icon mapped" />
                     </td>
@@ -1260,7 +1280,7 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
                         title="Data type"
                       >
                         {SQL_TYPE_OPTIONS.map(t => (
-                          <option key={t} value={t}>{t}</option>
+                          <option key={t} value={t}>{formatTypeForDisplay(t)}</option>
                         ))}
                       </select>
                     </td>
@@ -1357,9 +1377,14 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
                       </button>
                     </td>
                     <td className="expression-cell">
-                      <span className="expression-text" onClick={() => handleEditExpression(mapping.source_field)}>
+                      <span className={`expression-text ${hasDeletedVarRef ? 'expression-error' : ''}`} onClick={() => handleEditExpression(mapping.source_field)}>
                         {buildExpressionForCustom(mapping)}
                       </span>
+                      {hasDeletedVarRef && (
+                        <div className="expression-validation-error">
+                          A referenced variable has been deleted. Please update the expression.
+                        </div>
+                      )}
                     </td>
                   </tr>
                   );

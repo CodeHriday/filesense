@@ -280,6 +280,35 @@
   background-color: #e7f3ff;
 }
 
+.expression-text.expression-error {
+  color: #dc2626;
+  background-color: #fef2f2;
+  border: 1px solid #fca5a5;
+}
+
+.expression-text.expression-error:hover {
+  background-color: #fee2e2;
+}
+
+.expression-validation-error {
+  font-family: 'Inter', sans-serif;
+  font-size: 9px;
+  color: #dc2626;
+  background-color: #fef2f2;
+  padding: 4px 8px;
+  margin-top: 4px;
+  border-radius: 3px;
+  border-left: 3px solid #dc2626;
+}
+
+.row-has-error {
+  background-color: #fef2f2 !important;
+}
+
+.row-has-error:hover {
+  background-color: #fee2e2 !important;
+}
+
 .no-mappings {
   text-align: center;
   color: #6c757d;
