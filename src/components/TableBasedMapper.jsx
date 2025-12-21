@@ -987,7 +987,8 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
 
   const handleEditVariable = (variable) => {
     // Load variable data into the form for inline editing
-    setInlineEditingVariableId(variable.id);
+    // Use variable.name as identifier since variables don't have an id field
+    setInlineEditingVariableId(variable.name);
     setNewVariable({
       name: variable.name,
       expression: variable.expression || buildVariableExpression(variable),
@@ -1112,8 +1113,8 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
     setNewVariable({ name: '', expression: '', data_type: '' });
   };
 
-  const handleDeleteVariable = (variableId) => {
-    const newVariables = variables.filter(v => v.id !== variableId);
+  const handleDeleteVariable = (variableName) => {
+    const newVariables = variables.filter(v => v.name !== variableName);
     setVariables(newVariables);
     onMappingsChange(mappings, newVariables, Array.from(piiColumns), dqRuleAssignments);
   };
@@ -1456,7 +1457,7 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
             ) : (
               <div className="variables-list-compact">
                 {variables.map((variable, index) => (
-                  <div key={variable.id} className="variable-item-compact">
+                  <div key={variable.name} className="variable-item-compact">
                     <div className="variable-order-compact">
                       <button
                         className="btn-icon-xs"
@@ -1494,7 +1495,7 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
                       </button>
                       <button
                         className="btn-icon-xs"
-                        onClick={() => handleDeleteVariable(variable.id)}
+                        onClick={() => handleDeleteVariable(variable.name)}
                         title="Delete variable"
                       >
                         <FiTrash2 size={10} />
@@ -1649,7 +1650,7 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
                     </option>
                   ))}
                   {variables.length > 0 && variables.map(variable => (
-                    <option key={variable.id} value={`$${variable.name}`}>
+                    <option key={variable.name} value={`$${variable.name}`}>
                       ${variable.name} (variable)
                     </option>
                   ))}
@@ -1757,22 +1758,22 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
                           {previousVariablesExpanded ? <FiChevronDown size={14} /> : <FiChevronRight size={14} />}
                         </div>
                         {previousVariablesExpanded && variables.map(variable => (
-                          <div key={variable.id} className={`insertable-item ${inlineEditingVariableId === variable.id ? 'insertable-item-editing' : ''}`}>
+                          <div key={variable.name} className={`insertable-item ${inlineEditingVariableId === variable.name ? 'insertable-item-editing' : ''}`}>
                             <div className="insertable-item-name">${variable.name}</div>
                             <div className="insertable-item-actions">
                               <button 
                                 className="btn-insert"
                                 onClick={() => handleEditVariable(variable)}
                                 title="Edit variable"
-                                disabled={inlineEditingVariableId === variable.id}
+                                disabled={inlineEditingVariableId === variable.name}
                               >
                                 <FiEdit2 size={12} />
                               </button>
                               <button 
                                 className="btn-insert btn-delete"
                                 onClick={() => {
-                                  handleDeleteVariable(variable.id);
-                                  if (inlineEditingVariableId === variable.id) {
+                                  handleDeleteVariable(variable.name);
+                                  if (inlineEditingVariableId === variable.name) {
                                     setInlineEditingVariableId(null);
                                     setNewVariable({ name: '', expression: '', data_type: '' });
                                   }
@@ -1997,7 +1998,7 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
                           {previousVariablesExpanded ? <FiChevronDown size={14} /> : <FiChevronRight size={14} />}
                         </div>
                         {previousVariablesExpanded && variables.filter(v => v.id !== editingVariable.id).map(variable => (
-                          <div key={variable.id} className="insertable-item">
+                          <div key={variable.name} className="insertable-item">
                             <div className="insertable-item-name">${variable.name}</div>
                             <button 
                               className="btn-insert"
