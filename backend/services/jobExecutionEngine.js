@@ -434,7 +434,8 @@ function applyJoinEnrichment(transformedRows, joinLookupTables, joinSpecs, logge
           if (joinSpec.columnMappings && joinSpec.columnMappings.length > 0) {
             for (const cm of joinSpec.columnMappings) {
               const sourceCol = cm.sourceColumn || cm.source_column || cm.source;
-              const targetCol = cm.targetColumn || cm.target_column || cm.target || sourceCol;
+              // outputColumn is saved by frontend for renamed columns (e.g., customer_key -> customer_key_1)
+              const targetCol = cm.outputColumn || cm.targetColumn || cm.target_column || cm.target || sourceCol;
               
               if (sourceCol && secondaryRowClone[sourceCol] !== undefined) {
                 enrichedRow[targetCol] = secondaryRowClone[sourceCol];

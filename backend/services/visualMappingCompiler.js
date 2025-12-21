@@ -718,38 +718,56 @@ class VisualMappingCompiler {
       });
       
       // Filter and reorder fieldMappings based on Target's orderedColumns
-      if (result.orderedColumns && result.orderedColumns.length > 0 && Array.isArray(result.fieldMappings)) {
+      // Also create passthrough mappings for columns without explicit mappings
+      if (result.orderedColumns && result.orderedColumns.length > 0) {
         // Normalize orderedColumns to handle both string arrays and object arrays (backward compatibility)
         const orderedNames = result.orderedColumns.map(col => 
           typeof col === 'string' ? col : (col && col.name ? col.name : null)
         ).filter(Boolean);
         
         if (orderedNames.length > 0) {
-          const orderedColumnSet = new Set(orderedNames);
-          
           // Create a map of target_field to mapping for quick lookup
           const mappingsByTargetField = new Map();
-          result.fieldMappings.forEach(mapping => {
-            const targetField = mapping.target_field || mapping.targetField;
-            if (targetField && orderedColumnSet.has(targetField)) {
-              mappingsByTargetField.set(targetField, mapping);
-            }
-          });
+          if (Array.isArray(result.fieldMappings)) {
+            result.fieldMappings.forEach(mapping => {
+              const targetField = mapping.target_field || mapping.targetField;
+              if (targetField) {
+                mappingsByTargetField.set(targetField, mapping);
+              }
+            });
+          }
           
           // Build new fieldMappings in the order specified by orderedColumns
+          // For columns without explicit mappings, create passthrough mappings
           const orderedFieldMappings = [];
+          let passthroughCount = 0;
+          
           orderedNames.forEach(columnName => {
-            const mapping = mappingsByTargetField.get(columnName);
-            if (mapping) {
-              orderedFieldMappings.push(mapping);
+            const existingMapping = mappingsByTargetField.get(columnName);
+            if (existingMapping) {
+              orderedFieldMappings.push(existingMapping);
+            } else {
+              // Create a passthrough mapping for columns without explicit mappings
+              // These are join output columns or source columns that pass through unchanged
+              orderedFieldMappings.push({
+                targetField: columnName,
+                target_field: columnName,
+                sourceFields: [columnName],
+                source_fields: [columnName],
+                transformations: [],
+                data_type: 'string',
+                isPassthrough: true
+              });
+              passthroughCount++;
             }
           });
           
           result.fieldMappings = orderedFieldMappings;
           
           systemLogger.info('Applied Target orderedColumns filter and reorder', {
-            originalCount: mappingsByTargetField.size,
-            filteredCount: orderedFieldMappings.length,
+            explicitMappings: orderedFieldMappings.length - passthroughCount,
+            passthroughMappings: passthroughCount,
+            totalMappings: orderedFieldMappings.length,
             orderedColumns: orderedNames.length
           });
         }
