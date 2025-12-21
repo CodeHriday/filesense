@@ -1067,8 +1067,9 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
 
     const newVariables = [...variables, variable];
     setVariables(newVariables);
-    // Keep modal open - user must click X to close
-    setNewVariable({ name: '', expression: '', data_type: '' });
+    // Keep variable visible for review - set it as the currently editing variable
+    setInlineEditingVariableId(newVariable.name);
+    setExpressionValidation({ valid: true, error: null, success: 'Variable saved successfully!' });
     onMappingsChange(mappings, newVariables, Array.from(piiColumns), dqRuleAssignments);
   };
 
@@ -1146,9 +1147,9 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
 
     setVariables(updatedVariables);
     onMappingsChange(mappings, updatedVariables, Array.from(piiColumns), dqRuleAssignments);
-    // Clear the form and editing state but keep modal open
-    setInlineEditingVariableId(null);
-    setNewVariable({ name: '', expression: '', data_type: '' });
+    // Keep variable visible for review - update the editing ID if name changed
+    setInlineEditingVariableId(newName);
+    setExpressionValidation({ valid: true, error: null, success: 'Variable updated successfully!' });
   };
 
   const handleSaveAndClose = () => {
@@ -2014,11 +2015,38 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
                             resize: 'vertical'
                           }}
                         />
-                        {!expressionValidation.valid && (
+                        {!expressionValidation.valid && expressionValidation.error && (
                           <div className="expression-validation-error" style={{ color: '#dc3545', fontSize: '10px', marginTop: '4px', fontFamily: 'Inter, sans-serif' }}>
                             ⚠️ {expressionValidation.error}
                           </div>
                         )}
+                        {expressionValidation.valid && expressionValidation.success && (
+                          <div className="expression-validation-success" style={{ color: '#10B981', fontSize: '10px', marginTop: '4px', fontFamily: 'Inter, sans-serif' }}>
+                            ✓ {expressionValidation.success}
+                          </div>
+                        )}
+                        <div style={{ marginTop: '8px' }}>
+                          <button 
+                            type="button"
+                            className="btn btn-sm" 
+                            style={{ 
+                              fontSize: '10px', 
+                              padding: '4px 12px', 
+                              backgroundColor: '#e5e7eb', 
+                              border: '1px solid #d1d5db',
+                              borderRadius: '4px',
+                              cursor: 'pointer'
+                            }}
+                            onClick={() => {
+                              const isValid = validateExpression(newVariable.expression);
+                              if (isValid && newVariable.expression.trim()) {
+                                setExpressionValidation({ valid: true, error: null, success: 'Expression syntax is valid!' });
+                              }
+                            }}
+                          >
+                            Validate Expression
+                          </button>
+                        </div>
                       </div>
 
                       <div className="expression-help">
@@ -2044,13 +2072,26 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
                 </div>
               </div>
             </div>
-            <div className="modal-footer">
-              <button className="btn btn-secondary btn-fixed-width" onClick={() => { setAddingVariable(false); setInlineEditingVariableId(null); setNewVariable({ name: '', expression: '', data_type: '' }); }}>
-                Close
+            <div className="modal-footer" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <button 
+                className="btn btn-outline-primary" 
+                style={{ fontSize: '10px', padding: '6px 12px' }}
+                onClick={() => { 
+                  setInlineEditingVariableId(null); 
+                  setNewVariable({ name: '', expression: '', data_type: '' }); 
+                  setExpressionValidation({ valid: true, error: null, success: null });
+                }}
+              >
+                + Create New Variable
               </button>
-              <button className="btn btn-primary btn-fixed-width" onClick={handleSaveVariable}>
-                {inlineEditingVariableId ? 'Update' : 'Save'}
-              </button>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button className="btn btn-secondary btn-fixed-width" onClick={() => { setAddingVariable(false); setInlineEditingVariableId(null); setNewVariable({ name: '', expression: '', data_type: '' }); setExpressionValidation({ valid: true, error: null, success: null }); }}>
+                  Close
+                </button>
+                <button className="btn btn-primary btn-fixed-width" onClick={handleSaveVariable}>
+                  {inlineEditingVariableId ? 'Update' : 'Save'}
+                </button>
+              </div>
             </div>
           </div>
         </div>
