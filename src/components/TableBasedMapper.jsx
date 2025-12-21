@@ -952,7 +952,7 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
     }
   };
 
-  // Validate expression syntax
+  // Validate expression syntax - simplified and permissive
   const validateExpression = (expression) => {
     if (!expression || !expression.trim()) {
       setExpressionValidation({ valid: false, error: 'Expression cannot be empty' });
@@ -962,18 +962,19 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
     try {
       const trimmed = expression.trim();
       
-      // Basic syntax validation - check parentheses and strings
+      // Basic syntax validation - check parentheses balance
       let parenCount = 0;
       let inString = false;
       let stringChar = null;
       
-      for (let i = 0; i < expression.length; i++) {
-        const char = expression[i];
+      for (let i = 0; i < trimmed.length; i++) {
+        const char = trimmed[i];
+        const prevChar = i > 0 ? trimmed[i - 1] : '';
         
         if (!inString && (char === '"' || char === "'")) {
           inString = true;
           stringChar = char;
-        } else if (inString && char === stringChar && expression[i - 1] !== '\\') {
+        } else if (inString && char === stringChar && prevChar !== '\\') {
           inString = false;
           stringChar = null;
         } else if (!inString) {
@@ -985,7 +986,7 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
       if (parenCount !== 0) {
         setExpressionValidation({ 
           valid: false, 
-          error: parenCount > 0 ? `Missing ${parenCount} closing parenthesis` : `Extra ${-parenCount} closing parenthesis`
+          error: parenCount > 0 ? `Missing ${parenCount} closing parenthesis` : `Extra ${Math.abs(parenCount)} closing parenthesis`
         });
         return false;
       }
@@ -1001,102 +1002,14 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
         return false;
       }
       
-      // Check for functions without required arguments
-      const emptyFunctionMatch = trimmed.match(/(\w+)\(\s*\)/);
-      if (emptyFunctionMatch) {
-        const funcName = emptyFunctionMatch[1].toLowerCase();
-        const noArgFunctions = ['current_date', 'current_timestamp', 'current-date', 'current-timestamp', 'now', 'today'];
-        if (!noArgFunctions.includes(funcName)) {
-          setExpressionValidation({ valid: false, error: `Function '${emptyFunctionMatch[1]}' requires arguments` });
-          return false;
-        }
-      }
-      
-      // Check for valid function calls - ensure functions have proper format
-      const functionCallPattern = /([a-zA-Z_][a-zA-Z0-9_-]*)\s*\(/g;
-      const knownFunctions = [
-        'concat', 'upper', 'lower', 'trim', 'ltrim', 'rtrim', 'left', 'right', 'substring', 'substr',
-        'replace', 'split-part', 'split_part', 'length', 'len', 'reverse', 'initcap', 'repeat',
-        'lpad', 'rpad', 'coalesce', 'nullif', 'nvl', 'isnull', 'ifnull',
-        'abs', 'round', 'ceil', 'floor', 'mod', 'power', 'sqrt', 'log', 'exp', 'sign', 'trunc', 'truncate',
-        'date-format', 'date_format', 'dateformat', 'to-date', 'to_date', 'todate', 'date-add', 'date_add', 'dateadd',
-        'date-diff', 'date_diff', 'datediff', 'year', 'month', 'day', 'hour', 'minute', 'second',
-        'to-string', 'to_string', 'tostring', 'to-integer', 'to_integer', 'tointeger', 'to-float', 'to_float', 'tofloat',
-        'to-boolean', 'to_boolean', 'toboolean', 'to-date-type', 'to_date_type', 'todatetype',
-        'is-null', 'is_null', 'isnull', 'is-not-null', 'is_not_null', 'isnotnull', 'is-empty', 'is_empty', 'isempty',
-        'if', 'case', 'switch', 'and', 'or', 'not',
-        'current_date', 'current_timestamp', 'current-date', 'current-timestamp', 'now', 'today'
-      ];
-      
-      let match;
-      while ((match = functionCallPattern.exec(trimmed)) !== null) {
-        const funcName = match[1].toLowerCase();
-        if (!knownFunctions.includes(funcName)) {
-          setExpressionValidation({ valid: false, error: `Unknown function '${match[1]}'. Check spelling or use a supported function.` });
-          return false;
-        }
-      }
-      
-      // Validate variable references format
-      const variablePattern = /\$([a-zA-Z_][a-zA-Z0-9_]*)/g;
-      const existingVarNames = variables.map(v => v.name);
-      let varMatch;
-      while ((varMatch = variablePattern.exec(trimmed)) !== null) {
-        const varName = varMatch[1];
-        // Check if variable exists (excluding current editing variable to avoid self-reference errors)
-        if (!existingVarNames.includes(varName) && varName !== inlineEditingVariableId) {
-          setExpressionValidation({ valid: false, error: `Variable '$${varName}' does not exist` });
-          return false;
-        }
-      }
-      
-      // Check for column references - verify they exist in source columns
-      // Only validate column names if we have source columns defined
-      if (sourceColumns && sourceColumns.length > 0) {
-        // First, strip out strings, function names, and variables to find column references
-        let exprForColCheck = trimmed;
-        // Remove string literals (both single and double quotes)
-        exprForColCheck = exprForColCheck.replace(/'[^']*'/g, ' ').replace(/"[^"]*"/g, ' ');
-        // Remove numeric values
-        exprForColCheck = exprForColCheck.replace(/\b\d+\.?\d*\b/g, ' ');
-        // Remove variable references
-        exprForColCheck = exprForColCheck.replace(/\$[a-zA-Z_][a-zA-Z0-9_]*/g, ' ');
-        // Remove function names (word followed by paren)
-        exprForColCheck = exprForColCheck.replace(/[a-zA-Z_][a-zA-Z0-9_-]*\s*\(/g, '(');
-        // Remove operators and punctuation
-        exprForColCheck = exprForColCheck.replace(/[(),+\-*/%=<>!&|^~\s]/g, ' ');
-        // Extract remaining identifiers that could be column names
-        const potentialColumns = exprForColCheck.split(/\s+/).filter(s => s && /^[a-zA-Z_][a-zA-Z0-9_-]*$/.test(s));
-        
-        for (const colName of potentialColumns) {
-          // Skip if it looks like a number, known keyword, or comparison operator
-          const skipTokens = [
-            'true', 'false', 'null', 'and', 'or', 'not', 'as', 'is',
-            // Comparison operators (may remain after quote stripping in IF syntax)
-            'gt', 'lt', 'eq', 'ne', 'ge', 'le', 'gte', 'lte',
-            // Common string values that might appear
-            'high', 'medium', 'low', 'yes', 'no'
-          ];
-          if (/^\d/.test(colName) || skipTokens.includes(colName.toLowerCase())) {
-            continue;
-          }
-          // Skip short tokens that are likely operators or fragments
-          if (colName.length <= 2 && /^[<>=!]+$/.test(colName)) {
-            continue;
-          }
-          // Check if it exists in source columns (case-insensitive check)
-          const matchesColumn = sourceColumns.some(sc => sc.toLowerCase() === colName.toLowerCase());
-          if (!matchesColumn) {
-            setExpressionValidation({ valid: false, error: `Column '${colName}' not found in source columns` });
-            return false;
-          }
-        }
-      }
+      // Variable reference validation - only check format, not existence
+      // (Column and variable existence will be validated during execution)
       
       setExpressionValidation({ valid: true, error: null });
       return true;
     } catch (err) {
-      setExpressionValidation({ valid: false, error: 'Invalid expression syntax' });
+      console.error('Expression validation error:', err);
+      setExpressionValidation({ valid: false, error: `Validation error: ${err.message}` });
       return false;
     }
   };
