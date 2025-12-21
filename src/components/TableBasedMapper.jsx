@@ -459,7 +459,8 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
         data_type: sourceField?.type || sourceField?.data_type || sourceField?.column_type || 'STRING',
         precision: sourceField?.precision ?? null,
         scale: sourceField?.scale ?? null,
-        nullable: sourceField?.nullable ?? true
+        nullable: sourceField?.nullable ?? true,
+        include: true
       };
       const newMappings = [...mappings, newMapping];
       setMappings(newMappings);
@@ -478,11 +479,20 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
       data_type: field.type || field.data_type || field.column_type || 'STRING',
       precision: field.precision ?? null,
       scale: field.scale ?? null,
-      nullable: field.nullable ?? true
+      nullable: field.nullable ?? true,
+      include: true
     }));
     
     setMappings(newMappings);
     setSelectedSource(new Set(schema.map(f => f.name)));
+    onMappingsChange(newMappings, variables, Array.from(piiColumns), dqRuleAssignments);
+  };
+
+  const handleIncludeChange = (sourceField, checked) => {
+    const newMappings = mappings.map(m =>
+      m.source_field === sourceField ? { ...m, include: checked } : m
+    );
+    setMappings(newMappings);
     onMappingsChange(newMappings, variables, Array.from(piiColumns), dqRuleAssignments);
   };
 
@@ -695,7 +705,8 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
       data_type: sourceField?.type || sourceField?.data_type || sourceField?.column_type || 'STRING',
       precision: sourceField?.precision ?? null,
       scale: sourceField?.scale ?? null,
-      nullable: sourceField?.nullable ?? true
+      nullable: sourceField?.nullable ?? true,
+      include: false
     };
 
     const newMappings = [...mappings, newMapping];
@@ -1270,7 +1281,7 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
             <table className="target-mapping-table">
               <thead>
                 <tr>
-                  <th style={{ width: '40px' }}>Status</th>
+                  <th style={{ width: '50px', textAlign: 'center' }} title="Include this field in the output">Add to Output</th>
                   <th style={{ width: '180px' }}>Name</th>
                   <th style={{ width: '100px' }}>Type</th>
                   <th style={{ width: '60px' }}>Precision</th>
@@ -1303,8 +1314,14 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
                   const hasDeletedVarRef = deletedVarRefs.length > 0;
                   return (
                   <tr key={mapping.source_field} className={hasDeletedVarRef ? 'row-has-error' : ''}>
-                    <td className="status-cell">
-                      <FiCheck className="status-icon mapped" />
+                    <td style={{ textAlign: 'center' }}>
+                      <input
+                        type="checkbox"
+                        checked={mapping.include !== false}
+                        onChange={(e) => handleIncludeChange(mapping.source_field, e.target.checked)}
+                        title="Include in output"
+                        style={{ cursor: 'pointer' }}
+                      />
                     </td>
                     <td className="name-cell">
                       <input
