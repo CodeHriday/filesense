@@ -955,12 +955,14 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
   // Validate expression syntax
   const validateExpression = (expression) => {
     if (!expression || !expression.trim()) {
-      setExpressionValidation({ valid: true, error: null });
-      return true;
+      setExpressionValidation({ valid: false, error: 'Expression cannot be empty' });
+      return false;
     }
     
     try {
-      // Basic syntax validation
+      const trimmed = expression.trim();
+      
+      // Basic syntax validation - check parentheses and strings
       let parenCount = 0;
       let inString = false;
       let stringChar = null;
@@ -993,24 +995,84 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
         return false;
       }
       
-      // Check for known function patterns
-      const functionPattern = /^[a-zA-Z_][a-zA-Z0-9_-]*\s*\(/;
-      const hasFunction = functionPattern.test(expression.trim());
-      const isSimpleColumn = /^[a-zA-Z_][a-zA-Z0-9_-]*$/.test(expression.trim());
-      const isVariable = /^\$[a-zA-Z_][a-zA-Z0-9_]*$/.test(expression.trim());
+      // Check for double commas (missing arguments)
+      if (trimmed.includes(',,')) {
+        setExpressionValidation({ valid: false, error: 'Double comma found - missing argument' });
+        return false;
+      }
       
-      if (!hasFunction && !isSimpleColumn && !isVariable) {
-        // Could be a complex expression, check for common issues
-        if (expression.includes(',,')) {
-          setExpressionValidation({ valid: false, error: 'Double comma found - missing argument' });
+      // Check for functions without required arguments
+      const emptyFunctionMatch = trimmed.match(/(\w+)\(\s*\)/);
+      if (emptyFunctionMatch) {
+        const funcName = emptyFunctionMatch[1].toLowerCase();
+        const noArgFunctions = ['current_date', 'current_timestamp', 'current-date', 'current-timestamp', 'now', 'today'];
+        if (!noArgFunctions.includes(funcName)) {
+          setExpressionValidation({ valid: false, error: `Function '${emptyFunctionMatch[1]}' requires arguments` });
           return false;
         }
-        if (expression.includes('()')) {
-          const match = expression.match(/(\w+)\(\)/);
-          if (match && !['current_date', 'current_timestamp', 'current-date', 'current-timestamp'].includes(match[1].toLowerCase())) {
-            setExpressionValidation({ valid: false, error: `Function ${match[1]} requires arguments` });
-            return false;
-          }
+      }
+      
+      // Check for valid function calls - ensure functions have proper format
+      const functionCallPattern = /([a-zA-Z_][a-zA-Z0-9_-]*)\s*\(/g;
+      const knownFunctions = [
+        'concat', 'upper', 'lower', 'trim', 'ltrim', 'rtrim', 'left', 'right', 'substring', 'substr',
+        'replace', 'split-part', 'split_part', 'length', 'len', 'reverse', 'initcap', 'repeat',
+        'lpad', 'rpad', 'coalesce', 'nullif', 'nvl', 'isnull', 'ifnull',
+        'abs', 'round', 'ceil', 'floor', 'mod', 'power', 'sqrt', 'log', 'exp', 'sign', 'trunc', 'truncate',
+        'date-format', 'date_format', 'dateformat', 'to-date', 'to_date', 'todate', 'date-add', 'date_add', 'dateadd',
+        'date-diff', 'date_diff', 'datediff', 'year', 'month', 'day', 'hour', 'minute', 'second',
+        'to-string', 'to_string', 'tostring', 'to-integer', 'to_integer', 'tointeger', 'to-float', 'to_float', 'tofloat',
+        'to-boolean', 'to_boolean', 'toboolean', 'to-date-type', 'to_date_type', 'todatetype',
+        'is-null', 'is_null', 'isnull', 'is-not-null', 'is_not_null', 'isnotnull', 'is-empty', 'is_empty', 'isempty',
+        'if', 'case', 'switch', 'and', 'or', 'not',
+        'current_date', 'current_timestamp', 'current-date', 'current-timestamp', 'now', 'today'
+      ];
+      
+      let match;
+      while ((match = functionCallPattern.exec(trimmed)) !== null) {
+        const funcName = match[1].toLowerCase();
+        if (!knownFunctions.includes(funcName)) {
+          setExpressionValidation({ valid: false, error: `Unknown function '${match[1]}'. Check spelling or use a supported function.` });
+          return false;
+        }
+      }
+      
+      // Validate variable references format
+      const variablePattern = /\$([a-zA-Z_][a-zA-Z0-9_]*)/g;
+      const existingVarNames = variables.map(v => v.name);
+      let varMatch;
+      while ((varMatch = variablePattern.exec(trimmed)) !== null) {
+        const varName = varMatch[1];
+        // Check if variable exists (excluding current editing variable to avoid self-reference errors)
+        if (!existingVarNames.includes(varName) && varName !== inlineEditingVariableId) {
+          setExpressionValidation({ valid: false, error: `Variable '$${varName}' does not exist` });
+          return false;
+        }
+      }
+      
+      // Check for column references - verify they exist in source columns
+      // First, strip out strings, function names, and variables to find column references
+      let exprForColCheck = trimmed;
+      // Remove string literals
+      exprForColCheck = exprForColCheck.replace(/'[^']*'/g, '').replace(/"[^"]*"/g, '');
+      // Remove variable references
+      exprForColCheck = exprForColCheck.replace(/\$[a-zA-Z_][a-zA-Z0-9_]*/g, '');
+      // Remove function names (word followed by paren)
+      exprForColCheck = exprForColCheck.replace(/[a-zA-Z_][a-zA-Z0-9_-]*\s*\(/g, '(');
+      // Remove operators and punctuation
+      exprForColCheck = exprForColCheck.replace(/[(),+\-*/%=<>!&|^~\s]/g, ' ');
+      // Extract remaining identifiers that could be column names
+      const potentialColumns = exprForColCheck.split(/\s+/).filter(s => /^[a-zA-Z_][a-zA-Z0-9_-]*$/.test(s));
+      
+      for (const colName of potentialColumns) {
+        // Skip if it looks like a number or known keyword
+        if (/^\d/.test(colName) || ['true', 'false', 'null', 'and', 'or', 'not', 'as', 'is'].includes(colName.toLowerCase())) {
+          continue;
+        }
+        // Check if it exists in source columns
+        if (!sourceColumns.includes(colName)) {
+          setExpressionValidation({ valid: false, error: `Column '${colName}' not found in source columns` });
+          return false;
         }
       }
       
@@ -1953,7 +2015,29 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
 
                 {/* Right Pane: Expression Builder */}
                 <div className="variable-pane">
-                  <div className="variable-pane-header" style={{ textTransform: 'none' }}>Build Expression</div>
+                  <div className="variable-pane-header" style={{ textTransform: 'none', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span>Build Expression</span>
+                    <button 
+                      type="button"
+                      className="btn btn-sm" 
+                      style={{ 
+                        fontSize: '10px', 
+                        padding: '2px 8px', 
+                        backgroundColor: '#3b82f6', 
+                        color: '#fff',
+                        border: 'none',
+                        borderRadius: '4px',
+                        cursor: 'pointer'
+                      }}
+                      onClick={() => { 
+                        setInlineEditingVariableId(null); 
+                        setNewVariable({ name: '', expression: '', data_type: '' }); 
+                        setExpressionValidation({ valid: true, error: null, success: null });
+                      }}
+                    >
+                      + New Variable
+                    </button>
+                  </div>
                   <div className="variable-pane-content">
                     <div className="expression-builder">
                       <div className="variable-name-input">
@@ -1987,8 +2071,28 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
                         <small className="form-text">Output will be converted to this type</small>
                       </div>
 
-                      <div className="expression-builder-header">
-                        <label htmlFor="newvar-expression">Expression *</label>
+                      <div className="expression-builder-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                        <label htmlFor="newvar-expression" style={{ margin: 0 }}>Expression *</label>
+                        <button 
+                          type="button"
+                          className="btn btn-sm" 
+                          style={{ 
+                            fontSize: '10px', 
+                            padding: '2px 10px', 
+                            backgroundColor: '#e5e7eb', 
+                            border: '1px solid #d1d5db',
+                            borderRadius: '4px',
+                            cursor: 'pointer'
+                          }}
+                          onClick={() => {
+                            const isValid = validateExpression(newVariable.expression);
+                            if (isValid && newVariable.expression.trim()) {
+                              setExpressionValidation({ valid: true, error: null, success: 'Expression syntax is valid!' });
+                            }
+                          }}
+                        >
+                          Validate
+                        </button>
                       </div>
                       <div className="expression-editor-container">
                         <textarea
@@ -2025,28 +2129,6 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
                             ✓ {expressionValidation.success}
                           </div>
                         )}
-                        <div style={{ marginTop: '8px' }}>
-                          <button 
-                            type="button"
-                            className="btn btn-sm" 
-                            style={{ 
-                              fontSize: '10px', 
-                              padding: '4px 12px', 
-                              backgroundColor: '#e5e7eb', 
-                              border: '1px solid #d1d5db',
-                              borderRadius: '4px',
-                              cursor: 'pointer'
-                            }}
-                            onClick={() => {
-                              const isValid = validateExpression(newVariable.expression);
-                              if (isValid && newVariable.expression.trim()) {
-                                setExpressionValidation({ valid: true, error: null, success: 'Expression syntax is valid!' });
-                              }
-                            }}
-                          >
-                            Validate Expression
-                          </button>
-                        </div>
                       </div>
 
                       <div className="expression-help">
@@ -2072,26 +2154,13 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
                 </div>
               </div>
             </div>
-            <div className="modal-footer" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <button 
-                className="btn btn-outline-primary" 
-                style={{ fontSize: '10px', padding: '6px 12px' }}
-                onClick={() => { 
-                  setInlineEditingVariableId(null); 
-                  setNewVariable({ name: '', expression: '', data_type: '' }); 
-                  setExpressionValidation({ valid: true, error: null, success: null });
-                }}
-              >
-                + Create New Variable
+            <div className="modal-footer" style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '8px' }}>
+              <button className="btn btn-secondary btn-fixed-width" onClick={() => { setAddingVariable(false); setInlineEditingVariableId(null); setNewVariable({ name: '', expression: '', data_type: '' }); setExpressionValidation({ valid: true, error: null, success: null }); }}>
+                Close
               </button>
-              <div style={{ display: 'flex', gap: '8px' }}>
-                <button className="btn btn-secondary btn-fixed-width" onClick={() => { setAddingVariable(false); setInlineEditingVariableId(null); setNewVariable({ name: '', expression: '', data_type: '' }); setExpressionValidation({ valid: true, error: null, success: null }); }}>
-                  Close
-                </button>
-                <button className="btn btn-primary btn-fixed-width" onClick={handleSaveVariable}>
-                  {inlineEditingVariableId ? 'Update' : 'Save'}
-                </button>
-              </div>
+              <button className="btn btn-primary btn-fixed-width" onClick={handleSaveVariable}>
+                {inlineEditingVariableId ? 'Update' : 'Save'}
+              </button>
             </div>
           </div>
         </div>
