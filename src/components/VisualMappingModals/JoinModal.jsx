@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { FaPlus, FaTrash, FaExclamationTriangle, FaMagic, FaEraser, FaChevronRight, FaChevronLeft, FaAngleDoubleRight, FaAngleDoubleLeft, FaPencilAlt, FaCheck, FaTimes } from 'react-icons/fa';
+import { FaPlus, FaTrash, FaExclamationTriangle, FaMagic, FaEraser, FaChevronRight, FaChevronLeft, FaAngleDoubleRight, FaAngleDoubleLeft } from 'react-icons/fa';
 import './MappingConfigModal.css';
 import PropTypes from 'prop-types';
 
@@ -34,8 +34,6 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
   const [rightPanelSelection, setRightPanelSelection] = useState(new Set());
   const [leftPanelFilter, setLeftPanelFilter] = useState('');
   const [rightPanelFilter, setRightPanelFilter] = useState('');
-  const [editingColumnKey, setEditingColumnKey] = useState(null);
-  const [editingColumnName, setEditingColumnName] = useState('');
   
   const lastConfigSignatureRef = useRef('');
   const userHasEditedRef = useRef(false);
@@ -535,17 +533,33 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
     setRightPanelSelection(newSelection);
   };
 
+  // Helper function to generate unique output column name with numeric suffix
+  const getUniqueOutputName = (baseName, existingNames) => {
+    if (!existingNames.has(baseName)) {
+      return baseName;
+    }
+    let suffix = 1;
+    while (existingNames.has(`${baseName}_${suffix}`)) {
+      suffix++;
+    }
+    return `${baseName}_${suffix}`;
+  };
+
   // Move selected columns from available to mapped (>)
   const moveSelectedToMapped = () => {
     if (leftPanelSelection.size === 0) return;
     userHasEditedRef.current = true;
     
     const newMappings = [...columnMappings];
+    const existingOutputNames = new Set(newMappings.map(m => m.outputColumn || m.sourceColumn));
+    
     leftPanelSelection.forEach(key => {
       const col = availableColumns.find(c => c.key === key);
       if (col) {
+        const outputName = getUniqueOutputName(col.name, existingOutputNames);
+        existingOutputNames.add(outputName);
         newMappings.push({
-          outputColumn: col.name,
+          outputColumn: outputName,
           sourceColumn: col.name,
           sourceSide: col.sourceSide,
           include: true,
@@ -584,9 +598,13 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
     userHasEditedRef.current = true;
     
     const newMappings = [...columnMappings];
+    const existingOutputNames = new Set(newMappings.map(m => m.outputColumn || m.sourceColumn));
+    
     availableColumns.forEach(col => {
+      const outputName = getUniqueOutputName(col.name, existingOutputNames);
+      existingOutputNames.add(outputName);
       newMappings.push({
-        outputColumn: col.name,
+        outputColumn: outputName,
         sourceColumn: col.name,
         sourceSide: col.sourceSide,
         include: true,
@@ -609,36 +627,6 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
     userHasEditedRef.current = true;
     setColumnMappings([]);
     setRightPanelSelection(new Set());
-  };
-
-  // Start editing a column name
-  const startEditingColumn = (key, currentName) => {
-    setEditingColumnKey(key);
-    setEditingColumnName(currentName);
-  };
-
-  // Save edited column name
-  const saveEditedColumn = () => {
-    if (!editingColumnKey) return;
-    userHasEditedRef.current = true;
-    
-    const newMappings = columnMappings.map(m => {
-      const key = `${m.sourceSide}:${m.sourceColumn}`;
-      if (key === editingColumnKey) {
-        return { ...m, outputColumn: editingColumnName || m.sourceColumn };
-      }
-      return m;
-    });
-    
-    setColumnMappings(newMappings);
-    setEditingColumnKey(null);
-    setEditingColumnName('');
-  };
-
-  // Cancel editing
-  const cancelEditingColumn = () => {
-    setEditingColumnKey(null);
-    setEditingColumnName('');
   };
 
   const validateConfig = () => {
@@ -1064,7 +1052,6 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
                     ) : (
                       filteredMappedColumns.map((mapping, idx) => {
                         const key = `${mapping.sourceSide}:${mapping.sourceColumn}`;
-                        const isEditing = editingColumnKey === key;
                         return (
                           <div
                             key={key}
@@ -1076,8 +1063,10 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
                               marginBottom: '2px',
                               backgroundColor: rightPanelSelection.has(key) ? '#dcfce7' : 'transparent',
                               border: rightPanelSelection.has(key) ? '1px solid #16a34a' : '1px solid transparent',
-                              transition: 'all 0.15s'
+                              transition: 'all 0.15s',
+                              cursor: 'pointer'
                             }}
+                            onClick={() => toggleRightPanelSelection(key)}
                           >
                             <input
                               type="checkbox"
@@ -1085,80 +1074,25 @@ const JoinModal = ({ isOpen, onClose, onSave, initialConfig = {}, leftSchema = [
                               onChange={() => toggleRightPanelSelection(key)}
                               style={{ marginRight: '8px', cursor: 'pointer' }}
                             />
-                            {isEditing ? (
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flex: 1 }}>
-                                <input
-                                  type="text"
-                                  value={editingColumnName}
-                                  onChange={(e) => setEditingColumnName(e.target.value)}
-                                  onKeyDown={(e) => {
-                                    if (e.key === 'Enter') saveEditedColumn();
-                                    if (e.key === 'Escape') cancelEditingColumn();
-                                  }}
-                                  className="vm-input"
-                                  style={{ flex: 1, padding: '2px 6px', fontSize: '10px', fontFamily: 'Inter, sans-serif' }}
-                                  autoFocus
-                                />
-                                <button
-                                  onClick={(e) => { e.stopPropagation(); saveEditedColumn(); }}
-                                  className="vm-btn vm-btn-primary"
-                                  style={{ padding: '2px 6px', fontSize: '10px' }}
-                                  title="Save"
-                                >
-                                  <FaCheck />
-                                </button>
-                                <button
-                                  onClick={(e) => { e.stopPropagation(); cancelEditingColumn(); }}
-                                  className="vm-btn vm-btn-secondary"
-                                  style={{ padding: '2px 6px', fontSize: '10px' }}
-                                  title="Cancel"
-                                >
-                                  <FaTimes />
-                                </button>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ fontFamily: 'Inter, sans-serif', fontSize: '10px', color: '#1e293b' }}>
+                                {mapping.outputColumn || mapping.sourceColumn}
                               </div>
-                            ) : (
-                              <>
-                                <div style={{ flex: 1, minWidth: 0 }} onClick={() => toggleRightPanelSelection(key)}>
-                                  <div style={{ fontFamily: 'Inter, sans-serif', fontSize: '10px', color: '#1e293b', cursor: 'pointer' }}>
-                                    {mapping.outputColumn || mapping.sourceColumn}
-                                  </div>
-                                  <div style={{ fontFamily: 'Inter, sans-serif', fontSize: '8px', color: '#6b7280' }}>
-                                    {toTitleCase(mapping.type || 'String')}
-                                    {mapping.pii && <span style={{ marginLeft: '4px', color: '#dc2626' }}>(PII)</span>}
-                                  </div>
-                                </div>
-                                <button
-                                  onClick={(e) => { e.stopPropagation(); startEditingColumn(key, mapping.outputColumn || mapping.sourceColumn); }}
-                                  className="vm-btn vm-btn-secondary"
-                                  style={{ padding: '2px 6px', fontSize: '9px', marginRight: '4px' }}
-                                  title="Rename output column"
-                                >
-                                  <FaPencilAlt />
-                                </button>
-                                <button
-                                  onClick={(e) => { 
-                                    e.stopPropagation(); 
-                                    userHasEditedRef.current = true;
-                                    setColumnMappings(columnMappings.filter(m => `${m.sourceSide}:${m.sourceColumn}` !== key));
-                                  }}
-                                  className="vm-btn vm-btn-secondary"
-                                  style={{ padding: '2px 6px', fontSize: '9px', marginRight: '6px', color: '#dc2626' }}
-                                  title="Remove from output"
-                                >
-                                  <FaTrash />
-                                </button>
-                                <span style={{
-                                  fontFamily: 'Inter, sans-serif',
-                                  fontSize: '8px',
-                                  padding: '2px 6px',
-                                  borderRadius: '3px',
-                                  backgroundColor: mapping.sourceSide === 'left' ? '#dbeafe' : '#fef3c7',
-                                  color: mapping.sourceSide === 'left' ? '#1e40af' : '#92400e'
-                                }}>
-                                  {mapping.sourceSide === 'left' ? (leftNodeName || 'Left') : (rightNodeName || 'Right')}
-                                </span>
-                              </>
-                            )}
+                              <div style={{ fontFamily: 'Inter, sans-serif', fontSize: '8px', color: '#6b7280' }}>
+                                {toTitleCase(mapping.type || 'String')}
+                                {mapping.pii && <span style={{ marginLeft: '4px', color: '#dc2626' }}>(PII)</span>}
+                              </div>
+                            </div>
+                            <span style={{
+                              fontFamily: 'Inter, sans-serif',
+                              fontSize: '8px',
+                              padding: '2px 6px',
+                              borderRadius: '3px',
+                              backgroundColor: mapping.sourceSide === 'left' ? '#dbeafe' : '#fef3c7',
+                              color: mapping.sourceSide === 'left' ? '#1e40af' : '#92400e'
+                            }}>
+                              {mapping.sourceSide === 'left' ? (leftNodeName || 'Left') : (rightNodeName || 'Right')}
+                            </span>
                           </div>
                         );
                       })
