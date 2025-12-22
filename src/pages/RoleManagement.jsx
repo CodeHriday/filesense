@@ -21,6 +21,7 @@ const RoleManagement = () => {
   const [modalMode, setModalMode] = useState('create'); // 'create' or 'edit'
   const [selectedRole, setSelectedRole] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -56,6 +57,14 @@ const RoleManagement = () => {
     }));
   };
 
+  // Debounce search term (2.5 seconds)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 2500);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
   // Check if user has permission to manage roles
   useEffect(() => {
     if (!currentUser) {
@@ -71,7 +80,7 @@ const RoleManagement = () => {
     // }
 
     fetchData();
-  }, [currentUser, navigate, currentPage, pageSize]);
+  }, [currentUser, navigate, currentPage, pageSize, debouncedSearchTerm]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -80,7 +89,7 @@ const RoleManagement = () => {
     try {
       const token = localStorage.getItem('token');
       const [rolesResponse, permissionsData, tagsResponse] = await Promise.all([
-        getRoles(currentPage, pageSize),
+        getRoles(currentPage, pageSize, debouncedSearchTerm),
         getPermissions(),
         axios.get('/api/governance-tags', {
           headers: { Authorization: `Bearer ${token}` }
@@ -518,7 +527,7 @@ const RoleManagement = () => {
   
   const handleSelectAllRoles = (e) => {
     if (e.target.checked) {
-      const selectableRoleIds = filteredRoles
+      const selectableRoleIds = roles
         .filter(role => !protectedRoleNames.includes(role.name))
         .map(role => role.id);
       setSelectedRoleIds(selectableRoleIds);
@@ -616,20 +625,12 @@ const RoleManagement = () => {
     });
   };
 
-  const filteredRoles = roles.filter(role => {
-    const searchLower = searchTerm.toLowerCase();
-    return (
-      (role.name || '').toLowerCase().includes(searchLower) ||
-      (role.description || '').toLowerCase().includes(searchLower)
-    );
-  });
-
-  // Clamp currentPage when filtered results are empty
+  // Clamp currentPage when results are empty
   useEffect(() => {
-    if (filteredRoles.length === 0 && currentPage > 1) {
+    if (roles.length === 0 && currentPage > 1) {
       setCurrentPage(1);
     }
-  }, [filteredRoles.length, currentPage]);
+  }, [roles.length, currentPage]);
 
   if (loading) {
     return (
@@ -697,7 +698,7 @@ const RoleManagement = () => {
                 <input
                   type="checkbox"
                   onChange={handleSelectAllRoles}
-                  checked={selectedRoleIds.length > 0 && selectedRoleIds.length === filteredRoles.filter(r => !protectedRoleNames.includes(r.name)).length}
+                  checked={selectedRoleIds.length > 0 && selectedRoleIds.length === roles.filter(r => !protectedRoleNames.includes(r.name)).length}
                 />
               </th>
               <th>Role Name</th>
@@ -708,14 +709,14 @@ const RoleManagement = () => {
             </tr>
           </thead>
           <tbody>
-            {filteredRoles.length === 0 ? (
+            {roles.length === 0 ? (
               <tr>
                 <td colSpan="6" className="no-roles-message">
                   {searchTerm ? 'No roles found matching your search' : 'No roles found'}
                 </td>
               </tr>
             ) : (
-              filteredRoles.map(role => {
+              roles.map(role => {
                 const permissions = formatPermissionsDisplay(role.permissions);
                 const isExpanded = expandedRoles[role.id];
                 const displayedPermissions = isExpanded ? permissions : permissions.slice(0, 3);

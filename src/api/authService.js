@@ -125,11 +125,13 @@ export const deleteUser = async (userId) => {
  * @param {number} limit - Items per page (default: 10)
  * @returns {Promise<Object>} Object with roles array and pagination info
  */
-export const getRoles = async (page = 1, limit = 10) => {
+export const getRoles = async (page = 1, limit = 10, search = '') => {
   try {
-    const response = await axios.get(`${API_BASE_URL}/api/roles`, {
-      params: { page, limit }
-    });
+    const params = { page, limit };
+    if (search) {
+      params.search = search;
+    }
+    const response = await axios.get(`${API_BASE_URL}/api/roles`, { params });
     return response.data;
   } catch (error) {
     console.error('Get roles error:', error);

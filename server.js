@@ -8872,20 +8872,35 @@ app.get('/api/roles', authenticateToken, async (req, res) => {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const offset = (page - 1) * limit;
+    const search = req.query.search || '';
     
-    // Get total count
-    const countResult = await dbPool.query('SELECT COUNT(*) FROM roles');
+    // Build query with optional search filter
+    const queryParams = [];
+    let paramIndex = 1;
+    let whereClause = '';
+    
+    if (search) {
+      const searchPattern = `%${search}%`;
+      whereClause = `WHERE (r.name ILIKE $${paramIndex} OR r.description ILIKE $${paramIndex})`;
+      queryParams.push(searchPattern);
+      paramIndex++;
+    }
+    
+    // Get total count with search filter
+    const countQuery = `SELECT COUNT(*) FROM roles r ${whereClause}`;
+    const countResult = await dbPool.query(countQuery, queryParams);
     const totalCount = parseInt(countResult.rows[0].count);
     
-    // Get paginated roles with user counts
-    const result = await dbPool.query(
-      `SELECT r.*, 
-              COALESCE((SELECT COUNT(*) FROM user_roles ur WHERE ur.role_id = r.id), 0) AS user_count
-       FROM roles r 
-       ORDER BY r.id ASC 
-       LIMIT $1 OFFSET $2`,
-      [limit, offset]
-    );
+    // Get paginated roles with user counts and search filter
+    const dataQuery = `
+      SELECT r.*, 
+             COALESCE((SELECT COUNT(*) FROM user_roles ur WHERE ur.role_id = r.id), 0) AS user_count
+      FROM roles r 
+      ${whereClause}
+      ORDER BY r.id ASC 
+      LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
+    `;
+    const result = await dbPool.query(dataQuery, [...queryParams, limit, offset]);
     
     res.json({
       roles: result.rows,
