@@ -204,30 +204,6 @@ export const APP_FEATURES = [
     showInSidebar: true
   },
   { 
-    id: 'retention_policies', 
-    name: 'Retention & Archival', 
-    category: 'Insights',
-    icon: FiDatabase,
-    route: '/retention-policies',
-    showInSidebar: false
-  },
-  { 
-    id: 'archived_files', 
-    name: 'Archived Files', 
-    category: 'Insights',
-    icon: FiArchive,
-    route: '/archived-files',
-    showInSidebar: false
-  },
-  { 
-    id: 'anomalies', 
-    name: 'Anomaly Detection', 
-    category: 'Insights',
-    icon: FiAlertTriangle,
-    route: '/anomalies',
-    showInSidebar: false
-  },
-  { 
     id: 'tags', 
     name: 'Tags', 
     category: 'Governance',
@@ -471,7 +447,6 @@ export const FEATURE_CATEGORIES_ORDER = [
   'Job Design',
   'Jobs and Monitoring',
   'Governance',
-  'Insights',
   'Vendor Management'
 ];
 
