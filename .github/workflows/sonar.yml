@@ -3,8 +3,7 @@ name: SonarQube Analysis
 on:
   push:
     branches:
-      - "sonar-fixes/v1"
-  pull_request:
+      - "main"
 
 jobs:
   sonar:
@@ -35,9 +34,9 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: |
           sonar-scanner \
-            -Dsonar.projectKey=fs-test \
+            -Dsonar.projectKey=Filesense-main \
             -Dsonar.sources=. \
             -Dsonar.exclusions=backend/tests/** \
             -Dsonar.host.url=https://sonar.blumetra.com \
-            -Dsonar.token=sqp_15eb110078b7c048e0dcb652975dfc8e7963d580
+            -Dsonar.token=sqp_cb3366faa09e562909ec7162f85aeaeaf93a036e
 
