@@ -14,6 +14,7 @@
 
 const db = require('../config/database');
 const { systemLogger } = require('../utils/logger');
+const { userHasAllProjectAccess } = require('../utils/permissionHelpers');
 
 /**
  * Middleware factory to enforce project-level access control
@@ -60,9 +61,9 @@ function requireProjectAccess(options = {}) {
         return res.status(400).json({ error: 'Project context required' });
       }
 
-      // Admin bypass (global admins can access all projects)
-      // Note: We still extract project_id above so req.projectId is set correctly
-      if (allowAdminBypass && req.user.roles && req.user.roles.includes('Admin')) {
+      // Admin bypass (users with admin-level permissions can access all projects)
+      // Uses permission-based check instead of hardcoded Admin role name
+      if (allowAdminBypass && userHasAllProjectAccess(req.user)) {
         systemLogger.info('Admin bypass granted for project access', {
           userId: req.user.id,
           username: req.user.username,

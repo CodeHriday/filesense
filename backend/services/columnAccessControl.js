@@ -8,6 +8,7 @@
 const db = require('../config/database');
 const { systemLogger } = require('../utils/logger');
 const { checkProjectMembership } = require('../middleware/requireProjectAccess');
+const { userHasAdminAccess } = require('../utils/permissionHelpers');
 
 class ColumnAccessControlService {
   /**
@@ -36,8 +37,8 @@ class ColumnAccessControlService {
       return { hasAccess: false, role: null, projectId: null };
     }
     
-    // Admin has access to all projects
-    if (user.roles && user.roles.includes('Admin')) {
+    // Admin-level access has access to all projects
+    if (userHasAdminAccess(user)) {
       const projectId = await this.getFileProjectId(fileId);
       return { hasAccess: true, role: 'Admin', projectId };
     }
@@ -68,8 +69,8 @@ class ColumnAccessControlService {
   hasTagPermission(user, tagName, accessLevel = 'read') {
     if (!user) return false;
     
-    // Admin has access to everything
-    if (user.roles && user.roles.includes('Admin')) {
+    // Admin-level access has access to everything
+    if (userHasAdminAccess(user)) {
       return true;
     }
     

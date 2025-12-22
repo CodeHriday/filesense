@@ -6,6 +6,8 @@ const visualMappingCompiler = require('../services/visualMappingCompiler');
 const { v4: uuidv4 } = require('uuid');
 const EmailProviderFactory = require('../services/email/EmailProviderFactory');
 const emailComposer = require('../services/EmailComposer');
+const { userHasAdminAccess } = require('../utils/permissionHelpers');
+const authorize = require('../middleware/authorize');
 
 /**
  * Send email notification for visual mapping execution
@@ -156,8 +158,8 @@ router.get('/', async (req, res) => {
     const userProjects = await getUserProjects(req.user.id);
     const projectIds = userProjects.map(p => p.id);
     
-    // Admin bypass check
-    const isAdmin = req.user?.roles?.includes('Admin');
+    // Admin bypass check - uses permission-based check for admin-equivalent roles
+    const isAdmin = userHasAdminAccess(req.user);
     
     let query = `
       SELECT 
@@ -267,7 +269,7 @@ router.get('/:id', async (req, res) => {
     if (mapping.project_id) {
       const { getUserProjects } = require('../middleware/requireProjectAccess');
       const userProjects = await getUserProjects(req.user.id);
-      const hasAccess = userProjects.some(p => p.id === mapping.project_id) || req.user?.roles?.includes('Admin');
+      const hasAccess = userProjects.some(p => p.id === mapping.project_id) || userHasAdminAccess(req.user);
       
       if (!hasAccess) {
         return res.status(403).json({ error: 'Access denied to this visual mapping' });
@@ -289,7 +291,7 @@ router.get('/:id', async (req, res) => {
  * POST /api/visual-mappings
  * Create a new visual mapping
  */
-router.post('/', async (req, res) => {
+router.post('/', authorize('visual_mapping_orchestrator:write'), async (req, res) => {
   try {
     const { name, description, graph_data, canvas_state, project_id, sub_project_id, notification_settings } = req.body;
 
@@ -342,7 +344,7 @@ router.post('/', async (req, res) => {
  * PUT /api/visual-mappings/:id
  * Update an existing visual mapping
  */
-router.put('/:id', async (req, res) => {
+router.put('/:id', authorize('visual_mapping_orchestrator:write'), async (req, res) => {
   try {
     const { id } = req.params;
     const { name, description, graph_data, canvas_state, project_id, sub_project_id, notification_settings } = req.body;
@@ -403,7 +405,7 @@ router.put('/:id', async (req, res) => {
  * DELETE /api/visual-mappings/:id
  * Soft delete a visual mapping
  */
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', authorize('visual_mapping_orchestrator:write'), async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -438,7 +440,7 @@ router.delete('/:id', async (req, res) => {
  * POST /api/visual-mappings/:id/clone
  * Clone a visual mapping with a new name
  */
-router.post('/:id/clone', async (req, res) => {
+router.post('/:id/clone', authorize('visual_mapping_orchestrator:write'), async (req, res) => {
   try {
     const { id } = req.params;
     const customName = req.body?.name;
@@ -578,7 +580,7 @@ router.post('/:id/clone', async (req, res) => {
  * POST /api/visual-mappings/:id/execute
  * Execute a visual mapping (runs in background for large jobs)
  */
-router.post('/:id/execute', async (req, res) => {
+router.post('/:id/execute', authorize('visual_mapping_orchestrator:execute'), async (req, res) => {
   try {
     const { id } = req.params;
     const clientExecutionId = req.body?.execution_id;
@@ -674,7 +676,7 @@ router.post('/:id/execute', async (req, res) => {
     // Check user has permission to execute in this project
     const { getUserProjects } = require('../middleware/requireProjectAccess');
     const userProjects = await getUserProjects(req.user.id);
-    const hasAccess = userProjects.some(p => p.id === mapping.project_id) || req.user?.roles?.includes('Admin');
+    const hasAccess = userProjects.some(p => p.id === mapping.project_id) || userHasAdminAccess(req.user);
     
     if (!hasAccess) {
       return res.status(403).json({ error: 'You do not have permission to execute this visual mapping' });
@@ -1139,6 +1141,190 @@ router.get('/:id/logs', async (req, res) => {
       mappingId: req.params.id
     });
     res.status(500).json({ error: 'Failed to fetch execution logs' });
+  }
+});
+
+/**
+ * Parse fixed-width file using column definitions from schema
+ * @param {Buffer} buffer - File buffer
+ * @param {Array} columns - Column definitions with name and width
+ * @returns {Array} Parsed rows
+ */
+function parseFixedWidthWithSchema(buffer, columns) {
+  const content = buffer.toString('utf-8');
+  const lines = content.split('\n').filter(line => line.trim());
+  const rows = [];
+  
+  // Check if there's a header row - skip it if column names match
+  let startLine = 0;
+  if (lines.length > 0 && columns.length > 0) {
+    const firstLine = lines[0];
+    // Check if first line looks like a header (contains column names)
+    const firstColumnName = columns[0].name || columns[0].column_name;
+    if (firstLine.toLowerCase().includes(firstColumnName.toLowerCase())) {
+      startLine = 1; // Skip header line
+    }
+  }
+  
+  for (let i = startLine; i < lines.length; i++) {
+    const line = lines[i];
+    const row = {};
+    let position = 0;
+    
+    for (const col of columns) {
+      const colName = col.name || col.column_name;
+      const width = parseInt(col.width || col.column_width, 10);
+      
+      if (!isNaN(width) && width > 0) {
+        row[colName] = line.substring(position, position + width).trim();
+        position += width;
+      }
+    }
+    
+    rows.push(row);
+  }
+  
+  return rows;
+}
+
+/**
+ * Recursively convert BigInt values to strings for JSON serialization
+ * @param {any} obj - Object to sanitize
+ * @returns {any} Sanitized object
+ */
+function sanitizeBigInt(obj) {
+  if (obj === null || obj === undefined) {
+    return obj;
+  }
+  if (typeof obj === 'bigint') {
+    return obj.toString();
+  }
+  if (Array.isArray(obj)) {
+    return obj.map(sanitizeBigInt);
+  }
+  if (typeof obj === 'object') {
+    const result = {};
+    for (const key of Object.keys(obj)) {
+      result[key] = sanitizeBigInt(obj[key]);
+    }
+    return result;
+  }
+  return obj;
+}
+
+/**
+ * POST /api/visual-mappings/source-preview
+ * Get preview data from a source configuration
+ * Body: { connectionId, filePath, filePattern, limit, vendorAgreementId, schema }
+ */
+router.post('/source-preview', async (req, res) => {
+  try {
+    const { connectionId, filePath, filePattern, limit = 25, vendorAgreementId, schema } = req.body;
+    
+    if (!connectionId) {
+      return res.status(400).json({ error: 'Connection ID is required' });
+    }
+    
+    if (!filePattern) {
+      return res.status(400).json({ error: 'File pattern is required' });
+    }
+    
+    // Fetch connection details
+    const connectionResult = await pool.query(
+      `SELECT connection_id, type, config FROM storage_connections WHERE connection_id = $1`,
+      [connectionId]
+    );
+    
+    if (connectionResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Connection not found' });
+    }
+    
+    const connection = connectionResult.rows[0];
+    
+    // Import the job execution engine functions for file processing
+    const { downloadFileFromConnection, parseFileToRows, listAndFilterFiles } = require('../services/jobExecutionEngine');
+    
+    // Build full pattern path
+    const fullPattern = filePath 
+      ? `${filePath.replace(/^\//, '').replace(/\/$/, '')}/${filePattern}`
+      : filePattern;
+    
+    // Find matching files
+    const matchingFiles = await listAndFilterFiles(pool, connectionId, fullPattern);
+    
+    if (matchingFiles.length === 0) {
+      return res.json({ 
+        success: false, 
+        error: 'No files found matching the pattern',
+        pattern: fullPattern,
+        data: [],
+        columns: []
+      });
+    }
+    
+    // Get the first matching file
+    const sourceFile = matchingFiles[0];
+    const filename = sourceFile.filename;
+    const ext = filename.split('.').pop()?.toLowerCase();
+    
+    systemLogger.info('Fetching source preview', {
+      connectionId,
+      filePath,
+      filePattern,
+      matchingFile: filename,
+      vendorAgreementId: vendorAgreementId || 'none',
+      hasSchema: !!schema
+    });
+    
+    // Download the file
+    const fileBuffer = await downloadFileFromConnection(pool, connectionId, filename);
+    
+    let allRows = [];
+    
+    // Check if this is a fixed-width file that needs schema-based parsing
+    const isFixedWidth = ext === 'dat' || ext === 'fixed_width';
+    const hasFixedWidthSchema = schema && schema.columns && schema.columns.some(col => col.width || col.column_width);
+    
+    if (isFixedWidth && hasFixedWidthSchema) {
+      // Use schema-based fixed-width parsing
+      systemLogger.info('Using schema-based fixed-width parsing', {
+        filename,
+        columnCount: schema.columns.length
+      });
+      allRows = parseFixedWidthWithSchema(fileBuffer, schema.columns);
+    } else {
+      // Use standard parsing with vendorAgreementId for archive password lookup
+      allRows = await parseFileToRows(fileBuffer, filename, pool, vendorAgreementId || null);
+    }
+    
+    // Take only the first N rows for preview
+    const previewRows = allRows.slice(0, Math.min(limit, allRows.length));
+    
+    // Sanitize BigInt values for JSON serialization (important for Parquet files)
+    const sanitizedRows = sanitizeBigInt(previewRows);
+    
+    // Extract column names from the first row
+    const columns = sanitizedRows.length > 0 ? Object.keys(sanitizedRows[0]) : [];
+    
+    res.json({
+      success: true,
+      filename: filename,
+      totalRows: allRows.length,
+      previewRowCount: sanitizedRows.length,
+      columns,
+      data: sanitizedRows
+    });
+    
+  } catch (error) {
+    systemLogger.error('Failed to fetch source preview', {
+      error: error.message,
+      stack: error.stack,
+      body: req.body
+    });
+    res.status(500).json({ 
+      success: false,
+      error: 'Failed to fetch preview: ' + error.message 
+    });
   }
 });
 

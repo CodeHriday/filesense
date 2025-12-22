@@ -9,6 +9,7 @@ const {
   processCursorResults, 
   createPaginatedResponse 
 } = require('../utils/cursorPagination');
+const { userHasAdminAccess } = require('../utils/permissionHelpers');
 
 /**
  * GET /api/jobs/stats/summary
@@ -140,7 +141,7 @@ router.get('/v2', async (req, res) => {
     const userProjects = await getUserProjects(req.user.id);
     const projectIds = userProjects.map(p => p.id);
     
-    const isAdmin = req.user?.roles?.includes('Admin');
+    const isAdmin = userHasAdminAccess(req.user);
     
     if (projectIds.length === 0 && !isAdmin) {
       return res.json(createPaginatedResponse([], null, false, { total: 0 }));
@@ -264,7 +265,7 @@ router.get('/', async (req, res) => {
     const projectIds = userProjects.map(p => p.id);
     
     // Admin bypass check
-    const isAdmin = req.user?.roles?.includes('Admin');
+    const isAdmin = userHasAdminAccess(req.user);
     
     // If user has no projects and is not admin, return empty list
     if (projectIds.length === 0 && !isAdmin) {

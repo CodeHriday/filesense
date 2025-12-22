@@ -249,6 +249,7 @@ export const PageTransition = ({ children, className = "" }) => {
     </AnimatePresence>
   );
 };
+
 PageTransition.propTypes = {
   children: PropTypes.node.isRequired,
   className: PropTypes.string

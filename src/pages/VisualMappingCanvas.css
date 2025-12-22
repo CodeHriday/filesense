@@ -605,6 +605,23 @@
   background: #2f855a;
 }
 
+.visual-mapping-node-join {
+  border-color: #7c3aed;
+}
+
+.visual-mapping-node-join .visual-mapping-node-icon,
+.visual-mapping-node-join .visual-mapping-node-title {
+  color: #7c3aed;
+}
+
+.visual-mapping-node-join .visual-mapping-node-button {
+  background: #7c3aed;
+}
+
+.visual-mapping-node-join .visual-mapping-node-button:hover {
+  background: #6d28d9;
+}
+
 .visual-mapping-node-target {
   border-color: #025043;
 }

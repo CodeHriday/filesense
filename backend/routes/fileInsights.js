@@ -3,6 +3,7 @@ const router = express.Router();
 const FileInsightsService = require('../services/fileInsightsService');
 const { systemLogger } = require('../utils/logger');
 const cacheService = require('../services/cacheService');
+const { userHasAdminAccess } = require('../utils/permissionHelpers');
 
 /**
  * File Insights API Routes
@@ -167,7 +168,7 @@ module.exports = (dbPool, authenticate) => {
   router.post('/aggregate', authenticate, async (req, res) => {
     try {
       // Check if user has admin role
-      if (!req.user.roles || !req.user.roles.includes('Admin')) {
+      if (!userHasAdminAccess(req.user)) {
         return res.status(403).json({
           success: false,
           error: 'Insufficient permissions. Admin role required.'
@@ -195,7 +196,7 @@ module.exports = (dbPool, authenticate) => {
   router.post('/cleanup', authenticate, async (req, res) => {
     try {
       // Check if user has admin role
-      if (!req.user.roles || !req.user.roles.includes('Admin')) {
+      if (!userHasAdminAccess(req.user)) {
         return res.status(403).json({
           success: false,
           error: 'Insufficient permissions. Admin role required.'

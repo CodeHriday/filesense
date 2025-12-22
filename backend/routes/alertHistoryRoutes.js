@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../db');
 const { systemLogger } = require('../utils/logger');
+const { userHasAdminAccess } = require('../utils/permissionHelpers');
 
 /**
  * Alert History API Routes
@@ -14,7 +15,7 @@ router.get('/runs', async (req, res) => {
     const { getUserProjects } = require('../middleware/requireProjectAccess');
     const { limit = 50, offset = 0, policy_id, status, entity_type, start_date, end_date } = req.query;
     
-    const isAdmin = req.user?.roles?.includes('Admin');
+    const isAdmin = userHasAdminAccess(req.user);
     let projectIds = [];
     
     if (!isAdmin) {
@@ -153,7 +154,7 @@ router.get('/runs/:run_id/events', async (req, res) => {
       });
     }
     
-    const isAdmin = req.user?.roles?.includes('Admin');
+    const isAdmin = userHasAdminAccess(req.user);
     
     if (!isAdmin) {
       const { getUserProjects } = require('../middleware/requireProjectAccess');
@@ -223,7 +224,7 @@ router.get('/runs/:run_id/delivery-details', async (req, res) => {
       });
     }
     
-    const isAdmin = req.user?.roles?.includes('Admin');
+    const isAdmin = userHasAdminAccess(req.user);
     
     if (!isAdmin) {
       const { getUserProjects } = require('../middleware/requireProjectAccess');

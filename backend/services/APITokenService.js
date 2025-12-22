@@ -34,6 +34,15 @@ class APITokenService {
     expiresAt = null,
     createdBy
   }) {
+    // Check if token name already exists (includes revoked tokens for true uniqueness)
+    const existingToken = await query(
+      `SELECT id FROM api_tokens WHERE name = $1`,
+      [name]
+    );
+    if (existingToken.rows.length > 0) {
+      throw new Error('A token with this name already exists');
+    }
+
     // Generate random token
     const token = `dfo_${crypto.randomBytes(32).toString('hex')}`;
     const tokenPrefix = token.substring(0, 11); // 'dfo_' + first 7 chars
@@ -202,6 +211,86 @@ class APITokenService {
     });
 
     return true;
+  }
+
+  /**
+   * Check if token has usage records (upload batches)
+   * 
+   * @param {number} tokenId - Token ID to check
+   * @returns {Promise<boolean>} - True if token has usage
+   */
+  async tokenHasUsage(tokenId) {
+    const result = await query(
+      `SELECT COUNT(*) as count FROM upload_batches WHERE api_token_id = $1`,
+      [tokenId]
+    );
+    return parseInt(result.rows[0].count) > 0;
+  }
+
+  /**
+   * Permanently delete an API token
+   * 
+   * @param {number} tokenId - Token ID to delete
+   * @param {number} deletedBy - User ID deleting the token
+   * @returns {Promise<boolean>} - True if deleted
+   */
+  async deleteToken(tokenId, deletedBy) {
+    const hasUsage = await this.tokenHasUsage(tokenId);
+    if (hasUsage) {
+      throw new Error('Cannot delete token with usage history. Revoke it instead.');
+    }
+
+    const result = await query(
+      `DELETE FROM api_tokens WHERE id = $1 RETURNING id`,
+      [tokenId]
+    );
+
+    if (result.rows.length === 0) {
+      throw new Error('Token not found');
+    }
+
+    systemLogger.info('API token permanently deleted', {
+      tokenId,
+      deletedBy
+    });
+
+    return true;
+  }
+
+  /**
+   * Permanently delete multiple API tokens
+   * 
+   * @param {Array<number>} tokenIds - Array of token IDs to delete
+   * @param {number} deletedBy - User ID deleting the tokens
+   * @returns {Promise<number>} - Count of deleted tokens
+   */
+  async bulkDeleteTokens(tokenIds, deletedBy) {
+    if (!tokenIds || tokenIds.length === 0) {
+      return 0;
+    }
+
+    const usageCheck = await query(
+      `SELECT DISTINCT api_token_id FROM upload_batches WHERE api_token_id = ANY($1)`,
+      [tokenIds]
+    );
+    
+    const tokensWithUsage = usageCheck.rows.map(r => r.api_token_id);
+    if (tokensWithUsage.length > 0) {
+      throw new Error(`Cannot delete ${tokensWithUsage.length} token(s) with usage history. Revoke them instead.`);
+    }
+
+    const result = await query(
+      `DELETE FROM api_tokens WHERE id = ANY($1) RETURNING id`,
+      [tokenIds]
+    );
+
+    systemLogger.info('API tokens permanently deleted', {
+      tokenIds,
+      deletedCount: result.rows.length,
+      deletedBy
+    });
+
+    return result.rows.length;
   }
 
   /**

@@ -15,6 +15,7 @@ const { systemLogger } = require('../utils/logger');
 const { requirePermission, checkPermission, hasPermission } = require('../middleware/vendorPermissions');
 const PasswordVaultService = require('../services/passwordVaultService');
 const AuditService = require('../services/AuditService');
+const { userHasAdminAccess } = require('../utils/permissionHelpers');
 
 // Multer error handling middleware
 const handleMulterError = (err, req, res, next) => {
@@ -132,9 +133,8 @@ const checkAgreementAccess = async (req, res, next) => {
       req.hasReadPermission = true;
     }
     
-    // Admin role has access to everything (backwards compatibility)
-    // Defensive check: ensure roles array exists before checking
-    if (req.user.roles && Array.isArray(req.user.roles) && req.user.roles.includes('Admin')) {
+    // Admin-level access has access to everything (uses permission-based check)
+    if (userHasAdminAccess(req.user)) {
       req.agreement = agreement;
       req.isAdmin = true;
       return next();
@@ -861,7 +861,7 @@ router.get('/vendor/:vendorId', async (req, res) => {
       return res.status(404).json({ error: 'Vendor not found' });
     }
     
-    const isAdmin = req.user.roles && req.user.roles.includes('Admin');
+    const isAdmin = userHasAdminAccess(req.user);
     const isVendorUser = vendorResult.vendor.vendor_user_id === req.user.id;
     
     if (!isAdmin && !isVendorUser) {

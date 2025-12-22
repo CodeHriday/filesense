@@ -5,7 +5,7 @@
 
 const express = require('express');
 const router = express.Router();
-const pool = require('../config/database');
+const { pool } = require('../config/database');
 const FastSchemaValidationService = require('../services/FastSchemaValidationService');
 const authenticateToken = require('../middleware/authenticate');
 const { systemLogger } = require('../utils/logger');

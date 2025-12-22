@@ -1,5 +1,5 @@
 import React, { useState, useEffect, Suspense, lazy } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import ErrorBoundary from './components/ErrorBoundary';
 import { initializeAuditInterceptor } from './utils/auditInterceptor';
 import PropTypes from 'prop-types';
@@ -23,13 +23,12 @@ const BlumeETLRedirect = () => {
 // Core components (loaded immediately)
 import Sidebar from './components/Sidebar';
 import NotificationList from './components/Notifications/NotificationList';
-import AccessibilityWidget from './components/AccessibilityWidget';
 import ToastContainer from './components/ToastContainer';
 import Login from './pages/Login';
 
 // Context providers (needed immediately)
 import { AccessibilityProvider } from './context/AccessibilityContext';
-import AuthProvider, { useAuth } from './context/AuthContext';
+import AuthProvider, { useAuth, AUTH_STATUS } from './context/AuthContext';
 import { SidebarProvider, useSidebar } from './context/SidebarContext';
 import { AnnouncementProvider } from './components/accessibility';
 import { ToastProvider } from './context/ToastContext';
@@ -105,6 +104,7 @@ const WorkflowBuilder = lazy(() => import('./pages/archived/WorkflowBuilder'));
 const WorkflowManager = lazy(() => import('./pages/WorkflowManager'));
 const VisualMappingCanvas = lazy(() => import('./pages/VisualMappingCanvas'));
 const VisualMappingManager = lazy(() => import('./pages/VisualMappingManager'));
+const Documentation = lazy(() => import('./pages/Documentation'));
 
 // Styles
 import './App.css';
@@ -122,16 +122,19 @@ import './styles/global-page-styles.css';
 
 // Protected route component
 const ProtectedRoute = ({ children }) => {
-  const { currentUser, loading } = useAuth();
-  const params = new URLSearchParams(window.location.search);
-  const location = window.location.pathname;
+  const { currentUser, authStatus } = useAuth();
+  const location = useLocation();
+  const pathname = location.pathname;
   
-  if (loading) {
+  // Use authStatus for atomic routing decisions
+  // This prevents the race condition where loading=false before currentUser is set
+  if (authStatus === AUTH_STATUS.CHECKING) {
     return <div className="loading-screen">Loading...</div>;
   }
   
-  if (!currentUser) {
-    return <Navigate to="/login" replace />;
+  if (authStatus === AUTH_STATUS.UNAUTHENTICATED || !currentUser) {
+    // Pass current location so Login can redirect back after authentication
+    return <Navigate to="/login" state={{ from: location }} replace />;
   }
   
   // Extract route parameters to pass to children if it's a function
@@ -139,10 +142,10 @@ const ProtectedRoute = ({ children }) => {
   if (typeof children === 'function') {
     // Extract fileId from the path based on various possible route patterns
     let fileId = null;
-    const profileMatch = location.match(/\/profile\/([^\/]+)/);
-    const qualityMatch = location.match(/\/quality\/([^\/]+)/);
-    const reportMatch = location.match(/\/report\/([^\/]+)/);
-    const lineageMatch = location.match(/\/lineage\/impact\/([^\/]+)/);
+    const profileMatch = pathname.match(/\/profile\/([^\/]+)/);
+    const qualityMatch = pathname.match(/\/quality\/([^\/]+)/);
+    const reportMatch = pathname.match(/\/report\/([^\/]+)/);
+    const lineageMatch = pathname.match(/\/lineage\/impact\/([^\/]+)/);
     
     if (profileMatch) fileId = profileMatch[1];
     else if (qualityMatch) fileId = qualityMatch[1];
@@ -224,10 +227,17 @@ function App() {
 
 // Separate component to use useAuth() hook inside Router context
 function AppContent({ showOnboarding, setShowOnboarding }) {
-  const { currentUser } = useAuth();
+  const { currentUser, authStatus } = useAuth();
+  const location = useLocation();
   const { isCollapsed } = useSidebar();
   const [showAIInsights, setShowAIInsights] = useState(false);
   const [selectedFileId, setSelectedFileId] = useState(null);
+  
+  // Show loading while auth status is being determined
+  // This prevents premature redirect to login before auth check completes
+  if (authStatus === AUTH_STATUS.CHECKING) {
+    return <div className="loading-screen">Loading...</div>;
+  }
   
   // Function to toggle AI Insights sidebar
   const toggleAIInsights = (fileId = null) => {
@@ -363,6 +373,8 @@ function AppContent({ showOnboarding, setShowOnboarding }) {
                 <Route path="/oauth2-callback" element={<OAuth2Callback />} />
                 <Route path="/workflow-canvas" element={<ProtectedRoute><WorkflowCanvasStandalone /></ProtectedRoute>} />
                 <Route path="/workflow-test" element={<ProtectedRoute><WorkflowTest /></ProtectedRoute>} />
+                <Route path="/documentation" element={<ProtectedRoute><Documentation /></ProtectedRoute>} />
+                <Route path="/help" element={<ProtectedRoute><Documentation /></ProtectedRoute>} />
                 {/* Development Routes */}
                 <Route path="/hooks-demo" element={<ProtectedRoute><HooksDemo /></ProtectedRoute>} />
                 <Route path="/performance-optimizations" element={<ProtectedRoute><PerformanceOptimizations /></ProtectedRoute>} />
@@ -386,16 +398,15 @@ function AppContent({ showOnboarding, setShowOnboarding }) {
         </>
       )}
       
-      {/* Login route when not logged in */}
-      {!currentUser && (
+      {/* Login route when not logged in - only show after auth check confirms unauthenticated */}
+      {authStatus === AUTH_STATUS.UNAUTHENTICATED && (
         <Routes>
           <Route path="/login" element={<Login />} />
-          <Route path="*" element={<Navigate to="/login" replace />} />
+          <Route path="*" element={<Navigate to="/login" state={{ from: location }} replace />} />
         </Routes>
       )}
       
-      {/* Accessibility Widget - always show */}
-      <AccessibilityWidget />
+      {/* Accessibility Widget - hidden */}
       
       {/* Onboarding Wizard removed - no longer displayed */}
       

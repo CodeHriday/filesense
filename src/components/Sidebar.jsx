@@ -1,13 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { NavLink, Link, useNavigate } from 'react-router-dom';
-import { FiChevronDown, FiChevronRight, FiChevronLeft, FiHome } from 'react-icons/fi';
+import { FiChevronDown, FiChevronRight, FiChevronLeft, FiHome, FiHelpCircle } from 'react-icons/fi';
 import { FaUser, FaSignOutAlt} from 'react-icons/fa';
 import { useAuth } from '../context/AuthContext';
 import { useSidebar } from '../context/SidebarContext';
 import { APP_FEATURES, getSidebarCategoryName, FEATURE_CATEGORIES_ORDER } from '../config/appFeatures';
 import OnboardingWizard from './OnboardingWizard';
 import NotificationBell from './NotificationBell';
-import ThemeToggle from './ThemeToggle';
 import { isVendorUser } from '../utils/userHelpers';
 import './Sidebar.css';
 
@@ -256,9 +255,8 @@ function Sidebar() {
           </ul>
         </nav>
 
-        {/* Bottom Section: User Menu and Theme Toggle */}
+        {/* Bottom Section: User Menu */}
         <div className="sidebar-footer">
-          <ThemeToggle />
           <div className="sidebar-user-menu" ref={dropdownRef}>
             <button
               className="sidebar-user-btn"
@@ -266,6 +264,7 @@ function Sidebar() {
               aria-expanded={dropdownOpen}
               aria-haspopup="true"
               aria-label="User menu"
+              title={isCollapsed ? `${currentUser.username} - Click for options` : ''}
             >
               <FaUser />
               <span className="sidebar-username">{currentUser.username}</span>
@@ -287,12 +286,20 @@ function Sidebar() {
                 
                 <div className="sidebar-dropdown-content">
                   <button className="sidebar-dropdown-item" onClick={handleLogout}>
-                    <FaSignOutAlt /> Logout
+                    <FaSignOutAlt /> <span className="sidebar-logout-text">Logout</span>
                   </button>
                 </div>
               </div>
             )}
           </div>
+          <Link 
+            to="/documentation" 
+            className="sidebar-help-btn"
+            title="Help & Documentation"
+            aria-label="Help & Documentation"
+          >
+            <FiHelpCircle />
+          </Link>
         </div>
       </aside>
 

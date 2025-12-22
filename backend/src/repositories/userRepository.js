@@ -55,6 +55,14 @@ const findAll = async (filters = {}) => {
         queryParams.push(filters.role);
       }
       
+      // Global search across username, email, first_name, last_name
+      if (filters.search) {
+        const searchPattern = `%${filters.search}%`;
+        filterClauses.push(`(u.username ILIKE $${paramIndex} OR u.email ILIKE $${paramIndex} OR u.first_name ILIKE $${paramIndex} OR u.last_name ILIKE $${paramIndex})`);
+        queryParams.push(searchPattern);
+        paramIndex++;
+      }
+      
       // Add WHERE clause if we have filters
       if (filterClauses.length > 0) {
         whereClause = ' WHERE ' + filterClauses.join(' AND ');
@@ -522,6 +530,14 @@ const count = async (filters = {}) => {
       if (filters.role) {
         filterClauses.push(`r.name = $${paramIndex++}`);
         queryParams.push(filters.role);
+      }
+      
+      // Global search across username, email, first_name, last_name
+      if (filters.search) {
+        const searchPattern = `%${filters.search}%`;
+        filterClauses.push(`(u.username ILIKE $${paramIndex} OR u.email ILIKE $${paramIndex} OR u.first_name ILIKE $${paramIndex} OR u.last_name ILIKE $${paramIndex})`);
+        queryParams.push(searchPattern);
+        paramIndex++;
       }
       
       // Add WHERE clause if we have filters

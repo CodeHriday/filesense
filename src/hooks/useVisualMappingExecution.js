@@ -92,6 +92,18 @@ export const useVisualMappingExecution = () => {
       setExecutionProgress(data.progress);
     });
 
+    // Listen for execution start to reset edge counts and node statuses
+    socketInstance.on('execution_start', (data) => {
+      console.log('Execution start - resetting state:', data);
+      if (data.resetEdges) {
+        setEdgeRowCounts({});
+        setNodeStatuses({});
+        setExecutionComplete(false);
+        setExecutionError(null);
+        setExecutionProgress(0);
+      }
+    });
+
     socketInstance.on('execution_complete', (data) => {
       console.log('Execution complete:', data);
       setExecutionComplete(true);

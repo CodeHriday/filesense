@@ -369,6 +369,24 @@ class FileService extends ServiceBase {
         query += ' WHERE ' + whereClauses.join(' AND ');
       }
       
+      // Build count query with same filters (before adding ORDER BY and pagination)
+      let countQuery = `
+        SELECT COUNT(DISTINCT files.file_id) as total_count
+        FROM files 
+        LEFT JOIN projects ON files.project_id = projects.id
+        LEFT JOIN projects AS sub_projects ON files.sub_project_id = sub_projects.id
+        LEFT JOIN file_audit_details fad ON files.file_id = fad.file_id
+        LEFT JOIN logical_file_groups lfg ON files.logical_file_id = lfg.logical_file_id
+      `;
+      if (whereClauses.length > 0) {
+        countQuery += ' WHERE ' + whereClauses.join(' AND ');
+      }
+      
+      // Get total count (use params without limit/offset)
+      const countParams = params.slice();
+      const countResult = await this.executeQuery(countQuery, countParams, { traceId });
+      const totalCount = parseInt(countResult.rows[0]?.total_count || 0, 10);
+      
       // Add sorting and pagination (prefix with files. if needed)
       const sortCol = sortColumn === 'id' || sortColumn === 'filename' || sortColumn === 'file_type' || 
                       sortColumn === 'file_size' || sortColumn === 'created_at' || sortColumn === 'quality_score' 
@@ -378,7 +396,7 @@ class FileService extends ServiceBase {
       
       const result = await this.executeQuery(query, params, { traceId });
       
-      return result.rows;
+      return { files: result.rows, totalCount };
     } catch (error) {
       this.logger.error('Error fetching files', { 
         error: error.message,

@@ -328,28 +328,26 @@ class VisualMappingCompiler {
             
           case 'expression':
             // Expression nodes transform the schema based on field mappings
-            const upstreamSchema = this.getUpstreamSchema(nodeId, edges, nodeSchemas);
+            // IMPORTANT: Only explicitly mapped fields with include=true should pass through
             const outputSchema = [];
             
             if (config.fieldMappings && Array.isArray(config.fieldMappings)) {
               config.fieldMappings.forEach(mapping => {
-                if (mapping.targetField) {
+                // Only include fields that have include !== false (default is true for backwards compatibility)
+                if ((mapping.target_field || mapping.targetField) && mapping.include !== false) {
                   outputSchema.push({
-                    name: mapping.targetField,
-                    type: mapping.targetType || 'string',
+                    name: mapping.target_field || mapping.targetField,
+                    type: mapping.data_type || mapping.targetType || 'string',
                     source: 'expression',
-                    transformation: mapping.transformation
+                    transformation: mapping.transformation || mapping.expression,
+                    include: mapping.include !== false
                   });
                 }
               });
             }
             
-            // Include pass-through fields not explicitly mapped
-            upstreamSchema.forEach(field => {
-              if (!outputSchema.find(f => f.name === field.name)) {
-                outputSchema.push({ ...field });
-              }
-            });
+            // NO pass-through: Only explicitly included fields appear in output
+            // This ensures Expression nodes act as a strict column boundary
             
             nodeSchemas[nodeId] = outputSchema;
             break;
@@ -713,9 +711,67 @@ class VisualMappingCompiler {
             result.violationHandling = config.violationHandling;
             result.qualityRuleIds = config.selectedQualityRules || [];
             result.enableAnomalyDetection = config.anomalyDetection || false;
+            // Capture orderedColumns for filtering/reordering fieldMappings
+            result.orderedColumns = config.orderedColumns || [];
             break;
         }
       });
+      
+      // Filter and reorder fieldMappings based on Target's orderedColumns
+      // Also create passthrough mappings for columns without explicit mappings
+      if (result.orderedColumns && result.orderedColumns.length > 0) {
+        // Normalize orderedColumns to handle both string arrays and object arrays (backward compatibility)
+        const orderedNames = result.orderedColumns.map(col => 
+          typeof col === 'string' ? col : (col && col.name ? col.name : null)
+        ).filter(Boolean);
+        
+        if (orderedNames.length > 0) {
+          // Create a map of target_field to mapping for quick lookup
+          const mappingsByTargetField = new Map();
+          if (Array.isArray(result.fieldMappings)) {
+            result.fieldMappings.forEach(mapping => {
+              const targetField = mapping.target_field || mapping.targetField;
+              if (targetField) {
+                mappingsByTargetField.set(targetField, mapping);
+              }
+            });
+          }
+          
+          // Build new fieldMappings in the order specified by orderedColumns
+          // For columns without explicit mappings, create passthrough mappings
+          const orderedFieldMappings = [];
+          let passthroughCount = 0;
+          
+          orderedNames.forEach(columnName => {
+            const existingMapping = mappingsByTargetField.get(columnName);
+            if (existingMapping) {
+              orderedFieldMappings.push(existingMapping);
+            } else {
+              // Create a passthrough mapping for columns without explicit mappings
+              // These are join output columns or source columns that pass through unchanged
+              orderedFieldMappings.push({
+                targetField: columnName,
+                target_field: columnName,
+                sourceFields: [columnName],
+                source_fields: [columnName],
+                transformations: [],
+                data_type: 'string',
+                isPassthrough: true
+              });
+              passthroughCount++;
+            }
+          });
+          
+          result.fieldMappings = orderedFieldMappings;
+          
+          systemLogger.info('Applied Target orderedColumns filter and reorder', {
+            explicitMappings: orderedFieldMappings.length - passthroughCount,
+            passthroughMappings: passthroughCount,
+            totalMappings: orderedFieldMappings.length,
+            orderedColumns: orderedNames.length
+          });
+        }
+      }
       
       return result;
       
@@ -729,6 +785,7 @@ class VisualMappingCompiler {
   
   /**
    * Extracts schema from upstream nodes for a given node
+   * Expression nodes act as strict column boundaries - only their explicit mappings pass through
    */
   extractUpstreamSchema(nodeId, nodes, edges) {
     const schema = [];
@@ -738,21 +795,22 @@ class VisualMappingCompiler {
     
     incomingEdges.forEach(edge => {
       const sourceNode = nodes.find(n => n.id === edge.source);
-      if (sourceNode && sourceNode.data?.config?.schema) {
-        schema.push(...sourceNode.data.config.schema);
-      }
       
-      // For expression nodes, add their output fields
+      // For expression nodes, ONLY use their explicitly mapped output fields (strict boundary)
       if (sourceNode && sourceNode.type === 'expression') {
         const fieldMappings = sourceNode.data?.config?.fieldMappings || [];
         fieldMappings.forEach(mapping => {
-          if (mapping.targetField) {
+          const targetField = mapping.target_field || mapping.targetField;
+          if (targetField) {
             schema.push({
-              name: mapping.targetField,
-              type: mapping.targetType || 'string'
+              name: targetField,
+              type: mapping.data_type || mapping.targetType || 'string'
             });
           }
         });
+      } else if (sourceNode && sourceNode.data?.config?.schema) {
+        // For source nodes, use their defined schema
+        schema.push(...sourceNode.data.config.schema);
       }
     });
     

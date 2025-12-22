@@ -791,38 +791,68 @@ const VisualMappingCanvasContent = () => {
         return transformedSchema;
       }
       
-      // Expression: output schema comes from fieldMappings
-      if (node.type === 'expression' && config.fieldMappings) {
-        // Get upstream schema first and deduplicate
-        const upstreamEdges = edges.filter(e => e.target === nodeId);
-        let upstreamSchemaRaw = [];
-        upstreamEdges.forEach(edge => {
-          upstreamSchemaRaw = [...upstreamSchemaRaw, ...getNodeOutputSchema(edge.source)];
-        });
-        // Deduplicate by column name
-        const upstreamSchemaMap = new Map();
-        upstreamSchemaRaw.forEach(col => {
-          if (!upstreamSchemaMap.has(col.name)) {
-            upstreamSchemaMap.set(col.name, col);
-          }
-        });
-        const upstreamSchema = Array.from(upstreamSchemaMap.values());
+      // Expression: output schema comes from saved outputSchema or fieldMappings
+      if (node.type === 'expression') {
+        // Prefer saved outputSchema (has correct types from ExpressionModal)
+        if (config.outputSchema && config.outputSchema.length > 0) {
+          const outputSchema = config.outputSchema
+            .filter(col => col.include !== false)
+            .map(col => ({
+              name: col.name || col.target_field || '',
+              type: col.type || col.data_type || 'STRING',
+              precision: col.precision ?? null,
+              scale: col.scale ?? null,
+              nullable: col.nullable ?? true,
+              description: col.description || '',
+              contains_pii: col.pii || col.contains_pii || false,
+              dqRules: col.dqRules || []
+            }));
+          console.log(`getCumulativeSchema: Expression node ${nodeId} output schema (from outputSchema):`, outputSchema.length, 'columns');
+          return outputSchema;
+        }
         
-        // Map to output columns based on field mappings
-        const outputSchema = config.fieldMappings.map(mapping => {
-          const sourceCol = upstreamSchema.find(col => col.name === mapping.source_field);
-          // Check if this target field is marked as PII in config.piiColumns
-          const isPiiFromConfig = config.piiColumns && config.piiColumns.includes(mapping.target_field);
+        // Fallback to fieldMappings
+        if (config.fieldMappings) {
+          // Get upstream schema for passthrough field types
+          const upstreamEdges = edges.filter(e => e.target === nodeId);
+          let upstreamSchemaRaw = [];
+          upstreamEdges.forEach(edge => {
+            upstreamSchemaRaw = [...upstreamSchemaRaw, ...getNodeOutputSchema(edge.source)];
+          });
+          // Deduplicate by column name
+          const upstreamSchemaMap = new Map();
+          upstreamSchemaRaw.forEach(col => {
+            if (!upstreamSchemaMap.has(col.name)) {
+              upstreamSchemaMap.set(col.name, col);
+            }
+          });
+          const upstreamSchema = Array.from(upstreamSchemaMap.values());
           
-          return {
-            name: mapping.target_field,
-            type: sourceCol?.type || 'unknown',
-            description: sourceCol?.description || '',
-            contains_pii: isPiiFromConfig || sourceCol?.contains_pii || false
-          };
-        });
-        console.log(`getCumulativeSchema: Expression node ${nodeId} output schema:`, outputSchema.length, 'columns');
-        return outputSchema;
+          // Map to output columns based on field mappings
+          const outputSchema = config.fieldMappings
+            .filter(mapping => mapping.include !== false)
+            .map(mapping => {
+              const sourceCol = upstreamSchema.find(col => col.name === mapping.source_field);
+              // Check if this target field is marked as PII in config.piiColumns
+              const isPiiFromConfig = config.piiColumns && config.piiColumns.includes(mapping.target_field);
+              // Use mapping's explicit type first, then source column type, then default
+              const mappingType = mapping.data_type || mapping.dataType || mapping.type || mapping.column_type;
+              
+              return {
+                name: mapping.target_field || mapping.targetField || '',
+                type: mappingType || sourceCol?.type || 'STRING',
+                precision: mapping.precision ?? null,
+                scale: mapping.scale ?? null,
+                nullable: mapping.nullable ?? true,
+                description: sourceCol?.description || '',
+                contains_pii: isPiiFromConfig || sourceCol?.contains_pii || false
+              };
+            });
+          console.log(`getCumulativeSchema: Expression node ${nodeId} output schema (from fieldMappings):`, outputSchema.length, 'columns');
+          return outputSchema;
+        }
+        
+        return [];
       }
       
       // RDM Lookup: handles both dataset joins and crosswalk lookups
@@ -1012,6 +1042,70 @@ const VisualMappingCanvasContent = () => {
       const hasUpstream = edges.some(e => e.target === node.id);
       if (!hasUpstream) {
         errors.push(`Expression node "${node.data.label}" has no upstream connections`);
+      }
+      
+      // Check for deleted variable references in field mappings and variables
+      const config = node.data.config;
+      if (config) {
+        // Get variables from config.variables array (if exists) - treat missing as empty
+        const variableNames = new Set((config.variables || []).map(v => v.name));
+        
+        // Helper function to extract variable references from any string
+        const extractVarRefs = (str) => {
+          if (!str || typeof str !== 'string') return [];
+          const matches = str.match(/\$([a-zA-Z_][a-zA-Z0-9_]*)/g) || [];
+          return matches.map(m => m.substring(1));
+        };
+        
+        // Check field mappings for deleted variable references
+        if (config.fieldMappings) {
+          config.fieldMappings.forEach(mapping => {
+            // Check all possible places where a variable could be referenced
+            const expression = mapping.expression || mapping.customExpression || '';
+            const sourceField = mapping.source_field || '';
+            
+            // Combine all text to check for variable references
+            let allText = expression + ' ' + sourceField;
+            
+            // Also check transformation params
+            if (mapping.transformation_params) {
+              Object.values(mapping.transformation_params).forEach(param => {
+                if (typeof param === 'string') {
+                  allText += ' ' + param;
+                }
+              });
+            }
+            
+            const varRefs = extractVarRefs(allText);
+            varRefs.forEach(varName => {
+              if (!variableNames.has(varName)) {
+                errors.push(`Expression node "${node.data.label}" - field "${mapping.target_field || mapping.targetField}" references deleted variable "$${varName}"`);
+              }
+            });
+          });
+        }
+        
+        // Check variables for references to other deleted variables
+        if (config.variables && config.variables.length > 0) {
+          config.variables.forEach((variable, index) => {
+            // Get names of variables that come BEFORE this one (since variables are evaluated in order)
+            const priorVarNames = new Set(config.variables.slice(0, index).map(v => v.name));
+            
+            const expression = variable.expression || '';
+            const varRefs = extractVarRefs(expression);
+            
+            varRefs.forEach(refName => {
+              // Check if the referenced variable exists at all in the variables list
+              if (!variableNames.has(refName)) {
+                errors.push(`Expression node "${node.data.label}" - variable "$${variable.name}" references deleted variable "$${refName}"`);
+              }
+              // Also check if a variable references a variable that comes AFTER it (circular/forward reference)
+              else if (!priorVarNames.has(refName) && refName !== variable.name) {
+                // It's referencing a variable that comes after it - this might be intentional, don't error
+              }
+            });
+          });
+        }
       }
     });
     
@@ -1881,8 +1975,32 @@ const VisualMappingCanvasContent = () => {
                   return { name: colName, type: colType };
                 });
               }
-              if (node.type === 'expression' && config.fieldMappings) {
-                return config.fieldMappings.map(m => ({ name: m.targetField, type: 'STRING' }));
+              if (node.type === 'expression') {
+                if (config.outputSchema && config.outputSchema.length > 0) {
+                  return config.outputSchema.map(col => ({
+                    name: col.name || col.target_field || '',
+                    type: col.type || col.data_type || 'STRING',
+                    precision: col.precision ?? null,
+                    scale: col.scale ?? null,
+                    nullable: col.nullable ?? true,
+                    pii: col.pii || false,
+                    dqRules: col.dqRules || []
+                  }));
+                }
+                if (config.fieldMappings) {
+                  return config.fieldMappings
+                    .filter(m => m.include !== false)
+                    .map(m => ({
+                      name: m.target_field || m.targetField || '',
+                      type: m.data_type || m.dataType || m.type || m.column_type || 'STRING',
+                      precision: m.precision ?? null,
+                      scale: m.scale ?? null,
+                      nullable: m.nullable ?? true,
+                      pii: false,
+                      dqRules: []
+                    }));
+                }
+                return [];
               }
               if (node.type === 'join' && config.outputSchema) {
                 return config.outputSchema;
@@ -1930,8 +2048,32 @@ const VisualMappingCanvasContent = () => {
                   return { name: colName, type: colType };
                 });
               }
-              if (node.type === 'expression' && config.fieldMappings) {
-                return config.fieldMappings.map(m => ({ name: m.targetField, type: 'STRING' }));
+              if (node.type === 'expression') {
+                if (config.outputSchema && config.outputSchema.length > 0) {
+                  return config.outputSchema.map(col => ({
+                    name: col.name || col.target_field || '',
+                    type: col.type || col.data_type || 'STRING',
+                    precision: col.precision ?? null,
+                    scale: col.scale ?? null,
+                    nullable: col.nullable ?? true,
+                    pii: col.pii || false,
+                    dqRules: col.dqRules || []
+                  }));
+                }
+                if (config.fieldMappings) {
+                  return config.fieldMappings
+                    .filter(m => m.include !== false)
+                    .map(m => ({
+                      name: m.target_field || m.targetField || '',
+                      type: m.data_type || m.dataType || m.type || m.column_type || 'STRING',
+                      precision: m.precision ?? null,
+                      scale: m.scale ?? null,
+                      nullable: m.nullable ?? true,
+                      pii: false,
+                      dqRules: []
+                    }));
+                }
+                return [];
               }
               if (node.type === 'join' && config.outputSchema) {
                 return config.outputSchema;

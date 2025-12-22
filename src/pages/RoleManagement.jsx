@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { FiEdit2, FiTrash2, FiSearch } from 'react-icons/fi';
 import { useAuth } from '../context/AuthContext';
+import { useDeletePermission } from '../hooks/useDeletePermission';
 import { getRoles, createRole, updateRole, deleteRole, getPermissions } from '../api/authService';
 import LoadingSpinner from '../components/LoadingSpinner';
 import Pagination from '../components/Pagination';
@@ -21,6 +22,7 @@ const RoleManagement = () => {
   const [modalMode, setModalMode] = useState('create'); // 'create' or 'edit'
   const [selectedRole, setSelectedRole] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -46,6 +48,7 @@ const RoleManagement = () => {
   const [bulkDeleteModalOpen, setBulkDeleteModalOpen] = useState(false);
 
   const { currentUser, hasPermission } = useAuth();
+  const { canDelete } = useDeletePermission('roles');
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   
@@ -55,6 +58,19 @@ const RoleManagement = () => {
       [roleId]: !prev[roleId]
     }));
   };
+
+  const handlePageSizeChange = (e) => {
+    setPageSize(parseInt(e.target.value));
+    setCurrentPage(1);
+  };
+
+  // Debounce search term (2.5 seconds)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 2500);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
 
   // Check if user has permission to manage roles
   useEffect(() => {
@@ -71,7 +87,7 @@ const RoleManagement = () => {
     // }
 
     fetchData();
-  }, [currentUser, navigate, currentPage, pageSize]);
+  }, [currentUser, navigate, currentPage, pageSize, debouncedSearchTerm]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -80,7 +96,7 @@ const RoleManagement = () => {
     try {
       const token = localStorage.getItem('token');
       const [rolesResponse, permissionsData, tagsResponse] = await Promise.all([
-        getRoles(currentPage, pageSize),
+        getRoles(currentPage, pageSize, debouncedSearchTerm),
         getPermissions(),
         axios.get('/api/governance-tags', {
           headers: { Authorization: `Bearer ${token}` }
@@ -295,6 +311,89 @@ const RoleManagement = () => {
     });
   };
 
+  // Handle Select All for tag permissions
+  const handleSelectAllTagPermissions = (checked) => {
+    setFormData(prev => {
+      const updatedTagPermissions = { ...prev.tagPermissions };
+      governanceTags.forEach(tag => {
+        const tagKey = tag.tag_name.toLowerCase();
+        updatedTagPermissions[tagKey] = {
+          read: checked,
+          edit: checked
+        };
+      });
+      return { ...prev, tagPermissions: updatedTagPermissions };
+    });
+  };
+
+  // Check if all tag permissions are selected
+  const isAllTagPermissionsSelected = () => {
+    return governanceTags.length > 0 && governanceTags.every(tag => {
+      const tagKey = tag.tag_name.toLowerCase();
+      const perms = formData.tagPermissions?.[tagKey];
+      return perms?.read && perms?.edit;
+    });
+  };
+
+  // Handle Select All for all features globally
+  const handleSelectAllGlobal = (checked) => {
+    setFormData(prev => {
+      const updatedPermissions = { ...prev.permissions };
+      APP_FEATURES.forEach(feature => {
+        if (feature.isParentOnly) return;
+        updatedPermissions[feature.id] = {
+          read: checked,
+          write: checked,
+          execute: feature.supportsExecute ? checked : undefined,
+          approve: feature.supportsApprove ? checked : undefined
+        };
+      });
+      return { ...prev, permissions: updatedPermissions };
+    });
+  };
+
+  // Handle Select All for a specific category
+  const handleSelectAllCategory = (category, checked) => {
+    const categoryFeatures = FEATURE_CATEGORIES[category] || [];
+    setFormData(prev => {
+      const updatedPermissions = { ...prev.permissions };
+      categoryFeatures.forEach(feature => {
+        if (feature.isParentOnly) return;
+        updatedPermissions[feature.id] = {
+          read: checked,
+          write: checked,
+          execute: feature.supportsExecute ? checked : undefined,
+          approve: feature.supportsApprove ? checked : undefined
+        };
+      });
+      return { ...prev, permissions: updatedPermissions };
+    });
+  };
+
+  // Check if all features globally are selected
+  const isAllGlobalSelected = () => {
+    const allFeatures = APP_FEATURES.filter(f => !f.isParentOnly);
+    return allFeatures.length > 0 && allFeatures.every(feature => {
+      const perms = formData.permissions[feature.id];
+      if (!perms?.read || !perms?.write) return false;
+      if (feature.supportsExecute && !perms?.execute) return false;
+      if (feature.supportsApprove && !perms?.approve) return false;
+      return true;
+    });
+  };
+
+  // Check if all features in a category are selected
+  const isCategoryAllSelected = (category) => {
+    const categoryFeatures = (FEATURE_CATEGORIES[category] || []).filter(f => !f.isParentOnly);
+    return categoryFeatures.length > 0 && categoryFeatures.every(feature => {
+      const perms = formData.permissions[feature.id];
+      if (!perms?.read || !perms?.write) return false;
+      if (feature.supportsExecute && !perms?.execute) return false;
+      if (feature.supportsApprove && !perms?.approve) return false;
+      return true;
+    });
+  };
+
   // Convert permissions object to array format for API
   const formatPermissionsForAPI = (permissions, tagPermissions) => {
     const result = [];
@@ -352,6 +451,7 @@ const RoleManagement = () => {
         //   return;
         // }
         
+        console.log('Creating role with data:', JSON.stringify(roleData, null, 2));
         await createRole(roleData);
       } else {
         // Temporarily bypass permission checks
@@ -389,7 +489,9 @@ const RoleManagement = () => {
       fetchData();
     } catch (error) {
       console.error('Error saving role:', error);
-      setError('Failed to save role: ' + (error.response?.data?.error || error.message));
+      console.error('Error response data:', error.response?.data);
+      const errorMessage = error.response?.data?.error || error.response?.data?.message || error.message;
+      setError(errorMessage);
     }
   };
 
@@ -411,13 +513,13 @@ const RoleManagement = () => {
   const confirmDeleteRole = async () => {
     if (!roleToDelete) return;
     
+    if (!canDelete) {
+      setError("You don't have permission to delete roles");
+      closeDeleteModal();
+      return;
+    }
+    
     try {
-      // Temporarily bypass permission checks
-      // if (!hasPermission('role_delete')) {
-      //   setError("You don't have permission to delete roles");
-      //   return;
-      // }
-      
       await deleteRole(roleToDelete.id);
       closeDeleteModal();
       fetchData();
@@ -428,12 +530,11 @@ const RoleManagement = () => {
   };
   
   // Bulk delete handlers for roles
-  const protectedRoleNames = ['Admin', 'User', 'Vendor', 'Governance Manager', 'Data Steward'];
-  
   const handleSelectAllRoles = (e) => {
+    if (!canDelete) return;
     if (e.target.checked) {
-      const selectableRoleIds = filteredRoles
-        .filter(role => !protectedRoleNames.includes(role.name))
+      const selectableRoleIds = roles
+        .filter(role => role.name.toLowerCase() !== 'admin')
         .map(role => role.id);
       setSelectedRoleIds(selectableRoleIds);
     } else {
@@ -465,6 +566,12 @@ const RoleManagement = () => {
   
   const confirmBulkDeleteRoles = async () => {
     if (selectedRoleIds.length === 0) return;
+    
+    if (!canDelete) {
+      setError("You don't have permission to delete roles");
+      closeBulkDeleteModal();
+      return;
+    }
     
     try {
       const response = await axios.post('/api/users/roles/bulk-delete', {
@@ -530,20 +637,12 @@ const RoleManagement = () => {
     });
   };
 
-  const filteredRoles = roles.filter(role => {
-    const searchLower = searchTerm.toLowerCase();
-    return (
-      (role.name || '').toLowerCase().includes(searchLower) ||
-      (role.description || '').toLowerCase().includes(searchLower)
-    );
-  });
-
-  // Clamp currentPage when filtered results are empty
+  // Clamp currentPage when results are empty
   useEffect(() => {
-    if (filteredRoles.length === 0 && currentPage > 1) {
+    if (roles.length === 0 && currentPage > 1) {
       setCurrentPage(1);
     }
-  }, [filteredRoles.length, currentPage]);
+  }, [roles.length, currentPage]);
 
   if (loading) {
     return (
@@ -564,7 +663,7 @@ const RoleManagement = () => {
           <Link to="/users" className="gps-btn gps-btn--secondary">
             User Management
           </Link>
-          {selectedRoleIds.length > 0 && (
+          {canDelete && selectedRoleIds.length > 0 && (
             <button 
               className="gps-btn gps-btn--danger"
               onClick={openBulkDeleteModal}
@@ -607,13 +706,15 @@ const RoleManagement = () => {
         <table className="gps-table">
           <thead>
             <tr>
-              <th style={{ width: '50px' }}>
-                <input
-                  type="checkbox"
-                  onChange={handleSelectAllRoles}
-                  checked={selectedRoleIds.length > 0 && selectedRoleIds.length === filteredRoles.filter(r => !protectedRoleNames.includes(r.name)).length}
-                />
-              </th>
+              {canDelete && (
+                <th style={{ width: '50px' }}>
+                  <input
+                    type="checkbox"
+                    onChange={handleSelectAllRoles}
+                    checked={selectedRoleIds.length > 0 && selectedRoleIds.length === roles.filter(r => r.name.toLowerCase() !== 'admin').length}
+                  />
+                </th>
+              )}
               <th>Role Name</th>
               <th>Description</th>
               <th>Permissions</th>
@@ -622,29 +723,31 @@ const RoleManagement = () => {
             </tr>
           </thead>
           <tbody>
-            {filteredRoles.length === 0 ? (
+            {roles.length === 0 ? (
               <tr>
-                <td colSpan="6" className="no-roles-message">
+                <td colSpan={canDelete ? 6 : 5} className="no-roles-message">
                   {searchTerm ? 'No roles found matching your search' : 'No roles found'}
                 </td>
               </tr>
             ) : (
-              filteredRoles.map(role => {
+              roles.map(role => {
                 const permissions = formatPermissionsDisplay(role.permissions);
                 const isExpanded = expandedRoles[role.id];
                 const displayedPermissions = isExpanded ? permissions : permissions.slice(0, 3);
-                const isProtected = protectedRoleNames.includes(role.name);
+                const isAdmin = role.name.toLowerCase() === 'admin';
                 
                 return (
                   <tr key={role.id}>
-                    <td>
-                      <input
-                        type="checkbox"
-                        checked={selectedRoleIds.includes(role.id)}
-                        onChange={() => handleSelectRole(role.id)}
-                        disabled={isProtected}
-                      />
-                    </td>
+                    {canDelete && (
+                      <td>
+                        <input
+                          type="checkbox"
+                          checked={selectedRoleIds.includes(role.id)}
+                          onChange={() => handleSelectRole(role.id)}
+                          disabled={isAdmin}
+                        />
+                      </td>
+                    )}
                     <td>{role.name}</td>
                     <td>{role.description || '-'}</td>
                     <td>
@@ -679,7 +782,7 @@ const RoleManagement = () => {
                           <FiEdit2 />
                         </button>
                         
-                        {role.name.toLowerCase() !== 'admin' && (
+                        {canDelete && role.name.toLowerCase() !== 'admin' && (
                           <button 
                             className="gps-icon-btn gps-icon-btn--delete" 
                             onClick={() => openDeleteModal(role)}
@@ -705,6 +808,8 @@ const RoleManagement = () => {
         onPageChange={setCurrentPage}
         itemsPerPage={pageSize}
         totalItems={totalCount}
+        pageSize={pageSize}
+        onPageSizeChange={handlePageSizeChange}
       />
       
       {/* Role Form Modal */}
@@ -726,10 +831,10 @@ const RoleManagement = () => {
       >
         <form id="role-form" onSubmit={handleSubmit}>
           <div className="form-section">
-            <h3 className="section-title">ROLE INFORMATION</h3>
+            <h3 className="section-title" style={{ fontSize: '11px' }}>ROLE INFORMATION</h3>
             
             <div className="form-group">
-              <label htmlFor="name">Role Name <span className="required-field">*</span></label>
+              <label htmlFor="name" style={{ fontSize: '10px' }}>Role Name <span className="required-field">*</span></label>
               <input
                 type="text"
                 id="name"
@@ -738,11 +843,16 @@ const RoleManagement = () => {
                 onChange={handleInputChange}
                 disabled={modalMode === 'edit' && formData.name.toLowerCase() === 'admin'}
                 required
+                maxLength={50}
+                style={{ fontSize: '10px' }}
               />
+              <div style={{ fontSize: '9px', color: '#6b7280', textAlign: 'right', marginTop: '2px' }}>
+                {formData.name.length}/50 characters
+              </div>
             </div>
             
             <div className="form-group">
-              <label htmlFor="description">Description</label>
+              <label htmlFor="description" style={{ fontSize: '10px' }}>Description</label>
               <textarea
                 id="description"
                 name="description"
@@ -750,15 +860,33 @@ const RoleManagement = () => {
                 onChange={handleInputChange}
                 placeholder="Describe the purpose of this role"
                 rows={3}
+                maxLength={500}
+                style={{ fontSize: '10px' }}
               />
+              <div style={{ fontSize: '9px', color: '#6b7280', textAlign: 'right', marginTop: '2px' }}>
+                {formData.description.length}/500 characters
+              </div>
             </div>
           </div>
           
           <div className="form-section">
-            <h3 className="section-title">FEATURE PERMISSIONS</h3>
-            <small style={{ display: 'block', marginBottom: '16px', color: '#666', fontSize: '10px' }}>
+            <h3 className="section-title" style={{ fontSize: '11px' }}>FEATURE PERMISSIONS</h3>
+            <small style={{ display: 'block', marginBottom: '12px', color: '#666', fontSize: '10px' }}>
               Select which features this role can access and modify.
             </small>
+            
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px', padding: '8px 12px', backgroundColor: '#f8fafc', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
+              <input
+                type="checkbox"
+                id="select-all-global"
+                checked={isAllGlobalSelected()}
+                onChange={(e) => handleSelectAllGlobal(e.target.checked)}
+                style={{ cursor: 'pointer' }}
+              />
+              <label htmlFor="select-all-global" style={{ fontSize: '10px', fontWeight: '600', color: '#374151', cursor: 'pointer', margin: 0 }}>
+                Select All Permissions
+              </label>
+            </div>
             
             {Object.entries(FEATURE_CATEGORIES).map(([category, features]) => {
               const displayFeatures = features.filter(f => !f.isParentOnly);
@@ -779,17 +907,27 @@ const RoleManagement = () => {
               return (
                 <div key={category} className="permission-category">
                   <div className={gridClass}>
-                    <div className="permission-header feature-name">{category}</div>
-                    <div className="permission-header">View</div>
-                    <div className="permission-header">Edit</div>
-                    {hasExecuteFeatures && <div className="permission-header">Execute</div>}
-                    {hasApproveFeatures && <div className="permission-header">Approve</div>}
+                    <div className="permission-header feature-name" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '10px' }}>
+                      <input
+                        type="checkbox"
+                        id={`select-all-${category.replace(/\s+/g, '-')}`}
+                        checked={isCategoryAllSelected(category)}
+                        onChange={(e) => handleSelectAllCategory(category, e.target.checked)}
+                        style={{ cursor: 'pointer' }}
+                        title={`Select all in ${category}`}
+                      />
+                      {category}
+                    </div>
+                    <div className="permission-header" style={{ fontSize: '10px' }}>View</div>
+                    <div className="permission-header" style={{ fontSize: '10px' }}>Edit</div>
+                    {hasExecuteFeatures && <div className="permission-header" style={{ fontSize: '10px' }}>Execute</div>}
+                    {hasApproveFeatures && <div className="permission-header" style={{ fontSize: '10px' }}>Approve</div>}
                     
                     <div className="section-divider"></div>
                     
                     {displayFeatures.map(feature => (
                       <React.Fragment key={feature.id}>
-                        <div className={`feature-name ${feature.isNested || feature.isVendorSubmodule ? 'nested-feature' : ''}`}>
+                        <div className={`feature-name ${feature.isNested || feature.isVendorSubmodule ? 'nested-feature' : ''}`} style={{ fontSize: '10px' }}>
                           {(feature.isNested || feature.isVendorSubmodule) && <span className="nested-indicator">↳ </span>}
                           {feature.name}
                         </div>
@@ -856,16 +994,29 @@ const RoleManagement = () => {
           {/* Tag Permissions Section */}
           {governanceTags.length > 0 && (
             <div className="form-section">
-              <h3 className="section-title">DATA GOVERNANCE TAG PERMISSIONS</h3>
-              <small style={{ display: 'block', marginBottom: '16px', color: '#666', fontSize: '10px' }}>
+              <h3 className="section-title" style={{ fontSize: '11px' }}>Data Governance Tag Permissions</h3>
+              <small style={{ display: 'block', marginBottom: '12px', color: '#666', fontSize: '10px' }}>
                 Control access to columns tagged with sensitive data classifications.
               </small>
               
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px', padding: '8px 12px', backgroundColor: '#f8fafc', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
+                <input
+                  type="checkbox"
+                  id="select-all-tags"
+                  checked={isAllTagPermissionsSelected()}
+                  onChange={(e) => handleSelectAllTagPermissions(e.target.checked)}
+                  style={{ cursor: 'pointer' }}
+                />
+                <label htmlFor="select-all-tags" style={{ fontSize: '10px', fontWeight: '600', color: '#374151', cursor: 'pointer', margin: 0 }}>
+                  Select All Tag Permissions
+                </label>
+              </div>
+              
               <div className="permission-category">
                 <div className="permissions-grid">
-                  <div className="permission-header feature-name">Tag</div>
-                  <div className="permission-header">View</div>
-                  <div className="permission-header">Edit</div>
+                  <div className="permission-header feature-name" style={{ fontSize: '10px' }}>Tag</div>
+                  <div className="permission-header" style={{ fontSize: '10px' }}>View</div>
+                  <div className="permission-header" style={{ fontSize: '10px' }}>Edit</div>
                   
                   <div className="section-divider"></div>
                   
@@ -873,15 +1024,15 @@ const RoleManagement = () => {
                     const tagKey = tag.tag_name.toLowerCase();
                     return (
                       <React.Fragment key={tag.tag_id}>
-                        <div className="feature-name">
+                        <div className="feature-name" style={{ fontSize: '10px' }}>
                           <span 
                             className="tag-badge-inline" 
-                            style={{ backgroundColor: tag.color || '#3B82F6' }}
+                            style={{ backgroundColor: tag.color || '#3B82F6', fontSize: '8px', padding: '2px 6px' }}
                           >
                             {tag.tag_name}
                           </span>
                           {tag.sensitivity_level && (
-                            <span className="tag-sensitivity-hint">
+                            <span className="tag-sensitivity-hint" style={{ fontSize: '9px' }}>
                               ({tag.sensitivity_level})
                             </span>
                           )}

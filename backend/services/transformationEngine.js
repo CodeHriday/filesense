@@ -54,7 +54,7 @@ function applyTransformation(transformationType, value, params = {}, context = {
         return caseWhen(value, params);
       
       case 'if':
-        return ifCondition(value, params);
+        return ifCondition(value, params, context);
       
       case 'cast':
         return cast(value, params);
@@ -120,20 +120,35 @@ function nullToValue(value, params) {
 
 /**
  * Concatenate multiple fields or add prefix/suffix
+ * Ensures all values are converted to primitive strings to avoid [object Object] issues
  */
 function concat(value, params) {
   const { fields = [], separator = '', prefix = '', suffix = '', concatParts = [] } = params;
+  
+  // Helper to safely convert value to string
+  const toSafeString = (val) => {
+    if (val === null || val === undefined) return '';
+    if (typeof val === 'object') {
+      // Handle objects (e.g., nested JSON) by serializing or returning empty
+      try {
+        return JSON.stringify(val);
+      } catch (e) {
+        return '';
+      }
+    }
+    return String(val);
+  };
   
   // NEW FORMAT: Use concatParts to maintain proper ordering of fields and literals
   if (concatParts.length > 0) {
     const parts = concatParts.map(part => {
       if (part.type === 'field') {
-        return value[part.value] || '';
+        return toSafeString(value[part.value]);
       } else if (part.type === 'literal') {
-        return part.value;
+        return String(part.value ?? '');
       } else if (part.type === 'variable') {
         // Variables should be in the enriched row as $var_name
-        return value[part.value] || '';
+        return toSafeString(value[part.value]);
       }
       return '';
     });
@@ -143,12 +158,12 @@ function concat(value, params) {
   // LEGACY FORMAT: Use fields with separator
   if (fields.length > 0) {
     // Concatenate multiple fields (value is a row object)
-    const values = fields.map(field => value[field] || '');
+    const values = fields.map(field => toSafeString(value[field]));
     return prefix + values.join(separator) + suffix;
   }
   
   // Single value with prefix/suffix
-  return prefix + (value || '') + suffix;
+  return prefix + toSafeString(value) + suffix;
 }
 
 /**
@@ -367,67 +382,140 @@ function caseWhen(value, params) {
 }
 
 /**
- * IF conditional logic - Simple if-then-else
+ * IF conditional logic - Enhanced with compound conditions support
  * @param {any} value - The value to evaluate
  * @param {Object} params - Parameters including operator, compareValue, thenValue, elseValue
+ *                          Also supports compoundConditions and logicalOperators for complex conditions
+ * @param {Object} context - Execution context with row data for resolving field values
  * @returns {any} - The result based on the condition
  */
-function ifCondition(value, params) {
+function ifCondition(value, params, context = {}) {
   const { 
     operator = 'equals', 
     compareValue = null, 
     thenValue = null, 
-    elseValue = null 
+    elseValue = null,
+    compoundConditions = null,
+    logicalOperators = [],
+    thenValueNested = null,
+    elseValueNested = null
   } = params;
+  
+  // Helper to evaluate a single condition
+  const evaluateSingleCondition = (fieldValue, op, compValue) => {
+    switch (op) {
+      case 'equals':
+      case '=':
+        return fieldValue == compValue;
+      case 'not_equals':
+      case '!=':
+        return fieldValue != compValue;
+      case 'greater_than':
+      case '>':
+        return parseFloat(fieldValue) > parseFloat(compValue);
+      case 'less_than':
+      case '<':
+        return parseFloat(fieldValue) < parseFloat(compValue);
+      case 'greater_than_or_equal':
+      case '>=':
+        return parseFloat(fieldValue) >= parseFloat(compValue);
+      case 'less_than_or_equal':
+      case '<=':
+        return parseFloat(fieldValue) <= parseFloat(compValue);
+      case 'contains':
+        return String(fieldValue).includes(String(compValue));
+      case 'starts_with':
+        return String(fieldValue).startsWith(String(compValue));
+      case 'ends_with':
+        return String(fieldValue).endsWith(String(compValue));
+      case 'is_null':
+        return fieldValue === null || fieldValue === undefined || fieldValue === '';
+      case 'is_not_null':
+        return fieldValue !== null && fieldValue !== undefined && fieldValue !== '';
+      default:
+        return Boolean(fieldValue);
+    }
+  };
   
   let condition = false;
   
-  switch (operator) {
-    case 'equals':
-    case '=':
-      condition = value == compareValue;
-      break;
-    case 'not_equals':
-    case '!=':
-      condition = value != compareValue;
-      break;
-    case 'greater_than':
-    case '>':
-      condition = parseFloat(value) > parseFloat(compareValue);
-      break;
-    case 'less_than':
-    case '<':
-      condition = parseFloat(value) < parseFloat(compareValue);
-      break;
-    case 'greater_than_or_equal':
-    case '>=':
-      condition = parseFloat(value) >= parseFloat(compareValue);
-      break;
-    case 'less_than_or_equal':
-    case '<=':
-      condition = parseFloat(value) <= parseFloat(compareValue);
-      break;
-    case 'contains':
-      condition = String(value).includes(String(compareValue));
-      break;
-    case 'starts_with':
-      condition = String(value).startsWith(String(compareValue));
-      break;
-    case 'ends_with':
-      condition = String(value).endsWith(String(compareValue));
-      break;
-    case 'is_null':
-      condition = value === null || value === undefined || value === '';
-      break;
-    case 'is_not_null':
-      condition = value !== null && value !== undefined && value !== '';
-      break;
-    default:
-      // If no specific operator, treat value as boolean
-      condition = Boolean(value);
+  // Check for compound conditions (new syntax)
+  if (compoundConditions && Array.isArray(compoundConditions) && compoundConditions.length > 0) {
+    // Evaluate each condition and combine with logical operators
+    const row = context.row || {};
+    const variableValues = context.variableValues || {};
+    
+    const conditionResults = compoundConditions.map(cond => {
+      // Resolve field value from row or variables
+      let fieldValue;
+      if (cond.field && cond.field.startsWith('$')) {
+        // Variable reference
+        fieldValue = variableValues[cond.field] || variableValues[cond.field.substring(1)];
+      } else {
+        // Column reference
+        fieldValue = row[cond.field];
+      }
+      
+      // Resolve compare value if it's a column or variable reference
+      let compValue = cond.compareValue;
+      if (typeof compValue === 'string') {
+        if (compValue.startsWith('$')) {
+          compValue = variableValues[compValue] || variableValues[compValue.substring(1)] || compValue;
+        } else if (row[compValue] !== undefined) {
+          compValue = row[compValue];
+        }
+      }
+      
+      return evaluateSingleCondition(fieldValue, cond.operator, compValue);
+    });
+    
+    // Combine results with logical operators
+    condition = conditionResults[0];
+    for (let i = 0; i < logicalOperators.length && i + 1 < conditionResults.length; i++) {
+      const logOp = logicalOperators[i];
+      if (logOp === '&') {
+        condition = condition && conditionResults[i + 1];
+      } else if (logOp === '|') {
+        condition = condition || conditionResults[i + 1];
+      }
+    }
+  } else {
+    // Simple single condition (original syntax)
+    condition = evaluateSingleCondition(value, operator, compareValue);
   }
   
-  return condition ? thenValue : elseValue;
+  // Helper to resolve nestedArgs field values from row context
+  const resolveNestedValue = (nested) => {
+    if (!nested || !nested.nestedArgs || nested.nestedArgs.length === 0) {
+      return value;
+    }
+    const row = context.row || {};
+    const variableValues = context.variableValues || {};
+    const firstArg = nested.nestedArgs[0];
+    if (firstArg.type === 'COLUMN') {
+      return row[firstArg.name];
+    } else if (firstArg.type === 'VARIABLE') {
+      return variableValues[firstArg.name] || variableValues[firstArg.name.replace('$', '')];
+    }
+    return value;
+  };
+
+  // Return result - handle nested if() calls
+  if (condition) {
+    if (thenValueNested) {
+      // Execute nested transformation with resolved field value
+      const nestedValue = resolveNestedValue(thenValueNested);
+      return applyTransformation(thenValueNested.transformation, nestedValue, thenValueNested.params, context);
+    }
+    return thenValue;
+  } else {
+    if (elseValueNested) {
+      // Execute nested transformation (like nested if()) with resolved field value
+      const nestedValue = resolveNestedValue(elseValueNested);
+      return applyTransformation(elseValueNested.transformation, nestedValue, elseValueNested.params, context);
+    }
+    return elseValue;
+  }
 }
 
 /**
@@ -871,6 +959,13 @@ function transformRow(row, fieldMappings, variables = [], context = {}) {
       
       let value;
       
+      // Enrich context for variable evaluation (includes current variableValues)
+      const varContext = {
+        ...context,
+        row: enrichedRow,
+        variableValues
+      };
+      
       // Variables can reference source fields, other variables, or be system-generated
       if (sourceFields && sourceFields.length > 0) {
         // PRIORITY 1: Check if transformations require row-level context (concat/coalesce/math with multiple fields)
@@ -882,7 +977,7 @@ function transformRow(row, fieldMappings, variables = [], context = {}) {
         if (transformations.length > 0 && (transformations[0].type === 'concat' || transformations[0].type === 'coalesce' || isMathWithMultipleFields)) {
           // Multi-field operations - pass enriched row and transformations are applied inside
           // DO NOT apply transformations again (already applied with row context)
-          value = applyTransformationChain(enrichedRow, transformations, context);
+          value = applyTransformationChain(enrichedRow, transformations, varContext);
         } else {
           // PRIORITY 2: Check if source is a variable reference
           const firstSource = sourceFields[0];
@@ -891,17 +986,17 @@ function transformRow(row, fieldMappings, variables = [], context = {}) {
             const varName = firstSource.substring(1);
             value = variableValues[varName];
             // Apply transformations to variable value
-            value = applyTransformationChain(value, transformations, context);
+            value = applyTransformationChain(value, transformations, varContext);
           } else {
             // Single field reference
             value = enrichedRow[firstSource];
             // Apply transformations to single field value
-            value = applyTransformationChain(value, transformations, context);
+            value = applyTransformationChain(value, transformations, varContext);
           }
         }
       } else {
         // System-generated or static value
-        value = applyTransformationChain(null, transformations, context);
+        value = applyTransformationChain(null, transformations, varContext);
       }
       
       // Apply data type conversion if specified
@@ -912,11 +1007,19 @@ function transformRow(row, fieldMappings, variables = [], context = {}) {
       // Store variable value
       variableValues[name] = value;
       enrichedRow[`$${name}`] = value; // Make available as $variable_name
+      enrichedRow[name] = value; // Also store without $ prefix for passthrough mappings
     }
   }
   
   // Step 2: Process field mappings
   const transformedRow = {};
+  
+  // Enrich context with row and variableValues for IF conditions that need field lookups
+  const enrichedContext = {
+    ...context,
+    row: enrichedRow,
+    variableValues
+  };
   
   for (const mapping of fieldMappings) {
     const { targetField, sourceFields, transformations = [] } = mapping;
@@ -933,7 +1036,7 @@ function transformRow(row, fieldMappings, variables = [], context = {}) {
       
       if (transformations.length > 0 && (transformations[0].type === 'concat' || transformations[0].type === 'coalesce' || isMathWithMultipleFields)) {
         // Multi-field operations - pass enriched row
-        value = applyTransformationChain(enrichedRow, transformations, context);
+        value = applyTransformationChain(enrichedRow, transformations, enrichedContext);
       } else {
         // PRIORITY 2: Check if source is a variable reference
         const firstSource = sourceFields[0];
@@ -942,16 +1045,20 @@ function transformRow(row, fieldMappings, variables = [], context = {}) {
           // Variable reference
           const varName = firstSource.substring(1);
           value = variableValues[varName];
-          value = applyTransformationChain(value, transformations, context);
+          value = applyTransformationChain(value, transformations, enrichedContext);
         } else {
           // Use first source field
+          // First check if it exists in the row, then check variableValues as fallback
           value = enrichedRow[firstSource];
-          value = applyTransformationChain(value, transformations, context);
+          if (value === undefined && variableValues[firstSource] !== undefined) {
+            value = variableValues[firstSource];
+          }
+          value = applyTransformationChain(value, transformations, enrichedContext);
         }
       }
     } else {
       // Static or system-generated value
-      value = applyTransformationChain(null, transformations, context);
+      value = applyTransformationChain(null, transformations, enrichedContext);
     }
     
     transformedRow[targetField] = value;

@@ -74,9 +74,10 @@ function FileUpload() {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
-  const { hasWritePermission, currentUser } = useAuth();
+  const { hasWritePermission, currentUser, hasPermission } = useAuth();
   
-  const isAdmin = currentUser?.roles?.includes('Admin');
+  // Check for admin-level access (uses permission-based check for backward compatibility)
+  const isAdmin = hasPermission('users:write') || hasPermission('project_management:write') || currentUser?.roles?.includes('Admin');
   
   // Quality rules states
   const [availableQualityRules, setAvailableQualityRules] = useState([]);

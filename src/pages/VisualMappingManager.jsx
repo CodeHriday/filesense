@@ -10,9 +10,14 @@ import {
   FaCopy
 } from 'react-icons/fa';
 import { FiEdit2, FiTrash2, FiPlay } from 'react-icons/fi';
+import { useAuth } from '../context/AuthContext';
 
 const VisualMappingManager = () => {
   const navigate = useNavigate();
+  const { hasWritePermission, hasExecutePermission } = useAuth();
+  
+  const canWrite = hasWritePermission('visual_mapping_orchestrator');
+  const canExecute = hasExecutePermission('visual_mapping_orchestrator');
   
   const [mappings, setMappings] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -28,6 +33,11 @@ const VisualMappingManager = () => {
   
   // Selected items for bulk actions
   const [selectedMappings, setSelectedMappings] = useState(new Set());
+  
+  // Delete confirmation modal
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [isBulkDelete, setIsBulkDelete] = useState(false);
   
   // Execution history modal
   const [showHistoryModal, setShowHistoryModal] = useState(false);
@@ -107,19 +117,44 @@ const VisualMappingManager = () => {
     navigate(`/visual-mappings/${mappingId}`);
   };
   
-  const handleDelete = async (mappingId, mappingName) => {
-    if (!window.confirm(`Are you sure you want to delete "${mappingName}"?`)) {
-      return;
+  const handleDelete = (mappingId, mappingName) => {
+    setDeleteTarget({ id: mappingId, name: mappingName });
+    setIsBulkDelete(false);
+    setShowDeleteModal(true);
+  };
+  
+  const confirmDelete = async () => {
+    if (isBulkDelete) {
+      try {
+        await Promise.all(
+          Array.from(selectedMappings).map(id => axios.delete(`/api/visual-mappings/${id}`))
+        );
+        setSuccess(`Deleted ${selectedMappings.size} visual mappings`);
+        setSelectedMappings(new Set());
+        fetchMappings();
+      } catch (error) {
+        console.error('Error deleting mappings:', error);
+        setError(error.response?.data?.error || 'Failed to delete some mappings');
+      }
+    } else if (deleteTarget) {
+      try {
+        await axios.delete(`/api/visual-mappings/${deleteTarget.id}`);
+        setSuccess('Visual mapping deleted successfully');
+        fetchMappings();
+      } catch (error) {
+        console.error('Error deleting mapping:', error);
+        setError(error.response?.data?.error || 'Failed to delete mapping');
+      }
     }
-    
-    try {
-      await axios.delete(`/api/visual-mappings/${mappingId}`);
-      setSuccess('Visual mapping deleted successfully');
-      fetchMappings();
-    } catch (error) {
-      console.error('Error deleting mapping:', error);
-      setError(error.response?.data?.error || 'Failed to delete mapping');
-    }
+    setShowDeleteModal(false);
+    setDeleteTarget(null);
+    setIsBulkDelete(false);
+  };
+  
+  const cancelDelete = () => {
+    setShowDeleteModal(false);
+    setDeleteTarget(null);
+    setIsBulkDelete(false);
   };
   
   const handleClone = async (mappingId, mappingName) => {
@@ -179,24 +214,11 @@ const VisualMappingManager = () => {
     }
   };
   
-  const handleBulkDelete = async () => {
+  const handleBulkDelete = () => {
     if (selectedMappings.size === 0) return;
-    
-    if (!window.confirm(`Delete ${selectedMappings.size} selected visual mappings?`)) {
-      return;
-    }
-    
-    try {
-      await Promise.all(
-        Array.from(selectedMappings).map(id => axios.delete(`/api/visual-mappings/${id}`))
-      );
-      setSuccess(`Deleted ${selectedMappings.size} visual mappings`);
-      setSelectedMappings(new Set());
-      fetchMappings();
-    } catch (error) {
-      console.error('Error deleting mappings:', error);
-      setError('Failed to delete some mappings');
-    }
+    setIsBulkDelete(true);
+    setDeleteTarget(null);
+    setShowDeleteModal(true);
   };
   
   const handleBulkExecute = async () => {
@@ -240,9 +262,11 @@ const VisualMappingManager = () => {
           </p>
         </div>
         <div className="visual-mapping-manager-header-right">
-          <button onClick={handleCreate} className="visual-mapping-manager-btn-primary">
-            <FaPlus /> Create Visual Mapping
-          </button>
+          {canWrite && (
+            <button onClick={handleCreate} className="visual-mapping-manager-btn-primary">
+              <FaPlus /> Create Visual Mapping
+            </button>
+          )}
         </div>
       </div>
       
@@ -312,17 +336,21 @@ const VisualMappingManager = () => {
           </div>
         )}
         
-        {selectedMappings.size > 0 && (
+        {selectedMappings.size > 0 && (canWrite || canExecute) && (
           <div className="visual-mapping-manager-bulk-actions">
             <span className="visual-mapping-manager-bulk-count">
               {selectedMappings.size} selected
             </span>
-            <button onClick={handleBulkExecute} className="visual-mapping-manager-bulk-btn">
-              <FiPlay /> Run Selected
-            </button>
-            <button onClick={handleBulkDelete} className="visual-mapping-manager-bulk-btn visual-mapping-manager-bulk-btn-danger">
-              <FiTrash2 /> Delete Selected
-            </button>
+            {canExecute && (
+              <button onClick={handleBulkExecute} className="visual-mapping-manager-bulk-btn">
+                <FiPlay /> Run Selected
+              </button>
+            )}
+            {canWrite && (
+              <button onClick={handleBulkDelete} className="visual-mapping-manager-bulk-btn visual-mapping-manager-bulk-btn-danger">
+                <FiTrash2 /> Delete Selected
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -336,15 +364,18 @@ const VisualMappingManager = () => {
             <thead>
               <tr>
                 <th>
-                  <label htmlFor="select-all-mappings" className="sr-only">Select all mappings</label>
-                  <input
-                    id="select-all-mappings"
-                    type="checkbox"
-                    checked={selectedMappings.size === filteredMappings.length && filteredMappings.length > 0}
-                    onChange={toggleSelectAll}
-                  />
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    {(canWrite || canExecute) && (
+                      <input
+                        type="checkbox"
+                        aria-label="Select all mappings"
+                        checked={selectedMappings.size === filteredMappings.length && filteredMappings.length > 0}
+                        onChange={toggleSelectAll}
+                      />
+                    )}
+                    <span>Name</span>
+                  </div>
                 </th>
-                <th>Name</th>
                 <th>Description</th>
                 <th>Project</th>
                 <th>Sub-Project</th>
@@ -358,29 +389,30 @@ const VisualMappingManager = () => {
             <tbody>
               {filteredMappings.length === 0 ? (
                 <tr>
-                  <td colSpan="10" className="visual-mapping-manager-empty">
+                  <td colSpan="9" className="visual-mapping-manager-empty">
                     No visual mappings found. Create your first visual mapping to get started.
                   </td>
                 </tr>
               ) : (
                 filteredMappings.map(mapping => (
                   <tr key={mapping.id}>
-                    <td>
-                      <label htmlFor={`select-mapping-${mapping.id}`} className="sr-only">Select {mapping.name}</label>
-                      <input
-                        id={`select-mapping-${mapping.id}`}
-                        type="checkbox"
-                        checked={selectedMappings.has(mapping.id)}
-                        onChange={() => toggleSelectMapping(mapping.id)}
-                      />
-                    </td>
                     <td className="visual-mapping-manager-name-cell">
-                      <button
-                        onClick={() => handleEdit(mapping.id)}
-                        className="visual-mapping-manager-link"
-                      >
-                        {mapping.name}
-                      </button>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        {(canWrite || canExecute) && (
+                          <input
+                            type="checkbox"
+                            aria-label={`Select ${mapping.name}`}
+                            checked={selectedMappings.has(mapping.id)}
+                            onChange={() => toggleSelectMapping(mapping.id)}
+                          />
+                        )}
+                        <button
+                          onClick={() => handleEdit(mapping.id)}
+                          className="visual-mapping-manager-link"
+                        >
+                          {mapping.name}
+                        </button>
+                      </div>
                     </td>
                     <td>{mapping.description || '-'}</td>
                     <td>{mapping.project_name || '-'}</td>
@@ -390,20 +422,24 @@ const VisualMappingManager = () => {
                     <td>{mapping.execution_count || 0}</td>
                     <td>{formatDate(mapping.created_at)}</td>
                     <td className="visual-mapping-manager-actions">
-                      <button
-                        onClick={() => handleEdit(mapping.id)}
-                        className="visual-mapping-manager-action-btn visual-mapping-manager-action-btn-edit"
-                        title="Edit"
-                      >
-                        <FiEdit2 />
-                      </button>
-                      <button
-                        onClick={() => handleExecute(mapping.id)}
-                        className="visual-mapping-manager-action-btn visual-mapping-manager-action-btn-run"
-                        title="Run"
-                      >
-                        <FiPlay />
-                      </button>
+                      {canWrite && (
+                        <button
+                          onClick={() => handleEdit(mapping.id)}
+                          className="visual-mapping-manager-action-btn visual-mapping-manager-action-btn-edit"
+                          title="Edit"
+                        >
+                          <FiEdit2 />
+                        </button>
+                      )}
+                      {canExecute && (
+                        <button
+                          onClick={() => handleExecute(mapping.id)}
+                          className="visual-mapping-manager-action-btn visual-mapping-manager-action-btn-run"
+                          title="Run"
+                        >
+                          <FiPlay />
+                        </button>
+                      )}
                       <button
                         onClick={() => handleShowHistory(mapping.id)}
                         className="visual-mapping-manager-action-btn visual-mapping-manager-action-btn-history"
@@ -411,26 +447,71 @@ const VisualMappingManager = () => {
                       >
                         <FaHistory />
                       </button>
-                      <button
-                        onClick={() => handleClone(mapping.id, mapping.name)}
-                        className="visual-mapping-manager-action-btn visual-mapping-manager-action-btn-clone"
-                        title="Clone"
-                      >
-                        <FaCopy />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(mapping.id, mapping.name)}
-                        className="visual-mapping-manager-action-btn visual-mapping-manager-action-btn-danger"
-                        title="Delete"
-                      >
-                        <FiTrash2 />
-                      </button>
+                      {canWrite && (
+                        <button
+                          onClick={() => handleClone(mapping.id, mapping.name)}
+                          className="visual-mapping-manager-action-btn visual-mapping-manager-action-btn-clone"
+                          title="Clone"
+                        >
+                          <FaCopy />
+                        </button>
+                      )}
+                      {canWrite && (
+                        <button
+                          onClick={() => handleDelete(mapping.id, mapping.name)}
+                          className="visual-mapping-manager-action-btn visual-mapping-manager-action-btn-danger"
+                          title="Delete"
+                        >
+                          <FiTrash2 />
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))
               )}
             </tbody>
           </table>
+        </div>
+      )}
+      
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && (
+        <div className="visual-mapping-manager-modal-overlay" onClick={cancelDelete}>
+          <div className="visual-mapping-manager-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="visual-mapping-manager-modal-header">
+              <h2>Confirm Delete</h2>
+              <button 
+                onClick={cancelDelete} 
+                className="visual-mapping-manager-modal-close"
+                aria-label="Close delete confirmation modal"
+              >
+                ×
+              </button>
+            </div>
+            <div className="visual-mapping-manager-modal-body">
+              <p style={{ marginBottom: '1.5rem' }}>
+                {isBulkDelete 
+                  ? `Are you sure you want to delete ${selectedMappings.size} selected visual mapping(s)? This action cannot be undone.`
+                  : `Are you sure you want to delete "${deleteTarget?.name}"? This action cannot be undone.`
+                }
+              </p>
+              <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
+                <button 
+                  onClick={cancelDelete}
+                  className="visual-mapping-manager-bulk-btn"
+                  style={{ background: '#6b7280', color: 'white' }}
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={confirmDelete}
+                  className="visual-mapping-manager-bulk-btn visual-mapping-manager-bulk-btn-danger"
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
       

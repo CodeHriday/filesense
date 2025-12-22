@@ -6,6 +6,7 @@ const { pool } = require('../config/database');
 const PasswordVaultService = require('../services/passwordVaultService');
 const AuditService = require('../services/AuditService');
 const { systemLogger } = require('../utils/logger');
+const { userHasAdminAccess } = require('../utils/permissionHelpers');
 
 const passwordVault = new PasswordVaultService(pool, new AuditService(pool), systemLogger);
 
@@ -20,7 +21,7 @@ router.get('/', async (req, res) => {
     const { limit, source, include_deleted } = req.query;
     
     // Get user info for project filtering
-    const isAdmin = req.user?.roles?.includes('Admin');
+    const isAdmin = userHasAdminAccess(req.user);
     const userId = req.user?.id;
     
     const connections = await connectionService.getAllConnections({ 
@@ -101,7 +102,7 @@ router.get('/:id', async (req, res) => {
     const connection = await connectionService.getConnectionById(req.params.id);
     
     // Check project access (admins and global connections bypass)
-    const isAdmin = req.user?.roles?.includes('Admin');
+    const isAdmin = userHasAdminAccess(req.user);
     const isGlobalConnection = connection.project_id === null;
     
     if (!isAdmin && !isGlobalConnection) {
@@ -241,7 +242,7 @@ router.post('/', async (req, res) => {
     } = req.body;
     
     // Validate project access
-    const isAdmin = req.user?.roles?.includes('Admin');
+    const isAdmin = userHasAdminAccess(req.user);
     let assignedProjectId = project_id || null; // Allow null for global connections
     
     if (!isAdmin) {
@@ -511,7 +512,7 @@ router.put('/:id', async (req, res) => {
     } = req.body;
     
     // Check project access before allowing update
-    const isAdmin = req.user?.roles?.includes('Admin');
+    const isAdmin = userHasAdminAccess(req.user);
     if (!isAdmin) {
       const checkResult = await pool.query(
         'SELECT project_id FROM storage_connections WHERE connection_id = $1',
@@ -852,7 +853,7 @@ router.delete('/:id', async (req, res) => {
     const connectionId = req.params.id;
     
     // Check project access before allowing delete
-    const isAdmin = req.user?.roles?.includes('Admin');
+    const isAdmin = userHasAdminAccess(req.user);
     if (!isAdmin) {
       const existingConnection = await connectionService.getConnectionById(connectionId);
       const userId = req.user?.id;
@@ -969,7 +970,7 @@ router.patch('/:id/soft-delete', async (req, res) => {
     const userId = req.user?.id;
     
     // Check project access before allowing soft delete
-    const isAdmin = req.user?.roles?.includes('Admin');
+    const isAdmin = userHasAdminAccess(req.user);
     if (!isAdmin) {
       const existingConnection = await connectionService.getConnectionById(connectionId);
       const { getUserProjects } = require('../middleware/requireProjectAccess');
@@ -1021,7 +1022,7 @@ router.patch('/:id/restore', async (req, res) => {
     const connectionId = req.params.id;
     
     // Check project access before allowing restore
-    const isAdmin = req.user?.roles?.includes('Admin');
+    const isAdmin = userHasAdminAccess(req.user);
     if (!isAdmin) {
       const existingConnection = await connectionService.getConnectionById(connectionId);
       const userId = req.user?.id;
@@ -1085,7 +1086,7 @@ router.get('/:id/test', async (req, res) => {
     const connection = await connectionService.getConnectionById(req.params.id);
     
     // Check project access (admins bypass)
-    const isAdmin = req.user?.roles?.includes('Admin');
+    const isAdmin = userHasAdminAccess(req.user);
     if (!isAdmin) {
       const userId = req.user?.id;
       const { getUserProjects } = require('../middleware/requireProjectAccess');

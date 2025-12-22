@@ -301,7 +301,8 @@ class AIService {
       }
 
       // Get all files except the target file
-      const allFiles = await this.fileService.getAllFiles();
+      const allFilesResult = await this.fileService.getAllFiles();
+      const allFiles = allFilesResult.files || allFilesResult;
       const otherFiles = allFiles.filter(file => file.file_id !== fileId);
       
       if (otherFiles.length === 0) {

@@ -9,6 +9,7 @@ const vendorService = require('../services/vendorService');
 const { systemLogger} = require('../utils/logger');
 const { isVendorUser: checkVendorUser } = require('../utils/userHelpers');
 const { hasPermission } = require('../middleware/vendorPermissions');
+const { userHasAdminAccess } = require('../utils/permissionHelpers');
 
 // Helper function to check if user has vendor management write permission or is Admin
 const canManageVendors = (user) => {
@@ -16,11 +17,8 @@ const canManageVendors = (user) => {
   if (hasPermission(user, 'vendor_management:write')) {
     return true;
   }
-  // Fallback to Admin role check with defensive guard
-  if (user && user.roles && Array.isArray(user.roles) && user.roles.includes('Admin')) {
-    return true;
-  }
-  return false;
+  // Use permission-based admin check for admin-equivalent roles
+  return userHasAdminAccess(user);
 };
 
 // Middleware to require vendor management write permission

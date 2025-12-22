@@ -16,7 +16,8 @@ const WorkflowManager = () => {
   const [schedules, setSchedules] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [deleteModal, setDeleteModal] = useState({ show: false, workflowId: null });
+  const [deleteModal, setDeleteModal] = useState({ show: false, workflowId: null, isBulk: false });
+  const [selectedWorkflows, setSelectedWorkflows] = useState(new Set());
   const { showSuccess, showError } = useNotification();
 
   // Filter state
@@ -106,6 +107,54 @@ const WorkflowManager = () => {
     );
   };
 
+  // Selection handlers
+  const toggleSelectWorkflow = (workflowId) => {
+    setSelectedWorkflows(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(workflowId)) {
+        newSet.delete(workflowId);
+      } else {
+        newSet.add(workflowId);
+      }
+      return newSet;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedWorkflows.size === filteredWorkflows.length) {
+      setSelectedWorkflows(new Set());
+    } else {
+      setSelectedWorkflows(new Set(filteredWorkflows.map(w => w.id)));
+    }
+  };
+
+  const handleBulkDelete = () => {
+    if (selectedWorkflows.size === 0) return;
+    setDeleteModal({ show: true, workflowId: null, isBulk: true });
+  };
+
+  const handleBulkDeleteConfirm = async () => {
+    const idsToDelete = Array.from(selectedWorkflows);
+    setDeleteModal({ show: false, workflowId: null, isBulk: false });
+
+    try {
+      const token = localStorage.getItem('token');
+      await Promise.all(
+        idsToDelete.map(id =>
+          axios.delete(`/api/visual-workflows/${id}`, {
+            headers: { Authorization: `Bearer ${token}` }
+          })
+        )
+      );
+      setWorkflows(workflows.filter(w => !selectedWorkflows.has(w.id)));
+      setSelectedWorkflows(new Set());
+      showSuccess(`${idsToDelete.length} workflow(s) deleted successfully`);
+    } catch (err) {
+      console.error('Error deleting workflows:', err);
+      showError('Failed to delete some workflows');
+    }
+  };
+
   const handleToggle = async (workflowId, currentEnabled) => {
     try {
       const token = localStorage.getItem('token');
@@ -150,12 +199,12 @@ const WorkflowManager = () => {
   };
 
   const handleDeleteClick = (workflowId) => {
-    setDeleteModal({ show: true, workflowId });
+    setDeleteModal({ show: true, workflowId, isBulk: false });
   };
 
   const handleDeleteConfirm = async () => {
     const workflowId = deleteModal.workflowId;
-    setDeleteModal({ show: false, workflowId: null });
+    setDeleteModal({ show: false, workflowId: null, isBulk: false });
 
     try {
       const token = localStorage.getItem('token');
@@ -163,6 +212,11 @@ const WorkflowManager = () => {
         headers: { Authorization: `Bearer ${token}` }
       });
       setWorkflows(workflows.filter(w => w.id !== workflowId));
+      setSelectedWorkflows(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(workflowId);
+        return newSet;
+      });
       showSuccess('Workflow deleted successfully');
     } catch (err) {
       console.error('Error deleting workflow:', err);
@@ -224,12 +278,23 @@ const WorkflowManager = () => {
             </select>
           </div>
 
-          <button 
-            onClick={() => navigate('/workflow-builder')} 
-            className="btn-create-workflow"
-          >
-            <FiPlusCircle /> Create Workflow
-          </button>
+          <div className="workflow-manager-actions-bar">
+            {selectedWorkflows.size > 0 && (
+              <div className="bulk-actions">
+                <span className="bulk-count">{selectedWorkflows.size} selected</span>
+                <button onClick={handleBulkDelete} className="btn-bulk-delete">
+                  <FiTrash2 /> Delete Selected
+                </button>
+              </div>
+            )}
+
+            <button 
+              onClick={() => navigate('/workflow-builder')} 
+              className="btn-create-workflow"
+            >
+              <FiPlusCircle /> Create Workflow
+            </button>
+          </div>
         </div>
 
         {error && (
@@ -245,7 +310,17 @@ const WorkflowManager = () => {
             <table className="workflow-table">
               <thead>
                 <tr>
-                  <th>Name</th>
+                  <th>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <input
+                        type="checkbox"
+                        aria-label="Select all workflows"
+                        checked={selectedWorkflows.size === filteredWorkflows.length && filteredWorkflows.length > 0}
+                        onChange={toggleSelectAll}
+                      />
+                      <span>Name</span>
+                    </div>
+                  </th>
                   <th>Type</th>
                   <th>Schedule</th>
                   <th>Status</th>
@@ -262,22 +337,30 @@ const WorkflowManager = () => {
                   return (
                     <tr key={workflow.id}>
                       <td className="workflow-name">
-                        <span 
-                          className="workflow-name-link" 
-                          role="button"
-                          tabIndex="0"
-                          aria-label={`Edit workflow ${workflow.name}`}
-                          onClick={() => handleEdit(workflow.id)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter' || e.key === ' ') {
-                              e.preventDefault();
-                              handleEdit(workflow.id);
-                            }
-                          }}
-                          title="Click to edit workflow"
-                        >
-                          {workflow.name}
-                        </span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <input
+                            type="checkbox"
+                            aria-label={`Select ${workflow.name}`}
+                            checked={selectedWorkflows.has(workflow.id)}
+                            onChange={() => toggleSelectWorkflow(workflow.id)}
+                          />
+                          <span 
+                            className="workflow-name-link" 
+                            role="button"
+                            tabIndex="0"
+                            aria-label={`Edit workflow ${workflow.name}`}
+                            onClick={() => handleEdit(workflow.id)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault();
+                                handleEdit(workflow.id);
+                              }
+                            }}
+                            title="Click to edit workflow"
+                          >
+                            {workflow.name}
+                          </span>
+                        </div>
                       </td>
                       <td className="workflow-type">Visual Workflow</td>
                       <td className="workflow-schedule">
@@ -344,10 +427,12 @@ const WorkflowManager = () => {
         {/* Delete Confirmation Modal */}
         <ConfirmModal
           isOpen={deleteModal.show}
-          onClose={() => setDeleteModal({ show: false, workflowId: null })}
-          onConfirm={handleDeleteConfirm}
-          title="Delete Workflow"
-          message="Are you sure you want to delete this workflow? This action cannot be undone."
+          onClose={() => setDeleteModal({ show: false, workflowId: null, isBulk: false })}
+          onConfirm={deleteModal.isBulk ? handleBulkDeleteConfirm : handleDeleteConfirm}
+          title={deleteModal.isBulk ? "Delete Workflows" : "Delete Workflow"}
+          message={deleteModal.isBulk 
+            ? `Are you sure you want to delete ${selectedWorkflows.size} workflow(s)? This action cannot be undone.`
+            : "Are you sure you want to delete this workflow? This action cannot be undone."}
           confirmText="Delete"
           cancelText="Cancel"
           variant="danger"

@@ -4,6 +4,40 @@ import { FiCheck, FiArrowRight, FiTrash2, FiEdit2, FiX, FiPlus, FiChevronDown, F
 import './TableBasedMapper.css';
 import PropTypes from 'prop-types';
 
+const toTitleCase = (str) => {
+  if (!str) return str;
+  return str.toLowerCase().split(/[\s_]+/).map(word => 
+    word.charAt(0).toUpperCase() + word.slice(1)
+  ).join(' ');
+};
+
+const formatTypeWithPrecision = (type, precision, scale) => {
+  const baseType = toTitleCase(type || 'String');
+  if (precision && scale !== null && scale !== undefined) {
+    return `${baseType}(${precision},${scale})`;
+  } else if (precision) {
+    return `${baseType}(${precision})`;
+  }
+  return baseType;
+};
+
+const formatTypeForDisplay = (type) => {
+  if (!type) return 'String';
+  return toTitleCase(type);
+};
+
+const extractVariableReferences = (expression) => {
+  if (!expression || typeof expression !== 'string') return [];
+  const matches = expression.match(/\$([a-zA-Z_][a-zA-Z0-9_]*)/g) || [];
+  return matches.map(m => m.substring(1));
+};
+
+const findDeletedVariableReferences = (expression, variables) => {
+  const refs = extractVariableReferences(expression);
+  const variableNames = new Set(variables.map(v => v.name));
+  return refs.filter(ref => !variableNames.has(ref));
+};
+
 
 const TRANSFORMATION_OPTIONS = [
   { value: 'none', label: 'None (Direct Copy)', group: 'Basic', params: [] },
@@ -32,10 +66,25 @@ const TRANSFORMATION_OPTIONS = [
   { value: 'multiply', label: 'Multiply', group: 'Numeric', params: [{ name: 'value', type: 'number', placeholder: 'Multiplier' }] },
   { value: 'divide', label: 'Divide', group: 'Numeric', params: [{ name: 'value', type: 'number', placeholder: 'Divisor' }] },
   { value: 'date-format', label: 'Format Date', group: 'Date/Time', params: [{ name: 'format', type: 'text', placeholder: 'e.g., YYYY-MM-DD' }] },
-  { value: 'current-date', label: 'Current Date', group: 'Date/Time', params: [] },
+  { value: 'current-date', label: 'Current Date', group: 'Date/Time', params: [], noColumnInput: true, autoDataType: 'date' },
+  { value: 'current-timestamp', label: 'Current Timestamp', group: 'Date/Time', params: [], noColumnInput: true, autoDataType: 'timestamp' },
   { value: 'cast-string', label: 'To String', group: 'Type Cast', params: [] },
   { value: 'cast-integer', label: 'To Integer', group: 'Type Cast', params: [] },
   { value: 'cast-float', label: 'To Float', group: 'Type Cast', params: [] },
+  { 
+    value: 'and', 
+    label: 'AND (&)', 
+    group: 'Logical', 
+    params: [],
+    description: 'Combine conditions: condition1 & condition2'
+  },
+  { 
+    value: 'or', 
+    label: 'OR (|)', 
+    group: 'Logical', 
+    params: [],
+    description: 'Either condition: condition1 | condition2'
+  },
   { 
     value: 'if', 
     label: 'IF Condition', 
@@ -87,12 +136,26 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
   // Variables state
   const [variables, setVariables] = useState([]);
   const [variablesExpanded, setVariablesExpanded] = useState(true);
-  const [editingVariable, setEditingVariable] = useState(null);
   const [addingVariable, setAddingVariable] = useState(false);
+  const [inlineEditingVariableId, setInlineEditingVariableId] = useState(null); // Track which variable is being edited in the modal
   const [newVariable, setNewVariable] = useState({
     name: '',
     expression: '',
     data_type: ''
+  });
+  
+  // Collapsible sections state for variable modal - all collapsed by default
+  const [sourceColumnsExpanded, setSourceColumnsExpanded] = useState(false);
+  const [previousVariablesExpanded, setPreviousVariablesExpanded] = useState(false);
+  const [collapsedFunctionGroups, setCollapsedFunctionGroups] = useState({
+    'Basic': true,
+    'Null Handling': true,
+    'String': true,
+    'Numeric': true,
+    'Date/Time': true,
+    'Type Cast': true,
+    'Logical': true,
+    'Conditional': true
   });
   const expressionTextareaRef = useRef(null);
   const editExpressionTextareaRef = useRef(null);
@@ -100,6 +163,12 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
   // Cursor positioning state - tracks where cursor should be placed after React updates DOM
   const [pendingCursorPos, setPendingCursorPos] = useState(null);
   const [pendingEditCursorPos, setPendingEditCursorPos] = useState(null);
+  
+  // Validation error modal state
+  const [validationError, setValidationError] = useState(null);
+  
+  // Inline expression validation state
+  const [expressionValidation, setExpressionValidation] = useState({ valid: true, error: null });
   
   // PII tagging state
   const [piiColumns, setPiiColumns] = useState(new Set(initialPiiColumns || []));
@@ -217,16 +286,16 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
     }
   }, [newVariable.expression, pendingCursorPos]);
   
-  // Position cursor after React updates editingVariable expression in DOM
+  // Position cursor after React updates expression in DOM (for inline editing mode)
   useEffect(() => {
-    if (pendingEditCursorPos !== null && editExpressionTextareaRef.current) {
-      const textarea = editExpressionTextareaRef.current;
+    if (pendingEditCursorPos !== null && expressionTextareaRef.current && inlineEditingVariableId) {
+      const textarea = expressionTextareaRef.current;
       textarea.focus();
       textarea.setSelectionRange(pendingEditCursorPos, pendingEditCursorPos);
       // Clear pending position after applying
       setPendingEditCursorPos(null);
     }
-  }, [editingVariable?.expression, pendingEditCursorPos]);
+  }, [newVariable.expression, pendingEditCursorPos, inlineEditingVariableId]);
   
   // Toggle PII status for a field
   const togglePII = (targetField) => {
@@ -399,11 +468,17 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
       onMappingsChange(newMappings, variables, Array.from(piiColumns), dqRuleAssignments);
     } else {
       newSelected.add(fieldName);
+      const sourceField = schema.find(s => s.name === fieldName);
       const newMapping = {
         source_field: fieldName,
         target_field: fieldName,
         transformation: 'none',
-        transformation_params: {}
+        transformation_params: {},
+        data_type: sourceField?.type || sourceField?.data_type || sourceField?.column_type || 'STRING',
+        precision: sourceField?.precision ?? null,
+        scale: sourceField?.scale ?? null,
+        nullable: sourceField?.nullable ?? true,
+        include: true
       };
       const newMappings = [...mappings, newMapping];
       setMappings(newMappings);
@@ -418,11 +493,24 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
       source_field: field.name,
       target_field: field.name,
       transformation: 'none',
-      transformation_params: {}
+      transformation_params: {},
+      data_type: field.type || field.data_type || field.column_type || 'STRING',
+      precision: field.precision ?? null,
+      scale: field.scale ?? null,
+      nullable: field.nullable ?? true,
+      include: true
     }));
     
     setMappings(newMappings);
     setSelectedSource(new Set(schema.map(f => f.name)));
+    onMappingsChange(newMappings, variables, Array.from(piiColumns), dqRuleAssignments);
+  };
+
+  const handleIncludeChange = (sourceField, checked) => {
+    const newMappings = mappings.map(m =>
+      m.source_field === sourceField ? { ...m, include: checked } : m
+    );
+    setMappings(newMappings);
     onMappingsChange(newMappings, variables, Array.from(piiColumns), dqRuleAssignments);
   };
 
@@ -476,6 +564,56 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
     setDqRuleAssignments(newDqAssignments);
     lastReportedDqAssignmentsRef.current = newDqAssignments;
     onMappingsChange(newMappings, variables, Array.from(piiColumns), newDqAssignments);
+  };
+
+  const SQL_TYPE_OPTIONS = [
+    'STRING', 'VARCHAR', 'INTEGER', 'BIGINT', 'DECIMAL', 'DOUBLE', 'FLOAT',
+    'DATE', 'TIMESTAMP', 'BOOLEAN', 'BINARY', 'ARRAY', 'MAP', 'STRUCT'
+  ];
+
+  const TYPES_WITH_PRECISION = ['DECIMAL', 'VARCHAR', 'CHAR', 'NUMERIC'];
+  const TYPES_WITH_SCALE = ['DECIMAL', 'NUMERIC'];
+
+  const handleTypeChange = (sourceField, newType) => {
+    const newMappings = mappings.map(m => {
+      if (m.source_field === sourceField) {
+        const updatedMapping = { ...m, data_type: newType };
+        if (!TYPES_WITH_PRECISION.includes(newType)) {
+          updatedMapping.precision = null;
+        }
+        if (!TYPES_WITH_SCALE.includes(newType)) {
+          updatedMapping.scale = null;
+        }
+        return updatedMapping;
+      }
+      return m;
+    });
+    setMappings(newMappings);
+    onMappingsChange(newMappings, variables, Array.from(piiColumns), dqRuleAssignments);
+  };
+
+  const handlePrecisionChange = (sourceField, newPrecision) => {
+    const newMappings = mappings.map(m => 
+      m.source_field === sourceField ? { ...m, precision: newPrecision === '' ? null : parseInt(newPrecision, 10) || null } : m
+    );
+    setMappings(newMappings);
+    onMappingsChange(newMappings, variables, Array.from(piiColumns), dqRuleAssignments);
+  };
+
+  const handleScaleChange = (sourceField, newScale) => {
+    const newMappings = mappings.map(m => 
+      m.source_field === sourceField ? { ...m, scale: newScale === '' ? null : parseInt(newScale, 10) || null } : m
+    );
+    setMappings(newMappings);
+    onMappingsChange(newMappings, variables, Array.from(piiColumns), dqRuleAssignments);
+  };
+
+  const handleNullableChange = (sourceField, newNullable) => {
+    const newMappings = mappings.map(m => 
+      m.source_field === sourceField ? { ...m, nullable: newNullable } : m
+    );
+    setMappings(newMappings);
+    onMappingsChange(newMappings, variables, Array.from(piiColumns), dqRuleAssignments);
   };
 
   const handleEditExpression = (sourceField) => {
@@ -565,22 +703,28 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
 
   const handleSaveNewColumn = () => {
     if (!newColumn.targetField.trim()) {
-      alert('Please enter a target field name');
+      setValidationError('Please enter a target field name');
       return;
     }
 
     // Check if target field name already exists
     if (mappings.some(m => m.target_field === newColumn.targetField)) {
-      alert('A field with this target name already exists');
+      setValidationError('A field with this target name already exists');
       return;
     }
 
+    const sourceField = newColumn.sourceField ? schema.find(s => s.name === newColumn.sourceField) : null;
     const newMapping = {
       source_field: newColumn.sourceField || `__custom_${Date.now()}__`,
       target_field: newColumn.targetField,
       transformation: newColumn.transformation,
       transformation_params: newColumn.params,
-      is_custom: !newColumn.sourceField
+      is_custom: !newColumn.sourceField,
+      data_type: sourceField?.type || sourceField?.data_type || sourceField?.column_type || 'STRING',
+      precision: sourceField?.precision ?? null,
+      scale: sourceField?.scale ?? null,
+      nullable: sourceField?.nullable ?? true,
+      include: false
     };
 
     const newMappings = [...mappings, newMapping];
@@ -703,6 +847,8 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
       name: '',
       expression: ''
     });
+    setExpressionValidation({ valid: true, error: null });
+    setInlineEditingVariableId(null);
     setAddingVariable(true);
   };
 
@@ -725,44 +871,48 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
     
     if (!textarea) {
       // Fallback: append to end if no textarea ref available
-      if (isEditMode) {
-        const currentValue = editingVariable?.expression || '';
-        setEditingVariable({ ...editingVariable, expression: currentValue + sanitizedText });
-      } else {
-        const currentValue = newVariable.expression || '';
-        setNewVariable({ ...newVariable, expression: currentValue + sanitizedText });
-      }
+      const currentValue = newVariable.expression || '';
+      setNewVariable({ ...newVariable, expression: currentValue + sanitizedText });
       return;
     }
 
     const start = textarea.selectionStart || 0;
     const end = textarea.selectionEnd || 0;
-    const currentValue = isEditMode ? (editingVariable?.expression || '') : (newVariable.expression || '');
+    const currentValue = newVariable.expression || '';
     const newValue = currentValue.substring(0, start) + sanitizedText + currentValue.substring(end);
     
     // Calculate where cursor should be after insertion
     const newPos = start + sanitizedText.length;
     
-    if (isEditMode) {
-      setEditingVariable({ ...editingVariable, expression: newValue });
-      // Set pending cursor position - useEffect will apply it after React updates DOM
-      setPendingEditCursorPos(newPos);
-    } else {
-      setNewVariable({ ...newVariable, expression: newValue });
-      // Set pending cursor position - useEffect will apply it after React updates DOM
-      setPendingCursorPos(newPos);
-    }
+    setNewVariable({ ...newVariable, expression: newValue });
+    // Set pending cursor position - useEffect will apply it after React updates DOM
+    setPendingCursorPos(newPos);
   };
 
   // Helper function to get function syntax template
   const getFunctionSyntax = (transformOption) => {
     // Special syntax for conditional functions
+    // New enhanced syntax with compound conditions
     if (transformOption.value === 'if') {
-      return `if(column, '>', 100, 'High', 'Low')`;
+      return `if(col1 '>' 100 & col2 '<' 200, 'Match', 'NoMatch')`;
     }
     
     if (transformOption.value === 'case_when') {
       return `case_when(column, '=', 'A', 'Result A', '>', 50, 'High', 'Default')`;
+    }
+    
+    // Logical operators - insert just the operator symbol
+    if (transformOption.value === 'and') {
+      return ` & `;
+    }
+    
+    if (transformOption.value === 'or') {
+      return ` | `;
+    }
+    
+    // Functions that don't take column input (e.g., current-date, current-timestamp)
+    if (transformOption.noColumnInput) {
+      return `${transformOption.value}()`;
     }
     
     if (transformOption.params.length === 0) {
@@ -790,28 +940,111 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
   const handleInsertFunction = (transformOption, isEditMode = false) => {
     const syntax = getFunctionSyntax(transformOption);
     insertAtCursor(syntax, isEditMode);
+    
+    // Auto-set data type for functions that have it defined
+    // Use functional state updates to preserve the expression that was just inserted
+    if (transformOption.autoDataType) {
+      if (isEditMode) {
+        setEditingVariable(prev => prev ? { ...prev, data_type: transformOption.autoDataType } : prev);
+      } else {
+        setNewVariable(prev => ({ ...prev, data_type: transformOption.autoDataType }));
+      }
+    }
+  };
+
+  // Validate expression syntax - simplified and permissive
+  const validateExpression = (expression) => {
+    if (!expression || !expression.trim()) {
+      setExpressionValidation({ valid: false, error: 'Expression cannot be empty' });
+      return false;
+    }
+    
+    try {
+      const trimmed = expression.trim();
+      
+      // Basic syntax validation - check parentheses balance
+      let parenCount = 0;
+      let inString = false;
+      let stringChar = null;
+      
+      for (let i = 0; i < trimmed.length; i++) {
+        const char = trimmed[i];
+        const prevChar = i > 0 ? trimmed[i - 1] : '';
+        
+        if (!inString && (char === '"' || char === "'")) {
+          inString = true;
+          stringChar = char;
+        } else if (inString && char === stringChar && prevChar !== '\\') {
+          inString = false;
+          stringChar = null;
+        } else if (!inString) {
+          if (char === '(') parenCount++;
+          if (char === ')') parenCount--;
+        }
+      }
+      
+      if (parenCount !== 0) {
+        setExpressionValidation({ 
+          valid: false, 
+          error: parenCount > 0 ? `Missing ${parenCount} closing parenthesis` : `Extra ${Math.abs(parenCount)} closing parenthesis`
+        });
+        return false;
+      }
+      
+      if (inString) {
+        setExpressionValidation({ valid: false, error: 'Unclosed string literal' });
+        return false;
+      }
+      
+      // Check for double commas (missing arguments)
+      if (trimmed.includes(',,')) {
+        setExpressionValidation({ valid: false, error: 'Double comma found - missing argument' });
+        return false;
+      }
+      
+      // Variable reference validation - only check format, not existence
+      // (Column and variable existence will be validated during execution)
+      
+      setExpressionValidation({ valid: true, error: null });
+      return true;
+    } catch (err) {
+      console.error('Expression validation error:', err);
+      setExpressionValidation({ valid: false, error: `Validation error: ${err.message}` });
+      return false;
+    }
   };
 
   const handleSaveVariable = () => {
+    // If editing an existing variable, delegate to handleUpdateVariable
+    if (inlineEditingVariableId) {
+      handleUpdateVariable();
+      return;
+    }
+    
+    // Validate expression before saving
+    if (!validateExpression(newVariable.expression)) {
+      return;
+    }
+    
     if (!newVariable.name.trim()) {
-      alert('Please enter a variable name');
+      setValidationError('Please enter a variable name');
       return;
     }
 
     if (!newVariable.expression.trim()) {
-      alert('Please enter an expression for the variable');
+      setValidationError('Please enter an expression for the variable');
       return;
     }
 
     // Validate variable name format
     if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(newVariable.name)) {
-      alert('Variable name must start with a letter or underscore and contain only letters, numbers, and underscores');
+      setValidationError('Variable name must start with a letter or underscore and contain only letters, numbers, and underscores');
       return;
     }
 
     // Check if variable name already exists
     if (variables.some(v => v.name === newVariable.name)) {
-      alert('A variable with this name already exists');
+      setValidationError('A variable with this name already exists');
       return;
     }
 
@@ -826,32 +1059,63 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
 
     const newVariables = [...variables, variable];
     setVariables(newVariables);
-    setAddingVariable(false);
-    setNewVariable({ name: '', expression: '' });
+    // Keep variable visible for review - set it as the currently editing variable
+    setInlineEditingVariableId(newVariable.name);
+    setExpressionValidation({ valid: true, error: null, success: 'Variable saved successfully!' });
     onMappingsChange(mappings, newVariables, Array.from(piiColumns), dqRuleAssignments);
   };
 
   const handleEditVariable = (variable) => {
-    setEditingVariable({
-      ...variable,
+    // Load variable data into the form for inline editing
+    // Use variable.name as identifier since variables don't have an id field
+    setInlineEditingVariableId(variable.name);
+    setNewVariable({
+      name: variable.name,
       expression: variable.expression || buildVariableExpression(variable),
-      params: variable.transformation_params || {}
+      data_type: variable.data_type || ''
     });
+    setExpressionValidation({ valid: true, error: null });
+    setAddingVariable(true);
   };
 
-  const handleSaveEditedVariable = () => {
-    if (!editingVariable) return;
+  const handleUpdateVariable = () => {
+    // Update the variable but keep modal open
+    if (!inlineEditingVariableId) return;
 
-    if (!editingVariable.expression.trim()) {
-      alert('Please enter an expression for the variable');
+    if (!newVariable.name.trim()) {
+      setValidationError('Please enter a name for the variable');
       return;
     }
 
-    const updatedVariables = variables.map(v =>
-      v.id === editingVariable.id
+    if (!newVariable.expression.trim()) {
+      setValidationError('Please enter an expression for the variable');
+      return;
+    }
+    
+    // Validate expression before saving
+    if (!validateExpression(newVariable.expression)) {
+      return;
+    }
+
+    // inlineEditingVariableId is now the original variable name (not id)
+    const oldName = inlineEditingVariableId;
+    const newName = newVariable.name.trim();
+    const nameChanged = oldName !== newName;
+
+    // Check for duplicate name (excluding the variable being edited)
+    if (nameChanged && variables.some(v => v.name !== oldName && v.name === newName)) {
+      setValidationError(`Variable name "${newName}" already exists`);
+      return;
+    }
+
+    // Update the variable with new name, expression, and data_type
+    let updatedVariables = variables.map(v =>
+      v.name === oldName
         ? {
             ...v,
-            expression: editingVariable.expression,
+            name: newName,
+            expression: newVariable.expression,
+            data_type: newVariable.data_type,
             source_field: null,
             transformation: 'none',
             transformation_params: {}
@@ -859,13 +1123,84 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
         : v
     );
 
+    // If name changed, update references in other variables' expressions
+    if (nameChanged && oldName) {
+      const oldRef = `$${oldName}`;
+      const newRef = `$${newName}`;
+      updatedVariables = updatedVariables.map(v => {
+        if (v.id !== inlineEditingVariableId && v.expression && v.expression.includes(oldRef)) {
+          // Replace all occurrences of the old variable reference with the new one
+          const updatedExpression = v.expression.split(oldRef).join(newRef);
+          return { ...v, expression: updatedExpression };
+        }
+        return v;
+      });
+    }
+
     setVariables(updatedVariables);
-    setEditingVariable(null);
     onMappingsChange(mappings, updatedVariables, Array.from(piiColumns), dqRuleAssignments);
+    // Keep variable visible for review - update the editing ID if name changed
+    setInlineEditingVariableId(newName);
+    setExpressionValidation({ valid: true, error: null, success: 'Variable updated successfully!' });
   };
 
-  const handleDeleteVariable = (variableId) => {
-    const newVariables = variables.filter(v => v.id !== variableId);
+  const handleSaveAndClose = () => {
+    // If editing, save the edit and close. If adding new, save new and close.
+    if (inlineEditingVariableId) {
+      if (!newVariable.expression.trim()) {
+        setValidationError('Please enter an expression for the variable');
+        return;
+      }
+
+      const updatedVariables = variables.map(v =>
+        v.id === inlineEditingVariableId
+          ? {
+              ...v,
+              expression: newVariable.expression,
+              data_type: newVariable.data_type,
+              source_field: null,
+              transformation: 'none',
+              transformation_params: {}
+            }
+          : v
+      );
+
+      setVariables(updatedVariables);
+      onMappingsChange(mappings, updatedVariables, Array.from(piiColumns), dqRuleAssignments);
+    } else if (newVariable.name.trim() && newVariable.expression.trim()) {
+      // Adding a new variable - validate and save
+      if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(newVariable.name)) {
+        setValidationError('Variable name must start with a letter or underscore and contain only letters, numbers, and underscores');
+        return;
+      }
+      if (variables.some(v => v.name === newVariable.name)) {
+        setValidationError('A variable with this name already exists');
+        return;
+      }
+
+      const variable = {
+        id: `var_${Date.now()}`,
+        name: newVariable.name,
+        expression: newVariable.expression,
+        data_type: newVariable.data_type,
+        source_field: null,
+        transformation: 'none',
+        transformation_params: {}
+      };
+
+      const newVariables = [...variables, variable];
+      setVariables(newVariables);
+      onMappingsChange(mappings, newVariables, Array.from(piiColumns), dqRuleAssignments);
+    }
+
+    // Close the modal
+    setAddingVariable(false);
+    setInlineEditingVariableId(null);
+    setNewVariable({ name: '', expression: '', data_type: '' });
+  };
+
+  const handleDeleteVariable = (variableName) => {
+    const newVariables = variables.filter(v => v.name !== variableName);
     setVariables(newVariables);
     onMappingsChange(mappings, newVariables, Array.from(piiColumns), dqRuleAssignments);
   };
@@ -888,39 +1223,21 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
 
   const handleVariableTransformationChange = (value) => {
     const transform = TRANSFORMATION_OPTIONS.find(t => t.value === value);
-    if (editingVariable) {
-      setEditingVariable({
-        ...editingVariable,
-        transformation: value,
-        params: transform && transform.params.length > 0 ? {} : {}
-      });
-    } else {
-      setNewVariable({
-        ...newVariable,
-        transformation: value,
-        params: transform && transform.params.length > 0 ? {} : {}
-      });
-    }
+    setNewVariable({
+      ...newVariable,
+      transformation: value,
+      params: transform && transform.params.length > 0 ? {} : {}
+    });
   };
 
   const handleVariableParamChange = (paramName, paramValue) => {
-    if (editingVariable) {
-      setEditingVariable({
-        ...editingVariable,
-        params: {
-          ...editingVariable.params,
-          [paramName]: paramValue
-        }
-      });
-    } else {
-      setNewVariable({
-        ...newVariable,
-        params: {
-          ...newVariable.params,
-          [paramName]: paramValue
-        }
-      });
-    }
+    setNewVariable({
+      ...newVariable,
+      params: {
+        ...newVariable.params,
+        [paramName]: paramValue
+      }
+    });
   };
 
   const buildVariableExpression = (variable) => {
@@ -968,95 +1285,9 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
     <div className="table-based-mapper">
       <div className="mapper-header">
         <h3>Field Mapping Parameter Details</h3>
-        <div className="mapper-actions">
-          <button className="btn btn-primary btn-xs" onClick={handleClearMapping} style={{ fontSize: '10px', fontFamily: 'Inter', padding: '0.125rem 0.25rem' }}>
-            Clear Mapping
-          </button>
-          <button className="btn btn-primary btn-xs" onClick={handleAutomap} style={{ fontSize: '10px', fontFamily: 'Inter', padding: '0.125rem 0.25rem' }}>
-            Automap
-          </button>
-        </div>
       </div>
 
-      {/* Variables Section */}
-      <div className="variables-section">
-        <div className="variables-header" onClick={() => setVariablesExpanded(!variablesExpanded)}>
-          <div className="variables-title">
-            {variablesExpanded ? <FiChevronDown /> : <FiChevronRight />}
-            <h4>Variables ({variables.length})</h4>
-            <span className="variables-info">Pre-calculations executed sequentially</span>
-          </div>
-          <button 
-            className="btn btn-primary btn-xs" 
-            onClick={(e) => { e.stopPropagation(); handleAddVariable(); }}
-            style={{ fontSize: '10px', fontFamily: 'Inter', padding: '0.125rem 0.25rem', gap: '0.125rem' }}
-          >
-            <FiPlus /> Add Variable
-          </button>
-        </div>
-
-        {variablesExpanded && (
-          <div className="variables-content">
-            {variables.length === 0 ? (
-              <div className="no-variables">
-                No variables defined. Click "Add Variable" to create pre-calculations that can be used in field mappings.
-              </div>
-            ) : (
-              <div className="variables-list">
-                {variables.map((variable, index) => (
-                  <div key={variable.id} className="variable-item">
-                    <div className="variable-order">
-                      <button
-                        className="btn-icon-small"
-                        onClick={() => handleMoveVariableUp(index)}
-                        disabled={index === 0}
-                        title="Move up"
-                      >
-                        <FiChevronUp />
-                      </button>
-                      <span className="order-number">{index + 1}</span>
-                      <button
-                        className="btn-icon-small"
-                        onClick={() => handleMoveVariableDown(index)}
-                        disabled={index === variables.length - 1}
-                        title="Move down"
-                      >
-                        <FiChevronDown />
-                      </button>
-                    </div>
-                    <div className="variable-info">
-                      <div className="variable-name">
-                        <strong>${variable.name}</strong> =
-                      </div>
-                      <div className="variable-expression">
-                        {buildVariableExpression(variable)}
-                      </div>
-                    </div>
-                    <div className="variable-actions">
-                      <button
-                        className="btn-icon-small"
-                        onClick={() => handleEditVariable(variable)}
-                        title="Edit variable"
-                      >
-                        <FiEdit2 />
-                      </button>
-                      <button
-                        className="btn-icon-small"
-                        onClick={() => handleDeleteVariable(variable.id)}
-                        title="Delete variable"
-                      >
-                        <FiTrash2 />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-
-      <div className="mapper-panels">
+      <div className="mapper-panels mapper-panels-three-col">
         <div className="source-panel">
           <h4>Incoming Fields</h4>
           <div className="field-search">
@@ -1089,11 +1320,20 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
           <div className="target-panel-header">
             <h4>Target Fields</h4>
             <div className="target-panel-actions">
+              <button className="btn btn-primary btn-xs" onClick={handleClearMapping} style={{ fontSize: '10px', fontFamily: 'Inter', padding: '0.125rem 0.25rem' }}>
+                Clear Mapping
+              </button>
+              <button className="btn btn-primary btn-xs" onClick={handleAutomap} style={{ fontSize: '10px', fontFamily: 'Inter', padding: '0.125rem 0.25rem' }}>
+                Automap
+              </button>
               <button className="btn btn-primary btn-xs" onClick={handleOpenDqRulePanel} title="Assign Data Quality rules to target columns" style={{ fontSize: '10px', fontFamily: 'Inter', padding: '0.125rem 0.25rem', gap: '0.125rem' }}>
                 <FiShield /> Assign DQ Rule
               </button>
               <button className="btn btn-primary btn-xs" onClick={handleAddNewColumn} title="Add a new calculated column" style={{ fontSize: '10px', fontFamily: 'Inter', padding: '0.125rem 0.25rem', gap: '0.125rem' }}>
                 <FiPlus /> Add New Column
+              </button>
+              <button className="btn btn-primary btn-xs" onClick={handleAddVariable} title="Create pre-calculations that can be used in field mappings" style={{ fontSize: '10px', fontFamily: 'Inter', padding: '0.125rem 0.25rem', gap: '0.125rem' }}>
+                <FiPlus /> Add/Edit Expressions
               </button>
             </div>
           </div>
@@ -1110,23 +1350,47 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
             <table className="target-mapping-table">
               <thead>
                 <tr>
-                  <th style={{ width: '40px' }}>Status</th>
-                  <th style={{ width: '200px' }}>Name</th>
-                  <th style={{ width: '60px', textAlign: 'center' }} title="Mark as PII (Personally Identifiable Information)">
+                  <th style={{ width: '50px', textAlign: 'center' }} title="Include this field in the output">Add to Output</th>
+                  <th style={{ width: '180px' }}>Name</th>
+                  <th style={{ width: '100px' }}>Type</th>
+                  <th style={{ width: '60px' }}>Precision</th>
+                  <th style={{ width: '50px' }}>Scale</th>
+                  <th style={{ width: '50px', textAlign: 'center' }} title="Allow NULL values">Nullable</th>
+                  <th style={{ width: '50px', textAlign: 'center' }} title="Mark as PII (Personally Identifiable Information)">
                     <FiLock /> PII
                   </th>
-                  <th style={{ width: '200px', textAlign: 'left' }} title="Data Quality Rules assigned to this field">
+                  <th style={{ width: '180px', textAlign: 'left' }} title="Data Quality Rules assigned to this field">
                     <FiShield /> DQ Rules
                   </th>
-                  <th style={{ width: '80px' }}>Actions</th>
+                  <th style={{ width: '70px' }}>Actions</th>
                   <th>Expression</th>
                 </tr>
               </thead>
               <tbody>
-                {filteredMappings.map(mapping => (
-                  <tr key={mapping.source_field}>
-                    <td className="status-cell">
-                      <FiCheck className="status-icon mapped" />
+                {filteredMappings.map(mapping => {
+                  const sourceCol = schema.find(s => s.name === mapping.source_field);
+                  const colType = mapping.data_type || mapping.type || sourceCol?.type || sourceCol?.data_type || sourceCol?.column_type || 'STRING';
+                  const colPrecision = mapping.precision ?? sourceCol?.precision ?? null;
+                  const colScale = mapping.scale ?? sourceCol?.scale ?? null;
+                  const colNullable = mapping.nullable ?? sourceCol?.nullable ?? true;
+                  const showPrecision = TYPES_WITH_PRECISION.includes(colType.toUpperCase());
+                  const showScale = TYPES_WITH_SCALE.includes(colType.toUpperCase());
+                  const mappingExpression = mapping.expression || mapping.customExpression || buildExpressionForCustom(mapping);
+                  // Also check source_field for variable references (e.g., when using a variable as the source)
+                  const sourceFieldVarRefs = extractVariableReferences(mapping.source_field || '');
+                  const expressionVarRefs = findDeletedVariableReferences(mappingExpression, variables);
+                  const deletedVarRefs = [...new Set([...expressionVarRefs, ...sourceFieldVarRefs.filter(ref => !variables.some(v => v.name === ref))])];
+                  const hasDeletedVarRef = deletedVarRefs.length > 0;
+                  return (
+                  <tr key={mapping.source_field} className={hasDeletedVarRef ? 'row-has-error' : ''}>
+                    <td style={{ textAlign: 'center' }}>
+                      <input
+                        type="checkbox"
+                        checked={mapping.include !== false}
+                        onChange={(e) => handleIncludeChange(mapping.source_field, e.target.checked)}
+                        title="Include in output"
+                        style={{ cursor: 'pointer' }}
+                      />
                     </td>
                     <td className="name-cell">
                       <input
@@ -1134,6 +1398,57 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
                         value={mapping.target_field}
                         onChange={(e) => handleTargetNameChange(mapping.source_field, e.target.value)}
                         className="target-name-input"
+                      />
+                    </td>
+                    <td>
+                      <select
+                        value={colType}
+                        onChange={(e) => handleTypeChange(mapping.source_field, e.target.value)}
+                        style={{ fontSize: '9px', padding: '2px 4px', width: '100%', border: '1px solid #d1d5db', borderRadius: '3px' }}
+                        title="Data type"
+                      >
+                        {SQL_TYPE_OPTIONS.map(t => (
+                          <option key={t} value={t}>{formatTypeForDisplay(t)}</option>
+                        ))}
+                      </select>
+                    </td>
+                    <td>
+                      {showPrecision ? (
+                        <input
+                          type="number"
+                          value={colPrecision ?? ''}
+                          onChange={(e) => handlePrecisionChange(mapping.source_field, e.target.value)}
+                          style={{ fontSize: '9px', padding: '2px 4px', width: '100%', border: '1px solid #d1d5db', borderRadius: '3px' }}
+                          placeholder="—"
+                          min="0"
+                          title="Precision (total digits)"
+                        />
+                      ) : (
+                        <span style={{ fontSize: '9px', color: '#9ca3af' }}>—</span>
+                      )}
+                    </td>
+                    <td>
+                      {showScale ? (
+                        <input
+                          type="number"
+                          value={colScale ?? ''}
+                          onChange={(e) => handleScaleChange(mapping.source_field, e.target.value)}
+                          style={{ fontSize: '9px', padding: '2px 4px', width: '100%', border: '1px solid #d1d5db', borderRadius: '3px' }}
+                          placeholder="—"
+                          min="0"
+                          title="Scale (decimal places)"
+                        />
+                      ) : (
+                        <span style={{ fontSize: '9px', color: '#9ca3af' }}>—</span>
+                      )}
+                    </td>
+                    <td style={{ textAlign: 'center' }}>
+                      <input
+                        type="checkbox"
+                        checked={colNullable}
+                        onChange={(e) => handleNullableChange(mapping.source_field, e.target.checked)}
+                        title="Allow NULL values"
+                        style={{ cursor: 'pointer' }}
                       />
                     </td>
                     <td style={{ textAlign: 'center' }}>
@@ -1190,21 +1505,76 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
                       </button>
                     </td>
                     <td className="expression-cell">
-                      <span className="expression-text" onClick={() => handleEditExpression(mapping.source_field)}>
+                      <span className={`expression-text ${hasDeletedVarRef ? 'expression-error' : ''}`} onClick={() => handleEditExpression(mapping.source_field)}>
                         {buildExpressionForCustom(mapping)}
                       </span>
+                      {hasDeletedVarRef && (
+                        <div className="expression-validation-error">
+                          A referenced variable has been deleted. Please update the expression.
+                        </div>
+                      )}
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
                 {filteredMappings.length === 0 && (
                   <tr>
-                    <td colSpan="6" className="no-mappings">
+                    <td colSpan="10" className="no-mappings">
                       No field mappings. Select source fields from the left panel or click Automap.
                     </td>
                   </tr>
                 )}
               </tbody>
             </table>
+          </div>
+        </div>
+
+        {/* Variables Panel - Third Column */}
+        <div className="variables-panel">
+          <div className="variables-panel-header">
+            <h4>Variables ({variables.length})</h4>
+            <span className="variables-info-compact">Pre-calculations</span>
+          </div>
+          <div className="variables-panel-content">
+            {variables.length === 0 ? (
+              <div className="no-variables-compact">
+                No variables defined. Click "Add/Edit Expressions" to create pre-calculations.
+              </div>
+            ) : (
+              <div className="variables-list-compact">
+                {variables.map((variable, index) => (
+                  <div key={variable.name} className="variable-item-compact">
+                    <div className="variable-order-compact">
+                      <button
+                        className="btn-icon-xs"
+                        onClick={() => handleMoveVariableUp(index)}
+                        disabled={index === 0}
+                        title="Move up"
+                      >
+                        <FiChevronUp size={10} />
+                      </button>
+                      <span className="order-number-compact">{index + 1}</span>
+                      <button
+                        className="btn-icon-xs"
+                        onClick={() => handleMoveVariableDown(index)}
+                        disabled={index === variables.length - 1}
+                        title="Move down"
+                      >
+                        <FiChevronDown size={10} />
+                      </button>
+                    </div>
+                    <div className="variable-info-compact">
+                      <div className="variable-name-compact">
+                        <strong>${variable.name}</strong>
+                      </div>
+                      <div className="variable-expression-compact" title={buildVariableExpression(variable)}>
+                        {buildVariableExpression(variable)}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -1350,7 +1720,7 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
                     </option>
                   ))}
                   {variables.length > 0 && variables.map(variable => (
-                    <option key={variable.id} value={`$${variable.name}`}>
+                    <option key={variable.name} value={`$${variable.name}`}>
                       ${variable.name} (variable)
                     </option>
                   ))}
@@ -1435,18 +1805,76 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
           <div className="modal-overlay"></div>
           <div className="modal-content">
             <div className="modal-header">
-              <h4>Add Variable</h4>
-              <button className="btn-close" onClick={() => setAddingVariable(false)}>
+              <h4>Add/Edit Expressions {inlineEditingVariableId && <span style={{ fontWeight: 'normal', fontSize: '10px', color: '#6b7280' }}>(Editing: ${newVariable.name})</span>}</h4>
+              <button className="btn-close" onClick={() => { setAddingVariable(false); setInlineEditingVariableId(null); setNewVariable({ name: '', expression: '', data_type: '' }); }}>
                 <FiX />
               </button>
             </div>
             <div className="modal-body">
               <div className="variable-builder-panes">
-                {/* Left Pane: Source Columns */}
+                {/* Left Pane: Variables & Source Columns */}
                 <div className="variable-pane">
-                  <div className="variable-pane-header">Source Columns</div>
+                  <div className="variable-pane-header" style={{ textTransform: 'none' }}>Variables & Source Columns</div>
                   <div className="variable-pane-content">
-                    {schema.map(field => (
+                    {/* Previous Variables - Collapsible (shown first) */}
+                    {variables.length > 0 && (
+                      <>
+                        <div 
+                          className="function-group-header collapsible-header"
+                          onClick={() => setPreviousVariablesExpanded(!previousVariablesExpanded)}
+                          style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', textTransform: 'none' }}
+                        >
+                          <span>Variables</span>
+                          {previousVariablesExpanded ? <FiChevronDown size={14} /> : <FiChevronRight size={14} />}
+                        </div>
+                        {previousVariablesExpanded && variables.map(variable => (
+                          <div key={variable.name} className={`insertable-item ${inlineEditingVariableId === variable.name ? 'insertable-item-editing' : ''}`}>
+                            <div className="insertable-item-name">${variable.name}</div>
+                            <div className="insertable-item-actions">
+                              <button 
+                                className="btn-insert"
+                                onClick={() => handleEditVariable(variable)}
+                                title="Edit variable"
+                                disabled={inlineEditingVariableId === variable.name}
+                              >
+                                <FiEdit2 size={12} />
+                              </button>
+                              <button 
+                                className="btn-insert btn-delete"
+                                onClick={() => {
+                                  handleDeleteVariable(variable.name);
+                                  if (inlineEditingVariableId === variable.name) {
+                                    setInlineEditingVariableId(null);
+                                    setNewVariable({ name: '', expression: '', data_type: '' });
+                                  }
+                                }}
+                                title="Delete variable"
+                              >
+                                <FiTrash2 size={12} />
+                              </button>
+                              <button 
+                                className="btn-insert"
+                                onClick={() => handleInsertVariable(variable.name)}
+                                title="Insert variable"
+                              >
+                                <FiPlus size={12} />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </>
+                    )}
+                    
+                    {/* Source Columns - Collapsible */}
+                    <div 
+                      className="function-group-header collapsible-header"
+                      onClick={() => setSourceColumnsExpanded(!sourceColumnsExpanded)}
+                      style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', textTransform: 'none', marginTop: variables.length > 0 ? '8px' : '0' }}
+                    >
+                      <span>Source Columns</span>
+                      {sourceColumnsExpanded ? <FiChevronDown size={14} /> : <FiChevronRight size={14} />}
+                    </div>
+                    {sourceColumnsExpanded && schema.map(field => (
                       <div key={field.name} className="insertable-item">
                         <div className="insertable-item-name">{field.name}</div>
                         <button 
@@ -1458,24 +1886,6 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
                         </button>
                       </div>
                     ))}
-                    
-                    {variables.length > 0 && (
-                      <>
-                        <div className="function-group-header">Previous Variables</div>
-                        {variables.map(variable => (
-                          <div key={variable.id} className="insertable-item">
-                            <div className="insertable-item-name">${variable.name}</div>
-                            <button 
-                              className="btn-insert"
-                              onClick={() => handleInsertVariable(variable.name)}
-                              title="Insert variable"
-                            >
-                              <FiPlus size={12} />
-                            </button>
-                          </div>
-                        ))}
-                      </>
-                    )}
                   </div>
                 </div>
 
@@ -1491,38 +1901,73 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
                         lastGroup.options.push(option);
                       }
                       return acc;
-                    }, []).map((group, idx) => (
-                      <div key={idx} className={group.group === 'Conditional' ? 'function-group-conditional' : ''}>
-                        <div className={`function-group-header ${group.group === 'Conditional' ? 'conditional-header' : ''}`}>
-                          {group.group === 'Conditional' && '⚡ '}
-                          {group.group}
-                        </div>
-                        {group.options.map(opt => (
-                          <div key={opt.value} className={`function-item ${opt.group === 'Conditional' ? 'function-item-conditional' : ''}`}>
-                            <div className="function-item-header">
-                              <div className="function-item-name">{opt.label}</div>
-                              <button 
-                                className="btn-insert"
-                                onClick={() => handleInsertFunction(opt)}
-                                title="Insert function"
-                              >
-                                <FiPlus size={12} />
-                              </button>
-                            </div>
-                            <div className="function-item-syntax">{getFunctionSyntax(opt)}</div>
-                            {opt.description && (
-                              <div className="function-item-description">{opt.description}</div>
-                            )}
+                    }, []).map((group, idx) => {
+                      const isCollapsed = collapsedFunctionGroups[group.group];
+                      // Convert group name to Title Case
+                      const titleCaseGroup = group.group.split('/').map(word => 
+                        word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+                      ).join('/');
+                      return (
+                        <div key={idx} className={group.group === 'Conditional' ? 'function-group-conditional' : ''}>
+                          <div 
+                            className={`function-group-header collapsible-header ${group.group === 'Conditional' ? 'conditional-header' : ''}`}
+                            onClick={() => setCollapsedFunctionGroups(prev => ({ ...prev, [group.group]: !prev[group.group] }))}
+                            style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', textTransform: 'none' }}
+                          >
+                            <span>
+                              {titleCaseGroup}
+                            </span>
+                            {isCollapsed ? <FiChevronRight size={14} /> : <FiChevronDown size={14} />}
                           </div>
-                        ))}
-                      </div>
-                    ))}
+                          {!isCollapsed && group.options.map(opt => (
+                            <div key={opt.value} className={`function-item ${opt.group === 'Conditional' ? 'function-item-conditional' : ''}`}>
+                              <div className="function-item-header">
+                                <div className="function-item-name">{opt.label}</div>
+                                <button 
+                                  className="btn-insert"
+                                  onClick={() => handleInsertFunction(opt)}
+                                  title="Insert function"
+                                >
+                                  <FiPlus size={12} />
+                                </button>
+                              </div>
+                              <div className="function-item-syntax">{getFunctionSyntax(opt)}</div>
+                              {opt.description && (
+                                <div className="function-item-description">{opt.description}</div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
 
                 {/* Right Pane: Expression Builder */}
                 <div className="variable-pane">
-                  <div className="variable-pane-header">Build Expression</div>
+                  <div className="variable-pane-header" style={{ textTransform: 'none', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span>Build Expression</span>
+                    <button 
+                      type="button"
+                      className="btn btn-sm" 
+                      style={{ 
+                        fontSize: '10px', 
+                        padding: '2px 8px', 
+                        backgroundColor: '#3b82f6', 
+                        color: '#fff',
+                        border: 'none',
+                        borderRadius: '4px',
+                        cursor: 'pointer'
+                      }}
+                      onClick={() => { 
+                        setInlineEditingVariableId(null); 
+                        setNewVariable({ name: '', expression: '', data_type: '' }); 
+                        setExpressionValidation({ valid: true, error: null, success: null });
+                      }}
+                    >
+                      + New Variable
+                    </button>
+                  </div>
                   <div className="variable-pane-content">
                     <div className="expression-builder">
                       <div className="variable-name-input">
@@ -1534,7 +1979,7 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
                           onChange={(e) => setNewVariable({ ...newVariable, name: e.target.value })}
                           placeholder="e.g., full_name, total_amount"
                         />
-                        <small className="form-text">Can be referenced as $variable_name</small>
+                        <small className="form-text">{inlineEditingVariableId ? 'Renaming will update all references in other variables' : 'Can be referenced as $variable_name'}</small>
                       </div>
 
                       <div className="variable-name-input">
@@ -1550,21 +1995,46 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
                           <option value="integer">Integer</option>
                           <option value="float">Float</option>
                           <option value="date">Date</option>
+                          <option value="timestamp">Timestamp</option>
                           <option value="boolean">Boolean</option>
                         </select>
                         <small className="form-text">Output will be converted to this type</small>
                       </div>
 
-                      <div className="expression-builder-header">
-                        <label htmlFor="newvar-expression">Expression *</label>
+                      <div className="expression-builder-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                        <label htmlFor="newvar-expression" style={{ margin: 0 }}>Expression *</label>
+                        <button 
+                          type="button"
+                          className="btn btn-sm" 
+                          style={{ 
+                            fontSize: '10px', 
+                            padding: '2px 10px', 
+                            backgroundColor: '#e5e7eb', 
+                            border: '1px solid #d1d5db',
+                            borderRadius: '4px',
+                            cursor: 'pointer'
+                          }}
+                          onClick={() => {
+                            const isValid = validateExpression(newVariable.expression);
+                            if (isValid && newVariable.expression.trim()) {
+                              setExpressionValidation({ valid: true, error: null, success: 'Expression syntax is valid!' });
+                            }
+                          }}
+                        >
+                          Validate
+                        </button>
                       </div>
                       <div className="expression-editor-container">
                         <textarea
                           id="newvar-expression"
                           ref={expressionTextareaRef}
-                          className="expression-code-input"
+                          className={`expression-code-input ${!expressionValidation.valid ? 'expression-invalid' : ''}`}
                           value={newVariable.expression}
-                          onChange={(e) => setNewVariable({ ...newVariable, expression: e.target.value })}
+                          onChange={(e) => {
+                            setNewVariable({ ...newVariable, expression: e.target.value });
+                            setExpressionValidation({ valid: true, error: null });
+                          }}
+                          onBlur={(e) => validateExpression(e.target.value)}
                           placeholder="Click + buttons to insert columns and functions, or type directly..."
                           spellCheck="false"
                           style={{
@@ -1573,12 +2043,22 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
                             minHeight: '200px',
                             width: '100%',
                             padding: '8px',
-                            border: '1px solid #d1d5db',
+                            border: `1px solid ${!expressionValidation.valid ? '#dc3545' : '#d1d5db'}`,
                             borderRadius: '6px',
                             backgroundColor: '#fff',
                             resize: 'vertical'
                           }}
                         />
+                        {!expressionValidation.valid && expressionValidation.error && (
+                          <div className="expression-validation-error" style={{ color: '#dc3545', fontSize: '10px', marginTop: '4px', fontFamily: 'Inter, sans-serif' }}>
+                            ⚠️ {expressionValidation.error}
+                          </div>
+                        )}
+                        {expressionValidation.valid && expressionValidation.success && (
+                          <div className="expression-validation-success" style={{ color: '#10B981', fontSize: '10px', marginTop: '4px', fontFamily: 'Inter, sans-serif' }}>
+                            ✓ {expressionValidation.success}
+                          </div>
+                        )}
                       </div>
 
                       <div className="expression-help">
@@ -1604,19 +2084,19 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
                 </div>
               </div>
             </div>
-            <div className="modal-footer">
-              <button className="btn btn-secondary btn-fixed-width" onClick={() => setAddingVariable(false)}>
-                Cancel
+            <div className="modal-footer" style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '8px' }}>
+              <button className="btn btn-secondary btn-fixed-width" onClick={() => { setAddingVariable(false); setInlineEditingVariableId(null); setNewVariable({ name: '', expression: '', data_type: '' }); setExpressionValidation({ valid: true, error: null, success: null }); }}>
+                Close
               </button>
               <button className="btn btn-primary btn-fixed-width" onClick={handleSaveVariable}>
-                Add Variable
+                {inlineEditingVariableId ? 'Update' : 'Save'}
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {editingVariable && (
+      {false && (
         <div className="expression-editor-modal variable-builder-modal">
           <div className="modal-overlay"></div>
           <div className="modal-content">
@@ -1628,28 +2108,23 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
             </div>
             <div className="modal-body">
               <div className="variable-builder-panes">
-                {/* Left Pane: Source Columns */}
+                {/* Left Pane: Variables & Source Columns */}
                 <div className="variable-pane">
-                  <div className="variable-pane-header">Source Columns</div>
+                  <div className="variable-pane-header" style={{ textTransform: 'none' }}>Variables & Source Columns</div>
                   <div className="variable-pane-content">
-                    {schema.map(field => (
-                      <div key={field.name} className="insertable-item">
-                        <div className="insertable-item-name">{field.name}</div>
-                        <button 
-                          className="btn-insert"
-                          onClick={() => handleInsertColumn(field.name, true)}
-                          title="Insert column"
-                        >
-                          <FiPlus size={12} />
-                        </button>
-                      </div>
-                    ))}
-                    
+                    {/* Previous Variables - Collapsible (shown first) */}
                     {variables.filter(v => v.id !== editingVariable.id).length > 0 && (
                       <>
-                        <div className="function-group-header">Previous Variables</div>
-                        {variables.filter(v => v.id !== editingVariable.id).map(variable => (
-                          <div key={variable.id} className="insertable-item">
+                        <div 
+                          className="function-group-header collapsible-header"
+                          onClick={() => setPreviousVariablesExpanded(!previousVariablesExpanded)}
+                          style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', textTransform: 'none' }}
+                        >
+                          <span>Variables</span>
+                          {previousVariablesExpanded ? <FiChevronDown size={14} /> : <FiChevronRight size={14} />}
+                        </div>
+                        {previousVariablesExpanded && variables.filter(v => v.id !== editingVariable.id).map(variable => (
+                          <div key={variable.name} className="insertable-item">
                             <div className="insertable-item-name">${variable.name}</div>
                             <button 
                               className="btn-insert"
@@ -1662,12 +2137,34 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
                         ))}
                       </>
                     )}
+                    
+                    {/* Source Columns - Collapsible */}
+                    <div 
+                      className="function-group-header collapsible-header"
+                      onClick={() => setSourceColumnsExpanded(!sourceColumnsExpanded)}
+                      style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', textTransform: 'none', marginTop: variables.filter(v => v.id !== editingVariable.id).length > 0 ? '8px' : '0' }}
+                    >
+                      <span>Source Columns</span>
+                      {sourceColumnsExpanded ? <FiChevronDown size={14} /> : <FiChevronRight size={14} />}
+                    </div>
+                    {sourceColumnsExpanded && schema.map(field => (
+                      <div key={field.name} className="insertable-item">
+                        <div className="insertable-item-name">{field.name}</div>
+                        <button 
+                          className="btn-insert"
+                          onClick={() => handleInsertColumn(field.name, true)}
+                          title="Insert column"
+                        >
+                          <FiPlus size={12} />
+                        </button>
+                      </div>
+                    ))}
                   </div>
                 </div>
 
                 {/* Middle Pane: Transformation Functions */}
                 <div className="variable-pane">
-                  <div className="variable-pane-header">Functions</div>
+                  <div className="variable-pane-header" style={{ textTransform: 'none' }}>Functions</div>
                   <div className="variable-pane-content">
                     {TRANSFORMATION_OPTIONS.reduce((acc, option) => {
                       const lastGroup = acc[acc.length - 1];
@@ -1677,38 +2174,51 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
                         lastGroup.options.push(option);
                       }
                       return acc;
-                    }, []).map((group, idx) => (
-                      <div key={idx} className={group.group === 'Conditional' ? 'function-group-conditional' : ''}>
-                        <div className={`function-group-header ${group.group === 'Conditional' ? 'conditional-header' : ''}`}>
-                          {group.group === 'Conditional' && '⚡ '}
-                          {group.group}
-                        </div>
-                        {group.options.map(opt => (
-                          <div key={opt.value} className={`function-item ${opt.group === 'Conditional' ? 'function-item-conditional' : ''}`}>
-                            <div className="function-item-header">
-                              <div className="function-item-name">{opt.label}</div>
-                              <button 
-                                className="btn-insert"
-                                onClick={() => handleInsertFunction(opt, true)}
-                                title="Insert function"
-                              >
-                                <FiPlus size={12} />
-                              </button>
-                            </div>
-                            <div className="function-item-syntax">{getFunctionSyntax(opt)}</div>
-                            {opt.description && (
-                              <div className="function-item-description">{opt.description}</div>
-                            )}
+                    }, []).map((group, idx) => {
+                      const isCollapsed = collapsedFunctionGroups[group.group];
+                      // Convert group name to Title Case
+                      const titleCaseGroup = group.group.split('/').map(word => 
+                        word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+                      ).join('/');
+                      return (
+                        <div key={idx} className={group.group === 'Conditional' ? 'function-group-conditional' : ''}>
+                          <div 
+                            className={`function-group-header collapsible-header ${group.group === 'Conditional' ? 'conditional-header' : ''}`}
+                            onClick={() => setCollapsedFunctionGroups(prev => ({ ...prev, [group.group]: !prev[group.group] }))}
+                            style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', textTransform: 'none' }}
+                          >
+                            <span>
+                              {titleCaseGroup}
+                            </span>
+                            {isCollapsed ? <FiChevronRight size={14} /> : <FiChevronDown size={14} />}
                           </div>
-                        ))}
-                      </div>
-                    ))}
+                          {!isCollapsed && group.options.map(opt => (
+                            <div key={opt.value} className={`function-item ${opt.group === 'Conditional' ? 'function-item-conditional' : ''}`}>
+                              <div className="function-item-header">
+                                <div className="function-item-name">{opt.label}</div>
+                                <button 
+                                  className="btn-insert"
+                                  onClick={() => handleInsertFunction(opt, true)}
+                                  title="Insert function"
+                                >
+                                  <FiPlus size={12} />
+                                </button>
+                              </div>
+                              <div className="function-item-syntax">{getFunctionSyntax(opt)}</div>
+                              {opt.description && (
+                                <div className="function-item-description">{opt.description}</div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
 
                 {/* Right Pane: Expression Builder */}
                 <div className="variable-pane">
-                  <div className="variable-pane-header">Build Expression</div>
+                  <div className="variable-pane-header" style={{ textTransform: 'none' }}>Build Expression</div>
                   <div className="variable-pane-content">
                     <div className="expression-builder">
                       <div className="variable-name-input">
@@ -1735,6 +2245,7 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
                           <option value="integer">Integer</option>
                           <option value="float">Float</option>
                           <option value="date">Date</option>
+                          <option value="timestamp">Timestamp</option>
                           <option value="boolean">Boolean</option>
                         </select>
                         <small className="form-text">Output will be converted to this type</small>
@@ -1933,6 +2444,33 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
                 onClick={() => setShowDqRulePanel(false)}
               >
                 Save
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {validationError && (
+        <div className="expression-editor-modal">
+          <div className="modal-overlay" onClick={() => setValidationError(null)}></div>
+          <div className="modal-content" style={{ maxWidth: '400px' }}>
+            <div className="modal-header">
+              <h4>Validation Error</h4>
+              <button className="btn-close" onClick={() => setValidationError(null)}>
+                <FiX />
+              </button>
+            </div>
+            <div className="modal-body">
+              <p style={{ margin: 0, fontFamily: 'Inter, sans-serif', fontSize: '10px', lineHeight: '1.5' }}>
+                {validationError}
+              </p>
+            </div>
+            <div className="modal-footer" style={{ justifyContent: 'flex-end' }}>
+              <button 
+                className="btn btn-primary btn-fixed-width" 
+                onClick={() => setValidationError(null)}
+              >
+                OK
               </button>
             </div>
           </div>

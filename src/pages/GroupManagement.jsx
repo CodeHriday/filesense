@@ -2,11 +2,13 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { FiEdit2, FiTrash2, FiSearch } from 'react-icons/fi';
 import ConfirmModal from '../components/ConfirmModal';
+import { useDeletePermission } from '../hooks/useDeletePermission';
 import '../styles/global-page-styles.css';
 
 const API_BASE_URL = '/api';
 
 function GroupManagement() {
+  const { canDelete } = useDeletePermission('access_groups');
   const [groups, setGroups] = useState([]);
   const [selectedGroup, setSelectedGroup] = useState(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -14,6 +16,7 @@ function GroupManagement() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [groupTypeFilter, setGroupTypeFilter] = useState('');
 
   const [formData, setFormData] = useState({
@@ -40,19 +43,27 @@ function GroupManagement() {
   const [availableProjects, setAvailableProjects] = useState([]);
   const [confirmModal, setConfirmModal] = useState({ isOpen: false, action: null, message: '', title: '' });
 
+  // Debounce search term (2.5 seconds)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 2500);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
   useEffect(() => {
     fetchGroups();
     fetchAvailableUsers();
     fetchAvailableRoles();
     fetchAvailableProjects();
-  }, [searchTerm, groupTypeFilter]);
+  }, [debouncedSearchTerm, groupTypeFilter]);
 
   const fetchGroups = async () => {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
       const params = new URLSearchParams();
-      if (searchTerm) params.append('search', searchTerm);
+      if (debouncedSearchTerm) params.append('search', debouncedSearchTerm);
       if (groupTypeFilter) params.append('group_type', groupTypeFilter);
 
       const response = await axios.get(`${API_BASE_URL}/groups?${params}`, {
@@ -355,13 +366,15 @@ function GroupManagement() {
                       >
                         <FiEdit2 />
                       </button>
-                      <button 
-                        className="gps-icon-btn gps-icon-btn--delete" 
-                        onClick={() => handleDelete(group.id)}
-                        title="Delete group"
-                      >
-                        <FiTrash2 />
-                      </button>
+                      {canDelete && (
+                        <button 
+                          className="gps-icon-btn gps-icon-btn--delete" 
+                          onClick={() => handleDelete(group.id)}
+                          title="Delete group"
+                        >
+                          <FiTrash2 />
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>

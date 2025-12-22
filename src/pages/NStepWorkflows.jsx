@@ -7,11 +7,13 @@ import LoadingSpinner from '../components/LoadingSpinner';
 import Pagination from '../components/Pagination';
 import { PageTransition } from '../components/MicroAnimations';
 import ConfirmModal from '../components/ConfirmModal';
+import { useDeletePermission } from '../hooks/useDeletePermission';
 import { groupWorkflowsByProject, initializeExpansionState } from '../utils/workflowGrouping';
 import '../styles/NStepWorkflows.css';
 
 const NStepWorkflows = () => {
   const navigate = useNavigate();
+  const { canDelete } = useDeletePermission('workflows');
   const [workflows, setWorkflows] = useState([]);
   const [selectedWorkflow, setSelectedWorkflow] = useState(null);
   const [workflowData, setWorkflowData] = useState(null);
@@ -813,16 +815,18 @@ const NStepWorkflows = () => {
                                                 >
                                                   <FiEdit />
                                                 </button>
-                                                <button
-                                                  className="action-icon-btn delete-btn"
-                                                  onClick={() => {
-                                                    setWorkflowToDelete(w.id);
-                                                    setDeleteWorkflowModalOpen(true);
-                                                  }}
-                                                  title="Delete workflow"
-                                                >
-                                                  <FiTrash2 />
-                                                </button>
+                                                {canDelete && (
+                                                  <button
+                                                    className="action-icon-btn delete-btn"
+                                                    onClick={() => {
+                                                      setWorkflowToDelete(w.id);
+                                                      setDeleteWorkflowModalOpen(true);
+                                                    }}
+                                                    title="Delete workflow"
+                                                  >
+                                                    <FiTrash2 />
+                                                  </button>
+                                                )}
                                               </div>
                                             </td>
                                           </tr>
@@ -930,16 +934,18 @@ const NStepWorkflows = () => {
                                                 >
                                                   <FiEdit />
                                                 </button>
-                                                <button
-                                                  className="action-icon-btn delete-btn"
-                                                  onClick={() => {
-                                                    setWorkflowToDelete(w.id);
-                                                    setDeleteWorkflowModalOpen(true);
-                                                  }}
-                                                  title="Delete workflow"
-                                                >
-                                                  <FiTrash2 />
-                                                </button>
+                                                {canDelete && (
+                                                  <button
+                                                    className="action-icon-btn delete-btn"
+                                                    onClick={() => {
+                                                      setWorkflowToDelete(w.id);
+                                                      setDeleteWorkflowModalOpen(true);
+                                                    }}
+                                                    title="Delete workflow"
+                                                  >
+                                                    <FiTrash2 />
+                                                  </button>
+                                                )}
                                               </div>
                                             </td>
                                           </tr>
@@ -1088,7 +1094,7 @@ const NStepWorkflows = () => {
                     <div className="step-header">
                       <div className="step-title-row">
                         <h3>Step {step.step_index}</h3>
-                        {mode === 'edit' && (
+                        {mode === 'edit' && canDelete && (
                           <button
                             className="step-delete-btn"
                             onClick={(e) => {

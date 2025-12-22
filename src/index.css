@@ -535,7 +535,8 @@ div.spinner {
 
 .pagination-info {
   color: var(--text-secondary);
-  font-size: var(--text-sm);
+  font-family: 'Inter', sans-serif;
+  font-size: 10px;
 }
 
 .pagination-controls {
@@ -553,7 +554,8 @@ div.spinner {
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
   color: var(--text-primary);
-  font-size: var(--text-sm);
+  font-family: 'Inter', sans-serif;
+  font-size: 10px;
   font-weight: var(--font-medium);
   cursor: pointer;
   transition: all var(--transition-fast);
@@ -576,8 +578,8 @@ div.spinner {
 }
 
 .pagination-number {
-  min-width: 36px;
-  height: 36px;
+  min-width: 28px;
+  height: 28px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -585,7 +587,8 @@ div.spinner {
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
   color: var(--text-primary);
-  font-size: var(--text-sm);
+  font-family: 'Inter', sans-serif;
+  font-size: 10px;
   font-weight: var(--font-medium);
   cursor: pointer;
   transition: all var(--transition-fast);
@@ -604,13 +607,52 @@ div.spinner {
 }
 
 .pagination-ellipsis {
-  min-width: 36px;
-  height: 36px;
+  min-width: 28px;
+  height: 28px;
   display: flex;
   align-items: center;
   justify-content: center;
   color: var(--text-tertiary);
-  font-size: var(--text-sm);
+  font-family: 'Inter', sans-serif;
+  font-size: 10px;
+}
+
+.pagination-page-size {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-right: 16px;
+}
+
+.pagination-page-size label {
+  font-family: 'Inter', sans-serif;
+  font-size: 10px;
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.pagination-page-size select {
+  font-family: 'Inter', sans-serif;
+  font-size: 10px;
+  padding: 6px 28px 6px 10px;
+  border: 1px solid #cbd5e0;
+  border-radius: 6px;
+  background: #ffffff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E") no-repeat right 8px center;
+  color: #1a202c;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  transition: all 0.2s ease;
+}
+
+.pagination-page-size select:hover {
+  border-color: #a0aec0;
+}
+
+.pagination-page-size select:focus {
+  outline: none;
+  border-color: #025043;
+  box-shadow: 0 0 0 3px rgba(2, 80, 67, 0.12);
 }
 
 @media (max-width: 768px) {

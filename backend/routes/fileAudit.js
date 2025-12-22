@@ -207,7 +207,8 @@ router.get('/', async (req, res) => {
       limit: parseInt(limit) || 100,
       offset: parseInt(offset) || 0,
       userId: req.user.id, // Pass user info for project filtering (guaranteed to exist)
-      userRoles: req.user.roles || []
+      userRoles: req.user.roles || [],
+      userPermissions: req.user.permissions || [] // Pass permissions for admin-equivalent role check
     });
 
     if (result.success) {

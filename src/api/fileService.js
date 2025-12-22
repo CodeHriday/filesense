@@ -19,6 +19,7 @@ export const testApiConnection = async () => {
 
 /**
  * Get the file catalog
+ * Returns { files: Array, totalCount: number }
  */
 export const getFileCatalog = async () => {
   try {
@@ -30,6 +31,11 @@ export const getFileCatalog = async () => {
     
     const response = await axios.get(`${API_URL}/files`);
     console.log('File catalog fetch successful:', response.data);
+    
+    // Handle both old format (array) and new format ({ files, totalCount })
+    if (Array.isArray(response.data)) {
+      return { files: response.data, totalCount: response.data.length };
+    }
     return response.data;
   } catch (error) {
     console.error('Error fetching file catalog:', error);

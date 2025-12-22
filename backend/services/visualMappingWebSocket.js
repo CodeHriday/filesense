@@ -136,6 +136,40 @@ class VisualMappingWebSocketService {
     
     this.io.to(`execution:${executionId}`).emit('execution_log', logEntry);
   }
+
+  /**
+   * Emit execution start event to reset all edge counts and node statuses on the frontend
+   * @param {string} executionId - Unique execution identifier
+   * @param {Array} edges - Array of edge objects with source and target
+   */
+  emitExecutionStart(executionId, edges = []) {
+    if (!this.io) return;
+    
+    this.io.to(`execution:${executionId}`).emit('execution_start', {
+      executionId,
+      timestamp: new Date().toISOString(),
+      resetEdges: true
+    });
+    
+    // Also emit zero counts for all edges to ensure they're reset
+    for (const edge of edges) {
+      if (edge.id && edge.source && edge.target) {
+        this.io.to(`execution:${executionId}`).emit('edge_row_count', {
+          executionId,
+          edgeId: edge.id,
+          sourceNodeId: edge.source,
+          targetNodeId: edge.target,
+          rowCount: 0,
+          timestamp: new Date().toISOString()
+        });
+      }
+    }
+    
+    systemLogger.info('Emitted execution start with edge reset', {
+      executionId,
+      edgeCount: edges.length
+    });
+  }
 }
 
 module.exports = new VisualMappingWebSocketService();

@@ -490,7 +490,6 @@
   font-weight: 700;
   color: #025043;
   border-bottom: 2px solid #e2e8f0;
-  text-transform: uppercase;
   font-size: 9px;
   letter-spacing: 0.5px;
 }
@@ -573,7 +572,7 @@
   font-family: 'Inter', sans-serif;
   font-size: 10px;
   font-weight: 600;
-  text-transform: uppercase;
+  text-transform: none;
   color: #64748b;
   cursor: pointer;
   border-bottom: 3px solid transparent;
@@ -622,7 +621,6 @@
   font-weight: 700;
   color: #025043;
   min-width: 140px;
-  text-transform: uppercase;
   letter-spacing: 0.5px;
 }
 
@@ -660,9 +658,9 @@
   color: #025043;
   background: white;
   border-bottom: 2px solid #e2e8f0;
-  text-transform: uppercase;
   font-size: 9px;
   letter-spacing: 0.5px;
+  text-transform: none;
 }
 
 .vm-schema-table tbody tr {
@@ -737,4 +735,48 @@
 
 .vm-schema-note strong {
   font-weight: 700;
+}
+
+.vm-pii-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 3px;
+  font-weight: 600;
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.vm-pii-badge.vm-pii-yes {
+  background: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fca5a5;
+}
+
+.vm-pii-badge.vm-pii-no {
+  background: #f0fdf4;
+  color: #16a34a;
+  border: 1px solid #86efac;
+}
+
+.vm-nullable-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 3px;
+  font-weight: 600;
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.vm-nullable-badge.vm-nullable-yes {
+  background: #f0fdf4;
+  color: #16a34a;
+  border: 1px solid #86efac;
+}
+
+.vm-nullable-badge.vm-nullable-no {
+  background: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fca5a5;
 }

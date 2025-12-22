@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { FiPlus, FiEdit2, FiTrash2, FiAlertTriangle, FiCheck, FiX } from 'react-icons/fi';
+import { FiPlus, FiEdit2, FiTrash2, FiAlertTriangle, FiCheck, FiX, FiRefreshCw } from 'react-icons/fi';
 import LoadingSpinner from '../components/LoadingSpinner';
 import Pagination from '../components/Pagination';
 import { getQualityRules, createQualityRule, updateQualityRule, deleteQualityRule, getViolationsSummary, getProjects } from '../api/qualityRulesService';
@@ -52,40 +52,30 @@ function QualityRules() {
     fetchData();
   }, [currentPage, filterProjectId, filterSubProjectId, filterRuleType, filterEnabled]);
 
-  const uniqueProjects = useMemo(() => {
-    const projectSet = new Map();
-    rules.forEach(rule => {
-      if (rule.project_id && rule.project_name) {
-        projectSet.set(rule.project_id, rule.project_name);
-      }
-    });
-    return Array.from(projectSet.entries()).map(([id, name]) => ({ id, name }));
-  }, [rules]);
+  const [filterSubProjects, setFilterSubProjects] = useState([]);
 
-  const uniqueSubProjects = useMemo(() => {
-    const subProjectSet = new Map();
-    rules.forEach(rule => {
-      if (rule.sub_project_id && rule.sub_project_name) {
-        if (!filterProjectId || rule.project_id === parseInt(filterProjectId)) {
-          subProjectSet.set(rule.sub_project_id, rule.sub_project_name);
-        }
+  useEffect(() => {
+    if (filterProjectId) {
+      const selectedProject = projects.find(p => String(p.id) === String(filterProjectId));
+      const subProjectsForFilter = selectedProject?.sub_projects || [];
+      setFilterSubProjects(subProjectsForFilter);
+    } else {
+      setFilterSubProjects([]);
+      if (filterSubProjectId) {
+        setFilterSubProjectId('');
       }
-    });
-    return Array.from(subProjectSet.entries()).map(([id, name]) => ({ id, name }));
-  }, [rules, filterProjectId]);
+    }
+  }, [filterProjectId, projects]);
 
-  const filteredRules = useMemo(() => {
-    return rules.filter(rule => {
-      if (filterProjectId && rule.project_id !== parseInt(filterProjectId)) return false;
-      if (filterSubProjectId && rule.sub_project_id !== parseInt(filterSubProjectId)) return false;
-      if (filterRuleType && rule.rule_type !== filterRuleType) return false;
-      if (filterEnabled !== '') {
-        const enabledValue = filterEnabled === 'true';
-        if (rule.enabled !== enabledValue) return false;
-      }
-      return true;
-    });
-  }, [rules, filterProjectId, filterSubProjectId, filterRuleType, filterEnabled]);
+  const hasActiveFilters = filterProjectId || filterSubProjectId || filterRuleType || filterEnabled;
+
+  const handleClearFilters = () => {
+    setFilterProjectId('');
+    setFilterSubProjectId('');
+    setFilterRuleType('');
+    setFilterEnabled('');
+    setCurrentPage(1);
+  };
 
   const fetchData = async () => {
     try {
@@ -856,70 +846,103 @@ function QualityRules() {
         </div>
       </div>
 
-      <div className="gps-filters">
-        <select
-          className="gps-select"
-          value={filterProjectId}
-          onChange={(e) => {
-            setFilterProjectId(e.target.value);
-            setCurrentPage(1);
-          }}
-        >
-          <option value="">All Projects</option>
-          {(uniqueProjects.length > 0 ? uniqueProjects : projects).map(project => (
-            <option key={project.id} value={project.id}>
-              {project.name}
-            </option>
-          ))}
-        </select>
-        
-        <select
-          className="gps-select"
-          value={filterSubProjectId}
-          onChange={(e) => {
-            setFilterSubProjectId(e.target.value);
-            setCurrentPage(1);
-          }}
-        >
-          <option value="">All Subprojects</option>
-          {uniqueSubProjects.map(subProject => (
-            <option key={subProject.id} value={subProject.id}>
-              {subProject.name}
-            </option>
-          ))}
-        </select>
-        
-        <select
-          className="gps-select"
-          value={filterRuleType}
-          onChange={(e) => {
-            setFilterRuleType(e.target.value);
-            setCurrentPage(1);
-          }}
-        >
-          <option value="">All Types</option>
-          <option value="completeness">Completeness</option>
-          <option value="validity">Validity</option>
-          <option value="consistency">Consistency</option>
-          <option value="uniqueness">Uniqueness</option>
-          <option value="freshness">Freshness</option>
-          <option value="validity_check">Validity Check</option>
-          <option value="length_check">Length Check</option>
-          <option value="range_check">Range Check</option>
-        </select>
-        
-        <select
-          className="gps-select"
-          value={filterEnabled}
-          onChange={(e) => {
-            setFilterEnabled(e.target.value);
-            setCurrentPage(1);
-          }}
-        >
-          <option value="">All Status</option>
-          <option value="true">Enabled Only</option>
-          <option value="false">Disabled Only</option>
-        </select>
+      <div className="gps-card" style={{ padding: '16px', marginBottom: '16px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', minWidth: '180px' }}>
+            <label style={{ fontSize: '10px', fontWeight: 500, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Project</label>
+            <select
+              className="gps-select"
+              value={filterProjectId}
+              onChange={(e) => {
+                setFilterProjectId(e.target.value);
+                setCurrentPage(1);
+              }}
+              style={{ width: '100%' }}
+            >
+              <option value="">All Projects</option>
+              {projects.filter(p => !p.parent_id).map(project => (
+                <option key={project.id} value={project.id}>
+                  {project.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', minWidth: '180px' }}>
+            <label style={{ fontSize: '10px', fontWeight: 500, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Subproject</label>
+            <select
+              className="gps-select"
+              value={filterSubProjectId}
+              onChange={(e) => {
+                setFilterSubProjectId(e.target.value);
+                setCurrentPage(1);
+              }}
+              disabled={!filterProjectId}
+              style={{ width: '100%', opacity: filterProjectId ? 1 : 0.6 }}
+            >
+              <option value="">All Subprojects</option>
+              {filterSubProjects.map(subProject => (
+                <option key={subProject.id} value={subProject.id}>
+                  {subProject.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', minWidth: '150px' }}>
+            <label style={{ fontSize: '10px', fontWeight: 500, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Rule Type</label>
+            <select
+              className="gps-select"
+              value={filterRuleType}
+              onChange={(e) => {
+                setFilterRuleType(e.target.value);
+                setCurrentPage(1);
+              }}
+              style={{ width: '100%' }}
+            >
+              <option value="">All Types</option>
+              <option value="completeness">Completeness</option>
+              <option value="validity">Validity</option>
+              <option value="consistency">Consistency</option>
+              <option value="uniqueness">Uniqueness</option>
+              <option value="freshness">Freshness</option>
+              <option value="validity_check">Validity Check</option>
+              <option value="length_check">Length Check</option>
+              <option value="range_check">Range Check</option>
+            </select>
+          </div>
+          
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', minWidth: '130px' }}>
+            <label style={{ fontSize: '10px', fontWeight: 500, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Status</label>
+            <select
+              className="gps-select"
+              value={filterEnabled}
+              onChange={(e) => {
+                setFilterEnabled(e.target.value);
+                setCurrentPage(1);
+              }}
+              style={{ width: '100%' }}
+            >
+              <option value="">All Status</option>
+              <option value="true">Enabled Only</option>
+              <option value="false">Disabled Only</option>
+            </select>
+          </div>
+
+          {hasActiveFilters && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginLeft: 'auto' }}>
+              <label style={{ fontSize: '10px', fontWeight: 500, color: 'transparent', textTransform: 'uppercase', letterSpacing: '0.5px' }}>&nbsp;</label>
+              <button 
+                type="button"
+                className="gps-btn gps-btn--secondary" 
+                onClick={handleClearFilters}
+                style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+              >
+                <FiRefreshCw size={14} /> Clear Filters
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       {loading ? (
@@ -935,18 +958,18 @@ function QualityRules() {
       ) : (
         <>
           <div style={{ fontSize: '10px', color: '#666', marginBottom: '12px' }}>
-            Showing {filteredRules.length} of {pagination.total || rules.length} quality rules
+            Showing {rules.length} of {pagination.total || rules.length} quality rules
           </div>
           
-          {filteredRules.length === 0 ? (
+          {rules.length === 0 ? (
             <div className="gps-empty-state">
               <p>
-                {filterProjectId || filterSubProjectId || filterRuleType || filterEnabled
+                {hasActiveFilters
                   ? 'No rules match your current filters. Try adjusting your filter criteria.'
                   : 'No quality rules found. Create one to get started!'
                 }
               </p>
-              {hasWritePermission('quality_rules') && !filterProjectId && !filterSubProjectId && !filterRuleType && !filterEnabled && (
+              {hasWritePermission('quality_rules') && !hasActiveFilters && (
                 <button className="gps-btn gps-btn--primary" onClick={handleAddRule} style={{ marginTop: '12px' }}>
                   <FiPlus /> Create Your First Quality Rule
                 </button>
@@ -969,7 +992,7 @@ function QualityRules() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredRules.map(rule => (
+                  {rules.map(rule => (
                     <tr key={rule.id}>
                       <td>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>

@@ -6,10 +6,12 @@ import Pagination from '../components/Pagination';
 import { PageTransition } from '../components/MicroAnimations';
 import Modal from '../components/Modal';
 import { useNotification } from '../contexts/NotificationContext';
+import { useDeletePermission } from '../hooks/useDeletePermission';
 import '../styles/global-page-styles.css';
 import axios from 'axios';
 
 const ETLScheduler = () => {
+  const { canDelete } = useDeletePermission('schedule');
   const [schedules, setSchedules] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -258,13 +260,15 @@ const ETLScheduler = () => {
                         >
                           <FiEdit2 />
                         </Link>
-                        <button 
-                          onClick={() => handleDeleteClick(schedule.schedule_id)} 
-                          className="gps-icon-btn gps-icon-btn-danger"
-                          title="Delete"
-                        >
-                          <FiTrash2 />
-                        </button>
+                        {canDelete && (
+                          <button 
+                            onClick={() => handleDeleteClick(schedule.schedule_id)} 
+                            className="gps-icon-btn gps-icon-btn-danger"
+                            title="Delete"
+                          >
+                            <FiTrash2 />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>

@@ -8,6 +8,7 @@ import Pagination from '../components/Pagination';
 import TransferOwnershipModal from '../components/TransferOwnershipModal';
 import ThreeSectionModal from '../components/ThreeSectionModal';
 import { useAuth } from '../context/AuthContext';
+import { useDeletePermission } from '../hooks/useDeletePermission';
 import { getAllUsers, getRoles, createUser, updateUser, deleteUser } from '../api/authService';
 import axios from 'axios';
 import '../styles/UserManagement.css';
@@ -22,6 +23,7 @@ const UserManagement = () => {
   const [modalMode, setModalMode] = useState('create'); // 'create' or 'edit'
   const [selectedUser, setSelectedUser] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [formData, setFormData] = useState({
     username: '',
     password: '',
@@ -75,10 +77,27 @@ const UserManagement = () => {
   const [userDependencies, setUserDependencies] = useState(null);
   const [vendorContacts, setVendorContacts] = useState([]);
   
+  // Field validation errors
+  const [fieldErrors, setFieldErrors] = useState({});
+  
   const { currentUser, hasPermission, hasRole } = useAuth();
+  const { canDelete } = useDeletePermission('users');
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
+
+  const handlePageSizeChange = (e) => {
+    setPageSize(parseInt(e.target.value));
+    setCurrentPage(1);
+  };
   
+  // Debounce search term
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 2500);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
   // Check if user has permission to view users
   useEffect(() => {
     if (!currentUser) {
@@ -94,7 +113,7 @@ const UserManagement = () => {
     // }
     
     fetchData();
-  }, [currentUser, navigate, currentPage, pageSize]);
+  }, [currentUser, navigate, currentPage, pageSize, debouncedSearchTerm]);
   
   const fetchData = async () => {
     setLoading(true);
@@ -102,7 +121,7 @@ const UserManagement = () => {
     
     try {
       const [usersResponse, rolesData] = await Promise.all([
-        getAllUsers(currentPage, pageSize),
+        getAllUsers(currentPage, pageSize, debouncedSearchTerm),
         getRoles(1, 100)
       ]);
       
@@ -220,6 +239,7 @@ const UserManagement = () => {
     setModalMode('create');
     setError('');
     setModalError('');
+    setFieldErrors({});
     setModalOpen(true);
   };
   
@@ -240,6 +260,7 @@ const UserManagement = () => {
     });
     setModalMode('edit');
     setModalError('');
+    setFieldErrors({});
     setModalOpen(true);
   };
   
@@ -269,6 +290,7 @@ const UserManagement = () => {
       setModalMode('create');
       setError('');
       setModalError('');
+      setFieldErrors({});
       setModalOpen(true);
       
       // Clear URL parameters
@@ -304,12 +326,53 @@ const UserManagement = () => {
     setModalError('');
   };
   
+  const validatePhone = (phone) => {
+    if (!phone) return '';
+    const phoneRegex = /^[0-9+().\-\s]*$/;
+    if (!phoneRegex.test(phone)) {
+      return 'Phone number can only contain numbers, +, (), -, and spaces';
+    }
+    return '';
+  };
+
+  const validateEmail = (email, checkRequired = false) => {
+    if (!email) {
+      return checkRequired ? 'Email is required' : '';
+    }
+    if (!email.includes('@')) {
+      return 'Email must contain @';
+    }
+    if (!email.toLowerCase().endsWith('.com') && 
+        !email.toLowerCase().endsWith('.org') && 
+        !email.toLowerCase().endsWith('.net') && 
+        !email.toLowerCase().endsWith('.edu') && 
+        !email.toLowerCase().endsWith('.gov') &&
+        !email.toLowerCase().includes('.')) {
+      return 'Email must have a valid domain (e.g., .com)';
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return 'Please enter a valid email address';
+    }
+    return '';
+  };
+
   const handleInputChange = (e) => {
     const { name, type, value, checked } = e.target;
+    const newValue = type === 'checkbox' ? checked : value;
+    
     setFormData(prev => ({
       ...prev,
-      [name]: type === 'checkbox' ? checked : value
+      [name]: newValue
     }));
+
+    if (name === 'phone_number') {
+      const error = validatePhone(newValue);
+      setFieldErrors(prev => ({ ...prev, phone_number: error }));
+    } else if (name === 'email') {
+      const error = validateEmail(newValue);
+      setFieldErrors(prev => ({ ...prev, email: error }));
+    }
   };
   
   const handleRoleChange = (e) => {
@@ -330,6 +393,20 @@ const UserManagement = () => {
   
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // Validate phone and email fields (email is required)
+    const phoneError = validatePhone(formData.phone_number);
+    const emailError = validateEmail(formData.email, true);
+    
+    setFieldErrors({
+      phone_number: phoneError,
+      email: emailError
+    });
+    
+    if (phoneError || emailError) {
+      setModalError('Please fix the validation errors before submitting');
+      return;
+    }
     
     // Validate that at least one role is selected
     if (formData.roles.length === 0) {
@@ -451,6 +528,12 @@ const UserManagement = () => {
   const confirmDeleteUser = async () => {
     if (!userToDelete) return;
     
+    if (!canDelete) {
+      setError("You don't have permission to delete users");
+      closeDeleteModal();
+      return;
+    }
+    
     try {
       await deleteUser(userToDelete.id);
       closeDeleteModal();
@@ -505,8 +588,9 @@ const UserManagement = () => {
   
   // Bulk delete handlers
   const handleSelectAll = (e) => {
+    if (!canDelete) return;
     if (e.target.checked) {
-      const selectableUserIds = filteredUsers
+      const selectableUserIds = users
         .filter(user => user.id !== currentUser?.id)
         .map(user => user.id);
       setSelectedUserIds(selectableUserIds);
@@ -564,6 +648,12 @@ const UserManagement = () => {
   const confirmBulkDelete = async () => {
     if (selectedUserIds.length === 0) return;
     
+    if (!canDelete) {
+      setError("You don't have permission to delete users");
+      closeBulkDeleteModal();
+      return;
+    }
+    
     try {
       const response = await axios.post('/api/users/bulk-delete', {
         userIds: selectedUserIds
@@ -599,23 +689,8 @@ const UserManagement = () => {
     }
   };
   
-  const filteredUsers = users.filter(user => {
-    const searchLower = searchTerm.toLowerCase();
-    return (
-      (user.username || '').toLowerCase().includes(searchLower) ||
-      (user.email || '').toLowerCase().includes(searchLower) ||
-      (user.full_name || '').toLowerCase().includes(searchLower) ||
-      (user.first_name || '').toLowerCase().includes(searchLower) ||
-      (user.last_name || '').toLowerCase().includes(searchLower)
-    );
-  });
-
-  // Clamp currentPage when filtered results are empty
-  useEffect(() => {
-    if (filteredUsers.length === 0 && currentPage > 1) {
-      setCurrentPage(1);
-    }
-  }, [filteredUsers.length, currentPage]);
+  // Server-side search is now used - no client-side filtering needed
+  // The search is passed to the API and handled by the backend
 
   return (
     <div className="gps-page-container">
@@ -643,7 +718,7 @@ const UserManagement = () => {
                   )}
                 </button>
               )}
-              {selectedUserIds.length > 0 && (
+              {canDelete && selectedUserIds.length > 0 && (
                 <button 
                   className="gps-btn gps-btn--danger"
                   onClick={openBulkDeleteModal}
@@ -686,13 +761,15 @@ const UserManagement = () => {
         <table className="gps-table">
           <thead>
             <tr>
-              <th style={{ width: '50px' }}>
-                <input
-                  type="checkbox"
-                  onChange={handleSelectAll}
-                  checked={selectedUserIds.length > 0 && selectedUserIds.length === filteredUsers.filter(u => u.id !== currentUser?.id).length}
-                />
-              </th>
+              {canDelete && (
+                <th style={{ width: '50px' }}>
+                  <input
+                    type="checkbox"
+                    onChange={handleSelectAll}
+                    checked={selectedUserIds.length > 0 && selectedUserIds.length === users.filter(u => u.id !== currentUser?.id).length}
+                  />
+                </th>
+              )}
               <th>Username</th>
               <th>Full Name</th>
               <th>Email</th>
@@ -704,28 +781,30 @@ const UserManagement = () => {
             </tr>
           </thead>
           <tbody>
-            {filteredUsers.length === 0 ? (
+            {users.length === 0 ? (
               <tr>
-                <td colSpan="9" className="no-users-message">
+                <td colSpan={canDelete ? 9 : 8} className="no-users-message">
                   {searchTerm ? 'No users found matching your search' : 'No users found'}
                 </td>
               </tr>
             ) : (
-              filteredUsers.map(user => {
+              users.map(user => {
                 const isLocked = user.locked_until && new Date(user.locked_until) > new Date();
                 const failedAttempts = user.failed_login_attempts || 0;
                 const isCurrentUser = user.id === currentUser?.id;
                 
                 return (
                   <tr key={user.id}>
-                    <td>
-                      <input
-                        type="checkbox"
-                        checked={selectedUserIds.includes(user.id)}
-                        onChange={() => handleSelectUser(user.id)}
-                        disabled={isCurrentUser}
-                      />
-                    </td>
+                    {canDelete && (
+                      <td>
+                        <input
+                          type="checkbox"
+                          checked={selectedUserIds.includes(user.id)}
+                          onChange={() => handleSelectUser(user.id)}
+                          disabled={isCurrentUser}
+                        />
+                      </td>
+                    )}
                     <td>{user.username}</td>
                     <td>{user.full_name || '-'}</td>
                     <td>{user.email || '-'}</td>
@@ -779,7 +858,7 @@ const UserManagement = () => {
                           <FiEdit2 />
                         </button>
                         
-                        {user.id !== currentUser?.id && (
+                        {canDelete && user.id !== currentUser?.id && (
                           <button 
                             className="gps-icon-btn gps-icon-btn--delete" 
                             onClick={() => openDeleteModal(user)}
@@ -805,6 +884,8 @@ const UserManagement = () => {
         onPageChange={setCurrentPage}
         itemsPerPage={pageSize}
         totalItems={totalCount}
+        pageSize={pageSize}
+        onPageSizeChange={handlePageSizeChange}
       />
       
       {/* User Form Modal */}
@@ -916,19 +997,28 @@ const UserManagement = () => {
                   value={formData.phone_number}
                   onChange={handleInputChange}
                   placeholder="+1-555-123-4567"
+                  className={fieldErrors.phone_number ? 'input-error' : ''}
                 />
+                {fieldErrors.phone_number && (
+                  <span className="field-error">{fieldErrors.phone_number}</span>
+                )}
               </div>
             </div>
             
             <div className="form-group">
-              <label htmlFor="email">Email</label>
+              <label htmlFor="email">Email <span className="required-field">*</span></label>
               <input
                 type="email"
                 id="email"
                 name="email"
                 value={formData.email}
                 onChange={handleInputChange}
+                className={fieldErrors.email ? 'input-error' : ''}
+                required
               />
+              {fieldErrors.email && (
+                <span className="field-error">{fieldErrors.email}</span>
+              )}
             </div>
           </div>
           
@@ -1099,36 +1189,30 @@ const UserManagement = () => {
       
       {/* Delete User Confirmation Modal */}
       {deleteModalOpen && userToDelete && (
-        <div className="modal-overlay">
-          <div className="delete-confirmation-modal">
-            <div className="modal-header">
-              <h2>Delete User</h2>
-              <button className="close-modal-btn" onClick={closeDeleteModal} aria-label="Close">
-                ×
-              </button>
+        <div className="gps-modal-overlay" onClick={closeDeleteModal}>
+          <div className="gps-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="gps-modal-header">
+              <h2 className="gps-modal-title">Delete User</h2>
+              <button className="gps-modal-close" onClick={closeDeleteModal}>×</button>
             </div>
-            
-            <div className="modal-body">
-              <div className="delete-warning-icon">⚠️</div>
-              <p className="delete-confirmation-text">
-                Are you sure you want to delete the user <strong>{userToDelete.username}</strong>?
-              </p>
-              {userToDelete.full_name && (
-                <p className="user-detail">Full Name: {userToDelete.full_name}</p>
-              )}
-              {userToDelete.email && (
-                <p className="user-detail">Email: {userToDelete.email}</p>
-              )}
-              <p className="delete-warning-text">
-                This action cannot be undone.
-              </p>
+            <div className="gps-modal-body">
+              <div className="gps-alert gps-alert--danger">
+                Are you sure you want to delete the user <strong>{userToDelete.username}</strong>? This action cannot be undone.
+              </div>
+              <div style={{ marginTop: '16px' }}>
+                {userToDelete.full_name && (
+                  <p><strong>Full Name:</strong> {userToDelete.full_name}</p>
+                )}
+                {userToDelete.email && (
+                  <p><strong>Email:</strong> {userToDelete.email}</p>
+                )}
+              </div>
             </div>
-            
-            <div className="modal-actions">
-              <button type="button" className="cancel-btn" onClick={closeDeleteModal}>
+            <div className="gps-modal-footer">
+              <button className="gps-btn gps-btn--secondary" onClick={closeDeleteModal}>
                 Cancel
               </button>
-              <button type="button" className="delete-confirm-btn" onClick={confirmDeleteUser}>
+              <button className="gps-btn gps-btn--danger" onClick={confirmDeleteUser}>
                 Delete User
               </button>
             </div>
@@ -1138,30 +1222,22 @@ const UserManagement = () => {
       
       {/* Bulk Delete Confirmation Modal */}
       {bulkDeleteModalOpen && (
-        <div className="modal-overlay">
-          <div className="delete-confirmation-modal">
-            <div className="modal-header">
-              <h2>Delete Multiple Users</h2>
-              <button className="close-modal-btn" onClick={closeBulkDeleteModal} aria-label="Close">
-                ×
-              </button>
+        <div className="gps-modal-overlay" onClick={closeBulkDeleteModal}>
+          <div className="gps-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="gps-modal-header">
+              <h2 className="gps-modal-title">Delete Multiple Users</h2>
+              <button className="gps-modal-close" onClick={closeBulkDeleteModal}>×</button>
             </div>
-            
-            <div className="modal-body">
-              <div className="delete-warning-icon">⚠️</div>
-              <p className="delete-confirmation-text">
-                Are you sure you want to delete <strong>{selectedUserIds.length}</strong> selected user(s)?
-              </p>
-              <p className="delete-warning-text">
-                This action cannot be undone.
-              </p>
+            <div className="gps-modal-body">
+              <div className="gps-alert gps-alert--danger">
+                Are you sure you want to delete <strong>{selectedUserIds.length}</strong> selected user(s)? This action cannot be undone.
+              </div>
             </div>
-            
-            <div className="modal-actions">
-              <button type="button" className="cancel-btn" onClick={closeBulkDeleteModal}>
+            <div className="gps-modal-footer">
+              <button className="gps-btn gps-btn--secondary" onClick={closeBulkDeleteModal}>
                 Cancel
               </button>
-              <button type="button" className="delete-confirm-btn" onClick={confirmBulkDelete}>
+              <button className="gps-btn gps-btn--danger" onClick={confirmBulkDelete}>
                 Delete {selectedUserIds.length} User(s)
               </button>
             </div>

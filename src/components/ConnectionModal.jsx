@@ -136,6 +136,71 @@ const ConnectionModal = ({
   // Can browse if connection is saved OR test was successful, AND connection details haven't been modified
   const canBrowse = (!!connectionId || testSuccessful) && !connectionDetailsModified;
   
+  // Validation function to check if all required fields are filled
+  const isFormValid = () => {
+    // Base required fields
+    if (!formData.name?.trim()) return false;
+    if (!formData.connection_user) return false;
+    if (!formData.connection_direction) return false;
+    if (!formData.authentication_method) return false;
+    if (!formData.provider) return false;
+    
+    // Provider-specific validation
+    if (formData.provider === 'aws') {
+      if (!formData.region?.trim()) return false;
+      if (!formData.bucket?.trim()) return false;
+      // In create mode, access keys are required for key-based auth
+      if (!isEditMode && formData.authentication_method === 'key-based') {
+        if (!formData.access_key_id?.trim()) return false;
+        if (!formData.secret_access_key?.trim()) return false;
+      }
+    } else if (formData.provider === 'gcp') {
+      if (!formData.gcp_project_id?.trim()) return false;
+      if (!formData.gcp_bucket?.trim()) return false;
+      if (!isEditMode && formData.authentication_method === 'key-based') {
+        if (!formData.service_account_json?.trim()) return false;
+      }
+    } else if (formData.provider === 'azure') {
+      if (!formData.account_name?.trim()) return false;
+      if (!formData.container_name?.trim()) return false;
+      if (!isEditMode && formData.authentication_method === 'key-based') {
+        if (!formData.account_key?.trim()) return false;
+      }
+    }
+    
+    // Authentication method specific validation
+    if (formData.authentication_method === 'aws-iam-role') {
+      if (!formData.iam_role_arn?.trim()) return false;
+    } else if (formData.authentication_method === 'gcp-sa-oidc') {
+      if (!formData.workload_identity_pool?.trim()) return false;
+      if (!formData.workload_identity_provider?.trim()) return false;
+      if (!formData.service_account_email?.trim()) return false;
+    } else if (formData.authentication_method === 'azure-managed-identity') {
+      if (!formData.azure_resource_id?.trim()) return false;
+    } else if (formData.authentication_method === 'db-short-lived-token') {
+      if (!formData.db_host?.trim()) return false;
+      if (!formData.db_port) return false;
+      if (!formData.db_name?.trim()) return false;
+      if (!formData.db_user?.trim()) return false;
+      if (!formData.token_endpoint?.trim()) return false;
+    } else if (formData.authentication_method === 'oauth2') {
+      if (!formData.oauth_client_id?.trim()) return false;
+      if (!isEditMode && !formData.oauth_client_secret?.trim()) return false;
+      if (!formData.oauth_token_url?.trim()) return false;
+    } else if (formData.authentication_method === 'kerberos') {
+      if (!formData.kerberos_principal?.trim()) return false;
+      if (!isEditMode && !formData.kerberos_keytab?.trim()) return false;
+      if (!formData.kerberos_realm?.trim()) return false;
+    }
+    
+    // Archive password validation
+    if (formData.has_archive_password && !isEditMode) {
+      if (!formData.archive_password?.trim()) return false;
+    }
+    
+    return true;
+  };
+  
   useEffect(() => {
     if (connection) {
       const config = connection.config || {};
@@ -458,7 +523,7 @@ const ConnectionModal = ({
         return (
           <>
             <div style={compactStyles.formGroup}>
-              <label htmlFor="iam_role_arn" style={compactStyles.label}>IAM Role ARN *</label>
+              <label htmlFor="iam_role_arn" style={compactStyles.label}>IAM Role ARN <span style={{ color: '#dc2626' }}>*</span></label>
               <input
                 id="iam_role_arn"
                 type="text"
@@ -492,7 +557,7 @@ const ConnectionModal = ({
         return (
           <>
             <div style={compactStyles.formGroup}>
-              <label htmlFor="workload_identity_pool" style={compactStyles.label}>Workload Identity Pool *</label>
+              <label htmlFor="workload_identity_pool" style={compactStyles.label}>Workload Identity Pool <span style={{ color: '#dc2626' }}>*</span></label>
               <input
                 id="workload_identity_pool"
                 type="text"
@@ -505,7 +570,7 @@ const ConnectionModal = ({
               />
             </div>
             <div style={compactStyles.formGroup}>
-              <label htmlFor="workload_identity_provider" style={compactStyles.label}>Workload Identity Provider *</label>
+              <label htmlFor="workload_identity_provider" style={compactStyles.label}>Workload Identity Provider <span style={{ color: '#dc2626' }}>*</span></label>
               <input
                 id="workload_identity_provider"
                 type="text"
@@ -518,7 +583,7 @@ const ConnectionModal = ({
               />
             </div>
             <div style={compactStyles.formGroup}>
-              <label htmlFor="service_account_email" style={compactStyles.label}>Service Account Email *</label>
+              <label htmlFor="service_account_email" style={compactStyles.label}>Service Account Email <span style={{ color: '#dc2626' }}>*</span></label>
               <input
                 id="service_account_email"
                 type="email"
@@ -537,7 +602,7 @@ const ConnectionModal = ({
         return (
           <>
             <div style={compactStyles.formGroup}>
-              <label htmlFor="azure_resource_id" style={compactStyles.label}>Azure Resource ID *</label>
+              <label htmlFor="azure_resource_id" style={compactStyles.label}>Azure Resource ID <span style={{ color: '#dc2626' }}>*</span></label>
               <input
                 id="azure_resource_id"
                 type="text"
@@ -568,7 +633,7 @@ const ConnectionModal = ({
         return (
           <>
             <div style={compactStyles.formGroup}>
-              <label htmlFor="db_host" style={compactStyles.label}>Database Host *</label>
+              <label htmlFor="db_host" style={compactStyles.label}>Database Host <span style={{ color: '#dc2626' }}>*</span></label>
               <input
                 id="db_host"
                 type="text"
@@ -581,7 +646,7 @@ const ConnectionModal = ({
               />
             </div>
             <div style={compactStyles.formGroup}>
-              <label htmlFor="db_port" style={compactStyles.label}>Database Port *</label>
+              <label htmlFor="db_port" style={compactStyles.label}>Database Port <span style={{ color: '#dc2626' }}>*</span></label>
               <input
                 id="db_port"
                 type="number"
@@ -594,7 +659,7 @@ const ConnectionModal = ({
               />
             </div>
             <div style={compactStyles.formGroup}>
-              <label htmlFor="db_name" style={compactStyles.label}>Database Name *</label>
+              <label htmlFor="db_name" style={compactStyles.label}>Database Name <span style={{ color: '#dc2626' }}>*</span></label>
               <input
                 id="db_name"
                 type="text"
@@ -607,7 +672,7 @@ const ConnectionModal = ({
               />
             </div>
             <div style={compactStyles.formGroup}>
-              <label htmlFor="db_user" style={compactStyles.label}>Database User *</label>
+              <label htmlFor="db_user" style={compactStyles.label}>Database User <span style={{ color: '#dc2626' }}>*</span></label>
               <input
                 id="db_user"
                 type="text"
@@ -620,7 +685,7 @@ const ConnectionModal = ({
               />
             </div>
             <div style={compactStyles.formGroup}>
-              <label htmlFor="token_endpoint" style={compactStyles.label}>Token Endpoint *</label>
+              <label htmlFor="token_endpoint" style={compactStyles.label}>Token Endpoint <span style={{ color: '#dc2626' }}>*</span></label>
               <input
                 id="token_endpoint"
                 type="url"
@@ -639,7 +704,7 @@ const ConnectionModal = ({
         return (
           <>
             <div style={compactStyles.formGroup}>
-              <label htmlFor="oauth_client_id" style={compactStyles.label}>OAuth Client ID *</label>
+              <label htmlFor="oauth_client_id" style={compactStyles.label}>OAuth Client ID <span style={{ color: '#dc2626' }}>*</span></label>
               <input
                 id="oauth_client_id"
                 type="text"
@@ -652,7 +717,7 @@ const ConnectionModal = ({
               />
             </div>
             <div style={compactStyles.formGroup}>
-              <label htmlFor="oauth_client_secret" style={compactStyles.label}>OAuth Client Secret {!isEditMode && '*'}</label>
+              <label htmlFor="oauth_client_secret" style={compactStyles.label}>OAuth Client Secret {!isEditMode && <span style={{ color: '#dc2626' }}>*</span>}</label>
               <input
                 id="oauth_client_secret"
                 type="password"
@@ -665,7 +730,7 @@ const ConnectionModal = ({
               />
             </div>
             <div style={compactStyles.formGroup}>
-              <label htmlFor="oauth_token_url" style={compactStyles.label}>Token URL *</label>
+              <label htmlFor="oauth_token_url" style={compactStyles.label}>Token URL <span style={{ color: '#dc2626' }}>*</span></label>
               <input
                 id="oauth_token_url"
                 type="url"
@@ -696,7 +761,7 @@ const ConnectionModal = ({
         return (
           <>
             <div style={compactStyles.formGroup}>
-              <label htmlFor="kerberos_principal" style={compactStyles.label}>Kerberos Principal *</label>
+              <label htmlFor="kerberos_principal" style={compactStyles.label}>Kerberos Principal <span style={{ color: '#dc2626' }}>*</span></label>
               <input
                 id="kerberos_principal"
                 type="text"
@@ -709,7 +774,7 @@ const ConnectionModal = ({
               />
             </div>
             <div style={compactStyles.formGroup}>
-              <label htmlFor="kerberos_keytab" style={compactStyles.label}>Kerberos Keytab {!isEditMode && '*'}</label>
+              <label htmlFor="kerberos_keytab" style={compactStyles.label}>Kerberos Keytab {!isEditMode && <span style={{ color: '#dc2626' }}>*</span>}</label>
               <textarea
                 id="kerberos_keytab"
                 name="kerberos_keytab"
@@ -722,7 +787,7 @@ const ConnectionModal = ({
               />
             </div>
             <div style={compactStyles.formGroup}>
-              <label htmlFor="kerberos_realm" style={compactStyles.label}>Kerberos Realm *</label>
+              <label htmlFor="kerberos_realm" style={compactStyles.label}>Kerberos Realm <span style={{ color: '#dc2626' }}>*</span></label>
               <input
                 id="kerberos_realm"
                 type="text"
@@ -750,20 +815,21 @@ const ConnectionModal = ({
         return (
           <>
             <div style={compactStyles.formGroup}>
-              <label htmlFor="region" style={compactStyles.label}>AWS Region</label>
+              <label htmlFor="region" style={compactStyles.label}>AWS Region <span style={{ color: '#dc2626' }}>*</span></label>
               <input
                 id="region"
                 type="text"
                 name="region"
                 value={formData.region}
                 onChange={handleInputChange}
+                required
                 placeholder="us-east-1"
                 style={compactStyles.input}
               />
             </div>
             
             <div style={compactStyles.formGroup}>
-              <label htmlFor="bucket" style={compactStyles.label}>S3 Bucket Name *</label>
+              <label htmlFor="bucket" style={compactStyles.label}>S3 Bucket Name <span style={{ color: '#dc2626' }}>*</span></label>
               <input
                 id="bucket"
                 type="text"
@@ -776,7 +842,7 @@ const ConnectionModal = ({
             </div>
             
             <div style={compactStyles.formGroup}>
-              <label htmlFor="access_key_id" style={compactStyles.label}>Access Key ID {!isEditMode && '*'}</label>
+              <label htmlFor="access_key_id" style={compactStyles.label}>Access Key ID {!isEditMode && <span style={{ color: '#dc2626' }}>*</span>}</label>
               <input
                 id="access_key_id"
                 type="text"
@@ -789,7 +855,7 @@ const ConnectionModal = ({
             </div>
             
             <div style={compactStyles.formGroup}>
-              <label htmlFor="secret_access_key" style={compactStyles.label}>Secret Access Key {!isEditMode && '*'}</label>
+              <label htmlFor="secret_access_key" style={compactStyles.label}>Secret Access Key {!isEditMode && <span style={{ color: '#dc2626' }}>*</span>}</label>
               <input
                 id="secret_access_key"
                 type="password"
@@ -834,7 +900,7 @@ const ConnectionModal = ({
         return (
           <>
             <div style={compactStyles.formGroup}>
-              <label htmlFor="gcp_project_id" style={compactStyles.label}>GCP Project ID *</label>
+              <label htmlFor="gcp_project_id" style={compactStyles.label}>GCP Project ID <span style={{ color: '#dc2626' }}>*</span></label>
               <input
                 id="gcp_project_id"
                 type="text"
@@ -847,7 +913,7 @@ const ConnectionModal = ({
             </div>
             
             <div style={compactStyles.formGroup}>
-              <label htmlFor="gcp_bucket" style={compactStyles.label}>Bucket Name *</label>
+              <label htmlFor="gcp_bucket" style={compactStyles.label}>Bucket Name <span style={{ color: '#dc2626' }}>*</span></label>
               <input
                 id="gcp_bucket"
                 type="text"
@@ -860,7 +926,7 @@ const ConnectionModal = ({
             </div>
             
             <div style={compactStyles.formGroup}>
-              <label htmlFor="service_account_json" style={compactStyles.label}>Service Account JSON {!isEditMode && '*'}</label>
+              <label htmlFor="service_account_json" style={compactStyles.label}>Service Account JSON {!isEditMode && <span style={{ color: '#dc2626' }}>*</span>}</label>
               <textarea
                 id="service_account_json"
                 name="service_account_json"
@@ -881,7 +947,7 @@ const ConnectionModal = ({
         return (
           <>
             <div style={compactStyles.formGroup}>
-              <label htmlFor="account_name" style={compactStyles.label}>Account Name *</label>
+              <label htmlFor="account_name" style={compactStyles.label}>Account Name <span style={{ color: '#dc2626' }}>*</span></label>
               <input
                 id="account_name"
                 type="text"
@@ -894,7 +960,7 @@ const ConnectionModal = ({
             </div>
             
             <div style={compactStyles.formGroup}>
-              <label htmlFor="container_name" style={compactStyles.label}>Container Name *</label>
+              <label htmlFor="container_name" style={compactStyles.label}>Container Name <span style={{ color: '#dc2626' }}>*</span></label>
               <input
                 id="container_name"
                 type="text"
@@ -907,7 +973,7 @@ const ConnectionModal = ({
             </div>
             
             <div style={compactStyles.formGroup}>
-              <label htmlFor="account_key" style={compactStyles.label}>Account Key {!isEditMode && '*'}</label>
+              <label htmlFor="account_key" style={compactStyles.label}>Account Key {!isEditMode && <span style={{ color: '#dc2626' }}>*</span>}</label>
               <input
                 id="account_key"
                 type="password"
@@ -961,7 +1027,12 @@ const ConnectionModal = ({
             </button>
             <button 
               onClick={handleSubmit} 
-              disabled={loading || testing}
+              disabled={loading || testing || !isFormValid()}
+              style={{ 
+                opacity: (!loading && !testing && !isFormValid()) ? 0.5 : 1,
+                cursor: (!loading && !testing && !isFormValid()) ? 'not-allowed' : 'pointer'
+              }}
+              title={!isFormValid() ? 'Please fill in all required fields' : ''}
             >
               {loading ? 'Saving...' : connectionId ? 'Update' : 'Save'}
             </button>
@@ -970,7 +1041,7 @@ const ConnectionModal = ({
       >
         <form onSubmit={handleSubmit} className="vendor-connection-form" style={{ padding: '1rem' }}>
           <div style={compactStyles.formGroup}>
-            <label htmlFor="name" style={compactStyles.label}>Connection Name *</label>
+            <label htmlFor="name" style={compactStyles.label}>Connection Name <span style={{ color: '#dc2626' }}>*</span></label>
             <input
               id="name"
               type="text"
@@ -984,7 +1055,7 @@ const ConnectionModal = ({
           </div>
           
           <div style={compactStyles.formGroup}>
-            <label htmlFor="connection_user" style={compactStyles.label}>Connection User *</label>
+            <label htmlFor="connection_user" style={compactStyles.label}>Connection User <span style={{ color: '#dc2626' }}>*</span></label>
             <select
               id="connection_user"
               name="connection_user"
@@ -1002,7 +1073,7 @@ const ConnectionModal = ({
           </div>
           
           <div style={compactStyles.formGroup}>
-            <label htmlFor="connection_direction" style={compactStyles.label}>Connection Direction *</label>
+            <label htmlFor="connection_direction" style={compactStyles.label}>Connection Direction <span style={{ color: '#dc2626' }}>*</span></label>
             <select
               id="connection_direction"
               name="connection_direction"
@@ -1033,7 +1104,7 @@ const ConnectionModal = ({
           </div>
           
           <div style={compactStyles.formGroup}>
-            <label htmlFor="authentication_method" style={compactStyles.label}>Authentication Method *</label>
+            <label htmlFor="authentication_method" style={compactStyles.label}>Authentication Method <span style={{ color: '#dc2626' }}>*</span></label>
             <select
               id="authentication_method"
               name="authentication_method"
@@ -1058,7 +1129,7 @@ const ConnectionModal = ({
           {renderAuthenticationFields()}
           
           <div style={compactStyles.formGroup}>
-            <label htmlFor="provider" style={compactStyles.label}>Provider *</label>
+            <label htmlFor="provider" style={compactStyles.label}>Provider <span style={{ color: '#dc2626' }}>*</span></label>
             <select
               id="provider"
               name="provider"
@@ -1155,7 +1226,7 @@ const ConnectionModal = ({
             
             {formData.has_archive_password && (
               <div style={{ marginBottom: 0 }}>
-                <label htmlFor="archive_password" style={compactStyles.label}>Archive Password *</label>
+                <label htmlFor="archive_password" style={compactStyles.label}>Archive Password <span style={{ color: '#dc2626' }}>*</span></label>
                 <input
                   id="archive_password"
                   type="password"

@@ -31,25 +31,71 @@ const ARCHIVE_EXTENSIONS = ['zip', '7z', 'tar', 'gz', 'tgz', 'bz2', 'tar.gz', 't
 const FIXED_WIDTH_EXTENSIONS = ['dat', 'fixed_width', 'txt'];
 
 /**
+ * Deep clone an object with BigInt support
+ * Converts BigInt values to strings to avoid JSON serialization errors
+ * @param {any} obj - Object to clone
+ * @returns {any} - Cloned object with BigInt values converted to strings
+ */
+function deepCloneWithBigInt(obj) {
+  if (obj === null || obj === undefined) {
+    return obj;
+  }
+  if (typeof obj === 'bigint') {
+    // Convert BigInt to string to preserve precision
+    return obj.toString();
+  }
+  if (typeof obj !== 'object') {
+    return obj;
+  }
+  if (Array.isArray(obj)) {
+    return obj.map(item => deepCloneWithBigInt(item));
+  }
+  if (obj instanceof Date) {
+    return new Date(obj.getTime());
+  }
+  if (obj instanceof Buffer) {
+    return Buffer.from(obj);
+  }
+  const cloned = {};
+  for (const key of Object.keys(obj)) {
+    cloned[key] = deepCloneWithBigInt(obj[key]);
+  }
+  return cloned;
+}
+
+/**
  * Parse a file buffer into an array of row objects (for join lookups)
+ * Supports all 15 file types: CSV, JSON, XLSX, XLS, Parquet, XML, AVRO, DAT,
+ * SAS formats, and archives (ZIP, 7z, TAR, GZ, TGZ, BZ2)
  * @param {Buffer} buffer - File content buffer
  * @param {string} filename - Filename for extension detection
+ * @param {Object} pool - Database pool (required for archive password retrieval)
+ * @param {number} vendorAgreementId - Vendor agreement ID for password lookup
  * @returns {Promise<Array<Object>>} - Array of row objects
  */
-async function parseFileToRows(buffer, filename) {
+async function parseFileToRows(buffer, filename, pool = null, vendorAgreementId = null) {
   const rows = [];
   const ext = filename.split('.').pop()?.toLowerCase();
   
-  if (ext === 'csv' || ext === 'txt') {
-    // Parse CSV
+  // CSV and TSV/pipe-delimited files
+  if (ext === 'csv' || ext === 'txt' || ext === 'tsv') {
     const content = buffer.toString('utf-8');
     const lines = content.split('\n').filter(line => line.trim());
     
     if (lines.length === 0) return rows;
     
+    // Detect delimiter (comma, tab, or pipe)
+    const firstLine = lines[0];
+    let delimiter = ',';
+    if (ext === 'tsv' || (firstLine.includes('\t') && !firstLine.includes(','))) {
+      delimiter = '\t';
+    } else if (firstLine.includes('|') && !firstLine.includes(',') && !firstLine.includes('\t')) {
+      delimiter = '|';
+    }
+    
     // Parse header
     const headerLine = lines[0];
-    const headers = headerLine.split(',').map(h => h.trim().replace(/^["']/g, '').replace(/["']$/g, ''));
+    const headers = headerLine.split(delimiter).map(h => h.trim().replace(/^["']/g, '').replace(/["']$/g, ''));
     
     // Parse data rows
     for (let i = 1; i < lines.length; i++) {
@@ -63,7 +109,7 @@ async function parseFileToRows(buffer, filename) {
           inQuotes = true;
         } else if (char === '"' && inQuotes) {
           inQuotes = false;
-        } else if (char === ',' && !inQuotes) {
+        } else if (char === delimiter && !inQuotes) {
           values.push(currentValue.trim());
           currentValue = '';
         } else {
@@ -78,17 +124,29 @@ async function parseFileToRows(buffer, filename) {
       });
       rows.push(row);
     }
-  } else if (ext === 'json') {
-    // Parse JSON
+  } else if (ext === 'json' || ext === 'jsonl' || ext === 'ndjson') {
+    // Parse JSON / JSONL (newline-delimited JSON)
     const content = buffer.toString('utf-8');
-    const parsed = JSON.parse(content);
     
-    if (Array.isArray(parsed)) {
-      rows.push(...parsed);
-    } else if (parsed.data && Array.isArray(parsed.data)) {
-      rows.push(...parsed.data);
-    } else if (parsed.rows && Array.isArray(parsed.rows)) {
-      rows.push(...parsed.rows);
+    if (ext === 'jsonl' || ext === 'ndjson') {
+      // JSONL: one JSON object per line
+      const lines = content.split('\n').filter(line => line.trim());
+      for (const line of lines) {
+        try {
+          rows.push(JSON.parse(line));
+        } catch (e) {
+          // Skip invalid lines
+        }
+      }
+    } else {
+      const parsed = JSON.parse(content);
+      if (Array.isArray(parsed)) {
+        rows.push(...parsed);
+      } else if (parsed.data && Array.isArray(parsed.data)) {
+        rows.push(...parsed.data);
+      } else if (parsed.rows && Array.isArray(parsed.rows)) {
+        rows.push(...parsed.rows);
+      }
     }
   } else if (ext === 'xlsx' || ext === 'xls') {
     // Parse Excel
@@ -97,6 +155,194 @@ async function parseFileToRows(buffer, filename) {
     const sheet = workbook.Sheets[sheetName];
     const jsonData = xlsx.utils.sheet_to_json(sheet);
     rows.push(...jsonData);
+  } else if (ext === 'parquet') {
+    // Parse Parquet
+    try {
+      const { parquetReadObjects } = await import('hyparquet');
+      const arrayBuffer = buffer.buffer.slice(
+        buffer.byteOffset,
+        buffer.byteOffset + buffer.byteLength
+      );
+      const parquetIterator = await parquetReadObjects({ file: arrayBuffer });
+      for await (const row of parquetIterator) {
+        rows.push(row);
+      }
+    } catch (parquetError) {
+      systemLogger.error('Parquet parsing error in parseFileToRows:', parquetError);
+    }
+  } else if (ext === 'xml') {
+    // Parse XML
+    try {
+      const parser = new XMLParser({
+        ignoreAttributes: false,
+        attributeNamePrefix: '@_',
+        textNodeName: '#text',
+        parseAttributeValue: true,
+        parseTagValue: true
+      });
+      const xmlData = parser.parse(buffer.toString());
+      
+      // Find the data array in the XML structure
+      const findDataArray = (obj) => {
+        if (Array.isArray(obj)) return obj;
+        if (typeof obj === 'object' && obj !== null) {
+          for (const key of Object.keys(obj)) {
+            const result = findDataArray(obj[key]);
+            if (result) return result;
+          }
+        }
+        return null;
+      };
+      
+      const dataArray = findDataArray(xmlData);
+      if (dataArray) {
+        rows.push(...dataArray);
+      }
+    } catch (xmlError) {
+      systemLogger.error('XML parsing error in parseFileToRows:', xmlError);
+    }
+  } else if (ext === 'avro') {
+    // Parse AVRO using fastavro via Python or fallback
+    try {
+      const fastavro = require('fastavro');
+      const records = await fastavro.reader(buffer);
+      for await (const record of records) {
+        rows.push(record);
+      }
+    } catch (avroError) {
+      systemLogger.warn('AVRO parsing not available in parseFileToRows, attempting alternate method:', avroError.message);
+      // AVRO parsing may require Python fastavro, skip for now
+    }
+  } else if (ext === 'dat' || FIXED_WIDTH_EXTENSIONS.includes(ext)) {
+    // Fixed-width DAT files - parse as delimited with space/tab detection
+    try {
+      const content = buffer.toString('utf-8');
+      const lines = content.split('\n').filter(line => line.trim());
+      
+      if (lines.length > 0) {
+        // Try to detect if it's actually delimited
+        const firstLine = lines[0];
+        let delimiter = null;
+        if (firstLine.includes('\t')) delimiter = '\t';
+        else if (firstLine.includes('|')) delimiter = '|';
+        else if (firstLine.includes(',')) delimiter = ',';
+        
+        if (delimiter) {
+          const headers = firstLine.split(delimiter).map(h => h.trim());
+          for (let i = 1; i < lines.length; i++) {
+            const values = lines[i].split(delimiter).map(v => v.trim());
+            const row = {};
+            headers.forEach((header, idx) => {
+              row[header] = values[idx] || '';
+            });
+            rows.push(row);
+          }
+        } else {
+          // True fixed-width: create generic columns
+          for (let i = 0; i < lines.length; i++) {
+            rows.push({ line_number: i + 1, data: lines[i] });
+          }
+        }
+      }
+    } catch (datError) {
+      systemLogger.error('DAT parsing error in parseFileToRows:', datError);
+    }
+  } else if (ext === 'sas7bdat' || ext === 'xpt') {
+    // SAS formats - would need pyreadstat, skip for secondary sources
+    systemLogger.warn(`SAS format (${ext}) not supported for secondary sources in multi-source joins`);
+  } else if (ARCHIVE_EXTENSIONS.includes(ext)) {
+    // Handle archive files - extract and parse the first supported file
+    let tempDir = null;
+    try {
+      tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'join-extract-'));
+      // Use basename to strip any directory prefix (e.g., 'fisher/dim_customer.csv.zip' -> 'dim_customer.csv.zip')
+      const archiveBasename = path.basename(filename);
+      const archivePath = path.join(tempDir, archiveBasename);
+      fs.writeFileSync(archivePath, buffer);
+      
+      // Get password from vendor agreement if available
+      let archivePassword = null;
+      if (pool && vendorAgreementId) {
+        try {
+          archivePassword = await getArchivePasswordFromVault(pool, vendorAgreementId, filename);
+          if (archivePassword) {
+            systemLogger.info('Retrieved archive password from vendor agreement for secondary source', {
+              filename,
+              vendorAgreementId,
+              hasPassword: true
+            });
+          }
+        } catch (pwdError) {
+          systemLogger.warn('Failed to retrieve archive password:', pwdError.message);
+        }
+      }
+      
+      // Create mock virus scanner for extraction service
+      const virusScanService = {
+        scanFile: async (filePath) => ({ isInfected: false, skipped: true, viruses: [] })
+      };
+      
+      // Create extraction service with proper dependencies
+      const archiveService = new ArchiveExtractionService(pool, virusScanService, systemLogger);
+      const extractionResult = await archiveService.extractArchive(
+        archivePath,
+        null, // No file ID for join lookups
+        archivePassword,
+        null // userId
+      );
+      
+      // Find and parse the first supported data file
+      const supportedDataExtensions = ['csv', 'json', 'jsonl', 'xlsx', 'xls', 'parquet', 'xml', 'txt', 'tsv', 'avro', 'dat'];
+      const extractedFiles = extractionResult.files || [];
+      
+      systemLogger.info('Archive extraction completed for secondary source', {
+        filename,
+        extractedCount: extractedFiles.length,
+        files: extractedFiles.map(f => f.relativePath || path.basename(f.fullPath || ''))
+      });
+      
+      for (const extractedFile of extractedFiles) {
+        // extractedFile has relativePath and fullPath from ArchiveExtractionService
+        const extractedPath = extractedFile.fullPath;
+        const extractedFileName = extractedFile.relativePath || path.basename(extractedPath);
+        const extractedExt = extractedFileName.split('.').pop()?.toLowerCase();
+        
+        if (supportedDataExtensions.includes(extractedExt)) {
+          const extractedBuffer = fs.readFileSync(extractedPath);
+          const extractedRows = await parseFileToRows(extractedBuffer, extractedFileName, pool, vendorAgreementId);
+          rows.push(...extractedRows);
+          systemLogger.info('Parsed extracted file from archive', {
+            extractedFile: extractedFileName,
+            rowCount: extractedRows.length
+          });
+          break; // Only parse the first supported file
+        }
+      }
+      // Cleanup the extraction service's temp directory if returned
+      if (extractionResult.tempDir) {
+        try {
+          fs.rmSync(extractionResult.tempDir, { recursive: true, force: true });
+        } catch (cleanupError) {
+          systemLogger.warn('Failed to cleanup extraction temp dir:', cleanupError);
+        }
+      }
+    } catch (archiveError) {
+      systemLogger.error('Archive extraction error in parseFileToRows:', {
+        filename,
+        vendorAgreementId,
+        error: archiveError.message,
+        stack: archiveError.stack
+      });
+    } finally {
+      // Cleanup our temp directory (where we wrote the archive) in finally block
+      if (tempDir) {
+        try {
+          fs.rmSync(tempDir, { recursive: true, force: true });
+        } catch (cleanupError) {
+          systemLogger.warn('Failed to cleanup temp dir:', cleanupError);
+        }
+      }
+    }
   }
   
   return rows;
@@ -116,57 +362,94 @@ function applyJoinEnrichment(transformedRows, joinLookupTables, joinSpecs, logge
     return transformedRows;
   }
   
-  let currentRows = [...transformedRows];
+  // Deep clone the input rows to prevent mutation of original data (BigInt-safe)
+  let currentRows = transformedRows.map(row => deepCloneWithBigInt(row));
   let matchedCount = 0;
   let unmatchedCount = 0;
   
   // Apply joins in sequence (for cascaded joins)
   for (const joinSpec of joinSpecs) {
-    const lookupKey = `${joinSpec.nodeId}_right`;
-    const lookupTable = joinLookupTables[lookupKey];
+    // Check for either 'right' or 'left' lookup table - depends on which source is secondary
+    const rightLookupKey = `${joinSpec.nodeId}_right`;
+    const leftLookupKey = `${joinSpec.nodeId}_left`;
+    const hasRightLookup = joinLookupTables[rightLookupKey] && Object.keys(joinLookupTables[rightLookupKey]).length > 0;
+    const hasLeftLookup = joinLookupTables[leftLookupKey] && Object.keys(joinLookupTables[leftLookupKey]).length > 0;
+    const lookupTable = hasRightLookup ? joinLookupTables[rightLookupKey] : joinLookupTables[leftLookupKey];
+    const isLeftLookup = !hasRightLookup && hasLeftLookup;
     
     if (!lookupTable || !joinSpec.joinKeys || joinSpec.joinKeys.length === 0) {
+      if (logger) {
+        logger.warn('Join spec missing lookup table or join keys', {
+          nodeId: joinSpec.nodeId,
+          hasRightLookup,
+          hasLeftLookup,
+          joinKeysCount: joinSpec.joinKeys?.length || 0
+        });
+      }
       continue;
     }
     
     const joinType = (joinSpec.joinType || 'INNER').toUpperCase();
     const nextRows = [];
     
+    // Log join configuration for first row debugging
+    if (logger && currentRows.length > 0) {
+      const firstPrimaryRow = currentRows[0];
+      const firstLookupKey = Object.keys(lookupTable)[0];
+      const firstSecondaryRow = lookupTable[firstLookupKey]?.[0];
+      logger.info('Join enrichment debug - first rows', {
+        primaryRowKeys: Object.keys(firstPrimaryRow),
+        secondaryRowKeys: firstSecondaryRow ? Object.keys(firstSecondaryRow) : [],
+        isLeftLookup: isLeftLookup,
+        columnMappingsCount: joinSpec.columnMappings?.length || 0,
+        columnMappings: joinSpec.columnMappings?.slice(0, 5)
+      });
+    }
+    
     for (const row of currentRows) {
       // Build composite key from the CURRENT enriched row (supports cascaded joins)
+      // When right lookup: use leftColumn from primary to look up right rows
+      // When left lookup: use rightColumn from primary to look up left rows
       const keyParts = joinSpec.joinKeys.map(jk => {
-        const columnName = jk.leftColumn || jk.left_column || jk.left;
+        const columnName = isLeftLookup
+          ? (jk.rightColumn || jk.right_column || jk.right)
+          : (jk.leftColumn || jk.left_column || jk.left);
         return String(row[columnName] || '').trim().toLowerCase();
       });
       const compositeKey = keyParts.join('|');
       
-      // Look up matching rows from right source (array-based for one-to-many support)
-      const matchedRightRows = lookupTable[compositeKey];
+      // Look up matching rows from secondary source (array-based for one-to-many support)
+      const matchedSecondaryRows = lookupTable[compositeKey];
       
-      if (matchedRightRows && matchedRightRows.length > 0) {
-        matchedCount += matchedRightRows.length;
+      if (matchedSecondaryRows && matchedSecondaryRows.length > 0) {
+        matchedCount += matchedSecondaryRows.length;
         
-        // For each matching right row, create an enriched output row
-        for (const matchedRightRow of matchedRightRows) {
-          const enrichedRow = { ...row };
+        // For each matching secondary row, create an enriched output row
+        for (const matchedSecondaryRow of matchedSecondaryRows) {
+          // Deep clone both rows to prevent reference issues (BigInt-safe)
+          const enrichedRow = deepCloneWithBigInt(row);
+          const secondaryRowClone = deepCloneWithBigInt(matchedSecondaryRow);
           
           // Apply column mappings from the join node configuration
           if (joinSpec.columnMappings && joinSpec.columnMappings.length > 0) {
             for (const cm of joinSpec.columnMappings) {
               const sourceCol = cm.sourceColumn || cm.source_column || cm.source;
-              const targetCol = cm.targetColumn || cm.target_column || cm.target || sourceCol;
+              // outputColumn is saved by frontend for renamed columns (e.g., customer_key -> customer_key_1)
+              const targetCol = cm.outputColumn || cm.targetColumn || cm.target_column || cm.target || sourceCol;
               
-              if (sourceCol && matchedRightRow[sourceCol] !== undefined) {
-                enrichedRow[targetCol] = matchedRightRow[sourceCol];
+              if (sourceCol && secondaryRowClone[sourceCol] !== undefined) {
+                enrichedRow[targetCol] = secondaryRowClone[sourceCol];
               }
             }
           } else {
-            // If no column mappings, merge all columns from right source
-            for (const [col, value] of Object.entries(matchedRightRow)) {
-              // Prefix right columns if they conflict with left columns
-              if (enrichedRow[col] !== undefined) {
-                enrichedRow[`right_${col}`] = value;
-              } else {
+            // If no column mappings, merge all columns from secondary source
+            // Use appropriate prefix based on which side was loaded
+            const prefix = isLeftLookup ? 'src1_' : 'src2_';
+            for (const [col, value] of Object.entries(secondaryRowClone)) {
+              // Always prefix secondary-side columns to clearly distinguish from primary
+              enrichedRow[`${prefix}${col}`] = value;
+              // Also add unprefixed if no conflict, for backward compatibility
+              if (enrichedRow[col] === undefined) {
                 enrichedRow[col] = value;
               }
             }
@@ -177,9 +460,9 @@ function applyJoinEnrichment(transformedRows, joinLookupTables, joinSpecs, logge
       } else {
         unmatchedCount++;
         
-        // For LEFT/LEFT OUTER joins, keep the row with nulls for right columns
+        // For LEFT/LEFT OUTER joins, keep the row with nulls for secondary columns
         if (joinType === 'LEFT' || joinType === 'LEFT OUTER') {
-          nextRows.push({ ...row });
+          nextRows.push(deepCloneWithBigInt(row));
         }
         // INNER JOIN: Skip rows with no match (don't add to nextRows)
       }
@@ -187,6 +470,19 @@ function applyJoinEnrichment(transformedRows, joinLookupTables, joinSpecs, logge
     
     // Update currentRows for the next join in the chain
     currentRows = nextRows;
+    
+    // Debug log first enriched row
+    if (logger && currentRows.length > 0) {
+      const firstEnrichedRow = currentRows[0];
+      logger.info('Join enrichment debug - first enriched row', {
+        enrichedRowKeys: Object.keys(firstEnrichedRow),
+        sampleValues: Object.keys(firstEnrichedRow).slice(0, 10).reduce((acc, key) => {
+          const val = firstEnrichedRow[key];
+          acc[key] = typeof val === 'object' ? `[object: ${Object.keys(val || {}).join(',')}]` : String(val).substring(0, 50);
+          return acc;
+        }, {})
+      });
+    }
   }
   
   if (logger) {
@@ -952,6 +1248,11 @@ async function executeTransformationJob(pool, mappingId, userId, options = {}) {
       }
     };
     
+    // Emit execution start to reset all edge counts on the frontend
+    if (visualExecutionId && visualMappingEdges && Array.isArray(visualMappingEdges)) {
+      visualMappingWS.emitExecutionStart(visualExecutionId, visualMappingEdges);
+    }
+    
     // Mark all nodes as pending initially
     if (executionOrder && Array.isArray(executionOrder)) {
       executionOrder.forEach(nodeId => {
@@ -1446,8 +1747,30 @@ async function executeTransformationJob(pool, mappingId, userId, options = {}) {
     // Step 2.5: Multi-Source Join Preparation
     // Load secondary source files into memory lookup tables for join enrichment
     let joinLookupTables = {};
-    // Track row counts per source node for accurate edge display (needs to be in outer scope for callback access)
-    const sourceRowCounts = {};
+    // Track row counts per node for accurate edge display (needs to be in outer scope for callback access)
+    // This tracks output row counts for ALL nodes: source, expression, join, target
+    const nodeOutputCounts = {};
+    
+    // Build node parent map for lineage tracking (which node feeds into which)
+    // Key: child node ID, Value: array of parent node IDs
+    const nodeParentMap = {};
+    // Key: child node ID + handle, Value: parent node ID (for join left/right inputs)
+    const nodeParentByHandle = {};
+    
+    if (visualMappingEdges && Array.isArray(visualMappingEdges)) {
+      visualMappingEdges.forEach(edge => {
+        if (!nodeParentMap[edge.target]) {
+          nodeParentMap[edge.target] = [];
+        }
+        nodeParentMap[edge.target].push(edge.source);
+        
+        // Track by target handle for join nodes (left vs right input)
+        if (edge.targetHandle) {
+          nodeParentByHandle[`${edge.target}_${edge.targetHandle}`] = edge.source;
+        }
+      });
+    }
+    
     const hasMultiSourceJoin = mapping.has_multi_source_join && 
                                 mapping.source_catalog && mapping.source_catalog.length > 1 &&
                                 mapping.join_specs && mapping.join_specs.length > 0;
@@ -1507,7 +1830,7 @@ async function executeTransformationJob(pool, mappingId, userId, options = {}) {
           
           // Download and parse the file
           const fileBuffer = await downloadFileFromConnection(pool, source.connectionId, sourceFile.filename);
-          const rows = await parseFileToRows(fileBuffer, sourceFile.filename);
+          const rows = await parseFileToRows(fileBuffer, sourceFile.filename, pool, mapping.vendor_agreement_id);
           
           // Find which join specs use this source
           const relevantJoinSpecs = joinSpecs.filter(js => 
@@ -1515,18 +1838,27 @@ async function executeTransformationJob(pool, mappingId, userId, options = {}) {
           );
           
           // Build lookup tables for each join key combination
+          // NOTE: We need to support loading EITHER left or right source into the lookup table
+          // depending on which one is the secondary (non-primary) source
           for (const joinSpec of relevantJoinSpecs) {
             const isRightSource = joinSpec.rightSourceNodeId === source.nodeId;
+            const isLeftSource = joinSpec.leftSourceNodeId === source.nodeId;
             
-            if (isRightSource && joinSpec.joinKeys && joinSpec.joinKeys.length > 0) {
-              // Build composite key lookup table with ARRAY values (supports multiple matches per key)
-              const lookupKey = `${joinSpec.nodeId}_right`;
+            // Load this source into lookup table if it has join keys
+            // The lookup key indicates which side: 'right' or 'left'
+            if (joinSpec.joinKeys && joinSpec.joinKeys.length > 0) {
+              // Use 'right' or 'left' suffix to indicate which side was loaded
+              const sideLabel = isRightSource ? 'right' : 'left';
+              const lookupKey = `${joinSpec.nodeId}_${sideLabel}`;
               joinLookupTables[lookupKey] = {};
               
               for (const row of rows) {
-                // Build composite key from all join keys
+                // Build composite key from the appropriate side's columns
                 const keyParts = joinSpec.joinKeys.map(jk => {
-                  const columnName = jk.rightColumn || jk.right_column || jk.right;
+                  // Use rightColumn if this is the right source, leftColumn if this is the left source
+                  const columnName = isRightSource 
+                    ? (jk.rightColumn || jk.right_column || jk.right)
+                    : (jk.leftColumn || jk.left_column || jk.left);
                   return String(row[columnName] || '').trim().toLowerCase();
                 });
                 const compositeKey = keyParts.join('|');
@@ -1538,12 +1870,13 @@ async function executeTransformationJob(pool, mappingId, userId, options = {}) {
                 joinLookupTables[lookupKey][compositeKey].push(row);
               }
               
-              emitLog('info', `Built lookup table for ${source.nodeName}: ${Object.keys(joinLookupTables[lookupKey]).length} unique keys`);
+              emitLog('info', `Built lookup table for ${source.nodeName} (${sideLabel} side): ${Object.keys(joinLookupTables[lookupKey]).length} unique keys`);
               systemLogger.info('Built join lookup table', {
                 sourceNodeId: source.nodeId,
                 sourceName: source.nodeName,
                 joinNodeId: joinSpec.nodeId,
                 lookupKey,
+                side: sideLabel,
                 uniqueKeys: Object.keys(joinLookupTables[lookupKey]).length,
                 totalRows: rows.length
               });
@@ -1551,9 +1884,18 @@ async function executeTransformationJob(pool, mappingId, userId, options = {}) {
           }
           
           // Track this source's row count for accurate edge display
-          sourceRowCounts[source.nodeId] = rows.length;
+          nodeOutputCounts[source.nodeId] = rows.length;
           
           emitNodeStatus(source.nodeId, 'completed', { rowsLoaded: rows.length });
+          
+          // Emit edge row count immediately for this secondary source node
+          // Find edges that have this source node as the source
+          if (visualMappingEdges && Array.isArray(visualMappingEdges)) {
+            const outgoingEdges = visualMappingEdges.filter(e => e.source === source.nodeId);
+            outgoingEdges.forEach(edge => {
+              emitEdgeRowCount(source.nodeId, edge.target, rows.length);
+            });
+          }
           
         } catch (loadError) {
           emitLog('error', `Failed to load secondary source ${source.nodeName}: ${loadError.message}`);
@@ -1600,50 +1942,140 @@ async function executeTransformationJob(pool, mappingId, userId, options = {}) {
         const onTransformComplete = visualExecutionId ? async (progressData) => {
           const currentRowsWritten = totalRowsWritten + progressData.rowsWritten;
           const currentRowsRead = totalRowsRead + progressData.rowsRead;
+          const primarySourceNodeId = mapping.primary_source_node_id;
           
-          // Emit edge row counts immediately after transformation completes
-          // Use per-source counts for secondary sources (lookup tables), primary source count for primary, output count for others
-          if (visualMappingEdges && Array.isArray(visualMappingEdges)) {
-            const primarySourceNodeId = mapping.primary_source_node_id;
+          // Track primary source row count
+          if (primarySourceNodeId) {
+            nodeOutputCounts[primarySourceNodeId] = currentRowsRead;
+          }
+          
+          // Helper function to get a node's output row count by following lineage
+          // Uses post-order traversal with separate visited sets per branch for join nodes
+          const getNodeOutputCount = (nodeId, visited = new Set()) => {
+            // Prevent infinite loops
+            if (visited.has(nodeId)) return nodeOutputCounts[nodeId] || 0;
             
-            visualMappingEdges.forEach(edge => {
-              let edgeRowCount;
+            // If we have a cached count for this node, use it directly
+            if (nodeOutputCounts[nodeId] !== undefined) {
+              return nodeOutputCounts[nodeId];
+            }
+            
+            // Mark as visited before recursion
+            visited.add(nodeId);
+            
+            // Get the node type to determine how to calculate
+            const node = nodeMap[nodeId];
+            const nodeType = node?.type;
+            
+            // Get parent nodes
+            const parents = nodeParentMap[nodeId] || [];
+            
+            if (nodeType === 'sourceConfig') {
+              // Source nodes should have been populated already
+              // If not found, return 0 (no files matched)
+              nodeOutputCounts[nodeId] = 0;
+              return 0;
+            } else if (nodeType === 'expression' || nodeType === 'rdmLookup' || nodeType === 'rdmDataset' || nodeType === 'rdmCrosswalk') {
+              // Expression and RDM nodes pass through rows from their single parent
+              if (parents.length > 0) {
+                const parentCount = getNodeOutputCount(parents[0], visited);
+                nodeOutputCounts[nodeId] = parentCount;
+                return parentCount;
+              }
+              nodeOutputCounts[nodeId] = 0;
+              return 0;
+            } else if (nodeType === 'join') {
+              // Join nodes need to calculate based on join type and both inputs
+              // Use SEPARATE visited sets for each branch to handle shared parents correctly
+              const leftParentId = nodeParentByHandle[`${nodeId}_left`] || parents[0];
+              const rightParentId = nodeParentByHandle[`${nodeId}_right`] || parents[1];
               
-              // Check if this edge comes from a secondary source (lookup table)
-              if (sourceRowCounts && sourceRowCounts[edge.source] !== undefined) {
-                // Use the secondary source's actual row count
-                edgeRowCount = sourceRowCounts[edge.source];
-              } else if (edge.source === primarySourceNodeId) {
-                // Edge from primary source - use primary source row count
-                edgeRowCount = currentRowsRead;
-              } else {
-                // Edge from transformation/join/target nodes - use output count
-                edgeRowCount = currentRowsWritten;
+              // Clone visited set for each branch to avoid interference
+              const leftVisited = new Set(visited);
+              const rightVisited = new Set(visited);
+              
+              const leftCount = leftParentId ? getNodeOutputCount(leftParentId, leftVisited) : 0;
+              const rightCount = rightParentId ? getNodeOutputCount(rightParentId, rightVisited) : 0;
+              
+              // Find the join spec for this node to get join type
+              let joinType = 'INNER';
+              if (mapping.parsed_join_specs && Array.isArray(mapping.parsed_join_specs)) {
+                const joinSpec = mapping.parsed_join_specs.find(js => js.nodeId === nodeId);
+                if (joinSpec) {
+                  joinType = (joinSpec.joinType || 'INNER').toUpperCase();
+                }
               }
               
+              // Calculate output based on join type using actual parent counts
+              // For non-empty joins, use the primary source count (left side drives the output)
+              let joinOutput;
+              if (joinType === 'INNER') {
+                // INNER JOIN: if either side is 0, output is 0; otherwise use actual written rows
+                joinOutput = (leftCount === 0 || rightCount === 0) ? 0 : currentRowsWritten;
+              } else if (joinType === 'LEFT' || joinType === 'LEFT OUTER') {
+                // LEFT JOIN: if left is 0, output is 0; otherwise left count (or written if available)
+                joinOutput = leftCount === 0 ? 0 : (currentRowsWritten || leftCount);
+              } else if (joinType === 'RIGHT' || joinType === 'RIGHT OUTER') {
+                // RIGHT JOIN: if right is 0, output is 0
+                joinOutput = rightCount === 0 ? 0 : (currentRowsWritten || rightCount);
+              } else if (joinType === 'FULL OUTER') {
+                // FULL OUTER JOIN: always has output if either side has rows
+                joinOutput = (leftCount === 0 && rightCount === 0) ? 0 : currentRowsWritten;
+              } else {
+                joinOutput = currentRowsWritten;
+              }
+              
+              nodeOutputCounts[nodeId] = joinOutput;
+              return joinOutput;
+            } else if (nodeType === 'targetRules') {
+              // Target nodes output what they receive
+              if (parents.length > 0) {
+                const parentCount = getNodeOutputCount(parents[0], visited);
+                nodeOutputCounts[nodeId] = parentCount;
+                return parentCount;
+              }
+              nodeOutputCounts[nodeId] = currentRowsWritten;
+              return currentRowsWritten;
+            }
+            
+            // Default fallback for unknown node types
+            nodeOutputCounts[nodeId] = currentRowsWritten;
+            return currentRowsWritten;
+          };
+          
+          // Emit edge row counts immediately after transformation completes
+          // Use per-node lineage tracking for accurate counts
+          if (visualMappingEdges && Array.isArray(visualMappingEdges)) {
+            visualMappingEdges.forEach(edge => {
+              const edgeRowCount = getNodeOutputCount(edge.source);
               visualMappingWS.emitEdgeRowCount(visualExecutionId, edge.id, edge.source, edge.target, edgeRowCount);
             });
           }
           
-          // Emit node completion status for expression, join, rdm nodes
+          // Emit node completion status with accurate per-node counts
           nodesByType.expression.forEach(nodeId => {
-            emitNodeStatus(nodeId, 'completed', { rowsProcessed: currentRowsRead });
+            const count = nodeOutputCounts[nodeId] !== undefined ? nodeOutputCounts[nodeId] : currentRowsRead;
+            emitNodeStatus(nodeId, 'completed', { rowsProcessed: count });
           });
           nodesByType.join.forEach(nodeId => {
-            emitNodeStatus(nodeId, 'completed', { rowsProcessed: currentRowsRead });
+            const count = nodeOutputCounts[nodeId] !== undefined ? nodeOutputCounts[nodeId] : currentRowsWritten;
+            emitNodeStatus(nodeId, 'completed', { rowsProcessed: count });
           });
           nodesByType.rdmLookup.forEach(nodeId => {
-            emitNodeStatus(nodeId, 'completed', { rowsProcessed: currentRowsRead });
+            const count = nodeOutputCounts[nodeId] !== undefined ? nodeOutputCounts[nodeId] : currentRowsRead;
+            emitNodeStatus(nodeId, 'completed', { rowsProcessed: count });
           });
           nodesByType.targetRules.forEach(nodeId => {
-            emitNodeStatus(nodeId, 'completed', { rowsWritten: currentRowsWritten });
+            const count = nodeOutputCounts[nodeId] !== undefined ? nodeOutputCounts[nodeId] : currentRowsWritten;
+            emitNodeStatus(nodeId, 'completed', { rowsWritten: count });
           });
           
           systemLogger.info('Real-time progress callback executed - edge counts and node status emitted before profiling', {
             visualExecutionId,
             rowsWritten: currentRowsWritten,
             rowsRead: currentRowsRead,
-            filename: progressData.filename
+            filename: progressData.filename,
+            nodeOutputCounts: Object.keys(nodeOutputCounts).length
           });
         } : null;
         
@@ -1683,22 +2115,13 @@ async function executeTransformationJob(pool, mappingId, userId, options = {}) {
         
         // Edge row counts already emitted by onTransformComplete callback (before profiling)
         // This secondary emission serves as a final confirmation after all processing completes
-        // Use per-source counts for secondary sources (lookup tables)
+        // Use per-node lineage tracking for accurate counts
         if (visualExecutionId && visualMappingEdges && Array.isArray(visualMappingEdges)) {
-          const primarySourceNodeId = mapping.primary_source_node_id;
-          
           visualMappingEdges.forEach(edge => {
-            let edgeRowCount;
-            
-            // Check if this edge comes from a secondary source (lookup table)
-            if (sourceRowCounts && sourceRowCounts[edge.source] !== undefined) {
-              edgeRowCount = sourceRowCounts[edge.source];
-            } else if (edge.source === primarySourceNodeId) {
-              edgeRowCount = totalRowsRead;
-            } else {
-              edgeRowCount = totalRowsWritten;
-            }
-            
+            // Use cached nodeOutputCounts from the callback (already computed via lineage)
+            const edgeRowCount = nodeOutputCounts[edge.source] !== undefined 
+              ? nodeOutputCounts[edge.source] 
+              : totalRowsWritten;
             visualMappingWS.emitEdgeRowCount(visualExecutionId, edge.id, edge.source, edge.target, edgeRowCount);
           });
         }
@@ -1786,22 +2209,13 @@ async function executeTransformationJob(pool, mappingId, userId, options = {}) {
       await new Promise(resolve => setImmediate(resolve));
       
       // Final edge row count confirmation (already sent by callback, this is just a redundant final update)
-      // Use per-source counts for secondary sources (lookup tables)
+      // Use per-node lineage tracking for accurate counts
       if (visualMappingEdges && Array.isArray(visualMappingEdges)) {
-        const primarySourceNodeId = mapping.primary_source_node_id;
-        
         visualMappingEdges.forEach(edge => {
-          let edgeRowCount;
-          
-          // Check if this edge comes from a secondary source (lookup table)
-          if (sourceRowCounts && sourceRowCounts[edge.source] !== undefined) {
-            edgeRowCount = sourceRowCounts[edge.source];
-          } else if (edge.source === primarySourceNodeId) {
-            edgeRowCount = totalRowsRead;
-          } else {
-            edgeRowCount = totalRowsWritten;
-          }
-          
+          // Use cached nodeOutputCounts from the callback (already computed via lineage)
+          const edgeRowCount = nodeOutputCounts[edge.source] !== undefined 
+            ? nodeOutputCounts[edge.source] 
+            : totalRowsWritten;
           visualMappingWS.emitEdgeRowCount(visualExecutionId, edge.id, edge.source, edge.target, edgeRowCount);
         });
       }
@@ -2476,11 +2890,16 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
           let extractedParseResult = null;
           
           try {
+            // For multi-source joins, delay field mapping application until after join enrichment
+            const hasJoin = joinLookupTables && joinSpecs && joinSpecs.length > 0;
+            const parseMappings = hasJoin ? [] : mapping.field_mappings;
+            const parseVariables = hasJoin ? [] : mapping.variables;
+            
             if (extractedExtension === 'csv') {
               extractedParseResult = await parseAndTransformCSV(
                 extractedBuffer, 
-                mapping.field_mappings,
-                mapping.variables,
+                parseMappings,
+                parseVariables,
                 jobId, 
                 pool,
                 rdmContext
@@ -2488,8 +2907,8 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
             } else if (extractedExtension === 'json') {
               extractedParseResult = await parseAndTransformJSON(
                 extractedBuffer, 
-                mapping.field_mappings,
-                mapping.variables,
+                parseMappings,
+                parseVariables,
                 jobId, 
                 pool,
                 rdmContext
@@ -2497,8 +2916,8 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
             } else if (extractedExtension === 'xlsx' || extractedExtension === 'xls') {
               extractedParseResult = await parseAndTransformXLSX(
                 extractedBuffer, 
-                mapping.field_mappings,
-                mapping.variables,
+                parseMappings,
+                parseVariables,
                 jobId, 
                 pool,
                 rdmContext
@@ -2506,8 +2925,8 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
             } else if (extractedExtension === 'xml') {
               extractedParseResult = await parseAndTransformXML(
                 extractedBuffer, 
-                mapping.field_mappings,
-                mapping.variables,
+                parseMappings,
+                parseVariables,
                 jobId, 
                 pool,
                 rdmContext
@@ -2515,8 +2934,8 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
             } else if (extractedExtension === 'parquet') {
               extractedParseResult = await parseAndTransformParquet(
                 extractedBuffer, 
-                mapping.field_mappings,
-                mapping.variables,
+                parseMappings,
+                parseVariables,
                 jobId, 
                 pool,
                 rdmContext
@@ -2782,9 +3201,13 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
         { hasHeader: fixedWidthSchema.hasHeader }
       );
       
+      // For multi-source joins, delay field mapping application until after join enrichment
+      const hasJoin = joinLookupTables && joinSpecs && joinSpecs.length > 0;
+      
       // Convert field mappings and variables to expected format (same as other parsers)
-      const convertedMappings = convertFieldMappings(mapping.field_mappings);
-      const convertedVariables = convertVariables(mapping.variables);
+      // Use empty mappings for joins - they'll be applied after enrichment
+      const convertedMappings = hasJoin ? [] : convertFieldMappings(mapping.field_mappings);
+      const convertedVariables = hasJoin ? [] : convertVariables(mapping.variables);
       
       // Transform the parsed rows using the same pipeline as CSV/JSON
       const transformedFixedRows = [];
@@ -2829,57 +3252,66 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
       });
       
       // Pass column names to CSV parser
+      // For multi-source joins, delay field mapping application until after join enrichment
+      const hasJoin = joinLookupTables && joinSpecs && joinSpecs.length > 0;
       const columnNames = fixedWidthSchema.headerDefinition.map(col => col.name);
       parseResult = await parseAndTransformCSV(
         fileBuffer, 
-        mapping.field_mappings,
-        mapping.variables,
+        hasJoin ? [] : mapping.field_mappings,
+        hasJoin ? [] : mapping.variables,
         jobId, 
         pool,
         rdmContext,
         { headers: columnNames, skipFirstRow: false }
       );
     } else if (fileExtension === 'csv') {
+      // For multi-source joins, delay field mapping application until after join enrichment
+      // This allows expressions to reference columns from secondary sources
+      const hasJoin = joinLookupTables && joinSpecs && joinSpecs.length > 0;
       parseResult = await parseAndTransformCSV(
         fileBuffer, 
-        mapping.field_mappings,
-        mapping.variables,
+        hasJoin ? [] : mapping.field_mappings,  // Empty mappings if join - apply after enrichment
+        hasJoin ? [] : mapping.variables,       // Empty variables if join - apply after enrichment
         jobId, 
         pool,
         rdmContext
       );
     } else if (fileExtension === 'json') {
+      const hasJoin = joinLookupTables && joinSpecs && joinSpecs.length > 0;
       parseResult = await parseAndTransformJSON(
         fileBuffer, 
-        mapping.field_mappings,
-        mapping.variables,
+        hasJoin ? [] : mapping.field_mappings,
+        hasJoin ? [] : mapping.variables,
         jobId, 
         pool,
         rdmContext
       );
     } else if (fileExtension === 'xlsx' || fileExtension === 'xls') {
+      const hasJoin = joinLookupTables && joinSpecs && joinSpecs.length > 0;
       parseResult = await parseAndTransformXLSX(
         fileBuffer, 
-        mapping.field_mappings,
-        mapping.variables,
+        hasJoin ? [] : mapping.field_mappings,
+        hasJoin ? [] : mapping.variables,
         jobId, 
         pool,
         rdmContext
       );
     } else if (fileExtension === 'parquet') {
+      const hasJoin = joinLookupTables && joinSpecs && joinSpecs.length > 0;
       parseResult = await parseAndTransformParquet(
         fileBuffer, 
-        mapping.field_mappings,
-        mapping.variables,
+        hasJoin ? [] : mapping.field_mappings,
+        hasJoin ? [] : mapping.variables,
         jobId, 
         pool,
         rdmContext
       );
     } else if (fileExtension === 'xml') {
+      const hasJoin = joinLookupTables && joinSpecs && joinSpecs.length > 0;
       parseResult = await parseAndTransformXML(
         fileBuffer, 
-        mapping.field_mappings,
-        mapping.variables,
+        hasJoin ? [] : mapping.field_mappings,
+        hasJoin ? [] : mapping.variables,
         jobId, 
         pool,
         rdmContext
@@ -2936,6 +3368,90 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
           outputRows: transformedRows.length,
           droppedByJoin: droppedByJoin
         });
+        
+        // Step 3.1.6: Apply post-join field mappings transformation
+        // After join enrichment, the rows now have columns from both sources.
+        // Re-apply field mappings to evaluate expressions that reference secondary source columns.
+        if (mapping.field_mappings && mapping.field_mappings.length > 0) {
+          const { transformRow } = require('./transformationEngine');
+          const convertedMappings = convertFieldMappings(mapping.field_mappings);
+          const convertedVariables = convertVariables(mapping.variables || []);
+          
+          // Debug log: Show first enriched row structure before post-join transformation
+          if (transformedRows.length > 0) {
+            const firstRow = transformedRows[0];
+            const rowKeys = Object.keys(firstRow);
+            const valueTypes = rowKeys.reduce((acc, key) => {
+              const val = firstRow[key];
+              if (val === null) {
+                acc[key] = 'null';
+              } else if (typeof val === 'object') {
+                acc[key] = `object:${Object.keys(val).join(',')}`;
+              } else {
+                acc[key] = typeof val;
+              }
+              return acc;
+            }, {});
+            systemLogger.info('Post-join transformation debug - enriched row before transform', {
+              enrichedRowKeys: rowKeys,
+              valueTypes: valueTypes
+            });
+          }
+          
+          await logJobExecution(pool, jobId, 'info', `Applying post-join transformation to evaluate expressions with joined data`, {
+            inputRows: transformedRows.length,
+            fieldMappingCount: convertedMappings.length
+          });
+          
+          // Re-transform each row using field mappings (now with secondary source columns available)
+          const postJoinTransformedRows = [];
+          let debugLoggedFirst = false;
+          for (const row of transformedRows) {
+            try {
+              const transformedRow = transformRow(row, convertedMappings, convertedVariables, rdmContext);
+              
+              // Debug log first row transformation result
+              if (!debugLoggedFirst && transformedRow) {
+                const resultKeys = Object.keys(transformedRow);
+                const resultValueTypes = resultKeys.reduce((acc, key) => {
+                  const val = transformedRow[key];
+                  if (val === null || val === undefined) {
+                    acc[key] = 'null/undefined';
+                  } else if (typeof val === 'object') {
+                    acc[key] = `object:${Object.keys(val).slice(0, 5).join(',')}`;
+                  } else {
+                    acc[key] = typeof val + ':' + String(val).substring(0, 30);
+                  }
+                  return acc;
+                }, {});
+                systemLogger.info('Post-join transformation debug - first row after transform', {
+                  transformedRowKeys: resultKeys,
+                  valueTypes: resultValueTypes
+                });
+                debugLoggedFirst = true;
+              }
+              
+              if (transformedRow && Object.keys(transformedRow).length > 0) {
+                postJoinTransformedRows.push(transformedRow);
+              }
+            } catch (transformError) {
+              systemLogger.warn('Post-join transformation error', {
+                error: transformError.message,
+                stack: transformError.stack
+              });
+              // Keep original row on error
+              postJoinTransformedRows.push(row);
+            }
+          }
+          
+          // Replace transformedRows with post-join transformed data
+          transformedRows.length = 0;
+          transformedRows.push(...postJoinTransformedRows);
+          
+          await logJobExecution(pool, jobId, 'info', `Post-join transformation complete`, {
+            outputRows: transformedRows.length
+          });
+        }
       } catch (joinError) {
         await logJobExecution(pool, jobId, 'error', `Multi-source join enrichment failed: ${joinError.message}`, {
           error: joinError.stack
@@ -3889,6 +4405,31 @@ function convertFieldMappings(dbFieldMappings) {
         // Map 'value' param to 'defaultValue'
         params.defaultValue = params.value;
         delete params.value;
+      } else if (transformationType === 'concat') {
+        // Handle legacy concat format with column2 parameter
+        // Convert to proper concatParts format for the transformation engine
+        const sourceField = converted.sourceFields[0];
+        const column2 = params.column2;
+        const separator = params.separator || '';
+        
+        if (sourceField && column2) {
+          // Build concatParts array with proper field references
+          params.concatParts = [
+            { type: 'field', value: sourceField },
+            { type: 'literal', value: separator },
+            { type: 'field', value: column2 }
+          ];
+          // Also add column2 to sourceFields for proper row context
+          if (!converted.sourceFields.includes(column2)) {
+            converted.sourceFields.push(column2);
+          }
+          // Clean up legacy params
+          delete params.column2;
+          delete params.separator;
+        } else if (sourceField && !column2) {
+          // Single field concat with possible prefix/suffix - build fields array
+          params.fields = [sourceField];
+        }
       }
       
       converted.transformations.push({
@@ -3897,12 +4438,20 @@ function convertFieldMappings(dbFieldMappings) {
       });
     }
     // SIMPLE PASS-THROUGH: just source to target
+    // Handle both singular (source_field) and plural (sourceFields/source_fields) variants
     else if (mapping.source_field) {
       if (Array.isArray(mapping.source_field)) {
         converted.sourceFields = mapping.source_field;
       } else {
         converted.sourceFields = [mapping.source_field];
       }
+    }
+    // Handle passthrough mappings with pre-defined sourceFields (from compiler)
+    else if (mapping.sourceFields && Array.isArray(mapping.sourceFields) && mapping.sourceFields.length > 0) {
+      converted.sourceFields = mapping.sourceFields;
+    }
+    else if (mapping.source_fields && Array.isArray(mapping.source_fields) && mapping.source_fields.length > 0) {
+      converted.sourceFields = mapping.source_fields;
     }
     
     return converted;
@@ -4831,5 +5380,8 @@ module.exports = {
   cancelJob,
   logJobExecution,
   getMappingConfig,
-  processFile
+  processFile,
+  downloadFileFromConnection,
+  parseFileToRows,
+  listAndFilterFiles
 };

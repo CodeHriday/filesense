@@ -3,6 +3,7 @@ const router = express.Router();
 const pool = require('../db');
 const { systemLogger } = require('../utils/logger');
 const authorizeProjectResource = require('../middleware/authorizeProjectResource');
+const { userHasAdminAccess } = require('../utils/permissionHelpers');
 
 /**
  * Alert Policy API Routes
@@ -14,7 +15,7 @@ router.get('/', async (req, res) => {
   try {
     const { getUserProjects } = require('../middleware/requireProjectAccess');
     
-    const isAdmin = req.user?.roles?.includes('Admin');
+    const isAdmin = userHasAdminAccess(req.user);
     let projectIds = [];
     
     if (!isAdmin) {

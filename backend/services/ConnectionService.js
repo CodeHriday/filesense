@@ -733,9 +733,15 @@ class ConnectionService {
   decryptSensitiveFieldsIfNeeded(type, config) {
     const decryptedConfig = { ...config };
     
-    // Check if a value looks encrypted (has IV:data format)
+    // Check if a value looks encrypted (has IV:data or IV:authTag:data format)
+    // Old encryption format: 2 parts (IV:encryptedData)
+    // New encryption format: 3 parts (IV:authTag:encryptedData)
     const isEncrypted = (value) => {
-      return value && typeof value === 'string' && value.includes(':') && value.split(':').length === 2;
+      if (!value || typeof value !== 'string' || !value.includes(':')) {
+        return false;
+      }
+      const parts = value.split(':').length;
+      return parts === 2 || parts === 3;
     };
     
     console.log('[DECRYPT] Connection type:', type);

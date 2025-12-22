@@ -1,4 +1,4 @@
-import React, { createContext, useState, useEffect, useContext } from 'react';
+import React, { createContext, useState, useEffect, useContext, useRef, useReducer } from 'react';
 import axios from 'axios';
 import { API_BASE_URL } from '../config';
 import PropTypes from 'prop-types';
@@ -6,6 +6,88 @@ import ForcePasswordChange from '../components/ForcePasswordChange';
 
 // Create context
 const AuthContext = createContext(null);
+
+// Auth status constants for atomic state transitions - exported for use in routing
+export const AUTH_STATUS = {
+  CHECKING: 'checking',      // Initial state, validating token
+  AUTHENTICATED: 'authenticated',
+  UNAUTHENTICATED: 'unauthenticated'
+};
+
+// Reducer action types
+const AUTH_ACTIONS = {
+  AUTH_SUCCESS: 'AUTH_SUCCESS',
+  AUTH_FAILURE: 'AUTH_FAILURE',
+  LOGOUT: 'LOGOUT',
+  SET_ERROR: 'SET_ERROR',
+  CLEAR_ERROR: 'CLEAR_ERROR'
+};
+
+// Initial auth state
+const initialAuthState = {
+  status: AUTH_STATUS.CHECKING,
+  user: null,
+  error: ''
+};
+
+/**
+ * Helper function to check if a user has admin-level access
+ * Admin access is purely role-based - only users with the "Admin" role have admin-level access
+ * @param {Object} user - User object with roles and permissions
+ * @returns {boolean}
+ */
+const hasAdminLevelAccess = (user) => {
+  if (!user) return false;
+  
+  // Check for Admin role only - admin access is purely role-based
+  if (user.roles && (
+    user.roles.includes('Admin') || 
+    user.roles.includes('admin')
+  )) {
+    return true;
+  }
+  
+  return false;
+};
+
+// Auth reducer for atomic state updates
+function authReducer(state, action) {
+  switch (action.type) {
+    case AUTH_ACTIONS.AUTH_SUCCESS:
+      return {
+        ...state,
+        status: AUTH_STATUS.AUTHENTICATED,
+        user: action.payload.user,
+        error: ''
+      };
+    case AUTH_ACTIONS.AUTH_FAILURE:
+      return {
+        ...state,
+        status: AUTH_STATUS.UNAUTHENTICATED,
+        user: null,
+        error: action.payload?.error || ''
+      };
+    case AUTH_ACTIONS.LOGOUT:
+      return {
+        ...state,
+        status: AUTH_STATUS.UNAUTHENTICATED,
+        user: null,
+        error: ''
+      };
+    case AUTH_ACTIONS.SET_ERROR:
+      return {
+        ...state,
+        error: action.payload.error
+      };
+    case AUTH_ACTIONS.CLEAR_ERROR:
+      return {
+        ...state,
+        error: ''
+      };
+    default:
+      return state;
+  }
+}
 
 // Custom hook for using the auth context
 export const useAuth = () => {
@@ -18,10 +100,18 @@ export const useAuth = () => {
 
 // Auth provider component
 export const AuthProvider = ({ children }) => {
-  const [currentUser, setCurrentUser] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [authState, dispatch] = useReducer(authReducer, initialAuthState);
   const [showForcePasswordChange, setShowForcePasswordChange] = useState(false);
+  
+  // Ref to track if initial auth check is in progress
+  // This prevents the response interceptor from interfering during initialization
+  const isInitializingRef = useRef(true);
+  
+  // Derived state for backward compatibility
+  const currentUser = authState.user;
+  const loading = authState.status === AUTH_STATUS.CHECKING;
+  const error = authState.error;
+  const authStatus = authState.status;
   
   // Check if there's a token in localStorage on initial load
   useEffect(() => {
@@ -30,12 +120,14 @@ export const AuthProvider = ({ children }) => {
     if (token) {
       fetchUserData(token);
     } else {
-      setLoading(false);
+      isInitializingRef.current = false;
+      dispatch({ type: AUTH_ACTIONS.AUTH_FAILURE });
     }
   }, []);
+  
   AuthProvider.propTypes = {
-  children: PropTypes.node.isRequired
-};
+    children: PropTypes.node.isRequired
+  };
 
   const fetchUserData = async (token) => {
     try {
@@ -46,26 +138,39 @@ export const AuthProvider = ({ children }) => {
       });
       
       const userData = response.data;
-      setCurrentUser(userData);
+      
+      // Mark initialization complete
+      isInitializingRef.current = false;
+      
+      // Atomic state update: set user and status together
+      dispatch({ 
+        type: AUTH_ACTIONS.AUTH_SUCCESS, 
+        payload: { user: userData } 
+      });
       
       // Check if user needs to change password
       if (userData.force_password_change) {
         console.log('User must change password (detected on token refresh)');
         setShowForcePasswordChange(true);
       }
-      
-      setLoading(false);
     } catch (error) {
       console.error('Error fetching user data:', error);
       // If token is invalid or expired, clear it
       localStorage.removeItem('token');
-      setCurrentUser(null);
-      setLoading(false);
+      localStorage.removeItem('refreshToken');
+      // Mark initialization complete
+      isInitializingRef.current = false;
+      // Atomic state update
+      dispatch({ type: AUTH_ACTIONS.AUTH_FAILURE });
     }
   };
   
+  const setError = (errorMsg) => {
+    dispatch({ type: AUTH_ACTIONS.SET_ERROR, payload: { error: errorMsg } });
+  };
+  
   const login = async (username, password) => {
-    setError('');
+    dispatch({ type: AUTH_ACTIONS.CLEAR_ERROR });
     try {
       console.log('Attempting login with:', username);
       
@@ -96,7 +201,7 @@ export const AuthProvider = ({ children }) => {
       if (force_password_change) {
         console.log('User must change password');
         // Set user first (so they're authenticated)
-        setCurrentUser(user);
+        dispatch({ type: AUTH_ACTIONS.AUTH_SUCCESS, payload: { user } });
         // Show force password change modal
         setShowForcePasswordChange(true);
         return true; // Login successful but will show password change modal
@@ -111,24 +216,25 @@ export const AuthProvider = ({ children }) => {
         });
         
         // This will include all the user's permissions directly from the database
-        setCurrentUser(userResponse.data);
+        dispatch({ type: AUTH_ACTIONS.AUTH_SUCCESS, payload: { user: userResponse.data } });
       } catch (userError) {
         console.error('Error fetching complete user data:', userError);
         // Fall back to basic user data if /me endpoint fails
-        setCurrentUser(user);
+        dispatch({ type: AUTH_ACTIONS.AUTH_SUCCESS, payload: { user } });
       }
       
       return true;
     } catch (error) {
       console.error('Login error:', error);
       
+      let errorMsg = 'Invalid username or password. Please try again.';
       if (error.response && error.response.data && error.response.data.error) {
-        setError(error.response.data.error);
+        errorMsg = error.response.data.error;
       } else if (error.message) {
-        setError(error.message);
-      } else {
-        setError('Invalid username or password. Please try again.');
+        errorMsg = error.message;
       }
+      
+      dispatch({ type: AUTH_ACTIONS.SET_ERROR, payload: { error: errorMsg } });
       
       return false;
     }
@@ -163,7 +269,7 @@ export const AuthProvider = ({ children }) => {
       // Always clear user data and tokens, even if API call fails
       localStorage.removeItem('token');
       localStorage.removeItem('refreshToken');
-      setCurrentUser(null);
+      dispatch({ type: AUTH_ACTIONS.LOGOUT });
     }
   };
   
@@ -203,10 +309,15 @@ export const AuthProvider = ({ children }) => {
       return null;
     } catch (error) {
       console.error('Token refresh failed:', error);
-      // Clear tokens if refresh fails
-      localStorage.removeItem('token');
-      localStorage.removeItem('refreshToken');
-      setCurrentUser(null);
+      // Only clear user state if we're not in the initialization phase
+      // During initialization, fetchUserData handles the state cleanup
+      if (!isInitializingRef.current) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('refreshToken');
+        // Use LOGOUT instead of AUTH_FAILURE to ensure clean state transition
+        // This prevents infinite refresh loops and ensures consistent state
+        dispatch({ type: AUTH_ACTIONS.LOGOUT });
+      }
       return null;
     }
   };
@@ -235,6 +346,11 @@ export const AuthProvider = ({ children }) => {
       response => response,
       async error => {
         const originalRequest = error.config;
+        
+        // Skip token refresh during initialization - let fetchUserData handle auth errors
+        if (isInitializingRef.current) {
+          return Promise.reject(error);
+        }
         
         // If error is 401 or 403 and we haven't already retried
         if ((error.response?.status === 401 || error.response?.status === 403) && !originalRequest._retry) {
@@ -268,8 +384,8 @@ export const AuthProvider = ({ children }) => {
       return false;
     }
     
-    // Admin role has access to everything
-    if (currentUser.roles && currentUser.roles.includes('Admin')) {
+    // Users with admin-level access have access to everything
+    if (hasAdminLevelAccess(currentUser)) {
       return true;
     }
     
@@ -334,9 +450,19 @@ export const AuthProvider = ({ children }) => {
           return p === permission;
         }
         
-        // Handle object format permissions (older format)
-        if (typeof p === 'object' && p.name === permission) {
-          return true;
+        // Handle object format permissions (check all possible field names)
+        if (typeof p === 'object') {
+          const permCode = p.name || p.permission_name || p.permission_code;
+          if (permCode === permission) {
+            return true;
+          }
+          
+          // Also check for resource:action format matching
+          if (permCode && permCode.includes(':')) {
+            const [permResource, permAction] = permCode.split(':');
+            return resourceVariations.includes(permResource) && 
+                   (permAction === action || permAction === '*');
+          }
         }
         
         return false;
@@ -352,8 +478,8 @@ export const AuthProvider = ({ children }) => {
       return false;
     }
     
-    // Admin role has access to everything
-    if (currentUser.roles && currentUser.roles.includes('Admin')) {
+    // Users with admin-level access have access to everything
+    if (hasAdminLevelAccess(currentUser)) {
       return true;
     }
     
@@ -566,8 +692,8 @@ export const AuthProvider = ({ children }) => {
       return false;
     }
     
-    // Admin role has access to all tagged data
-    if (currentUser.roles && currentUser.roles.includes('Admin')) {
+    // Users with admin-level access have access to all tagged data
+    if (hasAdminLevelAccess(currentUser)) {
       return true;
     }
     
@@ -609,6 +735,7 @@ export const AuthProvider = ({ children }) => {
     logout,
     loading,
     error,
+    authStatus,
     hasPermission,
     hasFeaturePermission,
     hasRole,

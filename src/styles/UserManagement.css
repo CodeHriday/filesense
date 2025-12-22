@@ -587,57 +587,105 @@ body.high-contrast .auth-provider-badge.okta {
 /* Delete Confirmation Modal */
 .delete-confirmation-modal {
   background-color: white;
-  border-radius: 8px;
+  border-radius: 6px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
   width: 100%;
-  max-width: 500px;
+  max-width: 380px;
   display: flex;
   flex-direction: column;
 }
 
+.delete-confirmation-modal .modal-header {
+  padding: 12px 16px;
+  border-bottom: 1px solid #e0e0e0;
+  min-height: auto;
+  height: auto;
+}
+
+.delete-confirmation-modal .modal-header h2 {
+  font-size: 12px;
+  font-weight: 600;
+  color: #202124;
+  margin: 0;
+}
+
+.delete-confirmation-modal .close-modal-btn {
+  font-size: 18px;
+  padding: 0;
+  line-height: 1;
+}
+
 .delete-confirmation-modal .modal-body {
-  padding: 24px;
+  padding: 16px;
   text-align: center;
 }
 
 .delete-warning-icon {
-  font-size: 48px;
-  margin-bottom: 16px;
+  font-size: 36px;
+  margin-bottom: 12px;
 }
 
 .delete-confirmation-text {
-  font-size: 16px;
+  font-size: 11px;
   color: #202124;
-  margin-bottom: 16px;
-  line-height: 1.5;
+  margin-bottom: 8px;
+  line-height: 1.4;
 }
 
 .delete-confirmation-text strong {
-  color: #d93025;
+  color: #1a73e8;
+  font-weight: 600;
 }
 
 .user-detail {
-  font-size: 14px;
+  font-size: 10px;
   color: #5f6368;
-  margin: 8px 0;
+  margin: 4px 0;
 }
 
 .delete-warning-text {
-  font-size: 13px;
+  font-size: 10px;
   color: #d93025;
-  margin-top: 16px;
+  margin-top: 10px;
   font-weight: 500;
+}
+
+.delete-confirmation-modal .modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 16px;
+  border-top: 1px solid #e0e0e0;
+  background-color: #f8f9fa;
+}
+
+.delete-confirmation-modal .cancel-btn {
+  background-color: white;
+  color: #5f6368;
+  border: 1px solid #dadce0;
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-size: 10px;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-weight: 500;
+}
+
+.delete-confirmation-modal .cancel-btn:hover {
+  background-color: #f1f3f4;
+  border-color: #c6c6c6;
 }
 
 .delete-confirm-btn {
   background-color: #d93025;
   color: white;
   border: none;
-  padding: 10px 16px;
+  padding: 6px 12px;
   border-radius: 4px;
-  font-size: 14px;
+  font-size: 10px;
   cursor: pointer;
   transition: background-color 0.2s;
+  font-weight: 500;
 }
 
 .delete-confirm-btn:hover {
@@ -650,12 +698,20 @@ body.high-contrast .delete-confirmation-modal {
   border: 2px solid #fff;
 }
 
+body.high-contrast .delete-confirmation-modal .modal-header {
+  border-color: #fff;
+}
+
+body.high-contrast .delete-confirmation-modal .modal-header h2 {
+  color: #fff;
+}
+
 body.high-contrast .delete-confirmation-text {
   color: #fff;
 }
 
 body.high-contrast .delete-confirmation-text strong {
-  color: #ff6b6b;
+  color: #64b5f6;
 }
 
 body.high-contrast .user-detail {
@@ -664,6 +720,17 @@ body.high-contrast .user-detail {
 
 body.high-contrast .delete-warning-text {
   color: #ff6b6b;
+}
+
+body.high-contrast .delete-confirmation-modal .modal-actions {
+  background-color: #000;
+  border-color: #fff;
+}
+
+body.high-contrast .delete-confirmation-modal .cancel-btn {
+  background-color: #000;
+  color: #fff;
+  border-color: #fff;
 }
 
 body.high-contrast .delete-confirm-btn {
@@ -744,4 +811,68 @@ body.high-contrast .edit-button {
   color: var(--gps-text-dark, #333);
   cursor: pointer;
   margin: 0;
+}
+
+/* Field validation errors */
+.input-error {
+  border-color: #dc2626 !important;
+  background-color: #fef2f2 !important;
+}
+
+.input-error:focus {
+  border-color: #dc2626 !important;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.1) !important;
+}
+
+.field-error {
+  display: block;
+  color: #dc2626;
+  font-size: 11px;
+  margin-top: 4px;
+  font-weight: 500;
+}
+
+/* Page Size Selector */
+.gps-page-size-wrapper {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.gps-page-size {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.gps-page-size label {
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.gps-page-size select {
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  padding: 6px 28px 6px 10px;
+  border: 1px solid #cbd5e0;
+  border-radius: 6px;
+  background: #ffffff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E") no-repeat right 8px center;
+  color: #1a202c;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  transition: all 0.2s ease;
+}
+
+.gps-page-size select:hover {
+  border-color: #a0aec0;
+}
+
+.gps-page-size select:focus {
+  outline: none;
+  border-color: #025043;
+  box-shadow: 0 0 0 3px rgba(2, 80, 67, 0.12);
 }

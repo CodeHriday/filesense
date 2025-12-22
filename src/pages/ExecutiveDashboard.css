@@ -374,9 +374,10 @@
 /* Charts Grid */
 .executive-dashboard .charts-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
   margin-bottom: var(--exec-space-lg);
+  overflow: hidden;
 }
 
 /* Trend Charts - 2 column layout (50% each) */
@@ -385,6 +386,7 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
   margin-bottom: var(--exec-space-lg);
+  overflow: hidden;
 }
 
 .executive-dashboard .chart-card {
@@ -393,6 +395,8 @@
   padding: 10px;
   box-shadow: var(--exec-shadow-card);
   border: 1px solid var(--exec-border);
+  min-width: 0;
+  overflow: hidden;
 }
 
 .executive-dashboard .chart-card.wide {
@@ -446,11 +450,15 @@
 .executive-dashboard .chart-container {
   position: relative;
   height: 180px;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .executive-dashboard .chart-container-tall {
   position: relative;
   height: 180px;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .executive-dashboard .chart-container.donut {

@@ -13,6 +13,7 @@ const VendorRoleManagement = () => {
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   
@@ -20,6 +21,14 @@ const VendorRoleManagement = () => {
   const navigate = useNavigate();
   
   const canAccessVendorRoles = hasPermission && hasPermission('vendor_roles:read');
+  
+  // Debounce search term (2.5 seconds)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 2500);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
   
   useEffect(() => {
     if (!currentUser) {
@@ -58,7 +67,7 @@ const VendorRoleManagement = () => {
   };
   
   const filteredRoles = roles.filter(role => {
-    const searchLower = searchTerm.toLowerCase();
+    const searchLower = debouncedSearchTerm.toLowerCase();
     return (
       (role.name || '').toLowerCase().includes(searchLower) ||
       (role.description || '').toLowerCase().includes(searchLower)

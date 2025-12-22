@@ -9,6 +9,7 @@ const {
   deleteSchedule,
   processDueSchedules
 } = require('../services/cronSchedulerService');
+const { userHasAdminAccess } = require('../utils/permissionHelpers');
 
 /**
  * Helper function to get project_id for a scheduled entity
@@ -63,7 +64,7 @@ async function validateEntityProjectAccess(entity_type, entity_id, user) {
   
   // System-level schedules (project_id = null) require admin access
   if (entityProjectId === null) {
-    const isAdmin = user?.roles?.includes('Admin');
+    const isAdmin = userHasAdminAccess(user);
     if (!isAdmin) {
       const error = new Error('Only administrators can manage system-level schedules');
       error.status = 403;
@@ -228,7 +229,7 @@ router.get('/', async (req, res) => {
     const { getUserProjects } = require('../middleware/requireProjectAccess');
     
     // Get user's accessible projects
-    const isAdmin = req.user?.roles?.includes('Admin');
+    const isAdmin = userHasAdminAccess(req.user);
     let projectIds = [];
     
     if (!isAdmin) {
@@ -298,7 +299,7 @@ router.get('/active', async (req, res) => {
     const { getUserProjects } = require('../middleware/requireProjectAccess');
     
     // Get user's accessible projects
-    const isAdmin = req.user?.roles?.includes('Admin');
+    const isAdmin = userHasAdminAccess(req.user);
     let projectIds = [];
     
     if (!isAdmin) {

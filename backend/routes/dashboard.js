@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { createCacheMiddleware } = require('../src/middleware/cache');
+const { userHasAdminAccess } = require('../utils/permissionHelpers');
 
 const dashboardCacheMiddleware = createCacheMiddleware({
   ttl: 120,
@@ -35,7 +36,7 @@ router.get('/metrics', dashboardCacheMiddleware, async (req, res) => {
     const userRoles = req.user.roles || [];
 
     // Check if user is admin
-    const isAdmin = userRoles.includes('Admin');
+    const isAdmin = userHasAdminAccess(req.user);
 
     // Get user's accessible projects
     let projectsQuery;
@@ -192,7 +193,7 @@ router.get('/executive-metrics', dashboardCacheMiddleware, async (req, res) => {
   try {
     const userId = parseInt(req.user.id, 10);
     const userRoles = req.user.roles || [];
-    const isAdmin = userRoles.includes('Admin');
+    const isAdmin = userHasAdminAccess(req.user);
     const projectId = req.query.project_id ? parseInt(req.query.project_id, 10) : null;
     
     const timeRange = parseInt(req.query.days) || 30;
@@ -917,7 +918,7 @@ router.get('/project-health-scores', dashboardCacheMiddleware, async (req, res) 
   try {
     const userId = parseInt(req.user.id, 10);
     const userRoles = req.user.roles || [];
-    const isAdmin = userRoles.includes('Admin');
+    const isAdmin = userHasAdminAccess(req.user);
 
     let result;
 
@@ -1037,7 +1038,7 @@ router.get('/file-type-distribution', dashboardCacheMiddleware, async (req, res)
   try {
     const userId = parseInt(req.user.id, 10);
     const userRoles = req.user.roles || [];
-    const isAdmin = userRoles.includes('Admin');
+    const isAdmin = userHasAdminAccess(req.user);
     const projectId = req.query.project_id ? parseInt(req.query.project_id, 10) : null;
 
     let fileTypeQuery;
@@ -1154,7 +1155,7 @@ router.get('/job-trend', dashboardCacheMiddleware, async (req, res) => {
   try {
     const userId = parseInt(req.user.id, 10);
     const userRoles = req.user.roles || [];
-    const isAdmin = userRoles.includes('Admin');
+    const isAdmin = userHasAdminAccess(req.user);
     const projectId = req.query.project_id ? parseInt(req.query.project_id, 10) : null;
 
     let jobTrendQuery;
@@ -1258,7 +1259,7 @@ router.get('/schema-drift-trend', dashboardCacheMiddleware, async (req, res) => 
   try {
     const userId = parseInt(req.user.id, 10);
     const userRoles = req.user.roles || [];
-    const isAdmin = userRoles.includes('Admin');
+    const isAdmin = userHasAdminAccess(req.user);
     const projectId = req.query.project_id ? parseInt(req.query.project_id, 10) : null;
 
     let driftTrendQuery;
@@ -1364,7 +1365,7 @@ router.get('/quality-violations-trend', dashboardCacheMiddleware, async (req, re
   try {
     const userId = parseInt(req.user.id, 10);
     const userRoles = req.user.roles || [];
-    const isAdmin = userRoles.includes('Admin');
+    const isAdmin = userHasAdminAccess(req.user);
     const projectId = req.query.project_id ? parseInt(req.query.project_id, 10) : null;
 
     let violationsTrendQuery;
@@ -1479,7 +1480,7 @@ router.get('/metric-trends', dashboardCacheMiddleware, async (req, res) => {
   try {
     const userId = parseInt(req.user.id, 10);
     const userRoles = req.user.roles || [];
-    const isAdmin = userRoles.includes('Admin');
+    const isAdmin = userHasAdminAccess(req.user);
     const metricType = req.query.metric || 'all';
     const granularity = req.query.granularity || 'daily';
     const projectId = req.query.project_id ? parseInt(req.query.project_id, 10) : null;
