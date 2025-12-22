@@ -2,11 +2,13 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { FiEdit2, FiTrash2, FiSearch } from 'react-icons/fi';
 import ConfirmModal from '../components/ConfirmModal';
+import { useDeletePermission } from '../hooks/useDeletePermission';
 import '../styles/global-page-styles.css';
 
 const API_BASE_URL = '/api';
 
 function GroupManagement() {
+  const { canDelete } = useDeletePermission('access_groups');
   const [groups, setGroups] = useState([]);
   const [selectedGroup, setSelectedGroup] = useState(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -364,13 +366,15 @@ function GroupManagement() {
                       >
                         <FiEdit2 />
                       </button>
-                      <button 
-                        className="gps-icon-btn gps-icon-btn--delete" 
-                        onClick={() => handleDelete(group.id)}
-                        title="Delete group"
-                      >
-                        <FiTrash2 />
-                      </button>
+                      {canDelete && (
+                        <button 
+                          className="gps-icon-btn gps-icon-btn--delete" 
+                          onClick={() => handleDelete(group.id)}
+                          title="Delete group"
+                        >
+                          <FiTrash2 />
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>

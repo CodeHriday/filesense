@@ -8,6 +8,7 @@ import Pagination from '../components/Pagination';
 import TransferOwnershipModal from '../components/TransferOwnershipModal';
 import ThreeSectionModal from '../components/ThreeSectionModal';
 import { useAuth } from '../context/AuthContext';
+import { useDeletePermission } from '../hooks/useDeletePermission';
 import { getAllUsers, getRoles, createUser, updateUser, deleteUser } from '../api/authService';
 import axios from 'axios';
 import '../styles/UserManagement.css';
@@ -80,6 +81,7 @@ const UserManagement = () => {
   const [fieldErrors, setFieldErrors] = useState({});
   
   const { currentUser, hasPermission, hasRole } = useAuth();
+  const { canDelete } = useDeletePermission('users');
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -526,6 +528,12 @@ const UserManagement = () => {
   const confirmDeleteUser = async () => {
     if (!userToDelete) return;
     
+    if (!canDelete) {
+      setError("You don't have permission to delete users");
+      closeDeleteModal();
+      return;
+    }
+    
     try {
       await deleteUser(userToDelete.id);
       closeDeleteModal();
@@ -580,6 +588,7 @@ const UserManagement = () => {
   
   // Bulk delete handlers
   const handleSelectAll = (e) => {
+    if (!canDelete) return;
     if (e.target.checked) {
       const selectableUserIds = users
         .filter(user => user.id !== currentUser?.id)
@@ -638,6 +647,12 @@ const UserManagement = () => {
   
   const confirmBulkDelete = async () => {
     if (selectedUserIds.length === 0) return;
+    
+    if (!canDelete) {
+      setError("You don't have permission to delete users");
+      closeBulkDeleteModal();
+      return;
+    }
     
     try {
       const response = await axios.post('/api/users/bulk-delete', {
@@ -703,7 +718,7 @@ const UserManagement = () => {
                   )}
                 </button>
               )}
-              {selectedUserIds.length > 0 && (
+              {canDelete && selectedUserIds.length > 0 && (
                 <button 
                   className="gps-btn gps-btn--danger"
                   onClick={openBulkDeleteModal}
@@ -746,13 +761,15 @@ const UserManagement = () => {
         <table className="gps-table">
           <thead>
             <tr>
-              <th style={{ width: '50px' }}>
-                <input
-                  type="checkbox"
-                  onChange={handleSelectAll}
-                  checked={selectedUserIds.length > 0 && selectedUserIds.length === users.filter(u => u.id !== currentUser?.id).length}
-                />
-              </th>
+              {canDelete && (
+                <th style={{ width: '50px' }}>
+                  <input
+                    type="checkbox"
+                    onChange={handleSelectAll}
+                    checked={selectedUserIds.length > 0 && selectedUserIds.length === users.filter(u => u.id !== currentUser?.id).length}
+                  />
+                </th>
+              )}
               <th>Username</th>
               <th>Full Name</th>
               <th>Email</th>
@@ -766,7 +783,7 @@ const UserManagement = () => {
           <tbody>
             {users.length === 0 ? (
               <tr>
-                <td colSpan="9" className="no-users-message">
+                <td colSpan={canDelete ? 9 : 8} className="no-users-message">
                   {searchTerm ? 'No users found matching your search' : 'No users found'}
                 </td>
               </tr>
@@ -778,14 +795,16 @@ const UserManagement = () => {
                 
                 return (
                   <tr key={user.id}>
-                    <td>
-                      <input
-                        type="checkbox"
-                        checked={selectedUserIds.includes(user.id)}
-                        onChange={() => handleSelectUser(user.id)}
-                        disabled={isCurrentUser}
-                      />
-                    </td>
+                    {canDelete && (
+                      <td>
+                        <input
+                          type="checkbox"
+                          checked={selectedUserIds.includes(user.id)}
+                          onChange={() => handleSelectUser(user.id)}
+                          disabled={isCurrentUser}
+                        />
+                      </td>
+                    )}
                     <td>{user.username}</td>
                     <td>{user.full_name || '-'}</td>
                     <td>{user.email || '-'}</td>
@@ -839,7 +858,7 @@ const UserManagement = () => {
                           <FiEdit2 />
                         </button>
                         
-                        {user.id !== currentUser?.id && (
+                        {canDelete && user.id !== currentUser?.id && (
                           <button 
                             className="gps-icon-btn gps-icon-btn--delete" 
                             onClick={() => openDeleteModal(user)}
