@@ -32,34 +32,19 @@ const initialAuthState = {
 
 /**
  * Helper function to check if a user has admin-level access
- * This checks both the Admin role name (backward compatibility) AND permission-based access
+ * Admin access is purely role-based - only users with the "Admin" role have admin-level access
  * @param {Object} user - User object with roles and permissions
  * @returns {boolean}
  */
 const hasAdminLevelAccess = (user) => {
   if (!user) return false;
   
-  // Check for Admin role (backward compatibility)
+  // Check for Admin role only - admin access is purely role-based
   if (user.roles && (
     user.roles.includes('Admin') || 
     user.roles.includes('admin')
   )) {
     return true;
-  }
-  
-  // Check for admin-equivalent permissions
-  // If user has users:write or roles:write, they have admin-level access
-  if (user.permissions && Array.isArray(user.permissions)) {
-    const adminPermissions = ['users:write', 'roles:write', 'project_management:write'];
-    return user.permissions.some(p => {
-      if (typeof p === 'string') {
-        return adminPermissions.includes(p);
-      }
-      // Check all possible field names for permission code
-      return adminPermissions.includes(p.name) || 
-             adminPermissions.includes(p.permission_name) || 
-             adminPermissions.includes(p.permission_code);
-    });
   }
   
   return false;
@@ -606,13 +591,8 @@ export const AuthProvider = ({ children }) => {
       return false;
     }
     
-    // Admin role has access to everything (backward compatibility)
+    // Admin role has access to everything
     if (hasRole('Admin')) {
-      return true;
-    }
-    
-    // Admin-level permissions also have full access (e.g., dp_admin role)
-    if (hasPermission('users:write') || hasPermission('project_management:write')) {
       return true;
     }
     
@@ -663,13 +643,8 @@ export const AuthProvider = ({ children }) => {
       return false;
     }
     
-    // Admin role has access to everything (backward compatibility)
+    // Admin role has access to everything
     if (hasRole('Admin')) {
-      return true;
-    }
-    
-    // Admin-level permissions also have full access (e.g., dp_admin role)
-    if (hasPermission('users:write') || hasPermission('project_management:write')) {
       return true;
     }
     
