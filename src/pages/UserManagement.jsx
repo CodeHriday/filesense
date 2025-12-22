@@ -82,6 +82,11 @@ const UserManagement = () => {
   const { currentUser, hasPermission, hasRole } = useAuth();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
+
+  const handlePageSizeChange = (e) => {
+    setPageSize(parseInt(e.target.value));
+    setCurrentPage(1);
+  };
   
   // Debounce search term
   useEffect(() => {
@@ -853,6 +858,19 @@ const UserManagement = () => {
         </table>
       </div>
       
+      {/* Page Size Selector */}
+      <div className="gps-page-size-wrapper">
+        <div className="gps-page-size">
+          <label>Rows per page:</label>
+          <select value={pageSize} onChange={handlePageSizeChange}>
+            <option value="10">10</option>
+            <option value="25">25</option>
+            <option value="50">50</option>
+            <option value="100">100</option>
+          </select>
+        </div>
+      </div>
+
       {/* Pagination Controls */}
       <Pagination
         currentPage={currentPage}

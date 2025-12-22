@@ -15,7 +15,7 @@ function Projects() {
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [showArchived, setShowArchived] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize] = useState(10);
+  const [pageSize, setPageSize] = useState(10);
   const [expandedProjects, setExpandedProjects] = useState(new Set());
 
   // Debounce search term (2.5 seconds)
@@ -77,6 +77,43 @@ function Projects() {
       newExpanded.add(projectId);
     }
     setExpandedProjects(newExpanded);
+  };
+
+  const handlePageSizeChange = (e) => {
+    setPageSize(parseInt(e.target.value));
+    setCurrentPage(1);
+  };
+
+  const pageSizeStyles = {
+    wrapper: {
+      display: 'flex',
+      justifyContent: 'flex-end',
+      alignItems: 'center',
+      marginBottom: '8px',
+    },
+    container: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: '8px',
+    },
+    label: {
+      fontFamily: "'Inter', sans-serif",
+      fontSize: '11px',
+      color: '#6b7280',
+      fontWeight: '500',
+    },
+    select: {
+      fontFamily: "'Inter', sans-serif",
+      fontSize: '11px',
+      padding: '6px 28px 6px 10px',
+      border: '1px solid #cbd5e0',
+      borderRadius: '6px',
+      backgroundColor: '#ffffff',
+      color: '#1a202c',
+      cursor: 'pointer',
+      appearance: 'none',
+      WebkitAppearance: 'none',
+    },
   };
 
   return (
@@ -234,6 +271,21 @@ function Projects() {
               )}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* Page Size Selector */}
+      {!loading && projects.length > 0 && (
+        <div style={pageSizeStyles.wrapper}>
+          <div style={pageSizeStyles.container}>
+            <label style={pageSizeStyles.label}>Rows per page:</label>
+            <select style={pageSizeStyles.select} value={pageSize} onChange={handlePageSizeChange}>
+              <option value="10">10</option>
+              <option value="25">25</option>
+              <option value="50">50</option>
+              <option value="100">100</option>
+            </select>
+          </div>
         </div>
       )}
 
