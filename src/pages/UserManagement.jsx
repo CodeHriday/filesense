@@ -22,6 +22,7 @@ const UserManagement = () => {
   const [modalMode, setModalMode] = useState('create'); // 'create' or 'edit'
   const [selectedUser, setSelectedUser] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [formData, setFormData] = useState({
     username: '',
     password: '',
@@ -82,6 +83,14 @@ const UserManagement = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   
+  // Debounce search term
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
   // Check if user has permission to view users
   useEffect(() => {
     if (!currentUser) {
@@ -97,7 +106,7 @@ const UserManagement = () => {
     // }
     
     fetchData();
-  }, [currentUser, navigate, currentPage, pageSize]);
+  }, [currentUser, navigate, currentPage, pageSize, debouncedSearchTerm]);
   
   const fetchData = async () => {
     setLoading(true);
@@ -105,7 +114,7 @@ const UserManagement = () => {
     
     try {
       const [usersResponse, rolesData] = await Promise.all([
-        getAllUsers(currentPage, pageSize),
+        getAllUsers(currentPage, pageSize, debouncedSearchTerm),
         getRoles(1, 100)
       ]);
       
@@ -567,7 +576,7 @@ const UserManagement = () => {
   // Bulk delete handlers
   const handleSelectAll = (e) => {
     if (e.target.checked) {
-      const selectableUserIds = filteredUsers
+      const selectableUserIds = users
         .filter(user => user.id !== currentUser?.id)
         .map(user => user.id);
       setSelectedUserIds(selectableUserIds);
@@ -660,23 +669,8 @@ const UserManagement = () => {
     }
   };
   
-  const filteredUsers = users.filter(user => {
-    const searchLower = searchTerm.toLowerCase();
-    return (
-      (user.username || '').toLowerCase().includes(searchLower) ||
-      (user.email || '').toLowerCase().includes(searchLower) ||
-      (user.full_name || '').toLowerCase().includes(searchLower) ||
-      (user.first_name || '').toLowerCase().includes(searchLower) ||
-      (user.last_name || '').toLowerCase().includes(searchLower)
-    );
-  });
-
-  // Clamp currentPage when filtered results are empty
-  useEffect(() => {
-    if (filteredUsers.length === 0 && currentPage > 1) {
-      setCurrentPage(1);
-    }
-  }, [filteredUsers.length, currentPage]);
+  // Server-side search is now used - no client-side filtering needed
+  // The search is passed to the API and handled by the backend
 
   return (
     <div className="gps-page-container">
@@ -751,7 +745,7 @@ const UserManagement = () => {
                 <input
                   type="checkbox"
                   onChange={handleSelectAll}
-                  checked={selectedUserIds.length > 0 && selectedUserIds.length === filteredUsers.filter(u => u.id !== currentUser?.id).length}
+                  checked={selectedUserIds.length > 0 && selectedUserIds.length === users.filter(u => u.id !== currentUser?.id).length}
                 />
               </th>
               <th>Username</th>
@@ -765,14 +759,14 @@ const UserManagement = () => {
             </tr>
           </thead>
           <tbody>
-            {filteredUsers.length === 0 ? (
+            {users.length === 0 ? (
               <tr>
                 <td colSpan="9" className="no-users-message">
                   {searchTerm ? 'No users found matching your search' : 'No users found'}
                 </td>
               </tr>
             ) : (
-              filteredUsers.map(user => {
+              users.map(user => {
                 const isLocked = user.locked_until && new Date(user.locked_until) > new Date();
                 const failedAttempts = user.failed_login_attempts || 0;
                 const isCurrentUser = user.id === currentUser?.id;

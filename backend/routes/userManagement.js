@@ -20,12 +20,19 @@ router.get('/', authenticateToken, asyncHandler(async (req, res) => {
   const page = parseInt(req.query.page) || 1;
   const limit = parseInt(req.query.limit) || 10;
   const offset = (page - 1) * limit;
+  const search = req.query.search || '';
   
-  // Fetch users with lockout status
-  const users = await userRepository.findAll({ limit, offset });
+  // Build filters object
+  const filters = { limit, offset };
+  if (search) {
+    filters.search = search;
+  }
   
-  // Get total count for pagination
-  const totalCount = await userRepository.count();
+  // Fetch users with lockout status and optional search
+  const users = await userRepository.findAll(filters);
+  
+  // Get total count for pagination (with same search filter)
+  const totalCount = await userRepository.count(search ? { search } : {});
   const totalPages = Math.ceil(totalCount / limit);
   
   res.json({

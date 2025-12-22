@@ -50,13 +50,16 @@ export const getCurrentUser = async () => {
  * Get all users (admin only)
  * @param {number} page - Page number (default: 1)
  * @param {number} limit - Items per page (default: 10)
+ * @param {string} search - Search term to filter users (optional)
  * @returns {Promise<Object>} Object with users array and pagination info
  */
-export const getAllUsers = async (page = 1, limit = 10) => {
+export const getAllUsers = async (page = 1, limit = 10, search = '') => {
   try {
-    const response = await axios.get(`${API_BASE_URL}/api/users`, {
-      params: { page, limit }
-    });
+    const params = { page, limit };
+    if (search) {
+      params.search = search;
+    }
+    const response = await axios.get(`${API_BASE_URL}/api/users`, { params });
     console.log('Get all users response:', response);
     return response.data;
   } catch (error) {
