@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { FiEdit2, FiTrash2, FiSearch } from 'react-icons/fi';
 import { useAuth } from '../context/AuthContext';
+import { useDeletePermission } from '../hooks/useDeletePermission';
 import { getRoles, createRole, updateRole, deleteRole, getPermissions } from '../api/authService';
 import LoadingSpinner from '../components/LoadingSpinner';
 import Pagination from '../components/Pagination';
@@ -47,6 +48,7 @@ const RoleManagement = () => {
   const [bulkDeleteModalOpen, setBulkDeleteModalOpen] = useState(false);
 
   const { currentUser, hasPermission } = useAuth();
+  const { canDelete } = useDeletePermission('roles');
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   
@@ -511,13 +513,13 @@ const RoleManagement = () => {
   const confirmDeleteRole = async () => {
     if (!roleToDelete) return;
     
+    if (!canDelete) {
+      setError("You don't have permission to delete roles");
+      closeDeleteModal();
+      return;
+    }
+    
     try {
-      // Temporarily bypass permission checks
-      // if (!hasPermission('role_delete')) {
-      //   setError("You don't have permission to delete roles");
-      //   return;
-      // }
-      
       await deleteRole(roleToDelete.id);
       closeDeleteModal();
       fetchData();
@@ -528,12 +530,11 @@ const RoleManagement = () => {
   };
   
   // Bulk delete handlers for roles
-  const protectedRoleNames = ['Admin', 'User', 'Vendor', 'Governance Manager', 'Data Steward'];
-  
   const handleSelectAllRoles = (e) => {
+    if (!canDelete) return;
     if (e.target.checked) {
       const selectableRoleIds = roles
-        .filter(role => !protectedRoleNames.includes(role.name))
+        .filter(role => role.name.toLowerCase() !== 'admin')
         .map(role => role.id);
       setSelectedRoleIds(selectableRoleIds);
     } else {
@@ -565,6 +566,12 @@ const RoleManagement = () => {
   
   const confirmBulkDeleteRoles = async () => {
     if (selectedRoleIds.length === 0) return;
+    
+    if (!canDelete) {
+      setError("You don't have permission to delete roles");
+      closeBulkDeleteModal();
+      return;
+    }
     
     try {
       const response = await axios.post('/api/users/roles/bulk-delete', {
@@ -656,7 +663,7 @@ const RoleManagement = () => {
           <Link to="/users" className="gps-btn gps-btn--secondary">
             User Management
           </Link>
-          {selectedRoleIds.length > 0 && (
+          {canDelete && selectedRoleIds.length > 0 && (
             <button 
               className="gps-btn gps-btn--danger"
               onClick={openBulkDeleteModal}
@@ -699,13 +706,15 @@ const RoleManagement = () => {
         <table className="gps-table">
           <thead>
             <tr>
-              <th style={{ width: '50px' }}>
-                <input
-                  type="checkbox"
-                  onChange={handleSelectAllRoles}
-                  checked={selectedRoleIds.length > 0 && selectedRoleIds.length === roles.filter(r => !protectedRoleNames.includes(r.name)).length}
-                />
-              </th>
+              {canDelete && (
+                <th style={{ width: '50px' }}>
+                  <input
+                    type="checkbox"
+                    onChange={handleSelectAllRoles}
+                    checked={selectedRoleIds.length > 0 && selectedRoleIds.length === roles.filter(r => r.name.toLowerCase() !== 'admin').length}
+                  />
+                </th>
+              )}
               <th>Role Name</th>
               <th>Description</th>
               <th>Permissions</th>
@@ -716,7 +725,7 @@ const RoleManagement = () => {
           <tbody>
             {roles.length === 0 ? (
               <tr>
-                <td colSpan="6" className="no-roles-message">
+                <td colSpan={canDelete ? 6 : 5} className="no-roles-message">
                   {searchTerm ? 'No roles found matching your search' : 'No roles found'}
                 </td>
               </tr>
@@ -725,18 +734,20 @@ const RoleManagement = () => {
                 const permissions = formatPermissionsDisplay(role.permissions);
                 const isExpanded = expandedRoles[role.id];
                 const displayedPermissions = isExpanded ? permissions : permissions.slice(0, 3);
-                const isProtected = protectedRoleNames.includes(role.name);
+                const isAdmin = role.name.toLowerCase() === 'admin';
                 
                 return (
                   <tr key={role.id}>
-                    <td>
-                      <input
-                        type="checkbox"
-                        checked={selectedRoleIds.includes(role.id)}
-                        onChange={() => handleSelectRole(role.id)}
-                        disabled={isProtected}
-                      />
-                    </td>
+                    {canDelete && (
+                      <td>
+                        <input
+                          type="checkbox"
+                          checked={selectedRoleIds.includes(role.id)}
+                          onChange={() => handleSelectRole(role.id)}
+                          disabled={isAdmin}
+                        />
+                      </td>
+                    )}
                     <td>{role.name}</td>
                     <td>{role.description || '-'}</td>
                     <td>
@@ -771,7 +782,7 @@ const RoleManagement = () => {
                           <FiEdit2 />
                         </button>
                         
-                        {role.name.toLowerCase() !== 'admin' && (
+                        {canDelete && role.name.toLowerCase() !== 'admin' && (
                           <button 
                             className="gps-icon-btn gps-icon-btn--delete" 
                             onClick={() => openDeleteModal(role)}

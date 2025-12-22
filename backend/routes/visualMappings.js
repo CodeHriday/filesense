@@ -7,6 +7,7 @@ const { v4: uuidv4 } = require('uuid');
 const EmailProviderFactory = require('../services/email/EmailProviderFactory');
 const emailComposer = require('../services/EmailComposer');
 const { userHasAdminAccess } = require('../utils/permissionHelpers');
+const authorize = require('../middleware/authorize');
 
 /**
  * Send email notification for visual mapping execution
@@ -290,7 +291,7 @@ router.get('/:id', async (req, res) => {
  * POST /api/visual-mappings
  * Create a new visual mapping
  */
-router.post('/', async (req, res) => {
+router.post('/', authorize('visual_mapping_orchestrator:write'), async (req, res) => {
   try {
     const { name, description, graph_data, canvas_state, project_id, sub_project_id, notification_settings } = req.body;
 
@@ -343,7 +344,7 @@ router.post('/', async (req, res) => {
  * PUT /api/visual-mappings/:id
  * Update an existing visual mapping
  */
-router.put('/:id', async (req, res) => {
+router.put('/:id', authorize('visual_mapping_orchestrator:write'), async (req, res) => {
   try {
     const { id } = req.params;
     const { name, description, graph_data, canvas_state, project_id, sub_project_id, notification_settings } = req.body;
@@ -404,7 +405,7 @@ router.put('/:id', async (req, res) => {
  * DELETE /api/visual-mappings/:id
  * Soft delete a visual mapping
  */
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', authorize('visual_mapping_orchestrator:write'), async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -439,7 +440,7 @@ router.delete('/:id', async (req, res) => {
  * POST /api/visual-mappings/:id/clone
  * Clone a visual mapping with a new name
  */
-router.post('/:id/clone', async (req, res) => {
+router.post('/:id/clone', authorize('visual_mapping_orchestrator:write'), async (req, res) => {
   try {
     const { id } = req.params;
     const customName = req.body?.name;
@@ -579,7 +580,7 @@ router.post('/:id/clone', async (req, res) => {
  * POST /api/visual-mappings/:id/execute
  * Execute a visual mapping (runs in background for large jobs)
  */
-router.post('/:id/execute', async (req, res) => {
+router.post('/:id/execute', authorize('visual_mapping_orchestrator:execute'), async (req, res) => {
   try {
     const { id } = req.params;
     const clientExecutionId = req.body?.execution_id;

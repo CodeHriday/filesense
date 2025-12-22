@@ -6,9 +6,11 @@ import ConfirmModal from '../components/ConfirmModal';
 import ExecuteModal from '../components/ExecuteModal';
 import { PageTransition } from '../components/MicroAnimations';
 import Pagination from '../components/Pagination';
+import { useDeletePermission } from '../hooks/useDeletePermission';
 import axios from 'axios';
 
 const MappingGroups = () => {
+  const { canDelete } = useDeletePermission('mapping_groups');
   const [groups, setGroups] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -268,13 +270,15 @@ const MappingGroups = () => {
                         >
                           <FiEdit2 />
                         </Link>
-                        <button
-                          onClick={() => handleDelete(group.id || group.group_id, group.name || group.group_name)}
-                          className="gps-icon-btn gps-icon-btn-danger"
-                          title="Delete"
-                        >
-                          <FiTrash2 />
-                        </button>
+                        {canDelete && (
+                          <button
+                            onClick={() => handleDelete(group.id || group.group_id, group.name || group.group_name)}
+                            className="gps-icon-btn gps-icon-btn-danger"
+                            title="Delete"
+                          >
+                            <FiTrash2 />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
