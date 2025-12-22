@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { pool } = require('../config/database');
+const { pool, query } = require('../config/database');
 const { systemLogger } = require('../utils/logger');
 const BulkProfilingService = require('../services/BulkProfilingService');
 
@@ -18,7 +18,7 @@ router.get('/projects', async (req, res) => {
     const userId = req.user.id;
     
     // Get vendor profile
-    const vendorResult = await pool.query(
+    const vendorResult = await query(
       'SELECT id FROM vendors WHERE vendor_user_id = $1 AND status = $2',
       [userId, 'active']
     );
@@ -33,7 +33,7 @@ router.get('/projects', async (req, res) => {
     const vendorId = vendorResult.rows[0].id;
     
     // Get user details to check primary/secondary contact
-    const userResult = await pool.query(
+    const userResult = await query(
       'SELECT email FROM users WHERE id = $1',
       [userId]
     );
@@ -45,7 +45,7 @@ router.get('/projects', async (req, res) => {
     const userEmail = userResult.rows[0].email;
     
     // Get projects from vendor agreements where user is primary or secondary contact
-    const projectsResult = await pool.query(`
+    const projectsResult = await query(`
       SELECT DISTINCT 
         p.id,
         p.name,
@@ -97,7 +97,7 @@ router.get('/connections', async (req, res) => {
     }
     
     // Get vendor profile
-    const vendorResult = await pool.query(
+    const vendorResult = await query(
       'SELECT id FROM vendors WHERE vendor_user_id = $1 AND status = $2',
       [userId, 'active']
     );
@@ -112,7 +112,7 @@ router.get('/connections', async (req, res) => {
     const vendorId = vendorResult.rows[0].id;
     
     // Get user email
-    const userResult = await pool.query(
+    const userResult = await query(
       'SELECT email FROM users WHERE id = $1',
       [userId]
     );
@@ -124,7 +124,7 @@ router.get('/connections', async (req, res) => {
     const userEmail = userResult.rows[0].email;
     
     // Get connections from vendor agreements
-    const connectionsResult = await pool.query(`
+    const connectionsResult = await query(`
       SELECT DISTINCT 
         sc.connection_id,
         sc.name,
@@ -210,7 +210,7 @@ router.post('/browse', async (req, res) => {
     }
     
     // Get vendor profile
-    const vendorResult = await pool.query(
+    const vendorResult = await query(
       'SELECT id FROM vendors WHERE vendor_user_id = $1 AND status = $2',
       [userId, 'active']
     );
@@ -225,7 +225,7 @@ router.post('/browse', async (req, res) => {
     const vendorId = vendorResult.rows[0].id;
     
     // Get user email
-    const userResult = await pool.query(
+    const userResult = await query(
       'SELECT email FROM users WHERE id = $1',
       [userId]
     );
@@ -240,7 +240,7 @@ router.post('/browse', async (req, res) => {
     const userEmail = userResult.rows[0].email;
     
     // Get vendor agreement and verify authorization
-    const agreementResult = await pool.query(`
+    const agreementResult = await query(`
       SELECT 
         va.id,
         va.vendor_connection_id,

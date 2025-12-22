@@ -3,7 +3,7 @@
  * Ensures vendors can only access their own data
  */
 
-const { pool } = require('../config/database');
+const { pool, query } = require('../config/database');
 const { systemLogger } = require('../utils/logger');
 const { isVendorUser } = require('../utils/userHelpers');
 const { userHasAdminAccess } = require('../utils/permissionHelpers');
@@ -19,7 +19,7 @@ async function attachVendorProfile(req, res, next) {
     }
     
     // Get vendor profile for this user
-    const result = await pool.query(
+    const result = await query(
       'SELECT * FROM vendors WHERE vendor_user_id = $1 AND status = $2',
       [req.user.id, 'active']
     );
@@ -123,7 +123,7 @@ async function requireOwnAgreementAccess(req, res, next) {
     }
     
     // Get agreement
-    const result = await pool.query(
+    const result = await query(
       `SELECT va.*, v.vendor_user_id 
        FROM vendor_agreements va
        JOIN vendors v ON va.vendor_id = v.id
@@ -171,7 +171,7 @@ async function requireOwnAgreementAccess(req, res, next) {
  */
 async function isUserVendor(userId) {
   try {
-    const result = await pool.query(
+    const result = await query(
       'SELECT id FROM vendors WHERE vendor_user_id = $1 AND status = $2',
       [userId, 'active']
     );
@@ -187,7 +187,7 @@ async function isUserVendor(userId) {
  */
 async function getVendorIdForUser(userId) {
   try {
-    const result = await pool.query(
+    const result = await query(
       'SELECT id FROM vendors WHERE vendor_user_id = $1 AND status = $2',
       [userId, 'active']
     );

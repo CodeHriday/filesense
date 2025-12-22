@@ -5,7 +5,7 @@
 
 const express = require('express');
 const router = express.Router();
-const { pool } = require('../config/database');
+const { pool, query: dbQuery } = require('../config/database');
 const { systemLogger } = require('../utils/logger');
 const { encrypt, decrypt } = require('../utils/encryption');
 const { v4: uuidv4 } = require('uuid');
@@ -64,7 +64,7 @@ router.get('/', async (req, res) => {
     
     query += ` ORDER BY sc.created_at DESC`;
     
-    const result = await pool.query(query, params);
+    const result = await dbQuery(query, params);
     
     // Remove sensitive credentials from response
     const connections = result.rows.map(conn => {
@@ -95,7 +95,7 @@ router.get('/:id', requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     
-    const result = await pool.query(
+    const result = await dbQuery(
       `SELECT 
         sc.connection_id,
         sc.name,
@@ -202,7 +202,7 @@ router.post('/', requireAdmin, async (req, res) => {
     }
     
     // Check for duplicate connection name (case-insensitive) across all connection tables
-    const duplicateCheck = await pool.query(
+    const duplicateCheck = await dbQuery(
       'SELECT name FROM storage_connections WHERE LOWER(name) = LOWER($1)',
       [name.trim()]
     );
@@ -311,7 +311,7 @@ router.post('/', requireAdmin, async (req, res) => {
     const connectionId = uuidv4();
     // Convert undefined to null for project_id (vendor connections are global by default)
     const normalizedProjectId = project_id || null;
-    const result = await pool.query(
+    const result = await dbQuery(
       `INSERT INTO storage_connections (
         connection_id, type, name, config, status, 
         connection_direction, project_id, connection_user, description,
@@ -409,7 +409,7 @@ router.put('/:id', requireAdmin, async (req, res) => {
     } = req.body;
     
     // Get existing connection
-    const existing = await pool.query(
+    const existing = await dbQuery(
       'SELECT config, authentication_method FROM storage_connections WHERE connection_id = $1',
       [id]
     );
@@ -527,7 +527,7 @@ router.put('/:id', requireAdmin, async (req, res) => {
     values.push(id);
     
     // Update connection
-    const result = await pool.query(
+    const result = await dbQuery(
       `UPDATE storage_connections 
        SET ${updates.join(', ')}
        WHERE connection_id = $${paramIndex}
@@ -558,7 +558,7 @@ router.delete('/:id', requireAdmin, async (req, res) => {
     const { id } = req.params;
     
     // Check if connection is being used by any vendor agreements
-    const usageCheck = await pool.query(
+    const usageCheck = await dbQuery(
       'SELECT COUNT(*) FROM vendor_agreements WHERE vendor_connection_id = $1',
       [id]
     );
@@ -569,7 +569,7 @@ router.delete('/:id', requireAdmin, async (req, res) => {
       });
     }
     
-    const result = await pool.query(
+    const result = await dbQuery(
       'DELETE FROM storage_connections WHERE connection_id = $1 RETURNING connection_id',
       [id]
     );
@@ -667,7 +667,7 @@ router.post('/:id/test', requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     
-    const result = await pool.query(
+    const result = await dbQuery(
       'SELECT config FROM storage_connections WHERE connection_id = $1 AND type = \'vendor\'',
       [id]
     );

@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { pool } = require('../config/database');
+const { pool, query: dbQuery } = require('../config/database');
 const slaMonitorService = require('../services/slaMonitorService');
 const slaCalculationService = require('../services/slaCalculationService');
 const { systemLogger } = require('../utils/logger');
@@ -64,7 +64,7 @@ router.get('/status', async (req, res) => {
       ORDER BY va.agreement_code
     `;
 
-    const result = await pool.query(query, params);
+    const result = await dbQuery(query, params);
     const agreements = result.rows;
 
     const statusData = await Promise.all(agreements.map(async (agreement) => {
@@ -174,12 +174,12 @@ router.get('/violations', async (req, res) => {
       SELECT 
         vsv.id,
         vsv.agreement_id,
-        vsv.expected_arrival,
-        vsv.actual_arrival,
+        vsv.expected_arrival_time,
+        vsv.actual_arrival_time,
         vsv.delay_minutes,
         vsv.created_at,
         vsv.resolved_at,
-        vsv.resolution_notes,
+        vsv.metadata,
         va.agreement_code,
         va.file_name,
         v.vendor_name as vendor_name,
@@ -197,12 +197,12 @@ router.get('/violations', async (req, res) => {
       SELECT COUNT(*) as total
       FROM vendor_sla_violations vsv
       LEFT JOIN vendor_agreements va ON vsv.agreement_id = va.id
-      WHERE ${whereConditions.slice(0, -2).join(' AND ')}
+      WHERE ${whereConditions.join(' AND ')}
     `;
 
     const [violationsResult, countResult] = await Promise.all([
-      pool.query(query, params),
-      pool.query(countQuery, params.slice(0, -2))
+      dbQuery(query, params),
+      dbQuery(countQuery, params.slice(0, -2))
     ]);
 
     res.json({
@@ -244,7 +244,7 @@ router.post('/test-check', async (req, res) => {
       WHERE va.id = $1
     `;
 
-    const result = await pool.query(agreementQuery, [agreement_id]);
+    const result = await dbQuery(agreementQuery, [agreement_id]);
 
     if (result.rows.length === 0) {
       return res.status(404).json({ success: false, error: 'Agreement not found' });
@@ -304,7 +304,7 @@ router.get('/summary', async (req, res) => {
       FROM sla_agreements sa, violations v
     `;
 
-    const result = await pool.query(summaryQuery);
+    const result = await dbQuery(summaryQuery);
     const summary = result.rows[0];
 
     res.json({

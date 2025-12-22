@@ -5,7 +5,7 @@
  */
 
 const { systemLogger } = require('../utils/logger');
-const { pool } = require('../config/database');
+const { pool, query: dbQuery } = require('../config/database');
 const AWS = require('aws-sdk');
 const xlsx = require('xlsx');
 const fs = require('fs');
@@ -125,7 +125,7 @@ class FastSchemaValidationService {
    * Get job by ID
    */
   static async getJob(jobId) {
-    const result = await pool.query(
+    const result = await dbQuery(
       `SELECT svj.*, 
               p.name as project_name,
               sc.name as connection_name,
@@ -175,7 +175,7 @@ class FastSchemaValidationService {
 
     query += ` ORDER BY svj.created_at DESC LIMIT 100`;
 
-    const result = await pool.query(query, params);
+    const result = await dbQuery(query, params);
     return result.rows;
   }
 
@@ -205,7 +205,7 @@ class FastSchemaValidationService {
       countQuery += ` AND status = $${countParams.length}`;
     }
     
-    const countResult = await pool.query(countQuery, countParams);
+    const countResult = await dbQuery(countQuery, countParams);
     const totalCount = parseInt(countResult.rows[0].count, 10);
 
     // Get paginated files
@@ -225,7 +225,7 @@ class FastSchemaValidationService {
     query += ` LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
     params.push(pageSize, offset);
 
-    const result = await pool.query(query, params);
+    const result = await dbQuery(query, params);
 
     // Parse validation_result JSON for each file
     const files = result.rows.map(row => {
@@ -282,7 +282,7 @@ class FastSchemaValidationService {
    * Get scheduled jobs
    */
   static async getScheduledJobs() {
-    const result = await pool.query(
+    const result = await dbQuery(
       `SELECT svj.*, 
               p.name as project_name,
               COALESCE(va.agreement_code, va.file_name) as agreement_name,
@@ -321,7 +321,7 @@ class FastSchemaValidationService {
       paramIndex++;
     }
 
-    await pool.query(
+    await dbQuery(
       `UPDATE schema_validation_jobs 
        SET ${fields.join(', ')}, updated_at = NOW()
        WHERE id = $1`,
@@ -344,7 +344,7 @@ class FastSchemaValidationService {
     try {
       await this.updateJobStatus(jobId, 'running');
 
-      const filesResult = await pool.query(
+      const filesResult = await dbQuery(
         `SELECT * FROM schema_validation_job_files WHERE job_id = $1 ORDER BY id`,
         [jobId]
       );
@@ -397,7 +397,7 @@ class FastSchemaValidationService {
         
         // Mark original archives as "extracted" in database (not validated as regular files)
         for (const archiveRecord of originalArchiveRecords) {
-          await pool.query(
+          await dbQuery(
             `UPDATE schema_validation_job_files 
              SET status = 'valid', 
                  validation_result = $2,
@@ -419,7 +419,7 @@ class FastSchemaValidationService {
         
         // Insert new records for extracted files
         for (const extractedFile of extractedFiles) {
-          const insertResult = await pool.query(
+          const insertResult = await dbQuery(
             `INSERT INTO schema_validation_job_files (job_id, file_path, status)
              VALUES ($1, $2, 'pending')
              RETURNING id`,
@@ -512,7 +512,7 @@ class FastSchemaValidationService {
             isError = true;
             
             if (file.id) {
-              await pool.query(
+              await dbQuery(
                 `UPDATE schema_validation_job_files 
                  SET status = 'error', error_message = $2, validation_result = $3, updated_at = NOW()
                  WHERE id = $1`,
@@ -605,7 +605,7 @@ class FastSchemaValidationService {
 
             // Update file record if it exists in DB
             if (file.id) {
-              await pool.query(
+              await dbQuery(
                 `UPDATE schema_validation_job_files 
                  SET status = $2, validation_result = $3, 
                      dq_status = $4, dq_rules_executed = $5, dq_violation_count = $6,
@@ -642,7 +642,7 @@ class FastSchemaValidationService {
             isError = true;
             
             if (file.id) {
-              await pool.query(
+              await dbQuery(
                 `UPDATE schema_validation_job_files 
                  SET status = 'error', error_message = $2, validation_result = $3, updated_at = NOW()
                  WHERE id = $1`,
@@ -753,7 +753,7 @@ class FastSchemaValidationService {
     try {
       const passwordVaultService = new PasswordVaultService(pool, null, systemLogger);
       
-      const schemasResult = await pool.query(
+      const schemasResult = await dbQuery(
         `SELECT id, file_name_pattern FROM vendor_agreement_file_schemas 
          WHERE vendor_agreement_id = $1 AND is_active = TRUE`,
         [vendorAgreementId]
@@ -1160,7 +1160,7 @@ except Exception as e:
    * Get vendor agreement schema with associated DQ rules
    */
   static async getAgreementSchema(vendorAgreementId) {
-    const fileSchemasResult = await pool.query(
+    const fileSchemasResult = await dbQuery(
       `SELECT id, file_name_pattern, schema, priority, file_description, quality_rule_ids 
        FROM vendor_agreement_file_schemas 
        WHERE vendor_agreement_id = $1 AND is_active = TRUE 
@@ -1180,7 +1180,7 @@ except Exception as e:
       // Fetch full quality rule definitions if any exist
       let qualityRulesMap = {};
       if (allRuleIds.size > 0) {
-        const rulesResult = await pool.query(
+        const rulesResult = await dbQuery(
           `SELECT id, rule_name, rule_type, description, column_name, rule_config, severity, enabled
            FROM quality_rules 
            WHERE id = ANY($1) AND enabled = TRUE`,
@@ -1207,7 +1207,7 @@ except Exception as e:
       };
     }
 
-    const legacyResult = await pool.query(
+    const legacyResult = await dbQuery(
       `SELECT schema, file_name FROM vendor_agreements WHERE id = $1`,
       [vendorAgreementId]
     );
@@ -1228,7 +1228,7 @@ except Exception as e:
    * Get connection credentials
    */
   static async getConnectionCredentials(connectionId) {
-    const result = await pool.query(
+    const result = await dbQuery(
       `SELECT * FROM storage_connections WHERE connection_id = $1`,
       [connectionId.toString()]
     );
@@ -2286,7 +2286,7 @@ except Exception as e:
    * Get report file path for download
    */
   static async getReportPath(jobId) {
-    const result = await pool.query(
+    const result = await dbQuery(
       `SELECT report_path FROM schema_validation_jobs WHERE id = $1`,
       [jobId]
     );
@@ -2308,7 +2308,7 @@ except Exception as e:
    * Delete a scheduled job
    */
   static async deleteSchedule(scheduleId) {
-    await pool.query(
+    await dbQuery(
       `DELETE FROM schema_validation_jobs WHERE id = $1 AND status = 'scheduled'`,
       [scheduleId]
     );
@@ -2336,7 +2336,7 @@ except Exception as e:
 
     if (fields.length === 0) return;
 
-    await pool.query(
+    await dbQuery(
       `UPDATE schema_validation_jobs 
        SET ${fields.join(', ')}, updated_at = NOW()
        WHERE id = $1`,

@@ -3,7 +3,7 @@
  * Handles vendor CRUD operations, user account creation, and project associations
  */
 
-const { pool } = require('../config/database');
+const { pool, query } = require('../config/database');
 const { systemLogger } = require('../utils/logger');
 const bcrypt = require('bcrypt');
 const crypto = require('crypto');
@@ -470,7 +470,7 @@ class VendorService {
       }
       
       // Get total count
-      const countResult = await pool.query(
+      const countResult = await query(
         `SELECT COUNT(*) FROM vendors v ${whereClause}`,
         params
       );
@@ -479,7 +479,7 @@ class VendorService {
       
       // Get paginated data with user and project info
       params.push(pageSize, offset);
-      const result = await pool.query(
+      const result = await query(
         `SELECT 
           v.*,
           u.username as vendor_username,
@@ -518,7 +518,7 @@ class VendorService {
    */
   async getVendorById(vendorId) {
     try {
-      const result = await pool.query(
+      const result = await query(
         `SELECT 
           v.*,
           u.username as vendor_username,
@@ -556,7 +556,7 @@ class VendorService {
    */
   async getVendorByUserId(userId) {
     try {
-      const result = await pool.query(
+      const result = await query(
         `SELECT 
           v.*,
           u.username as vendor_username,
@@ -1010,7 +1010,7 @@ class VendorService {
       };
       
       // Check for any vendor agreements
-      const agreementResult = await pool.query(
+      const agreementResult = await query(
         `SELECT id, status, is_locked, approval_status, created_at
          FROM vendor_agreements
          WHERE vendor_id = $1
@@ -1298,7 +1298,7 @@ class VendorService {
    */
   async getVendorsByProject(projectId) {
     try {
-      const result = await pool.query(
+      const result = await query(
         `SELECT 
           v.*,
           u.username as vendor_username,

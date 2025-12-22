@@ -5,7 +5,7 @@
 
 const { v4: uuidv4 } = require('uuid');
 const AWS = require('aws-sdk');
-const { pool } = require('../config/database');
+const { pool, query: dbQuery } = require('../config/database');
 const { systemLogger } = require('../utils/logger');
 const connectionService = require('./ConnectionService');
 const path = require('path');
@@ -279,7 +279,7 @@ class BulkProfilingService {
       
       if (isUuidFormat) {
         // UUID format - check storage_connections table
-        const connCheck = await pool.query(
+        const connCheck = await dbQuery(
           'SELECT connection_id FROM storage_connections WHERE connection_id = $1 AND status = $2',
           [jobData.connectionId, 'active']
         );
@@ -289,7 +289,7 @@ class BulkProfilingService {
         }
       } else {
         // Integer format - check transform_connections table
-        const connCheck = await pool.query(
+        const connCheck = await dbQuery(
           'SELECT id FROM transform_connections WHERE id = $1 AND is_active = TRUE',
           [jobData.connectionId]
         );
@@ -357,7 +357,7 @@ class BulkProfilingService {
         jobData.createdBy
       ];
       
-      const result = await pool.query(query, values);
+      const result = await dbQuery(query, values);
       systemLogger.info('Created bulk profiling job', { jobId, executionType: jobData.executionType });
       
       return result.rows[0];
@@ -399,10 +399,10 @@ class BulkProfilingService {
         ) VALUES ${placeholders.join(', ')}
       `;
       
-      await pool.query(query, values);
+      await dbQuery(query, values);
       
       // Update job total_files count
-      await pool.query(
+      await dbQuery(
         'UPDATE bulk_profiling_jobs SET total_files = $1, updated_at = NOW() WHERE id = $2',
         [files.length, jobId]
       );
@@ -431,7 +431,7 @@ class BulkProfilingService {
         WHERE bpj.id = $1
       `;
       
-      const jobResult = await pool.query(jobQuery, [jobId]);
+      const jobResult = await dbQuery(jobQuery, [jobId]);
       
       if (jobResult.rows.length === 0) {
         return null;
@@ -453,7 +453,7 @@ class BulkProfilingService {
         ORDER BY created_at ASC
       `;
       
-      const filesResult = await pool.query(filesQuery, [jobId]);
+      const filesResult = await dbQuery(filesQuery, [jobId]);
       job.files = filesResult.rows;
       
       return job;
@@ -502,7 +502,7 @@ class BulkProfilingService {
         query += ` LIMIT ${parseInt(filters.limit)}`;
       }
       
-      const result = await pool.query(query, params);
+      const result = await dbQuery(query, params);
       
       // Add human-readable frequency to each job
       const jobs = result.rows.map(job => {
@@ -548,7 +548,7 @@ class BulkProfilingService {
         WHERE id = $${params.length}
       `;
       
-      await pool.query(query, params);
+      await dbQuery(query, params);
       systemLogger.info('Updated job status', { jobId, status });
       
     } catch (error) {
@@ -587,7 +587,7 @@ class BulkProfilingService {
         WHERE job_id = $2 AND file_path = $3
       `;
       
-      await pool.query(query, params);
+      await dbQuery(query, params);
       
     } catch (error) {
       systemLogger.error('Error updating file status', { error: error.message });
@@ -611,7 +611,7 @@ class BulkProfilingService {
         WHERE id = $1
       `;
       
-      await pool.query(query, [jobId]);
+      await dbQuery(query, [jobId]);
       
     } catch (error) {
       systemLogger.error('Error updating job progress', { error: error.message });
@@ -939,7 +939,7 @@ class BulkProfilingService {
    */
   async _checkFileExists(filename, projectId) {
     try {
-      const result = await pool.query(
+      const result = await dbQuery(
         'SELECT id, file_id FROM files WHERE filename = $1 AND project_id = $2 LIMIT 1',
         [filename, projectId]
       );
@@ -1122,7 +1122,7 @@ print(json.dumps(result))
       projectId
     ];
     
-    const result = await pool.query(query, values);
+    const result = await dbQuery(query, values);
     return result.rows[0];
   }
   
@@ -1130,7 +1130,7 @@ print(json.dumps(result))
    * Save column information to file_columns table
    */
   async _saveColumnInfo(fileId, schema) {
-    await pool.query('DELETE FROM file_columns WHERE file_id = $1', [fileId]);
+    await dbQuery('DELETE FROM file_columns WHERE file_id = $1', [fileId]);
     
     const insertQuery = `
       INSERT INTO file_columns (
@@ -1151,7 +1151,7 @@ print(json.dumps(result))
         const minValueDecimal = isNumericType ? this._safeParseFloat(col.min_value) : null;
         const maxValueDecimal = isNumericType ? this._safeParseFloat(col.max_value) : null;
         
-        await pool.query(insertQuery, [
+        await dbQuery(insertQuery, [
           fileId,
           col.name,
           col.type,
@@ -1189,7 +1189,7 @@ print(json.dumps(result))
       const limitedRows = previewRows.slice(0, 100);
       
       for (let i = 0; i < limitedRows.length; i++) {
-        await pool.query(
+        await dbQuery(
           `INSERT INTO file_preview_data (file_id, row_number, row_data)
            VALUES ($1, $2, $3)
            ON CONFLICT (file_id, row_number) 
@@ -1209,7 +1209,7 @@ print(json.dumps(result))
    */
   async _createFileOwnership(fileId, userId, filename) {
     try {
-      await pool.query(
+      await dbQuery(
         `INSERT INTO file_ownership (file_id, creator_user_id, owner, filename, created_at, updated_at)
          VALUES ($1, $2, $3, $4, NOW(), NOW())
          ON CONFLICT (file_id) DO NOTHING`,
@@ -1240,7 +1240,7 @@ print(json.dumps(result))
         FROM quality_rules
         WHERE id = ANY($1) AND enabled = true
       `;
-      const rulesResult = await pool.query(rulesQuery, [qualityRuleIds]);
+      const rulesResult = await dbQuery(rulesQuery, [qualityRuleIds]);
       
       if (rulesResult.rows.length === 0) {
         systemLogger.info('No enabled quality rules found', { qualityRuleIds });
@@ -1259,7 +1259,7 @@ print(json.dumps(result))
       if (validationResult.violations && validationResult.violations.length > 0) {
         for (const violation of validationResult.violations) {
           try {
-            await pool.query(
+            await dbQuery(
               `INSERT INTO quality_violations 
                (file_id, file_name, rule_id, rule_name, column_name, severity, 
                 violation_details, row_number, expected_value, actual_value, created_by, created_at)
