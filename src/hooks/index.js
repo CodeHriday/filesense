@@ -18,6 +18,9 @@ export * from './useWindowSize';
 // AI features hooks
 export * from './useAIFeatures';
 
+// Permission hooks
+export * from './useDeletePermission';
+
 // Export default exports as well
 export { default as useApiStatus } from './useApiStatus';
 export { default as useForm } from './useForm';
@@ -30,6 +33,7 @@ export { default as useModal } from './useModal';
 export { default as useAsync } from './useAsync';
 export { default as useWindowSize } from './useWindowSize';
 export { default as useAIFeatures } from './useAIFeatures';
+export { default as useDeletePermission } from './useDeletePermission';
 
 // Export provider components
 export { 
