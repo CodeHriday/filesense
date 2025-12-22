@@ -20,8 +20,17 @@ const MappingGroups = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(25);
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [selectedProject, setSelectedProject] = useState('all');
   const [selectedSubProject, setSelectedSubProject] = useState('all');
+
+  // Debounce search term (2.5 seconds)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 2500);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
 
   useEffect(() => {
     fetchMappingGroups();
@@ -111,7 +120,7 @@ const MappingGroups = () => {
 
   const filteredGroups = useMemo(() => {
     return groups.filter(group => {
-      const searchLower = searchTerm.toLowerCase();
+      const searchLower = debouncedSearchTerm.toLowerCase();
       const matchesSearch = 
         (group.name || '').toLowerCase().includes(searchLower) ||
         (group.description || '').toLowerCase().includes(searchLower) ||

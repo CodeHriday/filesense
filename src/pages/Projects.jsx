@@ -12,25 +12,34 @@ function Projects() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [showArchived, setShowArchived] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize] = useState(10);
   const [expandedProjects, setExpandedProjects] = useState(new Set());
 
+  // Debounce search term (2.5 seconds)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 2500);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
   useEffect(() => {
     fetchProjects();
-  }, [searchTerm, showArchived]);
+  }, [debouncedSearchTerm, showArchived]);
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, showArchived]);
+  }, [debouncedSearchTerm, showArchived]);
 
   const fetchProjects = async () => {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
       const params = new URLSearchParams();
-      if (searchTerm) params.append('search', searchTerm);
+      if (debouncedSearchTerm) params.append('search', debouncedSearchTerm);
       if (showArchived) params.append('archived', 'true');
 
       const response = await axios.get(`${API_BASE_URL}/projects?${params}`, {
@@ -46,15 +55,8 @@ function Projects() {
     }
   };
 
-  const filteredProjects = projects.filter(project => {
-    const term = searchTerm.toLowerCase();
-    return (
-      (project.name || '').toLowerCase().includes(term) ||
-      (project.description || '').toLowerCase().includes(term)
-    );
-  });
-
-  const totalItems = filteredProjects.length;
+  // Server-side search already applied, client-side pagination on results
+  const totalItems = projects.length;
   const totalPages = Math.ceil(totalItems / pageSize);
   
   useEffect(() => {
@@ -65,7 +67,7 @@ function Projects() {
 
   const startIndex = (currentPage - 1) * pageSize;
   const endIndex = startIndex + pageSize;
-  const paginatedProjects = filteredProjects.slice(startIndex, endIndex);
+  const paginatedProjects = projects.slice(startIndex, endIndex);
 
   const toggleProjectExpansion = (projectId) => {
     const newExpanded = new Set(expandedProjects);

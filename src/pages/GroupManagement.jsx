@@ -14,6 +14,7 @@ function GroupManagement() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [groupTypeFilter, setGroupTypeFilter] = useState('');
 
   const [formData, setFormData] = useState({
@@ -40,19 +41,27 @@ function GroupManagement() {
   const [availableProjects, setAvailableProjects] = useState([]);
   const [confirmModal, setConfirmModal] = useState({ isOpen: false, action: null, message: '', title: '' });
 
+  // Debounce search term (2.5 seconds)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 2500);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
   useEffect(() => {
     fetchGroups();
     fetchAvailableUsers();
     fetchAvailableRoles();
     fetchAvailableProjects();
-  }, [searchTerm, groupTypeFilter]);
+  }, [debouncedSearchTerm, groupTypeFilter]);
 
   const fetchGroups = async () => {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
       const params = new URLSearchParams();
-      if (searchTerm) params.append('search', searchTerm);
+      if (debouncedSearchTerm) params.append('search', debouncedSearchTerm);
       if (groupTypeFilter) params.append('group_type', groupTypeFilter);
 
       const response = await axios.get(`${API_BASE_URL}/groups?${params}`, {

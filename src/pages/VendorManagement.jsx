@@ -38,9 +38,12 @@ const VendorManagement = () => {
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
 
   // Search state
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   
   // Vendor users state
   const [vendorUsers, setVendorUsers] = useState([]);
@@ -61,18 +64,35 @@ const VendorManagement = () => {
     return hasPermission && hasPermission('vendor_details:read');
   }, [hasPermission]);
   
+  // Debounce search term (2.5 seconds)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 2500);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+  
   const fetchData = useCallback(async () => {
     setLoading(true);
     setError('');
     
     try {
+      const vendorParams = new URLSearchParams();
+      vendorParams.append('page', currentPage.toString());
+      vendorParams.append('pageSize', pageSize.toString());
+      if (debouncedSearchTerm) vendorParams.append('search', debouncedSearchTerm);
+      
       const [vendorsResponse, projectsResponse, vendorUsersResponse] = await Promise.all([
-        axios.get('/api/vendors'),
+        axios.get(`/api/vendors?${vendorParams}`),
         axios.get('/api/projects'),
         axios.get('/api/users/by-role/vendor')
       ]);
       
       setVendors(vendorsResponse.data.vendors || vendorsResponse.data || []);
+      if (vendorsResponse.data.pagination) {
+        setTotalPages(vendorsResponse.data.pagination.totalPages || 1);
+        setTotalCount(vendorsResponse.data.pagination.totalCount || 0);
+      }
       
       setProjects(projectsResponse.data || []);
       setVendorUsers(vendorUsersResponse.data || []);
@@ -82,7 +102,7 @@ const VendorManagement = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [currentPage, pageSize, debouncedSearchTerm]);
   
   useEffect(() => {
     if (!currentUser) {
@@ -96,7 +116,7 @@ const VendorManagement = () => {
     }
     
     fetchData();
-  }, [currentUser, canAccessVendorDetails, navigate, fetchData]);
+  }, [currentUser, canAccessVendorDetails, navigate, fetchData, debouncedSearchTerm, currentPage]);
   
   const openCreateModal = () => {
     setFormData({
@@ -374,36 +394,10 @@ const VendorManagement = () => {
     }
   };
 
-  // Filter vendors based on search term
-  const filteredVendors = vendors.filter(vendor => {
-    if (!searchTerm) return true;
-    const term = searchTerm.toLowerCase();
-    return (
-      (vendor.vendor_name || '').toLowerCase().includes(term) ||
-      (vendor.description || '').toLowerCase().includes(term) ||
-      (vendor.contact_name || '').toLowerCase().includes(term) ||
-      (vendor.contact_email || '').toLowerCase().includes(term)
-    );
-  });
-
-  // Apply pagination to filtered vendors
-  const totalItems = filteredVendors.length;
-  const totalPagesFiltered = Math.ceil(totalItems / pageSize);
-  const startIndex = (currentPage - 1) * pageSize;
-  const endIndex = startIndex + pageSize;
-  const paginatedVendors = filteredVendors.slice(startIndex, endIndex);
-
   // Reset to page 1 when search changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm]);
-
-  // Clamp currentPage when filtered results change
-  useEffect(() => {
-    if (currentPage > totalPagesFiltered && totalPagesFiltered > 0) {
-      setCurrentPage(totalPagesFiltered);
-    }
-  }, [totalPagesFiltered, currentPage]);
+  }, [debouncedSearchTerm]);
   
   return (
     <div className="gps-page-container">
@@ -462,12 +456,14 @@ const VendorManagement = () => {
             </tr>
           </thead>
           <tbody>
-            {paginatedVendors.length === 0 ? (
+            {vendors.length === 0 ? (
               <tr>
-                <td colSpan="7" className="gps-table-empty">No vendors found</td>
+                <td colSpan="7" className="gps-table-empty">
+                  {searchTerm ? 'No vendors found matching your search' : 'No vendors found'}
+                </td>
               </tr>
             ) : (
-              paginatedVendors.map(vendor => (
+              vendors.map(vendor => (
                 <tr key={vendor.id}>
                   <td>{vendor.vendor_code}</td>
                   <td>{vendor.vendor_name}</td>
@@ -511,13 +507,13 @@ const VendorManagement = () => {
         </table>
       </div>
       
-      {totalPagesFiltered > 1 && (
+      {totalPages > 1 && (
         <Pagination
           currentPage={currentPage}
-          totalPages={totalPagesFiltered}
+          totalPages={totalPages}
           onPageChange={setCurrentPage}
           itemsPerPage={pageSize}
-          totalItems={totalItems}
+          totalItems={totalCount}
         />
       )}
       
