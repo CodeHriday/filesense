@@ -334,7 +334,7 @@ app.use(compression({
 // CORS configuration with restricted origins
 const allowedOrigins = process.env.ALLOWED_ORIGINS 
   ? process.env.ALLOWED_ORIGINS.split(',')
-  : ['http://localhost:5000', 'http://localhost:3000', 'https://*.replit.dev', 'https://*.replit.app'];
+  : ['http://localhost:5000', 'http://localhost:3000', 'https://*.replit.dev', 'https://*.replit.app', 'https://filesense.blumetra.com'];
 
 app.use(cors({
   origin: function (origin, callback) {
