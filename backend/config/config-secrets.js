@@ -120,7 +120,20 @@ async function getAllSecretData() {
     cachedSecretData = secretData;
     return secretData;
   } catch (error) {
-    throw error;
+    // Fallback to environment variables for development
+    console.warn('AWS Secrets Manager unavailable, using environment variables');
+    
+    const envSecrets = {
+      DATABASE_URL: process.env.DATABASE_URL,
+      OKTA_CLIENT_ID: process.env.OKTA_CLIENT_ID || process.env.VITE_OKTA_CLIENT_ID,
+      OKTA_DOMAIN: process.env.OKTA_DOMAIN || process.env.VITE_OKTA_DOMAIN,
+      OKTA_ISSUER: process.env.OKTA_ISSUER || (process.env.OKTA_DOMAIN ? `https://${process.env.OKTA_DOMAIN}/oauth2/default` : undefined),
+      OKTA_REDIRECT_URI: process.env.OKTA_REDIRECT_URI || process.env.VITE_OKTA_REDIRECT_URI,
+      BACKEND_URL: process.env.BACKEND_URL || process.env.VITE_BACKEND_URL,
+    };
+    
+    cachedSecretData = envSecrets;
+    return envSecrets;
   }
 }
 
