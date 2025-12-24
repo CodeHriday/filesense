@@ -9,10 +9,16 @@ import './index.css';
 import './styles/theme.css';
 import './styles/global.css';
 
-ReactDOM.createRoot(document.getElementById('root')).render(
-  <QueryClientProvider client={queryClient}>
-    <App />
-      {await loadSecrets()}
-    {process.env.NODE_ENV === 'development' && <ReactQueryDevtools initialIsOpen={false} />}
-  </QueryClientProvider>
-);
+async function main() {
+  await loadSecrets();
+
+  ReactDOM.createRoot(document.getElementById('root')).render(
+    <QueryClientProvider client={queryClient}>
+      <App />
+        {await loadSecrets()}
+      {process.env.NODE_ENV === 'development' && <ReactQueryDevtools initialIsOpen={false} />}
+    </QueryClientProvider>
+  );
+}
+
+main();
