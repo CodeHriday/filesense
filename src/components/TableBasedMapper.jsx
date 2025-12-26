@@ -39,8 +39,10 @@ const findDeletedVariableReferences = (expression, variables) => {
 };
 
 
+// Column-level transformation options (simplified - complex operations should use variables)
 const TRANSFORMATION_OPTIONS = [
   { value: 'none', label: 'None (Direct Copy)', group: 'Basic', params: [] },
+  { value: 'assign-variable', label: 'Assign Variable', group: 'Basic', params: [{ name: 'variableName', type: 'variable-select', placeholder: 'Select variable' }], noColumnInput: true, description: 'Use a pre-defined variable for complex transformations' },
   { value: 'null-to-value', label: 'Replace Null', group: 'Null Handling', params: [{ name: 'value', type: 'text', placeholder: 'Replacement value' }] },
   { value: 'coalesce', label: 'Coalesce', group: 'Null Handling', params: [{ name: 'column2', type: 'text', placeholder: 'Fallback column' }] },
   { value: 'UPPER', label: 'UPPERCASE', group: 'String', params: [] },
@@ -54,23 +56,28 @@ const TRANSFORMATION_OPTIONS = [
     { name: 'find', type: 'text', placeholder: 'Find text' },
     { name: 'replace', type: 'text', placeholder: 'Replace with' }
   ]},
-  { value: 'concat', label: 'Concatenate', group: 'String', params: [
-    { name: 'separator', type: 'text', placeholder: 'Separator (optional)' },
-    { name: 'column2', type: 'text', placeholder: 'Additional column (optional)' }
-  ]},
   { value: 'ROUND', label: 'Round', group: 'Numeric', params: [{ name: 'decimals', type: 'number', placeholder: 'Decimal places' }] },
   { value: 'FLOOR', label: 'Floor', group: 'Numeric', params: [] },
   { value: 'CEIL', label: 'Ceiling', group: 'Numeric', params: [] },
-  { value: 'add', label: 'Add', group: 'Numeric', params: [{ name: 'value', type: 'number', placeholder: 'Value to add' }] },
-  { value: 'subtract', label: 'Subtract', group: 'Numeric', params: [{ name: 'value', type: 'number', placeholder: 'Value to subtract' }] },
-  { value: 'multiply', label: 'Multiply', group: 'Numeric', params: [{ name: 'value', type: 'number', placeholder: 'Multiplier' }] },
-  { value: 'divide', label: 'Divide', group: 'Numeric', params: [{ name: 'value', type: 'number', placeholder: 'Divisor' }] },
   { value: 'date-format', label: 'Format Date', group: 'Date/Time', params: [{ name: 'format', type: 'text', placeholder: 'e.g., YYYY-MM-DD' }] },
   { value: 'current-date', label: 'Current Date', group: 'Date/Time', params: [], noColumnInput: true, autoDataType: 'date' },
   { value: 'current-timestamp', label: 'Current Timestamp', group: 'Date/Time', params: [], noColumnInput: true, autoDataType: 'timestamp' },
   { value: 'cast-string', label: 'To String', group: 'Type Cast', params: [] },
   { value: 'cast-integer', label: 'To Integer', group: 'Type Cast', params: [] },
-  { value: 'cast-float', label: 'To Float', group: 'Type Cast', params: [] },
+  { value: 'cast-float', label: 'To Float', group: 'Type Cast', params: [] }
+];
+
+// Full transformation options for variable builder (includes complex operations)
+const VARIABLE_BUILDER_OPTIONS = [
+  ...TRANSFORMATION_OPTIONS.filter(t => t.value !== 'assign-variable'),
+  { value: 'concat', label: 'Concatenate', group: 'String', params: [
+    { name: 'separator', type: 'text', placeholder: 'Separator (optional)' },
+    { name: 'column2', type: 'text', placeholder: 'Additional column (optional)' }
+  ]},
+  { value: 'add', label: 'Add', group: 'Numeric', params: [{ name: 'value', type: 'number', placeholder: 'Value to add' }] },
+  { value: 'subtract', label: 'Subtract', group: 'Numeric', params: [{ name: 'value', type: 'number', placeholder: 'Value to subtract' }] },
+  { value: 'multiply', label: 'Multiply', group: 'Numeric', params: [{ name: 'value', type: 'number', placeholder: 'Multiplier' }] },
+  { value: 'divide', label: 'Divide', group: 'Numeric', params: [{ name: 'value', type: 'number', placeholder: 'Divisor' }] },
   { 
     value: 'and', 
     label: 'AND (&)', 
@@ -445,6 +452,12 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
     const transform = TRANSFORMATION_OPTIONS.find(t => t.value === mapping.transformation);
     if (!transform) return mapping.source_field;
 
+    // Handle assign-variable: just return the variable reference
+    if (mapping.transformation === 'assign-variable') {
+      const varName = mapping.transformation_params?.variableName;
+      return varName ? `$${varName}` : '(select variable)';
+    }
+
     let expr = `${mapping.transformation}(${mapping.source_field}`;
     
     if (mapping.transformation_params && Object.keys(mapping.transformation_params).length > 0) {
@@ -741,6 +754,12 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
       
       const transform = TRANSFORMATION_OPTIONS.find(t => t.value === mapping.transformation);
       if (!transform) return '(custom value)';
+
+      // Handle assign-variable: just return the variable reference
+      if (mapping.transformation === 'assign-variable') {
+        const varName = mapping.transformation_params?.variableName;
+        return varName ? `$${varName}` : '(select variable)';
+      }
 
       let expr = `${mapping.transformation}(`;
       
@@ -1631,7 +1650,7 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
 
               {TRANSFORMATION_OPTIONS.find(t => t.value === editingExpression.transformation)?.params.map(param => (
                 <div key={param.name} className="form-group">
-                  <label htmlFor={`editing-param-${param.name}`}>{param.name}</label>
+                  <label htmlFor={`editing-param-${param.name}`}>{param.name === 'variableName' ? 'Variable' : param.name}</label>
                   {param.type === 'select' ? (
                     <select
                       id={`editing-param-${param.name}`}
@@ -1643,6 +1662,20 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
                       {param.options?.map(opt => (
                         <option key={opt.value} value={opt.value}>
                           {opt.label}
+                        </option>
+                      ))}
+                    </select>
+                  ) : param.type === 'variable-select' ? (
+                    <select
+                      id={`editing-param-${param.name}`}
+                      className="form-control"
+                      value={editingExpression.params[param.name] || ''}
+                      onChange={(e) => handleParamChange(param.name, e.target.value)}
+                    >
+                      <option value="">{param.placeholder || 'Select a variable...'}</option>
+                      {variables.map(v => (
+                        <option key={v.name} value={v.name}>
+                          ${v.name} {v.data_type ? `(${v.data_type})` : ''}
                         </option>
                       ))}
                     </select>
@@ -1758,15 +1791,31 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
 
               {TRANSFORMATION_OPTIONS.find(t => t.value === newColumn.transformation)?.params.map(param => (
                 <div key={param.name} className="form-group">
-                  <label htmlFor={`newcol-param-${param.name}`}>{param.name} *</label>
-                  <input
-                    id={`newcol-param-${param.name}`}
-                    type={param.type}
-                    className="form-control"
-                    value={newColumn.params[param.name] || ''}
-                    onChange={(e) => handleNewColumnParamChange(param.name, e.target.value)}
-                    placeholder={param.placeholder}
-                  />
+                  <label htmlFor={`newcol-param-${param.name}`}>{param.name === 'variableName' ? 'Variable *' : `${param.name} *`}</label>
+                  {param.type === 'variable-select' ? (
+                    <select
+                      id={`newcol-param-${param.name}`}
+                      className="form-control"
+                      value={newColumn.params[param.name] || ''}
+                      onChange={(e) => handleNewColumnParamChange(param.name, e.target.value)}
+                    >
+                      <option value="">{param.placeholder || 'Select a variable...'}</option>
+                      {variables.map(v => (
+                        <option key={v.name} value={v.name}>
+                          ${v.name} {v.data_type ? `(${v.data_type})` : ''}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      id={`newcol-param-${param.name}`}
+                      type={param.type}
+                      className="form-control"
+                      value={newColumn.params[param.name] || ''}
+                      onChange={(e) => handleNewColumnParamChange(param.name, e.target.value)}
+                      placeholder={param.placeholder}
+                    />
+                  )}
                 </div>
               ))}
 
@@ -1893,7 +1942,7 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
                 <div className="variable-pane">
                   <div className="variable-pane-header">Functions</div>
                   <div className="variable-pane-content">
-                    {TRANSFORMATION_OPTIONS.reduce((acc, option) => {
+                    {VARIABLE_BUILDER_OPTIONS.reduce((acc, option) => {
                       const lastGroup = acc[acc.length - 1];
                       if (!lastGroup || lastGroup.group !== option.group) {
                         acc.push({ group: option.group, options: [option] });
@@ -2166,7 +2215,7 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
                 <div className="variable-pane">
                   <div className="variable-pane-header" style={{ textTransform: 'none' }}>Functions</div>
                   <div className="variable-pane-content">
-                    {TRANSFORMATION_OPTIONS.reduce((acc, option) => {
+                    {VARIABLE_BUILDER_OPTIONS.reduce((acc, option) => {
                       const lastGroup = acc[acc.length - 1];
                       if (!lastGroup || lastGroup.group !== option.group) {
                         acc.push({ group: option.group, options: [option] });
