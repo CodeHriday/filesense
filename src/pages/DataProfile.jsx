@@ -1500,23 +1500,24 @@ function DataProfile() {
           setFileSensitivity(classification);
         }
         
-        // Fetch governance data
-        await Promise.all([
+        // Show the page immediately - governance data loads in background
+        setLoading(false);
+        
+        // Fetch governance data and column governance in parallel (non-blocking)
+        Promise.all([
           fetchOwnership(),
           fetchPolicies(),
           fetchAvailableTags(),
           fetchFileTags(),
-          fetchAvailablePolicies()
-        ]);
-        
-        // Fetch column-level governance data for all columns
-        if (profileData && profileData.columns) {
-          await fetchAllColumnGovernanceData(profileData.columns);
-        }
+          fetchAvailablePolicies(),
+          // Include column governance in the same parallel batch
+          profileData && profileData.columns ? fetchAllColumnGovernanceData(profileData.columns) : Promise.resolve()
+        ]).catch(err => {
+          console.error('Error fetching governance data:', err);
+        });
       } catch (err) {
         console.error('Error fetching file data:', err);
         setError('Failed to load file data. Please try again later.');
-      } finally {
         setLoading(false);
       }
     };
