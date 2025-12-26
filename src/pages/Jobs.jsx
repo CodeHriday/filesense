@@ -54,8 +54,13 @@ const Jobs = () => {
     if (isManualRefresh) setRefreshing(true);
     
     try {
-      const response = await axios.get(`${API_BASE_URL}/api/jobs?limit=100`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      // Add cache-busting timestamp for manual refresh to force fresh data
+      const cacheBuster = isManualRefresh ? `&_t=${Date.now()}` : '';
+      const response = await axios.get(`${API_BASE_URL}/api/jobs?limit=100${cacheBuster}`, {
+        headers: { 
+          Authorization: `Bearer ${localStorage.getItem('token')}`,
+          ...(isManualRefresh && { 'Cache-Control': 'no-cache' })
+        }
       });
       setJobs(response.data?.jobs || []);
       setError(null);
