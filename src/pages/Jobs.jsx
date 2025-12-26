@@ -321,13 +321,13 @@ const Jobs = () => {
           <p className="gps-page-subtitle">Monitor and manage ETL transformation job executions</p>
         </div>
         <button 
-          className="gps-btn-primary"
+          className="gps-btn gps-btn--secondary"
           onClick={handleRefresh}
           disabled={refreshing}
           title="Refresh jobs"
         >
-          <FiRefreshCw className={refreshing ? 'spinning' : ''} /> 
-          {refreshing ? 'Refreshing...' : 'Refresh'}
+          <FiRefreshCw size={16} className={refreshing ? 'spinning' : ''} />
+          Refresh
         </button>
       </div>
 
