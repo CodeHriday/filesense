@@ -1236,6 +1236,9 @@ function DataProfile() {
         };
       });
       setViolationsPage(1); // Reset pagination
+      
+      // Refresh quality violations to update the applied rules display immediately
+      await fetchQualityViolations();
     } catch (err) {
       console.error('Error saving file quality rules:', err);
       setErrorMessage('Failed to save quality rules');
@@ -1249,6 +1252,8 @@ function DataProfile() {
     try {
       setRefreshingRules(true);
       await fetchFileQualityRulesData();
+      // Also refresh quality violations to update the applied rules display
+      await fetchQualityViolations();
     } catch (err) {
       console.error('Error refreshing rules:', err);
       setErrorMessage('Failed to refresh rules');

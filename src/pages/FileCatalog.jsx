@@ -522,7 +522,10 @@ export const FileCatalog = ({ onFileSelect }) => {
             )}
             <button
               className="gps-icon-btn gps-icon-btn--view"
-              onClick={() => handleViewDetails(file)}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleViewDetails(file);
+              }}
               title="View Details"
             >
               <FiEye />
