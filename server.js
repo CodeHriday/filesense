@@ -1229,7 +1229,7 @@ app.get('/api/files', authenticateToken, attachVendorProfile, cacheMiddleware(30
   }
 });
 
-// Vendor Files API - returns only files marked as vendor files
+// Vendor Files API - returns only files marked as vendor files with pagination
 app.get('/api/vendor-files', authenticateToken, attachVendorProfile, cacheMiddleware(300), async (req, res) => {
   try {
     // Check if user has permission to view files
@@ -1252,6 +1252,11 @@ app.get('/api/vendor-files', authenticateToken, attachVendorProfile, cacheMiddle
       });
     }
     
+    // Pagination parameters
+    const page = parseInt(req.query.page) || 1;
+    const pageSize = Math.min(parseInt(req.query.pageSize) || 25, 100); // Max 100 per page
+    const offset = (page - 1) * pageSize;
+    
     // Get user's accessible projects for filtering
     const { getUserProjects } = require('./backend/middleware/requireProjectAccess');
     const isAdmin = userHasAllProjectAccess(req.user);
@@ -1263,41 +1268,161 @@ app.get('/api/vendor-files', authenticateToken, attachVendorProfile, cacheMiddle
       
       // If user has no projects, return empty list
       if (projectIds.length === 0) {
-        return res.json([]);
+        return res.json({ files: [], totalCount: 0, page, pageSize, totalPages: 0 });
       }
     }
     
-    // Query only vendor files (is_vendor_file = true) with schema change info
-    let query = `
-      SELECT f.*, lfg.has_schema_changes
-      FROM files f
-      LEFT JOIN logical_file_groups lfg ON f.logical_file_id = lfg.logical_file_id
-      WHERE f.is_vendor_file = true
-    `;
+    // Build WHERE clause
+    let whereClause = 'WHERE f.is_vendor_file = true';
     const params = [];
+    let paramIndex = 1;
     
     // Filter by projects if not admin
     if (projectIds && projectIds.length > 0) {
-      query += ' AND f.project_id = ANY($1)';
+      whereClause += ` AND f.project_id = ANY($${paramIndex})`;
       params.push(projectIds);
+      paramIndex++;
     }
     
-    query += ' ORDER BY f.created_at DESC';
+    // Count total records
+    const countQuery = `
+      SELECT COUNT(*) as total
+      FROM files f
+      ${whereClause}
+    `;
+    const countResult = await dbPool.query(countQuery, params);
+    const totalCount = parseInt(countResult.rows[0].total);
+    const totalPages = Math.ceil(totalCount / pageSize);
+    
+    // Query vendor files with pagination
+    const query = `
+      SELECT f.*, lfg.has_schema_changes
+      FROM files f
+      LEFT JOIN logical_file_groups lfg ON f.logical_file_id = lfg.logical_file_id
+      ${whereClause}
+      ORDER BY f.created_at DESC
+      LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
+    `;
+    params.push(pageSize, offset);
     
     const result = await dbPool.query(query, params);
     const files = result.rows;
     
-    logger.info('Fetched vendor files', {
+    logger.info('Fetched vendor files with pagination', {
       userId: req.user.id,
       fileCount: files.length,
-      isAdmin,
-      projectCount: projectIds?.length || 'all'
+      totalCount,
+      page,
+      pageSize,
+      isAdmin
     });
     
-    res.json(files);
+    res.json({ 
+      files, 
+      totalCount, 
+      page, 
+      pageSize, 
+      totalPages 
+    });
   } catch (err) {
     logger.error('Error fetching vendor files', { error: err.message });
     res.status(500).json({ error: 'Failed to fetch vendor files' });
+  }
+});
+
+// Bulk delete vendor files - requires write permission
+app.delete('/api/vendor-files/bulk', authenticateToken, async (req, res) => {
+  try {
+    // Check if user has write permission
+    const userPermissions = req.user.permissions || [];
+    const hasWritePermission = userPermissions.some(p => {
+      if (typeof p === 'string') {
+        return p === 'vendor_file_quality:write' || p === 'file_upload:write' || p === 'admin';
+      }
+      return p.name === 'vendor_file_quality:write' || p.name === 'file_upload:write' || p.name === 'admin';
+    });
+    
+    if (!hasWritePermission) {
+      logger.warn('User attempted to delete vendor files without permission', {
+        userId: req.user.id,
+        username: req.user.username
+      });
+      return res.status(403).json({ 
+        error: 'Access denied',
+        message: 'You do not have permission to delete vendor files'
+      });
+    }
+    
+    const { fileIds } = req.body;
+    
+    if (!fileIds || !Array.isArray(fileIds) || fileIds.length === 0) {
+      return res.status(400).json({ error: 'No file IDs provided' });
+    }
+    
+    // Limit bulk delete to 100 files at a time
+    if (fileIds.length > 100) {
+      return res.status(400).json({ error: 'Cannot delete more than 100 files at once' });
+    }
+    
+    // Get user's accessible projects for authorization
+    const { getUserProjects } = require('./backend/middleware/requireProjectAccess');
+    const isAdmin = userHasAllProjectAccess(req.user);
+    let projectIds = null;
+    
+    if (!isAdmin) {
+      const userProjects = await getUserProjects(req.user.id);
+      projectIds = userProjects.map(p => p.id);
+    }
+    
+    // Verify all files exist and user has access
+    let verifyQuery = `
+      SELECT file_id, project_id FROM files 
+      WHERE file_id = ANY($1) AND is_vendor_file = true
+    `;
+    const verifyParams = [fileIds];
+    
+    if (projectIds && projectIds.length > 0) {
+      verifyQuery += ' AND project_id = ANY($2)';
+      verifyParams.push(projectIds);
+    }
+    
+    const verifyResult = await dbPool.query(verifyQuery, verifyParams);
+    const accessibleFileIds = verifyResult.rows.map(r => r.file_id);
+    
+    if (accessibleFileIds.length === 0) {
+      return res.status(404).json({ error: 'No accessible files found with the provided IDs' });
+    }
+    
+    // Delete related records first (file_columns, profiling results, etc.)
+    await dbPool.query('DELETE FROM file_columns WHERE file_id = ANY($1)', [accessibleFileIds]);
+    await dbPool.query('DELETE FROM vendor_file_profiling_results WHERE file_id = ANY($1)', [accessibleFileIds]);
+    
+    // Delete the files
+    const deleteResult = await dbPool.query(
+      'DELETE FROM files WHERE file_id = ANY($1) RETURNING file_id',
+      [accessibleFileIds]
+    );
+    
+    const deletedCount = deleteResult.rowCount;
+    
+    // Invalidate cache
+    await invalidate('cache:*:/api/vendor-files*');
+    
+    logger.info('Bulk deleted vendor files', {
+      userId: req.user.id,
+      requestedCount: fileIds.length,
+      deletedCount,
+      fileIds: accessibleFileIds
+    });
+    
+    res.json({ 
+      success: true, 
+      deletedCount,
+      message: `Successfully deleted ${deletedCount} file(s)`
+    });
+  } catch (err) {
+    logger.error('Error bulk deleting vendor files', { error: err.message });
+    res.status(500).json({ error: 'Failed to delete vendor files' });
   }
 });
 
