@@ -30,7 +30,9 @@ async function callPythonProcessor(filePath, fileType) {
       PYTHONPATH: workspaceRoot
     };
     
-    const python = spawn('python3', [pythonScript, filePath, fileType], { env }); // NOSONAR S4036 - PATH controlled in deployment environment, hardcoded command with validated script path
+    // Use virtual environment wrapper script to ensure dependencies are available
+    const venvScript = path.join(__dirname, '../../run_python_with_venv.sh');
+    const python = spawn(venvScript, [pythonScript, filePath, fileType], { env }); // NOSONAR S4036 - PATH controlled in deployment environment, hardcoded command with validated script path
     
     let stdout = '';
     let stderr = '';
@@ -93,7 +95,9 @@ async function callProfilingScript(filePath, fileType) {
       PYTHONPATH: workspaceRoot
     };
     
-    const python = spawn('python3', [pythonScript, filePath, fileType], { env }); // NOSONAR S4036 - PATH controlled in deployment environment, hardcoded command with validated script path
+    // Use virtual environment wrapper script to ensure dependencies are available
+    const venvScript = path.join(__dirname, '../../run_python_with_venv.sh');
+    const python = spawn(venvScript, [pythonScript, filePath, fileType], { env }); // NOSONAR S4036 - PATH controlled in deployment environment, hardcoded command with validated script path
     
     let stdout = '';
     let stderr = '';
