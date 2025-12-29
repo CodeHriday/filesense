@@ -61,12 +61,15 @@ function ETLJobDetails() {
   useEffect(() => {
     if (jobId) {
       fetchJobDetails();
-      
-      // Auto-refresh for running jobs
+    }
+  }, [jobId]);
+
+  useEffect(() => {
+    if (!jobId || !job) return;
+    
+    if (job?.status === 'running') {
       const interval = setInterval(() => {
-        if (job?.status === 'running') {
-          fetchJobDetails();
-        }
+        fetchJobDetails();
       }, 5000);
       
       return () => clearInterval(interval);
@@ -75,25 +78,15 @@ function ETLJobDetails() {
 
   const fetchJobDetails = async () => {
     try {
-      const [jobRes, logsRes, anomaliesRes, metricsRes] = await Promise.all([
-        axios.get(`${API_BASE_URL}/api/jobs/${jobId}`, {
-          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-        }),
-        axios.get(`${API_BASE_URL}/api/jobs/${jobId}/logs`, {
-          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-        }),
-        axios.get(`${API_BASE_URL}/api/jobs/${jobId}/anomalies`, {
-          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-        }),
-        axios.get(`${API_BASE_URL}/api/jobs/${jobId}/metrics`, {
-          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-        })
-      ]);
-
-      setJob(jobRes.data);
-      setLogs(logsRes.data?.logs || []);
-      setAnomalies(anomaliesRes.data?.anomalies || []);
-      setMetrics(metricsRes.data?.metrics || []);
+      const response = await axios.get(`${API_BASE_URL}/api/jobs/${jobId}/full`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      });
+      
+      const data = response.data;
+      setJob(data.job);
+      setLogs(data.logs || []);
+      setAnomalies(data.anomalies || []);
+      setMetrics(data.metrics || []);
       setError(null);
       
       if (loading) setLoading(false);

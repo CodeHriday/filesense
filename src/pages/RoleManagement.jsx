@@ -94,21 +94,20 @@ const RoleManagement = () => {
     setError('');
 
     try {
-      const token = localStorage.getItem('token');
-      const [rolesResponse, permissionsData, tagsResponse] = await Promise.all([
-        getRoles(currentPage, pageSize, debouncedSearchTerm),
-        getPermissions(),
-        axios.get('/api/governance-tags', {
-          headers: { Authorization: `Bearer ${token}` }
-        })
-      ]);
-
-      setRoles(rolesResponse.roles || rolesResponse);
-      setTotalPages(rolesResponse.pagination?.totalPages || 1);
-      setTotalCount(rolesResponse.pagination?.totalCount || 0);
+      const params = new URLSearchParams();
+      params.append('page', currentPage.toString());
+      params.append('pageSize', pageSize.toString());
+      if (debouncedSearchTerm) params.append('search', debouncedSearchTerm);
       
-      setAvailablePermissions(permissionsData);
-      setGovernanceTags(tagsResponse.data || []);
+      const response = await axios.get(`/api/roles/init-data?${params}`);
+      const data = response.data;
+
+      setRoles(data.roles || []);
+      setTotalPages(data.pagination?.totalPages || 1);
+      setTotalCount(data.pagination?.totalCount || 0);
+      
+      setAvailablePermissions(data.permissions || []);
+      setGovernanceTags(data.governanceTags || []);
     } catch (error) {
       console.error('Error fetching data:', error);
       setError('Failed to load role management data');

@@ -1196,4 +1196,88 @@ router.post('/:id/validate-pattern', async (req, res) => {
   }
 });
 
+/**
+ * GET /api/transformations/init-data
+ * Batch endpoint to get all data needed for WorkflowForm page in a single call
+ * Replaces 3 separate API calls: transformations, mapping-groups, projects
+ * Permission-aware: Filters data based on user's project access
+ */
+router.get('/init-data', async (req, res) => {
+  try {
+    const { getUserProjects } = require('../middleware/requireProjectAccess');
+    const { userHasAdminAccess } = require('../utils/permissionHelpers');
+    
+    const isAdmin = userHasAdminAccess(req.user);
+    let projectIds = [];
+    
+    if (!isAdmin) {
+      const userProjects = await getUserProjects(req.user.id);
+      projectIds = userProjects.map(p => p.id);
+      
+      if (projectIds.length === 0) {
+        return res.json({
+          success: true,
+          mappings: [],
+          mappingGroups: [],
+          projects: []
+        });
+      }
+    }
+    
+    const params = (!isAdmin && projectIds.length > 0) ? [projectIds] : [];
+    
+    let mappingsQuery = `
+      SELECT 
+        mapping_id as id,
+        mapping_name as name,
+        project_id,
+        sub_project_id,
+        status,
+        created_at
+      FROM transformation_mappings
+      WHERE 1=1
+    `;
+    let groupsQuery = `
+      SELECT id, name, description, project_id, sub_project_id, created_at
+      FROM mapping_groups
+      WHERE 1=1
+    `;
+    let projectsQuery = `
+      SELECT id, name, description, project_type, parent_id, parent_project_id, created_at
+      FROM projects
+      WHERE 1=1
+    `;
+    
+    if (!isAdmin && projectIds.length > 0) {
+      mappingsQuery += ` AND project_id = ANY($1)`;
+      groupsQuery += ` AND project_id = ANY($1)`;
+      projectsQuery += ` AND id = ANY($1)`;
+    }
+    
+    mappingsQuery += ` ORDER BY mapping_name`;
+    groupsQuery += ` ORDER BY name`;
+    projectsQuery += ` ORDER BY name`;
+    
+    const [mappingsResult, groupsResult, projectsResult] = await Promise.all([
+      pool.query(mappingsQuery, params),
+      pool.query(groupsQuery, params),
+      pool.query(projectsQuery, params)
+    ]);
+    
+    res.json({
+      success: true,
+      mappings: mappingsResult.rows,
+      groups: groupsResult.rows,
+      projects: projectsResult.rows
+    });
+    
+  } catch (error) {
+    systemLogger.error('Error in GET /api/transformations/init-data', { error: error.message });
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch init data'
+    });
+  }
+});
+
 module.exports = router;

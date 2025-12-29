@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { FiPlus, FiEdit2, FiTrash2, FiAlertTriangle, FiCheck, FiX, FiRefreshCw } from 'react-icons/fi';
+import axios from 'axios';
 import LoadingSpinner from '../components/LoadingSpinner';
 import Pagination from '../components/Pagination';
-import { getQualityRules, createQualityRule, updateQualityRule, deleteQualityRule, getViolationsSummary, getProjects } from '../api/qualityRulesService';
+import { createQualityRule, updateQualityRule, deleteQualityRule, getProjects } from '../api/qualityRulesService';
 import { formatDate } from '../utils/formatters';
 import { useAuth } from '../context/AuthContext';
 import ConfirmModal from '../components/ConfirmModal';
@@ -91,23 +92,22 @@ function QualityRules() {
       if (filterRuleType) filters.rule_type = filterRuleType;
       if (filterEnabled !== '') filters.enabled = filterEnabled;
 
-      const [rulesData, projectsData, summaryData] = await Promise.all([
-        getQualityRules(filters),
-        getProjects(),
-        getViolationsSummary({ days: 30 })
-      ]);
+      const response = await axios.get('/api/quality-rules/init-data', {
+        params: { ...filters, days: 30 }
+      });
+      const data = response.data;
       
-      setRules(rulesData.rules || []);
-      setPagination(rulesData.pagination || {});
-      setProjects(Array.isArray(projectsData) ? projectsData : []);
-      setViolationsSummary(summaryData.summary || []);
+      setRules(data.rules || []);
+      setPagination(data.pagination || {});
+      setProjects(Array.isArray(data.projects) ? data.projects : []);
+      setViolationsSummary(data.summary || []);
       
-      const totalViolations = (summaryData.summary || []).reduce((sum, item) => sum + parseInt(item.total_violations || 0), 0);
+      const totalViolations = (data.summary || []).reduce((sum, item) => sum + parseInt(item.total_violations || 0), 0);
       
       setStatistics({
-        total: rulesData.pagination?.total || 0,
-        enabled: (rulesData.rules || []).filter(r => r.enabled).length,
-        disabled: (rulesData.rules || []).filter(r => !r.enabled).length,
+        total: data.pagination?.total || 0,
+        enabled: (data.rules || []).filter(r => r.enabled).length,
+        disabled: (data.rules || []).filter(r => !r.enabled).length,
         violations: totalViolations
       });
       

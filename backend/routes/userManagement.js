@@ -1373,4 +1373,46 @@ router.post('/roles/bulk-delete', authenticateToken, asyncHandler(async (req, re
   });
 }));
 
+/**
+ * GET /api/users/init-data
+ * Batch endpoint to get all data needed for UserManagement page in a single call
+ * Replaces 2 separate API calls: users (with pagination), roles
+ */
+router.get('/init-data', authenticateToken, asyncHandler(async (req, res) => {
+  const page = parseInt(req.query.page) || 1;
+  const limit = parseInt(req.query.limit) || 10;
+  const offset = (page - 1) * limit;
+  const search = req.query.search || '';
+  
+  const filters = { limit, offset };
+  if (search) {
+    filters.search = search;
+  }
+  
+  const [users, totalCount, rolesResult] = await Promise.all([
+    userRepository.findAll(filters),
+    userRepository.count(search ? { search } : {}),
+    db.query(`
+      SELECT id, name, description, is_system_role, created_at
+      FROM roles
+      ORDER BY name
+      LIMIT 100
+    `)
+  ]);
+  
+  const totalPages = Math.ceil(totalCount / limit);
+  
+  res.json({
+    success: true,
+    users,
+    pagination: {
+      currentPage: page,
+      pageSize: limit,
+      totalCount,
+      totalPages
+    },
+    roles: rolesResult.rows || []
+  });
+}));
+
 module.exports = router;

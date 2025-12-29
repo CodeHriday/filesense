@@ -78,18 +78,13 @@ const NStepWorkflows = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [workflowsRes, visualMappingsRes, groupsRes, projectsRes] = await Promise.all([
-        axios.get('/api/n-step-workflows'),
-        axios.get('/api/visual-mappings'),
-        axios.get('/api/mapping-groups'),
-        axios.get('/api/projects')
-      ]);
+      const response = await axios.get('/api/n-step-workflows/init-data');
+      const data = response.data;
       
-      setWorkflows(workflowsRes.data.workflows || []);
-      // Visual mappings API returns array directly with id and name fields
-      setMappings(Array.isArray(visualMappingsRes.data) ? visualMappingsRes.data : []);
-      setMappingGroups(groupsRes.data.groups || []);
-      setProjects(projectsRes.data || []);
+      setWorkflows(data.workflows || []);
+      setMappings(data.mappings || []);
+      setMappingGroups(data.mappingGroups || []);
+      setProjects(data.projects || []);
       setError(null);
     } catch (err) {
       console.error('Error fetching data:', err);

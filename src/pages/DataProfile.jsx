@@ -1035,34 +1035,6 @@ function DataProfile() {
     }
   };
 
-  const fetchColumnGovernanceTags = async (columnName) => {
-    try {
-      const encodedFileId = encodeURIComponent(fileId);
-      const normalizedColumnName = columnName.toLowerCase();
-      const response = await axios.get(`/api/files/${encodedFileId}/columns/${encodeURIComponent(normalizedColumnName)}/tags`);
-      return response.data || [];
-    } catch (err) {
-      if (err.response?.status === 404) {
-        return [];
-      }
-      console.error('Error fetching column governance tags:', err);
-      return [];
-    }
-  };
-
-  const fetchColumnPolicies = async (columnName) => {
-    try {
-      const encodedFileId = encodeURIComponent(fileId);
-      // Normalize column name to lowercase to handle Parquet case-sensitivity
-      const normalizedColumnName = columnName.toLowerCase();
-      const response = await axios.get(`/api/files/${encodedFileId}/columns/${encodeURIComponent(normalizedColumnName)}/policies`);
-      return response.data;
-    } catch (err) {
-      console.error('Error fetching column policies:', err);
-      return [];
-    }
-  };
-
   const fetchAllColumnGovernanceData = async (columns) => {
     if (!columns || columns.length === 0) return;
     

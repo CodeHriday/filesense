@@ -27,7 +27,9 @@ const Jobs = () => {
 
   useEffect(() => {
     fetchJobs();
-    
+  }, []);
+  
+  useEffect(() => {
     const interval = setInterval(() => {
       if (document.visibilityState === 'visible') {
         fetchJobs();
@@ -87,17 +89,12 @@ const Jobs = () => {
     setJobLogs([]);
 
     try {
-      const [jobRes, logsRes] = await Promise.all([
-        axios.get(`${API_BASE_URL}/api/jobs/${jobId}`, {
-          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-        }),
-        axios.get(`${API_BASE_URL}/api/jobs/${jobId}/logs`, {
-          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-        })
-      ]);
-
-      setSelectedJob(jobRes.data);
-      setJobLogs(logsRes.data?.logs || []);
+      const response = await axios.get(`${API_BASE_URL}/api/jobs/${jobId}/full`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      });
+      
+      setSelectedJob(response.data.job);
+      setJobLogs(response.data.logs || []);
     } catch (err) {
       console.error('Error fetching job details:', err);
       setError('Failed to load job details');

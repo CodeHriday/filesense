@@ -120,16 +120,19 @@ const UserManagement = () => {
     setError('');
     
     try {
-      const [usersResponse, rolesData] = await Promise.all([
-        getAllUsers(currentPage, pageSize, debouncedSearchTerm),
-        getRoles(1, 100)
-      ]);
+      const params = new URLSearchParams();
+      params.append('page', currentPage.toString());
+      params.append('limit', pageSize.toString());
+      if (debouncedSearchTerm) params.append('search', debouncedSearchTerm);
       
-      setUsers(usersResponse.users || []);
-      setTotalPages(usersResponse.pagination?.totalPages || 1);
-      setTotalCount(usersResponse.pagination?.totalCount || 0);
+      const response = await axios.get(`/api/users/init-data?${params}`);
+      const data = response.data;
       
-      setRoles(rolesData.roles || rolesData);
+      setUsers(data.users || []);
+      setTotalPages(data.pagination?.totalPages || 1);
+      setTotalCount(data.pagination?.totalCount || 0);
+      
+      setRoles(data.roles || []);
       
       // Fetch password reset requests count for admins
       if (hasRole && hasRole('Admin')) {

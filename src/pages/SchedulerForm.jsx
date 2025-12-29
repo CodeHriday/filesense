@@ -72,21 +72,15 @@ const SchedulerForm = () => {
 
   const fetchData = async () => {
     try {
-      const [transformationsData, groupsData, workflowsData, visualWorkflowsData, projectsData] = await Promise.all([
-        axios.get('/api/transformations'),
-        axios.get('/api/mapping-groups'),
-        axios.get('/api/n-step-workflows'),
-        axios.get('/api/visual-workflows'),
-        axios.get('/api/projects')
-      ]);
+      const response = await axios.get('/api/schedules/init-data');
+      const data = response.data;
       
-      const mappings = transformationsData.data.mappings || [];
-      const groups = groupsData.data.groups || [];
-      const nStepWorkflows = workflowsData.data.workflows || [];
-      const visualWorkflows = visualWorkflowsData.data || [];
-      const projects = projectsData.data || [];
+      const mappings = data.transformations || [];
+      const groups = data.mappingGroups || [];
+      const nStepWorkflows = data.nStepWorkflows || [];
+      const visualWorkflows = data.visualWorkflows || [];
+      const projects = data.projects || [];
       
-      // Combine both types of workflows
       const allWorkflows = [
         ...nStepWorkflows,
         ...visualWorkflows.map(vw => ({
@@ -116,7 +110,6 @@ const SchedulerForm = () => {
         setError('No entities available. Please create a transformation, mapping group, or workflow first.');
       }
       
-      // Return the loaded data for immediate use
       return {
         mappings,
         groups,

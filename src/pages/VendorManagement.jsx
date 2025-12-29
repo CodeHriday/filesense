@@ -77,25 +77,22 @@ const VendorManagement = () => {
     setError('');
     
     try {
-      const vendorParams = new URLSearchParams();
-      vendorParams.append('page', currentPage.toString());
-      vendorParams.append('pageSize', pageSize.toString());
-      if (debouncedSearchTerm) vendorParams.append('search', debouncedSearchTerm);
+      const params = new URLSearchParams();
+      params.append('page', currentPage.toString());
+      params.append('pageSize', pageSize.toString());
+      if (debouncedSearchTerm) params.append('search', debouncedSearchTerm);
       
-      const [vendorsResponse, projectsResponse, vendorUsersResponse] = await Promise.all([
-        axios.get(`/api/vendors?${vendorParams}`),
-        axios.get('/api/projects'),
-        axios.get('/api/users/by-role/vendor')
-      ]);
+      const response = await axios.get(`/api/vendors/init-data?${params}`);
+      const data = response.data;
       
-      setVendors(vendorsResponse.data.vendors || vendorsResponse.data || []);
-      if (vendorsResponse.data.pagination) {
-        setTotalPages(vendorsResponse.data.pagination.totalPages || 1);
-        setTotalCount(vendorsResponse.data.pagination.totalCount || 0);
+      setVendors(data.vendors || []);
+      if (data.pagination) {
+        setTotalPages(data.pagination.totalPages || 1);
+        setTotalCount(data.pagination.totalCount || 0);
       }
       
-      setProjects(projectsResponse.data || []);
-      setVendorUsers(vendorUsersResponse.data || []);
+      setProjects(data.projects || []);
+      setVendorUsers(data.vendorUsers || []);
     } catch (error) {
       console.error('Error fetching data:', error);
       setError('Failed to load vendor management data');

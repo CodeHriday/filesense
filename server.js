@@ -9297,6 +9297,65 @@ app.get('/api/users', authenticateToken, async (req, res) => {
   }
 });
 
+/**
+ * GET /api/roles/init-data
+ * Batch endpoint for RoleManagement page - returns roles, permissions, and governance tags
+ * Replaces 3 separate API calls: roles, permissions, governance-tags
+ */
+app.get('/api/roles/init-data', authenticateToken, async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const pageSize = parseInt(req.query.pageSize) || 10;
+    const offset = (page - 1) * pageSize;
+    const search = req.query.search || '';
+    
+    const queryParams = [];
+    let paramIndex = 1;
+    let whereClause = '';
+    
+    if (search) {
+      const searchPattern = `%${search}%`;
+      whereClause = `WHERE (r.name ILIKE $${paramIndex} OR r.description ILIKE $${paramIndex})`;
+      queryParams.push(searchPattern);
+      paramIndex++;
+    }
+    
+    const countQuery = `SELECT COUNT(*) FROM roles r ${whereClause}`;
+    const dataQuery = `
+      SELECT r.*, 
+             COALESCE((SELECT COUNT(*) FROM user_roles ur WHERE ur.role_id = r.id), 0) AS user_count
+      FROM roles r 
+      ${whereClause}
+      ORDER BY r.id ASC 
+      LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
+    `;
+    
+    const [countResult, rolesResult, permissionsResult, tagsResult] = await Promise.all([
+      dbPool.query(countQuery, queryParams),
+      dbPool.query(dataQuery, [...queryParams, pageSize, offset]),
+      dbPool.query('SELECT * FROM permissions ORDER BY resource, action'),
+      dbPool.query('SELECT id, name, description, category, sensitivity_level, tag_order, created_at, updated_at FROM governance_tags ORDER BY tag_order, name')
+    ]);
+    
+    const totalCount = parseInt(countResult.rows[0].count);
+    
+    res.json({
+      roles: rolesResult.rows,
+      pagination: {
+        page,
+        pageSize,
+        totalCount,
+        totalPages: Math.ceil(totalCount / pageSize)
+      },
+      permissions: permissionsResult.rows,
+      governanceTags: tagsResult.rows
+    });
+  } catch (err) {
+    console.error('Error in /api/roles/init-data:', err);
+    res.status(500).json({ error: 'Failed to fetch role management data' });
+  }
+});
+
 // Get roles
 app.get('/api/roles', authenticateToken, async (req, res) => {
   try {
