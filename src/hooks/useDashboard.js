@@ -84,7 +84,7 @@ export const useExecutiveMetrics = (days = 30, projectId = null, options = {}) =
     queryKey: [...QueryKeys.dashboard.executiveMetrics(days), projectId],
     queryFn: () => fetchExecutiveMetrics(days, projectId),
     staleTime: STALE_TIMES.DASHBOARD,
-    cacheTime: CACHE_TIMES.STANDARD,
+    gcTime: CACHE_TIMES.STANDARD,
     refetchOnMount: false,
     ...options
   });
@@ -95,7 +95,7 @@ export const useQualityTrend = (projectId = null, options = {}) => {
     queryKey: [...QueryKeys.dashboard.qualityTrend(), projectId],
     queryFn: () => fetchQualityTrend(projectId),
     staleTime: STALE_TIMES.DASHBOARD,
-    cacheTime: CACHE_TIMES.STANDARD,
+    gcTime: CACHE_TIMES.STANDARD,
     refetchOnMount: false,
     ...options
   });
@@ -106,7 +106,7 @@ export const useJobTrend = (projectId = null, options = {}) => {
     queryKey: [...QueryKeys.dashboard.jobTrend(), projectId],
     queryFn: () => fetchJobTrend(projectId),
     staleTime: STALE_TIMES.DASHBOARD,
-    cacheTime: CACHE_TIMES.STANDARD,
+    gcTime: CACHE_TIMES.STANDARD,
     refetchOnMount: false,
     ...options
   });
@@ -117,7 +117,7 @@ export const useProjectHealth = (options = {}) => {
     queryKey: QueryKeys.dashboard.projectHealth(),
     queryFn: fetchProjectHealth,
     staleTime: STALE_TIMES.DASHBOARD,
-    cacheTime: CACHE_TIMES.STANDARD,
+    gcTime: CACHE_TIMES.STANDARD,
     refetchOnMount: false,
     ...options
   });
@@ -128,7 +128,7 @@ export const useFileTypeDistribution = (projectId = null, options = {}) => {
     queryKey: [...QueryKeys.dashboard.fileTypeDistribution(), projectId],
     queryFn: () => fetchFileTypeDistribution(projectId),
     staleTime: STALE_TIMES.DASHBOARD,
-    cacheTime: CACHE_TIMES.STANDARD,
+    gcTime: CACHE_TIMES.STANDARD,
     refetchOnMount: false,
     ...options
   });
@@ -139,7 +139,7 @@ export const useSchemaDriftTrend = (projectId = null, options = {}) => {
     queryKey: [...QueryKeys.dashboard.schemaDriftTrend(), projectId],
     queryFn: () => fetchSchemaDriftTrend(projectId),
     staleTime: STALE_TIMES.DASHBOARD,
-    cacheTime: CACHE_TIMES.STANDARD,
+    gcTime: CACHE_TIMES.STANDARD,
     refetchOnMount: false,
     ...options
   });
@@ -150,7 +150,7 @@ export const useMetricTrends = (granularity = 'daily', projectId = null, options
     queryKey: [...QueryKeys.dashboard.metricTrends(granularity), projectId],
     queryFn: () => fetchMetricTrends(granularity, projectId),
     staleTime: STALE_TIMES.DASHBOARD,
-    cacheTime: CACHE_TIMES.STANDARD,
+    gcTime: CACHE_TIMES.STANDARD,
     refetchOnMount: false,
     ...options
   });
@@ -161,7 +161,7 @@ export const useProjects = (options = {}) => {
     queryKey: QueryKeys.projects.list(),
     queryFn: fetchProjects,
     staleTime: STALE_TIMES.SLOW_CHANGING,
-    cacheTime: CACHE_TIMES.LONG,
+    gcTime: CACHE_TIMES.LONG,
     refetchOnMount: false,
     ...options
   });

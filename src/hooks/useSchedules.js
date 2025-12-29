@@ -58,7 +58,7 @@ export const useSchedules = (projectId = null, options = {}) => {
     queryKey: QueryKeys.schedules.list(projectId, null),
     queryFn: () => fetchSchedules(projectId),
     staleTime: STALE_TIMES.STANDARD,
-    cacheTime: CACHE_TIMES.STANDARD,
+    gcTime: CACHE_TIMES.STANDARD,
     refetchOnMount: false,
     ...options
   });
@@ -70,7 +70,7 @@ export const useSchedule = (id, options = {}) => {
     queryFn: () => fetchScheduleById(id),
     enabled: !!id,
     staleTime: STALE_TIMES.STANDARD,
-    cacheTime: CACHE_TIMES.STANDARD,
+    gcTime: CACHE_TIMES.STANDARD,
     refetchOnMount: false,
     ...options
   });

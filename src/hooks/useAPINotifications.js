@@ -1,6 +1,9 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
-import { QueryKeys, STALE_TIMES, CACHE_TIMES } from '../lib/react-query';
+import { QueryKeys, CACHE_TIMES } from '../lib/react-query';
+
+const NOTIFICATIONS_STALE_TIME = 1000 * 30;
+const NOTIFICATIONS_REFETCH_INTERVAL = 1000 * 60;
 
 const fetchNotifications = async () => {
   const response = await axios.get('/api/notifications');
@@ -21,10 +24,10 @@ export const useAPINotifications = (options = {}) => {
   return useQuery({
     queryKey: QueryKeys.notifications.all,
     queryFn: fetchNotifications,
-    staleTime: STALE_TIMES.FILES,
+    staleTime: NOTIFICATIONS_STALE_TIME,
     gcTime: CACHE_TIMES.STANDARD,
     refetchOnMount: false,
-    refetchInterval: 60000,
+    refetchInterval: NOTIFICATIONS_REFETCH_INTERVAL,
     refetchIntervalInBackground: false,
     ...options
   });

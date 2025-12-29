@@ -58,7 +58,7 @@ export const useMappingGroups = (projectId = null, options = {}) => {
     queryKey: QueryKeys.mappingGroups.list(projectId, null),
     queryFn: () => fetchMappingGroups(projectId),
     staleTime: STALE_TIMES.STANDARD,
-    cacheTime: CACHE_TIMES.STANDARD,
+    gcTime: CACHE_TIMES.STANDARD,
     refetchOnMount: false,
     ...options
   });
@@ -70,7 +70,7 @@ export const useMappingGroup = (id, options = {}) => {
     queryFn: () => fetchMappingGroupById(id),
     enabled: !!id,
     staleTime: STALE_TIMES.STANDARD,
-    cacheTime: CACHE_TIMES.STANDARD,
+    gcTime: CACHE_TIMES.STANDARD,
     refetchOnMount: false,
     ...options
   });

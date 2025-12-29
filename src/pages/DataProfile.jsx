@@ -1778,10 +1778,9 @@ function DataProfile() {
                             <button 
                               className="gps-icon-btn gps-icon-btn--edit"
                               style={{ width: '22px', height: '22px' }}
-                              onClick={async () => {
+                              onClick={() => {
                                 setSelectedColumn(column.name);
-                                const tags = await fetchColumnGovernanceTags(column.name);
-                                setCurrentColumnGovernanceTags(tags);
+                                setCurrentColumnGovernanceTags(allColumnGovernanceTags[column.name] || []);
                                 setShowColumnGovernanceTagModal(true);
                               }}
                               disabled={!canEditColumnGovernance(column.name)}
@@ -1801,10 +1800,9 @@ function DataProfile() {
                             <button 
                               className="gps-icon-btn gps-icon-btn--edit"
                               style={{ width: '22px', height: '22px' }}
-                              onClick={async () => {
+                              onClick={() => {
                                 setSelectedColumn(column.name);
-                                const colPolicies = await fetchColumnPolicies(column.name);
-                                setCurrentColumnPolicies(colPolicies);
+                                setCurrentColumnPolicies(allColumnPolicies[column.name] || []);
                                 setShowColumnPolicyModal(true);
                               }}
                               disabled={!canEditColumnGovernance(column.name)}

@@ -20,7 +20,7 @@ export const useFileCatalog = (options = {}) => {
     queryKey: QueryKeys.files.all,
     queryFn: getFileCatalog,
     staleTime: STALE_TIMES.FILES,
-    cacheTime: CACHE_TIMES.SHORT,
+    gcTime: CACHE_TIMES.SHORT,
     refetchOnMount: false,
     ...options
   });
@@ -35,7 +35,7 @@ export const useFileDetails = (fileId, options = {}) => {
     queryFn: () => getFileDetails(fileId),
     enabled: !!fileId,
     staleTime: STALE_TIMES.FILES,
-    cacheTime: CACHE_TIMES.SHORT,
+    gcTime: CACHE_TIMES.SHORT,
     refetchOnMount: false,
     ...options
   });
@@ -50,7 +50,7 @@ export const useFileProfile = (fileId, options = {}) => {
     queryFn: () => getFileProfile(fileId),
     enabled: !!fileId,
     staleTime: STALE_TIMES.STANDARD,
-    cacheTime: CACHE_TIMES.STANDARD,
+    gcTime: CACHE_TIMES.STANDARD,
     refetchOnMount: false,
     ...options
   });
@@ -65,7 +65,7 @@ export const useFileQuality = (fileId, options = {}) => {
     queryFn: () => getFileQuality(fileId),
     enabled: !!fileId,
     staleTime: STALE_TIMES.STANDARD,
-    cacheTime: CACHE_TIMES.STANDARD,
+    gcTime: CACHE_TIMES.STANDARD,
     refetchOnMount: false,
     ...options
   });

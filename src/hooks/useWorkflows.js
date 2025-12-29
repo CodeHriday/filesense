@@ -65,7 +65,7 @@ export const useWorkflows = (projectId = null, options = {}) => {
     queryKey: QueryKeys.workflows.list(projectId, null),
     queryFn: () => fetchWorkflows(projectId),
     staleTime: STALE_TIMES.STANDARD,
-    cacheTime: CACHE_TIMES.STANDARD,
+    gcTime: CACHE_TIMES.STANDARD,
     refetchOnMount: false,
     ...options
   });
@@ -77,7 +77,7 @@ export const useWorkflow = (id, options = {}) => {
     queryFn: () => fetchWorkflowById(id),
     enabled: !!id,
     staleTime: STALE_TIMES.STANDARD,
-    cacheTime: CACHE_TIMES.STANDARD,
+    gcTime: CACHE_TIMES.STANDARD,
     refetchOnMount: false,
     ...options
   });
@@ -89,7 +89,7 @@ export const useWorkflowExecutions = (id, options = {}) => {
     queryFn: () => fetchWorkflowExecutions(id),
     enabled: !!id,
     staleTime: STALE_TIMES.FAST_CHANGING,
-    cacheTime: CACHE_TIMES.SHORT,
+    gcTime: CACHE_TIMES.SHORT,
     refetchOnMount: false,
     ...options
   });

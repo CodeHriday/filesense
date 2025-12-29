@@ -89,7 +89,7 @@ export const useTransformations = (options = {}) => {
     queryKey: QueryKeys.transformations.all,
     queryFn: () => getTransformations(options),
     staleTime: STALE_TIMES.STANDARD,
-    cacheTime: CACHE_TIMES.STANDARD,
+    gcTime: CACHE_TIMES.STANDARD,
     refetchOnMount: false,
     ...options
   });
@@ -104,7 +104,7 @@ export const useTransformation = (id, options = {}) => {
     queryFn: () => getTransformationById(id),
     enabled: !!id,
     staleTime: STALE_TIMES.STANDARD,
-    cacheTime: CACHE_TIMES.STANDARD,
+    gcTime: CACHE_TIMES.STANDARD,
     refetchOnMount: false,
     ...options
   });
