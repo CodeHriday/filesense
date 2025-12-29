@@ -7,13 +7,20 @@ import ExecuteModal from '../components/ExecuteModal';
 import { PageTransition } from '../components/MicroAnimations';
 import Pagination from '../components/Pagination';
 import { useDeletePermission } from '../hooks/useDeletePermission';
-import axios from 'axios';
+import { useMappingGroups, useDeleteMappingGroup, useExecuteMappingGroup } from '../hooks/useMappingGroups';
 
 const MappingGroups = () => {
   const { canDelete } = useDeletePermission('mapping_groups');
-  const [groups, setGroups] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const { data: groupsData, isLoading: loading, error: queryError } = useMappingGroups();
+  const deleteMutation = useDeleteMappingGroup();
+  const executeMutation = useExecuteMappingGroup();
+  
+  const groups = useMemo(() => {
+    const data = groupsData?.groups || groupsData || [];
+    return Array.isArray(data) ? data : [];
+  }, [groupsData]);
+  
+  const error = queryError?.message || null;
   const [executing, setExecuting] = useState(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [selectedGroupForDelete, setSelectedGroupForDelete] = useState(null);
@@ -26,7 +33,6 @@ const MappingGroups = () => {
   const [selectedProject, setSelectedProject] = useState('all');
   const [selectedSubProject, setSelectedSubProject] = useState('all');
 
-  // Debounce search term (2.5 seconds)
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearchTerm(searchTerm);
@@ -34,47 +40,28 @@ const MappingGroups = () => {
     return () => clearTimeout(timer);
   }, [searchTerm]);
 
-  useEffect(() => {
-    fetchMappingGroups();
-  }, []);
-
-  const fetchMappingGroups = async () => {
-    try {
-      setLoading(true);
-      const response = await axios.get('/api/mapping-groups');
-      const data = response.data.groups || response.data || [];
-      setGroups(Array.isArray(data) ? data : []);
-      setError(null);
-    } catch (err) {
-      console.error('Error fetching mapping groups:', err);
-      setError('Failed to load mapping groups');
-      setGroups([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleExecute = async (groupId, groupName) => {
-    try {
-      setExecuting(groupId);
-      await axios.post(`/api/mapping-groups/${groupId}/execute`);
-      setExecuteResult({
-        success: true,
-        message: 'Mapping group execution started successfully! The transformations are now running in the background.',
-        groupName: groupName
-      });
-      setIsExecuteModalOpen(true);
-    } catch (err) {
-      console.error('Error executing mapping group:', err);
-      setExecuteResult({
-        success: false,
-        message: err.response?.data?.error || 'Failed to execute mapping group. Please try again.',
-        groupName: groupName
-      });
-      setIsExecuteModalOpen(true);
-    } finally {
-      setExecuting(null);
-    }
+    setExecuting(groupId);
+    executeMutation.mutate(groupId, {
+      onSuccess: () => {
+        setExecuteResult({
+          success: true,
+          message: 'Mapping group execution started successfully! The transformations are now running in the background.',
+          groupName: groupName
+        });
+        setIsExecuteModalOpen(true);
+        setExecuting(null);
+      },
+      onError: (err) => {
+        setExecuteResult({
+          success: false,
+          message: err.response?.data?.error || 'Failed to execute mapping group. Please try again.',
+          groupName: groupName
+        });
+        setIsExecuteModalOpen(true);
+        setExecuting(null);
+      }
+    });
   };
 
   const handleDelete = (groupId, groupName) => {
@@ -85,15 +72,16 @@ const MappingGroups = () => {
   const confirmDelete = async () => {
     if (!selectedGroupForDelete) return;
 
-    try {
-      await axios.delete(`/api/mapping-groups/${selectedGroupForDelete.id}`);
-      setIsDeleteModalOpen(false);
-      setSelectedGroupForDelete(null);
-      fetchMappingGroups();
-    } catch (err) {
-      console.error('Error deleting mapping group:', err);
-      alert('Failed to delete mapping group');
-    }
+    deleteMutation.mutate(selectedGroupForDelete.id, {
+      onSuccess: () => {
+        setIsDeleteModalOpen(false);
+        setSelectedGroupForDelete(null);
+      },
+      onError: (err) => {
+        console.error('Error deleting mapping group:', err);
+        alert('Failed to delete mapping group');
+      }
+    });
   };
 
   const uniqueProjects = useMemo(() => {

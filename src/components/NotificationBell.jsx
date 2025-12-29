@@ -1,18 +1,22 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FaBell } from 'react-icons/fa';
-import axios from 'axios';
+import { useAPINotifications, useMarkNotificationRead, useMarkAllNotificationsRead } from '../hooks/useAPINotifications';
 import './NotificationBell.css';
 
 function NotificationBell() {
-  const [notifications, setNotifications] = useState([]);
-  const [unreadCount, setUnreadCount] = useState(0);
   const [dropdownOpen, setDropdownOpen] = useState(false);
-  const [loading, setLoading] = useState(false);
   const dropdownRef = useRef(null);
   const navigate = useNavigate();
+  
+  const { data, refetch } = useAPINotifications();
+  const markReadMutation = useMarkNotificationRead();
+  const markAllReadMutation = useMarkAllNotificationsRead();
+  
+  const notifications = useMemo(() => data?.notifications || [], [data]);
+  const unreadCount = useMemo(() => notifications.filter(n => !n.is_read).length, [notifications]);
+  const loading = markAllReadMutation.isPending;
 
-  // Close dropdown when clicking outside
   useEffect(() => {
     function handleClickOutside(event) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
@@ -26,92 +30,34 @@ function NotificationBell() {
     };
   }, []);
 
-  // Fetch notifications on component mount and periodically
   useEffect(() => {
-    fetchNotifications();
-    
-    // Poll for new notifications every 60 seconds (reduced from 30 for better performance)
-    const interval = setInterval(() => {
-      // Only poll if tab is visible
-      if (document.visibilityState === 'visible') {
-        fetchNotifications();
-      }
-    }, 60000);
-    
-    // Fetch when tab becomes visible
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        fetchNotifications();
+        refetch();
       }
     };
     
     document.addEventListener('visibilitychange', handleVisibilityChange);
     
     return () => {
-      clearInterval(interval);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, []);
-
-  const fetchNotifications = async () => {
-    try {
-      const response = await axios.get('/api/notifications');
-      const notifs = response.data.notifications || [];
-      setNotifications(notifs);
-      setUnreadCount(notifs.filter(n => !n.is_read).length);
-    } catch (error) {
-      console.error('Error fetching notifications:', error);
-    }
-  };
-
-  const markAsRead = async (notificationId) => {
-    try {
-      await axios.put(`/api/notifications/${notificationId}/read`);
-      
-      // Update local state
-      setNotifications(prev => 
-        prev.map(n => 
-          n.id === notificationId 
-            ? { ...n, is_read: true } 
-            : n
-        )
-      );
-      setUnreadCount(prev => Math.max(0, prev - 1));
-    } catch (error) {
-      console.error('Error marking notification as read:', error);
-    }
-  };
+  }, [refetch]);
 
   const handleNotificationClick = async (notification) => {
-    // Mark as read
     if (!notification.is_read) {
-      await markAsRead(notification.id);
+      markReadMutation.mutate(notification.id);
     }
 
-    // Close dropdown
     setDropdownOpen(false);
 
-    // Navigate to the action URL if provided
     if (notification.action_url) {
       navigate(notification.action_url);
     }
   };
 
-  const markAllAsRead = async () => {
-    try {
-      setLoading(true);
-      await axios.put('/api/notifications/read-all');
-      
-      // Update local state
-      setNotifications(prev => 
-        prev.map(n => ({ ...n, is_read: true }))
-      );
-      setUnreadCount(0);
-    } catch (error) {
-      console.error('Error marking all as read:', error);
-    } finally {
-      setLoading(false);
-    }
+  const markAllAsRead = () => {
+    markAllReadMutation.mutate();
   };
 
   const formatTimestamp = (timestamp) => {
