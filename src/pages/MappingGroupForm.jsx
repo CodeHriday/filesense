@@ -28,24 +28,39 @@ const MappingGroupForm = () => {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    fetchProjects();
-    fetchTransformations();
-    if (isEdit) {
-      fetchMappingGroup();
-      fetchMembers();
-    }
+    fetchInitData();
   }, [groupId]);
 
-  const fetchProjects = async () => {
+  const fetchInitData = async () => {
     try {
       setLoadingProjects(true);
-      const response = await axios.get('/api/projects');
-      const allProjects = response.data || [];
-      // Filter to show only parent projects (no parent_project_id)
-      setProjects(allProjects.filter(p => !p.parent_project_id));
+      const params = isEdit ? `?groupId=${groupId}` : '';
+      const response = await axios.get(`/api/mapping-groups/init-data${params}`);
+      
+      setProjects(response.data.projects || []);
+      setTransformations(response.data.transformations || []);
+      
+      // If editing, set form data and members
+      if (isEdit && response.data.group) {
+        const group = response.data.group;
+        const projectId = group.project_id || '';
+        setFormData({
+          project_id: projectId,
+          sub_project_id: group.sub_project_id || '',
+          group_name: group.group_name,
+          description: group.description || '',
+          concurrency_limit: group.concurrency_limit
+        });
+        setMembers(response.data.members || []);
+        
+        // Fetch subprojects if project is set
+        if (projectId) {
+          await fetchSubProjects(projectId);
+        }
+      }
     } catch (err) {
-      console.error('Error fetching projects:', err);
-      setProjects([]);
+      console.error('Error fetching init data:', err);
+      setError('Failed to load form data');
     } finally {
       setLoadingProjects(false);
     }
@@ -75,53 +90,6 @@ const MappingGroupForm = () => {
       sub_project_id: ''
     });
     await fetchSubProjects(projectId);
-  };
-
-  const fetchTransformations = async () => {
-    try {
-      const response = await axios.get('/api/transformations');
-      const data = response.data;
-      // API returns {mappings: [...], total, limit, offset}
-      const mappings = data.mappings || [];
-      setTransformations(Array.isArray(mappings) ? mappings : []);
-    } catch (err) {
-      console.error('Error fetching transformations:', err);
-      setTransformations([]); // Set empty array on error
-    }
-  };
-
-  const fetchMappingGroup = async () => {
-    try {
-      const response = await axios.get(`/api/mapping-groups/${groupId}`);
-      const projectId = response.data.project_id || '';
-      setFormData({
-        project_id: projectId,
-        sub_project_id: response.data.sub_project_id || '',
-        group_name: response.data.group_name,
-        description: response.data.description || '',
-        concurrency_limit: response.data.concurrency_limit
-      });
-      
-      // Fetch subprojects if project is set
-      if (projectId) {
-        await fetchSubProjects(projectId);
-      }
-    } catch (err) {
-      console.error('Error fetching mapping group:', err);
-      setError('Failed to load mapping group');
-    }
-  };
-
-  const fetchMembers = async () => {
-    try {
-      const response = await axios.get(`/api/mapping-groups/${groupId}/members`);
-      const data = response.data;
-      // Ensure we always set an array
-      setMembers(Array.isArray(data) ? data : (data.members || []));
-    } catch (err) {
-      console.error('Error fetching members:', err);
-      setMembers([]); // Set empty array on error
-    }
   };
 
   const handleSubmit = async (e) => {

@@ -63,7 +63,35 @@ function ProjectManagement() {
   const [selectedSubProject, setSelectedSubProject] = useState(null);
   const [currentProjectId, setCurrentProjectId] = useState(null);
 
-  const fetchProjects = useCallback(async () => {
+  const fetchInitData = useCallback(async () => {
+    try {
+      setLoading(true);
+      const token = localStorage.getItem('token');
+      const params = new URLSearchParams();
+      if (searchTerm) params.append('search', searchTerm);
+      if (showArchived) params.append('archived', 'true');
+
+      const response = await axios.get(`${API_BASE_URL}/projects/init-data?${params}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      setProjects(response.data.projects || []);
+      setAvailableUsers(response.data.users || []);
+      setAvailableGroups(response.data.groups || []);
+      setError(null);
+    } catch (err) {
+      setError('Failed to fetch projects');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  }, [searchTerm, showArchived]);
+
+  useEffect(() => {
+    fetchInitData();
+  }, [fetchInitData]);
+
+  const fetchProjects = async () => {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
@@ -81,40 +109,6 @@ function ProjectManagement() {
       console.error(err);
     } finally {
       setLoading(false);
-    }
-  }, [searchTerm, showArchived]);
-
-  useEffect(() => {
-    fetchProjects();
-    fetchAvailableUsers();
-    fetchAvailableGroups();
-  }, [fetchProjects]);
-
-  const fetchAvailableUsers = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const response = await axios.get(`${API_BASE_URL}/users?limit=1000`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      // API returns users in response.data.users
-      const users = response.data.users || response.data || [];
-      setAvailableUsers(Array.isArray(users) ? users : []);
-    } catch (err) {
-      console.error('Failed to fetch users:', err);
-      setAvailableUsers([]);
-    }
-  };
-
-  const fetchAvailableGroups = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const response = await axios.get(`${API_BASE_URL}/groups`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setAvailableGroups(Array.isArray(response.data) ? response.data : []);
-    } catch (err) {
-      console.error('Failed to fetch groups:', err);
-      setAvailableGroups([]);
     }
   };
 

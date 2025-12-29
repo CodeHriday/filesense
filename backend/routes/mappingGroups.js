@@ -578,4 +578,127 @@ router.get('/:id/executions/:executionId', async (req, res) => {
   }
 });
 
+/**
+ * GET /api/mapping-groups/init-data
+ * Batch endpoint to get all data needed for MappingGroupForm page in a single call
+ * Replaces 4 separate API calls: projects, transformations, mapping-group (edit), members (edit)
+ * Permission-aware: Filters data based on user's project access
+ */
+router.get('/init-data', async (req, res) => {
+  try {
+    const { groupId } = req.query;
+    const { getUserProjects } = require('../middleware/requireProjectAccess');
+    
+    const isAdmin = userHasAdminAccess(req.user);
+    let accessibleProjectIds = [];
+    
+    if (!isAdmin) {
+      const userProjects = await getUserProjects(req.user.id);
+      accessibleProjectIds = userProjects.map(p => p.id);
+      
+      // Non-admin with no project access gets empty data
+      if (accessibleProjectIds.length === 0) {
+        return res.json({
+          success: true,
+          projects: [],
+          transformations: [],
+          group: null,
+          members: []
+        });
+      }
+    }
+    
+    // Build projects query - filter to parent projects only
+    let projectsQuery = `
+      SELECT id, name, description, parent_project_id
+      FROM projects
+      WHERE parent_project_id IS NULL
+    `;
+    const projectsParams = [];
+    
+    if (!isAdmin) {
+      projectsQuery += ` AND id = ANY($1)`;
+      projectsParams.push(accessibleProjectIds);
+    }
+    projectsQuery += ` ORDER BY name`;
+    
+    // Build transformations query
+    let transformationsQuery = `
+      SELECT mapping_id, mapping_name, file_name_pattern, project_id, source_connection_id
+      FROM transformation_mappings
+      WHERE (is_temporary IS NULL OR is_temporary = false)
+    `;
+    const transformationsParams = [];
+    
+    if (!isAdmin) {
+      transformationsQuery += ` AND project_id = ANY($1)`;
+      transformationsParams.push(accessibleProjectIds);
+    }
+    transformationsQuery += ` ORDER BY mapping_name`;
+    
+    // Fetch base data in parallel
+    const [projectsResult, transformationsResult] = await Promise.all([
+      pool.query(projectsQuery, projectsParams),
+      pool.query(transformationsQuery, transformationsParams)
+    ]);
+    
+    const response = {
+      success: true,
+      projects: projectsResult.rows,
+      transformations: transformationsResult.rows,
+      group: null,
+      members: []
+    };
+    
+    // If groupId provided (edit mode), fetch group details and members
+    // Verify user has access to the group's project
+    if (groupId) {
+      const [groupResult, membersResult] = await Promise.all([
+        pool.query(`
+          SELECT mg.*, COUNT(mgm.id)::int as mapping_count
+          FROM mapping_groups mg
+          LEFT JOIN mapping_group_members mgm ON mg.id = mgm.group_id
+          WHERE mg.id = $1
+          GROUP BY mg.id
+        `, [groupId]),
+        pool.query(`
+          SELECT mgm.*, tm.mapping_name, tm.file_name_pattern
+          FROM mapping_group_members mgm
+          JOIN transformation_mappings tm ON mgm.mapping_id = tm.mapping_id
+          WHERE mgm.group_id = $1
+          ORDER BY mgm.execution_order ASC, mgm.id ASC
+        `, [groupId])
+      ]);
+      
+      if (groupResult.rows.length > 0) {
+        const group = groupResult.rows[0];
+        
+        // Verify non-admin has access to this group's project
+        if (!isAdmin && group.project_id && !accessibleProjectIds.includes(group.project_id)) {
+          return res.status(403).json({
+            success: false,
+            error: 'You do not have access to this mapping group'
+          });
+        }
+        
+        response.group = {
+          ...group,
+          group_name: group.name,
+          concurrency_limit: group.max_concurrency
+        };
+        response.members = membersResult.rows;
+      }
+    }
+    
+    res.json(response);
+    
+  } catch (error) {
+    systemLogger.error('Error in GET /api/mapping-groups/init-data', { error: error.message });
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch init data'
+    });
+  }
+});
+
 module.exports = router;
