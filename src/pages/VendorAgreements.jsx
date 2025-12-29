@@ -199,49 +199,14 @@ const VendorAgreements = () => {
     setError('');
     
     try {
-      // Fetch vendor connections separately with error handling (optional for non-admin roles)
-      let connectionsData = [];
-      try {
-        const connectionsResponse = await axios.get('/api/vendor-connections');
-        connectionsData = connectionsResponse.data.connections || [];
-      } catch (connError) {
-        // Vendor connections might not be accessible to all roles (403), this is okay
-        console.warn('Could not fetch vendor connections (this is normal for non-admin roles):', connError.response?.status);
-      }
+      const response = await axios.get('/api/vendor-agreements/init-data');
+      const { vendorConnections: vc, allConnections: ac, vendors: v, agreements: a, users: u } = response.data;
       
-      // Fetch all connections for target connection dropdown
-      let allConnectionsData = [];
-      try {
-        const allConnectionsResponse = await axios.get('/api/connections');
-        allConnectionsData = allConnectionsResponse.data || [];
-      } catch (connError) {
-        console.warn('Could not fetch all connections:', connError.response?.status);
-      }
-      
-      // Fetch vendors separately with error handling (optional for vendor users without vendor profiles)
-      let vendorsData = [];
-      try {
-        const vendorsResponse = await axios.get('/api/vendors');
-        vendorsData = vendorsResponse.data.vendors || vendorsResponse.data || [];
-      } catch (vendorsError) {
-        // Vendors endpoint might return 404 for vendor users without vendor profiles, this is okay
-        console.warn('Could not fetch vendors (this is normal for vendor contact users):', vendorsError.response?.status);
-      }
-      
-      // Fetch required data - fetch ALL agreements, not paginated
-      const [agreementsResponse, usersResponse] = await Promise.all([
-        axios.get('/api/vendor-agreements'),
-        axios.get('/api/users', {
-          params: { limit: 1000 } // Fetch all users for dropdown population
-        })
-      ]);
-      
-      setAgreements(agreementsResponse.data.agreements || agreementsResponse.data || []);
-      
-      setVendors(vendorsData);
-      setUsers(usersResponse.data.users || usersResponse.data || []);
-      setVendorConnections(connectionsData);
-      setAllConnections(allConnectionsData);
+      setAgreements(a || []);
+      setVendors(v || []);
+      setUsers(u || []);
+      setVendorConnections(vc || []);
+      setAllConnections(ac || []);
     } catch (error) {
       console.error('Error fetching data:', error);
       setError('Failed to load vendor contracts data');
@@ -252,38 +217,11 @@ const VendorAgreements = () => {
   
   const fetchAgreementDetails = async (agreementId) => {
     try {
-      const [agreementResponse, approvalsResponse, changesResponse] = await Promise.all([
-        axios.get(`/api/vendor-agreements/${agreementId}`),
-        axios.get(`/api/vendor-agreements/${agreementId}/approvals`),
-        axios.get(`/api/vendor-agreements/${agreementId}/changes`)
-      ]);
+      const response = await axios.get(`/api/vendor-agreements/${agreementId}/full`);
+      const { agreement: agreementData, approvals, changes } = response.data;
       
-      // Debug: Log the full agreement data to inspect contact fields
-      const agreementData = agreementResponse.data.agreement || agreementResponse.data;
-      console.log('=== VENDOR AGREEMENT API RESPONSE ===');
-      console.log('Full agreement data:', agreementData);
-      console.log('Primary Contact Fields:', {
-        name: agreementData.primary_contact_name,
-        email: agreementData.primary_contact_email,
-        phone: agreementData.primary_contact_phone,
-        designation: agreementData.primary_contact_designation
-      });
-      console.log('Secondary Contact Fields:', {
-        name: agreementData.secondary_contact_name,
-        email: agreementData.secondary_contact_email,
-        phone: agreementData.secondary_contact_phone,
-        designation: agreementData.secondary_contact_designation
-      });
-      
-      // Update selected agreement with fresh data from API
       setSelectedAgreement(agreementData);
-      
-      // Handle approval history - API might return {approvals: [...]} or just [...]
-      const approvals = approvalsResponse.data?.approvals || approvalsResponse.data || [];
       setApprovalHistory(Array.isArray(approvals) ? approvals : []);
-      
-      // Handle change history - API might return {changes: [...]} or just [...]
-      const changes = changesResponse.data?.changes || changesResponse.data || [];
       setChangeHistory(Array.isArray(changes) ? changes : []);
     } catch (error) {
       console.error('Error fetching agreement details:', error);

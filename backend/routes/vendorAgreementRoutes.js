@@ -366,6 +366,177 @@ router.get('/stakeholder-options', requirePermission('vendor_agreements:read'), 
 });
 
 /**
+ * GET /api/vendor-agreements/init-data
+ * Batch endpoint to get all data needed for the VendorAgreements page in a single call
+ * Replaces 5 separate API calls: vendor-connections, connections, vendors, vendor-agreements, users
+ * Permission-aware: Mirrors the exact permission model of original individual endpoints
+ */
+router.get('/init-data', async (req, res) => {
+  try {
+    const { pool } = require('../config/database');
+    const hasApprovePermission = hasPermission(req.user, 'vendor_agreements:approve');
+    const hasWritePermission = hasPermission(req.user, 'vendor_agreements:write');
+    const isAdminUser = userHasAdminAccess(req.user);
+    
+    let vendorConnections = [];
+    let allConnections = [];
+    let vendors = [];
+    
+    if (isAdminUser) {
+      try {
+        const connResult = await pool.query(`
+          SELECT vc.id, vc.connection_name, vc.vendor_id, vc.connection_type, 
+                 vc.storage_type, vc.bucket_name, vc.container_name, vc.base_path, 
+                 vc.status, vc.created_at, v.vendor_name
+          FROM vendor_connections vc
+          LEFT JOIN vendors v ON vc.vendor_id = v.id
+          WHERE vc.status = 'active'
+          ORDER BY vc.connection_name
+        `);
+        vendorConnections = connResult.rows;
+      } catch (err) {
+        systemLogger.warn('Could not fetch vendor connections', { error: err.message });
+      }
+      
+      try {
+        const vendorsResult = await pool.query(`
+          SELECT id, vendor_name, vendor_code, status, vendor_type, domain
+          FROM vendors
+          WHERE status = 'active'
+          ORDER BY vendor_name
+        `);
+        vendors = vendorsResult.rows;
+      } catch (err) {
+        systemLogger.warn('Could not fetch vendors', { error: err.message });
+      }
+    } else {
+      const vendorResult = await pool.query(`
+        SELECT id FROM vendors WHERE vendor_user_id = $1 AND status = 'active'
+      `, [req.user.id]);
+      
+      if (vendorResult.rows.length > 0) {
+        const userVendorId = vendorResult.rows[0].id;
+        try {
+          const vendorsResult = await pool.query(`
+            SELECT id, vendor_name, vendor_code, status, vendor_type, domain
+            FROM vendors
+            WHERE id = $1 AND status = 'active'
+          `, [userVendorId]);
+          vendors = vendorsResult.rows;
+        } catch (err) {
+          systemLogger.warn('Could not fetch user vendor', { error: err.message });
+        }
+      }
+    }
+    
+    try {
+      const allConnResult = await pool.query(`
+        SELECT id, name, connection_type, storage_type, status, created_at
+        FROM connections
+        WHERE status = 'active'
+        ORDER BY name
+      `);
+      allConnections = allConnResult.rows;
+    } catch (err) {
+      systemLogger.warn('Could not fetch all connections', { error: err.message });
+    }
+    
+    const agreementsResult = await vendorAgreementService.getAllAgreements({
+      page: 1,
+      pageSize: 10000,
+      userId: req.user.id,
+      userRoles: req.user.roles,
+      userEmail: req.user.email,
+      hasApprovePermission
+    });
+    
+    let usersResult = { rows: [] };
+    if (isAdminUser || hasWritePermission) {
+      usersResult = await pool.query(`
+        SELECT id, username, email, first_name, last_name, status
+        FROM users
+        WHERE status = 'active'
+        ORDER BY first_name, last_name
+        LIMIT 1000
+      `);
+    }
+    
+    res.json({
+      success: true,
+      vendorConnections,
+      allConnections,
+      vendors,
+      agreements: agreementsResult.agreements || [],
+      users: usersResult.rows,
+      hasApprovePermission
+    });
+    
+  } catch (error) {
+    systemLogger.error('Error in GET /api/vendor-agreements/init-data', { error: error.message });
+    res.status(500).json({ error: 'Failed to fetch init data' });
+  }
+});
+
+/**
+ * GET /api/vendor-agreements/:id/full
+ * Batch endpoint to get agreement with approvals and changes in a single call
+ * Replaces 3 separate API calls: agreement, approvals, changes
+ */
+router.get('/:id/full', checkAgreementAccess, async (req, res) => {
+  try {
+    const agreementId = parseInt(req.params.id);
+    
+    const { pool } = require('../config/database');
+    
+    const approvalsResult = await pool.query(`
+      SELECT 
+        va.id,
+        va.agreement_id,
+        va.stage,
+        va.action,
+        va.comments,
+        va.approved_by,
+        va.approved_at,
+        u.username as approved_by_username,
+        u.email as approved_by_email
+      FROM vendor_agreement_approvals va
+      LEFT JOIN users u ON va.approved_by = u.id
+      WHERE va.agreement_id = $1
+      ORDER BY va.approved_at DESC
+    `, [agreementId]);
+    
+    const changesResult = await pool.query(`
+      SELECT 
+        vc.id,
+        vc.agreement_id,
+        vc.field_name,
+        vc.old_value,
+        vc.new_value,
+        vc.changed_by,
+        vc.changed_at,
+        u.username as changed_by_username
+      FROM vendor_agreement_changes vc
+      LEFT JOIN users u ON vc.changed_by = u.id
+      WHERE vc.agreement_id = $1
+      ORDER BY vc.changed_at DESC
+      LIMIT 100
+    `, [agreementId]);
+    
+    res.json({
+      success: true,
+      agreement: req.agreement,
+      approvals: approvalsResult.rows,
+      changes: changesResult.rows,
+      userRole: req.isAdmin ? 'admin' : (req.isVendor ? 'vendor' : 'owner')
+    });
+    
+  } catch (error) {
+    systemLogger.error('Error in GET /api/vendor-agreements/:id/full', { error: error.message });
+    res.status(500).json({ error: 'Failed to fetch full agreement data' });
+  }
+});
+
+/**
  * GET /api/vendor-agreements/:id
  * Get agreement by ID
  */

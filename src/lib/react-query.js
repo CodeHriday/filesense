@@ -139,6 +139,29 @@ export const QueryKeys = {
     unread: ['notifications', 'unread'],
   },
   
+  // SLA Monitoring
+  sla: {
+    all: ['sla'],
+    monitoring: ['sla', 'monitoring'],
+    status: ['sla', 'status'],
+    violations: ['sla', 'violations'],
+    summary: ['sla', 'summary'],
+  },
+  
+  // Vendor Agreements
+  vendorAgreements: {
+    all: ['vendorAgreements'],
+    list: () => ['vendorAgreements', 'list'],
+    byId: (id) => ['vendorAgreements', id],
+    full: (id) => ['vendorAgreements', id, 'full'],
+    initData: ['vendorAgreements', 'initData'],
+  },
+  
+  // Process Wizard
+  processWizard: {
+    initData: ['processWizard', 'initData'],
+  },
+  
   // API status
   apiStatus: ['apiStatus']
 };

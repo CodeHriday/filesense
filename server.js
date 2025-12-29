@@ -11337,6 +11337,43 @@ app.post('/api/jobs/:id/run', authenticateToken, async (req, res) => {
   }
 });
 
+// Process Wizard API
+
+/**
+ * GET /api/process-wizard/init-data
+ * Batch endpoint to get all data needed for the ProcessManagementWizard page in a single call
+ * Replaces 3 separate API calls: groups, files, connections
+ */
+app.get('/api/process-wizard/init-data', authenticateToken, async (req, res) => {
+  try {
+    const [groupsResult, filesResult, connectionsResult] = await Promise.all([
+      dbPool.query('SELECT * FROM groups ORDER BY name'),
+      dbPool.query(`
+        SELECT id, file_name, file_type, file_size, uploaded_at, project_id, status
+        FROM files
+        WHERE status != 'deleted'
+        ORDER BY uploaded_at DESC
+      `),
+      dbPool.query(`
+        SELECT id, name, connection_type, storage_type, status, created_at
+        FROM connections
+        WHERE status = 'active'
+        ORDER BY name
+      `)
+    ]);
+    
+    res.json({
+      success: true,
+      groups: groupsResult.rows,
+      files: filesResult.rows,
+      connections: connectionsResult.rows
+    });
+  } catch (err) {
+    console.error('Error fetching process wizard init data:', err);
+    res.status(500).json({ error: 'Failed to fetch init data' });
+  }
+});
+
 // Groups API
 
 // Get all groups (authenticated)
