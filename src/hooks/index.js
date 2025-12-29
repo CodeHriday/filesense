@@ -2,6 +2,9 @@
 export * from './useFiles';
 export * from './useTransformations';
 export * from './useDashboard';
+export * from './useMappingGroups';
+export * from './useWorkflows';
+export * from './useSchedules';
 export * from './useApiStatus';
 export * from './useQualityComponents';
 
