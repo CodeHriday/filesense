@@ -7663,6 +7663,75 @@ app.put('/api/files/:fileId/sensitivity', authenticateToken, invalidateCache('ca
 // Column-Level Governance Tag Endpoints
 // ============================================
 
+// BATCH ENDPOINT: Get all column governance data (tags and policies) in one call
+// This eliminates 24+ individual API calls per file when viewing DataProfile
+app.get('/api/files/:fileId/columns/governance', cacheMiddleware(300), async (req, res) => {
+  try {
+    const { fileId } = req.params;
+    
+    // Fetch all column tags for this file in one query
+    const tagsResult = await dbPool.query(
+      `SELECT cgta.column_name, cgta.tag_id, gt.tag_name, gt.description, gt.color, gt.badge_style, cgta.assigned_at
+       FROM column_governance_tag_assignments cgta
+       JOIN governance_tags gt ON cgta.tag_id = gt.tag_id
+       WHERE cgta.file_id = $1
+       ORDER BY cgta.column_name, cgta.assigned_at DESC`,
+      [fileId]
+    );
+    
+    // Fetch all column policies for this file in one query
+    const policiesResult = await dbPool.query(
+      `SELECT cpa.column_name, cpa.policy_id, gp.policy_name, gp.description, gp.rules, cpa.assigned_at
+       FROM column_policy_assignments cpa
+       JOIN governance_policies gp ON cpa.policy_id = gp.policy_id
+       WHERE cpa.file_id = $1
+       ORDER BY cpa.column_name, cpa.assigned_at DESC`,
+      [fileId]
+    );
+    
+    // Group tags by column name
+    const tagsByColumn = {};
+    for (const row of tagsResult.rows) {
+      const colName = row.column_name;
+      if (!tagsByColumn[colName]) {
+        tagsByColumn[colName] = [];
+      }
+      tagsByColumn[colName].push({
+        tag_id: row.tag_id,
+        tag_name: row.tag_name,
+        description: row.description,
+        color: row.color,
+        badge_style: row.badge_style,
+        assigned_at: row.assigned_at
+      });
+    }
+    
+    // Group policies by column name
+    const policiesByColumn = {};
+    for (const row of policiesResult.rows) {
+      const colName = row.column_name;
+      if (!policiesByColumn[colName]) {
+        policiesByColumn[colName] = [];
+      }
+      policiesByColumn[colName].push({
+        policy_id: row.policy_id,
+        policy_name: row.policy_name,
+        description: row.description,
+        rules: row.rules,
+        assigned_at: row.assigned_at
+      });
+    }
+    
+    res.json({
+      tags: tagsByColumn,
+      policies: policiesByColumn
+    });
+  } catch (err) {
+    console.error('Error fetching batch column governance:', err);
+    res.status(500).json({ error: 'Failed to fetch column governance data' });
+  }
+});
+
 // Get governance tags assigned to a specific column
 app.get('/api/files/:fileId/columns/:columnName/tags', cacheMiddleware(300), async (req, res) => {
   try {

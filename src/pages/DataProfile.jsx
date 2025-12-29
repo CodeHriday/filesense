@@ -1067,32 +1067,21 @@ function DataProfile() {
     if (!columns || columns.length === 0) return;
     
     try {
-      // Fetch governance tags and policies for all columns in parallel
-      const tagPromises = columns.map(column => 
-        fetchColumnGovernanceTags(column.name)
-          .then(tags => ({ columnName: column.name, tags }))
-      );
+      const encodedFileId = encodeURIComponent(fileId);
       
-      const policyPromises = columns.map(column =>
-        fetchColumnPolicies(column.name)
-          .then(policies => ({ columnName: column.name, policies }))
-      );
+      // Use batch endpoint to get all column governance data in ONE call
+      // This replaces 24+ individual API calls with a single request
+      const response = await axios.get(`/api/files/${encodedFileId}/columns/governance`);
+      const { tags: tagsByColumn, policies: policiesByColumn } = response.data;
       
-      const [tagResults, policyResults] = await Promise.all([
-        Promise.all(tagPromises),
-        Promise.all(policyPromises)
-      ]);
-      
-      // Convert arrays to objects keyed by column name
+      // Map column names to lowercase for consistent lookup
       const tagsMap = {};
       const policiesMap = {};
       
-      tagResults.forEach(({ columnName, tags }) => {
-        tagsMap[columnName] = tags;
-      });
-      
-      policyResults.forEach(({ columnName, policies }) => {
-        policiesMap[columnName] = policies;
+      columns.forEach(column => {
+        const normalizedName = column.name.toLowerCase();
+        tagsMap[column.name] = tagsByColumn[normalizedName] || [];
+        policiesMap[column.name] = policiesByColumn[normalizedName] || [];
       });
       
       setAllColumnGovernanceTags(tagsMap);
