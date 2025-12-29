@@ -1,6 +1,7 @@
 // API and server data hooks
 export * from './useFiles';
 export * from './useTransformations';
+export * from './useDashboard';
 export * from './useApiStatus';
 export * from './useQualityComponents';
 

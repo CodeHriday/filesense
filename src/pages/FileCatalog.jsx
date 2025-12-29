@@ -41,22 +41,14 @@ export const FileCatalog = ({ onFileSelect }) => {
   const [isSubmittingPassword, setIsSubmittingPassword] = useState(false);
   
   // Using React Query to fetch file catalog
+  // Caching is configured in useFiles.js: 30s stale, 3min cache
+  // Mutations (upload, delete) automatically invalidate the cache
   const { 
     data: fileData, 
     isLoading, 
     error, 
     refetch 
-  } = useFileCatalog({
-    // Refetching options
-    refetchOnWindowFocus: false,  // Don't refetch when window regains focus
-    staleTime: 5 * 60 * 1000,     // Consider data fresh for 5 minutes
-  });
-
-  // Auto-refresh file catalog when navigating to this page
-  useEffect(() => {
-    // Refetch the file catalog to show newly uploaded files
-    refetch();
-  }, []); // Empty dependency array means this runs once when component mounts
+  } = useFileCatalog();
   
   // Handle project filter from URL parameter
   useEffect(() => {

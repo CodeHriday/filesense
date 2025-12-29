@@ -9,23 +9,29 @@ const getAuthHeader = () => {
   return token ? { Authorization: `Bearer ${token}` } : {};
 };
 
-const fetchExecutiveMetrics = async (days = 30) => {
+const fetchExecutiveMetrics = async (days = 30, projectId = null) => {
+  const params = { days };
+  if (projectId) params.project_id = projectId;
   const response = await axios.get(`${API_URL}/dashboard/executive-metrics`, {
-    params: { days },
+    params,
     headers: getAuthHeader()
   });
   return response.data;
 };
 
-const fetchQualityTrend = async () => {
+const fetchQualityTrend = async (projectId = null) => {
+  const params = projectId ? { project_id: projectId } : {};
   const response = await axios.get(`${API_URL}/dashboard/quality-violations-trend`, {
+    params,
     headers: getAuthHeader()
   });
   return response.data;
 };
 
-const fetchJobTrend = async () => {
+const fetchJobTrend = async (projectId = null) => {
+  const params = projectId ? { project_id: projectId } : {};
   const response = await axios.get(`${API_URL}/dashboard/job-trend`, {
+    params,
     headers: getAuthHeader()
   });
   return response.data;
@@ -38,32 +44,45 @@ const fetchProjectHealth = async () => {
   return response.data;
 };
 
-const fetchFileTypeDistribution = async () => {
+const fetchFileTypeDistribution = async (projectId = null) => {
+  const params = projectId ? { project_id: projectId } : {};
   const response = await axios.get(`${API_URL}/dashboard/file-type-distribution`, {
+    params,
     headers: getAuthHeader()
   });
   return response.data;
 };
 
-const fetchSchemaDriftTrend = async () => {
+const fetchSchemaDriftTrend = async (projectId = null) => {
+  const params = projectId ? { project_id: projectId } : {};
   const response = await axios.get(`${API_URL}/dashboard/schema-drift-trend`, {
+    params,
     headers: getAuthHeader()
   });
   return response.data;
 };
 
-const fetchMetricTrends = async (granularity = 'daily') => {
+const fetchMetricTrends = async (granularity = 'daily', projectId = null) => {
+  const params = { granularity };
+  if (projectId) params.project_id = projectId;
   const response = await axios.get(`${API_URL}/dashboard/metric-trends`, {
-    params: { granularity },
+    params,
     headers: getAuthHeader()
   });
   return response.data;
 };
 
-export const useExecutiveMetrics = (days = 30, options = {}) => {
+const fetchProjects = async () => {
+  const response = await axios.get(`${API_URL}/projects`, {
+    headers: getAuthHeader()
+  });
+  return response.data;
+};
+
+export const useExecutiveMetrics = (days = 30, projectId = null, options = {}) => {
   return useQuery({
-    queryKey: QueryKeys.dashboard.executiveMetrics(days),
-    queryFn: () => fetchExecutiveMetrics(days),
+    queryKey: [...QueryKeys.dashboard.executiveMetrics(days), projectId],
+    queryFn: () => fetchExecutiveMetrics(days, projectId),
     staleTime: STALE_TIMES.DASHBOARD,
     cacheTime: CACHE_TIMES.STANDARD,
     refetchOnMount: false,
@@ -71,10 +90,10 @@ export const useExecutiveMetrics = (days = 30, options = {}) => {
   });
 };
 
-export const useQualityTrend = (options = {}) => {
+export const useQualityTrend = (projectId = null, options = {}) => {
   return useQuery({
-    queryKey: QueryKeys.dashboard.qualityTrend(),
-    queryFn: fetchQualityTrend,
+    queryKey: [...QueryKeys.dashboard.qualityTrend(), projectId],
+    queryFn: () => fetchQualityTrend(projectId),
     staleTime: STALE_TIMES.DASHBOARD,
     cacheTime: CACHE_TIMES.STANDARD,
     refetchOnMount: false,
@@ -82,10 +101,10 @@ export const useQualityTrend = (options = {}) => {
   });
 };
 
-export const useJobTrend = (options = {}) => {
+export const useJobTrend = (projectId = null, options = {}) => {
   return useQuery({
-    queryKey: QueryKeys.dashboard.jobTrend(),
-    queryFn: fetchJobTrend,
+    queryKey: [...QueryKeys.dashboard.jobTrend(), projectId],
+    queryFn: () => fetchJobTrend(projectId),
     staleTime: STALE_TIMES.DASHBOARD,
     cacheTime: CACHE_TIMES.STANDARD,
     refetchOnMount: false,
@@ -104,10 +123,10 @@ export const useProjectHealth = (options = {}) => {
   });
 };
 
-export const useFileTypeDistribution = (options = {}) => {
+export const useFileTypeDistribution = (projectId = null, options = {}) => {
   return useQuery({
-    queryKey: QueryKeys.dashboard.fileTypeDistribution(),
-    queryFn: fetchFileTypeDistribution,
+    queryKey: [...QueryKeys.dashboard.fileTypeDistribution(), projectId],
+    queryFn: () => fetchFileTypeDistribution(projectId),
     staleTime: STALE_TIMES.DASHBOARD,
     cacheTime: CACHE_TIMES.STANDARD,
     refetchOnMount: false,
@@ -115,10 +134,10 @@ export const useFileTypeDistribution = (options = {}) => {
   });
 };
 
-export const useSchemaDriftTrend = (options = {}) => {
+export const useSchemaDriftTrend = (projectId = null, options = {}) => {
   return useQuery({
-    queryKey: QueryKeys.dashboard.schemaDriftTrend(),
-    queryFn: fetchSchemaDriftTrend,
+    queryKey: [...QueryKeys.dashboard.schemaDriftTrend(), projectId],
+    queryFn: () => fetchSchemaDriftTrend(projectId),
     staleTime: STALE_TIMES.DASHBOARD,
     cacheTime: CACHE_TIMES.STANDARD,
     refetchOnMount: false,
@@ -126,12 +145,23 @@ export const useSchemaDriftTrend = (options = {}) => {
   });
 };
 
-export const useMetricTrends = (granularity = 'daily', options = {}) => {
+export const useMetricTrends = (granularity = 'daily', projectId = null, options = {}) => {
   return useQuery({
-    queryKey: QueryKeys.dashboard.metricTrends(granularity),
-    queryFn: () => fetchMetricTrends(granularity),
+    queryKey: [...QueryKeys.dashboard.metricTrends(granularity), projectId],
+    queryFn: () => fetchMetricTrends(granularity, projectId),
     staleTime: STALE_TIMES.DASHBOARD,
     cacheTime: CACHE_TIMES.STANDARD,
+    refetchOnMount: false,
+    ...options
+  });
+};
+
+export const useProjects = (options = {}) => {
+  return useQuery({
+    queryKey: QueryKeys.projects.list(),
+    queryFn: fetchProjects,
+    staleTime: STALE_TIMES.SLOW_CHANGING,
+    cacheTime: CACHE_TIMES.LONG,
     refetchOnMount: false,
     ...options
   });
