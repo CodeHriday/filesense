@@ -24,7 +24,9 @@ async function runProfiling(filePath, fileType) {
     const pythonScript = path.join(__dirname, 'utils', 'profile_columns.py');
     const args = [pythonScript, filePath, fileType];
     
-    const python = spawn('python3', args); // NOSONAR S4036 - PATH controlled in deployment environment, hardcoded command with validated script path
+    // Use virtual environment wrapper script to ensure dependencies are available
+    const venvScript = path.join(__dirname, 'run_python_with_venv.sh');
+    const python = spawn(venvScript, args); // NOSONAR S4036 - PATH controlled in deployment environment, hardcoded command with validated script path
     let stdout = '';
     let stderr = '';
     

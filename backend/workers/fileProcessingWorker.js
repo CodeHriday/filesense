@@ -1103,7 +1103,9 @@ class FileProcessingWorker {
         PYTHONPATH: workspaceRoot
       };
       
-      const python = spawn('python3', [pythonScript, filePath, fileType], { env }); // NOSONAR S4036 - PATH controlled in deployment environment, hardcoded command with validated script path
+      // Use virtual environment wrapper script to ensure dependencies are available
+      const venvScript = path.join(__dirname, '../../run_python_with_venv.sh');
+      const python = spawn(venvScript, [pythonScript, filePath, fileType], { env }); // NOSONAR S4036 - PATH controlled in deployment environment, hardcoded command with validated script path
       
       let stdout = '';
       let stderr = '';
@@ -1338,7 +1340,9 @@ class FileProcessingWorker {
         PYTHONPATH: workspaceRoot
       };
       
-      const python = spawn('python3', [pythonScript, filePath, fileType], { env }); // NOSONAR S4036 - PATH controlled in deployment environment, hardcoded command with validated script path
+      // Use virtual environment wrapper script to ensure dependencies are available
+      const venvScript = path.join(__dirname, '../../run_python_with_venv.sh');
+      const python = spawn(venvScript, [pythonScript, filePath, fileType], { env }); // NOSONAR S4036 - PATH controlled in deployment environment, hardcoded command with validated script path
       
       let stdout = '';
       let stderr = '';
@@ -1401,7 +1405,9 @@ class FileProcessingWorker {
         PYTHONPATH: workspaceRoot
       };
       
-      const python = spawn('python3', [pythonScript, filePath, fileType], { env }); // NOSONAR S4036 - PATH controlled in deployment environment, hardcoded command with validated script path
+      // Use virtual environment wrapper script to ensure dependencies are available
+      const venvScript = path.join(__dirname, '../../run_python_with_venv.sh');
+      const python = spawn(venvScript, [pythonScript, filePath, fileType], { env }); // NOSONAR S4036 - PATH controlled in deployment environment, hardcoded command with validated script path
       
       let stdout = '';
       let stderr = '';
@@ -1459,7 +1465,9 @@ result = detect_duplicate_rows('${filePath.replace(/'/g, "\\'")}', '${fileType}'
 print(json.dumps(result))
 `;
       
-      const python = spawn('python3', ['-c', pythonCode]); // NOSONAR S4036 - PATH controlled in deployment environment, hardcoded command with no user input in script
+      // Use virtual environment wrapper script to ensure dependencies are available
+      const venvScript = path.join(__dirname, '../../run_python_with_venv.sh');
+      const python = spawn(venvScript, ['-c', pythonCode]); // NOSONAR S4036 - PATH controlled in deployment environment, hardcoded command with no user input in script
       
       let stdout = '';
       let stderr = '';
