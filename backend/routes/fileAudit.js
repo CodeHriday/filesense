@@ -170,6 +170,13 @@ router.get('/:fileId', async (req, res) => {
  * Get all unique mapping names for dropdown filters (efficient query)
  */
 router.get('/unique-mappings', async (req, res) => {
+  // Prevent caching to ensure fresh data for dropdown filters
+  res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.set('Pragma', 'no-cache');
+  res.set('Expires', '0');
+  
+  console.log('[unique-mappings] Endpoint called with query:', req.query);
+  
   if (!req.user || !req.user.id) {
     return res.status(401).json({
       error: 'Authentication required',
@@ -184,6 +191,7 @@ router.get('/unique-mappings', async (req, res) => {
     // Check if user has all-project access
     const { getUserProjects, userHasAllProjectAccess } = require('../middleware/requireProjectAccess');
     const isAdmin = userHasAllProjectAccess(req.user);
+    console.log('[unique-mappings] isAdmin:', isAdmin, 'userId:', req.user.id);
     
     let conditions = [];
     let params = [];
@@ -225,10 +233,13 @@ router.get('/unique-mappings', async (req, res) => {
       ${whereClause}
       ORDER BY mapping_name
     `;
+    console.log('[unique-mappings] Executing mappings query with params:', params);
     const mappingsResult = await pool.query(mappingsQuery, params);
+    console.log('[unique-mappings] Raw mappings result:', mappingsResult.rows.length, 'rows');
     const mappings = mappingsResult.rows
       .filter(r => r.mapping_name)
       .map(r => r.mapping_name);
+    console.log('[unique-mappings] Filtered mappings:', mappings);
 
     // Get unique projects
     const projectsQuery = `
