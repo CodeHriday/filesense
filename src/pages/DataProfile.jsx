@@ -8,7 +8,7 @@ import FilePreview from '../components/FilePreview';
 import ErrorModal from '../components/ErrorModal';
 import SchemaHistoryTab from '../components/SchemaHistoryTab';
 import AIDQSuggestionsTab from '../components/AIDQSuggestionsTab';
-import { getFileDetails, getFileProfile} from '../api/fileService';
+import { getFileDetails, getFileProfile, getFileFullData } from '../api/fileService';
 import { getFileQualityRules, assignFileQualityRules } from '../api/qualityRulesService';
 import { formatBytes, formatDate, getTimeSince, formatNumber, formatDecimal } from '../utils/formatters';
 import { useAuth } from '../context/AuthContext';
@@ -1441,41 +1441,49 @@ function DataProfile() {
           return;
         }
         
-        console.log('Fetching file details and profile for fileId:', fileId);
-        const [fileData, profileData] = await Promise.all([
-          getFileDetails(fileId),
-          getFileProfile(fileId)
-        ]);
+        console.log('Fetching full file data for fileId:', fileId);
         
-        console.log('File details received:', fileData);
-        console.log('Profile data received:', profileData);
+        // Use batch endpoint to fetch all data in ONE API call
+        // Reduces 8+ API calls to 1 for better performance
+        const fullData = await getFileFullData(fileId);
         
-        setFile(fileData);
-        setProfile(profileData || {});
-        setError(null);
+        console.log('Full file data received:', fullData);
         
-        // Set file sensitivity from data_classification field (primary source) or ownership (fallback)
-        // Handle both snake_case and camelCase from API
-        const classification = fileData.data_classification || fileData.dataClassification;
-        if (classification) {
-          setFileSensitivity(classification);
+        // Extract and set all data from batch response
+        setFile(fullData.file);
+        setProfile(fullData.profile || {});
+        setOwnership(fullData.ownership);
+        setPolicies(fullData.filePolicies || []);
+        setFileTags(fullData.fileTags || []);
+        setAvailableTags(fullData.allGovernanceTags || []);
+        setAvailablePolicies(fullData.allGovernancePolicies || []);
+        
+        // Set column governance data
+        if (fullData.columnGovernance) {
+          const columns = fullData.profile?.columns || [];
+          const tagsMap = {};
+          const policiesMap = {};
+          
+          columns.forEach(column => {
+            const normalizedName = column.name?.toLowerCase();
+            tagsMap[column.name] = fullData.columnGovernance.tags?.[normalizedName] || [];
+            policiesMap[column.name] = fullData.columnGovernance.policies?.[normalizedName] || [];
+          });
+          
+          setAllColumnGovernanceTags(tagsMap);
+          setAllColumnPolicies(policiesMap);
         }
         
-        // Show the page immediately - governance data loads in background
-        setLoading(false);
+        // Set file sensitivity from data_classification field (primary source) or ownership (fallback)
+        const classification = fullData.file?.data_classification || fullData.file?.dataClassification;
+        if (classification) {
+          setFileSensitivity(classification);
+        } else if (fullData.ownership?.sensitivity_level) {
+          setFileSensitivity(fullData.ownership.sensitivity_level);
+        }
         
-        // Fetch governance data and column governance in parallel (non-blocking)
-        Promise.all([
-          fetchOwnership(),
-          fetchPolicies(),
-          fetchAvailableTags(),
-          fetchFileTags(),
-          fetchAvailablePolicies(),
-          // Include column governance in the same parallel batch
-          profileData && profileData.columns ? fetchAllColumnGovernanceData(profileData.columns) : Promise.resolve()
-        ]).catch(err => {
-          console.error('Error fetching governance data:', err);
-        });
+        setError(null);
+        setLoading(false);
       } catch (err) {
         console.error('Error fetching file data:', err);
         setError('Failed to load file data. Please try again later.');

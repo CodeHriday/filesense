@@ -5603,6 +5603,217 @@ app.get('/api/user/dashboard-settings', async (req, res) => {
   }
 });
 
+/**
+ * Batch endpoint for file profile page initialization
+ * Consolidates file details, profile, ownership, tags, policies, and governance data
+ * Reduces 8+ API calls to 1 for better performance
+ */
+app.get('/api/files/:fileId/full',
+  authenticateToken,
+  requireProjectAccess({
+    resourceType: 'file'
+  }),
+  async (req, res) => {
+  try {
+    const { fileId } = req.params;
+    const { normalizeDataType } = require('./backend/utils/schemaExtractor');
+    
+    // Fetch all data in parallel
+    const [
+      fileResult,
+      columnsResult,
+      ownershipResult,
+      fileTagsResult,
+      filePoliciesResult,
+      columnTagsResult,
+      columnPoliciesResult,
+      governanceTagsResult,
+      governancePoliciesResult
+    ] = await Promise.all([
+      dbPool.query('SELECT * FROM files WHERE file_id = $1', [fileId]),
+      dbPool.query('SELECT * FROM file_columns WHERE file_id = $1 ORDER BY column_index ASC', [fileId]),
+      dbPool.query('SELECT * FROM file_ownership WHERE file_id = $1', [fileId]),
+      dbPool.query(
+        `SELECT fta.*, gt.tag_name, gt.description, gt.color, gt.badge_style
+         FROM file_tag_assignments fta
+         JOIN governance_tags gt ON fta.tag_id = gt.tag_id
+         WHERE fta.file_id = $1
+         ORDER BY fta.assigned_at DESC`,
+        [fileId]
+      ),
+      dbPool.query(
+        `SELECT fpa.*, gp.policy_name, gp.description, gp.rules
+         FROM file_policy_assignments fpa
+         JOIN governance_policies gp ON fpa.policy_id = gp.policy_id
+         WHERE fpa.file_id = $1
+         ORDER BY fpa.assigned_at DESC`,
+        [fileId]
+      ),
+      dbPool.query(
+        `SELECT cgta.column_name, cgta.tag_id, gt.tag_name, gt.description, gt.color, gt.badge_style, cgta.assigned_at
+         FROM column_governance_tag_assignments cgta
+         JOIN governance_tags gt ON cgta.tag_id = gt.tag_id
+         WHERE cgta.file_id = $1
+         ORDER BY cgta.column_name, cgta.assigned_at DESC`,
+        [fileId]
+      ),
+      dbPool.query(
+        `SELECT cpa.column_name, cpa.policy_id, gp.policy_name, gp.description, gp.rules, cpa.assigned_at
+         FROM column_policy_assignments cpa
+         JOIN governance_policies gp ON cpa.policy_id = gp.policy_id
+         WHERE cpa.file_id = $1
+         ORDER BY cpa.column_name, cpa.assigned_at DESC`,
+        [fileId]
+      ),
+      dbPool.query('SELECT * FROM governance_tags ORDER BY created_at DESC'),
+      dbPool.query('SELECT * FROM governance_policies ORDER BY created_at DESC')
+    ]);
+    
+    if (fileResult.rows.length === 0) {
+      return res.status(404).json({ error: 'File not found' });
+    }
+    
+    const file = fileResult.rows[0];
+    
+    // Apply column-level access control
+    const columnAccessControl = require('./backend/services/columnAccessControl');
+    
+    // Group column governance data
+    const tagsByColumn = {};
+    for (const row of columnTagsResult.rows) {
+      if (!tagsByColumn[row.column_name]) tagsByColumn[row.column_name] = [];
+      tagsByColumn[row.column_name].push({
+        tag_id: row.tag_id,
+        tag_name: row.tag_name,
+        description: row.description,
+        color: row.color,
+        badge_style: row.badge_style,
+        assigned_at: row.assigned_at
+      });
+    }
+    
+    const policiesByColumn = {};
+    for (const row of columnPoliciesResult.rows) {
+      if (!policiesByColumn[row.column_name]) policiesByColumn[row.column_name] = [];
+      policiesByColumn[row.column_name].push({
+        policy_id: row.policy_id,
+        policy_name: row.policy_name,
+        description: row.description,
+        rules: row.rules,
+        assigned_at: row.assigned_at
+      });
+    }
+    
+    // Build column governance for access control
+    const columnGovernance = columnsResult.rows.map(col => ({
+      column_name: col.column_name,
+      tags: tagsByColumn[col.column_name] || [],
+      policies: policiesByColumn[col.column_name] || []
+    }));
+    
+    const { allowedColumns, maskedColumns, deniedColumns, summary: accessSummary } = 
+      columnAccessControl.filterColumns(req.user, columnGovernance, 'read');
+    
+    const maskedColumnNames = new Set(maskedColumns.map(c => c.column_name));
+    const deniedColumnNames = new Set(deniedColumns.map(c => c.column_name));
+    
+    // Build profile columns with access control
+    const columns = columnsResult.rows.map(col => {
+      const isMasked = maskedColumnNames.has(col.column_name);
+      const isDenied = deniedColumnNames.has(col.column_name);
+      
+      if (isMasked || isDenied) {
+        return {
+          name: col.column_name,
+          type: normalizeDataType(col.column_type),
+          count: col.non_null_count,
+          unique: col.unique_count,
+          missing: col.null_count,
+          min: '[REDACTED]',
+          max: '[REDACTED]',
+          mean: null,
+          median: null,
+          stdDev: null,
+          histogram: null,
+          most_frequent_value: '[REDACTED]',
+          least_frequent_value: '[REDACTED]',
+          _accessLevel: isMasked ? 'masked' : 'denied'
+        };
+      }
+      
+      return {
+        name: col.column_name,
+        type: normalizeDataType(col.column_type),
+        count: col.non_null_count,
+        unique: col.unique_count,
+        missing: col.null_count,
+        min: col.min_value,
+        max: col.max_value,
+        mean: col.mean_value,
+        median: col.median_value,
+        stdDev: col.std_dev,
+        histogram: col.histogram ? JSON.parse(col.histogram) : null,
+        most_frequent_value: col.most_frequent_value,
+        least_frequent_value: col.least_frequent_value,
+        _accessLevel: 'full'
+      };
+    });
+    
+    const profile = {
+      fileId,
+      fileName: file.filename,
+      fileType: file.file_type,
+      fileSize: file.file_size,
+      rowCount: file.row_count,
+      columnCount: file.column_count,
+      qualityScore: file.quality_score,
+      columns,
+      accessSummary,
+      processedAt: file.processed_at
+    };
+    
+    // Filter column governance data based on access control
+    // Only include governance data for columns the user can see
+    const allowedColumnNames = new Set(allowedColumns.map(c => c.column_name));
+    const filteredTagsByColumn = {};
+    const filteredPoliciesByColumn = {};
+    
+    for (const colName of Object.keys(tagsByColumn)) {
+      // Include governance data for allowed columns, plus masked columns (so UI can show why it's masked)
+      if (allowedColumnNames.has(colName) || maskedColumnNames.has(colName)) {
+        filteredTagsByColumn[colName] = tagsByColumn[colName];
+      }
+    }
+    
+    for (const colName of Object.keys(policiesByColumn)) {
+      if (allowedColumnNames.has(colName) || maskedColumnNames.has(colName)) {
+        filteredPoliciesByColumn[colName] = policiesByColumn[colName];
+      }
+    }
+    
+    logger.info('File full data fetched', {
+      userId: req.user.id,
+      fileId,
+      columnsCount: columns.length,
+      accessSummary
+    });
+    
+    res.json({
+      file,
+      profile,
+      ownership: ownershipResult.rows[0] || null,
+      fileTags: fileTagsResult.rows,
+      filePolicies: filePoliciesResult.rows,
+      columnGovernance: { tags: filteredTagsByColumn, policies: filteredPoliciesByColumn },
+      allGovernanceTags: governanceTagsResult.rows,
+      allGovernancePolicies: governancePoliciesResult.rows
+    });
+  } catch (err) {
+    logger.error('Error fetching file full data', { error: err.message, fileId: req.params.fileId });
+    res.status(500).json({ error: 'Failed to fetch file data' });
+  }
+});
+
 // File profile endpoint (with column-level access control for statistics)
 app.get('/api/files/:fileId/profile', 
   authenticateToken, 

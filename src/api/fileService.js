@@ -100,6 +100,28 @@ export const getFileProfile = async (fileId) => {
 };
 
 /**
+ * Get full file data for profile page (batch endpoint)
+ * Consolidates file, profile, ownership, tags, policies, and governance data
+ * Reduces 8+ API calls to 1 for better performance
+ */
+export const getFileFullData = async (fileId) => {
+  if (!fileId) {
+    console.error('Error fetching file full data: No file ID provided');
+    return Promise.reject(new Error('No file ID provided'));
+  }
+  
+  try {
+    const encodedFileId = encodeURIComponent(fileId);
+    const response = await axios.get(`${API_URL}/files/${encodedFileId}/full`);
+    console.log('File full data fetch successful:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error(`Error fetching file full data for ${fileId}:`, error);
+    throw new Error(error.response?.data?.message || 'Failed to fetch file data');
+  }
+};
+
+/**
  * Get file quality metrics by ID
  */
 export const getFileQuality = async (fileId) => {

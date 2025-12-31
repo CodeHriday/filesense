@@ -3,7 +3,8 @@ import {
   getFileCatalog,
   getFileCatalogInitData,
   getFileDetails, 
-  getFileProfile, 
+  getFileProfile,
+  getFileFullData,
   getFileQuality, 
   uploadFile, 
   runQualityCheck, 
@@ -66,6 +67,23 @@ export const useFileProfile = (fileId, options = {}) => {
   return useQuery({
     queryKey: QueryKeys.files.profile(fileId),
     queryFn: () => getFileProfile(fileId),
+    enabled: !!fileId,
+    staleTime: STALE_TIMES.STANDARD,
+    gcTime: CACHE_TIMES.STANDARD,
+    refetchOnMount: false,
+    ...options
+  });
+};
+
+/**
+ * Hook for fetching full file data for profile page (batch endpoint)
+ * Consolidates file, profile, ownership, tags, policies, and governance data
+ * Reduces 8+ API calls to 1 for better performance
+ */
+export const useFileFullData = (fileId, options = {}) => {
+  return useQuery({
+    queryKey: [...QueryKeys.files.byId(fileId), 'full'],
+    queryFn: () => getFileFullData(fileId),
     enabled: !!fileId,
     staleTime: STALE_TIMES.STANDARD,
     gcTime: CACHE_TIMES.STANDARD,
