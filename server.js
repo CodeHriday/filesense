@@ -2600,6 +2600,21 @@ app.post('/api/files/upload', authenticateToken, invalidateCache('cache:*:*files
           fileHash: fileHash.substring(0, 16) + '...'
         });
         
+        // Create placeholder file record immediately to prevent 404 race condition during status polling
+        try {
+          await dbPool.query(`
+            INSERT INTO files (file_id, filename, file_type, file_size, project_id, processing_step, checksum, created_at)
+            VALUES ($1, $2, $3, $4, $5, 'queued', $6, NOW())
+            ON CONFLICT (file_id) DO NOTHING
+          `, [fileId, file.originalname, fileType, file.size, projectId, fileHash]);
+          logger.info('Placeholder file record created', { fileId, filename: file.originalname });
+        } catch (placeholderError) {
+          logger.warn('Failed to create placeholder file record - processing will continue', { 
+            fileId, 
+            error: placeholderError.message 
+          });
+        }
+        
         // Store ad-hoc archive password in vault if provided (for password-protected archives)
         if (archivePassword) {
           const passwordVaultService = diContainer.get('passwordVaultService');
