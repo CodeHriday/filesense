@@ -455,8 +455,8 @@ const AuditTrail = () => {
                               <span>{isArchive ? 'Archive' : 'Active'}</span>
                             </div>
                           </td>
-                          <td style={{ fontWeight: 600 }}>{data?.count ? data.count.toLocaleString() : '0'}</td>
-                          <td>{data?.oldest_record ? new Date(data.oldest_record).toLocaleDateString() : 'N/A'}</td>
+                          <td style={{ fontWeight: 600 }}>{(data?.total_records || data?.count || 0).toLocaleString()}</td>
+                          <td>{(data?.total_records > 0 || data?.count > 0) && data?.oldest_record ? new Date(data.oldest_record).toLocaleDateString() : 'N/A'}</td>
                         </tr>
                       );
                     })}
