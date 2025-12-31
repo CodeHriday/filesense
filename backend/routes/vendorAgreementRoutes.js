@@ -449,9 +449,13 @@ router.get('/init-data', async (req, res) => {
     let usersResult = { rows: [] };
     if (isAdminUser || hasWritePermission) {
       usersResult = await dbQuery(`
-        SELECT id, username, email, first_name, last_name
-        FROM users
-        ORDER BY first_name, last_name
+        SELECT u.id, u.username, u.email, u.first_name, u.last_name,
+               COALESCE(ARRAY_AGG(r.name) FILTER (WHERE r.name IS NOT NULL), ARRAY[]::text[]) as roles
+        FROM users u
+        LEFT JOIN user_roles ur ON u.id = ur.user_id
+        LEFT JOIN roles r ON ur.role_id = r.id
+        GROUP BY u.id, u.username, u.email, u.first_name, u.last_name
+        ORDER BY u.first_name, u.last_name
         LIMIT 1000
       `);
     }
