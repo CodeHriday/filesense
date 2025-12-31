@@ -138,7 +138,10 @@ const RoleManagement = () => {
   const initializeTagPermissions = () => {
     const tagPerms = {};
     governanceTags.forEach(tag => {
-      tagPerms[tag.tag_name.toLowerCase()] = { read: false, edit: false };
+      const tagName = tag?.tag_name || tag?.name;
+      if (tagName) {
+        tagPerms[tagName.toLowerCase()] = { read: false, edit: false };
+      }
     });
     return tagPerms;
   };
@@ -315,7 +318,9 @@ const RoleManagement = () => {
     setFormData(prev => {
       const updatedTagPermissions = { ...prev.tagPermissions };
       governanceTags.forEach(tag => {
-        const tagKey = tag.tag_name.toLowerCase();
+        const tagName = tag?.tag_name || tag?.name;
+        if (!tagName) return;
+        const tagKey = tagName.toLowerCase();
         updatedTagPermissions[tagKey] = {
           read: checked,
           edit: checked
@@ -328,7 +333,9 @@ const RoleManagement = () => {
   // Check if all tag permissions are selected
   const isAllTagPermissionsSelected = () => {
     return governanceTags.length > 0 && governanceTags.every(tag => {
-      const tagKey = tag.tag_name.toLowerCase();
+      const tagName = tag?.tag_name || tag?.name;
+      if (!tagName) return true; // Skip invalid tags
+      const tagKey = tagName.toLowerCase();
       const perms = formData.tagPermissions?.[tagKey];
       return perms?.read && perms?.edit;
     });
@@ -1020,15 +1027,17 @@ const RoleManagement = () => {
                   <div className="section-divider"></div>
                   
                   {governanceTags.map(tag => {
-                    const tagKey = tag.tag_name.toLowerCase();
+                    const tagName = tag?.tag_name || tag?.name;
+                    if (!tagName) return null;
+                    const tagKey = tagName.toLowerCase();
                     return (
-                      <React.Fragment key={tag.tag_id}>
+                      <React.Fragment key={tag.tag_id || tag.id}>
                         <div className="feature-name" style={{ fontSize: '10px' }}>
                           <span 
                             className="tag-badge-inline" 
                             style={{ backgroundColor: tag.color || '#3B82F6', fontSize: '8px', padding: '2px 6px' }}
                           >
-                            {tag.tag_name}
+                            {tagName}
                           </span>
                           {tag.sensitivity_level && (
                             <span className="tag-sensitivity-hint" style={{ fontSize: '9px' }}>
@@ -1042,7 +1051,7 @@ const RoleManagement = () => {
                             id={`tag-${tagKey}-read`}
                             checked={formData.tagPermissions?.[tagKey]?.read || false}
                             onChange={(e) => handleTagPermissionChange(tagKey, 'read', e.target.checked)}
-                            aria-label={`View permission for ${tag.tag_name} tagged data`}
+                            aria-label={`View permission for ${tagName} tagged data`}
                           />
                         </div>
                         <div className="permission-checkbox">
@@ -1051,7 +1060,7 @@ const RoleManagement = () => {
                             id={`tag-${tagKey}-edit`}
                             checked={formData.tagPermissions?.[tagKey]?.edit || false}
                             onChange={(e) => handleTagPermissionChange(tagKey, 'edit', e.target.checked)}
-                            aria-label={`Edit permission for ${tag.tag_name} tagged data`}
+                            aria-label={`Edit permission for ${tagName} tagged data`}
                             disabled={!formData.tagPermissions?.[tagKey]?.read}
                           />
                         </div>

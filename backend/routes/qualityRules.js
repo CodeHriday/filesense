@@ -254,7 +254,7 @@ module.exports = (dbPool, authenticate) => {
       const countParams = [...rulesParams.slice(0, -2)];
       
       let projectsQuery = `
-        SELECT id, name, description, project_type, parent_id, parent_project_id, created_at
+        SELECT id, name, description, project_type, parent_id, created_at
         FROM projects
         WHERE 1=1
       `;
