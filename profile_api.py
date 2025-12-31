@@ -25,6 +25,7 @@ import pyreadstat
 import fastavro
 import struct
 import io
+import re
 from pathlib import Path
 
 # Import existing profiling modules
@@ -499,12 +500,14 @@ def load_csv(file_path, delimiter=None, header_config=None):
     
     if delimiter:
         # Use specified delimiter (supports multi-character delimiters)
-        logger.info(f"Using specified delimiter: {repr(delimiter)}")
+        # Escape delimiter for regex since pandas python engine treats sep as regex
+        escaped_delimiter = re.escape(delimiter)
+        logger.info(f"Using specified delimiter: {repr(delimiter)} (escaped: {repr(escaped_delimiter)})")
         if header_param is None and column_names:
-            df = pd.read_csv(file_path, sep=delimiter, engine='python', header=None, names=column_names)
+            df = pd.read_csv(file_path, sep=escaped_delimiter, engine='python', header=None, names=column_names)
             raw_headers = column_names
         else:
-            df = pd.read_csv(file_path, sep=delimiter, engine='python')
+            df = pd.read_csv(file_path, sep=escaped_delimiter, engine='python')
             raw_headers = list(df.columns)
     else:
         # Auto-detect delimiter
@@ -878,18 +881,20 @@ def load_dat(file_path, fixed_width_schema=None, delimiter=None, header_config=N
         # Strategy 0.5: User-provided delimiter (second priority after schema)
         if delimiter:
             try:
-                logger.info(f"Trying user-provided delimiter for DAT file: {repr(delimiter)}")
+                # Escape delimiter for regex since pandas python engine treats sep as regex
+                escaped_delimiter = re.escape(delimiter)
+                logger.info(f"Trying user-provided delimiter for DAT file: {repr(delimiter)} (escaped: {repr(escaped_delimiter)})")
                 
                 # Check if header configuration is provided
                 if header_config and not header_config.get('hasHeader', True):
                     # File has no headers - use provided column names
                     column_names = header_config.get('columnNames', [])
                     logger.info(f"DAT file has no headers, using provided column names: {column_names}")
-                    df = pd.read_csv(file_path, sep=delimiter, engine='python', header=None, names=column_names)
+                    df = pd.read_csv(file_path, sep=escaped_delimiter, engine='python', header=None, names=column_names)
                     raw_headers = column_names
                 else:
                     # File has headers or no config provided
-                    df = pd.read_csv(file_path, sep=delimiter, engine='python')
+                    df = pd.read_csv(file_path, sep=escaped_delimiter, engine='python')
                     raw_headers = list(df.columns)
                 
                 if len(df.columns) > 1 and len(df) > 0:
