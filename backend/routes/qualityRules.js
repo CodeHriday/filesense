@@ -278,7 +278,7 @@ module.exports = (dbPool, authenticate) => {
             COUNT(qrv.id) as total_violations
           FROM quality_rules qr
           LEFT JOIN quality_rule_violations qrv ON qr.id = qrv.rule_id
-            AND qrv.violation_timestamp >= NOW() - INTERVAL '1 day' * $1
+            AND qrv.created_at >= NOW() - INTERVAL '1 day' * $1
           WHERE qr.project_id = ANY($2) OR qr.project_id IS NULL
           GROUP BY qr.id, qr.name, qr.rule_type
           ORDER BY total_violations DESC
@@ -294,7 +294,7 @@ module.exports = (dbPool, authenticate) => {
             COUNT(qrv.id) as total_violations
           FROM quality_rules qr
           LEFT JOIN quality_rule_violations qrv ON qr.id = qrv.rule_id
-            AND qrv.violation_timestamp >= NOW() - INTERVAL '1 day' * $1
+            AND qrv.created_at >= NOW() - INTERVAL '1 day' * $1
           GROUP BY qr.id, qr.name, qr.rule_type
           ORDER BY total_violations DESC
           LIMIT 50
