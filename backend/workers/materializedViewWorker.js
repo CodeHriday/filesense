@@ -7,7 +7,7 @@
  * Refresh intervals can be configured per view based on data freshness requirements.
  */
 
-const { pool } = require('../config/database');
+const { query: dbQuery } = require('../config/database');
 const { systemLogger } = require('../utils/logger');
 
 // View refresh configurations
@@ -43,7 +43,7 @@ async function refreshView(viewName, concurrent = true) {
   
   try {
     // Check if view exists
-    const viewCheck = await pool.query(`
+    const viewCheck = await dbQuery(`
       SELECT EXISTS (
         SELECT FROM pg_matviews 
         WHERE matviewname = $1
@@ -64,7 +64,7 @@ async function refreshView(viewName, concurrent = true) {
       ? `REFRESH MATERIALIZED VIEW CONCURRENTLY ${viewName}`
       : `REFRESH MATERIALIZED VIEW ${viewName}`;
     
-    await pool.query(refreshSQL);
+    await dbQuery(refreshSQL);
     
     const duration = Date.now() - startTime;
     lastRefreshTimes[viewName] = Date.now();
@@ -226,7 +226,7 @@ function stopWorker() {
 async function getDatabaseStats() {
   try {
     // Get table sizes
-    const tableSizes = await pool.query(`
+    const tableSizes = await dbQuery(`
       SELECT
         relname as table_name,
         reltuples::BIGINT as row_estimate,
@@ -239,7 +239,7 @@ async function getDatabaseStats() {
     `);
 
     // Get index usage
-    const indexUsage = await pool.query(`
+    const indexUsage = await dbQuery(`
       SELECT
         schemaname,
         relname as table_name,
@@ -254,7 +254,7 @@ async function getDatabaseStats() {
     `);
 
     // Get cache hit ratio
-    const cacheStats = await pool.query(`
+    const cacheStats = await dbQuery(`
       SELECT 
         sum(heap_blks_read) as heap_read,
         sum(heap_blks_hit) as heap_hit,

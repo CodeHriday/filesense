@@ -1,4 +1,4 @@
-const { pool } = require('../config/database');
+const { query: dbQuery } = require('../config/database');
 
 /**
  * Migration Tracker
@@ -17,7 +17,7 @@ class MigrationTracker {
     if (this.initialized) return;
 
     try {
-      await pool.query(`
+      await dbQuery(`
         CREATE TABLE IF NOT EXISTS schema_migrations (
           id SERIAL PRIMARY KEY,
           migration_name VARCHAR(255) UNIQUE NOT NULL,
@@ -43,7 +43,7 @@ class MigrationTracker {
     await this.initialize();
 
     try {
-      const result = await pool.query(
+      const result = await dbQuery(
         'SELECT id FROM schema_migrations WHERE migration_name = $1 AND success = true',
         [migrationName]
       );
@@ -64,7 +64,7 @@ class MigrationTracker {
     await this.initialize();
 
     try {
-      await pool.query(
+      await dbQuery(
         `INSERT INTO schema_migrations (migration_name, success, error_message) 
          VALUES ($1, $2, $3)
          ON CONFLICT (migration_name) 
