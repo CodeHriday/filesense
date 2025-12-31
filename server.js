@@ -1228,8 +1228,8 @@ app.get('/api/files/init-data', authenticateToken, attachVendorProfile, async (r
     // Fetch all data in parallel
     const [filesResult, projectsResult, subProjectsResult] = await Promise.all([
       fileService.getAllFiles(filterOptions),
-      pool.query(projectsQuery, projectsParams),
-      pool.query(subProjectsQuery, subProjectsParams)
+      dbPool.query(projectsQuery, projectsParams),
+      dbPool.query(subProjectsQuery, subProjectsParams)
     ]);
     
     let files = filesResult.files || filesResult;
