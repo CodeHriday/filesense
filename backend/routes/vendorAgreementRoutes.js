@@ -410,7 +410,9 @@ router.get('/init-data', async (req, res) => {
       
       try {
         const vendorsResult = await dbQuery(`
-          SELECT id, vendor_name, vendor_code, status, vendor_type
+          SELECT id, vendor_name, vendor_code, status, vendor_type, vendor_onboarding_date,
+                 contact_name, contact_email, contact_phone,
+                 backup_contact_name, backup_contact_email, backup_contact_phone
           FROM vendors
           WHERE status = 'active'
           ORDER BY vendor_name
@@ -428,7 +430,9 @@ router.get('/init-data', async (req, res) => {
         const userVendorId = vendorResult.rows[0].id;
         try {
           const vendorsResult = await dbQuery(`
-            SELECT id, vendor_name, vendor_code, status, vendor_type
+            SELECT id, vendor_name, vendor_code, status, vendor_type, vendor_onboarding_date,
+                   contact_name, contact_email, contact_phone,
+                   backup_contact_name, backup_contact_email, backup_contact_phone
             FROM vendors
             WHERE id = $1 AND status = 'active'
           `, [userVendorId]);

@@ -390,8 +390,8 @@ const VendorAgreements = () => {
       if (selectedVendor) {
         const newVendorCode = selectedVendor.vendor_code || '';
         const newVendorType = selectedVendor.vendor_type || '';
-        const newOnboardingDate = selectedVendor.created_at 
-          ? new Date(selectedVendor.created_at).toISOString().split('T')[0] 
+        const newOnboardingDate = selectedVendor.vendor_onboarding_date 
+          ? new Date(selectedVendor.vendor_onboarding_date).toISOString().split('T')[0] 
           : '';
         
         // Extract primary contact information from vendor
