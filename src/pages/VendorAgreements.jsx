@@ -390,9 +390,26 @@ const VendorAgreements = () => {
       if (selectedVendor) {
         const newVendorCode = selectedVendor.vendor_code || '';
         const newVendorType = selectedVendor.vendor_type || '';
-        const newOnboardingDate = selectedVendor.vendor_onboarding_date 
-          ? new Date(selectedVendor.vendor_onboarding_date).toISOString().split('T')[0] 
-          : '';
+        // Parse onboarding date - handle both ISO format (with T) and PostgreSQL format (with space)
+        let newOnboardingDate = '';
+        if (selectedVendor.vendor_onboarding_date) {
+          try {
+            const dateStr = String(selectedVendor.vendor_onboarding_date);
+            // Try to extract YYYY-MM-DD from various formats
+            const isoMatch = dateStr.match(/^(\d{4}-\d{2}-\d{2})/);
+            if (isoMatch) {
+              newOnboardingDate = isoMatch[1];
+            } else {
+              // Fall back to Date parsing
+              const parsed = new Date(dateStr);
+              if (!isNaN(parsed.getTime())) {
+                newOnboardingDate = parsed.toISOString().split('T')[0];
+              }
+            }
+          } catch (e) {
+            console.error('Error parsing vendor_onboarding_date:', e);
+          }
+        }
         
         // Extract primary contact information from vendor
         const newPrimaryContactName = selectedVendor.contact_name || '';
