@@ -21,6 +21,20 @@ function FileDropzone({ onFileDrop, onBatchFileDrop, onFilesChange, acceptedFile
     }
   }, [uploadingFiles, onFilesChange]);
   
+  const resetState = useCallback(() => {
+    setUploadStatus(null);
+    setFileError(null);
+    setFileName(null);
+    setFileSize(null);
+    setUploadProgress(0);
+    setProcessingStep(null);
+    setUploadingFiles([]);
+    setCompletedFiles([]);
+    if (onFilesChange) {
+      onFilesChange([]);
+    }
+  }, [onFilesChange]);
+  
   const getAcceptString = useCallback(() => {
     const mimeTypes = {
       '.tar.gz': 'application/gzip,application/x-gzip,application/x-compressed-tar',
@@ -323,6 +337,12 @@ function FileDropzone({ onFileDrop, onBatchFileDrop, onFilesChange, acceptedFile
         if (error) {
           setFileError(error);
           setUploadStatus('error');
+          setFileName(file.name);
+          setFileSize(formatFileSize(file.size));
+          setUploadingFiles([]);
+          if (onFilesChange) {
+            onFilesChange([]);
+          }
           return;
         }
         
@@ -334,7 +354,7 @@ function FileDropzone({ onFileDrop, onBatchFileDrop, onFilesChange, acceptedFile
         processFileUpload(file);
       }
     }
-  }, [validateFile, processFileUpload, multiple, onBatchFileDrop]);
+  }, [validateFile, processFileUpload, multiple, onBatchFileDrop, onFilesChange]);
   
   const handleFileSelect = useCallback(async (e) => {
     const files = Array.from(e.target.files);
@@ -486,6 +506,12 @@ function FileDropzone({ onFileDrop, onBatchFileDrop, onFilesChange, acceptedFile
         if (error) {
           setFileError(error);
           setUploadStatus('error');
+          setFileName(file.name);
+          setFileSize(formatFileSize(file.size));
+          setUploadingFiles([]);
+          if (onFilesChange) {
+            onFilesChange([]);
+          }
           return;
         }
         
@@ -497,7 +523,7 @@ function FileDropzone({ onFileDrop, onBatchFileDrop, onFilesChange, acceptedFile
         processFileUpload(file);
       }
     }
-  }, [validateFile, processFileUpload, multiple, onBatchFileDrop]);
+  }, [validateFile, processFileUpload, multiple, onBatchFileDrop, onFilesChange]);
   
   // Use externalStatus if provided, otherwise use internal uploadStatus
   const currentStatus = externalStatus || uploadStatus;
@@ -583,6 +609,13 @@ function FileDropzone({ onFileDrop, onBatchFileDrop, onFilesChange, acceptedFile
                 ))}
               </div>
             )}
+            <button 
+              type="button"
+              className="try-again-button"
+              onClick={resetState}
+            >
+              Try Again
+            </button>
           </div>
         ) : uploadStatus === 'partial' ? (
           <div className="upload-error">
@@ -602,6 +635,13 @@ function FileDropzone({ onFileDrop, onBatchFileDrop, onFilesChange, acceptedFile
                 ))}
               </div>
             )}
+            <button 
+              type="button"
+              className="try-again-button"
+              onClick={resetState}
+            >
+              Upload More Files
+            </button>
           </div>
         ) : uploadStatus === 'uploading' ? (
           <div className="upload-progress">
