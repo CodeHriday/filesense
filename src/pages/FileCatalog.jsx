@@ -113,7 +113,7 @@ export const FileCatalog = ({ onFileSelect }) => {
     if (selectedProject === 'all') return [];
     
     const allSubProjects = initData?.subProjects || [];
-    return allSubProjects.filter(sp => sp.parent_project_id === selectedProject);
+    return allSubProjects.filter(sp => sp.parent_id === selectedProject);
   }, [initData, selectedProject]);
   
   // Reset subproject filter when project changes

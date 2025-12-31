@@ -1181,11 +1181,11 @@ app.get('/api/files/init-data', authenticateToken, attachVendorProfile, async (r
       }
     }
     
-    // Build projects query
+    // Build projects query (parent_id is the column name for parent project)
     let projectsQuery = `
-      SELECT id, name, description, parent_project_id, is_archived
+      SELECT id, name, description, parent_id, is_archived
       FROM projects
-      WHERE parent_project_id IS NULL
+      WHERE parent_id IS NULL
         AND (is_archived IS NULL OR is_archived = false)
     `;
     const projectsParams = [];
@@ -1198,15 +1198,15 @@ app.get('/api/files/init-data', authenticateToken, attachVendorProfile, async (r
     
     // Build sub-projects query
     let subProjectsQuery = `
-      SELECT id, name, description, parent_project_id
+      SELECT id, name, description, parent_id
       FROM projects
-      WHERE parent_project_id IS NOT NULL
+      WHERE parent_id IS NOT NULL
         AND (is_archived IS NULL OR is_archived = false)
     `;
     const subProjectsParams = [];
     
     if (!isAdmin) {
-      subProjectsQuery += ` AND parent_project_id = ANY($1)`;
+      subProjectsQuery += ` AND parent_id = ANY($1)`;
       subProjectsParams.push(accessibleProjectIds);
     }
     subProjectsQuery += ` ORDER BY name`;
