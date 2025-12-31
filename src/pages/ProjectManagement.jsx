@@ -1075,6 +1075,9 @@ function ProjectManagement() {
               <button type="button" className="gps-btn gps-btn--secondary" onClick={handleCloseEditModal}>
                 Close
               </button>
+              <button type="button" className="gps-btn gps-btn--primary" onClick={handleUpdate}>
+                Save Changes
+              </button>
             </div>
           </div>
         </div>
