@@ -596,6 +596,7 @@ const storage = multer.diskStorage({
 const MAX_FILE_SIZE = process.env.MAX_FILE_SIZE || (25 * 1024 * 1024); // Default 25MB - use Mapping Jobs for larger files
 const ALLOWED_FILE_TYPES = [
   'text/csv',
+  'text/plain', // For .txt files with custom delimiters
   'application/json',
   'application/vnd.apache.parquet',
   'application/x-parquet',
@@ -620,6 +621,8 @@ const ALLOWED_FILE_TYPES = [
 ];
 const ALLOWED_EXTENSIONS = [
   '.csv', '.json', '.parquet', '.xlsx', '.xml',
+  // Text files with custom delimiters
+  '.txt',
   // Archive formats
   '.tar', '.zip', '.gz', '.gzip', '.7z',
   // Data formats

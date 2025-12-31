@@ -1116,7 +1116,7 @@ def get_file_extension(filename):
 def profile_vendor_file(file_path, filename, password=None, fixed_width_schema=None, delimiter=None, header_config=None):
     """
     Run comprehensive quality profiling on a vendor file
-    Supports: CSV, JSON, XLSX, Parquet, XML, SAS (.sas7bdat, .xpt), Avro, DAT, Archives (.zip, .tar, .tar.gz, .tar.bz2)
+    Supports: CSV, TXT (with custom delimiter), JSON, XLSX, Parquet, XML, SAS (.sas7bdat, .xpt), Avro, DAT, Archives (.zip, .tar, .tar.gz, .tar.bz2)
     
     header_config: Optional dict with keys:
         - hasHeader (bool): Whether file has a header row
@@ -1140,7 +1140,7 @@ def profile_vendor_file(file_path, filename, password=None, fixed_width_schema=N
     format_metadata = {}
     
     try:
-        if file_ext == '.csv':
+        if file_ext in ['.csv', '.txt']:
             df, raw_headers, format_metadata = load_csv(file_path, delimiter=delimiter, header_config=header_config)
         elif file_ext in ['.xlsx', '.xls']:
             df, raw_headers, format_metadata = load_excel(file_path)

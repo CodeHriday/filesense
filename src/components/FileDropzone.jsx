@@ -38,6 +38,7 @@ function FileDropzone({ onFileDrop, onBatchFileDrop, onFilesChange, acceptedFile
       '.parquet': 'application/vnd.apache.parquet,application/x-parquet,application/octet-stream',
       '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
       '.csv': 'text/csv,text/plain',
+      '.txt': 'text/plain',
       '.json': 'application/json',
       '.xml': 'text/xml,application/xml'
     };
