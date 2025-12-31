@@ -23,6 +23,9 @@ const ProcessedFileCatalog = () => {
   const [itemsPerPage, setItemsPerPage] = useState(25);
   const [confirmModal, setConfirmModal] = useState({ isOpen: false, action: null, message: '', title: '' });
 
+  const [allMappings, setAllMappings] = useState([]);
+  const [allProjects, setAllProjects] = useState([]);
+
   const fetchTransformationFiles = useCallback(async () => {
     try {
       setLoading(true);
@@ -42,9 +45,25 @@ const ProcessedFileCatalog = () => {
     }
   }, []);
 
+  // Fetch all unique mappings and projects for dropdowns (separate efficient query)
+  const fetchDropdownData = useCallback(async () => {
+    try {
+      const response = await axios.get('/api/file-audit/unique-mappings', {
+        params: { load_type: 'etl_transformation', file_role: 'target' }
+      });
+      if (response.data.success) {
+        setAllMappings(response.data.mappings || []);
+        setAllProjects(response.data.projects || []);
+      }
+    } catch (err) {
+      console.error('Error fetching dropdown data:', err);
+    }
+  }, []);
+
   useEffect(() => {
     fetchTransformationFiles();
-  }, [fetchTransformationFiles]);
+    fetchDropdownData();
+  }, [fetchTransformationFiles, fetchDropdownData]);
 
   useEffect(() => {
     const handleFileUploaded = (event) => {
@@ -58,22 +77,8 @@ const ProcessedFileCatalog = () => {
     };
   }, [fetchTransformationFiles]);
 
-  const uniqueMappings = useMemo(() => {
-    const mappings = files
-      .filter(f => f.mapping_name)
-      .map(f => f.mapping_name)
-      .filter((name, index, self) => self.indexOf(name) === index)
-      .sort();
-    return mappings;
-  }, [files]);
-
-  const uniqueProjects = useMemo(() => {
-    const projects = files
-      .filter(f => f.project_name)
-      .map(f => ({ id: f.project_id, name: f.project_name }))
-      .filter((p, index, self) => self.findIndex(s => s.id === p.id) === index);
-    return projects;
-  }, [files]);
+  // Use allMappings and allProjects from dedicated API endpoint
+  // (more efficient than extracting from paginated file results)
 
   const filteredFiles = useMemo(() => {
     let result = files;
@@ -200,7 +205,7 @@ const ProcessedFileCatalog = () => {
               style={{ flex: '0 1 160px' }}
             >
               <option value="all">All Mappings</option>
-              {uniqueMappings.map(mapping => (
+              {allMappings.map(mapping => (
                 <option key={mapping} value={mapping}>{mapping}</option>
               ))}
             </select>
@@ -211,7 +216,7 @@ const ProcessedFileCatalog = () => {
               style={{ flex: '0 1 160px' }}
             >
               <option value="all">All Projects</option>
-              {uniqueProjects.map(project => (
+              {allProjects.map(project => (
                 <option key={project.id} value={project.id}>{project.name}</option>
               ))}
             </select>
