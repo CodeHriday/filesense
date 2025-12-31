@@ -18,6 +18,22 @@ export const testApiConnection = async () => {
 };
 
 /**
+ * Get the file catalog initialization data (batch endpoint)
+ * Returns { files: Array, totalCount: number, projects: Array, subProjects: Array }
+ */
+export const getFileCatalogInitData = async () => {
+  try {
+    console.log('Fetching file catalog init data...');
+    const response = await axios.get(`${API_URL}/files/init-data`);
+    console.log('File catalog init data fetch successful:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching file catalog init data:', error);
+    throw new Error(error.response?.data?.message || 'Failed to fetch file catalog');
+  }
+};
+
+/**
  * Get the file catalog
  * Returns { files: Array, totalCount: number }
  */

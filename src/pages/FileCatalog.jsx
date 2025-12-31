@@ -5,7 +5,7 @@ import { useQueryClient, useMutation } from '@tanstack/react-query';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ConfirmationModal from '../components/ConfirmationModal';
 import SimpleSuccessModal from '../components/SimpleSuccessModal';
-import { useFileCatalog, useFileDelete } from '../hooks';
+import { useFileCatalogInitData, useFileDelete } from '../hooks';
 import { QueryKeys } from '../lib/react-query';
 import { QualityTooltip } from '../components/QualityTooltip';
 import { DLQBadge } from '../components/DLQBadge';
@@ -40,15 +40,16 @@ export const FileCatalog = ({ onFileSelect }) => {
   const [passwordModalFile, setPasswordModalFile] = useState(null);
   const [isSubmittingPassword, setIsSubmittingPassword] = useState(false);
   
-  // Using React Query to fetch file catalog
+  // Using React Query to fetch file catalog with batch endpoint
+  // Consolidates files, projects, and sub-projects into a single API call
   // Caching is configured in useFiles.js: 30s stale, 3min cache
   // Mutations (upload, delete) automatically invalidate the cache
   const { 
-    data: fileData, 
+    data: initData, 
     isLoading, 
     error, 
     refetch 
-  } = useFileCatalog();
+  } = useFileCatalogInitData();
   
   // Handle project filter from URL parameter
   useEffect(() => {
@@ -97,30 +98,23 @@ export const FileCatalog = ({ onFileSelect }) => {
     }
   });
   
-  // Properly handle the file data format from the API
-  // API now returns { files: Array, totalCount: number }
-  const files = fileData?.files || fileData || [];
-  const totalFilesCount = fileData?.totalCount || files.length;
+  // Properly handle the file data format from the batch API
+  // API returns { files: Array, totalCount: number, projects: Array, subProjects: Array }
+  const files = initData?.files || [];
+  const totalFilesCount = initData?.totalCount || files.length;
   
-  // Get unique projects for filtering
+  // Get projects from batch endpoint (already filtered by user's access)
   const uniqueProjects = React.useMemo(() => {
-    const projects = files
-      .filter(f => f.project_id)
-      .map(f => ({ id: f.project_id, name: f.project_name }))
-      .filter((p, index, self) => self.findIndex(s => s.id === p.id) === index);
-    return projects;
-  }, [files]);
+    return initData?.projects || [];
+  }, [initData]);
   
-  // Get unique sub-projects for the selected project
+  // Get sub-projects for the selected project from batch endpoint
   const uniqueSubProjects = React.useMemo(() => {
     if (selectedProject === 'all') return [];
     
-    const subProjects = files
-      .filter(f => f.project_id === selectedProject && f.sub_project_id)
-      .map(f => ({ id: f.sub_project_id, name: f.sub_project_name }))
-      .filter((sp, index, self) => self.findIndex(s => s.id === sp.id) === index);
-    return subProjects;
-  }, [files, selectedProject]);
+    const allSubProjects = initData?.subProjects || [];
+    return allSubProjects.filter(sp => sp.parent_project_id === selectedProject);
+  }, [initData, selectedProject]);
   
   // Reset subproject filter when project changes
   useEffect(() => {

@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
-  getFileCatalog, 
+  getFileCatalog,
+  getFileCatalogInitData,
   getFileDetails, 
   getFileProfile, 
   getFileQuality, 
@@ -11,7 +12,24 @@ import {
 import { QueryKeys, STALE_TIMES, CACHE_TIMES } from '../lib/react-query';
 
 /**
- * Hook for fetching the file catalog
+ * Hook for fetching the file catalog initialization data (batch endpoint)
+ * Consolidates files, projects, and sub-projects into a single API call
+ * Uses 30-second stale time for fast-changing file data
+ * refetchOnMount: false - reuses cache on navigation, only refetches if stale
+ */
+export const useFileCatalogInitData = (options = {}) => {
+  return useQuery({
+    queryKey: [...QueryKeys.files.all, 'init-data'],
+    queryFn: getFileCatalogInitData,
+    staleTime: STALE_TIMES.FILES,
+    gcTime: CACHE_TIMES.SHORT,
+    refetchOnMount: false,
+    ...options
+  });
+};
+
+/**
+ * Hook for fetching the file catalog (legacy - use useFileCatalogInitData for better performance)
  * Uses 30-second stale time for fast-changing file data
  * refetchOnMount: false - reuses cache on navigation, only refetches if stale
  */

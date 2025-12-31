@@ -1134,6 +1134,134 @@ app.get('/api/rdm/crosswalks/:crosswalkId/schema', authenticateToken, async (req
   }
 });
 
+/**
+ * Batch endpoint for File Catalog page initialization
+ * Consolidates files, projects, and sub-projects into a single API call
+ * Reduces 3+ API calls to 1 for better performance
+ */
+app.get('/api/files/init-data', authenticateToken, attachVendorProfile, async (req, res) => {
+  try {
+    // Check if user has permission to view files
+    const userPermissions = req.user.permissions || [];
+    const hasFilePermission = userPermissions.some(p => {
+      if (typeof p === 'string') {
+        return p === 'file_view' || p === 'file:read' || p === 'file_upload:read' || p === 'file_catalog:read';
+      }
+      return p.name === 'file_view' || p.name === 'file:read' || p.name === 'file_upload:read' || p.name === 'file_catalog:read';
+    });
+    
+    if (!hasFilePermission) {
+      logger.warn('User attempted to access file catalog without permission', {
+        userId: req.user.id,
+        username: req.user.username
+      });
+      return res.status(403).json({ 
+        error: 'Access denied',
+        message: 'You do not have permission to view files'
+      });
+    }
+    
+    // Get user's accessible projects for filtering
+    const { getUserProjects } = require('./backend/middleware/requireProjectAccess');
+    const isAdmin = userHasAllProjectAccess(req.user);
+    let accessibleProjectIds = [];
+    
+    if (!isAdmin) {
+      const userProjects = await getUserProjects(req.user.id);
+      accessibleProjectIds = userProjects.map(p => p.id);
+      
+      // Non-admin with no project access gets empty data
+      if (accessibleProjectIds.length === 0) {
+        return res.json({
+          files: [],
+          totalCount: 0,
+          projects: [],
+          subProjects: []
+        });
+      }
+    }
+    
+    // Build projects query
+    let projectsQuery = `
+      SELECT id, name, description, parent_project_id, is_archived
+      FROM projects
+      WHERE parent_project_id IS NULL
+        AND (is_archived IS NULL OR is_archived = false)
+    `;
+    const projectsParams = [];
+    
+    if (!isAdmin) {
+      projectsQuery += ` AND id = ANY($1)`;
+      projectsParams.push(accessibleProjectIds);
+    }
+    projectsQuery += ` ORDER BY name`;
+    
+    // Build sub-projects query
+    let subProjectsQuery = `
+      SELECT id, name, description, parent_project_id
+      FROM projects
+      WHERE parent_project_id IS NOT NULL
+        AND (is_archived IS NULL OR is_archived = false)
+    `;
+    const subProjectsParams = [];
+    
+    if (!isAdmin) {
+      subProjectsQuery += ` AND parent_project_id = ANY($1)`;
+      subProjectsParams.push(accessibleProjectIds);
+    }
+    subProjectsQuery += ` ORDER BY name`;
+    
+    // Fetch files using FileService
+    const fileService = diContainer.get('fileService');
+    const filterOptions = {
+      sortBy: 'created_at',
+      sortOrder: 'DESC',
+      projectIds: isAdmin ? null : accessibleProjectIds
+    };
+    
+    // Apply vendor-specific filtering if user is a vendor
+    let vendorPath = null;
+    if (req.isVendor && req.vendorProfile) {
+      vendorPath = req.vendorProfile.drop_location_path;
+    }
+    
+    // Fetch all data in parallel
+    const [filesResult, projectsResult, subProjectsResult] = await Promise.all([
+      fileService.getAllFiles(filterOptions),
+      pool.query(projectsQuery, projectsParams),
+      pool.query(subProjectsQuery, subProjectsParams)
+    ]);
+    
+    let files = filesResult.files || filesResult;
+    let totalCount = filesResult.totalCount || files.length;
+    
+    // Apply vendor filtering if needed
+    if (vendorPath) {
+      files = files.filter(file => {
+        const filePath = file.file_path || file.location || '';
+        return filePath.startsWith(vendorPath);
+      });
+      totalCount = files.length;
+    }
+    
+    logger.info('File catalog init data fetched', {
+      userId: req.user.id,
+      fileCount: files.length,
+      projectCount: projectsResult.rows.length
+    });
+    
+    res.json({
+      files,
+      totalCount,
+      projects: projectsResult.rows,
+      subProjects: subProjectsResult.rows
+    });
+  } catch (err) {
+    logger.error('Error fetching file catalog init data', { error: err.message });
+    res.status(500).json({ error: 'Failed to fetch file catalog data' });
+  }
+});
+
 // Files API (with caching and vendor filtering)
 app.get('/api/files', authenticateToken, attachVendorProfile, cacheMiddleware(300), async (req, res) => {
   try {
