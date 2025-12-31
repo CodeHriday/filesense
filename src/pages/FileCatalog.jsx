@@ -101,7 +101,7 @@ export const FileCatalog = ({ onFileSelect }) => {
   // Properly handle the file data format from the batch API
   // API returns { files: Array, totalCount: number, projects: Array, subProjects: Array }
   const files = initData?.files || [];
-  const totalFilesCount = initData?.totalCount || files.length;
+  const globalTotalFilesCount = initData?.totalCount || files.length;
   
   // Get projects from batch endpoint (already filtered by user's access)
   const uniqueProjects = React.useMemo(() => {
@@ -375,6 +375,10 @@ export const FileCatalog = ({ onFileSelect }) => {
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
   const paginatedFiles = filteredAndSortedFiles.slice(startIndex, endIndex);
+  
+  // Display count: show filtered count when filters are active, otherwise show global total
+  const hasActiveFilters = selectedProject !== 'all' || selectedSubProject !== 'all' || selectedType !== 'all' || searchTerm !== '';
+  const displayedFilesCount = hasActiveFilters ? filteredAndSortedFiles.length : globalTotalFilesCount;
 
   // Reset to page 1 when filters change
   React.useEffect(() => {
@@ -605,8 +609,8 @@ export const FileCatalog = ({ onFileSelect }) => {
         </div>
         <div className="gps-header-actions">
           <div className="gps-stat-card" style={{ padding: '8px 16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontSize: '18px', fontWeight: 700, color: '#025043' }}>{totalFilesCount.toLocaleString()}</span>
-            <span style={{ fontSize: '10px', color: '#666' }}>Total Files</span>
+            <span style={{ fontSize: '18px', fontWeight: 700, color: '#025043' }}>{displayedFilesCount.toLocaleString()}</span>
+            <span style={{ fontSize: '10px', color: '#666' }}>{hasActiveFilters ? 'Filtered Files' : 'Total Files'}</span>
           </div>
         </div>
       </div>
