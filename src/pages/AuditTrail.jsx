@@ -650,11 +650,11 @@ const AuditTrail = () => {
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column' }}>
-            <label htmlFor="filter-user-id" style={{ display: 'block', fontSize: '11px', fontWeight: 500, color: '#374151', marginBottom: '6px' }}>User ID</label>
+            <label htmlFor="filter-user" style={{ display: 'block', fontSize: '11px', fontWeight: 500, color: '#374151', marginBottom: '6px' }}>User</label>
             <input
-              id="filter-user-id"
+              id="filter-user"
               type="text"
-              placeholder="Enter user ID"
+              placeholder="Search by user"
               value={filters.userId}
               onChange={(e) => handleFilterChange('userId', e.target.value)}
               style={{ width: '100%', padding: '8px 12px', fontSize: '11px', border: '1px solid #d1d5db', borderRadius: '6px', backgroundColor: '#fff', color: '#374151' }}
