@@ -100,16 +100,17 @@ const AuditTrail = () => {
     fetchRetentionSettings();
   }, []);
 
-  const fetchAuditLogs = async () => {
+  const fetchAuditLogs = async (overrideFilters = null) => {
     setLoading(true);
     try {
+      const activeFilters = overrideFilters || filters;
       const params = new URLSearchParams();
-      if (filters.userId) params.append('userId', filters.userId);
-      if (filters.entityType) params.append('entityType', filters.entityType);
-      if (filters.actionType) params.append('actionType', filters.actionType);
-      if (filters.startDate) params.append('startDate', filters.startDate);
-      if (filters.endDate) params.append('endDate', filters.endDate);
-      params.append('limit', filters.limit);
+      if (activeFilters.userId) params.append('userId', activeFilters.userId);
+      if (activeFilters.entityType) params.append('entityType', activeFilters.entityType);
+      if (activeFilters.actionType) params.append('actionType', activeFilters.actionType);
+      if (activeFilters.startDate) params.append('startDate', activeFilters.startDate);
+      if (activeFilters.endDate) params.append('endDate', activeFilters.endDate);
+      params.append('limit', activeFilters.limit || 100);
 
       const response = await axios.get(`/api/audit/logs?${params.toString()}`);
       setAuditLogs(response.data);
@@ -230,7 +231,7 @@ const AuditTrail = () => {
   };
 
   const handleClearFilters = () => {
-    setFilters({
+    const clearedFilters = {
       userId: '',
       entityType: '',
       actionType: '',
@@ -239,8 +240,10 @@ const AuditTrail = () => {
       statusFilter: 'all',
       datePreset: '',
       limit: 100
-    });
+    };
+    setFilters(clearedFilters);
     setCurrentPage(1);
+    fetchAuditLogs(clearedFilters);
   };
 
   const filteredLogs = useMemo(() => {
