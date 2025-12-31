@@ -7,6 +7,9 @@ const { v4: uuidv4 } = require('uuid');
 const bcrypt = require('bcrypt');
 const db = require('../config/database');
 const { SECURITY_CONFIG } = require('../config/environment');
+const { cache } = require('../../config/redis');
+
+const USER_CACHE_TTL = 300;
 
 /**
  * Find all users with optional filtering
@@ -97,11 +100,21 @@ const findAll = async (filters = {}) => {
 };
 
 /**
- * Find a user by ID
+ * Find a user by ID (with Redis caching for performance)
  * @param {string} id - User ID
  * @returns {Promise<Object>} User object
  */
 const findById = async (id) => {
+  const cacheKey = `user:${id}`;
+  
+  try {
+    const cachedUser = await cache.get(cacheKey);
+    if (cachedUser) {
+      return cachedUser;
+    }
+  } catch (cacheError) {
+  }
+  
   try {
     const query = `
       SELECT u.id, u.username, u.email, u.first_name, u.middle_name, u.last_name,
@@ -126,12 +139,18 @@ const findById = async (id) => {
       throw error;
     }
     
-    // Filter out null roles if the user has no roles
     const user = result.rows[0];
-    return {
+    const userData = {
       ...user,
       roles: user.roles.filter(role => role !== null)
     };
+    
+    try {
+      await cache.set(cacheKey, userData, USER_CACHE_TTL);
+    } catch (cacheError) {
+    }
+    
+    return userData;
   } catch (error) {
     console.error(`Error in userRepository.findById (ID: ${id}):`, error);
     throw error;
@@ -396,6 +415,11 @@ const update = async (id, userData) => {
       
       await client.query('COMMIT');
       
+      try {
+        await cache.del(`user:${id}`);
+      } catch (cacheError) {
+      }
+      
       // Return the updated user with roles
       return {
         ...updateResult.rows[0],
@@ -454,6 +478,12 @@ const remove = async (id) => {
       }
       
       await client.query('COMMIT');
+      
+      try {
+        await cache.del(`user:${id}`);
+      } catch (cacheError) {
+      }
+      
       return true;
     } catch (error) {
       await client.query('ROLLBACK');
