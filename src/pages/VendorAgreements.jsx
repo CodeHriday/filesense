@@ -783,6 +783,17 @@ const VendorAgreements = () => {
         });
         return;
       }
+      
+      // File configurations are mandatory for vendor contracts
+      if (!fileConfigurations || fileConfigurations.length === 0) {
+        setNotificationModal({
+          isOpen: true,
+          type: 'error',
+          title: 'Validation Error',
+          message: 'At least one file configuration is required. Please add file configurations before creating the contract.'
+        });
+        return;
+      }
     }
     
     if (formData.schema && !validateJSON(formData.schema)) {
@@ -846,6 +857,9 @@ const VendorAgreements = () => {
       // isDraft = true means "Save Draft" button was clicked
       // isDraft = false means "Create Contract" button was clicked (should set to active)
       agreementData.status = isDraft ? 'draft' : 'active';
+      
+      // Include file configurations count for backend validation
+      agreementData.file_configurations_count = fileConfigurations?.length || 0;
       
       // Backend expects 'agreementData' for CREATE and 'updateData' for UPDATE
       const dataKey = modalMode === 'create' ? 'agreementData' : 'updateData';

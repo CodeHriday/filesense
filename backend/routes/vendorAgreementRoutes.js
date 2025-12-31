@@ -193,6 +193,19 @@ router.post('/', requirePermission('vendor_agreements:write'), upload.single('sc
   try {
     const agreementData = JSON.parse(req.body.agreementData || '{}');
     
+    // Validate file configurations are required for non-draft contracts
+    if (agreementData.status !== 'draft') {
+      const fileConfigCount = parseInt(agreementData.file_configurations_count) || 0;
+      if (fileConfigCount === 0) {
+        return res.status(400).json({ 
+          error: 'At least one file configuration is required for creating a vendor contract. Please add file configurations before creating the contract.' 
+        });
+      }
+    }
+    
+    // Remove file_configurations_count from agreementData as it's only for validation
+    delete agreementData.file_configurations_count;
+    
     // If schema file is uploaded, use it
     if (req.file) {
       schemaFilePath = req.file.path;
