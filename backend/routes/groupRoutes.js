@@ -100,7 +100,7 @@ function createGroupRoutes(dbPool) {
         dbPool.query(groupsQuery, groupsParams),
         dbPool.query('SELECT id, username, email, full_name FROM users ORDER BY username LIMIT 1000'),
         dbPool.query('SELECT id, name, description FROM roles ORDER BY name'),
-        dbPool.query('SELECT id, name FROM projects WHERE parent_project_id IS NULL ORDER BY name')
+        dbPool.query('SELECT id, name FROM projects WHERE parent_id IS NULL ORDER BY name')
       ]);
       
       const groups = groupsResult.rows.map(group => ({

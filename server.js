@@ -9691,7 +9691,7 @@ app.get('/api/roles/init-data', authenticateToken, async (req, res) => {
       dbPool.query(countQuery, queryParams),
       dbPool.query(dataQuery, [...queryParams, pageSize, offset]),
       dbPool.query('SELECT * FROM permissions ORDER BY resource, action'),
-      dbPool.query('SELECT id, name, description, category, sensitivity_level, tag_order, created_at, updated_at FROM governance_tags ORDER BY tag_order, name')
+      dbPool.query('SELECT tag_id as id, tag_name as name, description, sensitivity_level, created_at, updated_at FROM governance_tags ORDER BY tag_name')
     ]);
     
     const totalCount = parseInt(countResult.rows[0].count);

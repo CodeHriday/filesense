@@ -397,7 +397,7 @@ router.get('/init-data', async (req, res) => {
       
       try {
         const vendorsResult = await dbQuery(`
-          SELECT id, vendor_name, vendor_code, status, vendor_type, domain
+          SELECT id, vendor_name, vendor_code, status, vendor_type
           FROM vendors
           WHERE status = 'active'
           ORDER BY vendor_name
@@ -415,7 +415,7 @@ router.get('/init-data', async (req, res) => {
         const userVendorId = vendorResult.rows[0].id;
         try {
           const vendorsResult = await dbQuery(`
-            SELECT id, vendor_name, vendor_code, status, vendor_type, domain
+            SELECT id, vendor_name, vendor_code, status, vendor_type
             FROM vendors
             WHERE id = $1 AND status = 'active'
           `, [userVendorId]);
@@ -428,10 +428,9 @@ router.get('/init-data', async (req, res) => {
     
     try {
       const allConnResult = await dbQuery(`
-        SELECT id, name, connection_type, storage_type, status, created_at
+        SELECT id, connection_name as name, connection_type, created_at
         FROM connections
-        WHERE status = 'active'
-        ORDER BY name
+        ORDER BY connection_name
       `);
       allConnections = allConnResult.rows;
     } catch (err) {
@@ -450,9 +449,8 @@ router.get('/init-data', async (req, res) => {
     let usersResult = { rows: [] };
     if (isAdminUser || hasWritePermission) {
       usersResult = await dbQuery(`
-        SELECT id, username, email, first_name, last_name, status
+        SELECT id, username, email, first_name, last_name
         FROM users
-        WHERE status = 'active'
         ORDER BY first_name, last_name
         LIMIT 1000
       `);
