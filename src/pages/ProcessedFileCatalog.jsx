@@ -31,11 +31,26 @@ const ProcessedFileCatalog = () => {
       setLoading(true);
       const params = {
         load_type: 'etl_transformation',
-        file_role: 'target'
+        file_role: 'target',
+        limit: 10000  // Fetch all files to ensure dropdown has all mappings
       };
 
       const response = await axios.get('/api/file-audit', { params });
-      setFiles(response.data.audits || []);
+      const audits = response.data.audits || [];
+      setFiles(audits);
+      
+      // Extract unique mappings and projects from all files for dropdowns
+      const mappingsSet = new Set();
+      const projectsMap = new Map();
+      audits.forEach(f => {
+        if (f.mapping_name) mappingsSet.add(f.mapping_name);
+        if (f.project_id && f.project_name) {
+          projectsMap.set(f.project_id, { id: f.project_id, name: f.project_name });
+        }
+      });
+      setAllMappings(Array.from(mappingsSet).sort());
+      setAllProjects(Array.from(projectsMap.values()).sort((a, b) => a.name.localeCompare(b.name)));
+      
       setError(null);
     } catch (err) {
       console.error('Error fetching transformation files:', err);
@@ -45,25 +60,9 @@ const ProcessedFileCatalog = () => {
     }
   }, []);
 
-  // Fetch all unique mappings and projects for dropdowns (separate efficient query)
-  const fetchDropdownData = useCallback(async () => {
-    try {
-      const response = await axios.get('/api/file-audit/unique-mappings', {
-        params: { load_type: 'etl_transformation', file_role: 'target' }
-      });
-      if (response.data.success) {
-        setAllMappings(response.data.mappings || []);
-        setAllProjects(response.data.projects || []);
-      }
-    } catch (err) {
-      console.error('Error fetching dropdown data:', err);
-    }
-  }, []);
-
   useEffect(() => {
     fetchTransformationFiles();
-    fetchDropdownData();
-  }, [fetchTransformationFiles, fetchDropdownData]);
+  }, [fetchTransformationFiles]);
 
   useEffect(() => {
     const handleFileUploaded = (event) => {
