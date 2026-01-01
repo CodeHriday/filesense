@@ -28,8 +28,13 @@ function ProjectManagement() {
     project_type: 'internal',
     member_ids: [],
     group_ids: [],
-    sub_projects: []
+    sub_projects: [],
+    drop_location_connection_id: '',
+    drop_location_bucket: '',
+    drop_location_prefix: ''
   });
+
+  const [storageConnections, setStorageConnections] = useState([]);
 
   const [memberFormData, setMemberFormData] = useState({
     user_id: ''
@@ -71,13 +76,19 @@ function ProjectManagement() {
       if (searchTerm) params.append('search', searchTerm);
       if (showArchived) params.append('archived', 'true');
 
-      const response = await axios.get(`${API_BASE_URL}/projects/init-data?${params}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const [projectsResponse, connectionsResponse] = await Promise.all([
+        axios.get(`${API_BASE_URL}/projects/init-data?${params}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        }),
+        axios.get(`${API_BASE_URL}/storage-connections`, {
+          headers: { Authorization: `Bearer ${token}` }
+        }).catch(() => ({ data: [] }))
+      ]);
       
-      setProjects(response.data.projects || []);
-      setAvailableUsers(response.data.users || []);
-      setAvailableGroups(response.data.groups || []);
+      setProjects(projectsResponse.data.projects || []);
+      setAvailableUsers(projectsResponse.data.users || []);
+      setAvailableGroups(projectsResponse.data.groups || []);
+      setStorageConnections(connectionsResponse.data || []);
       setError(null);
     } catch (err) {
       setError('Failed to fetch projects');
@@ -275,7 +286,10 @@ function ProjectManagement() {
       name: project.name,
       description: project.description || '',
       parent_id: project.parent_id,
-      project_type: project.project_type || 'internal'
+      project_type: project.project_type || 'internal',
+      drop_location_connection_id: project.drop_location_connection_id || '',
+      drop_location_bucket: project.drop_location_bucket || '',
+      drop_location_prefix: project.drop_location_prefix || ''
     });
     setShowEditModal(true);
   };
@@ -307,7 +321,10 @@ function ProjectManagement() {
       project_type: 'internal', 
       member_ids: [], 
       group_ids: [],
-      sub_projects: []
+      sub_projects: [],
+      drop_location_connection_id: '',
+      drop_location_bucket: '',
+      drop_location_prefix: ''
     });
     setSubProjectFormData({ name: '', description: '', is_active: true });
     setShowCreateModal(false);
@@ -321,7 +338,10 @@ function ProjectManagement() {
       project_type: 'internal', 
       member_ids: [], 
       group_ids: [],
-      sub_projects: []
+      sub_projects: [],
+      drop_location_connection_id: '',
+      drop_location_bucket: '',
+      drop_location_prefix: ''
     });
     setMemberFormData({ user_id: '' });
     setGroupFormData({ group_id: '' });
@@ -781,6 +801,57 @@ function ProjectManagement() {
 
                 <div className="gps-section">
                   <div className="gps-section-header">
+                    <h3 className="gps-section-title">File Drop Location (S3)</h3>
+                  </div>
+                  <p className="gps-form-hint" style={{ marginBottom: '12px' }}>
+                    Configure where files uploaded to this project will be stored. Required for internal projects.
+                  </p>
+                  <div className="gps-form-grid gps-form-grid--3col">
+                    <div className="gps-form-group">
+                      <label htmlFor="create-drop-connection" className="gps-form-label">Storage Connection</label>
+                      <select
+                        id="create-drop-connection"
+                        className="gps-form-select"
+                        value={formData.drop_location_connection_id}
+                        onChange={(e) => setFormData({ ...formData, drop_location_connection_id: e.target.value })}
+                      >
+                        <option value="">-- Select Connection --</option>
+                        {storageConnections.map(conn => (
+                          <option key={conn.connection_id} value={conn.connection_id}>
+                            {conn.name} ({conn.type})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="gps-form-group">
+                      <label htmlFor="create-drop-bucket" className="gps-form-label">Bucket Name</label>
+                      <input
+                        id="create-drop-bucket"
+                        type="text"
+                        className="gps-form-input"
+                        placeholder="e.g., my-data-bucket"
+                        value={formData.drop_location_bucket}
+                        onChange={(e) => setFormData({ ...formData, drop_location_bucket: e.target.value })}
+                      />
+                    </div>
+                    <div className="gps-form-group">
+                      <label htmlFor="create-drop-prefix" className="gps-form-label">Folder Prefix</label>
+                      <input
+                        id="create-drop-prefix"
+                        type="text"
+                        className="gps-form-input"
+                        placeholder="e.g., uploads/project-name/"
+                        value={formData.drop_location_prefix}
+                        onChange={(e) => setFormData({ ...formData, drop_location_prefix: e.target.value })}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <hr className="gps-divider" />
+
+                <div className="gps-section">
+                  <div className="gps-section-header">
                     <h3 className="gps-section-title">Sub-Projects</h3>
                     <button type="button" className="gps-btn gps-btn--primary gps-btn--small" onClick={handleAddSubProject}>
                       <FiFolderPlus style={{ marginRight: '0.25rem' }} /> Add Sub-Project
@@ -918,6 +989,52 @@ function ProjectManagement() {
                       rows="3"
                     />
                   </div>
+
+                  <h4 className="gps-section-title" style={{ marginTop: '16px', marginBottom: '8px' }}>File Drop Location (S3)</h4>
+                  <p className="gps-form-hint" style={{ marginBottom: '12px' }}>
+                    Configure where files uploaded to this project will be stored.
+                  </p>
+                  <div className="gps-form-grid gps-form-grid--3col">
+                    <div className="gps-form-group">
+                      <label htmlFor="edit-drop-connection" className="gps-form-label">Storage Connection</label>
+                      <select
+                        id="edit-drop-connection"
+                        className="gps-form-select"
+                        value={formData.drop_location_connection_id}
+                        onChange={(e) => setFormData({ ...formData, drop_location_connection_id: e.target.value })}
+                      >
+                        <option value="">-- Select Connection --</option>
+                        {storageConnections.map(conn => (
+                          <option key={conn.connection_id} value={conn.connection_id}>
+                            {conn.name} ({conn.type})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="gps-form-group">
+                      <label htmlFor="edit-drop-bucket" className="gps-form-label">Bucket Name</label>
+                      <input
+                        id="edit-drop-bucket"
+                        type="text"
+                        className="gps-form-input"
+                        placeholder="e.g., my-data-bucket"
+                        value={formData.drop_location_bucket}
+                        onChange={(e) => setFormData({ ...formData, drop_location_bucket: e.target.value })}
+                      />
+                    </div>
+                    <div className="gps-form-group">
+                      <label htmlFor="edit-drop-prefix" className="gps-form-label">Folder Prefix</label>
+                      <input
+                        id="edit-drop-prefix"
+                        type="text"
+                        className="gps-form-input"
+                        placeholder="e.g., uploads/project-name/"
+                        value={formData.drop_location_prefix}
+                        onChange={(e) => setFormData({ ...formData, drop_location_prefix: e.target.value })}
+                      />
+                    </div>
+                  </div>
+
                   <div style={{ marginTop: '0.75rem' }}>
                     <button type="submit" className="gps-btn gps-btn--primary">Update Details</button>
                   </div>
