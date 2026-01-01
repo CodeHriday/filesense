@@ -1733,6 +1733,11 @@
   }
 }
 
+/* Spinning animation class for refresh buttons */
+.spinning {
+  animation: gps-spin 0.8s linear infinite;
+}
+
 /* ============================================
    TEXTAREA STYLES
    ============================================ */

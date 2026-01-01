@@ -52,11 +52,33 @@ function GroupManagement() {
   }, [searchTerm]);
 
   useEffect(() => {
-    fetchGroups();
-    fetchAvailableUsers();
-    fetchAvailableRoles();
-    fetchAvailableProjects();
+    fetchInitData();
   }, [debouncedSearchTerm, groupTypeFilter]);
+
+  const fetchInitData = async () => {
+    try {
+      setLoading(true);
+      const token = localStorage.getItem('token');
+      const params = new URLSearchParams();
+      if (debouncedSearchTerm) params.append('search', debouncedSearchTerm);
+      if (groupTypeFilter) params.append('group_type', groupTypeFilter);
+
+      const response = await axios.get(`${API_BASE_URL}/groups/init-data?${params}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      setGroups(response.data.groups || []);
+      setAvailableUsers(response.data.users || []);
+      setAvailableRoles(response.data.roles || []);
+      setAvailableProjects(response.data.projects || []);
+      setError(null);
+    } catch (err) {
+      setError('Failed to fetch groups');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const fetchGroups = async () => {
     try {
@@ -76,43 +98,6 @@ function GroupManagement() {
       console.error(err);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const fetchAvailableUsers = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const response = await axios.get(`${API_BASE_URL}/users?limit=1000`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setAvailableUsers(response.data.users || []);
-    } catch (err) {
-      console.error('Failed to fetch users:', err);
-      setAvailableUsers([]);
-    }
-  };
-
-  const fetchAvailableRoles = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const response = await axios.get(`${API_BASE_URL}/users/roles`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setAvailableRoles(response.data);
-    } catch (err) {
-      console.error('Failed to fetch roles:', err);
-    }
-  };
-
-  const fetchAvailableProjects = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const response = await axios.get(`${API_BASE_URL}/projects`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setAvailableProjects(response.data);
-    } catch (err) {
-      console.error('Failed to fetch projects:', err);
     }
   };
 

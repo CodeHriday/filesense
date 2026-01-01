@@ -675,4 +675,72 @@ router.get('/:id/profiling', async (req, res) => {
   }
 });
 
+/**
+ * GET /api/jobs/:id/full
+ * Batch endpoint to get complete job details including logs, anomalies, and metrics
+ * Replaces 4 separate API calls: job, logs, anomalies, metrics
+ * Used by ETLJobDetails page for efficient data loading
+ */
+router.get('/:id/full', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { getUserProjects } = require('../middleware/requireProjectAccess');
+    
+    const jobResult = await pool.query(
+      'SELECT * FROM transformation_jobs WHERE id = $1 OR correlation_id = $1',
+      [id]
+    );
+    
+    if (jobResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Job not found' });
+    }
+    
+    const job = jobResult.rows[0];
+    
+    const isAdmin = userHasAdminAccess(req.user);
+    if (!isAdmin && job.project_id) {
+      const userProjects = await getUserProjects(req.user.id);
+      const projectIds = userProjects.map(p => p.id);
+      
+      if (!projectIds.includes(job.project_id)) {
+        return res.status(403).json({ error: 'Access denied to this job' });
+      }
+    }
+    
+    const [logsResult, anomaliesResult, metricsResult] = await Promise.all([
+      pool.query(`
+        SELECT id, job_id, log_level, message, details, created_at
+        FROM job_logs
+        WHERE job_id = $1
+        ORDER BY created_at ASC
+        LIMIT 1000
+      `, [job.id]),
+      pool.query(`
+        SELECT id, anomaly_type, severity, description, detected_at, status
+        FROM anomalies
+        WHERE job_id = $1
+        ORDER BY detected_at DESC
+      `, [job.id]),
+      pool.query(`
+        SELECT metric_name, metric_value, recorded_at
+        FROM job_metrics
+        WHERE job_id = $1
+        ORDER BY recorded_at ASC
+      `, [job.id])
+    ]);
+    
+    res.json({
+      success: true,
+      job,
+      logs: logsResult.rows,
+      anomalies: anomaliesResult.rows,
+      metrics: metricsResult.rows
+    });
+    
+  } catch (error) {
+    systemLogger.error('Error in GET /api/jobs/:id/full', { error: error.message });
+    res.status(500).json({ error: 'Failed to fetch job details' });
+  }
+});
+
 module.exports = router;

@@ -8,7 +8,7 @@ import FilePreview from '../components/FilePreview';
 import ErrorModal from '../components/ErrorModal';
 import SchemaHistoryTab from '../components/SchemaHistoryTab';
 import AIDQSuggestionsTab from '../components/AIDQSuggestionsTab';
-import { getFileDetails, getFileProfile} from '../api/fileService';
+import { getFileDetails, getFileProfile, getFileFullData } from '../api/fileService';
 import { getFileQualityRules, assignFileQualityRules } from '../api/qualityRulesService';
 import { formatBytes, formatDate, getTimeSince, formatNumber, formatDecimal } from '../utils/formatters';
 import { useAuth } from '../context/AuthContext';
@@ -1035,64 +1035,25 @@ function DataProfile() {
     }
   };
 
-  const fetchColumnGovernanceTags = async (columnName) => {
-    try {
-      const encodedFileId = encodeURIComponent(fileId);
-      const normalizedColumnName = columnName.toLowerCase();
-      const response = await axios.get(`/api/files/${encodedFileId}/columns/${encodeURIComponent(normalizedColumnName)}/tags`);
-      return response.data || [];
-    } catch (err) {
-      if (err.response?.status === 404) {
-        return [];
-      }
-      console.error('Error fetching column governance tags:', err);
-      return [];
-    }
-  };
-
-  const fetchColumnPolicies = async (columnName) => {
-    try {
-      const encodedFileId = encodeURIComponent(fileId);
-      // Normalize column name to lowercase to handle Parquet case-sensitivity
-      const normalizedColumnName = columnName.toLowerCase();
-      const response = await axios.get(`/api/files/${encodedFileId}/columns/${encodeURIComponent(normalizedColumnName)}/policies`);
-      return response.data;
-    } catch (err) {
-      console.error('Error fetching column policies:', err);
-      return [];
-    }
-  };
-
   const fetchAllColumnGovernanceData = async (columns) => {
     if (!columns || columns.length === 0) return;
     
     try {
-      // Fetch governance tags and policies for all columns in parallel
-      const tagPromises = columns.map(column => 
-        fetchColumnGovernanceTags(column.name)
-          .then(tags => ({ columnName: column.name, tags }))
-      );
+      const encodedFileId = encodeURIComponent(fileId);
       
-      const policyPromises = columns.map(column =>
-        fetchColumnPolicies(column.name)
-          .then(policies => ({ columnName: column.name, policies }))
-      );
+      // Use batch endpoint to get all column governance data in ONE call
+      // This replaces 24+ individual API calls with a single request
+      const response = await axios.get(`/api/files/${encodedFileId}/columns/governance`);
+      const { tags: tagsByColumn, policies: policiesByColumn } = response.data;
       
-      const [tagResults, policyResults] = await Promise.all([
-        Promise.all(tagPromises),
-        Promise.all(policyPromises)
-      ]);
-      
-      // Convert arrays to objects keyed by column name
+      // Map column names to lowercase for consistent lookup
       const tagsMap = {};
       const policiesMap = {};
       
-      tagResults.forEach(({ columnName, tags }) => {
-        tagsMap[columnName] = tags;
-      });
-      
-      policyResults.forEach(({ columnName, policies }) => {
-        policiesMap[columnName] = policies;
+      columns.forEach(column => {
+        const normalizedName = column.name.toLowerCase();
+        tagsMap[column.name] = tagsByColumn[normalizedName] || [];
+        policiesMap[column.name] = policiesByColumn[normalizedName] || [];
       });
       
       setAllColumnGovernanceTags(tagsMap);
@@ -1236,6 +1197,9 @@ function DataProfile() {
         };
       });
       setViolationsPage(1); // Reset pagination
+      
+      // Refresh quality violations to update the applied rules display immediately
+      await fetchQualityViolations();
     } catch (err) {
       console.error('Error saving file quality rules:', err);
       setErrorMessage('Failed to save quality rules');
@@ -1249,6 +1213,8 @@ function DataProfile() {
     try {
       setRefreshingRules(true);
       await fetchFileQualityRulesData();
+      // Also refresh quality violations to update the applied rules display
+      await fetchQualityViolations();
     } catch (err) {
       console.error('Error refreshing rules:', err);
       setErrorMessage('Failed to refresh rules');
@@ -1475,43 +1441,52 @@ function DataProfile() {
           return;
         }
         
-        console.log('Fetching file details and profile for fileId:', fileId);
-        const [fileData, profileData] = await Promise.all([
-          getFileDetails(fileId),
-          getFileProfile(fileId)
-        ]);
+        console.log('Fetching full file data for fileId:', fileId);
         
-        console.log('File details received:', fileData);
-        console.log('Profile data received:', profileData);
+        // Use batch endpoint to fetch all data in ONE API call
+        // Reduces 8+ API calls to 1 for better performance
+        const fullData = await getFileFullData(fileId);
         
-        setFile(fileData);
-        setProfile(profileData || {});
-        setError(null);
+        console.log('Full file data received:', fullData);
+        
+        // Extract and set all data from batch response
+        setFile(fullData.file);
+        setProfile(fullData.profile || {});
+        setOwnership(fullData.ownership);
+        setPolicies(fullData.filePolicies || []);
+        setFileTags(fullData.fileTags || []);
+        setAvailableTags(fullData.allGovernanceTags || []);
+        setAvailablePolicies(fullData.allGovernancePolicies || []);
+        
+        // Set column governance data
+        if (fullData.columnGovernance) {
+          const columns = fullData.profile?.columns || [];
+          const tagsMap = {};
+          const policiesMap = {};
+          
+          columns.forEach(column => {
+            const normalizedName = column.name?.toLowerCase();
+            tagsMap[column.name] = fullData.columnGovernance.tags?.[normalizedName] || [];
+            policiesMap[column.name] = fullData.columnGovernance.policies?.[normalizedName] || [];
+          });
+          
+          setAllColumnGovernanceTags(tagsMap);
+          setAllColumnPolicies(policiesMap);
+        }
         
         // Set file sensitivity from data_classification field (primary source) or ownership (fallback)
-        // Handle both snake_case and camelCase from API
-        const classification = fileData.data_classification || fileData.dataClassification;
+        const classification = fullData.file?.data_classification || fullData.file?.dataClassification;
         if (classification) {
           setFileSensitivity(classification);
+        } else if (fullData.ownership?.sensitivity_level) {
+          setFileSensitivity(fullData.ownership.sensitivity_level);
         }
         
-        // Fetch governance data
-        await Promise.all([
-          fetchOwnership(),
-          fetchPolicies(),
-          fetchAvailableTags(),
-          fetchFileTags(),
-          fetchAvailablePolicies()
-        ]);
-        
-        // Fetch column-level governance data for all columns
-        if (profileData && profileData.columns) {
-          await fetchAllColumnGovernanceData(profileData.columns);
-        }
+        setError(null);
+        setLoading(false);
       } catch (err) {
         console.error('Error fetching file data:', err);
         setError('Failed to load file data. Please try again later.');
-      } finally {
         setLoading(false);
       }
     };
@@ -1783,10 +1758,9 @@ function DataProfile() {
                             <button 
                               className="gps-icon-btn gps-icon-btn--edit"
                               style={{ width: '22px', height: '22px' }}
-                              onClick={async () => {
+                              onClick={() => {
                                 setSelectedColumn(column.name);
-                                const tags = await fetchColumnGovernanceTags(column.name);
-                                setCurrentColumnGovernanceTags(tags);
+                                setCurrentColumnGovernanceTags(allColumnGovernanceTags[column.name] || []);
                                 setShowColumnGovernanceTagModal(true);
                               }}
                               disabled={!canEditColumnGovernance(column.name)}
@@ -1806,10 +1780,9 @@ function DataProfile() {
                             <button 
                               className="gps-icon-btn gps-icon-btn--edit"
                               style={{ width: '22px', height: '22px' }}
-                              onClick={async () => {
+                              onClick={() => {
                                 setSelectedColumn(column.name);
-                                const colPolicies = await fetchColumnPolicies(column.name);
-                                setCurrentColumnPolicies(colPolicies);
+                                setCurrentColumnPolicies(allColumnPolicies[column.name] || []);
                                 setShowColumnPolicyModal(true);
                               }}
                               disabled={!canEditColumnGovernance(column.name)}

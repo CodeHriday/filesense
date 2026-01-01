@@ -1,22 +1,46 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
-  getFileCatalog, 
+  getFileCatalog,
+  getFileCatalogInitData,
   getFileDetails, 
-  getFileProfile, 
+  getFileProfile,
+  getFileFullData,
   getFileQuality, 
   uploadFile, 
   runQualityCheck, 
   deleteFile 
 } from '../api/fileService';
-import { QueryKeys } from '../lib/react-query';
+import { QueryKeys, STALE_TIMES, CACHE_TIMES } from '../lib/react-query';
 
 /**
- * Hook for fetching the file catalog
+ * Hook for fetching the file catalog initialization data (batch endpoint)
+ * Consolidates files, projects, and sub-projects into a single API call
+ * Uses 30-second stale time for fast-changing file data
+ * refetchOnMount: false - reuses cache on navigation, only refetches if stale
+ */
+export const useFileCatalogInitData = (options = {}) => {
+  return useQuery({
+    queryKey: [...QueryKeys.files.all, 'init-data'],
+    queryFn: getFileCatalogInitData,
+    staleTime: STALE_TIMES.FILES,
+    gcTime: CACHE_TIMES.SHORT,
+    refetchOnMount: false,
+    ...options
+  });
+};
+
+/**
+ * Hook for fetching the file catalog (legacy - use useFileCatalogInitData for better performance)
+ * Uses 30-second stale time for fast-changing file data
+ * refetchOnMount: false - reuses cache on navigation, only refetches if stale
  */
 export const useFileCatalog = (options = {}) => {
   return useQuery({
     queryKey: QueryKeys.files.all,
     queryFn: getFileCatalog,
+    staleTime: STALE_TIMES.FILES,
+    gcTime: CACHE_TIMES.SHORT,
+    refetchOnMount: false,
     ...options
   });
 };
@@ -28,7 +52,10 @@ export const useFileDetails = (fileId, options = {}) => {
   return useQuery({
     queryKey: QueryKeys.files.byId(fileId),
     queryFn: () => getFileDetails(fileId),
-    enabled: !!fileId, // Only run the query if fileId is provided
+    enabled: !!fileId,
+    staleTime: STALE_TIMES.FILES,
+    gcTime: CACHE_TIMES.SHORT,
+    refetchOnMount: false,
     ...options
   });
 };
@@ -41,6 +68,26 @@ export const useFileProfile = (fileId, options = {}) => {
     queryKey: QueryKeys.files.profile(fileId),
     queryFn: () => getFileProfile(fileId),
     enabled: !!fileId,
+    staleTime: STALE_TIMES.STANDARD,
+    gcTime: CACHE_TIMES.STANDARD,
+    refetchOnMount: false,
+    ...options
+  });
+};
+
+/**
+ * Hook for fetching full file data for profile page (batch endpoint)
+ * Consolidates file, profile, ownership, tags, policies, and governance data
+ * Reduces 8+ API calls to 1 for better performance
+ */
+export const useFileFullData = (fileId, options = {}) => {
+  return useQuery({
+    queryKey: [...QueryKeys.files.byId(fileId), 'full'],
+    queryFn: () => getFileFullData(fileId),
+    enabled: !!fileId,
+    staleTime: STALE_TIMES.STANDARD,
+    gcTime: CACHE_TIMES.STANDARD,
+    refetchOnMount: false,
     ...options
   });
 };
@@ -53,12 +100,16 @@ export const useFileQuality = (fileId, options = {}) => {
     queryKey: QueryKeys.files.quality(fileId),
     queryFn: () => getFileQuality(fileId),
     enabled: !!fileId,
+    staleTime: STALE_TIMES.STANDARD,
+    gcTime: CACHE_TIMES.STANDARD,
+    refetchOnMount: false,
     ...options
   });
 };
 
 /**
  * Hook for uploading a file
+ * Invalidates file catalog cache immediately after upload
  */
 export const useFileUpload = (options = {}) => {
   const queryClient = useQueryClient();
@@ -66,7 +117,6 @@ export const useFileUpload = (options = {}) => {
   return useMutation({
     mutationFn: ({ file, progressCallback }) => uploadFile(file, progressCallback),
     onSuccess: () => {
-      // Invalidate and refetch the file catalog query after successful upload
       queryClient.invalidateQueries({ queryKey: QueryKeys.files.all });
     },
     ...options
@@ -82,7 +132,6 @@ export const useRunQualityCheck = (options = {}) => {
   return useMutation({
     mutationFn: ({ fileId, rules }) => runQualityCheck(fileId, rules),
     onSuccess: (data, variables) => {
-      // Invalidate and refetch the quality data for this file
       queryClient.invalidateQueries({ 
         queryKey: QueryKeys.files.quality(variables.fileId) 
       });
@@ -93,6 +142,7 @@ export const useRunQualityCheck = (options = {}) => {
 
 /**
  * Hook for deleting a file
+ * Invalidates file catalog cache immediately after deletion
  */
 export const useFileDelete = (options = {}) => {
   const queryClient = useQueryClient();
@@ -100,9 +150,23 @@ export const useFileDelete = (options = {}) => {
   return useMutation({
     mutationFn: (fileId) => deleteFile(fileId),
     onSuccess: () => {
-      // Invalidate and refetch the file catalog query after successful deletion
       queryClient.invalidateQueries({ queryKey: QueryKeys.files.all });
     },
     ...options
   });
+};
+
+/**
+ * Utility hook to invalidate all file-related caches
+ * Use after bulk operations or when data needs immediate refresh
+ */
+export const useInvalidateFiles = () => {
+  const queryClient = useQueryClient();
+  
+  return {
+    invalidateAll: () => queryClient.invalidateQueries({ queryKey: QueryKeys.files.all }),
+    invalidateFile: (fileId) => queryClient.invalidateQueries({ queryKey: QueryKeys.files.byId(fileId) }),
+    invalidateProfile: (fileId) => queryClient.invalidateQueries({ queryKey: QueryKeys.files.profile(fileId) }),
+    invalidateQuality: (fileId) => queryClient.invalidateQueries({ queryKey: QueryKeys.files.quality(fileId) }),
+  };
 };

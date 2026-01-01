@@ -26,6 +26,7 @@ import NotificationList from './components/Notifications/NotificationList';
 import ToastContainer from './components/ToastContainer';
 import Login from './pages/Login';
 import OktaCallback from './pages/OktaCallback';
+import InactivityTimer from './components/InactivityTimer';
 
 // Context providers (needed immediately)
 import { AccessibilityProvider } from './context/AccessibilityContext';
@@ -306,6 +307,7 @@ function AppContent({ showOnboarding, setShowOnboarding }) {
       {/* Show sidebar only if logged in */}
       {currentUser && (
         <>
+          <InactivityTimer />
           <div className="main-container">
             <Sidebar />
             <main id="main-content" className={`content ${isCollapsed ? 'sidebar-collapsed' : ''} full-width`} tabIndex="-1">

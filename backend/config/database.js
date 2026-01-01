@@ -14,7 +14,13 @@ const { databaseLogger } = require('../utils/logger');
  * Get database URL from AWS Secrets Manager or environment
  */
 async function getDatabaseUrl() {
-  // Try AWS Secrets Manager first
+  // Check if DATABASE_URL is already set in environment
+  if (process.env.DATABASE_URL) {
+    databaseLogger.info('Using DATABASE_URL from environment variables');
+    return process.env.DATABASE_URL;
+  }
+  
+  // Try AWS Secrets Manager as fallback
   try {
     const { initializeSecrets } = require('./config-secrets');
     await initializeSecrets();
@@ -27,8 +33,13 @@ async function getDatabaseUrl() {
     databaseLogger.warn('AWS Secrets Manager not available, using .env fallback:', error.message);
   }
   
-  // No fallback to .env - force use of secrets only
-  throw new Error('DATABASE_URL not found in AWS Secrets Manager. Please configure AWS credentials (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION) and ensure the "filevantage-prod" secret exists.');
+  // Check environment again after secrets initialization attempt
+  if (process.env.DATABASE_URL) {
+    databaseLogger.info('Using DATABASE_URL from environment after secrets check');
+    return process.env.DATABASE_URL;
+  }
+  
+  throw new Error('DATABASE_URL not found in environment or AWS Secrets Manager.');
 }
 
 /**

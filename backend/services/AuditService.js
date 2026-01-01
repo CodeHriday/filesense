@@ -401,8 +401,9 @@ class AuditService {
       let paramIndex = 1;
 
       if (userId) {
-        conditions.push(`user_id = $${paramIndex++}`);
-        values.push(userId);
+        conditions.push(`(user_email ILIKE $${paramIndex} OR CAST(user_id AS TEXT) ILIKE $${paramIndex})`);
+        values.push(`%${userId}%`);
+        paramIndex++;
       }
 
       if (entityType) {

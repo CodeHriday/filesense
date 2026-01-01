@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { FiPlus, FiEdit2, FiTrash2, FiSave, FiX, FiFileText, FiShield, FiCheckCircle, FiLock, FiEye, FiEyeOff, FiUpload, FiAlertCircle, FiPaperclip } from 'react-icons/fi';
 import axios from 'axios';
 import SchemaFieldEditor from './SchemaFieldEditor';
+import ConfirmationModal from './ConfirmationModal';
 import './FileConfigurationsSection.css';
 import PropTypes from 'prop-types';
 
@@ -1035,35 +1036,21 @@ function FileConfigurationsSection({ fileConfigurations, onChange }) {
       )}
 
       {/* Delete Confirmation Modal */}
-      {deleteConfirmation.show && (
-        <div className="modal-overlay" onClick={cancelDelete}>
-          <div className="modal-content delete-confirmation-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3>Confirm Deletion</h3>
-              <button className="modal-close-btn" onClick={cancelDelete}>
-                <FiX />
-              </button>
-            </div>
-            <div className="modal-body">
-              <p>Are you sure you want to remove this file configuration?</p>
-              {deleteConfirmation.index !== null && fileConfigurations[deleteConfirmation.index] && (
-                <div className="deletion-target-info">
-                  <strong>Pattern:</strong> {fileConfigurations[deleteConfirmation.index].file_name_pattern}
-                </div>
-              )}
-              <p className="warning-text">This action cannot be undone.</p>
-            </div>
-            <div className="modal-footer">
-              <button className="btn-secondary" onClick={cancelDelete}>
-                Cancel
-              </button>
-              <button className="btn-danger" onClick={confirmDelete}>
-                <FiTrash2 /> Delete
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmationModal
+        isOpen={deleteConfirmation.show}
+        onClose={cancelDelete}
+        onConfirm={confirmDelete}
+        title="Confirm Deletion"
+        message={`Are you sure you want to remove this file configuration?${
+          deleteConfirmation.index !== null && fileConfigurations[deleteConfirmation.index]
+            ? ` Pattern: ${fileConfigurations[deleteConfirmation.index].file_name_pattern}`
+            : ''
+        }`}
+        subMessage="This action cannot be undone."
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="danger"
+      />
     </div>
   );
 }

@@ -27,7 +27,7 @@ const DLQService = require('../services/dlqService');
 
 // Archive and special format file extensions
 const ARCHIVE_EXTENSIONS = ['.zip', '.tar', '.tar.gz', '.tar.bz2', '.tgz', '.tbz2'];
-const SPECIAL_FORMAT_EXTENSIONS = ['.sas7bdat', '.xpt', '.avro', '.dat'];
+const SPECIAL_FORMAT_EXTENSIONS = ['.sas7bdat', '.xpt', '.avro', '.dat', '.txt'];
 const LEGACY_EXTENSIONS = ['.csv', '.json', '.xlsx', '.xls', '.parquet', '.xml'];
 
 class FileProcessingWorker {

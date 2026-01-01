@@ -18,6 +18,22 @@ export const testApiConnection = async () => {
 };
 
 /**
+ * Get the file catalog initialization data (batch endpoint)
+ * Returns { files: Array, totalCount: number, projects: Array, subProjects: Array }
+ */
+export const getFileCatalogInitData = async () => {
+  try {
+    console.log('Fetching file catalog init data...');
+    const response = await axios.get(`${API_URL}/files/init-data`);
+    console.log('File catalog init data fetch successful:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching file catalog init data:', error);
+    throw new Error(error.response?.data?.message || 'Failed to fetch file catalog');
+  }
+};
+
+/**
  * Get the file catalog
  * Returns { files: Array, totalCount: number }
  */
@@ -80,6 +96,28 @@ export const getFileProfile = async (fileId) => {
   } catch (error) {
     console.error(`Error fetching file profile for ${fileId}:`, error);
     throw new Error(error.response?.data?.message || 'Failed to fetch file profile');
+  }
+};
+
+/**
+ * Get full file data for profile page (batch endpoint)
+ * Consolidates file, profile, ownership, tags, policies, and governance data
+ * Reduces 8+ API calls to 1 for better performance
+ */
+export const getFileFullData = async (fileId) => {
+  if (!fileId) {
+    console.error('Error fetching file full data: No file ID provided');
+    return Promise.reject(new Error('No file ID provided'));
+  }
+  
+  try {
+    const encodedFileId = encodeURIComponent(fileId);
+    const response = await axios.get(`${API_URL}/files/${encodedFileId}/full`);
+    console.log('File full data fetch successful:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error(`Error fetching file full data for ${fileId}:`, error);
+    throw new Error(error.response?.data?.message || 'Failed to fetch file data');
   }
 };
 

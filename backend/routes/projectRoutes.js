@@ -257,6 +257,95 @@ function createProjectRoutes(dbPool) {
     }
   });
 
+  /**
+   * GET /api/projects/init-data
+   * Batch endpoint to get all data needed for ProjectManagement page in a single call
+   * Replaces 3 separate API calls: projects, users, groups
+   * Permission-aware: Non-admin users only see projects they have access to
+   * NOTE: This route MUST be defined before /:projectId to avoid route conflict
+   */
+  router.get('/init-data', async (req, res) => {
+    try {
+      const { search, archived } = req.query;
+      const { getUserProjects } = require('../middleware/requireProjectAccess');
+      
+      const isAdmin = userHasAllProjectAccess(req.user);
+      let accessibleProjectIds = [];
+      
+      if (!isAdmin) {
+        const userProjects = await getUserProjects(req.user.id);
+        accessibleProjectIds = userProjects.map(p => p.id);
+        
+        // Non-admin with no project access gets empty data
+        if (accessibleProjectIds.length === 0) {
+          return res.json({
+            projects: [],
+            users: [],
+            groups: []
+          });
+        }
+      }
+      
+      // Build projects query
+      let projectsQuery = `
+        SELECT 
+          p.*,
+          parent.name as parent_project_name,
+          COUNT(DISTINCT pm.user_id) as member_count,
+          COUNT(DISTINCT sp.id) as sub_project_count
+        FROM projects p
+        LEFT JOIN projects parent ON p.parent_id = parent.id
+        LEFT JOIN project_members pm ON p.id = pm.project_id
+        LEFT JOIN projects sp ON p.id = sp.parent_id
+        WHERE 1=1
+      `;
+      const projectsParams = [];
+      let paramIndex = 1;
+      
+      // Always filter by accessible projects for non-admins
+      if (!isAdmin) {
+        projectsQuery += ` AND p.id = ANY($${paramIndex})`;
+        projectsParams.push(accessibleProjectIds);
+        paramIndex++;
+      }
+      
+      if (search) {
+        projectsQuery += ` AND (p.name ILIKE $${paramIndex} OR p.description ILIKE $${paramIndex})`;
+        projectsParams.push(`%${search}%`);
+        paramIndex++;
+      }
+      
+      if (archived === 'true') {
+        projectsQuery += ` AND p.is_archived = true`;
+      } else {
+        projectsQuery += ` AND (p.is_archived IS NULL OR p.is_archived = false)`;
+      }
+      
+      projectsQuery += ` GROUP BY p.id, parent.name ORDER BY p.created_at DESC`;
+      
+      // Fetch all data in parallel
+      const [projectsResult, usersResult, groupsResult] = await Promise.all([
+        dbPool.query(projectsQuery, projectsParams),
+        dbPool.query('SELECT id, username, email, full_name FROM users ORDER BY username LIMIT 1000'),
+        dbPool.query('SELECT id, name, description FROM access_groups ORDER BY name')
+      ]);
+      
+      systemLogger.info('Project management init data fetched', {
+        userId: req.user?.id,
+        projectCount: projectsResult.rows.length
+      });
+
+      res.json({
+        projects: projectsResult.rows,
+        users: usersResult.rows,
+        groups: groupsResult.rows
+      });
+    } catch (error) {
+      systemLogger.error('Error in GET /api/projects/init-data', error);
+      res.status(500).json({ error: 'Failed to fetch project management data' });
+    }
+  });
+
   // Get single project with members and groups
   router.get('/:projectId', async (req, res) => {
     try {

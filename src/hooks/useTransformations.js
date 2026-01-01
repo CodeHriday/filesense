@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
-import { QueryKeys } from '../lib/react-query';
+import { QueryKeys, STALE_TIMES, CACHE_TIMES } from '../lib/react-query';
 
 const API_URL = '/api';
 
@@ -82,11 +82,15 @@ const getExecutionDetails = async (executionId) => {
 
 /**
  * Hook for fetching all transformations
+ * Uses 2-minute stale time - transformations change less frequently
  */
 export const useTransformations = (options = {}) => {
   return useQuery({
     queryKey: QueryKeys.transformations.all,
     queryFn: () => getTransformations(options),
+    staleTime: STALE_TIMES.STANDARD,
+    gcTime: CACHE_TIMES.STANDARD,
+    refetchOnMount: false,
     ...options
   });
 };
@@ -99,6 +103,9 @@ export const useTransformation = (id, options = {}) => {
     queryKey: QueryKeys.transformations.byId(id),
     queryFn: () => getTransformationById(id),
     enabled: !!id,
+    staleTime: STALE_TIMES.STANDARD,
+    gcTime: CACHE_TIMES.STANDARD,
+    refetchOnMount: false,
     ...options
   });
 };

@@ -22,11 +22,14 @@ const Jobs = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(20);
   const [searchTerm, setSearchTerm] = useState('');
+  const [lastRefreshed, setLastRefreshed] = useState(null);
   const isFetching = useRef(false);
 
   useEffect(() => {
     fetchJobs();
-    
+  }, []);
+  
+  useEffect(() => {
     const interval = setInterval(() => {
       if (document.visibilityState === 'visible') {
         fetchJobs();
@@ -54,11 +57,17 @@ const Jobs = () => {
     if (isManualRefresh) setRefreshing(true);
     
     try {
-      const response = await axios.get(`${API_BASE_URL}/api/jobs?limit=100`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      // Add cache-busting timestamp for manual refresh to force fresh data
+      const cacheBuster = isManualRefresh ? `&_t=${Date.now()}` : '';
+      const response = await axios.get(`${API_BASE_URL}/api/jobs?limit=100${cacheBuster}`, {
+        headers: { 
+          Authorization: `Bearer ${localStorage.getItem('token')}`,
+          ...(isManualRefresh && { 'Cache-Control': 'no-cache' })
+        }
       });
       setJobs(response.data?.jobs || []);
       setError(null);
+      setLastRefreshed(new Date());
     } catch (err) {
       console.error('Error fetching jobs:', err);
       setError(err.response?.data?.error || 'Failed to load jobs');
@@ -80,17 +89,12 @@ const Jobs = () => {
     setJobLogs([]);
 
     try {
-      const [jobRes, logsRes] = await Promise.all([
-        axios.get(`${API_BASE_URL}/api/jobs/${jobId}`, {
-          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-        }),
-        axios.get(`${API_BASE_URL}/api/jobs/${jobId}/logs`, {
-          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-        })
-      ]);
-
-      setSelectedJob(jobRes.data);
-      setJobLogs(logsRes.data?.logs || []);
+      const response = await axios.get(`${API_BASE_URL}/api/jobs/${jobId}/full`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      });
+      
+      setSelectedJob(response.data.job);
+      setJobLogs(response.data.logs || []);
     } catch (err) {
       console.error('Error fetching job details:', err);
       setError('Failed to load job details');
@@ -320,15 +324,22 @@ const Jobs = () => {
           <h1 className="gps-page-title">Jobs Log</h1>
           <p className="gps-page-subtitle">Monitor and manage ETL transformation job executions</p>
         </div>
-        <button 
-          className="gps-btn-primary"
-          onClick={handleRefresh}
-          disabled={refreshing}
-          title="Refresh jobs"
-        >
-          <FiRefreshCw className={refreshing ? 'spinning' : ''} /> 
-          {refreshing ? 'Refreshing...' : 'Refresh'}
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          {lastRefreshed && (
+            <span style={{ fontSize: '10px', color: '#6b7280' }}>
+              Last refreshed: {lastRefreshed.toLocaleTimeString()}
+            </span>
+          )}
+          <button 
+            className="gps-btn gps-btn--secondary"
+            onClick={handleRefresh}
+            disabled={refreshing}
+            title="Refresh jobs"
+          >
+            <FiRefreshCw size={16} className={refreshing ? 'spinning' : ''} />
+            Refresh
+          </button>
+        </div>
       </div>
 
       <div className="gps-filters">

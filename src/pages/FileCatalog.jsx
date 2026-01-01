@@ -5,7 +5,7 @@ import { useQueryClient, useMutation } from '@tanstack/react-query';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ConfirmationModal from '../components/ConfirmationModal';
 import SimpleSuccessModal from '../components/SimpleSuccessModal';
-import { useFileCatalog, useFileDelete } from '../hooks';
+import { useFileCatalogInitData, useFileDelete } from '../hooks';
 import { QueryKeys } from '../lib/react-query';
 import { QualityTooltip } from '../components/QualityTooltip';
 import { DLQBadge } from '../components/DLQBadge';
@@ -40,23 +40,16 @@ export const FileCatalog = ({ onFileSelect }) => {
   const [passwordModalFile, setPasswordModalFile] = useState(null);
   const [isSubmittingPassword, setIsSubmittingPassword] = useState(false);
   
-  // Using React Query to fetch file catalog
+  // Using React Query to fetch file catalog with batch endpoint
+  // Consolidates files, projects, and sub-projects into a single API call
+  // Caching is configured in useFiles.js: 30s stale, 3min cache
+  // Mutations (upload, delete) automatically invalidate the cache
   const { 
-    data: fileData, 
+    data: initData, 
     isLoading, 
     error, 
     refetch 
-  } = useFileCatalog({
-    // Refetching options
-    refetchOnWindowFocus: false,  // Don't refetch when window regains focus
-    staleTime: 5 * 60 * 1000,     // Consider data fresh for 5 minutes
-  });
-
-  // Auto-refresh file catalog when navigating to this page
-  useEffect(() => {
-    // Refetch the file catalog to show newly uploaded files
-    refetch();
-  }, []); // Empty dependency array means this runs once when component mounts
+  } = useFileCatalogInitData();
   
   // Handle project filter from URL parameter
   useEffect(() => {
@@ -105,30 +98,23 @@ export const FileCatalog = ({ onFileSelect }) => {
     }
   });
   
-  // Properly handle the file data format from the API
-  // API now returns { files: Array, totalCount: number }
-  const files = fileData?.files || fileData || [];
-  const totalFilesCount = fileData?.totalCount || files.length;
+  // Properly handle the file data format from the batch API
+  // API returns { files: Array, totalCount: number, projects: Array, subProjects: Array }
+  const files = initData?.files || [];
+  const globalTotalFilesCount = initData?.totalCount || files.length;
   
-  // Get unique projects for filtering
+  // Get projects from batch endpoint (already filtered by user's access)
   const uniqueProjects = React.useMemo(() => {
-    const projects = files
-      .filter(f => f.project_id)
-      .map(f => ({ id: f.project_id, name: f.project_name }))
-      .filter((p, index, self) => self.findIndex(s => s.id === p.id) === index);
-    return projects;
-  }, [files]);
+    return initData?.projects || [];
+  }, [initData]);
   
-  // Get unique sub-projects for the selected project
+  // Get sub-projects for the selected project from batch endpoint
   const uniqueSubProjects = React.useMemo(() => {
     if (selectedProject === 'all') return [];
     
-    const subProjects = files
-      .filter(f => f.project_id === selectedProject && f.sub_project_id)
-      .map(f => ({ id: f.sub_project_id, name: f.sub_project_name }))
-      .filter((sp, index, self) => self.findIndex(s => s.id === sp.id) === index);
-    return subProjects;
-  }, [files, selectedProject]);
+    const allSubProjects = initData?.subProjects || [];
+    return allSubProjects.filter(sp => sp.parent_id === selectedProject);
+  }, [initData, selectedProject]);
   
   // Reset subproject filter when project changes
   useEffect(() => {
@@ -389,6 +375,10 @@ export const FileCatalog = ({ onFileSelect }) => {
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
   const paginatedFiles = filteredAndSortedFiles.slice(startIndex, endIndex);
+  
+  // Display count: show filtered count when filters are active, otherwise show global total
+  const hasActiveFilters = selectedProject !== 'all' || selectedSubProject !== 'all' || selectedType !== 'all' || searchTerm !== '';
+  const displayedFilesCount = hasActiveFilters ? filteredAndSortedFiles.length : globalTotalFilesCount;
 
   // Reset to page 1 when filters change
   React.useEffect(() => {
@@ -522,7 +512,10 @@ export const FileCatalog = ({ onFileSelect }) => {
             )}
             <button
               className="gps-icon-btn gps-icon-btn--view"
-              onClick={() => handleViewDetails(file)}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleViewDetails(file);
+              }}
               title="View Details"
             >
               <FiEye />
@@ -616,8 +609,8 @@ export const FileCatalog = ({ onFileSelect }) => {
         </div>
         <div className="gps-header-actions">
           <div className="gps-stat-card" style={{ padding: '8px 16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontSize: '18px', fontWeight: 700, color: '#025043' }}>{totalFilesCount.toLocaleString()}</span>
-            <span style={{ fontSize: '10px', color: '#666' }}>Total Files</span>
+            <span style={{ fontSize: '18px', fontWeight: 700, color: '#025043' }}>{displayedFilesCount.toLocaleString()}</span>
+            <span style={{ fontSize: '10px', color: '#666' }}>{hasActiveFilters ? 'Filtered Files' : 'Total Files'}</span>
           </div>
         </div>
       </div>

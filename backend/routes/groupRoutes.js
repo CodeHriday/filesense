@@ -61,6 +61,71 @@ function createGroupRoutes(dbPool) {
     }
   });
 
+  /**
+   * GET /api/groups/init-data
+   * Batch endpoint to get all data needed for GroupManagement page in a single call
+   * Replaces 4 separate API calls: groups, users, roles, projects
+   * NOTE: This route MUST be defined before /:groupId to avoid being matched as a group ID
+   */
+  router.get('/init-data', async (req, res) => {
+    try {
+      const { group_type, search } = req.query;
+      
+      let groupsQuery = `
+        SELECT 
+          ag.*,
+          COUNT(ug.user_id) as member_count
+        FROM access_groups ag
+        LEFT JOIN user_groups ug ON ag.id = ug.group_id
+        WHERE 1=1
+      `;
+      const groupsParams = [];
+      let paramIndex = 1;
+
+      if (group_type) {
+        groupsQuery += ` AND ag.group_type = $${paramIndex}`;
+        groupsParams.push(group_type);
+        paramIndex++;
+      }
+
+      if (search) {
+        groupsQuery += ` AND (ag.name ILIKE $${paramIndex} OR ag.description ILIKE $${paramIndex})`;
+        groupsParams.push(`%${search}%`);
+        paramIndex++;
+      }
+
+      groupsQuery += ' GROUP BY ag.id ORDER BY ag.created_at DESC';
+      
+      const [groupsResult, usersResult, rolesResult, projectsResult] = await Promise.all([
+        dbPool.query(groupsQuery, groupsParams),
+        dbPool.query('SELECT id, username, email, full_name FROM users ORDER BY username LIMIT 1000'),
+        dbPool.query('SELECT id, name, description FROM roles ORDER BY name'),
+        dbPool.query('SELECT id, name FROM projects WHERE parent_id IS NULL ORDER BY name')
+      ]);
+      
+      const groups = groupsResult.rows.map(group => ({
+        ...group,
+        idp_sync_enabled: group.sync_enabled,
+        member_count: parseInt(group.member_count) || 0
+      }));
+      
+      systemLogger.info('Group management init data fetched', {
+        userId: req.user?.id,
+        groupCount: groups.length
+      });
+
+      res.json({
+        groups,
+        users: usersResult.rows,
+        roles: rolesResult.rows,
+        projects: projectsResult.rows
+      });
+    } catch (error) {
+      systemLogger.error('Error in GET /api/groups/init-data', error);
+      res.status(500).json({ error: 'Failed to fetch group management data' });
+    }
+  });
+
   // Get single group with members and roles
   router.get('/:groupId', async (req, res) => {
     try {

@@ -960,4 +960,97 @@ router.get('/runs/:runId', async (req, res) => {
   }
 });
 
+/**
+ * GET /api/n-step-workflows/init-data
+ * Batch endpoint to get all data needed for NStepWorkflows page in a single call
+ * Replaces 4 separate API calls: n-step-workflows, visual-mappings, mapping-groups, projects
+ * Permission-aware: Filters ALL data based on user's project access
+ */
+router.get('/init-data', async (req, res) => {
+  try {
+    const { getUserProjects } = require('../middleware/requireProjectAccess');
+    
+    const isAdmin = userHasAdminAccess(req.user);
+    let projectIds = [];
+    
+    if (!isAdmin) {
+      const userProjects = await getUserProjects(req.user.id);
+      projectIds = userProjects.map(p => p.id);
+      
+      if (projectIds.length === 0) {
+        return res.json({
+          success: true,
+          workflows: [],
+          mappings: [],
+          mappingGroups: [],
+          projects: []
+        });
+      }
+    }
+    
+    let workflowsQuery = `
+      SELECT 
+        w.*,
+        COUNT(DISTINCT s.id) as step_count,
+        p.name as project_name
+      FROM n_step_workflows w
+      LEFT JOIN n_step_workflow_steps s ON w.id = s.workflow_id
+      LEFT JOIN projects p ON w.project_id = p.id
+    `;
+    
+    let visualMappingsQuery = `
+      SELECT id, name, project_id, sub_project_id, created_at
+      FROM visual_mappings
+      WHERE is_deleted = false
+    `;
+    
+    let groupsQuery = `
+      SELECT id, name, description, project_id, sub_project_id, created_at
+      FROM mapping_groups
+      WHERE 1=1
+    `;
+    
+    let projectsQuery = `
+      SELECT id, name, description, project_type, parent_id, parent_project_id, created_at
+      FROM projects
+      WHERE 1=1
+    `;
+    
+    if (!isAdmin && projectIds.length > 0) {
+      workflowsQuery += ` WHERE w.project_id = ANY($1)`;
+      visualMappingsQuery += ` AND project_id = ANY($1)`;
+      groupsQuery += ` AND project_id = ANY($1)`;
+      projectsQuery += ` AND id = ANY($1)`;
+    }
+    
+    workflowsQuery += ` GROUP BY w.id, p.name ORDER BY w.created_at DESC`;
+    visualMappingsQuery += ` ORDER BY name`;
+    groupsQuery += ` ORDER BY name`;
+    projectsQuery += ` ORDER BY name`;
+    
+    const params = (!isAdmin && projectIds.length > 0) ? [projectIds] : [];
+    
+    const [workflowsResult, visualMappingsResult, groupsResult, projectsResult] = await Promise.all([
+      pool.query(workflowsQuery, params),
+      pool.query(visualMappingsQuery, params),
+      pool.query(groupsQuery, params),
+      pool.query(projectsQuery, params)
+    ]);
+    
+    res.json({
+      success: true,
+      workflows: workflowsResult.rows,
+      mappings: visualMappingsResult.rows,
+      mappingGroups: groupsResult.rows,
+      projects: projectsResult.rows
+    });
+  } catch (error) {
+    systemLogger.error('Error in GET /api/n-step-workflows/init-data', { error: error.message });
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch init data'
+    });
+  }
+});
+
 module.exports = router;

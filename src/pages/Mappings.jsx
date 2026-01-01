@@ -40,33 +40,34 @@ function Mappings() {
   const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
-    fetchProjects();
-    fetchAllMappings();
+    fetchInitData();
   }, []);
 
   useEffect(() => {
     if (selectedProjectId) {
-      fetchAllMappings();
+      fetchMappings();
     }
   }, [selectedProjectId]);
 
-  const fetchProjects = async () => {
+  const fetchInitData = async () => {
     try {
       setLoading(true);
-      const response = await axios.get(`${API_BASE_URL}/api/projects`, {
+      const response = await axios.get(`${API_BASE_URL}/api/transformations/init-data`, {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       });
-      setProjects(response.data || []);
+      
+      setProjects(response.data.projects || []);
+      setMappings(response.data.mappings || []);
       setError(null);
     } catch (err) {
-      console.error('Error fetching projects:', err);
-      setError(err.response?.data?.error || 'Failed to load projects');
+      console.error('Error fetching init data:', err);
+      setError(err.response?.data?.error || 'Failed to load mappings data');
     } finally {
       setLoading(false);
     }
   };
 
-  const fetchAllMappings = async () => {
+  const fetchMappings = async () => {
     try {
       setLoading(true);
       const mappingsRes = await axios.get(`${API_BASE_URL}/api/transformations`, {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { FiPlusCircle, FiPower, FiEdit2, FiTrash2, FiPlay } from 'react-icons/fi';
@@ -8,53 +8,37 @@ import LoadingSpinner from '../components/LoadingSpinner';
 import { PageTransition } from '../components/MicroAnimations';
 import ConfirmModal from '../components/ConfirmModal';
 import { useNotification } from '../contexts/NotificationContext';
+import { useVisualWorkflows, useDeleteVisualWorkflow, useExecuteVisualWorkflow } from '../hooks/useVisualWorkflows';
+import { useSchedules, useUpdateSchedule } from '../hooks/useSchedules';
 import './WorkflowManager.css';
 
 const WorkflowManager = () => {
   const navigate = useNavigate();
-  const [workflows, setWorkflows] = useState([]);
-  const [schedules, setSchedules] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const { showSuccess, showError } = useNotification();
+  
+  const { data: workflowsData, isLoading: workflowsLoading, error: workflowsError } = useVisualWorkflows();
+  const { data: schedulesData, isLoading: schedulesLoading } = useSchedules();
+  const deleteMutation = useDeleteVisualWorkflow();
+  const executeMutation = useExecuteVisualWorkflow();
+  const updateScheduleMutation = useUpdateSchedule();
+  
+  const workflows = useMemo(() => {
+    return Array.isArray(workflowsData) ? workflowsData : [];
+  }, [workflowsData]);
+  
+  const schedules = useMemo(() => {
+    const data = schedulesData?.schedules || schedulesData || [];
+    return Array.isArray(data) ? data : [];
+  }, [schedulesData]);
+  
+  const loading = workflowsLoading || schedulesLoading;
+  const error = workflowsError?.message || null;
+
   const [deleteModal, setDeleteModal] = useState({ show: false, workflowId: null, isBulk: false });
   const [selectedWorkflows, setSelectedWorkflows] = useState(new Set());
-  const { showSuccess, showError } = useNotification();
 
-  // Filter state
   const [selectedProject, setSelectedProject] = useState('all');
   const [selectedSubProject, setSelectedSubProject] = useState('all');
-
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  const loadData = async () => {
-    try {
-      setLoading(true);
-      const token = localStorage.getItem('token');
-      
-      // Load workflows and schedules in parallel
-      const [workflowsRes, schedulesRes] = await Promise.all([
-        axios.get('/api/visual-workflows', {
-          headers: { Authorization: `Bearer ${token}` }
-        }),
-        axios.get('/api/schedules', {
-          headers: { Authorization: `Bearer ${token}` }
-        })
-      ]);
-
-      setWorkflows(Array.isArray(workflowsRes.data) ? workflowsRes.data : []);
-      
-      const schedulesData = schedulesRes.data.schedules || schedulesRes.data || [];
-      setSchedules(Array.isArray(schedulesData) ? schedulesData : []);
-      
-      setLoading(false);
-    } catch (err) {
-      console.error('Failed to load data:', err);
-      setError('Failed to load workflows');
-      setLoading(false);
-    }
-  };
 
   // Get unique projects and subprojects
   const projects = useMemo(() => {
@@ -138,15 +122,7 @@ const WorkflowManager = () => {
     setDeleteModal({ show: false, workflowId: null, isBulk: false });
 
     try {
-      const token = localStorage.getItem('token');
-      await Promise.all(
-        idsToDelete.map(id =>
-          axios.delete(`/api/visual-workflows/${id}`, {
-            headers: { Authorization: `Bearer ${token}` }
-          })
-        )
-      );
-      setWorkflows(workflows.filter(w => !selectedWorkflows.has(w.id)));
+      await Promise.all(idsToDelete.map(id => deleteMutation.mutateAsync(id)));
       setSelectedWorkflows(new Set());
       showSuccess(`${idsToDelete.length} workflow(s) deleted successfully`);
     } catch (err) {
@@ -156,29 +132,24 @@ const WorkflowManager = () => {
   };
 
   const handleToggle = async (workflowId, currentEnabled) => {
-    try {
-      const token = localStorage.getItem('token');
-      const schedule = getWorkflowSchedule(workflowId);
-      
-      if (!schedule) {
-        showError('No schedule found for this workflow');
-        return;
-      }
-
-      await axios.put(`/api/schedules/${schedule.schedule_id}`, 
-        { enabled: !currentEnabled },
-        { headers: { Authorization: `Bearer ${token}` }}
-      );
-      
-      setSchedules(schedules.map(s =>
-        s.schedule_id === schedule.schedule_id ? { ...s, enabled: !currentEnabled } : s
-      ));
-      
-      showSuccess(`Workflow ${!currentEnabled ? 'enabled' : 'disabled'} successfully`);
-    } catch (err) {
-      console.error('Error toggling workflow:', err);
-      showError('Failed to toggle workflow');
+    const schedule = getWorkflowSchedule(workflowId);
+    
+    if (!schedule) {
+      showError('No schedule found for this workflow');
+      return;
     }
+
+    updateScheduleMutation.mutate(
+      { id: schedule.schedule_id, data: { enabled: !currentEnabled } },
+      {
+        onSuccess: () => {
+          showSuccess(`Workflow ${!currentEnabled ? 'enabled' : 'disabled'} successfully`);
+        },
+        onError: () => {
+          showError('Failed to toggle workflow');
+        }
+      }
+    );
   };
 
   const handleEdit = (workflowId) => {
@@ -186,16 +157,14 @@ const WorkflowManager = () => {
   };
 
   const handleExecute = async (workflowId) => {
-    try {
-      const token = localStorage.getItem('token');
-      await axios.post(`/api/visual-workflows/${workflowId}/execute`, {}, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      showSuccess('Workflow execution started');
-    } catch (err) {
-      console.error('Failed to execute workflow:', err);
-      showError('Failed to execute workflow');
-    }
+    executeMutation.mutate(workflowId, {
+      onSuccess: () => {
+        showSuccess('Workflow execution started');
+      },
+      onError: () => {
+        showError('Failed to execute workflow');
+      }
+    });
   };
 
   const handleDeleteClick = (workflowId) => {
@@ -206,22 +175,19 @@ const WorkflowManager = () => {
     const workflowId = deleteModal.workflowId;
     setDeleteModal({ show: false, workflowId: null, isBulk: false });
 
-    try {
-      const token = localStorage.getItem('token');
-      await axios.delete(`/api/visual-workflows/${workflowId}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setWorkflows(workflows.filter(w => w.id !== workflowId));
-      setSelectedWorkflows(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(workflowId);
-        return newSet;
-      });
-      showSuccess('Workflow deleted successfully');
-    } catch (err) {
-      console.error('Error deleting workflow:', err);
-      showError('Failed to delete workflow');
-    }
+    deleteMutation.mutate(workflowId, {
+      onSuccess: () => {
+        setSelectedWorkflows(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(workflowId);
+          return newSet;
+        });
+        showSuccess('Workflow deleted successfully');
+      },
+      onError: () => {
+        showError('Failed to delete workflow');
+      }
+    });
   };
 
   const formatDateTime = (dateStr) => {

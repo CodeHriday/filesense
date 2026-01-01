@@ -1,54 +1,32 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { FiCheckCircle, FiAlertTriangle, FiClock, FiBarChart2, FiPlay, FiFilter, FiSearch, FiRefreshCw } from 'react-icons/fi';
-import { getSLAStatus, getSLAViolations, runManualSLACheck, getSLASummary } from '../api/slaService';
+import { useSLAMonitoring, useManualSLACheck } from '../hooks/useSLAMonitoring';
 import '../styles/global-page-styles.css';
 
 const SLAMonitoring = () => {
-  const [loading, setLoading] = useState(true);
-  const [summary, setSummary] = useState(null);
-  const [slaStatus, setSlaStatus] = useState([]);
-  const [violations, setViolations] = useState([]);
   const [filter, setFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedAgreement, setSelectedAgreement] = useState(null);
-  const [runningCheck, setRunningCheck] = useState(null);
+  const [checkingAgreementId, setCheckingAgreementId] = useState(null);
 
-  useEffect(() => {
-    fetchData();
-    const interval = setInterval(fetchData, 60000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const fetchData = async () => {
-    try {
-      setLoading(true);
-      const [summaryRes, statusRes, violationsRes] = await Promise.all([
-        getSLASummary(),
-        getSLAStatus(),
-        getSLAViolations({ resolved: false, limit: 50 })
-      ]);
-
-      setSummary(summaryRes.data);
-      setSlaStatus(statusRes.data);
-      setViolations(violationsRes.data);
-    } catch (error) {
-      console.error('Error fetching SLA data:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const { data, isLoading, refetch } = useSLAMonitoring();
+  const manualCheckMutation = useManualSLACheck();
+  
+  const summary = data?.summary || null;
+  const slaStatus = data?.status || [];
+  const violations = data?.violations || [];
+  const loading = isLoading;
 
   const handleManualCheck = async (agreementId) => {
     try {
-      setRunningCheck(agreementId);
-      await runManualSLACheck(agreementId);
-      await fetchData();
+      setCheckingAgreementId(agreementId);
+      await manualCheckMutation.mutateAsync(agreementId);
       alert('SLA check completed successfully!');
     } catch (error) {
       console.error('Error running manual check:', error);
       alert('Failed to run SLA check: ' + (error.response?.data?.error || error.message));
     } finally {
-      setRunningCheck(null);
+      setCheckingAgreementId(null);
     }
   };
 
@@ -107,7 +85,7 @@ const SLAMonitoring = () => {
           <p className="gps-page-subtitle">Real-time vendor file delivery compliance tracking</p>
         </div>
         <div className="gps-header-actions">
-          <button className="gps-btn gps-btn--secondary" onClick={fetchData}>
+          <button className="gps-btn gps-btn--secondary" onClick={() => refetch()}>
             <FiRefreshCw /> Refresh
           </button>
         </div>
@@ -246,10 +224,10 @@ const SLAMonitoring = () => {
                       <button
                         className="gps-btn gps-btn--secondary"
                         onClick={() => handleManualCheck(item.agreement_id)}
-                        disabled={runningCheck === item.agreement_id}
+                        disabled={checkingAgreementId === item.agreement_id}
                         style={{ fontSize: '10px', padding: '4px 8px' }}
                       >
-                        <FiPlay /> {runningCheck === item.agreement_id ? 'Checking...' : 'Check Now'}
+                        <FiPlay /> {checkingAgreementId === item.agreement_id ? 'Checking...' : 'Check Now'}
                       </button>
                     </td>
                   </tr>

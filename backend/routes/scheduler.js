@@ -592,4 +592,102 @@ router.post('/process-due', async (req, res) => {
   }
 });
 
+/**
+ * GET /api/schedules/init-data
+ * Batch endpoint to get all data needed for SchedulerForm page in a single call
+ * Replaces 5 separate API calls: transformations, mapping-groups, n-step-workflows, visual-workflows, projects
+ * Permission-aware: Filters data based on user's project access
+ */
+router.get('/init-data', async (req, res) => {
+  try {
+    const { getUserProjects } = require('../middleware/requireProjectAccess');
+    const { userHasAdminAccess } = require('../utils/permissionHelpers');
+    
+    const isAdmin = userHasAdminAccess(req.user);
+    let projectIds = [];
+    
+    if (!isAdmin) {
+      const userProjects = await getUserProjects(req.user.id);
+      projectIds = userProjects.map(p => p.id);
+      
+      if (projectIds.length === 0) {
+        return res.json({
+          success: true,
+          transformations: [],
+          mappingGroups: [],
+          nStepWorkflows: [],
+          visualWorkflows: [],
+          projects: []
+        });
+      }
+    }
+    
+    const params = (!isAdmin && projectIds.length > 0) ? [projectIds] : [];
+    
+    let mappingsQuery = `
+      SELECT id, name, project_id, sub_project_id, created_at
+      FROM visual_mappings
+      WHERE is_deleted = false
+    `;
+    let groupsQuery = `
+      SELECT id, name, description, project_id, sub_project_id, created_at
+      FROM mapping_groups
+      WHERE 1=1
+    `;
+    let nStepQuery = `
+      SELECT id, name, description, project_id, sub_project_id, created_at
+      FROM n_step_workflows
+      WHERE 1=1
+    `;
+    let visualQuery = `
+      SELECT id, name, project_id, sub_project_id, created_at
+      FROM visual_workflows
+      WHERE is_deleted = false OR is_deleted IS NULL
+    `;
+    let projectsQuery = `
+      SELECT id, name, description, project_type, parent_id, parent_project_id, created_at
+      FROM projects
+      WHERE 1=1
+    `;
+    
+    if (!isAdmin && projectIds.length > 0) {
+      mappingsQuery += ` AND project_id = ANY($1)`;
+      groupsQuery += ` AND project_id = ANY($1)`;
+      nStepQuery += ` AND project_id = ANY($1)`;
+      visualQuery += ` AND project_id = ANY($1)`;
+      projectsQuery += ` AND id = ANY($1)`;
+    }
+    
+    mappingsQuery += ` ORDER BY name`;
+    groupsQuery += ` ORDER BY name`;
+    nStepQuery += ` ORDER BY name`;
+    visualQuery += ` ORDER BY name`;
+    projectsQuery += ` ORDER BY name`;
+    
+    const [mappingsResult, groupsResult, nStepResult, visualResult, projectsResult] = await Promise.all([
+      pool.query(mappingsQuery, params),
+      pool.query(groupsQuery, params),
+      pool.query(nStepQuery, params),
+      pool.query(visualQuery, params),
+      pool.query(projectsQuery, params)
+    ]);
+    
+    res.json({
+      success: true,
+      transformations: mappingsResult.rows,
+      mappingGroups: groupsResult.rows,
+      nStepWorkflows: nStepResult.rows,
+      visualWorkflows: visualResult.rows,
+      projects: projectsResult.rows
+    });
+    
+  } catch (error) {
+    systemLogger.error('Error in GET /api/schedules/init-data', { error: error.message });
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch init data'
+    });
+  }
+});
+
 module.exports = router;

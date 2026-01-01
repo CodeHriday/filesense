@@ -1,6 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import { Bar, Doughnut, Line } from 'react-chartjs-2';
-import axios from 'axios';
 import PropTypes from 'prop-types';
 import {
   Chart as ChartJS,
@@ -16,7 +15,17 @@ import {
   Filler
 } from 'chart.js';
 import ChartDataLabels from 'chartjs-plugin-datalabels';
-import { API_BASE_URL } from '../config';
+import {
+  useExecutiveMetrics,
+  useQualityTrend,
+  useJobTrend,
+  useProjectHealth,
+  useFileTypeDistribution,
+  useSchemaDriftTrend,
+  useMetricTrends,
+  useProjects,
+  useInvalidateDashboard
+} from '../hooks';
 import MetricTrendPopup from '../components/MetricTrendPopup';
 import './ExecutiveDashboard.css';
 
@@ -35,27 +44,51 @@ ChartJS.register(
 );
 
 const ExecutiveDashboard = () => {
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState(null);
-  const [metrics, setMetrics] = useState(null);
   const [timeRange, setTimeRange] = useState(30);
   const [lastUpdate, setLastUpdate] = useState(new Date());
   const [selectedProject, setSelectedProject] = useState(null);
-  const [projects, setProjects] = useState([]);
-  const [projectHealthScores, setProjectHealthScores] = useState([]);
-  const [fileTypeDistribution, setFileTypeDistribution] = useState([]);
-  const [jobTrend, setJobTrend] = useState([]);
-  const [schemaDriftTrend, setSchemaDriftTrend] = useState([]);
-  const [qualityViolations, setQualityViolations] = useState([]);
   const [activeQualityTab, setActiveQualityTab] = useState('all');
-  const [metricTrends, setMetricTrends] = useState({});
   const [activePopup, setActivePopup] = useState(null);
   const [activeModal, setActiveModal] = useState(null);
   const [popupAnchorEl, setPopupAnchorEl] = useState(null);
   const [modalAnchorEl, setModalAnchorEl] = useState(null);
   const clickTimeoutRef = useRef(null);
   const kpiCardRefs = useRef({});
+
+  const invalidateDashboard = useInvalidateDashboard();
+
+  const { data: projectsData } = useProjects();
+  const projects = Array.isArray(projectsData) ? projectsData : [];
+
+  const { data: projectHealthData } = useProjectHealth();
+  const projectHealthScores = projectHealthData?.projects || [];
+
+  const { 
+    data: metricsData, 
+    isLoading: metricsLoading, 
+    error: metricsError,
+    isFetching: metricsRefreshing 
+  } = useExecutiveMetrics(timeRange, selectedProject);
+  const metrics = metricsData?.success ? metricsData.metrics : null;
+
+  const { data: fileTypeData } = useFileTypeDistribution(selectedProject);
+  const fileTypeDistribution = fileTypeData?.fileTypes || [];
+
+  const { data: jobTrendData } = useJobTrend(selectedProject);
+  const jobTrend = jobTrendData?.jobTrend || [];
+
+  const { data: schemaDriftData } = useSchemaDriftTrend(selectedProject);
+  const schemaDriftTrend = schemaDriftData?.driftTrend || [];
+
+  const { data: qualityData } = useQualityTrend(selectedProject);
+  const qualityViolations = qualityData?.violationsTrend || [];
+
+  const { data: metricTrendsData } = useMetricTrends('daily', selectedProject);
+  const metricTrends = metricTrendsData?.success ? metricTrendsData.trends : {};
+
+  const loading = metricsLoading;
+  const refreshing = metricsRefreshing && !metricsLoading;
+  const error = metricsError?.response?.data?.error || (metricsError ? 'Failed to load metrics. Please try again.' : null);
 
   // TrendIcon component - defined early to avoid hoisting issues
   const TrendIcon = ({ direction }) => {
@@ -69,143 +102,9 @@ const ExecutiveDashboard = () => {
     direction: PropTypes.oneOf(['up', 'down', 'neutral']).isRequired
   };
 
-  const fetchProjects = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const response = await axios.get(`${API_BASE_URL}/api/projects`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setProjects(Array.isArray(response.data) ? response.data : []);
-    } catch (err) {
-      console.error('Error fetching projects:', err);
-    }
-  };
-
-  const fetchProjectHealthScores = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const response = await axios.get(`${API_BASE_URL}/api/dashboard/project-health-scores`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setProjectHealthScores(response.data.projects || []);
-    } catch (err) {
-      console.error('Error fetching project health scores:', err);
-    }
-  };
-
-  const fetchFileTypeDistribution = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const projectParam = selectedProject ? `?project_id=${selectedProject}` : '';
-      const response = await axios.get(`${API_BASE_URL}/api/dashboard/file-type-distribution${projectParam}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setFileTypeDistribution(response.data.fileTypes || []);
-    } catch (err) {
-      console.error('Error fetching file type distribution:', err);
-    }
-  };
-
-  const fetchJobTrend = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const projectParam = selectedProject ? `?project_id=${selectedProject}` : '';
-      const response = await axios.get(`${API_BASE_URL}/api/dashboard/job-trend${projectParam}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setJobTrend(response.data.jobTrend || []);
-    } catch (err) {
-      console.error('Error fetching job trend:', err);
-    }
-  };
-
-  const fetchSchemaDriftTrend = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const projectParam = selectedProject ? `?project_id=${selectedProject}` : '';
-      const response = await axios.get(`${API_BASE_URL}/api/dashboard/schema-drift-trend${projectParam}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setSchemaDriftTrend(response.data.driftTrend || []);
-    } catch (err) {
-      console.error('Error fetching schema drift trend:', err);
-    }
-  };
-
-  const fetchQualityViolations = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const projectParam = selectedProject ? `?project_id=${selectedProject}` : '';
-      const response = await axios.get(`${API_BASE_URL}/api/dashboard/quality-violations-trend${projectParam}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setQualityViolations(response.data.violationsTrend || []);
-    } catch (err) {
-      console.error('Error fetching quality violations:', err);
-    }
-  };
-
-  const fetchExecutiveMetrics = async (showLoading = true) => {
-    try {
-      setError(null);
-      if (showLoading) {
-        setLoading(true);
-      } else {
-        setRefreshing(true);
-      }
-
-      const token = localStorage.getItem('token');
-      const projectParam = selectedProject ? `&project_id=${selectedProject}` : '';
-      const response = await axios.get(
-        `${API_BASE_URL}/api/dashboard/executive-metrics?days=${timeRange}${projectParam}`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-
-      if (response.data.success) {
-        setMetrics(response.data.metrics);
-        setLastUpdate(new Date());
-      }
-    } catch (err) {
-      console.error('Error fetching executive metrics:', err);
-      setError(err.response?.data?.error || 'Failed to load metrics. Please try again.');
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  };
-
-  const fetchMetricTrends = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const projectParam = selectedProject ? `&project_id=${selectedProject}` : '';
-      const response = await axios.get(
-        `${API_BASE_URL}/api/dashboard/metric-trends?granularity=daily${projectParam}`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      if (response.data.success) {
-        setMetricTrends(response.data.trends);
-      }
-    } catch (err) {
-      console.error('Error fetching metric trends:', err);
-    }
-  };
-
-  useEffect(() => {
-    fetchProjects();
-    fetchProjectHealthScores();
-  }, []);
-
-  useEffect(() => {
-    fetchExecutiveMetrics();
-    fetchFileTypeDistribution();
-    fetchJobTrend();
-    fetchSchemaDriftTrend();
-    fetchQualityViolations();
-    fetchMetricTrends();
-  }, [timeRange, selectedProject]);
-
   const handleRefresh = () => {
-    fetchExecutiveMetrics(false);
+    invalidateDashboard();
+    setLastUpdate(new Date());
   };
 
   const handleKpiCardClick = (metricType, metricLabel, event) => {

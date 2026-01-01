@@ -63,6 +63,8 @@ class StreamingFileReader:
             
         if name.endswith('.csv'):
             return 'csv'
+        elif name.endswith('.txt'):
+            return 'txt'
         elif name.endswith('.json'):
             return 'json'
         elif name.endswith('.parquet'):
@@ -91,7 +93,7 @@ class StreamingFileReader:
             yield from stream_json_file(self.file_path, self.chunk_size)
         elif self.file_extension == 'parquet':
             yield from stream_parquet_file(self.file_path, self.chunk_size)
-        elif self.file_extension == 'csv':
+        elif self.file_extension in ['csv', 'txt']:
             yield from stream_csv_file(self.file_path, self.chunk_size)
         elif self.file_extension == 'excel':
             yield from stream_excel_file(self.file_path, self.chunk_size)

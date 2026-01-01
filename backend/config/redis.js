@@ -1,7 +1,16 @@
 /**
  * Redis configuration and utility module for caching
+ * With in-memory fallback when Redis is unavailable
  */
 const Redis = require('ioredis');
+const NodeCache = require('node-cache');
+
+// In-memory fallback cache (used when Redis is unavailable)
+const memoryCache = new NodeCache({
+  stdTTL: 600, // Default 10 minutes
+  checkperiod: 120, // Check for expired keys every 2 minutes
+  useClones: false // Better performance
+});
 
 // Create Redis client with connection pooling
 const redis = new Redis({
@@ -51,7 +60,7 @@ redis.on('reconnecting', () => {
 });
 
 /**
- * Cache utility functions with graceful Redis degradation
+ * Cache utility functions with graceful Redis degradation and in-memory fallback
  */
 const cache = {
   /**
@@ -63,45 +72,55 @@ const cache = {
   },
 
   /**
-   * Get cached value
+   * Get cached value (uses Redis if available, falls back to memory cache)
    * @param {string} key - Cache key
    * @returns {Promise<any>} Cached value or null
    */
   async get(key) {
-    if (!this.isAvailable()) {
-      return null;
-    }
-    try {
-      const value = await redis.get(key);
-      return value ? JSON.parse(value) : null;
-    } catch (error) {
-      if (error.message !== 'Connection is closed.') {
-        console.error(`Error getting cache key ${key}:`, error);
+    // Try Redis first if available
+    if (this.isAvailable()) {
+      try {
+        const value = await redis.get(key);
+        if (value) {
+          return JSON.parse(value);
+        }
+      } catch (error) {
+        if (error.message !== 'Connection is closed.') {
+          console.error(`Error getting cache key ${key}:`, error);
+        }
+        // Fall through to memory cache
       }
-      return null;
     }
+    
+    // Fallback to in-memory cache
+    const memValue = memoryCache.get(key);
+    return memValue !== undefined ? memValue : null;
   },
 
   /**
-   * Set cache value with TTL
+   * Set cache value with TTL (uses Redis if available, always stores in memory)
    * @param {string} key - Cache key
    * @param {any} value - Value to cache
    * @param {number} ttl - Time to live in seconds (default: 600 = 10 minutes)
    * @returns {Promise<boolean>} Success status
    */
   async set(key, value, ttl = 600) {
-    if (!this.isAvailable()) {
-      return false;
-    }
-    try {
-      await redis.setex(key, ttl, JSON.stringify(value));
-      return true;
-    } catch (error) {
-      if (error.message !== 'Connection is closed.') {
-        console.error(`Error setting cache key ${key}:`, error);
+    // Always store in memory cache as fallback
+    memoryCache.set(key, value, ttl);
+    
+    // Also store in Redis if available
+    if (this.isAvailable()) {
+      try {
+        await redis.setex(key, ttl, JSON.stringify(value));
+        return true;
+      } catch (error) {
+        if (error.message !== 'Connection is closed.') {
+          console.error(`Error setting cache key ${key}:`, error);
+        }
+        // Still return true since we stored in memory
       }
-      return false;
     }
+    return true;
   },
 
   /**
@@ -110,18 +129,22 @@ const cache = {
    * @returns {Promise<number>} Number of keys deleted
    */
   async del(keys) {
-    if (!this.isAvailable()) {
-      return 0;
-    }
-    try {
-      const keysArray = Array.isArray(keys) ? keys : [keys];
-      return await redis.del(...keysArray);
-    } catch (error) {
-      if (error.message !== 'Connection is closed.') {
-        console.error('Error deleting cache keys:', error);
+    const keysArray = Array.isArray(keys) ? keys : [keys];
+    
+    // Delete from memory cache
+    keysArray.forEach(key => memoryCache.del(key));
+    
+    // Delete from Redis if available
+    if (this.isAvailable()) {
+      try {
+        return await redis.del(...keysArray);
+      } catch (error) {
+        if (error.message !== 'Connection is closed.') {
+          console.error('Error deleting cache keys:', error);
+        }
       }
-      return 0;
     }
+    return keysArray.length;
   },
 
   /**
@@ -130,21 +153,32 @@ const cache = {
    * @returns {Promise<number>} Number of keys deleted
    */
   async delPattern(pattern) {
-    if (!this.isAvailable()) {
-      return 0;
-    }
-    try {
-      const keys = await redis.keys(pattern);
-      if (keys.length > 0) {
-        return await redis.del(...keys);
+    let deleted = 0;
+    
+    // Delete from memory cache using pattern matching
+    const memKeys = memoryCache.keys();
+    const regex = new RegExp('^' + pattern.replace(/\*/g, '.*') + '$');
+    memKeys.forEach(key => {
+      if (regex.test(key)) {
+        memoryCache.del(key);
+        deleted++;
       }
-      return 0;
-    } catch (error) {
-      if (error.message !== 'Connection is closed.') {
-        console.error(`Error deleting cache pattern ${pattern}:`, error);
+    });
+    
+    // Delete from Redis if available
+    if (this.isAvailable()) {
+      try {
+        const keys = await redis.keys(pattern);
+        if (keys.length > 0) {
+          return await redis.del(...keys);
+        }
+      } catch (error) {
+        if (error.message !== 'Connection is closed.') {
+          console.error(`Error deleting cache pattern ${pattern}:`, error);
+        }
       }
-      return 0;
     }
+    return deleted;
   },
 
   /**
@@ -153,18 +187,21 @@ const cache = {
    * @returns {Promise<boolean>} True if key exists
    */
   async exists(key) {
-    if (!this.isAvailable()) {
-      return false;
-    }
-    try {
-      const result = await redis.exists(key);
-      return result === 1;
-    } catch (error) {
-      if (error.message !== 'Connection is closed.') {
-        console.error(`Error checking cache key ${key}:`, error);
+    // Check Redis first if available
+    if (this.isAvailable()) {
+      try {
+        const result = await redis.exists(key);
+        if (result === 1) return true;
+      } catch (error) {
+        if (error.message !== 'Connection is closed.') {
+          console.error(`Error checking cache key ${key}:`, error);
+        }
+        // Fall through to memory cache
       }
-      return false;
     }
+    
+    // Fallback to memory cache
+    return memoryCache.has(key);
   },
 
   /**
@@ -173,17 +210,21 @@ const cache = {
    * @returns {Promise<number>} TTL in seconds (-1 if no expiry, -2 if key doesn't exist)
    */
   async ttl(key) {
-    if (!this.isAvailable()) {
-      return -2;
-    }
-    try {
-      return await redis.ttl(key);
-    } catch (error) {
-      if (error.message !== 'Connection is closed.') {
-        console.error(`Error getting TTL for key ${key}:`, error);
+    if (this.isAvailable()) {
+      try {
+        return await redis.ttl(key);
+      } catch (error) {
+        if (error.message !== 'Connection is closed.') {
+          console.error(`Error getting TTL for key ${key}:`, error);
+        }
       }
-      return -2;
     }
+    
+    // For memory cache, get TTL
+    const ttl = memoryCache.getTtl(key);
+    if (ttl === undefined) return -2;
+    if (ttl === 0) return -1;
+    return Math.ceil((ttl - Date.now()) / 1000);
   },
 
   /**
@@ -201,6 +242,18 @@ const cache = {
    */
   async invalidateAllPermissions() {
     return await this.delPattern('permissions:roles:*');
+  },
+
+  /**
+   * Get cache statistics
+   * @returns {object} Cache statistics
+   */
+  getStats() {
+    return {
+      redisAvailable: this.isAvailable(),
+      memoryCacheKeys: memoryCache.keys().length,
+      memoryCacheStats: memoryCache.getStats()
+    };
   }
 };
 

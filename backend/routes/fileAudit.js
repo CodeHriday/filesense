@@ -166,6 +166,106 @@ router.get('/:fileId', async (req, res) => {
 });
 
 /**
+ * GET /api/file-audit/unique-mappings
+ * Get all unique mapping names for dropdown filters (efficient query)
+ */
+router.get('/unique-mappings', async (req, res) => {
+  // Prevent caching to ensure fresh data for dropdown filters
+  res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.set('Pragma', 'no-cache');
+  res.set('Expires', '0');
+  
+  console.log('[unique-mappings] Endpoint called with query:', req.query);
+  
+  if (!req.user || !req.user.id) {
+    return res.status(401).json({
+      error: 'Authentication required',
+      message: 'User authentication is required to access mapping data'
+    });
+  }
+
+  const pool = req.app.locals.pool || req.app.get('db');
+  const { load_type, file_role } = req.query;
+
+  try {
+    // Check if user has all-project access
+    const { getUserProjects, userHasAllProjectAccess } = require('../middleware/requireProjectAccess');
+    const isAdmin = userHasAllProjectAccess(req.user);
+    console.log('[unique-mappings] isAdmin:', isAdmin, 'userId:', req.user.id);
+    
+    let conditions = [];
+    let params = [];
+    let paramIndex = 1;
+
+    if (load_type) {
+      conditions.push(`fad.load_type = $${paramIndex}`);
+      params.push(load_type);
+      paramIndex++;
+    }
+
+    if (file_role) {
+      conditions.push(`fad.file_role = $${paramIndex}`);
+      params.push(file_role);
+      paramIndex++;
+    }
+
+    // Apply project-level access control for non-admins
+    if (!isAdmin) {
+      const userProjects = await getUserProjects(req.user.id);
+      if (userProjects.length === 0) {
+        return res.json({ success: true, mappings: [], projects: [] });
+      }
+      const projectIds = userProjects.map(p => p.id);
+      conditions.push(`f.project_id = ANY($${paramIndex})`);
+      params.push(projectIds);
+      paramIndex++;
+    }
+
+    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+
+    // Get unique mappings
+    const mappingsQuery = `
+      SELECT DISTINCT COALESCE(fad.mapping_name, tm.mapping_name) as mapping_name
+      FROM file_audit_details fad
+      LEFT JOIN files f ON fad.file_id = f.file_id
+      LEFT JOIN transformation_jobs tj ON fad.transformation_job_id = tj.id
+      LEFT JOIN transformation_mappings tm ON tj.mapping_id = CAST(tm.id AS VARCHAR)
+      ${whereClause}
+      ORDER BY mapping_name
+    `;
+    console.log('[unique-mappings] Executing mappings query with params:', params);
+    const mappingsResult = await pool.query(mappingsQuery, params);
+    console.log('[unique-mappings] Raw mappings result:', mappingsResult.rows.length, 'rows');
+    const mappings = mappingsResult.rows
+      .filter(r => r.mapping_name)
+      .map(r => r.mapping_name);
+    console.log('[unique-mappings] Filtered mappings:', mappings);
+
+    // Get unique projects
+    const projectsQuery = `
+      SELECT DISTINCT f.project_id, p.name as project_name
+      FROM file_audit_details fad
+      LEFT JOIN files f ON fad.file_id = f.file_id
+      LEFT JOIN projects p ON f.project_id = p.id
+      ${whereClause}
+      ORDER BY p.name
+    `;
+    const projectsResult = await pool.query(projectsQuery, params);
+    const projects = projectsResult.rows
+      .filter(r => r.project_id && r.project_name)
+      .map(r => ({ id: r.project_id, name: r.project_name }));
+
+    res.json({ success: true, mappings, projects });
+  } catch (error) {
+    console.error('Error fetching unique mappings:', error);
+    res.status(500).json({
+      error: 'Failed to fetch mappings',
+      details: error.message
+    });
+  }
+});
+
+/**
  * GET /api/file-audit
  * Get all audit records with filters
  */

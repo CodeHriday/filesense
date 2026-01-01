@@ -41,22 +41,31 @@ const AuditTrail = () => {
     { label: 'Custom', value: 'custom' }
   ];
 
+  const formatLocalDateTime = (date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
+  };
+
   const applyDatePreset = (preset) => {
     const now = new Date();
     let startDate = '';
     
     switch (preset) {
       case 'last_hour':
-        startDate = new Date(now.getTime() - 60 * 60 * 1000).toISOString().slice(0, 16);
+        startDate = formatLocalDateTime(new Date(now.getTime() - 60 * 60 * 1000));
         break;
       case 'last_24h':
-        startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString().slice(0, 16);
+        startDate = formatLocalDateTime(new Date(now.getTime() - 24 * 60 * 60 * 1000));
         break;
       case 'last_7d':
-        startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 16);
+        startDate = formatLocalDateTime(new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000));
         break;
       case 'last_30d':
-        startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 16);
+        startDate = formatLocalDateTime(new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000));
         break;
       default:
         break;
@@ -100,16 +109,17 @@ const AuditTrail = () => {
     fetchRetentionSettings();
   }, []);
 
-  const fetchAuditLogs = async () => {
+  const fetchAuditLogs = async (overrideFilters = null) => {
     setLoading(true);
     try {
+      const activeFilters = overrideFilters || filters;
       const params = new URLSearchParams();
-      if (filters.userId) params.append('userId', filters.userId);
-      if (filters.entityType) params.append('entityType', filters.entityType);
-      if (filters.actionType) params.append('actionType', filters.actionType);
-      if (filters.startDate) params.append('startDate', filters.startDate);
-      if (filters.endDate) params.append('endDate', filters.endDate);
-      params.append('limit', filters.limit);
+      if (activeFilters.userId) params.append('userId', activeFilters.userId);
+      if (activeFilters.entityType) params.append('entityType', activeFilters.entityType);
+      if (activeFilters.actionType) params.append('actionType', activeFilters.actionType);
+      if (activeFilters.startDate) params.append('startDate', activeFilters.startDate);
+      if (activeFilters.endDate) params.append('endDate', activeFilters.endDate);
+      params.append('limit', activeFilters.limit || 100);
 
       const response = await axios.get(`/api/audit/logs?${params.toString()}`);
       setAuditLogs(response.data);
@@ -230,7 +240,7 @@ const AuditTrail = () => {
   };
 
   const handleClearFilters = () => {
-    setFilters({
+    const clearedFilters = {
       userId: '',
       entityType: '',
       actionType: '',
@@ -239,8 +249,10 @@ const AuditTrail = () => {
       statusFilter: 'all',
       datePreset: '',
       limit: 100
-    });
+    };
+    setFilters(clearedFilters);
     setCurrentPage(1);
+    fetchAuditLogs(clearedFilters);
   };
 
   const filteredLogs = useMemo(() => {
@@ -443,8 +455,8 @@ const AuditTrail = () => {
                               <span>{isArchive ? 'Archive' : 'Active'}</span>
                             </div>
                           </td>
-                          <td style={{ fontWeight: 600 }}>{data?.count ? data.count.toLocaleString() : '0'}</td>
-                          <td>{data?.oldest_record ? new Date(data.oldest_record).toLocaleDateString() : 'N/A'}</td>
+                          <td style={{ fontWeight: 600 }}>{(data?.total_records || data?.count || 0).toLocaleString()}</td>
+                          <td>{(data?.total_records > 0 || data?.count > 0) && data?.oldest_record ? new Date(data.oldest_record).toLocaleDateString() : 'N/A'}</td>
                         </tr>
                       );
                     })}
@@ -638,11 +650,11 @@ const AuditTrail = () => {
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column' }}>
-            <label htmlFor="filter-user-id" style={{ display: 'block', fontSize: '11px', fontWeight: 500, color: '#374151', marginBottom: '6px' }}>User ID</label>
+            <label htmlFor="filter-user" style={{ display: 'block', fontSize: '11px', fontWeight: 500, color: '#374151', marginBottom: '6px' }}>User</label>
             <input
-              id="filter-user-id"
+              id="filter-user"
               type="text"
-              placeholder="Enter user ID"
+              placeholder="Search by user"
               value={filters.userId}
               onChange={(e) => handleFilterChange('userId', e.target.value)}
               style={{ width: '100%', padding: '8px 12px', fontSize: '11px', border: '1px solid #d1d5db', borderRadius: '6px', backgroundColor: '#fff', color: '#374151' }}

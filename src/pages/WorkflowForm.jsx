@@ -37,14 +37,11 @@ const WorkflowForm = () => {
 
   const fetchData = async () => {
     try {
-      const [transformationsData, groupsData, projectsData] = await Promise.all([
-        axios.get('/api/transformations'),
-        axios.get('/api/mapping-groups'),
-        axios.get('/api/projects')
-      ]);
-      setTransformations(transformationsData.data.mappings || []);
-      setMappingGroups(groupsData.data.groups || []);
-      const allProjects = projectsData.data || [];
+      const response = await axios.get('/api/transformations/init-data');
+      const data = response.data;
+      setTransformations(data.mappings || []);
+      setMappingGroups(data.groups || []);
+      const allProjects = data.projects || [];
       setProjects(allProjects.filter(p => !p.parent_project_id));
 
       if (isEdit) {

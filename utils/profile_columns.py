@@ -15,8 +15,14 @@ import pandas as pd
 from data_profiling import detect_column_patterns
 from dtype_converter import get_user_friendly_type
 
-def profile_columns(file_path, file_type):
-    """Generate detailed column statistics"""
+def profile_columns(file_path, file_type, delimiter=None):
+    """Generate detailed column statistics
+    
+    Args:
+        file_path: Path to the file
+        file_type: Type of file (csv, txt, json, parquet, excel, xml)
+        delimiter: Optional custom delimiter for CSV/TXT files (supports multi-character like '~^')
+    """
     
     try:
         # Normalize file type (defensive lowercase + xlsx -> excel, etc.)
@@ -25,8 +31,11 @@ def profile_columns(file_path, file_type):
             file_type = 'excel'
         
         # Load the file based on type with memory-efficient sampling
-        if file_type == 'csv':
-            df = pd.read_csv(file_path, nrows=10000)  # Sample for performance
+        if file_type in ['csv', 'txt']:
+            if delimiter:
+                df = pd.read_csv(file_path, nrows=10000, sep=delimiter, engine='python')
+            else:
+                df = pd.read_csv(file_path, nrows=10000)  # Sample for performance
         elif file_type == 'json':
             # Try newline-delimited JSON first, fall back to standard JSON
             try:
@@ -170,11 +179,12 @@ def profile_columns(file_path, file_type):
 
 if __name__ == "__main__":
     if len(sys.argv) < 3:
-        print(json.dumps({"error": "Usage: profile_columns.py <file_path> <file_type>"}))
+        print(json.dumps({"error": "Usage: profile_columns.py <file_path> <file_type> [delimiter]"}))
         sys.exit(1)
     
     file_path = sys.argv[1]
     file_type = sys.argv[2]
+    delimiter = sys.argv[3] if len(sys.argv) > 3 else None
     
-    result = profile_columns(file_path, file_type)
+    result = profile_columns(file_path, file_type, delimiter)
     print(json.dumps(result))

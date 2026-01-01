@@ -176,17 +176,12 @@ const ProcessManagementWizard = () => {
     try {
       setLoading(true);
       
-      // Fetch groups
-      const groupsRes = await axios.get(`${API_BASE_URL}/api/groups`);
-      setGroups(groupsRes.data || []);
+      const response = await axios.get(`${API_BASE_URL}/api/process-wizard/init-data`);
+      const { groups: g, files: f, connections: c } = response.data;
       
-      // Fetch files
-      const filesRes = await axios.get(`${API_BASE_URL}/api/files`);
-      setFiles(filesRes.data || []);
-      
-      // Fetch connections
-      const connectionsRes = await axios.get(`${API_BASE_URL}/api/connections`);
-      setConnections(connectionsRes.data || []);
+      setGroups(g || []);
+      setFiles(f || []);
+      setConnections(c || []);
       
       setLoading(false);
     } catch (err) {

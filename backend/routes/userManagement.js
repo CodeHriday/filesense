@@ -414,6 +414,49 @@ router.put('/profile', authenticateToken, asyncHandler(async (req, res) => {
 }));
 
 /**
+ * GET /api/users/init-data
+ * Batch endpoint to get all data needed for UserManagement page in a single call
+ * Replaces 2 separate API calls: users (with pagination), roles
+ * MUST be defined before /:id route to avoid Express matching 'init-data' as an id
+ */
+router.get('/init-data', authenticateToken, asyncHandler(async (req, res) => {
+  const page = parseInt(req.query.page) || 1;
+  const limit = parseInt(req.query.limit) || 10;
+  const offset = (page - 1) * limit;
+  const search = req.query.search || '';
+  
+  const filters = { limit, offset };
+  if (search) {
+    filters.search = search;
+  }
+  
+  const [users, totalCount, rolesResult] = await Promise.all([
+    userRepository.findAll(filters),
+    userRepository.count(search ? { search } : {}),
+    db.query(`
+      SELECT id, name, description, created_at
+      FROM roles
+      ORDER BY name
+      LIMIT 100
+    `)
+  ]);
+  
+  const totalPages = Math.ceil(totalCount / limit);
+  
+  res.json({
+    success: true,
+    users,
+    pagination: {
+      currentPage: page,
+      pageSize: limit,
+      totalCount,
+      totalPages
+    },
+    roles: rolesResult.rows || []
+  });
+}));
+
+/**
  * GET /api/users/:id
  * Get a single user by ID with roles (admin only)
  */

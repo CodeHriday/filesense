@@ -158,6 +158,182 @@ module.exports = (dbPool, authenticate) => {
   });
 
   /**
+   * GET /api/quality-rules/init-data
+   * Batch endpoint for QualityRules page - returns rules, projects, and violations summary
+   * Replaces 3 separate API calls: quality-rules, projects, violations/summary
+   * Permission-aware: Filters data based on user's project access
+   * NOTE: This route MUST be defined before /:id to avoid being matched as an ID
+   */
+  router.get('/init-data', authenticate, async (req, res) => {
+    try {
+      const { getUserProjects } = require('../middleware/requireProjectAccess');
+      const { userHasAdminAccess } = require('../utils/permissionHelpers');
+      
+      const {
+        project_id,
+        sub_project_id,
+        rule_type,
+        enabled,
+        limit = 100,
+        offset = 0,
+        days = 30
+      } = req.query;
+      
+      const isAdmin = userHasAdminAccess(req.user);
+      let accessibleProjectIds = [];
+      
+      if (!isAdmin) {
+        const userProjects = await getUserProjects(req.user.id);
+        accessibleProjectIds = userProjects.map(p => p.id);
+        
+        if (accessibleProjectIds.length === 0) {
+          return res.json({
+            rules: [],
+            pagination: { total: 0, limit: parseInt(limit), offset: parseInt(offset), pages: 1 },
+            projects: [],
+            summary: []
+          });
+        }
+      }
+      
+      let rulesQuery = `
+        SELECT 
+          qr.*,
+          u.username as created_by_username,
+          p.name as project_name,
+          sp.name as sub_project_name
+        FROM quality_rules qr
+        LEFT JOIN users u ON qr.created_by = u.id
+        LEFT JOIN projects p ON qr.project_id = p.id
+        LEFT JOIN projects sp ON qr.sub_project_id = sp.id
+        WHERE 1=1
+      `;
+      const rulesParams = [];
+      let rulesParamIndex = 1;
+
+      if (!isAdmin && accessibleProjectIds.length > 0) {
+        rulesQuery += ` AND (qr.project_id = ANY($${rulesParamIndex}) OR qr.project_id IS NULL)`;
+        rulesParams.push(accessibleProjectIds);
+        rulesParamIndex++;
+      }
+
+      if (project_id && sub_project_id) {
+        rulesQuery += ` AND (
+          (qr.project_id = $${rulesParamIndex} AND qr.sub_project_id IS NULL) 
+          OR qr.sub_project_id = $${rulesParamIndex + 1}
+          OR qr.project_id IS NULL
+        )`;
+        rulesParams.push(project_id, sub_project_id);
+        rulesParamIndex += 2;
+      } else if (project_id) {
+        rulesQuery += ` AND (qr.project_id = $${rulesParamIndex} OR qr.project_id IS NULL)`;
+        rulesParams.push(project_id);
+        rulesParamIndex++;
+      } else if (sub_project_id) {
+        rulesQuery += ` AND (qr.sub_project_id = $${rulesParamIndex} OR qr.project_id IS NULL)`;
+        rulesParams.push(sub_project_id);
+        rulesParamIndex++;
+      }
+
+      if (rule_type) {
+        rulesQuery += ` AND qr.rule_type = $${rulesParamIndex}`;
+        rulesParams.push(rule_type);
+        rulesParamIndex++;
+      }
+
+      if (enabled !== undefined && enabled !== '') {
+        rulesQuery += ` AND qr.enabled = $${rulesParamIndex}`;
+        rulesParams.push(enabled === 'true');
+        rulesParamIndex++;
+      }
+
+      rulesQuery += ` ORDER BY qr.created_at DESC LIMIT $${rulesParamIndex} OFFSET $${rulesParamIndex + 1}`;
+      rulesParams.push(parseInt(limit), parseInt(offset));
+      
+      let countQuery = 'SELECT COUNT(*) FROM quality_rules WHERE 1=1';
+      const countParams = [...rulesParams.slice(0, -2)];
+      
+      let projectsQuery = `
+        SELECT id, name, description, project_type, parent_id, created_at
+        FROM projects
+        WHERE 1=1
+      `;
+      const projectsParams = [];
+      
+      if (!isAdmin && accessibleProjectIds.length > 0) {
+        projectsQuery += ` AND id = ANY($1)`;
+        projectsParams.push(accessibleProjectIds);
+      }
+      projectsQuery += ` ORDER BY name`;
+      
+      let summaryQuery;
+      let summaryParams;
+      
+      if (!isAdmin && accessibleProjectIds.length > 0) {
+        summaryQuery = `
+          SELECT 
+            qr.id as rule_id,
+            qr.rule_name as rule_name,
+            qr.rule_type,
+            COUNT(qrv.id) as total_violations
+          FROM quality_rules qr
+          LEFT JOIN quality_rule_violations qrv ON qr.id = qrv.rule_id
+            AND qrv.created_at >= NOW() - INTERVAL '1 day' * $1
+          WHERE qr.project_id = ANY($2) OR qr.project_id IS NULL
+          GROUP BY qr.id, qr.rule_name, qr.rule_type
+          ORDER BY total_violations DESC
+          LIMIT 50
+        `;
+        summaryParams = [parseInt(days), accessibleProjectIds];
+      } else {
+        summaryQuery = `
+          SELECT 
+            qr.id as rule_id,
+            qr.rule_name as rule_name,
+            qr.rule_type,
+            COUNT(qrv.id) as total_violations
+          FROM quality_rules qr
+          LEFT JOIN quality_rule_violations qrv ON qr.id = qrv.rule_id
+            AND qrv.created_at >= NOW() - INTERVAL '1 day' * $1
+          GROUP BY qr.id, qr.rule_name, qr.rule_type
+          ORDER BY total_violations DESC
+          LIMIT 50
+        `;
+        summaryParams = [parseInt(days)];
+      }
+
+      const [rulesResult, countResult, projectsResult, summaryResult] = await Promise.all([
+        dbPool.query(rulesQuery, rulesParams),
+        dbPool.query(countQuery.replace('SELECT COUNT(*) FROM quality_rules WHERE 1=1', 
+          `SELECT COUNT(*) FROM quality_rules qr WHERE 1=1 ${rulesQuery.split('WHERE 1=1')[1].split('ORDER BY')[0]}`), 
+          countParams.length > 0 ? countParams : undefined),
+        dbPool.query(projectsQuery, projectsParams.length > 0 ? projectsParams : undefined),
+        dbPool.query(summaryQuery, summaryParams)
+      ]);
+      
+      const total = parseInt(countResult.rows[0]?.count || rulesResult.rows.length);
+
+      res.json({
+        rules: rulesResult.rows,
+        pagination: {
+          total,
+          limit: parseInt(limit),
+          offset: parseInt(offset),
+          pages: Math.ceil(total / parseInt(limit))
+        },
+        projects: projectsResult.rows,
+        summary: summaryResult.rows
+      });
+    } catch (error) {
+      systemLogger.error('Error in GET /api/quality-rules/init-data', { error: error.message });
+      res.status(500).json({
+        success: false,
+        error: 'Failed to fetch quality rules data'
+      });
+    }
+  });
+
+  /**
    * GET /api/quality-rules/:id
    * Get a specific quality rule by ID
    */

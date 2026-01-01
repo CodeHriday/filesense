@@ -596,6 +596,7 @@ const storage = multer.diskStorage({
 const MAX_FILE_SIZE = process.env.MAX_FILE_SIZE || (25 * 1024 * 1024); // Default 25MB - use Mapping Jobs for larger files
 const ALLOWED_FILE_TYPES = [
   'text/csv',
+  'text/plain', // For .txt files with custom delimiters
   'application/json',
   'application/vnd.apache.parquet',
   'application/x-parquet',
@@ -620,6 +621,8 @@ const ALLOWED_FILE_TYPES = [
 ];
 const ALLOWED_EXTENSIONS = [
   '.csv', '.json', '.parquet', '.xlsx', '.xml',
+  // Text files with custom delimiters
+  '.txt',
   // Archive formats
   '.tar', '.zip', '.gz', '.gzip', '.7z',
   // Data formats
@@ -1134,6 +1137,134 @@ app.get('/api/rdm/crosswalks/:crosswalkId/schema', authenticateToken, async (req
   }
 });
 
+/**
+ * Batch endpoint for File Catalog page initialization
+ * Consolidates files, projects, and sub-projects into a single API call
+ * Reduces 3+ API calls to 1 for better performance
+ */
+app.get('/api/files/init-data', authenticateToken, attachVendorProfile, async (req, res) => {
+  try {
+    // Check if user has permission to view files
+    const userPermissions = req.user.permissions || [];
+    const hasFilePermission = userPermissions.some(p => {
+      if (typeof p === 'string') {
+        return p === 'file_view' || p === 'file:read' || p === 'file_upload:read' || p === 'file_catalog:read';
+      }
+      return p.name === 'file_view' || p.name === 'file:read' || p.name === 'file_upload:read' || p.name === 'file_catalog:read';
+    });
+    
+    if (!hasFilePermission) {
+      logger.warn('User attempted to access file catalog without permission', {
+        userId: req.user.id,
+        username: req.user.username
+      });
+      return res.status(403).json({ 
+        error: 'Access denied',
+        message: 'You do not have permission to view files'
+      });
+    }
+    
+    // Get user's accessible projects for filtering
+    const { getUserProjects } = require('./backend/middleware/requireProjectAccess');
+    const isAdmin = userHasAllProjectAccess(req.user);
+    let accessibleProjectIds = [];
+    
+    if (!isAdmin) {
+      const userProjects = await getUserProjects(req.user.id);
+      accessibleProjectIds = userProjects.map(p => p.id);
+      
+      // Non-admin with no project access gets empty data
+      if (accessibleProjectIds.length === 0) {
+        return res.json({
+          files: [],
+          totalCount: 0,
+          projects: [],
+          subProjects: []
+        });
+      }
+    }
+    
+    // Build projects query (parent_id is the column name for parent project)
+    let projectsQuery = `
+      SELECT id, name, description, parent_id, is_archived
+      FROM projects
+      WHERE parent_id IS NULL
+        AND (is_archived IS NULL OR is_archived = false)
+    `;
+    const projectsParams = [];
+    
+    if (!isAdmin) {
+      projectsQuery += ` AND id = ANY($1)`;
+      projectsParams.push(accessibleProjectIds);
+    }
+    projectsQuery += ` ORDER BY name`;
+    
+    // Build sub-projects query
+    let subProjectsQuery = `
+      SELECT id, name, description, parent_id
+      FROM projects
+      WHERE parent_id IS NOT NULL
+        AND (is_archived IS NULL OR is_archived = false)
+    `;
+    const subProjectsParams = [];
+    
+    if (!isAdmin) {
+      subProjectsQuery += ` AND parent_id = ANY($1)`;
+      subProjectsParams.push(accessibleProjectIds);
+    }
+    subProjectsQuery += ` ORDER BY name`;
+    
+    // Fetch files using FileService
+    const fileService = diContainer.get('fileService');
+    const filterOptions = {
+      sortBy: 'created_at',
+      sortOrder: 'DESC',
+      projectIds: isAdmin ? null : accessibleProjectIds
+    };
+    
+    // Apply vendor-specific filtering if user is a vendor
+    let vendorPath = null;
+    if (req.isVendor && req.vendorProfile) {
+      vendorPath = req.vendorProfile.drop_location_path;
+    }
+    
+    // Fetch all data in parallel
+    const [filesResult, projectsResult, subProjectsResult] = await Promise.all([
+      fileService.getAllFiles(filterOptions),
+      dbPool.query(projectsQuery, projectsParams),
+      dbPool.query(subProjectsQuery, subProjectsParams)
+    ]);
+    
+    let files = filesResult.files || filesResult;
+    let totalCount = filesResult.totalCount || files.length;
+    
+    // Apply vendor filtering if needed
+    if (vendorPath) {
+      files = files.filter(file => {
+        const filePath = file.file_path || file.location || '';
+        return filePath.startsWith(vendorPath);
+      });
+      totalCount = files.length;
+    }
+    
+    logger.info('File catalog init data fetched', {
+      userId: req.user.id,
+      fileCount: files.length,
+      projectCount: projectsResult.rows.length
+    });
+    
+    res.json({
+      files,
+      totalCount,
+      projects: projectsResult.rows,
+      subProjects: subProjectsResult.rows
+    });
+  } catch (err) {
+    logger.error('Error fetching file catalog init data', { error: err.message });
+    res.status(500).json({ error: 'Failed to fetch file catalog data' });
+  }
+});
+
 // Files API (with caching and vendor filtering)
 app.get('/api/files', authenticateToken, attachVendorProfile, cacheMiddleware(300), async (req, res) => {
   try {
@@ -1229,7 +1360,7 @@ app.get('/api/files', authenticateToken, attachVendorProfile, cacheMiddleware(30
   }
 });
 
-// Vendor Files API - returns only files marked as vendor files
+// Vendor Files API - returns only files marked as vendor files with pagination
 app.get('/api/vendor-files', authenticateToken, attachVendorProfile, cacheMiddleware(300), async (req, res) => {
   try {
     // Check if user has permission to view files
@@ -1252,6 +1383,11 @@ app.get('/api/vendor-files', authenticateToken, attachVendorProfile, cacheMiddle
       });
     }
     
+    // Pagination parameters
+    const page = parseInt(req.query.page) || 1;
+    const pageSize = Math.min(parseInt(req.query.pageSize) || 25, 100); // Max 100 per page
+    const offset = (page - 1) * pageSize;
+    
     // Get user's accessible projects for filtering
     const { getUserProjects } = require('./backend/middleware/requireProjectAccess');
     const isAdmin = userHasAllProjectAccess(req.user);
@@ -1263,41 +1399,161 @@ app.get('/api/vendor-files', authenticateToken, attachVendorProfile, cacheMiddle
       
       // If user has no projects, return empty list
       if (projectIds.length === 0) {
-        return res.json([]);
+        return res.json({ files: [], totalCount: 0, page, pageSize, totalPages: 0 });
       }
     }
     
-    // Query only vendor files (is_vendor_file = true) with schema change info
-    let query = `
-      SELECT f.*, lfg.has_schema_changes
-      FROM files f
-      LEFT JOIN logical_file_groups lfg ON f.logical_file_id = lfg.logical_file_id
-      WHERE f.is_vendor_file = true
-    `;
+    // Build WHERE clause
+    let whereClause = 'WHERE f.is_vendor_file = true';
     const params = [];
+    let paramIndex = 1;
     
     // Filter by projects if not admin
     if (projectIds && projectIds.length > 0) {
-      query += ' AND f.project_id = ANY($1)';
+      whereClause += ` AND f.project_id = ANY($${paramIndex})`;
       params.push(projectIds);
+      paramIndex++;
     }
     
-    query += ' ORDER BY f.created_at DESC';
+    // Count total records
+    const countQuery = `
+      SELECT COUNT(*) as total
+      FROM files f
+      ${whereClause}
+    `;
+    const countResult = await dbPool.query(countQuery, params);
+    const totalCount = parseInt(countResult.rows[0].total);
+    const totalPages = Math.ceil(totalCount / pageSize);
+    
+    // Query vendor files with pagination
+    const query = `
+      SELECT f.*, lfg.has_schema_changes
+      FROM files f
+      LEFT JOIN logical_file_groups lfg ON f.logical_file_id = lfg.logical_file_id
+      ${whereClause}
+      ORDER BY f.created_at DESC
+      LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
+    `;
+    params.push(pageSize, offset);
     
     const result = await dbPool.query(query, params);
     const files = result.rows;
     
-    logger.info('Fetched vendor files', {
+    logger.info('Fetched vendor files with pagination', {
       userId: req.user.id,
       fileCount: files.length,
-      isAdmin,
-      projectCount: projectIds?.length || 'all'
+      totalCount,
+      page,
+      pageSize,
+      isAdmin
     });
     
-    res.json(files);
+    res.json({ 
+      files, 
+      totalCount, 
+      page, 
+      pageSize, 
+      totalPages 
+    });
   } catch (err) {
     logger.error('Error fetching vendor files', { error: err.message });
     res.status(500).json({ error: 'Failed to fetch vendor files' });
+  }
+});
+
+// Bulk delete vendor files - requires write permission
+app.delete('/api/vendor-files/bulk', authenticateToken, async (req, res) => {
+  try {
+    // Check if user has write permission
+    const userPermissions = req.user.permissions || [];
+    const hasWritePermission = userPermissions.some(p => {
+      if (typeof p === 'string') {
+        return p === 'vendor_file_quality:write' || p === 'file_upload:write' || p === 'admin';
+      }
+      return p.name === 'vendor_file_quality:write' || p.name === 'file_upload:write' || p.name === 'admin';
+    });
+    
+    if (!hasWritePermission) {
+      logger.warn('User attempted to delete vendor files without permission', {
+        userId: req.user.id,
+        username: req.user.username
+      });
+      return res.status(403).json({ 
+        error: 'Access denied',
+        message: 'You do not have permission to delete vendor files'
+      });
+    }
+    
+    const { fileIds } = req.body;
+    
+    if (!fileIds || !Array.isArray(fileIds) || fileIds.length === 0) {
+      return res.status(400).json({ error: 'No file IDs provided' });
+    }
+    
+    // Limit bulk delete to 100 files at a time
+    if (fileIds.length > 100) {
+      return res.status(400).json({ error: 'Cannot delete more than 100 files at once' });
+    }
+    
+    // Get user's accessible projects for authorization
+    const { getUserProjects } = require('./backend/middleware/requireProjectAccess');
+    const isAdmin = userHasAllProjectAccess(req.user);
+    let projectIds = null;
+    
+    if (!isAdmin) {
+      const userProjects = await getUserProjects(req.user.id);
+      projectIds = userProjects.map(p => p.id);
+    }
+    
+    // Verify all files exist and user has access
+    let verifyQuery = `
+      SELECT file_id, project_id FROM files 
+      WHERE file_id = ANY($1) AND is_vendor_file = true
+    `;
+    const verifyParams = [fileIds];
+    
+    if (projectIds && projectIds.length > 0) {
+      verifyQuery += ' AND project_id = ANY($2)';
+      verifyParams.push(projectIds);
+    }
+    
+    const verifyResult = await dbPool.query(verifyQuery, verifyParams);
+    const accessibleFileIds = verifyResult.rows.map(r => r.file_id);
+    
+    if (accessibleFileIds.length === 0) {
+      return res.status(404).json({ error: 'No accessible files found with the provided IDs' });
+    }
+    
+    // Delete related records first (file_columns, profiling results, etc.)
+    await dbPool.query('DELETE FROM file_columns WHERE file_id = ANY($1)', [accessibleFileIds]);
+    await dbPool.query('DELETE FROM vendor_file_profiling_results WHERE file_id = ANY($1)', [accessibleFileIds]);
+    
+    // Delete the files
+    const deleteResult = await dbPool.query(
+      'DELETE FROM files WHERE file_id = ANY($1) RETURNING file_id',
+      [accessibleFileIds]
+    );
+    
+    const deletedCount = deleteResult.rowCount;
+    
+    // Invalidate cache
+    await invalidate('cache:*:/api/vendor-files*');
+    
+    logger.info('Bulk deleted vendor files', {
+      userId: req.user.id,
+      requestedCount: fileIds.length,
+      deletedCount,
+      fileIds: accessibleFileIds
+    });
+    
+    res.json({ 
+      success: true, 
+      deletedCount,
+      message: `Successfully deleted ${deletedCount} file(s)`
+    });
+  } catch (err) {
+    logger.error('Error bulk deleting vendor files', { error: err.message });
+    res.status(500).json({ error: 'Failed to delete vendor files' });
   }
 });
 
@@ -2343,6 +2599,21 @@ app.post('/api/files/upload', authenticateToken, invalidateCache('cache:*:*files
           userId,
           fileHash: fileHash.substring(0, 16) + '...'
         });
+        
+        // Create placeholder file record immediately to prevent 404 race condition during status polling
+        try {
+          await dbPool.query(`
+            INSERT INTO files (file_id, filename, file_type, file_size, project_id, processing_step, checksum, created_at)
+            VALUES ($1, $2, $3, $4, $5, 'queued', $6, NOW())
+            ON CONFLICT (file_id) DO NOTHING
+          `, [fileId, file.originalname, fileType, file.size, projectId, fileHash]);
+          logger.info('Placeholder file record created', { fileId, filename: file.originalname });
+        } catch (placeholderError) {
+          logger.warn('Failed to create placeholder file record - processing will continue', { 
+            fileId, 
+            error: placeholderError.message 
+          });
+        }
         
         // Store ad-hoc archive password in vault if provided (for password-protected archives)
         if (archivePassword) {
@@ -5350,6 +5621,217 @@ app.get('/api/user/dashboard-settings', async (req, res) => {
   }
 });
 
+/**
+ * Batch endpoint for file profile page initialization
+ * Consolidates file details, profile, ownership, tags, policies, and governance data
+ * Reduces 8+ API calls to 1 for better performance
+ */
+app.get('/api/files/:fileId/full',
+  authenticateToken,
+  requireProjectAccess({
+    resourceType: 'file'
+  }),
+  async (req, res) => {
+  try {
+    const { fileId } = req.params;
+    const { normalizeDataType } = require('./backend/utils/schemaExtractor');
+    
+    // Fetch all data in parallel
+    const [
+      fileResult,
+      columnsResult,
+      ownershipResult,
+      fileTagsResult,
+      filePoliciesResult,
+      columnTagsResult,
+      columnPoliciesResult,
+      governanceTagsResult,
+      governancePoliciesResult
+    ] = await Promise.all([
+      dbPool.query('SELECT * FROM files WHERE file_id = $1', [fileId]),
+      dbPool.query('SELECT * FROM file_columns WHERE file_id = $1 ORDER BY column_index ASC', [fileId]),
+      dbPool.query('SELECT * FROM file_ownership WHERE file_id = $1', [fileId]),
+      dbPool.query(
+        `SELECT fta.*, gt.tag_name, gt.description, gt.color, gt.badge_style
+         FROM file_tag_assignments fta
+         JOIN governance_tags gt ON fta.tag_id = gt.tag_id
+         WHERE fta.file_id = $1
+         ORDER BY fta.assigned_at DESC`,
+        [fileId]
+      ),
+      dbPool.query(
+        `SELECT fpa.*, gp.policy_name, gp.description, gp.rules
+         FROM file_policy_assignments fpa
+         JOIN governance_policies gp ON fpa.policy_id = gp.policy_id
+         WHERE fpa.file_id = $1
+         ORDER BY fpa.assigned_at DESC`,
+        [fileId]
+      ),
+      dbPool.query(
+        `SELECT cgta.column_name, cgta.tag_id, gt.tag_name, gt.description, gt.color, gt.badge_style, cgta.assigned_at
+         FROM column_governance_tag_assignments cgta
+         JOIN governance_tags gt ON cgta.tag_id = gt.tag_id
+         WHERE cgta.file_id = $1
+         ORDER BY cgta.column_name, cgta.assigned_at DESC`,
+        [fileId]
+      ),
+      dbPool.query(
+        `SELECT cpa.column_name, cpa.policy_id, gp.policy_name, gp.description, gp.rules, cpa.assigned_at
+         FROM column_policy_assignments cpa
+         JOIN governance_policies gp ON cpa.policy_id = gp.policy_id
+         WHERE cpa.file_id = $1
+         ORDER BY cpa.column_name, cpa.assigned_at DESC`,
+        [fileId]
+      ),
+      dbPool.query('SELECT * FROM governance_tags ORDER BY created_at DESC'),
+      dbPool.query('SELECT * FROM governance_policies ORDER BY created_at DESC')
+    ]);
+    
+    if (fileResult.rows.length === 0) {
+      return res.status(404).json({ error: 'File not found' });
+    }
+    
+    const file = fileResult.rows[0];
+    
+    // Apply column-level access control
+    const columnAccessControl = require('./backend/services/columnAccessControl');
+    
+    // Group column governance data
+    const tagsByColumn = {};
+    for (const row of columnTagsResult.rows) {
+      if (!tagsByColumn[row.column_name]) tagsByColumn[row.column_name] = [];
+      tagsByColumn[row.column_name].push({
+        tag_id: row.tag_id,
+        tag_name: row.tag_name,
+        description: row.description,
+        color: row.color,
+        badge_style: row.badge_style,
+        assigned_at: row.assigned_at
+      });
+    }
+    
+    const policiesByColumn = {};
+    for (const row of columnPoliciesResult.rows) {
+      if (!policiesByColumn[row.column_name]) policiesByColumn[row.column_name] = [];
+      policiesByColumn[row.column_name].push({
+        policy_id: row.policy_id,
+        policy_name: row.policy_name,
+        description: row.description,
+        rules: row.rules,
+        assigned_at: row.assigned_at
+      });
+    }
+    
+    // Build column governance for access control
+    const columnGovernance = columnsResult.rows.map(col => ({
+      column_name: col.column_name,
+      tags: tagsByColumn[col.column_name] || [],
+      policies: policiesByColumn[col.column_name] || []
+    }));
+    
+    const { allowedColumns, maskedColumns, deniedColumns, summary: accessSummary } = 
+      columnAccessControl.filterColumns(req.user, columnGovernance, 'read');
+    
+    const maskedColumnNames = new Set(maskedColumns.map(c => c.column_name));
+    const deniedColumnNames = new Set(deniedColumns.map(c => c.column_name));
+    
+    // Build profile columns with access control
+    const columns = columnsResult.rows.map(col => {
+      const isMasked = maskedColumnNames.has(col.column_name);
+      const isDenied = deniedColumnNames.has(col.column_name);
+      
+      if (isMasked || isDenied) {
+        return {
+          name: col.column_name,
+          type: normalizeDataType(col.column_type),
+          count: col.non_null_count,
+          unique: col.unique_count,
+          missing: col.null_count,
+          min: '[REDACTED]',
+          max: '[REDACTED]',
+          mean: null,
+          median: null,
+          stdDev: null,
+          histogram: null,
+          most_frequent_value: '[REDACTED]',
+          least_frequent_value: '[REDACTED]',
+          _accessLevel: isMasked ? 'masked' : 'denied'
+        };
+      }
+      
+      return {
+        name: col.column_name,
+        type: normalizeDataType(col.column_type),
+        count: col.non_null_count,
+        unique: col.unique_count,
+        missing: col.null_count,
+        min: col.min_value,
+        max: col.max_value,
+        mean: col.mean_value,
+        median: col.median_value,
+        stdDev: col.std_dev,
+        histogram: col.histogram ? JSON.parse(col.histogram) : null,
+        most_frequent_value: col.most_frequent_value,
+        least_frequent_value: col.least_frequent_value,
+        _accessLevel: 'full'
+      };
+    });
+    
+    const profile = {
+      fileId,
+      fileName: file.filename,
+      fileType: file.file_type,
+      fileSize: file.file_size,
+      rowCount: file.row_count,
+      columnCount: file.column_count,
+      qualityScore: file.quality_score,
+      columns,
+      accessSummary,
+      processedAt: file.processed_at
+    };
+    
+    // Filter column governance data based on access control
+    // Only include governance data for columns the user can see
+    const allowedColumnNames = new Set(allowedColumns.map(c => c.column_name));
+    const filteredTagsByColumn = {};
+    const filteredPoliciesByColumn = {};
+    
+    for (const colName of Object.keys(tagsByColumn)) {
+      // Include governance data for allowed columns, plus masked columns (so UI can show why it's masked)
+      if (allowedColumnNames.has(colName) || maskedColumnNames.has(colName)) {
+        filteredTagsByColumn[colName] = tagsByColumn[colName];
+      }
+    }
+    
+    for (const colName of Object.keys(policiesByColumn)) {
+      if (allowedColumnNames.has(colName) || maskedColumnNames.has(colName)) {
+        filteredPoliciesByColumn[colName] = policiesByColumn[colName];
+      }
+    }
+    
+    logger.info('File full data fetched', {
+      userId: req.user.id,
+      fileId,
+      columnsCount: columns.length,
+      accessSummary
+    });
+    
+    res.json({
+      file,
+      profile,
+      ownership: ownershipResult.rows[0] || null,
+      fileTags: fileTagsResult.rows,
+      filePolicies: filePoliciesResult.rows,
+      columnGovernance: { tags: filteredTagsByColumn, policies: filteredPoliciesByColumn },
+      allGovernanceTags: governanceTagsResult.rows,
+      allGovernancePolicies: governancePoliciesResult.rows
+    });
+  } catch (err) {
+    logger.error('Error fetching file full data', { error: err.message, fileId: req.params.fileId });
+    res.status(500).json({ error: 'Failed to fetch file data' });
+  }
+});
+
 // File profile endpoint (with column-level access control for statistics)
 app.get('/api/files/:fileId/profile', 
   authenticateToken, 
@@ -7538,6 +8020,75 @@ app.put('/api/files/:fileId/sensitivity', authenticateToken, invalidateCache('ca
 // Column-Level Governance Tag Endpoints
 // ============================================
 
+// BATCH ENDPOINT: Get all column governance data (tags and policies) in one call
+// This eliminates 24+ individual API calls per file when viewing DataProfile
+app.get('/api/files/:fileId/columns/governance', cacheMiddleware(300), async (req, res) => {
+  try {
+    const { fileId } = req.params;
+    
+    // Fetch all column tags for this file in one query
+    const tagsResult = await dbPool.query(
+      `SELECT cgta.column_name, cgta.tag_id, gt.tag_name, gt.description, gt.color, gt.badge_style, cgta.assigned_at
+       FROM column_governance_tag_assignments cgta
+       JOIN governance_tags gt ON cgta.tag_id = gt.tag_id
+       WHERE cgta.file_id = $1
+       ORDER BY cgta.column_name, cgta.assigned_at DESC`,
+      [fileId]
+    );
+    
+    // Fetch all column policies for this file in one query
+    const policiesResult = await dbPool.query(
+      `SELECT cpa.column_name, cpa.policy_id, gp.policy_name, gp.description, gp.rules, cpa.assigned_at
+       FROM column_policy_assignments cpa
+       JOIN governance_policies gp ON cpa.policy_id = gp.policy_id
+       WHERE cpa.file_id = $1
+       ORDER BY cpa.column_name, cpa.assigned_at DESC`,
+      [fileId]
+    );
+    
+    // Group tags by column name
+    const tagsByColumn = {};
+    for (const row of tagsResult.rows) {
+      const colName = row.column_name;
+      if (!tagsByColumn[colName]) {
+        tagsByColumn[colName] = [];
+      }
+      tagsByColumn[colName].push({
+        tag_id: row.tag_id,
+        tag_name: row.tag_name,
+        description: row.description,
+        color: row.color,
+        badge_style: row.badge_style,
+        assigned_at: row.assigned_at
+      });
+    }
+    
+    // Group policies by column name
+    const policiesByColumn = {};
+    for (const row of policiesResult.rows) {
+      const colName = row.column_name;
+      if (!policiesByColumn[colName]) {
+        policiesByColumn[colName] = [];
+      }
+      policiesByColumn[colName].push({
+        policy_id: row.policy_id,
+        policy_name: row.policy_name,
+        description: row.description,
+        rules: row.rules,
+        assigned_at: row.assigned_at
+      });
+    }
+    
+    res.json({
+      tags: tagsByColumn,
+      policies: policiesByColumn
+    });
+  } catch (err) {
+    console.error('Error fetching batch column governance:', err);
+    res.status(500).json({ error: 'Failed to fetch column governance data' });
+  }
+});
+
 // Get governance tags assigned to a specific column
 app.get('/api/files/:fileId/columns/:columnName/tags', cacheMiddleware(300), async (req, res) => {
   try {
@@ -9100,6 +9651,65 @@ app.get('/api/users', authenticateToken, async (req, res) => {
   } catch (err) {
     console.error('Error fetching users:', err);
     res.status(500).json({ error: 'Failed to fetch users' });
+  }
+});
+
+/**
+ * GET /api/roles/init-data
+ * Batch endpoint for RoleManagement page - returns roles, permissions, and governance tags
+ * Replaces 3 separate API calls: roles, permissions, governance-tags
+ */
+app.get('/api/roles/init-data', authenticateToken, async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const pageSize = parseInt(req.query.pageSize) || 10;
+    const offset = (page - 1) * pageSize;
+    const search = req.query.search || '';
+    
+    const queryParams = [];
+    let paramIndex = 1;
+    let whereClause = '';
+    
+    if (search) {
+      const searchPattern = `%${search}%`;
+      whereClause = `WHERE (r.name ILIKE $${paramIndex} OR r.description ILIKE $${paramIndex})`;
+      queryParams.push(searchPattern);
+      paramIndex++;
+    }
+    
+    const countQuery = `SELECT COUNT(*) FROM roles r ${whereClause}`;
+    const dataQuery = `
+      SELECT r.*, 
+             COALESCE((SELECT COUNT(*) FROM user_roles ur WHERE ur.role_id = r.id), 0) AS user_count
+      FROM roles r 
+      ${whereClause}
+      ORDER BY r.id ASC 
+      LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
+    `;
+    
+    const [countResult, rolesResult, permissionsResult, tagsResult] = await Promise.all([
+      dbPool.query(countQuery, queryParams),
+      dbPool.query(dataQuery, [...queryParams, pageSize, offset]),
+      dbPool.query('SELECT * FROM permissions ORDER BY resource, action'),
+      dbPool.query('SELECT tag_id as id, tag_name as name, description, sensitivity_level, created_at, updated_at FROM governance_tags ORDER BY tag_name')
+    ]);
+    
+    const totalCount = parseInt(countResult.rows[0].count);
+    
+    res.json({
+      roles: rolesResult.rows,
+      pagination: {
+        page,
+        pageSize,
+        totalCount,
+        totalPages: Math.ceil(totalCount / pageSize)
+      },
+      permissions: permissionsResult.rows,
+      governanceTags: tagsResult.rows
+    });
+  } catch (err) {
+    console.error('Error in /api/roles/init-data:', err);
+    res.status(500).json({ error: 'Failed to fetch role management data' });
   }
 });
 
@@ -11140,6 +11750,43 @@ app.post('/api/jobs/:id/run', authenticateToken, async (req, res) => {
   } catch (err) {
     console.error('Error running job:', err);
     res.status(500).json({ error: 'Failed to run job' });
+  }
+});
+
+// Process Wizard API
+
+/**
+ * GET /api/process-wizard/init-data
+ * Batch endpoint to get all data needed for the ProcessManagementWizard page in a single call
+ * Replaces 3 separate API calls: groups, files, connections
+ */
+app.get('/api/process-wizard/init-data', authenticateToken, async (req, res) => {
+  try {
+    const [groupsResult, filesResult, connectionsResult] = await Promise.all([
+      dbPool.query('SELECT * FROM groups ORDER BY name'),
+      dbPool.query(`
+        SELECT id, file_name, file_type, file_size, uploaded_at, project_id, status
+        FROM files
+        WHERE status != 'deleted'
+        ORDER BY uploaded_at DESC
+      `),
+      dbPool.query(`
+        SELECT id, name, connection_type, storage_type, status, created_at
+        FROM connections
+        WHERE status = 'active'
+        ORDER BY name
+      `)
+    ]);
+    
+    res.json({
+      success: true,
+      groups: groupsResult.rows,
+      files: filesResult.rows,
+      connections: connectionsResult.rows
+    });
+  } catch (err) {
+    console.error('Error fetching process wizard init data:', err);
+    res.status(500).json({ error: 'Failed to fetch init data' });
   }
 });
 

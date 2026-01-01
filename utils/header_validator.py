@@ -513,8 +513,8 @@ def validate_headers(file_path: str, file_type: str, sample_rows: int = 10000) -
         # Load the file based on type
         raw_headers = None
         csv_delimiter = None
-        if file_type == 'csv':
-            # Read raw headers from CSV file using csv module for proper parsing
+        if file_type in ['csv', 'txt']:
+            # Read raw headers from CSV/TXT file using csv module for proper parsing
             import csv
             try:
                 # Sniff delimiter to match pandas behavior

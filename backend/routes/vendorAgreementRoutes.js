@@ -16,6 +16,7 @@ const { requirePermission, checkPermission, hasPermission } = require('../middle
 const PasswordVaultService = require('../services/passwordVaultService');
 const AuditService = require('../services/AuditService');
 const { userHasAdminAccess } = require('../utils/permissionHelpers');
+const { query: dbQuery } = require('../config/database');
 
 // Multer error handling middleware
 const handleMulterError = (err, req, res, next) => {
@@ -192,6 +193,19 @@ router.post('/', requirePermission('vendor_agreements:write'), upload.single('sc
   try {
     const agreementData = JSON.parse(req.body.agreementData || '{}');
     
+    // Validate file configurations are required for non-draft contracts
+    if (agreementData.status !== 'draft') {
+      const fileConfigCount = parseInt(agreementData.file_configurations_count) || 0;
+      if (fileConfigCount === 0) {
+        return res.status(400).json({ 
+          error: 'At least one file configuration is required for creating a vendor contract. Please add file configurations before creating the contract.' 
+        });
+      }
+    }
+    
+    // Remove file_configurations_count from agreementData as it's only for validation
+    delete agreementData.file_configurations_count;
+    
     // If schema file is uploaded, use it
     if (req.file) {
       schemaFilePath = req.file.path;
@@ -247,8 +261,7 @@ router.get('/', async (req, res) => {
     // If filterByMyVendor is true, get the user's vendor ID and use it for filtering
     // This ensures vendor users only see agreements for their own vendor organization
     if (filterByMyVendor && !vendorId) {
-      const { pool } = require('../config/database');
-      const vendorResult = await pool.query(
+      const vendorResult = await dbQuery(
         'SELECT id FROM vendors WHERE vendor_user_id = $1 AND status = $2',
         [req.user.id, 'active']
       );
@@ -306,10 +319,8 @@ router.get('/', async (req, res) => {
  */
 router.get('/stakeholder-options', requirePermission('vendor_agreements:read'), async (req, res) => {
   try {
-    const { pool } = require('../config/database');
-    
     // Get internal users only (security: no external users can be added)
-    const usersResult = await pool.query(`
+    const usersResult = await dbQuery(`
       SELECT 
         u.id,
         u.username,
@@ -321,7 +332,7 @@ router.get('/stakeholder-options', requirePermission('vendor_agreements:read'), 
     `);
     
     // Get access groups
-    const groupsResult = await pool.query(`
+    const groupsResult = await dbQuery(`
       SELECT 
         ag.id,
         ag.name,
@@ -362,6 +373,181 @@ router.get('/stakeholder-options', requirePermission('vendor_agreements:read'), 
       error: 'Failed to fetch stakeholder options',
       details: error.message
     });
+  }
+});
+
+/**
+ * GET /api/vendor-agreements/init-data
+ * Batch endpoint to get all data needed for the VendorAgreements page in a single call
+ * Replaces 5 separate API calls: vendor-connections, connections, vendors, vendor-agreements, users
+ * Permission-aware: Mirrors the exact permission model of original individual endpoints
+ */
+router.get('/init-data', async (req, res) => {
+  try {
+    const hasApprovePermission = hasPermission(req.user, 'vendor_agreements:approve');
+    const hasWritePermission = hasPermission(req.user, 'vendor_agreements:write');
+    const isAdminUser = userHasAdminAccess(req.user);
+    
+    let vendorConnections = [];
+    let allConnections = [];
+    let vendors = [];
+    
+    if (isAdminUser) {
+      try {
+        const connResult = await dbQuery(`
+          SELECT vc.id, vc.connection_name, vc.vendor_id, vc.connection_type, 
+                 vc.storage_type, vc.bucket_name, vc.container_name, vc.base_path, 
+                 vc.status, vc.created_at, v.vendor_name
+          FROM vendor_connections vc
+          LEFT JOIN vendors v ON vc.vendor_id = v.id
+          WHERE vc.status = 'active'
+          ORDER BY vc.connection_name
+        `);
+        vendorConnections = connResult.rows;
+      } catch (err) {
+        systemLogger.warn('Could not fetch vendor connections', { error: err.message });
+      }
+      
+      try {
+        const vendorsResult = await dbQuery(`
+          SELECT id, vendor_name, vendor_code, status, vendor_type, vendor_onboarding_date,
+                 contact_name, contact_email, contact_phone,
+                 backup_contact_name, backup_contact_email, backup_contact_phone
+          FROM vendors
+          WHERE status = 'active'
+          ORDER BY vendor_name
+        `);
+        vendors = vendorsResult.rows;
+      } catch (err) {
+        systemLogger.warn('Could not fetch vendors', { error: err.message });
+      }
+    } else {
+      const vendorResult = await dbQuery(`
+        SELECT id FROM vendors WHERE vendor_user_id = $1 AND status = 'active'
+      `, [req.user.id]);
+      
+      if (vendorResult.rows.length > 0) {
+        const userVendorId = vendorResult.rows[0].id;
+        try {
+          const vendorsResult = await dbQuery(`
+            SELECT id, vendor_name, vendor_code, status, vendor_type, vendor_onboarding_date,
+                   contact_name, contact_email, contact_phone,
+                   backup_contact_name, backup_contact_email, backup_contact_phone
+            FROM vendors
+            WHERE id = $1 AND status = 'active'
+          `, [userVendorId]);
+          vendors = vendorsResult.rows;
+        } catch (err) {
+          systemLogger.warn('Could not fetch user vendor', { error: err.message });
+        }
+      }
+    }
+    
+    try {
+      const allConnResult = await dbQuery(`
+        SELECT id, connection_name as name, connection_type, created_at
+        FROM connections
+        ORDER BY connection_name
+      `);
+      allConnections = allConnResult.rows;
+    } catch (err) {
+      systemLogger.warn('Could not fetch all connections', { error: err.message });
+    }
+    
+    const agreementsResult = await vendorAgreementService.getAllAgreements({
+      page: 1,
+      pageSize: 10000,
+      userId: req.user.id,
+      userRoles: req.user.roles,
+      userEmail: req.user.email,
+      hasApprovePermission
+    });
+    
+    let usersResult = { rows: [] };
+    if (isAdminUser || hasWritePermission) {
+      usersResult = await dbQuery(`
+        SELECT u.id, u.username, u.email, u.first_name, u.last_name,
+               COALESCE(ARRAY_AGG(r.name) FILTER (WHERE r.name IS NOT NULL), ARRAY[]::text[]) as roles
+        FROM users u
+        LEFT JOIN user_roles ur ON u.id = ur.user_id
+        LEFT JOIN roles r ON ur.role_id = r.id
+        GROUP BY u.id, u.username, u.email, u.first_name, u.last_name
+        ORDER BY u.first_name, u.last_name
+        LIMIT 1000
+      `);
+    }
+    
+    res.json({
+      success: true,
+      vendorConnections,
+      allConnections,
+      vendors,
+      agreements: agreementsResult.agreements || [],
+      users: usersResult.rows,
+      hasApprovePermission
+    });
+    
+  } catch (error) {
+    systemLogger.error('Error in GET /api/vendor-agreements/init-data', { error: error.message });
+    res.status(500).json({ error: 'Failed to fetch init data' });
+  }
+});
+
+/**
+ * GET /api/vendor-agreements/:id/full
+ * Batch endpoint to get agreement with approvals and changes in a single call
+ * Replaces 3 separate API calls: agreement, approvals, changes
+ */
+router.get('/:id/full', checkAgreementAccess, async (req, res) => {
+  try {
+    const agreementId = parseInt(req.params.id);
+    
+    
+    const approvalsResult = await dbQuery(`
+      SELECT 
+        va.id,
+        va.agreement_id,
+        va.stage,
+        va.action,
+        va.comments,
+        va.approved_by,
+        va.approved_at,
+        u.username as approved_by_username,
+        u.email as approved_by_email
+      FROM vendor_agreement_approvals va
+      LEFT JOIN users u ON va.approved_by = u.id
+      WHERE va.agreement_id = $1
+      ORDER BY va.approved_at DESC
+    `, [agreementId]);
+    
+    const changesResult = await dbQuery(`
+      SELECT 
+        vc.id,
+        vc.agreement_id,
+        vc.field_name,
+        vc.old_value,
+        vc.new_value,
+        vc.changed_by,
+        vc.changed_at,
+        u.username as changed_by_username
+      FROM vendor_agreement_changes vc
+      LEFT JOIN users u ON vc.changed_by = u.id
+      WHERE vc.agreement_id = $1
+      ORDER BY vc.changed_at DESC
+      LIMIT 100
+    `, [agreementId]);
+    
+    res.json({
+      success: true,
+      agreement: req.agreement,
+      approvals: approvalsResult.rows,
+      changes: changesResult.rows,
+      userRole: req.isAdmin ? 'admin' : (req.isVendor ? 'vendor' : 'owner')
+    });
+    
+  } catch (error) {
+    systemLogger.error('Error in GET /api/vendor-agreements/:id/full', { error: error.message });
+    res.status(500).json({ error: 'Failed to fetch full agreement data' });
   }
 });
 
@@ -800,7 +986,7 @@ router.get('/:id/files', checkAgreementAccess, async (req, res) => {
     const agreementId = parseInt(req.params.id);
     
     const pool = require('../db');
-    const result = await pool.query(
+    const result = await dbQuery(
       `SELECT id, vendor_agreement_id, file_name_pattern as file_name, file_description, 
               schema, contains_pii, data_classification, file_type, quality_rule_ids, created_at
        FROM vendor_agreement_file_schemas 
@@ -1043,16 +1229,15 @@ router.get('/:id/check-dependencies', requirePermission('vendor_agreements:read'
       return res.status(400).json({ error: 'Invalid agreement ID' });
     }
     
-    const { pool } = require('../config/database');
     
     // Check documents (actual uploaded assets)
-    const documentsResult = await pool.query(
+    const documentsResult = await dbQuery(
       'SELECT COUNT(*) as count FROM vendor_agreement_documents WHERE agreement_id = $1',
       [agreementId]
     );
     
     // Check for processed files through transformation jobs linked to this agreement
-    const processedFilesResult = await pool.query(
+    const processedFilesResult = await dbQuery(
       `SELECT COUNT(DISTINCT tj.id) as count 
        FROM transformation_jobs tj
        INNER JOIN transformation_mappings tm ON tj.mapping_id = tm.mapping_id
@@ -1146,8 +1331,7 @@ router.post('/:id/documents', checkAgreementAccess, documentUpload.single('docum
     }
     
     // Create document record
-    const { pool } = require('../config/database');
-    const result = await pool.query(
+    const result = await dbQuery(
       `INSERT INTO vendor_agreement_documents (
         agreement_id, approval_id, document_name, document_type, 
         file_path, file_size, mime_type, uploaded_by, description, approval_stage
@@ -1191,8 +1375,7 @@ router.get('/:id/documents', checkAgreementAccess, async (req, res) => {
   try {
     const agreementId = parseInt(req.params.id);
     
-    const { pool } = require('../config/database');
-    const result = await pool.query(
+    const result = await dbQuery(
       `SELECT 
         d.*,
         u.username as uploaded_by_name,
@@ -1223,8 +1406,7 @@ router.get('/:id/documents/:docId/download', checkAgreementAccess, async (req, r
     const agreementId = parseInt(req.params.id);
     const docId = parseInt(req.params.docId);
     
-    const { pool } = require('../config/database');
-    const result = await pool.query(
+    const result = await dbQuery(
       `SELECT * FROM vendor_agreement_documents 
        WHERE id = $1 AND agreement_id = $2`,
       [docId, agreementId]
@@ -1265,8 +1447,7 @@ router.delete('/:id/documents/:docId', checkAgreementAccess, async (req, res) =>
     const docId = parseInt(req.params.docId);
     
     // Only allow document owner or admin to delete
-    const { pool } = require('../config/database');
-    const docResult = await pool.query(
+    const docResult = await dbQuery(
       `SELECT * FROM vendor_agreement_documents 
        WHERE id = $1 AND agreement_id = $2`,
       [docId, agreementId]
@@ -1289,7 +1470,7 @@ router.delete('/:id/documents/:docId', checkAgreementAccess, async (req, res) =>
     }
     
     // Delete from database
-    await pool.query(
+    await dbQuery(
       `DELETE FROM vendor_agreement_documents WHERE id = $1`,
       [docId]
     );
@@ -1326,7 +1507,6 @@ router.post('/:id/archive-password', requirePermission('vendor_agreements:write'
       return res.status(400).json({ error: 'Password is required and must be a non-empty string' });
     }
     
-    const { pool } = require('../config/database');
     const auditService = new AuditService(pool);
     const passwordVaultService = new PasswordVaultService(pool, auditService, systemLogger);
     
@@ -1373,7 +1553,6 @@ router.get('/:id/archive-password', requirePermission('vendor_agreements:read'),
       return res.status(400).json({ error: 'Invalid agreement ID' });
     }
     
-    const { pool } = require('../config/database');
     const auditService = new AuditService(pool);
     const passwordVaultService = new PasswordVaultService(pool, auditService, systemLogger);
     
@@ -1411,7 +1590,6 @@ router.delete('/:id/archive-password', requirePermission('vendor_agreements:writ
       return res.status(400).json({ error: 'Invalid agreement ID' });
     }
     
-    const { pool } = require('../config/database');
     const auditService = new AuditService(pool);
     const passwordVaultService = new PasswordVaultService(pool, auditService, systemLogger);
     
@@ -1466,10 +1644,9 @@ router.get('/:id/stakeholders', checkAgreementAccess, async (req, res) => {
       return res.status(400).json({ error: 'Invalid agreement ID' });
     }
     
-    const { pool } = require('../config/database');
     
     // Get agreement with stakeholder IDs
-    const agreementResult = await pool.query(`
+    const agreementResult = await dbQuery(`
       SELECT 
         additional_stakeholder_user_ids,
         additional_stakeholder_group_ids
@@ -1488,7 +1665,7 @@ router.get('/:id/stakeholders', checkAgreementAccess, async (req, res) => {
     // Get user details for the selected user IDs
     let users = [];
     if (userIds.length > 0) {
-      const usersResult = await pool.query(`
+      const usersResult = await dbQuery(`
         SELECT 
           u.id,
           u.username,
@@ -1509,7 +1686,7 @@ router.get('/:id/stakeholders', checkAgreementAccess, async (req, res) => {
     // Get group details for the selected group IDs
     let groups = [];
     if (groupIds.length > 0) {
-      const groupsResult = await pool.query(`
+      const groupsResult = await dbQuery(`
         SELECT 
           ag.id,
           ag.name,
@@ -1571,10 +1748,9 @@ router.put('/:id/stakeholders', requirePermission('vendor_agreements:write'), as
       return res.status(400).json({ error: 'userIds and groupIds must be arrays' });
     }
     
-    const { pool } = require('../config/database');
     
     // Verify agreement exists
-    const agreementCheck = await pool.query(
+    const agreementCheck = await dbQuery(
       'SELECT id FROM vendor_agreements WHERE id = $1',
       [agreementId]
     );
@@ -1585,7 +1761,7 @@ router.put('/:id/stakeholders', requirePermission('vendor_agreements:write'), as
     
     // Validate that all user IDs are internal users (security check)
     if (userIds.length > 0) {
-      const validUsersResult = await pool.query(`
+      const validUsersResult = await dbQuery(`
         SELECT id FROM users 
         WHERE id = ANY($1::int[]) 
         AND internal_user = true
@@ -1604,7 +1780,7 @@ router.put('/:id/stakeholders', requirePermission('vendor_agreements:write'), as
     
     // Validate that all group IDs exist
     if (groupIds.length > 0) {
-      const validGroupsResult = await pool.query(`
+      const validGroupsResult = await dbQuery(`
         SELECT id FROM access_groups 
         WHERE id = ANY($1::int[])
       `, [groupIds]);
@@ -1621,7 +1797,7 @@ router.put('/:id/stakeholders', requirePermission('vendor_agreements:write'), as
     }
     
     // Update the agreement
-    await pool.query(`
+    await dbQuery(`
       UPDATE vendor_agreements
       SET 
         additional_stakeholder_user_ids = $1::jsonb,
