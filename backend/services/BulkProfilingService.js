@@ -465,10 +465,39 @@ class BulkProfilingService {
   }
   
   /**
-   * Get all jobs (with optional filters)
+   * Get all jobs (with optional filters and pagination)
    */
   async getAllJobs(filters = {}) {
     try {
+      const baseWhere = [];
+      const params = [];
+      
+      if (filters.status) {
+        params.push(filters.status);
+        baseWhere.push(`bpj.status = $${params.length}`);
+      }
+      
+      if (filters.projectId) {
+        params.push(filters.projectId);
+        baseWhere.push(`bpj.project_id = $${params.length}`);
+      }
+      
+      if (filters.createdBy) {
+        params.push(filters.createdBy);
+        baseWhere.push(`bpj.created_by = $${params.length}`);
+      }
+      
+      if (filters.jobName) {
+        params.push(`%${filters.jobName}%`);
+        baseWhere.push(`bpj.job_name ILIKE $${params.length}`);
+      }
+      
+      const whereClause = baseWhere.length > 0 ? `WHERE ${baseWhere.join(' AND ')}` : '';
+      
+      const countQuery = `SELECT COUNT(*) as total FROM bulk_profiling_jobs bpj ${whereClause}`;
+      const countResult = await dbQuery(countQuery, params);
+      const total = parseInt(countResult.rows[0].total, 10);
+      
       let query = `
         SELECT bpj.*, u.username as created_by_username,
                s.id as schedule_id, s.cron_expression, s.schedule_type,
@@ -477,34 +506,20 @@ class BulkProfilingService {
         FROM bulk_profiling_jobs bpj
         LEFT JOIN users u ON bpj.created_by = u.id
         LEFT JOIN schedules s ON s.entity_id = bpj.id AND s.entity_type = 'bulk_profiling_job'
-        WHERE 1=1
+        ${whereClause}
+        ORDER BY bpj.created_at DESC
       `;
-      const params = [];
-      
-      if (filters.status) {
-        params.push(filters.status);
-        query += ` AND bpj.status = $${params.length}`;
-      }
-      
-      if (filters.projectId) {
-        params.push(filters.projectId);
-        query += ` AND bpj.project_id = $${params.length}`;
-      }
-      
-      if (filters.createdBy) {
-        params.push(filters.createdBy);
-        query += ` AND bpj.created_by = $${params.length}`;
-      }
-      
-      query += ' ORDER BY bpj.created_at DESC';
       
       if (filters.limit) {
         query += ` LIMIT ${parseInt(filters.limit)}`;
       }
       
+      if (filters.offset !== undefined) {
+        query += ` OFFSET ${parseInt(filters.offset)}`;
+      }
+      
       const result = await dbQuery(query, params);
       
-      // Add human-readable frequency to each job
       const jobs = result.rows.map(job => {
         if (job.schedule_id && job.cron_expression) {
           job.frequency = describeCronExpression(job.cron_expression);
@@ -514,7 +529,7 @@ class BulkProfilingService {
         return job;
       });
       
-      return jobs;
+      return { jobs, total };
       
     } catch (error) {
       systemLogger.error('Error getting bulk profiling jobs', { error: error.message });
