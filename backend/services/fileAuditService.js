@@ -355,6 +355,7 @@ async function getAuditRecords(pool, filters = {}) {
     source,
     fileType,
     correlationId,
+    mappingName,
     loadType,
     fileRole,
     search,
@@ -437,6 +438,12 @@ async function getAuditRecords(pool, filters = {}) {
     if (correlationId) {
       conditions.push(`fad.correlation_id = $${paramIndex}`);
       params.push(correlationId);
+      paramIndex++;
+    }
+
+    if (mappingName) {
+      conditions.push(`COALESCE(fad.mapping_name, tm.mapping_name) ILIKE $${paramIndex}`);
+      params.push(`%${mappingName}%`);
       paramIndex++;
     }
 
