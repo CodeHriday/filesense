@@ -436,6 +436,7 @@ function Monitor() {
                   className="monitor-filter-select"
                 >
                   <option value="">All Statuses</option>
+                  <option value="success">Success</option>
                   <option value="completed">Completed</option>
                   <option value="running">Running</option>
                   <option value="failed">Failed</option>
@@ -697,6 +698,7 @@ function Monitor() {
                   className="monitor-filter-select"
                 >
                   <option value="">All Statuses</option>
+                  <option value="success">Success</option>
                   <option value="completed">Completed</option>
                   <option value="running">Running</option>
                   <option value="failed">Failed</option>
