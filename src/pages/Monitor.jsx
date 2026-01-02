@@ -108,14 +108,14 @@ function Monitor() {
   
   const applyBulkFilters = () => {
     setCurrentPage(1);
-    fetchBulkJobs();
+    fetchBulkJobs(null, 1);
   };
   
   const clearBulkFilters = () => {
     const emptyFilters = { status: '', jobName: '' };
     setBulkFilters(emptyFilters);
     setCurrentPage(1);
-    fetchBulkJobs(emptyFilters);
+    fetchBulkJobs(emptyFilters, 1);
   };
   
   const hasActiveBulkFilters = bulkFilters.status || bulkFilters.jobName;
@@ -130,11 +130,12 @@ function Monitor() {
     }
   };
   
-  const fetchBulkJobs = async (filtersOverride = null) => {
+  const fetchBulkJobs = async (filtersOverride = null, pageOverride = null) => {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
-      const offset = (currentPage - 1) * pageSize;
+      const page = pageOverride !== null ? pageOverride : currentPage;
+      const offset = (page - 1) * pageSize;
       
       const params = {
         limit: pageSize,
