@@ -51,7 +51,7 @@ function Monitor() {
     }
   }, [currentPage, pageSize, activeTab]);
   
-  const fetchAuditData = async () => {
+  const fetchAuditData = async (filtersOverride = null) => {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
@@ -62,9 +62,11 @@ function Monitor() {
         offset: offset
       };
       
-      if (auditFilters.status) params.status = auditFilters.status;
-      if (auditFilters.mappingName) params.mappingName = auditFilters.mappingName;
-      if (auditFilters.jobId) params.correlationId = auditFilters.jobId;
+      // Use override filters if provided, otherwise use state
+      const filters = filtersOverride !== null ? filtersOverride : auditFilters;
+      if (filters.status) params.status = filters.status;
+      if (filters.mappingName) params.mappingName = filters.mappingName;
+      if (filters.jobId) params.correlationId = filters.jobId;
       
       const response = await axios.get('/api/file-audit', {
         headers: { Authorization: `Bearer ${token}` },
@@ -92,9 +94,10 @@ function Monitor() {
   };
   
   const clearAuditFilters = () => {
-    setAuditFilters({ status: '', mappingName: '', jobId: '' });
+    const emptyFilters = { status: '', mappingName: '', jobId: '' };
+    setAuditFilters(emptyFilters);
     setCurrentPage(1);
-    setTimeout(() => fetchAuditData(), 0);
+    fetchAuditData(emptyFilters);
   };
   
   const hasActiveAuditFilters = auditFilters.status || auditFilters.mappingName || auditFilters.jobId;
@@ -109,9 +112,10 @@ function Monitor() {
   };
   
   const clearBulkFilters = () => {
-    setBulkFilters({ status: '', jobName: '' });
+    const emptyFilters = { status: '', jobName: '' };
+    setBulkFilters(emptyFilters);
     setCurrentPage(1);
-    setTimeout(() => fetchBulkJobs(), 0);
+    fetchBulkJobs(emptyFilters);
   };
   
   const hasActiveBulkFilters = bulkFilters.status || bulkFilters.jobName;
@@ -126,7 +130,7 @@ function Monitor() {
     }
   };
   
-  const fetchBulkJobs = async () => {
+  const fetchBulkJobs = async (filtersOverride = null) => {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
@@ -137,8 +141,10 @@ function Monitor() {
         offset: offset
       };
       
-      if (bulkFilters.status) params.status = bulkFilters.status;
-      if (bulkFilters.jobName) params.jobName = bulkFilters.jobName;
+      // Use override filters if provided, otherwise use state
+      const filters = filtersOverride !== null ? filtersOverride : bulkFilters;
+      if (filters.status) params.status = filters.status;
+      if (filters.jobName) params.jobName = filters.jobName;
       
       const response = await axios.get('/api/bulk-profiling/jobs', {
         headers: { Authorization: `Bearer ${token}` },
