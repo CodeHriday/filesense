@@ -209,22 +209,35 @@ const SchedulerForm = () => {
   };
 
   const getEntityOptions = () => {
+    const selectedProjectId = formData.project_id ? parseInt(formData.project_id, 10) : null;
+    const selectedSubProjectId = formData.sub_project_id ? parseInt(formData.sub_project_id, 10) : null;
+    
     switch (formData.entity_type) {
       case 'mapping':
-        // Deduplicate by mapping_name (database has multiple entries with same name but different IDs)
+        // Filter by project and subproject, then deduplicate by mapping_name
         const seen = new Set();
         return transformations
           .filter(t => {
+            // Filter by project if selected
+            if (selectedProjectId && t.project_id !== selectedProjectId) return false;
+            // Filter by subproject if selected
+            if (selectedSubProjectId && t.sub_project_id !== selectedSubProjectId) return false;
+            // Deduplicate by mapping_name
             if (seen.has(t.mapping_name)) return false;
             seen.add(t.mapping_name);
             return true;
           })
           .map(t => ({ id: t.mapping_id, name: t.mapping_name }));
       case 'workflow':
-        // Deduplicate by name
+        // Filter by project and subproject, then deduplicate by name
         const seenWorkflows = new Set();
         return workflows
           .filter(w => {
+            // Filter by project if selected
+            if (selectedProjectId && w.project_id !== selectedProjectId) return false;
+            // Filter by subproject if selected
+            if (selectedSubProjectId && w.sub_project_id !== selectedSubProjectId) return false;
+            // Deduplicate by name
             if (seenWorkflows.has(w.name)) return false;
             seenWorkflows.add(w.name);
             return true;
@@ -270,7 +283,7 @@ const SchedulerForm = () => {
                 <select
                   id="project-select"
                   value={formData.project_id}
-                  onChange={e => setFormData({ ...formData, project_id: e.target.value })}
+                  onChange={e => setFormData({ ...formData, project_id: e.target.value, sub_project_id: '', entity_id: '' })}
                   className="gps-select"
                 >
                   <option value="">Select project...</option>
@@ -288,7 +301,7 @@ const SchedulerForm = () => {
                 <select
                   id="subproject-select"
                   value={formData.sub_project_id}
-                  onChange={e => setFormData({ ...formData, sub_project_id: e.target.value })}
+                  onChange={e => setFormData({ ...formData, sub_project_id: e.target.value, entity_id: '' })}
                   className="gps-select"
                   disabled={!formData.project_id || subProjects.length === 0}
                 >
