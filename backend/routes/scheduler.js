@@ -408,7 +408,7 @@ router.get('/init-data', async (req, res) => {
     let projectsQuery = `
       SELECT id, name, description, project_type, parent_id, created_at
       FROM projects
-      WHERE 1=1
+      WHERE parent_id IS NULL
     `;
     
     if (!isAdmin && projectIds.length > 0) {
