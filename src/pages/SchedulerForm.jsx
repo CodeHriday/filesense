@@ -33,7 +33,6 @@ const SchedulerForm = () => {
   });
 
   const [transformations, setTransformations] = useState([]);
-  const [mappingGroups, setMappingGroups] = useState([]);
   const [workflows, setWorkflows] = useState([]);
   const [projects, setProjects] = useState([]);
   const [subProjects, setSubProjects] = useState([]);
@@ -78,7 +77,6 @@ const SchedulerForm = () => {
       const data = response.data;
       
       const mappings = data.transformations || [];
-      const groups = data.mappingGroups || [];
       const nStepWorkflows = data.nStepWorkflows || [];
       const visualWorkflows = data.visualWorkflows || [];
       const projects = data.projects || [];
@@ -96,7 +94,6 @@ const SchedulerForm = () => {
       
       console.log('Scheduler Form - Data loaded:', {
         transformations: mappings.length,
-        mappingGroups: groups.length,
         nStepWorkflows: nStepWorkflows.length,
         visualWorkflows: visualWorkflows.length,
         totalWorkflows: allWorkflows.length,
@@ -104,17 +101,15 @@ const SchedulerForm = () => {
       });
       
       setTransformations(mappings);
-      setMappingGroups(groups);
       setWorkflows(allWorkflows);
       setProjects(projects);
       
-      if (mappings.length === 0 && groups.length === 0 && allWorkflows.length === 0) {
-        setError('No entities available. Please create a transformation, mapping group, or workflow first.');
+      if (mappings.length === 0 && allWorkflows.length === 0) {
+        setError('No entities available. Please create a transformation or workflow first.');
       }
       
       return {
         mappings,
-        groups,
         workflows: allWorkflows,
         projects
       };
@@ -139,10 +134,6 @@ const SchedulerForm = () => {
           const mapping = entityData.mappings.find(t => String(t.mapping_id) === String(response.data.entity_id));
           projectId = mapping?.project_id || '';
           subProjectId = mapping?.sub_project_id || '';
-        } else if (response.data.entity_type === 'mapping_group') {
-          const group = entityData.groups.find(g => String(g.id) === String(response.data.entity_id));
-          projectId = group?.project_id || '';
-          subProjectId = group?.sub_project_id || '';
         } else if (response.data.entity_type === 'workflow') {
           const workflow = entityData.workflows.find(w => String(w.id) === String(response.data.entity_id));
           projectId = workflow?.project_id || '';
@@ -220,11 +211,25 @@ const SchedulerForm = () => {
   const getEntityOptions = () => {
     switch (formData.entity_type) {
       case 'mapping':
-        return transformations.map(t => ({ id: t.mapping_id, name: t.mapping_name }));
-      case 'mapping_group':
-        return mappingGroups.map(g => ({ id: g.id, name: g.name }));
+        // Deduplicate by mapping_id
+        const seen = new Set();
+        return transformations
+          .filter(t => {
+            if (seen.has(t.mapping_id)) return false;
+            seen.add(t.mapping_id);
+            return true;
+          })
+          .map(t => ({ id: t.mapping_id, name: t.mapping_name }));
       case 'workflow':
-        return workflows.map(w => ({ id: w.id, name: w.name }));
+        // Deduplicate by id
+        const seenWorkflows = new Set();
+        return workflows
+          .filter(w => {
+            if (seenWorkflows.has(w.id)) return false;
+            seenWorkflows.add(w.id);
+            return true;
+          })
+          .map(w => ({ id: w.id, name: w.name }));
       default:
         return [];
     }
@@ -313,13 +318,6 @@ const SchedulerForm = () => {
                   </button>
                   <button
                     type="button"
-                    className={`gps-segmented__btn ${formData.entity_type === 'mapping_group' ? 'gps-segmented__btn--active' : ''}`}
-                    onClick={() => setFormData({ ...formData, entity_type: 'mapping_group', entity_id: '' })}
-                  >
-                    Mapping Group
-                  </button>
-                  <button
-                    type="button"
                     className={`gps-segmented__btn ${formData.entity_type === 'workflow' ? 'gps-segmented__btn--active' : ''}`}
                     onClick={() => setFormData({ ...formData, entity_type: 'workflow', entity_id: '' })}
                   >
@@ -342,10 +340,6 @@ const SchedulerForm = () => {
                         const mapping = transformations.find(t => String(t.mapping_id) === String(value));
                         projectId = mapping?.project_id || '';
                         subProjectId = mapping?.sub_project_id || '';
-                      } else if (formData.entity_type === 'mapping_group') {
-                        const group = mappingGroups.find(g => String(g.id) === String(value));
-                        projectId = group?.project_id || '';
-                        subProjectId = group?.sub_project_id || '';
                       } else if (formData.entity_type === 'workflow') {
                         const workflow = workflows.find(w => String(w.id) === String(value));
                         projectId = workflow?.project_id || '';
