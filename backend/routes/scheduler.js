@@ -388,7 +388,7 @@ router.get('/init-data', async (req, res) => {
     let mappingsQuery = `
       SELECT mapping_id, mapping_name, project_id, sub_project_id, created_at
       FROM transformation_mappings
-      WHERE is_deleted = false
+      WHERE 1=1
     `;
     let groupsQuery = `
       SELECT id, name, description, project_id, sub_project_id, created_at
@@ -403,10 +403,10 @@ router.get('/init-data', async (req, res) => {
     let visualQuery = `
       SELECT id, name, project_id, sub_project_id, created_at
       FROM visual_workflows
-      WHERE is_deleted = false OR is_deleted IS NULL
+      WHERE is_active = true OR is_active IS NULL
     `;
     let projectsQuery = `
-      SELECT id, name, description, project_type, parent_id, parent_project_id, created_at
+      SELECT id, name, description, project_type, parent_id, created_at
       FROM projects
       WHERE 1=1
     `;
