@@ -135,11 +135,9 @@ function QualityRules() {
     }
     
     try {
-      const allProjects = await getProjects();
-      const filteredSubProjects = Array.isArray(allProjects) 
-        ? allProjects.filter(p => p.parent_project_id === parseInt(parentProjectId))
-        : [];
-      setSubProjects(filteredSubProjects);
+      const response = await axios.get(`/api/projects/${parentProjectId}/sub-projects`);
+      const subs = response.data?.subProjects || response.data || [];
+      setSubProjects(Array.isArray(subs) ? subs : []);
     } catch (err) {
       console.error('Error fetching sub-projects:', err);
       setSubProjects([]);
