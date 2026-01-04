@@ -444,7 +444,10 @@ const ErrorReview = () => {
       <div className="gps-tabs">
         <button 
           className={`gps-tab ${activeTab === 'file-upload' ? 'gps-tab--active' : ''}`}
-          onClick={() => setActiveTab('file-upload')}
+          onClick={() => {
+            setActiveTab('file-upload');
+            setFilters(prev => ({ ...prev, page: 1 }));
+          }}
         >
           File Upload Violations
           {activeTab === 'file-upload' && (
@@ -453,7 +456,10 @@ const ErrorReview = () => {
         </button>
         <button 
           className={`gps-tab ${activeTab === 'mapping-job' ? 'gps-tab--active' : ''}`}
-          onClick={() => setActiveTab('mapping-job')}
+          onClick={() => {
+            setActiveTab('mapping-job');
+            setFilters(prev => ({ ...prev, page: 1 }));
+          }}
         >
           Mapping Job Violations
           {activeTab === 'mapping-job' && (
