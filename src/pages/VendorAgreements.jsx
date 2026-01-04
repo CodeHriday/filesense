@@ -2558,7 +2558,7 @@ const VendorAgreements = () => {
                         <option value="">Select a vendor connection</option>
                         {filteredConnections.map(conn => (
                           <option key={conn.connection_id} value={conn.connection_id}>
-                            {conn.name} ({conn.config?.provider?.toUpperCase() || 'AWS'})
+                            {conn.name} ({conn.connection_type?.toUpperCase() || conn.storage_type?.toUpperCase() || 'AWS'})
                           </option>
                         ))}
                       </select>
