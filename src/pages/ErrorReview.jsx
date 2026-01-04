@@ -555,7 +555,7 @@ const ErrorReview = () => {
             {filters.page > 1 && (
               <button 
                 onClick={() => handlePageChange(filters.page - 1)}
-                className="gps-btn-secondary"
+                className="gps-btn gps-btn-secondary"
               >
                 Previous
               </button>
@@ -566,7 +566,7 @@ const ErrorReview = () => {
             {filters.page < pagination.totalPages && (
               <button 
                 onClick={() => handlePageChange(filters.page + 1)}
-                className="gps-btn-secondary"
+                className="gps-btn gps-btn-secondary"
               >
                 Next
               </button>
