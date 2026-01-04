@@ -335,8 +335,16 @@ function createProjectRoutes(dbPool) {
         projectCount: projectsResult.rows.length
       });
 
+      const normalizeProjectRow = (row) => ({
+        ...row,
+        is_active: row.is_active !== false && row.is_active !== 'false' && row.is_active !== 'f',
+        is_archived: row.is_archived === true || row.is_archived === 'true' || row.is_archived === 't',
+        member_count: parseInt(row.member_count) || 0,
+        sub_project_count: parseInt(row.sub_project_count) || 0
+      });
+
       res.json({
-        projects: projectsResult.rows,
+        projects: projectsResult.rows.map(normalizeProjectRow),
         users: usersResult.rows,
         groups: groupsResult.rows
       });

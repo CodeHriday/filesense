@@ -259,7 +259,8 @@ function ProjectManagement() {
       if (err.response?.status === 409) {
         setModalErrors(prev => ({ ...prev, name: 'A project with this name already exists.' }));
       } else {
-        setModalErrors(prev => ({ ...prev, general: err.response?.data?.message || 'Failed to update project' }));
+        const errorMessage = err.response?.data?.message || err.response?.data?.error || 'Failed to update project';
+        setModalErrors(prev => ({ ...prev, general: errorMessage }));
       }
       console.error(err);
     } finally {
