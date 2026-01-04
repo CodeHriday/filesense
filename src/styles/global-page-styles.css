@@ -1248,6 +1248,77 @@
   gap: var(--gps-spacing-xl);
 }
 
+.gps-modal--sm {
+  max-width: 420px;
+}
+
+.gps-modal--centered .gps-modal-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: var(--gps-spacing-lg);
+}
+
+.gps-modal--centered .gps-modal-title {
+  color: var(--gps-text-dark);
+  font-size: 18px;
+}
+
+.gps-modal--centered .gps-modal-text {
+  color: var(--gps-text-muted);
+  font-size: var(--gps-font-size-content);
+  line-height: 1.5;
+  margin: 0;
+}
+
+.gps-modal-icon {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.gps-modal-icon--warning {
+  background-color: #fef3c7;
+  color: #d97706;
+}
+
+.gps-modal-icon--danger {
+  background-color: #fee2e2;
+  color: #dc2626;
+}
+
+.gps-modal-icon--success {
+  background-color: #d1fae5;
+  color: #059669;
+}
+
+.gps-timeout-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px;
+  background-color: #fef3c7;
+  border-radius: var(--gps-radius-md);
+  font-size: 16px;
+  font-weight: 600;
+  color: #92400e;
+}
+
+.gps-modal-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 8px;
+  width: 100%;
+}
+
+.gps-modal-actions .gps-btn {
+  flex: 1;
+}
+
 /* ============================================
    FORM STYLES
    ============================================ */
