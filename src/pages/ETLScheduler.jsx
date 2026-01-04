@@ -148,7 +148,7 @@ const ETLScheduler = () => {
             <p className="gps-page-subtitle">Schedule transformations, mapping groups, and workflows</p>
           </div>
           <div className="gps-page-header-right">
-            <Link to="/etl-scheduler/create" className="gps-btn-primary">
+            <Link to="/etl-scheduler/create" className="gps-btn gps-btn--primary">
               <FiPlusCircle /> Create Schedule
             </Link>
           </div>
