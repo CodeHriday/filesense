@@ -74,6 +74,23 @@ function ProjectManagement() {
   const [selectedSubProject, setSelectedSubProject] = useState(null);
   const [currentProjectId, setCurrentProjectId] = useState(null);
 
+  const normalizeBoolean = (value) => {
+    if (value === false || value === 'false' || value === 'f' || value === '0' || value === 0) {
+      return false;
+    }
+    return true;
+  };
+
+  const normalizeProject = (project) => ({
+    ...project,
+    is_active: normalizeBoolean(project.is_active),
+    is_archived: project.is_archived === true || project.is_archived === 'true' || project.is_archived === 't',
+    sub_projects: project.sub_projects?.map(sp => ({
+      ...sp,
+      is_active: normalizeBoolean(sp.is_active)
+    })) || []
+  });
+
   const fetchInitData = useCallback(async () => {
     try {
       setLoading(true);
@@ -91,7 +108,8 @@ function ProjectManagement() {
         }).catch(() => ({ data: [] }))
       ]);
       
-      setProjects(projectsResponse.data.projects || []);
+      const normalizedProjects = (projectsResponse.data.projects || []).map(normalizeProject);
+      setProjects(normalizedProjects);
       setAvailableUsers(projectsResponse.data.users || []);
       setAvailableGroups(projectsResponse.data.groups || []);
       setStorageConnections(connectionsResponse.data || []);
@@ -119,7 +137,8 @@ function ProjectManagement() {
       const response = await axios.get(`${API_BASE_URL}/projects?${params}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      setProjects(response.data);
+      const normalizedProjects = (response.data || []).map(normalizeProject);
+      setProjects(normalizedProjects);
       setError(null);
     } catch (err) {
       setError('Failed to fetch projects');
@@ -625,7 +644,7 @@ function ProjectManagement() {
                   </td>
                   <td>
                     <div style={{ display: 'flex', gap: '0.25rem', flexWrap: 'wrap' }}>
-                      {project.is_active === false || project.is_active === 'f' || project.is_active === 'false' ? (
+                      {project.is_active === false ? (
                         <span className="gps-badge gps-badge--archived">Inactive</span>
                       ) : (
                         <span className="gps-badge gps-badge--active">Active</span>
@@ -699,8 +718,8 @@ function ProjectManagement() {
                                 <td>{subProject.file_count || 0}</td>
                                 <td>{formatBytes(subProject.total_size || 0)}</td>
                                 <td>
-                                  <span className={`gps-badge ${subProject.is_active === false || subProject.is_active === 'f' || subProject.is_active === 'false' ? 'gps-badge--archived' : 'gps-badge--active'}`}>
-                                    {subProject.is_active === false || subProject.is_active === 'f' || subProject.is_active === 'false' ? 'Inactive' : 'Active'}
+                                  <span className={`gps-badge ${subProject.is_active === false ? 'gps-badge--archived' : 'gps-badge--active'}`}>
+                                    {subProject.is_active === false ? 'Inactive' : 'Active'}
                                   </span>
                                 </td>
                                 <td>{subProject.owner_name || '-'}</td>
@@ -969,8 +988,8 @@ function ProjectManagement() {
                             <td>{sp.name}</td>
                             <td style={{ color: '#666' }}>{sp.description || '-'}</td>
                             <td>
-                              <span className={`gps-badge ${sp.is_active === false || sp.is_active === 'f' || sp.is_active === 'false' ? 'gps-badge--archived' : 'gps-badge--active'}`}>
-                                {sp.is_active === false || sp.is_active === 'f' || sp.is_active === 'false' ? 'Inactive' : 'Active'}
+                              <span className={`gps-badge ${sp.is_active === false ? 'gps-badge--archived' : 'gps-badge--active'}`}>
+                                {sp.is_active === false ? 'Inactive' : 'Active'}
                               </span>
                             </td>
                             <td>
