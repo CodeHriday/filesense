@@ -394,14 +394,15 @@ router.get('/init-data', async (req, res) => {
     
     if (isAdminUser) {
       try {
+        // Query from unified storage_connections table - vendor connections are External connections
         const connResult = await dbQuery(`
-          SELECT vc.id, vc.connection_name, vc.vendor_id, vc.connection_type, 
-                 vc.storage_type, vc.bucket_name, vc.container_name, vc.base_path, 
-                 vc.status, vc.created_at, v.vendor_name
-          FROM vendor_connections vc
-          LEFT JOIN vendors v ON vc.vendor_id = v.id
-          WHERE vc.status = 'active'
-          ORDER BY vc.connection_name
+          SELECT sc.connection_id as id, sc.name as connection_name, sc.type as connection_type, 
+                 sc.type as storage_type, sc.config->>'bucket' as bucket_name, 
+                 sc.config->>'container' as container_name, sc.path as base_path, 
+                 sc.status, sc.created_at, sc.connection_user, sc.connection_direction
+          FROM storage_connections sc
+          WHERE sc.status = 'active' AND sc.is_deleted = false
+          ORDER BY sc.name
         `);
         vendorConnections = connResult.rows;
       } catch (err) {
@@ -444,10 +445,13 @@ router.get('/init-data', async (req, res) => {
     }
     
     try {
+      // Query from unified storage_connections table for all connections
       const allConnResult = await dbQuery(`
-        SELECT id, connection_name as name, connection_type, created_at
-        FROM connections
-        ORDER BY connection_name
+        SELECT connection_id as id, name, type as connection_type, created_at, 
+               connection_user, connection_direction, status
+        FROM storage_connections
+        WHERE is_deleted = false
+        ORDER BY name
       `);
       allConnections = allConnResult.rows;
     } catch (err) {
