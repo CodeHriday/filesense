@@ -61,6 +61,12 @@ function ProjectManagement() {
     data: null
   });
 
+  // Modal-specific validation errors (displayed inside modal, not background)
+  const [modalErrors, setModalErrors] = useState({
+    name: '',
+    general: ''
+  });
+
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 15;
   const [expandedProjects, setExpandedProjects] = useState(new Set());
@@ -136,10 +142,44 @@ function ProjectManagement() {
     }
   };
 
+  // Validate project name: only letters, numbers, hyphens, and underscores
+  const validateProjectName = (name) => {
+    if (!name || name.trim() === '') {
+      return 'Project name is required';
+    }
+    // Allow letters, numbers, hyphens, underscores, and spaces
+    const validPattern = /^[a-zA-Z0-9\-_\s]+$/;
+    if (!validPattern.test(name)) {
+      return 'Project name can only contain letters, numbers, hyphens (-), underscores (_), and spaces';
+    }
+    return '';
+  };
+
+  // Handle project name change with validation
+  const handleProjectNameChange = (e) => {
+    const value = e.target.value;
+    // Sanitize input: only allow valid characters
+    const sanitized = value.replace(/[^a-zA-Z0-9\-_\s]/g, '');
+    setFormData({ ...formData, name: sanitized });
+    
+    // Clear error when user starts typing valid characters
+    if (modalErrors.name && validateProjectName(sanitized) === '') {
+      setModalErrors(prev => ({ ...prev, name: '' }));
+    }
+  };
+
   const handleCreate = async (e) => {
     e.preventDefault();
+    
+    // Validate project name
+    const nameError = validateProjectName(formData.name);
+    if (nameError) {
+      setModalErrors(prev => ({ ...prev, name: nameError, general: '' }));
+      return;
+    }
+    
     setIsCreating(true);
-    setError(null);
+    setModalErrors({ name: '', general: '' });
     
     try {
       const token = localStorage.getItem('token');
@@ -158,12 +198,13 @@ function ProjectManagement() {
       await fetchProjects();
       handleCloseCreateModal();
     } catch (err) {
+      // Show errors inside the modal instead of background
       if (err.response?.status === 429) {
-        setError(err.response.data.message || 'Rate limit exceeded. Please try again later.');
+        setModalErrors(prev => ({ ...prev, general: err.response.data.message || 'Rate limit exceeded. Please try again later.' }));
       } else if (err.response?.status === 409) {
-        setError('A project with this name already exists.');
+        setModalErrors(prev => ({ ...prev, name: 'A project with this name already exists.' }));
       } else {
-        setError(err.response?.data?.message || 'Failed to create project');
+        setModalErrors(prev => ({ ...prev, general: err.response?.data?.message || 'Failed to create project' }));
       }
       console.error(err);
     } finally {
@@ -173,8 +214,16 @@ function ProjectManagement() {
 
   const handleUpdate = async (e) => {
     e.preventDefault();
+    
+    // Validate project name
+    const nameError = validateProjectName(formData.name);
+    if (nameError) {
+      setModalErrors(prev => ({ ...prev, name: nameError, general: '' }));
+      return;
+    }
+    
     setIsCreating(true);
-    setError(null);
+    setModalErrors({ name: '', general: '' });
     
     try {
       const token = localStorage.getItem('token');
@@ -187,7 +236,12 @@ function ProjectManagement() {
       await fetchProjects();
       handleCloseEditModal();
     } catch (err) {
-      setError('Failed to update project');
+      // Show errors inside the modal instead of background
+      if (err.response?.status === 409) {
+        setModalErrors(prev => ({ ...prev, name: 'A project with this name already exists.' }));
+      } else {
+        setModalErrors(prev => ({ ...prev, general: err.response?.data?.message || 'Failed to update project' }));
+      }
       console.error(err);
     } finally {
       setIsCreating(false);
@@ -327,6 +381,7 @@ function ProjectManagement() {
       drop_location_prefix: ''
     });
     setSubProjectFormData({ name: '', description: '', is_active: true });
+    setModalErrors({ name: '', general: '' });
     setShowCreateModal(false);
   };
 
@@ -346,6 +401,7 @@ function ProjectManagement() {
     setMemberFormData({ user_id: '' });
     setGroupFormData({ group_id: '' });
     setSelectedProject(null);
+    setModalErrors({ name: '', general: '' });
     setShowEditModal(false);
   };
 
@@ -716,17 +772,25 @@ function ProjectManagement() {
             </div>
             <div className="gps-modal-body">
               <form onSubmit={handleCreate}>
+                {modalErrors.general && (
+                  <div className="gps-alert gps-alert--error" style={{ marginBottom: '1rem' }}>
+                    {modalErrors.general}
+                  </div>
+                )}
                 <div className="gps-form-grid gps-form-grid--2col">
                   <div className="gps-form-group">
                     <label htmlFor="create-project-name" className="gps-form-label">Project Name *</label>
                     <input
                       id="create-project-name"
                       type="text"
-                      className="gps-form-input"
+                      className={`gps-form-input ${modalErrors.name ? 'gps-form-input--error' : ''}`}
                       value={formData.name}
-                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      onChange={handleProjectNameChange}
                       required
                     />
+                    {modalErrors.name && (
+                      <span className="gps-form-error">{modalErrors.name}</span>
+                    )}
                   </div>
                   <div className="gps-form-group">
                     <label htmlFor="create-project-type" className="gps-form-label">Project Type *</label>
@@ -952,6 +1016,11 @@ function ProjectManagement() {
             <div className="gps-modal-body">
               <div className="gps-modal-sections">
                 <form onSubmit={handleUpdate}>
+                  {modalErrors.general && (
+                    <div className="gps-alert gps-alert--error" style={{ marginBottom: '1rem' }}>
+                      {modalErrors.general}
+                    </div>
+                  )}
                   <h3 className="gps-section-title">Project Details</h3>
                   <div className="gps-form-grid gps-form-grid--2col">
                     <div className="gps-form-group">
@@ -959,11 +1028,14 @@ function ProjectManagement() {
                       <input
                         id="edit-project-name"
                         type="text"
-                        className="gps-form-input"
+                        className={`gps-form-input ${modalErrors.name ? 'gps-form-input--error' : ''}`}
                         value={formData.name}
-                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                        onChange={handleProjectNameChange}
                         required
                       />
+                      {modalErrors.name && (
+                        <span className="gps-form-error">{modalErrors.name}</span>
+                      )}
                     </div>
                     <div className="gps-form-group">
                       <label htmlFor="edit-project-type" className="gps-form-label">Project Type *</label>
