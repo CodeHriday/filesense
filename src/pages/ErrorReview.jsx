@@ -552,23 +552,25 @@ const ErrorReview = () => {
       {violations.length > 0 && (
         <div className="gps-pagination">
           <div className="gps-pagination-controls">
-            <button 
-              onClick={() => handlePageChange(filters.page - 1)}
-              disabled={filters.page <= 1}
-              className="gps-btn-secondary"
-            >
-              Previous
-            </button>
+            {filters.page > 1 && (
+              <button 
+                onClick={() => handlePageChange(filters.page - 1)}
+                className="gps-btn-secondary"
+              >
+                Previous
+              </button>
+            )}
             <span className="gps-pagination-info">
               Page {pagination.page} of {pagination.totalPages} ({pagination.total} total)
             </span>
-            <button 
-              onClick={() => handlePageChange(filters.page + 1)}
-              disabled={filters.page >= pagination.totalPages}
-              className="gps-btn-secondary"
-            >
-              Next
-            </button>
+            {filters.page < pagination.totalPages && (
+              <button 
+                onClick={() => handlePageChange(filters.page + 1)}
+                className="gps-btn-secondary"
+              >
+                Next
+              </button>
+            )}
           </div>
           <div className="gps-pagination-size">
             <label>Rows per page:</label>
