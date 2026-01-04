@@ -1109,7 +1109,7 @@ function QualityRules() {
                       onChange={(e) => handleProjectChange(e.target.value)}
                     >
                       <option value="">All Projects</option>
-                      {projects.map(project => (
+                      {projects.filter(p => !p.parent_id).map(project => (
                         <option key={project.id} value={project.id}>
                           {project.name}
                         </option>
