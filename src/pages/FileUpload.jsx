@@ -1952,7 +1952,7 @@ function FileUpload() {
                       </div>
                       <div className="fixed-width-columns-scroll">
                         {fixedWidthSchema.map((column, index) => (
-                          <div key={`fixed-width-${column.name || column.field || index}`} className="fixed-width-column-row">
+                          <div key={`fixed-width-row-${index}`} className="fixed-width-column-row">
                             <input 
                               type="text"
                               value={column.name}

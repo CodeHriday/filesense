@@ -1121,11 +1121,10 @@
 .fixed-width-header-width,
 .fixed-width-header-action {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 600;
   color: #555;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.3px;
 }
 
 .fixed-width-header-name {
