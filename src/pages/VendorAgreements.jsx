@@ -727,10 +727,51 @@ const VendorAgreements = () => {
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     
+    // Field-specific validations
+    let sanitizedValue = value;
+    
+    // Phone fields: only allow numbers, spaces, dashes, parentheses, and plus sign
+    if (name === 'primary_contact_phone' || name === 'secondary_contact_phone') {
+      sanitizedValue = value.replace(/[^0-9\s\-\(\)\+]/g, '');
+    }
+    
+    // Email fields: basic sanitization (full validation on submit)
+    // Allow only valid email characters
+    if (name === 'vendor_department_email' || name === 'primary_contact_email' || 
+        name === 'secondary_contact_email' || name === 'owner_contact') {
+      sanitizedValue = value.replace(/[^a-zA-Z0-9@._\-+]/g, '');
+    }
+    
+    // Expected arrival time: don't allow negative values, only allow time format
+    if (name === 'expected_arrival_time') {
+      // Remove leading minus signs and restrict to valid time characters
+      sanitizedValue = value.replace(/^-+/, '').replace(/[^0-9:aAmMpP\s]/g, '');
+    }
+    
+    // Retention days: only positive numbers
+    if (name === 'retention_days') {
+      sanitizedValue = value.replace(/[^0-9]/g, '');
+    }
+    
+    // Domain: alphanumeric, spaces, commas, and hyphens only
+    if (name === 'domain') {
+      sanitizedValue = value.replace(/[^a-zA-Z0-9\s,\-]/g, '');
+    }
+    
+    // Vendor department/team: alphanumeric, spaces, hyphens, underscores
+    if (name === 'vendor_department_team') {
+      sanitizedValue = value.replace(/[^a-zA-Z0-9\s\-_&]/g, '');
+    }
+    
+    // Description and frequency_description: allow basic punctuation but no dangerous chars
+    if (name === 'description' || name === 'frequency_description' || name === 'file_description') {
+      sanitizedValue = value.replace(/[<>{}[\]\\]/g, '');
+    }
+    
     // Note: vendor_code and vendor_onboarding_date auto-population is handled by useEffect
     setFormData(prev => ({
       ...prev,
-      [name]: value
+      [name]: sanitizedValue
     }));
   };
   
@@ -831,6 +872,47 @@ const VendorAgreements = () => {
         message: 'Invalid JSON format in metadata'
       });
       return;
+    }
+    
+    // Email format validation (proper format, not just @)
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    const emailFields = [
+      { field: 'vendor_department_email', label: 'Vendor Department Email' },
+      { field: 'primary_contact_email', label: 'Primary Contact Email' },
+      { field: 'secondary_contact_email', label: 'Secondary Contact Email' }
+    ];
+    
+    for (const { field, label } of emailFields) {
+      if (formData[field] && formData[field].trim() !== '' && !emailRegex.test(formData[field])) {
+        setNotificationModal({
+          isOpen: true,
+          type: 'error',
+          title: 'Validation Error',
+          message: `${label} is not in a valid format (e.g., name@domain.com)`
+        });
+        return;
+      }
+    }
+    
+    // Phone format validation (must contain at least some digits)
+    const phoneFields = [
+      { field: 'primary_contact_phone', label: 'Primary Contact Phone' },
+      { field: 'secondary_contact_phone', label: 'Secondary Contact Phone' }
+    ];
+    
+    for (const { field, label } of phoneFields) {
+      if (formData[field] && formData[field].trim() !== '') {
+        const digitsOnly = formData[field].replace(/\D/g, '');
+        if (digitsOnly.length < 7) {
+          setNotificationModal({
+            isOpen: true,
+            type: 'error',
+            title: 'Validation Error',
+            message: `${label} must contain at least 7 digits`
+          });
+          return;
+        }
+      }
     }
     
     try {
@@ -1301,6 +1383,7 @@ const VendorAgreements = () => {
           file_owner_user_id: prev.file_owner_user_id || '',
           file_name: agreement.file_name || '',
           file_description: agreement.file_description || '',
+          description: agreement.file_description || agreement.description || '',
           vendor_department_team: agreement.vendor_department_team || '',
           vendor_department_email: agreement.vendor_department_email || '',
           owner_contact: agreement.vendor_department_email || '',
