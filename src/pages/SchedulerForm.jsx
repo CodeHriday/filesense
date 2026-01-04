@@ -211,22 +211,22 @@ const SchedulerForm = () => {
   const getEntityOptions = () => {
     switch (formData.entity_type) {
       case 'mapping':
-        // Deduplicate by mapping_id
+        // Deduplicate by mapping_name (database has multiple entries with same name but different IDs)
         const seen = new Set();
         return transformations
           .filter(t => {
-            if (seen.has(t.mapping_id)) return false;
-            seen.add(t.mapping_id);
+            if (seen.has(t.mapping_name)) return false;
+            seen.add(t.mapping_name);
             return true;
           })
           .map(t => ({ id: t.mapping_id, name: t.mapping_name }));
       case 'workflow':
-        // Deduplicate by id
+        // Deduplicate by name
         const seenWorkflows = new Set();
         return workflows
           .filter(w => {
-            if (seenWorkflows.has(w.id)) return false;
-            seenWorkflows.add(w.id);
+            if (seenWorkflows.has(w.name)) return false;
+            seenWorkflows.add(w.name);
             return true;
           })
           .map(w => ({ id: w.id, name: w.name }));
