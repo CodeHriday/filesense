@@ -1320,6 +1320,161 @@
 }
 
 /* ============================================
+   FORM SECTION STYLES
+   ============================================ */
+.gps-form-section {
+  background: var(--gps-bg-white);
+  border: 1px solid var(--gps-border-light);
+  border-radius: var(--gps-radius-md);
+  padding: var(--gps-spacing-xl);
+  margin-bottom: var(--gps-spacing-xl);
+}
+
+.gps-form-section__header {
+  margin-bottom: var(--gps-spacing-lg);
+  padding-bottom: var(--gps-spacing-md);
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.gps-form-section__title {
+  font-family: var(--gps-font-family);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--gps-text-dark);
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.gps-form-section__subtitle {
+  font-size: var(--gps-font-size-content);
+  color: var(--gps-text-muted);
+  margin: 4px 0 0 0;
+}
+
+.gps-grid--2col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--gps-spacing-xl);
+}
+
+@media (max-width: 768px) {
+  .gps-grid--2col {
+    grid-template-columns: 1fr;
+  }
+}
+
+.gps-segmented {
+  display: inline-flex;
+  background: #f1f5f9;
+  border-radius: var(--gps-radius-md);
+  padding: 4px;
+  gap: 4px;
+}
+
+.gps-segmented__btn {
+  padding: 8px 16px;
+  border: none;
+  background: transparent;
+  border-radius: var(--gps-radius-sm);
+  font-family: var(--gps-font-family);
+  font-size: var(--gps-font-size-content);
+  font-weight: 500;
+  color: var(--gps-text-muted);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.gps-segmented__btn:hover {
+  color: var(--gps-text-dark);
+}
+
+.gps-segmented__btn--active {
+  background: var(--gps-bg-white);
+  color: var(--gps-primary-teal);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.gps-chip-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: var(--gps-spacing-md);
+}
+
+.gps-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 12px;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 20px;
+  font-family: var(--gps-font-family);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--gps-text-secondary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.gps-chip:hover {
+  background: #e2e8f0;
+  border-color: #cbd5e1;
+  color: var(--gps-text-dark);
+}
+
+.gps-chip--active {
+  background: var(--gps-primary-teal);
+  border-color: var(--gps-primary-teal);
+  color: white;
+}
+
+.gps-form-card-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--gps-spacing-md);
+  padding: var(--gps-spacing-lg) var(--gps-spacing-xl);
+  background: #f8fafc;
+  border-top: 1px solid var(--gps-border-light);
+  border-radius: 0 0 var(--gps-radius-md) var(--gps-radius-md);
+  margin: var(--gps-spacing-xl) calc(-1 * var(--gps-spacing-xl)) calc(-1 * var(--gps-spacing-xl));
+}
+
+.gps-btn--ghost {
+  background: transparent;
+  border: none;
+  color: var(--gps-text-muted);
+}
+
+.gps-btn--ghost:hover {
+  background: #f1f5f9;
+  color: var(--gps-text-dark);
+}
+
+.gps-toggle-wrapper {
+  display: flex;
+  align-items: center;
+  gap: var(--gps-spacing-md);
+  padding: var(--gps-spacing-md) var(--gps-spacing-lg);
+  background: #f8fafc;
+  border-radius: var(--gps-radius-sm);
+  border: 1px solid #e2e8f0;
+}
+
+.gps-toggle-label {
+  font-family: var(--gps-font-family);
+  font-size: var(--gps-font-size-content);
+  font-weight: 500;
+  color: var(--gps-text-dark);
+}
+
+.gps-divider {
+  height: 1px;
+  background: #e2e8f0;
+  margin: var(--gps-spacing-lg) 0;
+}
+
+/* ============================================
    FORM STYLES
    ============================================ */
 .gps-form-group {
