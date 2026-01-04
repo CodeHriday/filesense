@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams, useSearchParams, useLocation } from 'react-router-dom';
 import { FiSave, FiX } from 'react-icons/fi';
-import PageHeader from '../components/PageHeader';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { PageTransition } from '../components/MicroAnimations';
 import axios from 'axios';
@@ -11,7 +10,7 @@ const SchedulerForm = () => {
   const location = useLocation();
   const { scheduleId } = useParams();
   const [searchParams] = useSearchParams();
-  const isEdit = !!scheduleId;
+  const isEdit = !!scheduleId && scheduleId !== 'create';
 
   // Get query params for pre-selection
   const preSelectedType = searchParams.get('type');
@@ -241,25 +240,26 @@ const SchedulerForm = () => {
 
   return (
     <PageTransition>
-      <div className="scheduler-form-page">
-        <PageHeader
-          title={isEdit ? 'Edit Schedule' : 'Create New Schedule'}
-          subtitle={isEdit ? 'Update schedule configuration' : 'Configure a new automated schedule'}
-          hideHomeButton={true}
-        />
+      <div className="gps-page-container">
+        <div className="gps-page-header">
+          <div className="gps-page-header-left">
+            <h1 className="gps-page-title">{isEdit ? 'Edit Schedule' : 'Create New Schedule'}</h1>
+            <p className="gps-page-subtitle">{isEdit ? 'Update schedule configuration' : 'Configure a new automated schedule'}</p>
+          </div>
+        </div>
 
-        <div className="form-container">
-          <form onSubmit={handleSubmit} className="data-form">
+        <div className="gps-form-card">
+          <form onSubmit={handleSubmit} className="gps-form">
             {/* Row 1: Project and Subproject */}
-            <div className="form-row">
-              <div className="form-group">
-                <label htmlFor="project-select">Project *</label>
+            <div className="gps-form-row">
+              <div className="gps-form-group">
+                <label htmlFor="project-select" className="gps-form-label">Project *</label>
                 <select
                   id="project-select"
                   value={formData.project_id}
                   onChange={e => setFormData({ ...formData, project_id: e.target.value })}
                   required
-                  className="form-select"
+                  className="gps-select"
                 >
                   <option value="">Select project...</option>
                   {projects.map(project => (
@@ -268,18 +268,18 @@ const SchedulerForm = () => {
                     </option>
                   ))}
                 </select>
-                <small className="form-help">
+                <small className="gps-form-help">
                   Project is auto-populated from the selected entity
                 </small>
               </div>
 
-              <div className="form-group">
-                <label htmlFor="subproject-select">Subproject</label>
+              <div className="gps-form-group">
+                <label htmlFor="subproject-select" className="gps-form-label">Subproject</label>
                 <select
                   id="subproject-select"
                   value={formData.sub_project_id}
                   onChange={e => setFormData({ ...formData, sub_project_id: e.target.value })}
-                  className="form-select"
+                  className="gps-select"
                   disabled={!formData.project_id || subProjects.length === 0}
                 >
                   <option value="">None (use main project)</option>
@@ -289,21 +289,21 @@ const SchedulerForm = () => {
                     </option>
                   ))}
                 </select>
-                <small className="form-help">
+                <small className="gps-form-help">
                   Optional: select a subproject for this schedule
                 </small>
               </div>
             </div>
 
             {/* Row 2: Entity Type */}
-            <div className="form-row">
-              <div className="form-group">
-                <label htmlFor="entity-type">Entity Type *</label>
+            <div className="gps-form-row">
+              <div className="gps-form-group">
+                <label htmlFor="entity-type" className="gps-form-label">Entity Type *</label>
                 <select
                   id="entity-type"
                   value={formData.entity_type}
                   onChange={e => setFormData({ ...formData, entity_type: e.target.value, entity_id: '' })}
-                  className="form-select"
+                  className="gps-select"
                 >
                   <option value="mapping">Transformation</option>
                   <option value="mapping_group">Mapping Group</option>
@@ -313,9 +313,9 @@ const SchedulerForm = () => {
             </div>
 
             {/* Row 3: Select Entity and Schedule Type */}
-            <div className="form-row">
-              <div className="form-group">
-                <label htmlFor="entity-select">Select {formData.entity_type.replace('_', ' ')} *</label>
+            <div className="gps-form-row">
+              <div className="gps-form-group">
+                <label htmlFor="entity-select" className="gps-form-label">Select {formData.entity_type.replace('_', ' ')} *</label>
                 <select
                   id="entity-select"
                   value={formData.entity_id}
@@ -345,7 +345,7 @@ const SchedulerForm = () => {
                     setFormData({ ...formData, entity_id: value, project_id: projectId, sub_project_id: subProjectId });
                   }}
                   required
-                  className="form-select"
+                  className="gps-select"
                 >
                   <option value="">Select...</option>
                   {getEntityOptions().map(option => (
@@ -353,16 +353,16 @@ const SchedulerForm = () => {
                   ))}
                 </select>
                 {formData.entity_id && (
-                  <small className="form-text text-muted">
+                  <small className="gps-form-help">
                     Selected ID: {formData.entity_id}
                   </small>
                 )}
               </div>
 
-              <div className="form-group" style={{ border: '1px solid #ddd', padding: '1rem', borderRadius: '4px' }}>
-                <label htmlFor="schedule-type-cron">Schedule Type *</label>
-                <div className="radio-group">
-                  <label className="radio-label">
+              <div className="gps-form-group gps-form-group--bordered">
+                <label htmlFor="schedule-type-cron" className="gps-form-label">Schedule Type *</label>
+                <div className="gps-radio-group">
+                  <label className="gps-radio-label">
                     <input
                       id="schedule-type-cron"
                       type="radio"
@@ -372,7 +372,7 @@ const SchedulerForm = () => {
                     />
                     Cron Expression
                   </label>
-                  <label className="radio-label">
+                  <label className="gps-radio-label">
                     <input
                       id="schedule-type-interval"
                       type="radio"
@@ -387,8 +387,8 @@ const SchedulerForm = () => {
             </div>
 
             {formData.schedule_type === 'cron' ? (
-              <div className="form-group">
-                <label htmlFor="cron-expression">Cron Expression *</label>
+              <div className="gps-form-group">
+                <label htmlFor="cron-expression" className="gps-form-label">Cron Expression *</label>
                 <input
                   id="cron-expression"
                   type="text"
@@ -396,18 +396,18 @@ const SchedulerForm = () => {
                   onChange={e => setFormData({ ...formData, cron_expression: e.target.value })}
                   placeholder="0 0 * * *"
                   required
-                  className="form-input"
+                  className="gps-input"
                 />
-                <small className="form-help">
+                <small className="gps-form-help">
                   Format: minute hour day month dayOfWeek (e.g., "0 0 * * *" = daily at midnight)
                 </small>
-                <div className="cron-presets">
+                <div className="gps-cron-presets">
                   {cronPresets.map(preset => (
                     <button
                       key={preset.value}
                       type="button"
                       onClick={() => setFormData({ ...formData, cron_expression: preset.value })}
-                      className="btn btn-secondary btn-sm"
+                      className="gps-btn gps-btn--secondary gps-btn--sm"
                     >
                       {preset.label}
                     </button>
@@ -415,9 +415,9 @@ const SchedulerForm = () => {
                 </div>
               </div>
             ) : (
-              <div className="form-row">
-                <div className="form-group">
-                  <label htmlFor="interval-value">Interval Value *</label>
+              <div className="gps-form-row">
+                <div className="gps-form-group">
+                  <label htmlFor="interval-value" className="gps-form-label">Interval Value *</label>
                   <input
                     id="interval-value"
                     type="number"
@@ -425,17 +425,17 @@ const SchedulerForm = () => {
                     value={formData.interval_value}
                     onChange={e => setFormData({ ...formData, interval_value: parseInt(e.target.value) })}
                     required
-                    className="form-input"
+                    className="gps-input"
                   />
                 </div>
-                <div className="form-group">
-                  <label htmlFor="interval-unit">Interval Unit *</label>
+                <div className="gps-form-group">
+                  <label htmlFor="interval-unit" className="gps-form-label">Interval Unit *</label>
                   <select
                     id="interval-unit"
                     value={formData.interval_unit}
                     onChange={e => setFormData({ ...formData, interval_unit: e.target.value })}
                     required
-                    className="form-select"
+                    className="gps-select"
                   >
                     <option value="minute">Minute(s)</option>
                     <option value="hour">Hour(s)</option>
@@ -448,8 +448,8 @@ const SchedulerForm = () => {
               </div>
             )}
 
-            <div className="form-group">
-              <label htmlFor="schedule-enabled" className="checkbox-label">
+            <div className="gps-form-group">
+              <label htmlFor="schedule-enabled" className="gps-checkbox-label">
                 <input
                   id="schedule-enabled"
                   type="checkbox"
@@ -461,14 +461,14 @@ const SchedulerForm = () => {
             </div>
 
             {error && (
-              <div className="alert alert-danger" style={{ marginTop: '1rem' }}>{error}</div>
+              <div className="gps-alert gps-alert--danger">{error}</div>
             )}
 
-            <div className="form-actions">
-              <button type="submit" disabled={loading} className="btn btn-primary">
+            <div className="gps-form-actions">
+              <button type="submit" disabled={loading} className="gps-btn gps-btn--primary">
                 <FiSave /> {loading ? 'Saving...' : isEdit ? 'Update Schedule' : 'Create Schedule'}
               </button>
-              <button type="button" onClick={() => navigate('/etl-scheduler')} className="btn btn-secondary">
+              <button type="button" onClick={() => navigate('/etl-scheduler')} className="gps-btn gps-btn--secondary">
                 <FiX /> Cancel
               </button>
             </div>
