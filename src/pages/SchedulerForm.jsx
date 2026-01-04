@@ -63,7 +63,9 @@ const SchedulerForm = () => {
   const loadSubProjects = async (projectId) => {
     try {
       const response = await axios.get(`/api/projects/${projectId}/sub-projects`);
-      setSubProjects(Array.isArray(response.data) ? response.data : []);
+      // API returns { success: true, subProjects: [...] }
+      const subs = response.data?.subProjects || response.data || [];
+      setSubProjects(Array.isArray(subs) ? subs : []);
     } catch (err) {
       console.error('Failed to load subprojects:', err);
       setSubProjects([]);
