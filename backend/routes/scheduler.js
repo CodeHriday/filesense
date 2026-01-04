@@ -419,7 +419,7 @@ router.get('/init-data', async (req, res) => {
       projectsQuery += ` AND id = ANY($1)`;
     }
     
-    mappingsQuery += ` ORDER BY name`;
+    mappingsQuery += ` ORDER BY mapping_name`;
     groupsQuery += ` ORDER BY name`;
     nStepQuery += ` ORDER BY name`;
     visualQuery += ` ORDER BY name`;
