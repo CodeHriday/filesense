@@ -42,6 +42,7 @@ const RoleManagement = () => {
   // Delete confirmation modal state
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [roleToDelete, setRoleToDelete] = useState(null);
+  const [deleteModalError, setDeleteModalError] = useState('');
   
   // Bulk delete state
   const [selectedRoleIds, setSelectedRoleIds] = useState([]);
@@ -508,6 +509,7 @@ const RoleManagement = () => {
       return;
     }
     setRoleToDelete(role);
+    setDeleteModalError('');
     setDeleteModalOpen(true);
   };
   
@@ -520,8 +522,7 @@ const RoleManagement = () => {
     if (!roleToDelete) return;
     
     if (!canDelete) {
-      setError("You don't have permission to delete roles");
-      closeDeleteModal();
+      setDeleteModalError("You don't have permission to delete roles");
       return;
     }
     
@@ -531,7 +532,8 @@ const RoleManagement = () => {
       fetchData();
     } catch (error) {
       console.error('Error deleting role:', error);
-      setError('Failed to delete role: ' + (error.response?.data?.error || error.message));
+      const errorMessage = error.response?.data?.error || error.message || 'Failed to delete role';
+      setDeleteModalError(errorMessage);
     }
   };
   
@@ -1099,6 +1101,19 @@ const RoleManagement = () => {
               <p className="delete-warning-text">
                 This action cannot be undone.
               </p>
+              {deleteModalError && (
+                <div className="modal-error-message" style={{ 
+                  color: '#b71c1c', 
+                  backgroundColor: '#ffebee', 
+                  padding: '10px 15px', 
+                  borderRadius: '4px', 
+                  marginTop: '15px',
+                  fontSize: '13px',
+                  border: '1px solid #ef9a9a'
+                }}>
+                  {deleteModalError}
+                </div>
+              )}
             </div>
             
             <div className="modal-actions">
