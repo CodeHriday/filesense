@@ -402,10 +402,11 @@ function PolicyModal({ policy, onClose, onSave, onError }) {
               placeholder="e.g., PII Data Retention Policy"
               maxLength={100}
             />
-            {validationErrors.policyName && (
+            {validationErrors.policyName ? (
               <span className="gps-form-error">{validationErrors.policyName}</span>
+            ) : (
+              <small className="gps-form-help">Letters, numbers, spaces, hyphens and underscores only</small>
             )}
-            <small className="gps-form-help">Letters, numbers, spaces, hyphens and underscores only</small>
           </div>
 
           <div className="gps-form-group">

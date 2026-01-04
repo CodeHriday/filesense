@@ -412,7 +412,7 @@ const SchedulerForm = () => {
                   onChange={e => setFormData({ ...formData, cron_expression: e.target.value })}
                   placeholder="0 0 * * *"
                   required
-                  className="gps-input"
+                  className="gps-form-input"
                   style={{ maxWidth: '300px' }}
                 />
                 <small className="gps-form-help">
@@ -443,7 +443,7 @@ const SchedulerForm = () => {
                     value={formData.interval_value}
                     onChange={e => setFormData({ ...formData, interval_value: parseInt(e.target.value) })}
                     required
-                    className="gps-input"
+                    className="gps-form-input"
                   />
                 </div>
                 <div className="gps-form-group">

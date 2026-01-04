@@ -966,6 +966,25 @@
   box-shadow: 0 0 0 3px rgba(2, 80, 67, 0.1);
 }
 
+.gps-form-input--error,
+.gps-form-textarea--error {
+  border-color: #dc2626 !important;
+}
+
+.gps-form-input--error:focus,
+.gps-form-textarea--error:focus {
+  border-color: #dc2626 !important;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.1);
+}
+
+.gps-form-error {
+  display: block;
+  color: #dc2626;
+  font-size: 12px;
+  margin-top: 4px;
+  font-family: var(--gps-font-family);
+}
+
 .gps-form-textarea {
   min-height: 80px;
   resize: vertical;
