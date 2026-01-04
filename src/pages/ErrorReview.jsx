@@ -303,7 +303,7 @@ const ErrorReview = () => {
           <div className="quality-violations-bulk-actions-bar">
             <span className="quality-violations-selected-count">{selectedIds.length} violation(s) selected</span>
             <button
-              className="gps-btn-danger"
+              className="gps-btn gps-btn-danger"
               onClick={handleBulkDelete}
               disabled={isDeleting}
             >
@@ -424,7 +424,7 @@ const ErrorReview = () => {
         </div>
         <div className="gps-page-header-right" style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
           <div className="download-dropdown">
-            <button className="gps-btn-primary">
+            <button className="gps-btn gps-btn-primary">
               <FiDownload /> Download
             </button>
             <div className="download-menu">
@@ -433,7 +433,7 @@ const ErrorReview = () => {
             </div>
           </div>
           <button 
-            className={`gps-btn-secondary ${showFilters ? 'active' : ''}`}
+            className={`gps-btn gps-btn-secondary ${showFilters ? 'active' : ''}`}
             onClick={() => setShowFilters(!showFilters)}
           >
             <FiFilter /> {showFilters ? 'Hide Filters' : 'Show Filters'}
