@@ -4,7 +4,6 @@ import { FiEdit2, FiTrash2, FiPlusCircle, FiPower } from 'react-icons/fi';
 import LoadingSpinner from '../components/LoadingSpinner';
 import Pagination from '../components/Pagination';
 import { PageTransition } from '../components/MicroAnimations';
-import Modal from '../components/Modal';
 import { useNotification } from '../contexts/NotificationContext';
 import { useDeletePermission } from '../hooks/useDeletePermission';
 import '../styles/global-page-styles.css';
@@ -288,30 +287,41 @@ const ETLScheduler = () => {
           />
         )}
 
-        <Modal
-          isOpen={deleteModal.show}
-          onClose={() => setDeleteModal({ show: false, scheduleId: null })}
-          title="Confirm Delete"
-          size="small"
-          footer={
-            <>
-              <button 
-                onClick={() => setDeleteModal({ show: false, scheduleId: null })} 
-                className="gps-btn-secondary"
-              >
-                Cancel
-              </button>
-              <button 
-                onClick={handleDeleteConfirm} 
-                className="gps-btn-danger"
-              >
-                Delete
-              </button>
-            </>
-          }
-        >
-          <p style={{ margin: '0' }}>Are you sure you want to delete this schedule?</p>
-        </Modal>
+        {deleteModal.show && (
+          <div className="gps-modal-overlay" onClick={() => setDeleteModal({ show: false, scheduleId: null })}>
+            <div className="gps-modal gps-modal--small" onClick={(e) => e.stopPropagation()}>
+              <div className="gps-modal-header">
+                <h2 className="gps-modal-title">Delete Schedule</h2>
+                <button 
+                  className="gps-modal-close" 
+                  onClick={() => setDeleteModal({ show: false, scheduleId: null })}
+                  aria-label="Close"
+                >
+                  ×
+                </button>
+              </div>
+              <div className="gps-modal-body">
+                <div className="gps-alert gps-alert--warning">
+                  Are you sure you want to delete this schedule? This action cannot be undone.
+                </div>
+              </div>
+              <div className="gps-modal-footer">
+                <button 
+                  className="gps-btn gps-btn--secondary" 
+                  onClick={() => setDeleteModal({ show: false, scheduleId: null })}
+                >
+                  Cancel
+                </button>
+                <button 
+                  className="gps-btn gps-btn--danger" 
+                  onClick={handleDeleteConfirm}
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </PageTransition>
   );
