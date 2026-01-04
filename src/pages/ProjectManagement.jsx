@@ -625,7 +625,7 @@ function ProjectManagement() {
                   </td>
                   <td>
                     <div style={{ display: 'flex', gap: '0.25rem', flexWrap: 'wrap' }}>
-                      {project.is_active === false ? (
+                      {project.is_active === false || project.is_active === 'f' || project.is_active === 'false' ? (
                         <span className="gps-badge gps-badge--archived">Inactive</span>
                       ) : (
                         <span className="gps-badge gps-badge--active">Active</span>
@@ -699,8 +699,8 @@ function ProjectManagement() {
                                 <td>{subProject.file_count || 0}</td>
                                 <td>{formatBytes(subProject.total_size || 0)}</td>
                                 <td>
-                                  <span className={`gps-badge ${subProject.is_active ? 'gps-badge--active' : 'gps-badge--archived'}`}>
-                                    {subProject.is_active ? 'Active' : 'Inactive'}
+                                  <span className={`gps-badge ${subProject.is_active === false || subProject.is_active === 'f' || subProject.is_active === 'false' ? 'gps-badge--archived' : 'gps-badge--active'}`}>
+                                    {subProject.is_active === false || subProject.is_active === 'f' || subProject.is_active === 'false' ? 'Inactive' : 'Active'}
                                   </span>
                                 </td>
                                 <td>{subProject.owner_name || '-'}</td>
@@ -969,8 +969,8 @@ function ProjectManagement() {
                             <td>{sp.name}</td>
                             <td style={{ color: '#666' }}>{sp.description || '-'}</td>
                             <td>
-                              <span className={`gps-badge ${sp.is_active ? 'gps-badge--active' : 'gps-badge--archived'}`}>
-                                {sp.is_active ? 'Active' : 'Inactive'}
+                              <span className={`gps-badge ${sp.is_active === false || sp.is_active === 'f' || sp.is_active === 'false' ? 'gps-badge--archived' : 'gps-badge--active'}`}>
+                                {sp.is_active === false || sp.is_active === 'f' || sp.is_active === 'false' ? 'Inactive' : 'Active'}
                               </span>
                             </td>
                             <td>
