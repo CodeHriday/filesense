@@ -587,11 +587,13 @@ router.post('/:id/execute', authorize('visual_mapping_orchestrator:execute'), as
     
     console.log(`[VISUAL-MAPPING-EXECUTE] Starting execution for mapping ${id}`);
     
-    // Get the mapping with project name for notification emails
+    // Get the mapping with project and subproject names for notification emails and validation
     const mappingResult = await pool.query(
-      `SELECT vm.*, p.name as project_name 
+      `SELECT vm.*, p.name as project_name, p.is_active as project_is_active, p.parent_id as project_parent_id,
+              sp.name as sub_project_name, sp.is_active as sub_project_is_active
        FROM visual_mapping_defs vm
        LEFT JOIN projects p ON vm.project_id = p.id
+       LEFT JOIN projects sp ON vm.sub_project_id = sp.id
        WHERE vm.id = $1 AND vm.is_active = true`,
       [id]
     );
@@ -601,6 +603,39 @@ router.post('/:id/execute', authorize('visual_mapping_orchestrator:execute'), as
     }
     
     const mapping = mappingResult.rows[0];
+    
+    // Check if project is active - reject job creation for inactive projects
+    if (mapping.project_is_active === false) {
+      return res.status(403).json({ 
+        error: 'Cannot execute jobs for an inactive project',
+        code: 'PROJECT_INACTIVE',
+        message: `Project "${mapping.project_name}" is inactive. Please activate the project before running jobs.`
+      });
+    }
+    
+    // Check if subproject is active - reject job creation for inactive subprojects
+    if (mapping.sub_project_id && mapping.sub_project_is_active === false) {
+      return res.status(403).json({ 
+        error: 'Cannot execute jobs for an inactive sub-project',
+        code: 'SUBPROJECT_INACTIVE',
+        message: `Sub-project "${mapping.sub_project_name}" is inactive. Please activate the sub-project before running jobs.`
+      });
+    }
+    
+    // Check parent project if this is a subproject
+    if (mapping.project_parent_id) {
+      const parentCheck = await pool.query(
+        'SELECT id, name, is_active FROM projects WHERE id = $1',
+        [mapping.project_parent_id]
+      );
+      if (parentCheck.rows.length > 0 && parentCheck.rows[0].is_active === false) {
+        return res.status(403).json({ 
+          error: 'Cannot execute jobs - parent project is inactive',
+          code: 'PARENT_PROJECT_INACTIVE',
+          message: `Parent project "${parentCheck.rows[0].name}" is inactive. Please activate the parent project before running jobs.`
+        });
+      }
+    }
     
     // Parse JSON fields
     if (typeof mapping.graph_data === 'string') {

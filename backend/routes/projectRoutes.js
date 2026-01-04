@@ -855,7 +855,24 @@ function createProjectRoutes(dbPool) {
   router.put('/:projectId', async (req, res) => {
     try {
       const { projectId } = req.params;
-      const { name, description, parent_id, is_archived, project_type, metadata, settings, drop_location_bucket, drop_location_prefix, drop_location_connection_id } = req.body;
+      const { name, description, parent_id, is_archived, is_active, project_type, metadata, settings, drop_location_bucket, drop_location_prefix, drop_location_connection_id } = req.body;
+
+      // If attempting to deactivate a project, check for active subprojects
+      if (is_active === false) {
+        const activeSubprojectsCheck = await dbPool.query(`
+          SELECT id, name FROM projects 
+          WHERE parent_id = $1 AND is_active = true
+        `, [projectId]);
+
+        if (activeSubprojectsCheck.rows.length > 0) {
+          const activeSubprojectNames = activeSubprojectsCheck.rows.map(sp => sp.name).join(', ');
+          return res.status(400).json({ 
+            error: `Cannot deactivate project - it has active subprojects: ${activeSubprojectNames}. Please deactivate all subprojects first.`,
+            code: 'ACTIVE_SUBPROJECTS_EXIST',
+            activeSubprojects: activeSubprojectsCheck.rows
+          });
+        }
+      }
 
       const updates = [];
       const params = [];
@@ -879,6 +896,11 @@ function createProjectRoutes(dbPool) {
       if (is_archived !== undefined) {
         updates.push(`is_archived = $${paramIndex}`);
         params.push(is_archived);
+        paramIndex++;
+      }
+      if (is_active !== undefined) {
+        updates.push(`is_active = $${paramIndex}`);
+        params.push(is_active);
         paramIndex++;
       }
       if (project_type !== undefined) {
@@ -932,7 +954,8 @@ function createProjectRoutes(dbPool) {
 
       systemLogger.info('Project updated', {
         userId: req.user?.id,
-        projectId
+        projectId,
+        is_active: is_active !== undefined ? is_active : 'unchanged'
       });
 
       res.json(result.rows[0]);

@@ -341,6 +341,7 @@ function ProjectManagement() {
       description: project.description || '',
       parent_id: project.parent_id,
       project_type: project.project_type || 'internal',
+      is_active: project.is_active !== false, // default to true if undefined
       drop_location_connection_id: project.drop_location_connection_id || '',
       drop_location_bucket: project.drop_location_bucket || '',
       drop_location_prefix: project.drop_location_prefix || ''
@@ -623,11 +624,16 @@ function ProjectManagement() {
                     </span>
                   </td>
                   <td>
-                    {project.is_archived ? (
-                      <span className="gps-badge gps-badge--archived">Archived</span>
-                    ) : (
-                      <span className="gps-badge gps-badge--active">Active</span>
-                    )}
+                    <div style={{ display: 'flex', gap: '0.25rem', flexWrap: 'wrap' }}>
+                      {project.is_active === false ? (
+                        <span className="gps-badge gps-badge--archived">Inactive</span>
+                      ) : (
+                        <span className="gps-badge gps-badge--active">Active</span>
+                      )}
+                      {project.is_archived && (
+                        <span className="gps-badge gps-badge--warning">Archived</span>
+                      )}
+                    </div>
                   </td>
                   <td>{new Date(project.created_at).toLocaleString()}</td>
                   <td>
@@ -1060,6 +1066,28 @@ function ProjectManagement() {
                       onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                       rows="3"
                     />
+                  </div>
+
+                  <div className="gps-form-group" style={{ marginTop: '1rem' }}>
+                    <label className="gps-form-label">Project Status</label>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                      <label className="gps-toggle-label" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+                        <input
+                          type="checkbox"
+                          checked={formData.is_active !== false}
+                          onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
+                          style={{ width: '1.25rem', height: '1.25rem' }}
+                        />
+                        <span style={{ fontWeight: formData.is_active !== false ? 600 : 400, color: formData.is_active !== false ? '#059669' : '#6b7280' }}>
+                          {formData.is_active !== false ? 'Active' : 'Inactive'}
+                        </span>
+                      </label>
+                    </div>
+                    {formData.is_active === false && (
+                      <div className="gps-alert gps-alert--warning" style={{ marginTop: '0.5rem', padding: '0.5rem 0.75rem' }}>
+                        Inactive projects cannot receive new file uploads or run jobs. Existing data remains accessible.
+                      </div>
+                    )}
                   </div>
 
                   <h4 className="gps-section-title" style={{ marginTop: '16px', marginBottom: '8px' }}>File Drop Location (S3)</h4>

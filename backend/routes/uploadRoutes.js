@@ -71,7 +71,7 @@ router.post('/vendor/:agreementId',
 
       // Verify vendor agreement exists and user has access
       const agreementResult = await query(
-        `SELECT va.*, p.id as project_id 
+        `SELECT va.*, p.id as project_id, p.is_active as project_is_active, p.name as project_name
          FROM vendor_agreements va
          JOIN projects p ON va.project_id = p.id
          WHERE va.id = $1`,
@@ -84,6 +84,16 @@ router.post('/vendor/:agreementId',
       }
 
       const agreement = agreementResult.rows[0];
+
+      // Check if project is active - reject uploads to inactive projects
+      if (agreement.project_is_active === false) {
+        fs.unlinkSync(uploadedFile.path);
+        return res.status(403).json({ 
+          error: 'Cannot upload files to an inactive project',
+          code: 'PROJECT_INACTIVE',
+          message: `Project "${agreement.project_name}" is inactive. Please activate the project before uploading files.`
+        });
+      }
 
       // Verify token project association
       if (req.apiToken.project_id && req.apiToken.project_id !== agreement.project_id) {
@@ -197,6 +207,34 @@ router.post('/internal/:projectId',
       if (projectResult.rows.length === 0) {
         fs.unlinkSync(uploadedFile.path);
         return res.status(404).json({ error: 'Project not found' });
+      }
+
+      const project = projectResult.rows[0];
+
+      // Check if project is active - reject uploads to inactive projects
+      if (project.is_active === false) {
+        fs.unlinkSync(uploadedFile.path);
+        return res.status(403).json({ 
+          error: 'Cannot upload files to an inactive project',
+          code: 'PROJECT_INACTIVE',
+          message: `Project "${project.name}" is inactive. Please activate the project before uploading files.`
+        });
+      }
+
+      // If this is a subproject, also check parent project is active
+      if (project.parent_id) {
+        const parentResult = await query(
+          'SELECT id, name, is_active FROM projects WHERE id = $1',
+          [project.parent_id]
+        );
+        if (parentResult.rows.length > 0 && parentResult.rows[0].is_active === false) {
+          fs.unlinkSync(uploadedFile.path);
+          return res.status(403).json({ 
+            error: 'Cannot upload files - parent project is inactive',
+            code: 'PARENT_PROJECT_INACTIVE',
+            message: `Parent project "${parentResult.rows[0].name}" is inactive. Please activate the parent project before uploading files.`
+          });
+        }
       }
 
       // Verify token project association
@@ -328,6 +366,39 @@ router.post('/bulk',
 
       if (!projectId) {
         return res.status(400).json({ error: 'Invalid target project' });
+      }
+
+      // Check if project is active - reject uploads to inactive projects
+      const projectCheck = await query(
+        'SELECT id, name, is_active, parent_id FROM projects WHERE id = $1',
+        [projectId]
+      );
+      if (projectCheck.rows.length > 0) {
+        const project = projectCheck.rows[0];
+        if (project.is_active === false) {
+          // Clean up uploaded files
+          uploadedFiles.forEach(f => fs.unlinkSync(f.path));
+          return res.status(403).json({ 
+            error: 'Cannot upload files to an inactive project',
+            code: 'PROJECT_INACTIVE',
+            message: `Project "${project.name}" is inactive. Please activate the project before uploading files.`
+          });
+        }
+        // Check parent project if this is a subproject
+        if (project.parent_id) {
+          const parentCheck = await query(
+            'SELECT id, name, is_active FROM projects WHERE id = $1',
+            [project.parent_id]
+          );
+          if (parentCheck.rows.length > 0 && parentCheck.rows[0].is_active === false) {
+            uploadedFiles.forEach(f => fs.unlinkSync(f.path));
+            return res.status(403).json({ 
+              error: 'Cannot upload files - parent project is inactive',
+              code: 'PARENT_PROJECT_INACTIVE',
+              message: `Parent project "${parentCheck.rows[0].name}" is inactive. Please activate the parent project before uploading files.`
+            });
+          }
+        }
       }
 
       // Verify token project association
