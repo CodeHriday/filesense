@@ -298,32 +298,79 @@ function PolicyModal({ policy, onClose, onSave, onError }) {
   const [accessControl, setAccessControl] = useState(policy?.rules?.access_control || 'internal');
   const [encryptionRequired, setEncryptionRequired] = useState(policy?.rules?.encryption_required || false);
   const [saving, setSaving] = useState(false);
+  const [validationErrors, setValidationErrors] = useState({});
+
+  const validatePolicyName = (value) => {
+    const specialCharsRegex = /[!@#$%^&*()+=\[\]{};':"\\|,.<>\/?]/;
+    if (specialCharsRegex.test(value)) {
+      return 'Policy name cannot contain special characters';
+    }
+    return '';
+  };
+
+  const validateRetentionDays = (value) => {
+    if (value === '' || value === null) return '';
+    const num = parseInt(value, 10);
+    if (isNaN(num) || num <= 0 || !Number.isInteger(Number(value))) {
+      return 'Retention period must be a positive integer';
+    }
+    return '';
+  };
+
+  const handlePolicyNameChange = (e) => {
+    const value = e.target.value;
+    setPolicyName(value);
+    const error = validatePolicyName(value);
+    setValidationErrors(prev => ({ ...prev, policyName: error }));
+  };
+
+  const handleRetentionDaysChange = (e) => {
+    const value = e.target.value;
+    if (value === '' || /^\d+$/.test(value)) {
+      setRetentionDays(value);
+      const error = validateRetentionDays(value);
+      setValidationErrors(prev => ({ ...prev, retentionDays: error }));
+    }
+  };
 
   const handleSave = async () => {
-    if (!policyName) {
+    const nameError = validatePolicyName(policyName);
+    const retentionError = validateRetentionDays(retentionDays);
+    
+    if (!policyName.trim()) {
       onError('Policy Name is required');
+      return;
+    }
+    
+    if (nameError) {
+      onError(nameError);
+      return;
+    }
+    
+    if (retentionError) {
+      onError(retentionError);
       return;
     }
 
     try {
       setSaving(true);
       const rules = {
-        retention_days: retentionDays ? parseInt(retentionDays) : null,
+        retention_days: retentionDays ? parseInt(retentionDays, 10) : null,
         access_control: accessControl,
         encryption_required: encryptionRequired
       };
 
       if (policy) {
         await axios.put(`/api/governance-policies/${policy.policy_id}`, {
-          policy_name: policyName,
-          description,
+          policy_name: policyName.trim(),
+          description: description.trim(),
           rules
         });
         onSave('Policy updated successfully');
       } else {
         await axios.post('/api/governance-policies', {
-          policy_name: policyName,
-          description,
+          policy_name: policyName.trim(),
+          description: description.trim(),
           rules
         });
         onSave('Policy created successfully');
@@ -337,61 +384,73 @@ function PolicyModal({ policy, onClose, onSave, onError }) {
   };
 
   return (
-    <div className="gps-modal-overlay">
-      <div className="gps-modal" style={{ maxWidth: '500px' }}>
+    <div className="gps-modal-overlay" onClick={onClose}>
+      <div className="gps-modal" style={{ maxWidth: '520px' }} onClick={(e) => e.stopPropagation()}>
         <div className="gps-modal-header">
           <h2 className="gps-modal-title">{policy ? 'Edit Policy' : 'Create New Policy'}</h2>
-          <button className="gps-modal-close" onClick={onClose}>
-            <FiX />
-          </button>
+          <button className="gps-modal-close" onClick={onClose} aria-label="Close">×</button>
         </div>
         <div className="gps-modal-body">
           <div className="gps-form-group">
-            <label htmlFor="policy-name" className="gps-label">Policy Name</label>
+            <label htmlFor="policy-name" className="gps-form-label">Policy Name <span className="gps-required">*</span></label>
             <input
               id="policy-name"
               type="text"
-              className="gps-input"
+              className={`gps-form-input ${validationErrors.policyName ? 'gps-form-input--error' : ''}`}
               value={policyName}
-              onChange={(e) => setPolicyName(e.target.value)}
+              onChange={handlePolicyNameChange}
               placeholder="e.g., PII Data Retention Policy"
+              maxLength={100}
             />
+            {validationErrors.policyName && (
+              <span className="gps-form-error">{validationErrors.policyName}</span>
+            )}
+            <small className="gps-form-help">Letters, numbers, spaces, hyphens and underscores only</small>
           </div>
 
           <div className="gps-form-group">
-            <label htmlFor="description" className="gps-label">Description</label>
+            <label htmlFor="description" className="gps-form-label">Description</label>
             <textarea
               id="description"
-              className="gps-textarea"
+              className="gps-form-textarea"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Describe the purpose of this policy"
-              rows="3"
+              rows="4"
             />
           </div>
 
-          <div className="gps-section" style={{ marginTop: '16px' }}>
-            <h3 className="gps-section-title">Policy Rules</h3>
+          <div className="gps-divider" style={{ margin: '20px 0' }}></div>
+
+          <div className="gps-form-section">
+            <h3 className="gps-form-section__title" style={{ fontSize: '14px', marginBottom: '16px' }}>Policy Rules</h3>
 
             <div className="gps-form-group">
-              <label htmlFor="retention-days" className="gps-label">Retention Period (days)</label>
+              <label htmlFor="retention-days" className="gps-form-label">Retention Period (days)</label>
               <input
                 id="retention-days"
-                type="number"
-                className="gps-input"
+                type="text"
+                inputMode="numeric"
+                className={`gps-form-input ${validationErrors.retentionDays ? 'gps-form-input--error' : ''}`}
                 value={retentionDays}
-                onChange={(e) => setRetentionDays(e.target.value)}
-                placeholder="e.g., 90 (leave blank for no retention policy)"
+                onChange={handleRetentionDaysChange}
+                placeholder="e.g., 90"
+                style={{ maxWidth: '200px' }}
               />
+              {validationErrors.retentionDays && (
+                <span className="gps-form-error">{validationErrors.retentionDays}</span>
+              )}
+              <small className="gps-form-help">Leave blank for no retention limit</small>
             </div>
 
             <div className="gps-form-group">
-              <label htmlFor="access-control" className="gps-label">Access Control</label>
+              <label htmlFor="access-control" className="gps-form-label">Access Control</label>
               <select
                 id="access-control"
                 className="gps-select"
                 value={accessControl}
                 onChange={(e) => setAccessControl(e.target.value)}
+                style={{ maxWidth: '200px' }}
               >
                 <option value="public">Public</option>
                 <option value="internal">Internal</option>
@@ -400,15 +459,16 @@ function PolicyModal({ policy, onClose, onSave, onError }) {
               </select>
             </div>
 
-            <div className="gps-form-group">
-              <label htmlFor="encryption-required" className="gps-checkbox-label">
+            <div className="gps-form-group" style={{ marginTop: '16px' }}>
+              <label className="gps-checkbox-wrapper">
                 <input
                   id="encryption-required"
                   type="checkbox"
+                  className="gps-checkbox"
                   checked={encryptionRequired}
                   onChange={(e) => setEncryptionRequired(e.target.checked)}
                 />
-                <span>Require Encryption</span>
+                <span className="gps-checkbox-label">Require Encryption</span>
               </label>
             </div>
           </div>
@@ -417,7 +477,11 @@ function PolicyModal({ policy, onClose, onSave, onError }) {
           <button className="gps-btn gps-btn--secondary" onClick={onClose} disabled={saving}>
             Cancel
           </button>
-          <button className="gps-btn gps-btn--primary" onClick={handleSave} disabled={saving}>
+          <button 
+            className="gps-btn gps-btn--primary" 
+            onClick={handleSave} 
+            disabled={saving || !!validationErrors.policyName || !!validationErrors.retentionDays}
+          >
             {saving ? 'Saving...' : 'Save Policy'}
           </button>
         </div>
