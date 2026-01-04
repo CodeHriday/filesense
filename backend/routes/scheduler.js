@@ -386,8 +386,8 @@ router.get('/init-data', async (req, res) => {
     const params = (!isAdmin && projectIds.length > 0) ? [projectIds] : [];
     
     let mappingsQuery = `
-      SELECT id as mapping_id, name as mapping_name, project_id, sub_project_id, created_at
-      FROM visual_mappings
+      SELECT mapping_id, mapping_name, project_id, sub_project_id, created_at
+      FROM transformation_mappings
       WHERE is_deleted = false
     `;
     let groupsQuery = `
