@@ -193,6 +193,7 @@ const ProcessedFileCatalog = () => {
                 placeholder="Search..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
+                maxLength={100}
                 className="gps-form-input"
                 style={{ paddingLeft: '36px', width: '100%' }}
               />
