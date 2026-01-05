@@ -789,6 +789,8 @@ body.high-contrast .edit-button {
   border: 1px solid var(--gps-border-light, #e2e8f0);
   border-radius: 4px;
   transition: all 0.2s ease;
+  overflow: hidden;
+  min-width: 0;
 }
 
 .user-role-checkbox:hover {
@@ -811,6 +813,11 @@ body.high-contrast .edit-button {
   color: var(--gps-text-dark, #333);
   cursor: pointer;
   margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
 }
 
 /* Field validation errors */
