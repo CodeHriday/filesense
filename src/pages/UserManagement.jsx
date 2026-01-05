@@ -331,11 +331,9 @@ const UserManagement = () => {
   
   const validatePhone = (phone) => {
     if (!phone) return '';
-    if (!/^\d*$/.test(phone)) {
-      return 'Phone number can only contain numbers';
-    }
-    if (phone.length > 10) {
-      return 'Phone number cannot exceed 10 digits';
+    const phoneRegex = /^[0-9+().\-\s]*$/;
+    if (!phoneRegex.test(phone)) {
+      return 'Phone number can only contain numbers, +, (), -, and spaces';
     }
     return '';
   };
@@ -372,11 +370,8 @@ const UserManagement = () => {
     }));
 
     if (name === 'phone_number') {
-      const numericValue = newValue.replace(/\D/g, '').slice(0, 10);
-      setFormData(prev => ({ ...prev, phone_number: numericValue }));
-      const error = validatePhone(numericValue);
+      const error = validatePhone(newValue);
       setFieldErrors(prev => ({ ...prev, phone_number: error }));
-      return;
     } else if (name === 'email') {
       const error = validateEmail(newValue);
       setFieldErrors(prev => ({ ...prev, email: error }));
@@ -1004,9 +999,7 @@ const UserManagement = () => {
                   name="phone_number"
                   value={formData.phone_number}
                   onChange={handleInputChange}
-                  placeholder="1234567890"
-                  maxLength={10}
-                  inputMode="numeric"
+                  placeholder="+1-555-123-4567"
                   className={fieldErrors.phone_number ? 'input-error' : ''}
                 />
                 {fieldErrors.phone_number && (
