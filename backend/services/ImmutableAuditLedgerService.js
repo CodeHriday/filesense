@@ -310,8 +310,8 @@ class ImmutableAuditLedgerService {
       let paramIndex = 2;
       
       if (jobId) {
-        conditions.push(`job_id = $${paramIndex++}`);
-        values.push(jobId);
+        conditions.push(`job_id::text ILIKE $${paramIndex++}`);
+        values.push(`%${jobId}%`);
       }
       if (correlationId) {
         conditions.push(`correlation_id = $${paramIndex++}`);

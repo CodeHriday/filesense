@@ -365,7 +365,7 @@ function Monitor() {
     <div className="gps-page-container">
       <div className="gps-page-header">
         <div className="gps-page-header-left">
-          <h1 className="gps-page-title">Data Observatory Monitor</h1>
+          <h1 className="gps-page-title">Job Monitor</h1>
           <p className="gps-page-subtitle">Monitor file audit logs and bulk profiling jobs</p>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>

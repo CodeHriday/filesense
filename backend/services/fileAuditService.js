@@ -436,8 +436,8 @@ async function getAuditRecords(pool, filters = {}) {
     }
 
     if (correlationId) {
-      conditions.push(`fad.correlation_id = $${paramIndex}`);
-      params.push(correlationId);
+      conditions.push(`fad.correlation_id::text ILIKE $${paramIndex}`);
+      params.push(`%${correlationId}%`);
       paramIndex++;
     }
 
