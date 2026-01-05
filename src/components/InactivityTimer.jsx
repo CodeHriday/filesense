@@ -16,6 +16,11 @@ const InactivityTimer = () => {
   const logoutTimerRef = useRef(null);
   const countdownIntervalRef = useRef(null);
   const lastActivityRef = useRef(Date.now());
+  const showWarningRef = useRef(false);
+
+  useEffect(() => {
+    showWarningRef.current = showWarning;
+  }, [showWarning]);
 
   const clearAllTimers = useCallback(() => {
     if (inactivityTimerRef.current) {
@@ -35,6 +40,7 @@ const InactivityTimer = () => {
   const handleLogout = useCallback(async () => {
     clearAllTimers();
     setShowWarning(false);
+    showWarningRef.current = false;
     try {
       await logout();
     } catch (error) {
@@ -45,12 +51,14 @@ const InactivityTimer = () => {
 
   const showWarningModal = useCallback(() => {
     setShowWarning(true);
+    showWarningRef.current = true;
     setSecondsRemaining(Math.floor(LOGOUT_AFTER_WARNING_MS / 1000));
     
     countdownIntervalRef.current = setInterval(() => {
       setSecondsRemaining(prev => {
         if (prev <= 1) {
           clearInterval(countdownIntervalRef.current);
+          countdownIntervalRef.current = null;
           return 0;
         }
         return prev - 1;
@@ -65,7 +73,7 @@ const InactivityTimer = () => {
   const resetInactivityTimer = useCallback(() => {
     lastActivityRef.current = Date.now();
     
-    if (showWarning) return;
+    if (showWarningRef.current) return;
     
     if (inactivityTimerRef.current) {
       clearTimeout(inactivityTimerRef.current);
@@ -76,11 +84,12 @@ const InactivityTimer = () => {
     inactivityTimerRef.current = setTimeout(() => {
       showWarningModal();
     }, warningTimeout);
-  }, [showWarning, showWarningModal]);
+  }, [showWarningModal]);
 
   const handleStayLoggedIn = useCallback(() => {
     clearAllTimers();
     setShowWarning(false);
+    showWarningRef.current = false;
     setSecondsRemaining(60);
     resetInactivityTimer();
   }, [clearAllTimers, resetInactivityTimer]);
@@ -89,13 +98,16 @@ const InactivityTimer = () => {
     if (authStatus !== AUTH_STATUS.AUTHENTICATED || !currentUser) {
       clearAllTimers();
       setShowWarning(false);
+      showWarningRef.current = false;
       return;
     }
 
     const activityEvents = ['mousedown', 'mousemove', 'keydown', 'scroll', 'touchstart', 'click'];
     
     const handleActivity = () => {
-      resetInactivityTimer();
+      if (!showWarningRef.current) {
+        resetInactivityTimer();
+      }
     };
 
     activityEvents.forEach(event => {
