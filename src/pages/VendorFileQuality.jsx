@@ -383,6 +383,7 @@ function VendorFileQuality() {
           placeholder="Search by filename or file ID..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
+          maxLength={100}
           className="gps-form-input"
           style={{ flex: '1 1 200px', minWidth: '150px', maxWidth: '100%' }}
         />
