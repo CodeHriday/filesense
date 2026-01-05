@@ -199,6 +199,24 @@ async function registerLocalUser(userData) {
       };
     }
     
+    // Validate phone number if provided
+    if (phone_number) {
+      if (!/^\d*$/.test(phone_number)) {
+        return {
+          success: false,
+          message: 'Phone number can only contain numeric digits',
+          field: 'phone_number'
+        };
+      }
+      if (phone_number.length > 10) {
+        return {
+          success: false,
+          message: 'Phone number cannot exceed 10 digits',
+          field: 'phone_number'
+        };
+      }
+    }
+    
     // Validate password strength
     const passwordValidation = passwordSecurity.validatePasswordStrength(password);
     if (!passwordValidation.valid) {
