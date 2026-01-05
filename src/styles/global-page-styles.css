@@ -980,9 +980,17 @@
 .gps-form-error {
   display: block;
   color: #dc2626;
-  font-size: 12px;
+  font-size: var(--gps-font-size-content);
   margin-top: 4px;
   font-family: var(--gps-font-family);
+}
+
+.gps-form-help {
+  display: block;
+  font-family: var(--gps-font-family);
+  font-size: var(--gps-font-size-content);
+  color: var(--gps-text-muted);
+  margin-top: var(--gps-spacing-xs);
 }
 
 .gps-form-textarea {
@@ -1357,8 +1365,8 @@
 
 .gps-form-section__title {
   font-family: var(--gps-font-family);
-  font-size: 14px;
-  font-weight: 600;
+  font-size: var(--gps-font-size-header);
+  font-weight: var(--gps-font-weight-semibold);
   color: var(--gps-text-dark);
   margin: 0;
   text-transform: uppercase;
@@ -1496,18 +1504,8 @@
 /* ============================================
    FORM STYLES
    ============================================ */
-.gps-form-group {
-  margin-bottom: var(--gps-spacing-lg);
-}
 
-.gps-form-label {
-  display: block;
-  font-family: var(--gps-font-family);
-  font-size: var(--gps-font-size-header);
-  font-weight: var(--gps-font-weight-bold);
-  color: var(--gps-text-dark);
-  margin-bottom: var(--gps-spacing-sm);
-}
+/* Note: .gps-form-label is defined in FORM ELEMENTS section above with consistent 10px Inter font */
 
 .gps-form-input,
 .gps-form-textarea,
