@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FiChevronDown, FiChevronRight, FiDownload, FiShield, FiCheck, FiAlertTriangle, FiRefreshCw } from 'react-icons/fi';
+import { FiChevronDown, FiChevronRight, FiDownload, FiShield, FiCheck, FiAlertTriangle, FiRefreshCw, FiCopy } from 'react-icons/fi';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { formatBytes, formatDate } from '../utils/formatters';
 import axios from 'axios';
@@ -29,6 +29,7 @@ function Monitor() {
     actionType: '',
     jobId: ''
   });
+  const [copiedJobId, setCopiedJobId] = useState(null);
   
   const [auditFilters, setAuditFilters] = useState({
     status: '',
@@ -127,6 +128,16 @@ function Monitor() {
       fetchBulkJobs();
     } else if (activeTab === 'audit-ledger') {
       fetchLedgerData();
+    }
+  };
+
+  const handleCopyJobId = async (jobId) => {
+    try {
+      await navigator.clipboard.writeText(jobId);
+      setCopiedJobId(jobId);
+      setTimeout(() => setCopiedJobId(null), 2000);
+    } catch (err) {
+      console.error('Failed to copy Job ID:', err);
     }
   };
   
@@ -507,8 +518,39 @@ function Monitor() {
                               {expandedRows.has(audit.id) ? <FiChevronDown /> : <FiChevronRight />}
                             </button>
                           </td>
-                          <td style={{ maxWidth: '100px', overflow: 'hidden', textOverflow: 'ellipsis' }} title={audit.correlation_id}>
-                            {audit.correlation_id ? audit.correlation_id.substring(0, 8) + '...' : '-'}
+                          <td style={{ maxWidth: '120px' }}>
+                            {audit.correlation_id ? (
+                              <button
+                                onClick={() => handleCopyJobId(audit.correlation_id)}
+                                title={`Click to copy: ${audit.correlation_id}`}
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '4px',
+                                  background: 'none',
+                                  border: 'none',
+                                  cursor: 'pointer',
+                                  fontFamily: 'monospace',
+                                  fontSize: '11px',
+                                  color: copiedJobId === audit.correlation_id ? '#16a34a' : '#0ea5e9',
+                                  padding: '2px 4px',
+                                  borderRadius: '4px',
+                                  transition: 'all 0.2s ease'
+                                }}
+                              >
+                                {copiedJobId === audit.correlation_id ? (
+                                  <>
+                                    <FiCheck size={12} />
+                                    <span>Copied!</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <span>{audit.correlation_id.substring(0, 8)}...</span>
+                                    <FiCopy size={12} />
+                                  </>
+                                )}
+                              </button>
+                            ) : '-'}
                           </td>
                           <td style={{ whiteSpace: 'nowrap' }}>{formatDate(audit.created_dt)}</td>
                           <td>{audit.mapping_name || '-'}</td>
@@ -941,8 +983,39 @@ function Monitor() {
                           </td>
                           <td style={{ fontFamily: 'monospace', fontSize: '11px' }}>{entry.sequence_number}</td>
                           <td style={{ whiteSpace: 'nowrap' }}>{formatDate(entry.event_timestamp)}</td>
-                          <td style={{ maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis' }} title={entry.job_id}>
-                            {entry.job_id ? entry.job_id.substring(0, 12) + '...' : '-'}
+                          <td style={{ maxWidth: '150px' }}>
+                            {entry.job_id ? (
+                              <button
+                                onClick={() => handleCopyJobId(entry.job_id)}
+                                title={`Click to copy: ${entry.job_id}`}
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '4px',
+                                  background: 'none',
+                                  border: 'none',
+                                  cursor: 'pointer',
+                                  fontFamily: 'monospace',
+                                  fontSize: '11px',
+                                  color: copiedJobId === entry.job_id ? '#16a34a' : '#0ea5e9',
+                                  padding: '2px 4px',
+                                  borderRadius: '4px',
+                                  transition: 'all 0.2s ease'
+                                }}
+                              >
+                                {copiedJobId === entry.job_id ? (
+                                  <>
+                                    <FiCheck size={12} />
+                                    <span>Copied!</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <span>{entry.job_id.substring(0, 12)}...</span>
+                                    <FiCopy size={12} />
+                                  </>
+                                )}
+                              </button>
+                            ) : '-'}
                           </td>
                           <td>
                             <span className={`gps-badge ${

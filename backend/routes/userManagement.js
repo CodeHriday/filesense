@@ -369,6 +369,24 @@ router.put('/profile', authenticateToken, asyncHandler(async (req, res) => {
     country
   } = req.body;
   
+  // Validate phone number if provided
+  if (phone_number !== undefined && phone_number !== null && phone_number !== '') {
+    if (!/^\d*$/.test(phone_number)) {
+      return res.status(400).json({ 
+        error: 'Validation failed',
+        message: 'Phone number can only contain numeric digits',
+        field: 'phone_number'
+      });
+    }
+    if (phone_number.length > 10) {
+      return res.status(400).json({ 
+        error: 'Validation failed',
+        message: 'Phone number cannot exceed 10 digits',
+        field: 'phone_number'
+      });
+    }
+  }
+
   const updateQuery = `
     UPDATE users
     SET
@@ -535,6 +553,24 @@ router.put('/:id', authenticateToken, asyncHandler(async (req, res) => {
       error: 'Insufficient permissions',
       message: 'Only administrators can update user information'
     });
+  }
+  
+  // Validate phone number if provided
+  if (phone_number !== undefined && phone_number !== null && phone_number !== '') {
+    if (!/^\d*$/.test(phone_number)) {
+      return res.status(400).json({ 
+        error: 'Validation failed',
+        message: 'Phone number can only contain numeric digits',
+        field: 'phone_number'
+      });
+    }
+    if (phone_number.length > 10) {
+      return res.status(400).json({ 
+        error: 'Validation failed',
+        message: 'Phone number cannot exceed 10 digits',
+        field: 'phone_number'
+      });
+    }
   }
   
   // Use transaction helper with proper error handling

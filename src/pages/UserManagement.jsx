@@ -331,9 +331,24 @@ const UserManagement = () => {
   
   const validatePhone = (phone) => {
     if (!phone) return '';
-    const phoneRegex = /^[0-9+().\-\s]*$/;
-    if (!phoneRegex.test(phone)) {
-      return 'Phone number can only contain numbers, +, (), -, and spaces';
+    if (!/^\d*$/.test(phone)) {
+      return 'Phone number can only contain numeric digits';
+    }
+    if (phone.length > 10) {
+      return 'Phone number cannot exceed 10 digits';
+    }
+    return '';
+  };
+
+  const validateUsername = (username) => {
+    if (!username || !username.trim()) {
+      return 'Username is required';
+    }
+    if (username.length < 3) {
+      return 'Username must be at least 3 characters';
+    }
+    if (username.length > 50) {
+      return 'Username cannot exceed 50 characters';
     }
     return '';
   };
@@ -362,19 +377,28 @@ const UserManagement = () => {
 
   const handleInputChange = (e) => {
     const { name, type, value, checked } = e.target;
-    const newValue = type === 'checkbox' ? checked : value;
+    let newValue = type === 'checkbox' ? checked : value;
+    
+    // For phone_number, filter to only numeric digits
+    if (name === 'phone_number') {
+      newValue = value.replace(/\D/g, '').slice(0, 10);
+    }
     
     setFormData(prev => ({
       ...prev,
       [name]: newValue
     }));
 
+    // Real-time validation
     if (name === 'phone_number') {
       const error = validatePhone(newValue);
       setFieldErrors(prev => ({ ...prev, phone_number: error }));
     } else if (name === 'email') {
       const error = validateEmail(newValue);
       setFieldErrors(prev => ({ ...prev, email: error }));
+    } else if (name === 'username') {
+      const error = validateUsername(newValue);
+      setFieldErrors(prev => ({ ...prev, username: error }));
     }
   };
   
@@ -397,42 +421,35 @@ const UserManagement = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // Validate phone and email fields (email is required)
+    // Validate all fields
+    const usernameError = modalMode === 'create' ? validateUsername(formData.username) : '';
     const phoneError = validatePhone(formData.phone_number);
     const emailError = validateEmail(formData.email, true);
     
-    setFieldErrors({
+    const newFieldErrors = {
+      username: usernameError,
       phone_number: phoneError,
       email: emailError
-    });
+    };
     
-    if (phoneError || emailError) {
-      setModalError('Please fix the validation errors before submitting');
-      return;
+    setFieldErrors(newFieldErrors);
+    
+    // Check if any validation errors exist
+    const hasErrors = Object.values(newFieldErrors).some(error => error !== '');
+    if (hasErrors) {
+      return; // Don't show generic error message, field-level errors are displayed
     }
     
     // Validate that at least one role is selected
     if (formData.roles.length === 0) {
-      setModalError('At least one role must be assigned to the user');
+      setFieldErrors(prev => ({ ...prev, roles: 'At least one role must be assigned' }));
       return;
     }
     
     try {
       if (modalMode === 'create') {
-        // Temporarily bypass permission checks
-        // if (!hasPermission('user_create')) {
-        //   setError("You don't have permission to create users");
-        //   return;
-        // }
-        
         await createUser(formData);
       } else {
-        // Temporarily bypass permission checks
-        // if (!hasPermission('user_edit')) {
-        //   setError("You don't have permission to edit users");
-        //   return;
-        // }
-        
         // Don't send password if it's empty (no change)
         const updateData = { ...formData };
         if (!updateData.password) {
@@ -448,30 +465,43 @@ const UserManagement = () => {
     } catch (error) {
       console.error('Error saving user:', error);
       
-      // Extract detailed error message
-      let errorMessage = 'Failed to save user';
-      
+      // Map backend validation errors to field-level errors
       if (error.response?.data) {
-        const { message, errors } = error.response.data;
+        const { message, errors, field } = error.response.data;
         
-        if (message) {
-          errorMessage = message;
+        // If backend returns field-specific errors, map them
+        if (field) {
+          setFieldErrors(prev => ({ ...prev, [field]: message }));
+          return;
         }
         
-        // If there are specific validation errors, add them
-        if (errors && Array.isArray(errors)) {
-          errorMessage += ': ' + errors.join(', ');
-        } else if (errors && typeof errors === 'object') {
-          const errorDetails = Object.values(errors).join(', ');
-          if (errorDetails) {
-            errorMessage += ': ' + errorDetails;
-          }
+        if (errors && typeof errors === 'object' && !Array.isArray(errors)) {
+          // Map error object to field errors
+          setFieldErrors(prev => ({ ...prev, ...errors }));
+          return;
         }
-      } else if (error.message) {
-        errorMessage += ': ' + error.message;
+        
+        // Check if message contains field-specific keywords
+        const lowerMessage = (message || '').toLowerCase();
+        if (lowerMessage.includes('phone')) {
+          setFieldErrors(prev => ({ ...prev, phone_number: message }));
+          return;
+        } else if (lowerMessage.includes('email')) {
+          setFieldErrors(prev => ({ ...prev, email: message }));
+          return;
+        } else if (lowerMessage.includes('username')) {
+          setFieldErrors(prev => ({ ...prev, username: message }));
+          return;
+        } else if (lowerMessage.includes('password')) {
+          setFieldErrors(prev => ({ ...prev, password: message }));
+          return;
+        }
+        
+        // Fallback to modal error for unrecognized backend errors
+        setModalError(message || 'An error occurred while saving the user');
+      } else {
+        setModalError('An error occurred while saving the user');
       }
-      
-      setModalError(errorMessage);
     }
   };
   
@@ -927,8 +957,12 @@ const UserManagement = () => {
                 value={formData.username}
                 onChange={handleInputChange}
                 disabled={modalMode === 'edit'}
-                required
+                className={fieldErrors.username ? 'input-error' : ''}
+                maxLength={50}
               />
+              {fieldErrors.username && (
+                <span className="field-error">{fieldErrors.username}</span>
+              )}
             </div>
             
             {formData.auth_provider === 'local' && (
@@ -994,14 +1028,17 @@ const UserManagement = () => {
               <div className="form-group">
                 <label htmlFor="phone_number">Phone Number</label>
                 <input
-                  type="tel"
+                  type="text"
+                  inputMode="numeric"
                   id="phone_number"
                   name="phone_number"
                   value={formData.phone_number}
                   onChange={handleInputChange}
-                  placeholder="+1-555-123-4567"
+                  placeholder="1234567890"
+                  maxLength={10}
                   className={fieldErrors.phone_number ? 'input-error' : ''}
                 />
+                <span className="gps-form-help">Numbers only, max 10 digits</span>
                 {fieldErrors.phone_number && (
                   <span className="field-error">{fieldErrors.phone_number}</span>
                 )}
@@ -1074,7 +1111,7 @@ const UserManagement = () => {
               {roles
                 .filter(role => role.name !== 'Viewer')
                 .map(role => (
-                  <div key={role.id} className="user-role-checkbox">
+                  <div key={role.id} className="user-role-checkbox" data-tooltip={role.name}>
                     <input
                       type="checkbox"
                       id={`role-${role.id}`}

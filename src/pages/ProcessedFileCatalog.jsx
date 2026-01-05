@@ -19,12 +19,15 @@ const ProcessedFileCatalog = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedMapping, setSelectedMapping] = useState('all');
   const [selectedProject, setSelectedProject] = useState('all');
+  const [selectedSubProject, setSelectedSubProject] = useState('all');
+  const [selectedDateRange, setSelectedDateRange] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(25);
   const [confirmModal, setConfirmModal] = useState({ isOpen: false, action: null, message: '', title: '' });
 
   const [allMappings, setAllMappings] = useState([]);
   const [allProjects, setAllProjects] = useState([]);
+  const [allSubProjects, setAllSubProjects] = useState([]);
 
   const fetchTransformationFiles = useCallback(async () => {
     try {
@@ -39,17 +42,26 @@ const ProcessedFileCatalog = () => {
       const audits = response.data.audits || [];
       setFiles(audits);
       
-      // Extract unique mappings and projects from all files for dropdowns
+      // Extract unique mappings, projects, and subprojects from all files for dropdowns
       const mappingsSet = new Set();
       const projectsMap = new Map();
+      const subProjectsMap = new Map();
       audits.forEach(f => {
         if (f.mapping_name) mappingsSet.add(f.mapping_name);
         if (f.project_id && f.project_name) {
           projectsMap.set(f.project_id, { id: f.project_id, name: f.project_name });
         }
+        if (f.sub_project_id && f.sub_project_name) {
+          subProjectsMap.set(f.sub_project_id, { 
+            id: f.sub_project_id, 
+            name: f.sub_project_name,
+            project_id: f.project_id 
+          });
+        }
       });
       setAllMappings(Array.from(mappingsSet).sort());
       setAllProjects(Array.from(projectsMap.values()).sort((a, b) => a.name.localeCompare(b.name)));
+      setAllSubProjects(Array.from(subProjectsMap.values()).sort((a, b) => a.name.localeCompare(b.name)));
       
       setError(null);
     } catch (err) {
@@ -79,6 +91,47 @@ const ProcessedFileCatalog = () => {
   // Use allMappings and allProjects from dedicated API endpoint
   // (more efficient than extracting from paginated file results)
 
+  // Filter subprojects based on selected project
+  const filteredSubProjects = useMemo(() => {
+    if (selectedProject === 'all') {
+      return allSubProjects;
+    }
+    return allSubProjects.filter(sp => sp.project_id === selectedProject);
+  }, [allSubProjects, selectedProject]);
+
+  // Reset sub-project when project changes
+  useEffect(() => {
+    setSelectedSubProject('all');
+  }, [selectedProject]);
+
+  // Helper function to check if date falls within selected range
+  const isWithinDateRange = useCallback((dateStr, range) => {
+    if (range === 'all' || !dateStr) return true;
+    
+    const date = new Date(dateStr);
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    
+    switch (range) {
+      case 'today':
+        return date >= today;
+      case 'last7days':
+        const weekAgo = new Date(today);
+        weekAgo.setDate(weekAgo.getDate() - 7);
+        return date >= weekAgo;
+      case 'last30days':
+        const monthAgo = new Date(today);
+        monthAgo.setDate(monthAgo.getDate() - 30);
+        return date >= monthAgo;
+      case 'last90days':
+        const quarterAgo = new Date(today);
+        quarterAgo.setDate(quarterAgo.getDate() - 90);
+        return date >= quarterAgo;
+      default:
+        return true;
+    }
+  }, []);
+
   const filteredFiles = useMemo(() => {
     let result = files;
 
@@ -99,10 +152,18 @@ const ProcessedFileCatalog = () => {
       result = result.filter(f => f.project_id === selectedProject);
     }
 
+    if (selectedSubProject !== 'all') {
+      result = result.filter(f => f.sub_project_id === selectedSubProject);
+    }
+
+    if (selectedDateRange !== 'all') {
+      result = result.filter(f => isWithinDateRange(f.created_dt, selectedDateRange));
+    }
+
     result.sort((a, b) => new Date(b.created_dt) - new Date(a.created_dt));
 
     return result;
-  }, [files, searchTerm, selectedMapping, selectedProject]);
+  }, [files, searchTerm, selectedMapping, selectedProject, selectedSubProject, selectedDateRange, isWithinDateRange]);
 
   const totalItems = filteredFiles.length;
   const totalPages = Math.ceil(totalItems / itemsPerPage);
@@ -112,7 +173,7 @@ const ProcessedFileCatalog = () => {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, selectedMapping, selectedProject, itemsPerPage]);
+  }, [searchTerm, selectedMapping, selectedProject, selectedSubProject, selectedDateRange, itemsPerPage]);
 
   const handleDeleteProfiling = async (correlationId, fileName) => {
     setConfirmModal({
@@ -193,6 +254,7 @@ const ProcessedFileCatalog = () => {
                 placeholder="Search..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
+                maxLength={100}
                 className="gps-form-input"
                 style={{ paddingLeft: '36px', width: '100%' }}
               />
@@ -218,6 +280,30 @@ const ProcessedFileCatalog = () => {
               {allProjects.map(project => (
                 <option key={project.id} value={project.id}>{project.name}</option>
               ))}
+            </select>
+            <select
+              value={selectedSubProject}
+              onChange={(e) => setSelectedSubProject(e.target.value)}
+              className="gps-form-select"
+              style={{ flex: '0 1 160px' }}
+              disabled={filteredSubProjects.length === 0}
+            >
+              <option value="all">All Sub Projects</option>
+              {filteredSubProjects.map(subProject => (
+                <option key={subProject.id} value={subProject.id}>{subProject.name}</option>
+              ))}
+            </select>
+            <select
+              value={selectedDateRange}
+              onChange={(e) => setSelectedDateRange(e.target.value)}
+              className="gps-form-select"
+              style={{ flex: '0 1 140px' }}
+            >
+              <option value="all">All Dates</option>
+              <option value="today">Today</option>
+              <option value="last7days">Last 7 Days</option>
+              <option value="last30days">Last 30 Days</option>
+              <option value="last90days">Last 90 Days</option>
             </select>
           </div>
 

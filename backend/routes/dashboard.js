@@ -1157,6 +1157,8 @@ router.get('/job-trend', dashboardCacheMiddleware, async (req, res) => {
     const userRoles = req.user.roles || [];
     const isAdmin = userHasAdminAccess(req.user);
     const projectId = req.query.project_id ? parseInt(req.query.project_id, 10) : null;
+    const days = req.query.days ? parseInt(req.query.days, 10) : 30;
+    const validDays = Math.min(Math.max(days, 1), 365);
 
     let jobTrendQuery;
     let queryParams;
@@ -1168,12 +1170,12 @@ router.get('/job-trend', dashboardCacheMiddleware, async (req, res) => {
             COUNT(CASE WHEN status = 'completed' THEN 1 END) as passed,
             COUNT(CASE WHEN status = 'failed' THEN 1 END) as failed
           FROM transformation_jobs
-          WHERE start_time >= CURRENT_DATE - INTERVAL '30 days'
-          AND project_id = $1
+          WHERE start_time >= CURRENT_DATE - INTERVAL '1 day' * $1
+          AND project_id = $2
           GROUP BY DATE(start_time)
           ORDER BY DATE(start_time)
         `;
-        queryParams = [projectId];
+        queryParams = [validDays, projectId];
       } else if(isAdmin && !projectId) {
         jobTrendQuery = `
           SELECT 
@@ -1181,11 +1183,11 @@ router.get('/job-trend', dashboardCacheMiddleware, async (req, res) => {
             COUNT(CASE WHEN status = 'completed' THEN 1 END) as passed,
             COUNT(CASE WHEN status = 'failed' THEN 1 END) as failed
           FROM transformation_jobs
-          WHERE start_time >= CURRENT_DATE - INTERVAL '30 days'
+          WHERE start_time >= CURRENT_DATE - INTERVAL '1 day' * $1
           GROUP BY DATE(start_time)
           ORDER BY DATE(start_time)
         `;
-        queryParams = [];
+        queryParams = [validDays];
     } else if(!isAdmin && projectId) {
         jobTrendQuery = `
           WITH accessible_projects AS (
@@ -1197,12 +1199,12 @@ router.get('/job-trend', dashboardCacheMiddleware, async (req, res) => {
             COUNT(CASE WHEN tj.status = 'failed' THEN 1 END) as failed
           FROM transformation_jobs tj
           INNER JOIN accessible_projects ap ON tj.project_id = ap.project_id
-          WHERE tj.start_time >= CURRENT_DATE - INTERVAL '30 days'
-          AND tj.project_id = $2
+          WHERE tj.start_time >= CURRENT_DATE - INTERVAL '1 day' * $2
+          AND tj.project_id = $3
           GROUP BY DATE(tj.start_time)
           ORDER BY DATE(tj.start_time)
         `;
-        queryParams = [userId, projectId];
+        queryParams = [userId, validDays, projectId];
       } else {
         jobTrendQuery = `
           WITH accessible_projects AS (
@@ -1214,11 +1216,11 @@ router.get('/job-trend', dashboardCacheMiddleware, async (req, res) => {
             COUNT(CASE WHEN tj.status = 'failed' THEN 1 END) as failed
           FROM transformation_jobs tj
           INNER JOIN accessible_projects ap ON tj.project_id = ap.project_id
-          WHERE tj.start_time >= CURRENT_DATE - INTERVAL '30 days'
+          WHERE tj.start_time >= CURRENT_DATE - INTERVAL '1 day' * $2
           GROUP BY DATE(tj.start_time)
           ORDER BY DATE(tj.start_time)
         `;
-        queryParams = [userId];
+        queryParams = [userId, validDays];
       }
 
     const result = await pool.query(jobTrendQuery, queryParams);
@@ -1261,6 +1263,8 @@ router.get('/schema-drift-trend', dashboardCacheMiddleware, async (req, res) => 
     const userRoles = req.user.roles || [];
     const isAdmin = userHasAdminAccess(req.user);
     const projectId = req.query.project_id ? parseInt(req.query.project_id, 10) : null;
+    const days = req.query.days ? parseInt(req.query.days, 10) : 30;
+    const validDays = Math.min(Math.max(days, 1), 365);
 
     let driftTrendQuery;
     let queryParams;
@@ -1272,25 +1276,25 @@ router.get('/schema-drift-trend', dashboardCacheMiddleware, async (req, res) => 
             COUNT(*) as drift_count
           FROM anomalies a
           INNER JOIN files f ON a.file_id = f.file_id
-          WHERE a.detected_at >= CURRENT_DATE - INTERVAL '30 days'
+          WHERE a.detected_at >= CURRENT_DATE - INTERVAL '1 day' * $1
           AND a.anomaly_type = 'schema_drift'
-          AND f.project_id = $1
+          AND f.project_id = $2
           GROUP BY DATE(a.detected_at)
           ORDER BY DATE(a.detected_at)
         `;
-        queryParams = [projectId];
+        queryParams = [validDays, projectId];
       } else if(isAdmin && !projectId) {
         driftTrendQuery = `
           SELECT 
             DATE(detected_at) as date,
             COUNT(*) as drift_count
           FROM anomalies
-          WHERE detected_at >= CURRENT_DATE - INTERVAL '30 days'
+          WHERE detected_at >= CURRENT_DATE - INTERVAL '1 day' * $1
           AND anomaly_type = 'schema_drift'
           GROUP BY DATE(detected_at)
           ORDER BY DATE(detected_at)
         `;
-        queryParams = [];
+        queryParams = [validDays];
     } else if(!isAdmin && projectId) {
         driftTrendQuery = `
           WITH accessible_projects AS (
@@ -1302,13 +1306,13 @@ router.get('/schema-drift-trend', dashboardCacheMiddleware, async (req, res) => 
           FROM anomalies a
           INNER JOIN files f ON a.file_id = f.file_id
           INNER JOIN accessible_projects ap ON f.project_id = ap.project_id
-          WHERE a.detected_at >= CURRENT_DATE - INTERVAL '30 days'
+          WHERE a.detected_at >= CURRENT_DATE - INTERVAL '1 day' * $2
           AND a.anomaly_type = 'schema_drift'
-          AND f.project_id = $2
+          AND f.project_id = $3
           GROUP BY DATE(a.detected_at)
           ORDER BY DATE(a.detected_at)
         `;
-        queryParams = [userId, projectId];
+        queryParams = [userId, validDays, projectId];
       } else {
         driftTrendQuery = `
           WITH accessible_projects AS (
@@ -1320,12 +1324,12 @@ router.get('/schema-drift-trend', dashboardCacheMiddleware, async (req, res) => 
           FROM anomalies a
           INNER JOIN files f ON a.file_id = f.file_id
           INNER JOIN accessible_projects ap ON f.project_id = ap.project_id
-          WHERE a.detected_at >= CURRENT_DATE - INTERVAL '30 days'
+          WHERE a.detected_at >= CURRENT_DATE - INTERVAL '1 day' * $2
           AND a.anomaly_type = 'schema_drift'
           GROUP BY DATE(a.detected_at)
           ORDER BY DATE(a.detected_at)
         `;
-        queryParams = [userId];
+        queryParams = [userId, validDays];
     }
 
     const result = await pool.query(driftTrendQuery, queryParams);

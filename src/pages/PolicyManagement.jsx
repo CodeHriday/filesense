@@ -423,8 +423,8 @@ function PolicyModal({ policy, onClose, onSave, onError }) {
 
           <div className="gps-divider" style={{ margin: '20px 0' }}></div>
 
-          <div className="gps-form-section">
-            <h3 className="gps-form-section__title" style={{ fontSize: '14px', marginBottom: '16px' }}>Policy Rules</h3>
+          <div className="gps-form-section" style={{ padding: '16px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px' }}>
+            <h3 className="gps-form-section__title" style={{ marginBottom: '16px' }}>Policy Rules</h3>
 
             <div className="gps-form-group">
               <label htmlFor="retention-days" className="gps-form-label">Retention Period (days)</label>

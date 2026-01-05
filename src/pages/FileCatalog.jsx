@@ -398,7 +398,7 @@ export const FileCatalog = ({ onFileSelect }) => {
   };
 
   // Render individual file row
-  const renderFileRow = (file) => {
+  const renderFileRow = (file, rowIndex) => {
     const headerInfo = getHeaderValidationInfo(file);
     
     return (
@@ -474,7 +474,7 @@ export const FileCatalog = ({ onFileSelect }) => {
                 uniqueness: file.quality_components?.uniqueness || 75,
                 timeliness: file.quality_components?.timeliness || 90
               }}
-              position="top"
+              position={rowIndex < 4 ? 'bottom' : 'top'}
               animated={true}
             >
               <span style={{ 
@@ -621,6 +621,7 @@ export const FileCatalog = ({ onFileSelect }) => {
           placeholder="Search files..."
           value={searchTerm}
           onChange={handleSearchChange}
+          maxLength={100}
           className="gps-form-input"
           style={{ width: '200px', flex: '0 0 auto' }}
         />
@@ -765,7 +766,7 @@ export const FileCatalog = ({ onFileSelect }) => {
                   </tr>
                 </thead>
                 <tbody>
-                  {paginatedFiles.map(file => renderFileRow(file))}
+                  {paginatedFiles.map((file, index) => renderFileRow(file, index))}
                 </tbody>
               </table>
             </div>

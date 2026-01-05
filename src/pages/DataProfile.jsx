@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import { useParams, Link } from 'react-router-dom';
-import { FiFileText, FiBarChart2, FiDownload, FiTable, FiCopy, FiEdit2, FiUser, FiClock, FiCheckCircle, FiAlertTriangle, FiXCircle, FiGitBranch, FiZap, FiPlay, FiRefreshCw } from 'react-icons/fi';
+import { FiFileText, FiBarChart2, FiDownload, FiTable, FiCopy, FiEdit2, FiUser, FiClock, FiCheckCircle, FiAlertTriangle, FiXCircle, FiGitBranch, FiZap, FiPlay, FiRefreshCw, FiArrowLeft } from 'react-icons/fi';
 import Card from '../components/Card';
 import LoadingSpinner from '../components/LoadingSpinner';
 import FilePreview from '../components/FilePreview';
@@ -542,24 +542,87 @@ function OwnershipModal({ fileId, currentOwnership, onClose, onSave, setErrorMes
   const [ownerEmail, setOwnerEmail] = useState(currentOwnership?.owner_email || '');
   const [ownerContact, setOwnerContact] = useState(currentOwnership?.owner_contact || '');
   const [saving, setSaving] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState({});
+
+  const validateEmail = (email) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
+  const validateFields = () => {
+    const errors = {};
+    
+    if (!ownerName.trim()) {
+      errors.ownerName = 'Owner Name is required';
+    } else if (ownerName.length > 100) {
+      errors.ownerName = 'Owner Name cannot exceed 100 characters';
+    }
+    
+    if (!ownerEmail.trim()) {
+      errors.ownerEmail = 'Owner Email is required';
+    } else if (ownerEmail.length > 100) {
+      errors.ownerEmail = 'Owner Email cannot exceed 100 characters';
+    } else if (!validateEmail(ownerEmail)) {
+      errors.ownerEmail = 'Please enter a valid email address';
+    }
+    
+    if (ownerContact && !/^\d+$/.test(ownerContact)) {
+      errors.ownerContact = 'Owner Contact must contain only numbers';
+    } else if (ownerContact.length > 10) {
+      errors.ownerContact = 'Owner Contact cannot exceed 10 digits';
+    }
+    
+    setFieldErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
 
   const handleSave = async () => {
+    if (!validateFields()) {
+      return;
+    }
+    
     try {
       setSaving(true);
       const encodedFileId = encodeURIComponent(fileId);
       await axios.post(`/api/files/${encodedFileId}/ownership`, {
-        owner_name: ownerName,
-        owner_email: ownerEmail,
-        owner_contact: ownerContact
+        owner_name: ownerName.trim(),
+        owner_email: ownerEmail.trim(),
+        owner_contact: ownerContact.trim()
       });
       onSave();
     } catch (err) {
       console.error('Error saving ownership:', err);
-      setErrorMessage('Failed to save ownership information');
+      setErrorMessage(err.response?.data?.error || err.response?.data?.message || 'Failed to save ownership information');
     } finally {
       setSaving(false);
     }
   };
+
+  const handleNameChange = (e) => {
+    setOwnerName(e.target.value);
+    if (fieldErrors.ownerName) {
+      setFieldErrors(prev => ({ ...prev, ownerName: '' }));
+    }
+  };
+
+  const handleEmailChange = (e) => {
+    setOwnerEmail(e.target.value);
+    if (fieldErrors.ownerEmail) {
+      setFieldErrors(prev => ({ ...prev, ownerEmail: '' }));
+    }
+  };
+
+  const handleContactChange = (e) => {
+    const value = e.target.value.replace(/\D/g, '');
+    setOwnerContact(value);
+    if (fieldErrors.ownerContact) {
+      setFieldErrors(prev => ({ ...prev, ownerContact: '' }));
+    }
+  };
+
+  const isFormValid = ownerName.trim() && ownerEmail.trim() && validateEmail(ownerEmail) && 
+                      ownerName.length <= 100 && ownerEmail.length <= 100 && ownerContact.length <= 10 &&
+                      (!ownerContact || /^\d*$/.test(ownerContact));
 
   return (
     <div className="modal-overlay">
@@ -567,43 +630,66 @@ function OwnershipModal({ fileId, currentOwnership, onClose, onSave, setErrorMes
         <h2>Edit File Ownership</h2>
         
         <div className="form-group">
-          <label htmlFor="owner-name-input">Owner Name</label>
+          <label htmlFor="owner-name-input">Owner Name <span style={{ color: '#dc2626' }}>*</span></label>
           <input
             id="owner-name-input"
             type="text"
             value={ownerName}
-            onChange={(e) => setOwnerName(e.target.value)}
+            onChange={handleNameChange}
             placeholder="Enter owner name"
+            maxLength={100}
+            style={fieldErrors.ownerName ? { borderColor: '#dc2626' } : {}}
           />
+          {fieldErrors.ownerName && (
+            <span style={{ color: '#dc2626', fontSize: '11px', marginTop: '4px', display: 'block' }}>
+              {fieldErrors.ownerName}
+            </span>
+          )}
         </div>
         
         <div className="form-group">
-          <label htmlFor="owner-email-input">Owner Email</label>
+          <label htmlFor="owner-email-input">Owner Email <span style={{ color: '#dc2626' }}>*</span></label>
           <input
             id="owner-email-input"
             type="email"
             value={ownerEmail}
-            onChange={(e) => setOwnerEmail(e.target.value)}
+            onChange={handleEmailChange}
             placeholder="Enter owner email"
+            maxLength={100}
+            style={fieldErrors.ownerEmail ? { borderColor: '#dc2626' } : {}}
           />
+          {fieldErrors.ownerEmail && (
+            <span style={{ color: '#dc2626', fontSize: '11px', marginTop: '4px', display: 'block' }}>
+              {fieldErrors.ownerEmail}
+            </span>
+          )}
         </div>
         
         <div className="form-group">
           <label htmlFor="owner-contact-input">Owner Contact</label>
           <input
             id="owner-contact-input"
-            type="text"
+            type="tel"
             value={ownerContact}
-            onChange={(e) => setOwnerContact(e.target.value)}
-            placeholder="Enter owner contact"
+            onChange={handleContactChange}
+            placeholder="Enter phone number"
+            maxLength={10}
+            inputMode="numeric"
+            pattern="[0-9]*"
+            style={fieldErrors.ownerContact ? { borderColor: '#dc2626' } : {}}
           />
+          {fieldErrors.ownerContact && (
+            <span style={{ color: '#dc2626', fontSize: '11px', marginTop: '4px', display: 'block' }}>
+              {fieldErrors.ownerContact}
+            </span>
+          )}
         </div>
         
         <div className="modal-actions">
           <button className="btn btn-secondary" onClick={onClose} disabled={saving}>
             Cancel
           </button>
-          <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
+          <button className="btn btn-primary" onClick={handleSave} disabled={saving || !isFormValid}>
             {saving ? 'Saving...' : 'Save'}
           </button>
         </div>
@@ -3078,6 +3164,9 @@ function DataProfile() {
             <div className="gps-card-body" style={{ padding: '16px 20px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <Link to="/file-catalog" className="gps-btn gps-btn--secondary" style={{ padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <FiArrowLeft size={14} /> Back
+                  </Link>
                   <h1 className="gps-page-title" style={{ margin: 0, fontSize: '16px' }}>{file.filename}</h1>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '16px', fontSize: '10px', color: '#666' }}>
