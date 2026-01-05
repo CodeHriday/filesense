@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import { useParams, Link } from 'react-router-dom';
-import { FiFileText, FiBarChart2, FiDownload, FiTable, FiCopy, FiEdit2, FiUser, FiClock, FiCheckCircle, FiAlertTriangle, FiXCircle, FiGitBranch, FiZap, FiPlay, FiRefreshCw } from 'react-icons/fi';
+import { FiFileText, FiBarChart2, FiDownload, FiTable, FiCopy, FiEdit2, FiUser, FiClock, FiCheckCircle, FiAlertTriangle, FiXCircle, FiGitBranch, FiZap, FiPlay, FiRefreshCw, FiArrowLeft } from 'react-icons/fi';
 import Card from '../components/Card';
 import LoadingSpinner from '../components/LoadingSpinner';
 import FilePreview from '../components/FilePreview';
@@ -3078,6 +3078,9 @@ function DataProfile() {
             <div className="gps-card-body" style={{ padding: '16px 20px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <Link to="/file-catalog" className="gps-btn gps-btn--secondary" style={{ padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <FiArrowLeft size={14} /> Back
+                  </Link>
                   <h1 className="gps-page-title" style={{ margin: 0, fontSize: '16px' }}>{file.filename}</h1>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '16px', fontSize: '10px', color: '#666' }}>
