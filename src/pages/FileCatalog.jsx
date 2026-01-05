@@ -621,6 +621,7 @@ export const FileCatalog = ({ onFileSelect }) => {
           placeholder="Search files..."
           value={searchTerm}
           onChange={handleSearchChange}
+          maxLength={100}
           className="gps-form-input"
           style={{ width: '200px', flex: '0 0 auto' }}
         />
