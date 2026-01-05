@@ -1111,7 +1111,7 @@ const UserManagement = () => {
               {roles
                 .filter(role => role.name !== 'Viewer')
                 .map(role => (
-                  <div key={role.id} className="user-role-checkbox" title={role.name}>
+                  <div key={role.id} className="user-role-checkbox" data-tooltip={role.name}>
                     <input
                       type="checkbox"
                       id={`role-${role.id}`}
@@ -1119,7 +1119,7 @@ const UserManagement = () => {
                       checked={formData.roles.includes(role.name)}
                       onChange={handleRoleChange}
                     />
-                    <label htmlFor={`role-${role.id}`} title={role.name}>{role.name}</label>
+                    <label htmlFor={`role-${role.id}`}>{role.name}</label>
                   </div>
                 ))}
             </div>
