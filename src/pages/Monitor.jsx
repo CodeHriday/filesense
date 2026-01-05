@@ -163,7 +163,7 @@ function Monitor() {
     }
   };
   
-  const fetchLedgerData = async () => {
+  const fetchLedgerData = async (filtersOverride = null) => {
     try {
       setLoading(true);
       const offset = (currentPage - 1) * pageSize;
@@ -173,9 +173,10 @@ function Monitor() {
         offset: offset
       };
       
-      if (ledgerFilters.logLevel) filters.logLevel = ledgerFilters.logLevel;
-      if (ledgerFilters.actionType) filters.actionType = ledgerFilters.actionType;
-      if (ledgerFilters.jobId) filters.jobId = ledgerFilters.jobId;
+      const activeFilters = filtersOverride !== null ? filtersOverride : ledgerFilters;
+      if (activeFilters.logLevel) filters.logLevel = activeFilters.logLevel;
+      if (activeFilters.actionType) filters.actionType = activeFilters.actionType;
+      if (activeFilters.jobId) filters.jobId = activeFilters.jobId;
       
       const [entriesResult, statsResult] = await Promise.all([
         getAuditLedgerEntries(filters),
@@ -861,7 +862,7 @@ function Monitor() {
                   Apply Filters
                 </button>
                 {(ledgerFilters.jobId || ledgerFilters.logLevel) && (
-                  <button onClick={() => { setLedgerFilters({ logLevel: '', actionType: '', jobId: '' }); setCurrentPage(1); fetchLedgerData(); }} className="monitor-btn-clear">
+                  <button onClick={() => { setLedgerFilters({ logLevel: '', actionType: '', jobId: '' }); setCurrentPage(1); fetchLedgerData({ logLevel: '', actionType: '', jobId: '' }); }} className="monitor-btn-clear">
                     Clear
                   </button>
                 )}
