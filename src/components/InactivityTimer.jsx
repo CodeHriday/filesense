@@ -16,6 +16,11 @@ const InactivityTimer = () => {
   const logoutTimerRef = useRef(null);
   const countdownIntervalRef = useRef(null);
   const lastActivityRef = useRef(Date.now());
+  const showWarningRef = useRef(false);
+
+  useEffect(() => {
+    showWarningRef.current = showWarning;
+  }, [showWarning]);
 
   const clearAllTimers = useCallback(() => {
     if (inactivityTimerRef.current) {
@@ -35,6 +40,7 @@ const InactivityTimer = () => {
   const handleLogout = useCallback(async () => {
     clearAllTimers();
     setShowWarning(false);
+    showWarningRef.current = false;
     try {
       await logout();
     } catch (error) {
@@ -45,12 +51,14 @@ const InactivityTimer = () => {
 
   const showWarningModal = useCallback(() => {
     setShowWarning(true);
+    showWarningRef.current = true;
     setSecondsRemaining(Math.floor(LOGOUT_AFTER_WARNING_MS / 1000));
     
     countdownIntervalRef.current = setInterval(() => {
       setSecondsRemaining(prev => {
         if (prev <= 1) {
           clearInterval(countdownIntervalRef.current);
+          countdownIntervalRef.current = null;
           return 0;
         }
         return prev - 1;
@@ -65,7 +73,7 @@ const InactivityTimer = () => {
   const resetInactivityTimer = useCallback(() => {
     lastActivityRef.current = Date.now();
     
-    if (showWarning) return;
+    if (showWarningRef.current) return;
     
     if (inactivityTimerRef.current) {
       clearTimeout(inactivityTimerRef.current);
@@ -76,11 +84,12 @@ const InactivityTimer = () => {
     inactivityTimerRef.current = setTimeout(() => {
       showWarningModal();
     }, warningTimeout);
-  }, [showWarning, showWarningModal]);
+  }, [showWarningModal]);
 
   const handleStayLoggedIn = useCallback(() => {
     clearAllTimers();
     setShowWarning(false);
+    showWarningRef.current = false;
     setSecondsRemaining(60);
     resetInactivityTimer();
   }, [clearAllTimers, resetInactivityTimer]);
@@ -89,13 +98,16 @@ const InactivityTimer = () => {
     if (authStatus !== AUTH_STATUS.AUTHENTICATED || !currentUser) {
       clearAllTimers();
       setShowWarning(false);
+      showWarningRef.current = false;
       return;
     }
 
     const activityEvents = ['mousedown', 'mousemove', 'keydown', 'scroll', 'touchstart', 'click'];
     
     const handleActivity = () => {
-      resetInactivityTimer();
+      if (!showWarningRef.current) {
+        resetInactivityTimer();
+      }
     };
 
     activityEvents.forEach(event => {
@@ -117,63 +129,29 @@ const InactivityTimer = () => {
   }
 
   return (
-    <div className="modal-overlay" style={{ zIndex: 10000 }}>
-      <div className="modal-content" style={{ maxWidth: '420px', textAlign: 'center' }}>
-        <div style={{ 
-          display: 'flex', 
-          flexDirection: 'column', 
-          alignItems: 'center', 
-          gap: '16px',
-          padding: '20px 0'
-        }}>
-          <div style={{
-            width: '64px',
-            height: '64px',
-            borderRadius: '50%',
-            backgroundColor: '#fef3c7',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center'
-          }}>
-            <FiAlertTriangle size={32} color="#d97706" />
+    <div className="gps-modal-overlay">
+      <div className="gps-modal gps-modal--sm gps-modal--centered">
+        <div className="gps-modal-body">
+          <div className="gps-modal-icon gps-modal-icon--warning">
+            <FiAlertTriangle size={32} />
           </div>
           
-          <h2 style={{ margin: 0, fontSize: '18px', fontWeight: 600 }}>
-            Session Timeout Warning
-          </h2>
+          <h2 className="gps-modal-title">Session Timeout Warning</h2>
           
-          <p style={{ margin: 0, color: '#6b7280', fontSize: '14px', lineHeight: 1.5 }}>
+          <p className="gps-modal-text">
             Your session has been inactive. For security reasons, you will be automatically logged out.
           </p>
           
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            padding: '12px 20px',
-            backgroundColor: '#fef3c7',
-            borderRadius: '8px',
-            fontSize: '16px',
-            fontWeight: 600,
-            color: '#92400e'
-          }}>
+          <div className="gps-timeout-badge">
             <FiClock size={20} />
             <span>Logging out in {secondsRemaining} seconds</span>
           </div>
           
-          <div style={{ display: 'flex', gap: '12px', marginTop: '8px', width: '100%' }}>
-            <button
-              onClick={handleLogout}
-              className="btn-secondary"
-              style={{ flex: 1 }}
-            >
+          <div className="gps-modal-actions">
+            <button onClick={handleLogout} className="gps-btn gps-btn--secondary">
               Log Out Now
             </button>
-            <button
-              onClick={handleStayLoggedIn}
-              className="btn-primary"
-              style={{ flex: 1 }}
-            >
+            <button onClick={handleStayLoggedIn} className="gps-btn gps-btn--primary">
               Stay Logged In
             </button>
           </div>

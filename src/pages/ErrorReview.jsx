@@ -303,7 +303,7 @@ const ErrorReview = () => {
           <div className="quality-violations-bulk-actions-bar">
             <span className="quality-violations-selected-count">{selectedIds.length} violation(s) selected</span>
             <button
-              className="gps-btn-danger"
+              className="gps-btn gps-btn-danger"
               onClick={handleBulkDelete}
               disabled={isDeleting}
             >
@@ -424,7 +424,7 @@ const ErrorReview = () => {
         </div>
         <div className="gps-page-header-right" style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
           <div className="download-dropdown">
-            <button className="gps-btn-primary">
+            <button className="gps-btn gps-btn-primary">
               <FiDownload /> Download
             </button>
             <div className="download-menu">
@@ -433,7 +433,7 @@ const ErrorReview = () => {
             </div>
           </div>
           <button 
-            className={`gps-btn-secondary ${showFilters ? 'active' : ''}`}
+            className={`gps-btn gps-btn-secondary ${showFilters ? 'active' : ''}`}
             onClick={() => setShowFilters(!showFilters)}
           >
             <FiFilter /> {showFilters ? 'Hide Filters' : 'Show Filters'}
@@ -444,7 +444,10 @@ const ErrorReview = () => {
       <div className="gps-tabs">
         <button 
           className={`gps-tab ${activeTab === 'file-upload' ? 'gps-tab--active' : ''}`}
-          onClick={() => setActiveTab('file-upload')}
+          onClick={() => {
+            setActiveTab('file-upload');
+            setFilters(prev => ({ ...prev, page: 1 }));
+          }}
         >
           File Upload Violations
           {activeTab === 'file-upload' && (
@@ -453,7 +456,10 @@ const ErrorReview = () => {
         </button>
         <button 
           className={`gps-tab ${activeTab === 'mapping-job' ? 'gps-tab--active' : ''}`}
-          onClick={() => setActiveTab('mapping-job')}
+          onClick={() => {
+            setActiveTab('mapping-job');
+            setFilters(prev => ({ ...prev, page: 1 }));
+          }}
         >
           Mapping Job Violations
           {activeTab === 'mapping-job' && (
@@ -552,23 +558,25 @@ const ErrorReview = () => {
       {violations.length > 0 && (
         <div className="gps-pagination">
           <div className="gps-pagination-controls">
-            <button 
-              onClick={() => handlePageChange(filters.page - 1)}
-              disabled={filters.page <= 1}
-              className="gps-btn-secondary"
-            >
-              Previous
-            </button>
+            {filters.page > 1 && (
+              <button 
+                onClick={() => handlePageChange(filters.page - 1)}
+                className="gps-btn gps-btn-secondary"
+              >
+                Previous
+              </button>
+            )}
             <span className="gps-pagination-info">
               Page {pagination.page} of {pagination.totalPages} ({pagination.total} total)
             </span>
-            <button 
-              onClick={() => handlePageChange(filters.page + 1)}
-              disabled={filters.page >= pagination.totalPages}
-              className="gps-btn-secondary"
-            >
-              Next
-            </button>
+            {filters.page < pagination.totalPages && (
+              <button 
+                onClick={() => handlePageChange(filters.page + 1)}
+                className="gps-btn gps-btn-secondary"
+              >
+                Next
+              </button>
+            )}
           </div>
           <div className="gps-pagination-size">
             <label>Rows per page:</label>

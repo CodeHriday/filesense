@@ -335,8 +335,16 @@ function createProjectRoutes(dbPool) {
         projectCount: projectsResult.rows.length
       });
 
+      const normalizeProjectRow = (row) => ({
+        ...row,
+        is_active: row.is_active !== false && row.is_active !== 'false' && row.is_active !== 'f',
+        is_archived: row.is_archived === true || row.is_archived === 'true' || row.is_archived === 't',
+        member_count: parseInt(row.member_count) || 0,
+        sub_project_count: parseInt(row.sub_project_count) || 0
+      });
+
       res.json({
-        projects: projectsResult.rows,
+        projects: projectsResult.rows.map(normalizeProjectRow),
         users: usersResult.rows,
         groups: groupsResult.rows
       });
@@ -402,7 +410,7 @@ function createProjectRoutes(dbPool) {
   router.post('/', burstRateLimit, hourlyRateLimit, projectIdempotency, async (req, res) => {
     const client = await dbPool.connect();
     try {
-      const { name, description, parent_id, is_default, project_type, metadata, settings, member_ids, group_ids, sub_projects } = req.body;
+      const { name, description, parent_id, is_default, project_type, metadata, settings, member_ids, group_ids, sub_projects, drop_location_bucket, drop_location_prefix, drop_location_connection_id } = req.body;
       const userId = req.user?.id;
 
       if (!name) {
@@ -483,10 +491,10 @@ function createProjectRoutes(dbPool) {
       }
 
       const result = await client.query(`
-        INSERT INTO projects (name, description, parent_id, owner_id, is_default, project_type, metadata, settings)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        INSERT INTO projects (name, description, parent_id, owner_id, is_default, project_type, metadata, settings, drop_location_bucket, drop_location_prefix, drop_location_connection_id)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
         RETURNING *
-      `, [name.trim(), description, parent_id || null, userId, is_default || false, project_type || 'internal', metadata || {}, settings || {}]);
+      `, [name.trim(), description, parent_id || null, userId, is_default || false, project_type || 'internal', metadata || {}, settings || {}, drop_location_bucket || null, drop_location_prefix || null, drop_location_connection_id || null]);
 
       const newProject = result.rows[0];
 
@@ -855,7 +863,24 @@ function createProjectRoutes(dbPool) {
   router.put('/:projectId', async (req, res) => {
     try {
       const { projectId } = req.params;
-      const { name, description, parent_id, is_archived, project_type, metadata, settings } = req.body;
+      const { name, description, parent_id, is_archived, is_active, project_type, metadata, settings, drop_location_bucket, drop_location_prefix, drop_location_connection_id } = req.body;
+
+      // If attempting to deactivate a project, check for active subprojects
+      if (is_active === false) {
+        const activeSubprojectsCheck = await dbPool.query(`
+          SELECT id, name FROM projects 
+          WHERE parent_id = $1 AND is_active = true
+        `, [projectId]);
+
+        if (activeSubprojectsCheck.rows.length > 0) {
+          const activeSubprojectNames = activeSubprojectsCheck.rows.map(sp => sp.name).join(', ');
+          return res.status(400).json({ 
+            error: `Cannot deactivate project - it has active subprojects: ${activeSubprojectNames}. Please deactivate all subprojects first.`,
+            code: 'ACTIVE_SUBPROJECTS_EXIST',
+            activeSubprojects: activeSubprojectsCheck.rows
+          });
+        }
+      }
 
       const updates = [];
       const params = [];
@@ -881,6 +906,11 @@ function createProjectRoutes(dbPool) {
         params.push(is_archived);
         paramIndex++;
       }
+      if (is_active !== undefined) {
+        updates.push(`is_active = $${paramIndex}`);
+        params.push(is_active);
+        paramIndex++;
+      }
       if (project_type !== undefined) {
         updates.push(`project_type = $${paramIndex}`);
         params.push(project_type);
@@ -894,6 +924,21 @@ function createProjectRoutes(dbPool) {
       if (settings !== undefined) {
         updates.push(`settings = $${paramIndex}`);
         params.push(JSON.stringify(settings));
+        paramIndex++;
+      }
+      if (drop_location_bucket !== undefined) {
+        updates.push(`drop_location_bucket = $${paramIndex}`);
+        params.push(drop_location_bucket || null);
+        paramIndex++;
+      }
+      if (drop_location_prefix !== undefined) {
+        updates.push(`drop_location_prefix = $${paramIndex}`);
+        params.push(drop_location_prefix || null);
+        paramIndex++;
+      }
+      if (drop_location_connection_id !== undefined) {
+        updates.push(`drop_location_connection_id = $${paramIndex}`);
+        params.push(drop_location_connection_id || null);
         paramIndex++;
       }
 
@@ -917,7 +962,8 @@ function createProjectRoutes(dbPool) {
 
       systemLogger.info('Project updated', {
         userId: req.user?.id,
-        projectId
+        projectId,
+        is_active: is_active !== undefined ? is_active : 'unchanged'
       });
 
       res.json(result.rows[0]);

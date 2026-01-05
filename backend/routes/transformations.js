@@ -902,6 +902,56 @@ router.post('/:id/execute',
     
     const userId = req.user?.id || 'system';
     
+    // Check if project and subproject are active before executing job
+    const mappingCheck = await pool.query(`
+      SELECT tm.mapping_id, tm.project_id, tm.sub_project_id, 
+             p.name as project_name, p.is_active, p.parent_id,
+             sp.name as sub_project_name, sp.is_active as sub_project_is_active
+      FROM transformation_mappings tm
+      JOIN projects p ON tm.project_id = p.id
+      LEFT JOIN projects sp ON tm.sub_project_id = sp.id
+      WHERE tm.mapping_id = $1
+    `, [id]);
+    
+    if (mappingCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'Transformation mapping not found' });
+    }
+    
+    const mapping = mappingCheck.rows[0];
+    
+    // Reject job creation for inactive projects
+    if (mapping.is_active === false) {
+      return res.status(403).json({ 
+        error: 'Cannot execute jobs for an inactive project',
+        code: 'PROJECT_INACTIVE',
+        message: `Project "${mapping.project_name}" is inactive. Please activate the project before running jobs.`
+      });
+    }
+    
+    // Reject job creation for inactive subprojects
+    if (mapping.sub_project_id && mapping.sub_project_is_active === false) {
+      return res.status(403).json({ 
+        error: 'Cannot execute jobs for an inactive sub-project',
+        code: 'SUBPROJECT_INACTIVE',
+        message: `Sub-project "${mapping.sub_project_name}" is inactive. Please activate the sub-project before running jobs.`
+      });
+    }
+    
+    // Check parent project if this is a subproject
+    if (mapping.parent_id) {
+      const parentCheck = await pool.query(
+        'SELECT id, name, is_active FROM projects WHERE id = $1',
+        [mapping.parent_id]
+      );
+      if (parentCheck.rows.length > 0 && parentCheck.rows[0].is_active === false) {
+        return res.status(403).json({ 
+          error: 'Cannot execute jobs - parent project is inactive',
+          code: 'PARENT_PROJECT_INACTIVE',
+          message: `Parent project "${parentCheck.rows[0].name}" is inactive. Please activate the parent project before running jobs.`
+        });
+      }
+    }
+    
     // Capture user context at request time for audit logging
     const userContext = {
       userEmail: req.user?.email,

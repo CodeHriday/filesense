@@ -1,17 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams, useSearchParams, useLocation } from 'react-router-dom';
-import { FiSave, FiX } from 'react-icons/fi';
-import PageHeader from '../components/PageHeader';
+import { FiSave, FiX, FiCalendar, FiClock, FiFolder, FiLayers } from 'react-icons/fi';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { PageTransition } from '../components/MicroAnimations';
 import axios from 'axios';
+import '../styles/global-page-styles.css';
 
 const SchedulerForm = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { scheduleId } = useParams();
   const [searchParams] = useSearchParams();
-  const isEdit = !!scheduleId;
+  const isEdit = !!scheduleId && scheduleId !== 'create';
 
   // Get query params for pre-selection
   const preSelectedType = searchParams.get('type');
@@ -33,7 +33,6 @@ const SchedulerForm = () => {
   });
 
   const [transformations, setTransformations] = useState([]);
-  const [mappingGroups, setMappingGroups] = useState([]);
   const [workflows, setWorkflows] = useState([]);
   const [projects, setProjects] = useState([]);
   const [subProjects, setSubProjects] = useState([]);
@@ -63,7 +62,9 @@ const SchedulerForm = () => {
   const loadSubProjects = async (projectId) => {
     try {
       const response = await axios.get(`/api/projects/${projectId}/sub-projects`);
-      setSubProjects(Array.isArray(response.data) ? response.data : []);
+      // API returns { success: true, subProjects: [...] }
+      const subs = response.data?.subProjects || response.data || [];
+      setSubProjects(Array.isArray(subs) ? subs : []);
     } catch (err) {
       console.error('Failed to load subprojects:', err);
       setSubProjects([]);
@@ -76,7 +77,6 @@ const SchedulerForm = () => {
       const data = response.data;
       
       const mappings = data.transformations || [];
-      const groups = data.mappingGroups || [];
       const nStepWorkflows = data.nStepWorkflows || [];
       const visualWorkflows = data.visualWorkflows || [];
       const projects = data.projects || [];
@@ -94,7 +94,6 @@ const SchedulerForm = () => {
       
       console.log('Scheduler Form - Data loaded:', {
         transformations: mappings.length,
-        mappingGroups: groups.length,
         nStepWorkflows: nStepWorkflows.length,
         visualWorkflows: visualWorkflows.length,
         totalWorkflows: allWorkflows.length,
@@ -102,17 +101,15 @@ const SchedulerForm = () => {
       });
       
       setTransformations(mappings);
-      setMappingGroups(groups);
       setWorkflows(allWorkflows);
       setProjects(projects);
       
-      if (mappings.length === 0 && groups.length === 0 && allWorkflows.length === 0) {
-        setError('No entities available. Please create a transformation, mapping group, or workflow first.');
+      if (mappings.length === 0 && allWorkflows.length === 0) {
+        setError('No entities available. Please create a transformation or workflow first.');
       }
       
       return {
         mappings,
-        groups,
         workflows: allWorkflows,
         projects
       };
@@ -137,10 +134,6 @@ const SchedulerForm = () => {
           const mapping = entityData.mappings.find(t => String(t.mapping_id) === String(response.data.entity_id));
           projectId = mapping?.project_id || '';
           subProjectId = mapping?.sub_project_id || '';
-        } else if (response.data.entity_type === 'mapping_group') {
-          const group = entityData.groups.find(g => String(g.id) === String(response.data.entity_id));
-          projectId = group?.project_id || '';
-          subProjectId = group?.sub_project_id || '';
         } else if (response.data.entity_type === 'workflow') {
           const workflow = entityData.workflows.find(w => String(w.id) === String(response.data.entity_id));
           projectId = workflow?.project_id || '';
@@ -216,13 +209,40 @@ const SchedulerForm = () => {
   };
 
   const getEntityOptions = () => {
+    const selectedProjectId = formData.project_id ? parseInt(formData.project_id, 10) : null;
+    const selectedSubProjectId = formData.sub_project_id ? parseInt(formData.sub_project_id, 10) : null;
+    
     switch (formData.entity_type) {
       case 'mapping':
-        return transformations.map(t => ({ id: t.mapping_id, name: t.mapping_name }));
-      case 'mapping_group':
-        return mappingGroups.map(g => ({ id: g.id, name: g.name }));
+        // Filter by project and subproject, then deduplicate by mapping_name
+        const seen = new Set();
+        return transformations
+          .filter(t => {
+            // Filter by project if selected
+            if (selectedProjectId && t.project_id !== selectedProjectId) return false;
+            // Filter by subproject if selected
+            if (selectedSubProjectId && t.sub_project_id !== selectedSubProjectId) return false;
+            // Deduplicate by mapping_name
+            if (seen.has(t.mapping_name)) return false;
+            seen.add(t.mapping_name);
+            return true;
+          })
+          .map(t => ({ id: t.mapping_id, name: t.mapping_name }));
       case 'workflow':
-        return workflows.map(w => ({ id: w.id, name: w.name }));
+        // Filter by project and subproject, then deduplicate by name
+        const seenWorkflows = new Set();
+        return workflows
+          .filter(w => {
+            // Filter by project if selected
+            if (selectedProjectId && w.project_id !== selectedProjectId) return false;
+            // Filter by subproject if selected
+            if (selectedSubProjectId && w.sub_project_id !== selectedSubProjectId) return false;
+            // Deduplicate by name
+            if (seenWorkflows.has(w.name)) return false;
+            seenWorkflows.add(w.name);
+            return true;
+          })
+          .map(w => ({ id: w.id, name: w.name }));
       default:
         return [];
     }
@@ -241,25 +261,30 @@ const SchedulerForm = () => {
 
   return (
     <PageTransition>
-      <div className="scheduler-form-page">
-        <PageHeader
-          title={isEdit ? 'Edit Schedule' : 'Create New Schedule'}
-          subtitle={isEdit ? 'Update schedule configuration' : 'Configure a new automated schedule'}
-          hideHomeButton={true}
-        />
+      <div className="gps-page-container">
+        <div className="gps-page-header">
+          <div className="gps-page-header-left">
+            <h1 className="gps-page-title">{isEdit ? 'Edit Schedule' : 'Create New Schedule'}</h1>
+            <p className="gps-page-subtitle">{isEdit ? 'Update schedule configuration' : 'Configure a new automated schedule for your data pipelines'}</p>
+          </div>
+        </div>
 
-        <div className="form-container">
-          <form onSubmit={handleSubmit} className="data-form">
-            {/* Row 1: Project and Subproject */}
-            <div className="form-row">
-              <div className="form-group">
-                <label htmlFor="project-select">Project *</label>
+        <form onSubmit={handleSubmit}>
+          {/* Section 1: Schedule Basics */}
+          <div className="gps-form-section">
+            <div className="gps-form-section__header">
+              <h3 className="gps-form-section__title"><FiFolder style={{ marginRight: '8px', verticalAlign: 'middle' }} />Schedule Basics</h3>
+              <p className="gps-form-section__subtitle">Select the project and entity you want to schedule</p>
+            </div>
+
+            <div className="gps-grid--2col">
+              <div className="gps-form-group">
+                <label htmlFor="project-select" className="gps-form-label">Project</label>
                 <select
                   id="project-select"
                   value={formData.project_id}
-                  onChange={e => setFormData({ ...formData, project_id: e.target.value })}
-                  required
-                  className="form-select"
+                  onChange={e => setFormData({ ...formData, project_id: e.target.value, sub_project_id: '', entity_id: '' })}
+                  className="gps-select"
                 >
                   <option value="">Select project...</option>
                   {projects.map(project => (
@@ -268,18 +293,16 @@ const SchedulerForm = () => {
                     </option>
                   ))}
                 </select>
-                <small className="form-help">
-                  Project is auto-populated from the selected entity
-                </small>
+                <small className="gps-form-help">Auto-populated when you select an entity</small>
               </div>
 
-              <div className="form-group">
-                <label htmlFor="subproject-select">Subproject</label>
+              <div className="gps-form-group">
+                <label htmlFor="subproject-select" className="gps-form-label">Subproject</label>
                 <select
                   id="subproject-select"
                   value={formData.sub_project_id}
-                  onChange={e => setFormData({ ...formData, sub_project_id: e.target.value })}
-                  className="form-select"
+                  onChange={e => setFormData({ ...formData, sub_project_id: e.target.value, entity_id: '' })}
+                  className="gps-select"
                   disabled={!formData.project_id || subProjects.length === 0}
                 >
                   <option value="">None (use main project)</option>
@@ -289,41 +312,40 @@ const SchedulerForm = () => {
                     </option>
                   ))}
                 </select>
-                <small className="form-help">
-                  Optional: select a subproject for this schedule
-                </small>
+                <small className="gps-form-help">Optional organizational grouping</small>
               </div>
             </div>
 
-            {/* Row 2: Entity Type */}
-            <div className="form-row">
-              <div className="form-group">
-                <label htmlFor="entity-type">Entity Type *</label>
-                <select
-                  id="entity-type"
-                  value={formData.entity_type}
-                  onChange={e => setFormData({ ...formData, entity_type: e.target.value, entity_id: '' })}
-                  className="form-select"
-                >
-                  <option value="mapping">Transformation</option>
-                  <option value="mapping_group">Mapping Group</option>
-                  <option value="workflow">Workflow</option>
-                </select>
-              </div>
-            </div>
+            <div className="gps-divider"></div>
 
-            {/* Row 3: Select Entity and Schedule Type */}
-            <div className="form-row">
-              <div className="form-group">
-                <label htmlFor="entity-select">Select {formData.entity_type.replace('_', ' ')} *</label>
+            <div className="gps-grid--2col">
+              <div className="gps-form-group">
+                <label htmlFor="entity-type" className="gps-form-label">Entity Type</label>
+                <div className="gps-segmented">
+                  <button
+                    type="button"
+                    className={`gps-segmented__btn ${formData.entity_type === 'mapping' ? 'gps-segmented__btn--active' : ''}`}
+                    onClick={() => setFormData({ ...formData, entity_type: 'mapping', entity_id: '' })}
+                  >
+                    <FiLayers style={{ marginRight: '6px' }} />Transformation
+                  </button>
+                  <button
+                    type="button"
+                    className={`gps-segmented__btn ${formData.entity_type === 'workflow' ? 'gps-segmented__btn--active' : ''}`}
+                    onClick={() => setFormData({ ...formData, entity_type: 'workflow', entity_id: '' })}
+                  >
+                    Workflow
+                  </button>
+                </div>
+              </div>
+
+              <div className="gps-form-group">
+                <label htmlFor="entity-select" className="gps-form-label">Select {formData.entity_type.replace('_', ' ')} *</label>
                 <select
                   id="entity-select"
                   value={formData.entity_id}
                   onChange={e => {
                     const value = e.target.value;
-                    console.log('Entity selected:', { value, type: typeof value, entityOptions: getEntityOptions() });
-                    
-                    // Auto-populate project_id and sub_project_id based on selected entity
                     let projectId = '';
                     let subProjectId = '';
                     if (value) {
@@ -331,64 +353,58 @@ const SchedulerForm = () => {
                         const mapping = transformations.find(t => String(t.mapping_id) === String(value));
                         projectId = mapping?.project_id || '';
                         subProjectId = mapping?.sub_project_id || '';
-                      } else if (formData.entity_type === 'mapping_group') {
-                        const group = mappingGroups.find(g => String(g.id) === String(value));
-                        projectId = group?.project_id || '';
-                        subProjectId = group?.sub_project_id || '';
                       } else if (formData.entity_type === 'workflow') {
                         const workflow = workflows.find(w => String(w.id) === String(value));
                         projectId = workflow?.project_id || '';
                         subProjectId = workflow?.sub_project_id || '';
                       }
                     }
-                    
                     setFormData({ ...formData, entity_id: value, project_id: projectId, sub_project_id: subProjectId });
                   }}
                   required
-                  className="form-select"
+                  className="gps-select"
                 >
-                  <option value="">Select...</option>
+                  <option value="">Select {formData.entity_type.replace('_', ' ')}...</option>
                   {getEntityOptions().map(option => (
                     <option key={option.id} value={option.id}>{option.name}</option>
                   ))}
                 </select>
-                {formData.entity_id && (
-                  <small className="form-text text-muted">
-                    Selected ID: {formData.entity_id}
-                  </small>
-                )}
               </div>
+            </div>
+          </div>
 
-              <div className="form-group" style={{ border: '1px solid #ddd', padding: '1rem', borderRadius: '4px' }}>
-                <label htmlFor="schedule-type-cron">Schedule Type *</label>
-                <div className="radio-group">
-                  <label className="radio-label">
-                    <input
-                      id="schedule-type-cron"
-                      type="radio"
-                      value="cron"
-                      checked={formData.schedule_type === 'cron'}
-                      onChange={e => setFormData({ ...formData, schedule_type: 'cron' })}
-                    />
-                    Cron Expression
-                  </label>
-                  <label className="radio-label">
-                    <input
-                      id="schedule-type-interval"
-                      type="radio"
-                      value="interval"
-                      checked={formData.schedule_type === 'interval'}
-                      onChange={e => setFormData({ ...formData, schedule_type: 'interval' })}
-                    />
-                    Interval
-                  </label>
-                </div>
+          {/* Section 2: Timing & Activation */}
+          <div className="gps-form-section">
+            <div className="gps-form-section__header">
+              <h3 className="gps-form-section__title"><FiClock style={{ marginRight: '8px', verticalAlign: 'middle' }} />Timing & Activation</h3>
+              <p className="gps-form-section__subtitle">Define when and how often the schedule should run</p>
+            </div>
+
+            <div className="gps-form-group">
+              <label className="gps-form-label">Schedule Type</label>
+              <div className="gps-segmented">
+                <button
+                  type="button"
+                  className={`gps-segmented__btn ${formData.schedule_type === 'cron' ? 'gps-segmented__btn--active' : ''}`}
+                  onClick={() => setFormData({ ...formData, schedule_type: 'cron' })}
+                >
+                  <FiCalendar style={{ marginRight: '6px' }} />Cron Expression
+                </button>
+                <button
+                  type="button"
+                  className={`gps-segmented__btn ${formData.schedule_type === 'interval' ? 'gps-segmented__btn--active' : ''}`}
+                  onClick={() => setFormData({ ...formData, schedule_type: 'interval' })}
+                >
+                  <FiClock style={{ marginRight: '6px' }} />Interval
+                </button>
               </div>
             </div>
 
+            <div className="gps-divider"></div>
+
             {formData.schedule_type === 'cron' ? (
-              <div className="form-group">
-                <label htmlFor="cron-expression">Cron Expression *</label>
+              <div className="gps-form-group">
+                <label htmlFor="cron-expression" className="gps-form-label">Cron Expression *</label>
                 <input
                   id="cron-expression"
                   type="text"
@@ -396,18 +412,20 @@ const SchedulerForm = () => {
                   onChange={e => setFormData({ ...formData, cron_expression: e.target.value })}
                   placeholder="0 0 * * *"
                   required
-                  className="form-input"
+                  className="gps-form-input"
+                  style={{ maxWidth: '300px' }}
                 />
-                <small className="form-help">
+                <small className="gps-form-help">
                   Format: minute hour day month dayOfWeek (e.g., "0 0 * * *" = daily at midnight)
                 </small>
-                <div className="cron-presets">
+                <div className="gps-chip-group">
+                  <span style={{ fontSize: '12px', color: '#64748b', marginRight: '8px' }}>Quick presets:</span>
                   {cronPresets.map(preset => (
                     <button
                       key={preset.value}
                       type="button"
                       onClick={() => setFormData({ ...formData, cron_expression: preset.value })}
-                      className="btn btn-secondary btn-sm"
+                      className={`gps-chip ${formData.cron_expression === preset.value ? 'gps-chip--active' : ''}`}
                     >
                       {preset.label}
                     </button>
@@ -415,9 +433,9 @@ const SchedulerForm = () => {
                 </div>
               </div>
             ) : (
-              <div className="form-row">
-                <div className="form-group">
-                  <label htmlFor="interval-value">Interval Value *</label>
+              <div className="gps-grid--2col">
+                <div className="gps-form-group">
+                  <label htmlFor="interval-value" className="gps-form-label">Interval Value *</label>
                   <input
                     id="interval-value"
                     type="number"
@@ -425,17 +443,17 @@ const SchedulerForm = () => {
                     value={formData.interval_value}
                     onChange={e => setFormData({ ...formData, interval_value: parseInt(e.target.value) })}
                     required
-                    className="form-input"
+                    className="gps-form-input"
                   />
                 </div>
-                <div className="form-group">
-                  <label htmlFor="interval-unit">Interval Unit *</label>
+                <div className="gps-form-group">
+                  <label htmlFor="interval-unit" className="gps-form-label">Interval Unit *</label>
                   <select
                     id="interval-unit"
                     value={formData.interval_unit}
                     onChange={e => setFormData({ ...formData, interval_unit: e.target.value })}
                     required
-                    className="form-select"
+                    className="gps-select"
                   >
                     <option value="minute">Minute(s)</option>
                     <option value="hour">Hour(s)</option>
@@ -448,32 +466,35 @@ const SchedulerForm = () => {
               </div>
             )}
 
-            <div className="form-group">
-              <label htmlFor="schedule-enabled" className="checkbox-label">
-                <input
-                  id="schedule-enabled"
-                  type="checkbox"
-                  checked={formData.enabled}
-                  onChange={e => setFormData({ ...formData, enabled: e.target.checked })}
-                />
-                Enabled
+            <div className="gps-divider"></div>
+
+            <div className="gps-toggle-wrapper">
+              <input
+                id="schedule-enabled"
+                type="checkbox"
+                checked={formData.enabled}
+                onChange={e => setFormData({ ...formData, enabled: e.target.checked })}
+                style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+              />
+              <label htmlFor="schedule-enabled" className="gps-toggle-label" style={{ cursor: 'pointer' }}>
+                Enable this schedule immediately after creation
               </label>
             </div>
 
             {error && (
-              <div className="alert alert-danger" style={{ marginTop: '1rem' }}>{error}</div>
+              <div className="gps-alert gps-alert--danger" style={{ marginTop: '16px' }}>{error}</div>
             )}
 
-            <div className="form-actions">
-              <button type="submit" disabled={loading} className="btn btn-primary">
-                <FiSave /> {loading ? 'Saving...' : isEdit ? 'Update Schedule' : 'Create Schedule'}
+            <div className="gps-form-card-footer">
+              <button type="button" onClick={() => navigate('/etl-scheduler')} className="gps-btn gps-btn--ghost">
+                <FiX style={{ marginRight: '6px' }} /> Cancel
               </button>
-              <button type="button" onClick={() => navigate('/etl-scheduler')} className="btn btn-secondary">
-                <FiX /> Cancel
+              <button type="submit" disabled={loading} className="gps-btn gps-btn--primary">
+                <FiSave style={{ marginRight: '6px' }} /> {loading ? 'Saving...' : isEdit ? 'Update Schedule' : 'Create Schedule'}
               </button>
             </div>
-          </form>
-        </div>
+          </div>
+        </form>
       </div>
     </PageTransition>
   );

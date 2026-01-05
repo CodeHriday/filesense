@@ -28,8 +28,13 @@ function ProjectManagement() {
     project_type: 'internal',
     member_ids: [],
     group_ids: [],
-    sub_projects: []
+    sub_projects: [],
+    drop_location_connection_id: '',
+    drop_location_bucket: '',
+    drop_location_prefix: ''
   });
+
+  const [storageConnections, setStorageConnections] = useState([]);
 
   const [memberFormData, setMemberFormData] = useState({
     user_id: ''
@@ -56,12 +61,35 @@ function ProjectManagement() {
     data: null
   });
 
+  // Modal-specific validation errors (displayed inside modal, not background)
+  const [modalErrors, setModalErrors] = useState({
+    name: '',
+    general: ''
+  });
+
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 15;
   const [expandedProjects, setExpandedProjects] = useState(new Set());
   const [showEditSubProjectModal, setShowEditSubProjectModal] = useState(false);
   const [selectedSubProject, setSelectedSubProject] = useState(null);
   const [currentProjectId, setCurrentProjectId] = useState(null);
+
+  const normalizeBoolean = (value) => {
+    if (value === false || value === 'false' || value === 'f' || value === '0' || value === 0) {
+      return false;
+    }
+    return true;
+  };
+
+  const normalizeProject = (project) => ({
+    ...project,
+    is_active: normalizeBoolean(project.is_active),
+    is_archived: project.is_archived === true || project.is_archived === 'true' || project.is_archived === 't',
+    sub_projects: project.sub_projects?.map(sp => ({
+      ...sp,
+      is_active: normalizeBoolean(sp.is_active)
+    })) || []
+  });
 
   const fetchInitData = useCallback(async () => {
     try {
@@ -71,13 +99,20 @@ function ProjectManagement() {
       if (searchTerm) params.append('search', searchTerm);
       if (showArchived) params.append('archived', 'true');
 
-      const response = await axios.get(`${API_BASE_URL}/projects/init-data?${params}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const [projectsResponse, connectionsResponse] = await Promise.all([
+        axios.get(`${API_BASE_URL}/projects/init-data?${params}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        }),
+        axios.get(`${API_BASE_URL}/storage-connections`, {
+          headers: { Authorization: `Bearer ${token}` }
+        }).catch(() => ({ data: [] }))
+      ]);
       
-      setProjects(response.data.projects || []);
-      setAvailableUsers(response.data.users || []);
-      setAvailableGroups(response.data.groups || []);
+      const normalizedProjects = (projectsResponse.data.projects || []).map(normalizeProject);
+      setProjects(normalizedProjects);
+      setAvailableUsers(projectsResponse.data.users || []);
+      setAvailableGroups(projectsResponse.data.groups || []);
+      setStorageConnections(connectionsResponse.data || []);
       setError(null);
     } catch (err) {
       setError('Failed to fetch projects');
@@ -102,7 +137,8 @@ function ProjectManagement() {
       const response = await axios.get(`${API_BASE_URL}/projects?${params}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      setProjects(response.data);
+      const normalizedProjects = (response.data || []).map(normalizeProject);
+      setProjects(normalizedProjects);
       setError(null);
     } catch (err) {
       setError('Failed to fetch projects');
@@ -125,10 +161,44 @@ function ProjectManagement() {
     }
   };
 
+  // Validate project name: only letters, numbers, hyphens, and underscores
+  const validateProjectName = (name) => {
+    if (!name || name.trim() === '') {
+      return 'Project name is required';
+    }
+    // Allow letters, numbers, hyphens, underscores, and spaces
+    const validPattern = /^[a-zA-Z0-9\-_\s]+$/;
+    if (!validPattern.test(name)) {
+      return 'Project name can only contain letters, numbers, hyphens (-), underscores (_), and spaces';
+    }
+    return '';
+  };
+
+  // Handle project name change with validation
+  const handleProjectNameChange = (e) => {
+    const value = e.target.value;
+    // Sanitize input: only allow valid characters
+    const sanitized = value.replace(/[^a-zA-Z0-9\-_\s]/g, '');
+    setFormData({ ...formData, name: sanitized });
+    
+    // Clear error when user starts typing valid characters
+    if (modalErrors.name && validateProjectName(sanitized) === '') {
+      setModalErrors(prev => ({ ...prev, name: '' }));
+    }
+  };
+
   const handleCreate = async (e) => {
     e.preventDefault();
+    
+    // Validate project name
+    const nameError = validateProjectName(formData.name);
+    if (nameError) {
+      setModalErrors(prev => ({ ...prev, name: nameError, general: '' }));
+      return;
+    }
+    
     setIsCreating(true);
-    setError(null);
+    setModalErrors({ name: '', general: '' });
     
     try {
       const token = localStorage.getItem('token');
@@ -147,12 +217,13 @@ function ProjectManagement() {
       await fetchProjects();
       handleCloseCreateModal();
     } catch (err) {
+      // Show errors inside the modal instead of background
       if (err.response?.status === 429) {
-        setError(err.response.data.message || 'Rate limit exceeded. Please try again later.');
+        setModalErrors(prev => ({ ...prev, general: err.response.data.message || 'Rate limit exceeded. Please try again later.' }));
       } else if (err.response?.status === 409) {
-        setError('A project with this name already exists.');
+        setModalErrors(prev => ({ ...prev, name: 'A project with this name already exists.' }));
       } else {
-        setError(err.response?.data?.message || 'Failed to create project');
+        setModalErrors(prev => ({ ...prev, general: err.response?.data?.message || 'Failed to create project' }));
       }
       console.error(err);
     } finally {
@@ -162,8 +233,16 @@ function ProjectManagement() {
 
   const handleUpdate = async (e) => {
     e.preventDefault();
+    
+    // Validate project name
+    const nameError = validateProjectName(formData.name);
+    if (nameError) {
+      setModalErrors(prev => ({ ...prev, name: nameError, general: '' }));
+      return;
+    }
+    
     setIsCreating(true);
-    setError(null);
+    setModalErrors({ name: '', general: '' });
     
     try {
       const token = localStorage.getItem('token');
@@ -176,7 +255,13 @@ function ProjectManagement() {
       await fetchProjects();
       handleCloseEditModal();
     } catch (err) {
-      setError('Failed to update project');
+      // Show errors inside the modal instead of background
+      if (err.response?.status === 409) {
+        setModalErrors(prev => ({ ...prev, name: 'A project with this name already exists.' }));
+      } else {
+        const errorMessage = err.response?.data?.message || err.response?.data?.error || 'Failed to update project';
+        setModalErrors(prev => ({ ...prev, general: errorMessage }));
+      }
       console.error(err);
     } finally {
       setIsCreating(false);
@@ -275,7 +360,11 @@ function ProjectManagement() {
       name: project.name,
       description: project.description || '',
       parent_id: project.parent_id,
-      project_type: project.project_type || 'internal'
+      project_type: project.project_type || 'internal',
+      is_active: project.is_active !== false, // default to true if undefined
+      drop_location_connection_id: project.drop_location_connection_id || '',
+      drop_location_bucket: project.drop_location_bucket || '',
+      drop_location_prefix: project.drop_location_prefix || ''
     });
     setShowEditModal(true);
   };
@@ -307,9 +396,13 @@ function ProjectManagement() {
       project_type: 'internal', 
       member_ids: [], 
       group_ids: [],
-      sub_projects: []
+      sub_projects: [],
+      drop_location_connection_id: '',
+      drop_location_bucket: '',
+      drop_location_prefix: ''
     });
     setSubProjectFormData({ name: '', description: '', is_active: true });
+    setModalErrors({ name: '', general: '' });
     setShowCreateModal(false);
   };
 
@@ -321,11 +414,15 @@ function ProjectManagement() {
       project_type: 'internal', 
       member_ids: [], 
       group_ids: [],
-      sub_projects: []
+      sub_projects: [],
+      drop_location_connection_id: '',
+      drop_location_bucket: '',
+      drop_location_prefix: ''
     });
     setMemberFormData({ user_id: '' });
     setGroupFormData({ group_id: '' });
     setSelectedProject(null);
+    setModalErrors({ name: '', general: '' });
     setShowEditModal(false);
   };
 
@@ -547,11 +644,16 @@ function ProjectManagement() {
                     </span>
                   </td>
                   <td>
-                    {project.is_archived ? (
-                      <span className="gps-badge gps-badge--archived">Archived</span>
-                    ) : (
-                      <span className="gps-badge gps-badge--active">Active</span>
-                    )}
+                    <div style={{ display: 'flex', gap: '0.25rem', flexWrap: 'wrap' }}>
+                      {project.is_active === false ? (
+                        <span className="gps-badge gps-badge--archived">Inactive</span>
+                      ) : (
+                        <span className="gps-badge gps-badge--active">Active</span>
+                      )}
+                      {project.is_archived && (
+                        <span className="gps-badge gps-badge--warning">Archived</span>
+                      )}
+                    </div>
                   </td>
                   <td>{new Date(project.created_at).toLocaleString()}</td>
                   <td>
@@ -617,8 +719,8 @@ function ProjectManagement() {
                                 <td>{subProject.file_count || 0}</td>
                                 <td>{formatBytes(subProject.total_size || 0)}</td>
                                 <td>
-                                  <span className={`gps-badge ${subProject.is_active ? 'gps-badge--active' : 'gps-badge--archived'}`}>
-                                    {subProject.is_active ? 'Active' : 'Inactive'}
+                                  <span className={`gps-badge ${subProject.is_active === false ? 'gps-badge--archived' : 'gps-badge--active'}`}>
+                                    {subProject.is_active === false ? 'Inactive' : 'Active'}
                                   </span>
                                 </td>
                                 <td>{subProject.owner_name || '-'}</td>
@@ -696,17 +798,25 @@ function ProjectManagement() {
             </div>
             <div className="gps-modal-body">
               <form onSubmit={handleCreate}>
+                {modalErrors.general && (
+                  <div className="gps-alert gps-alert--error" style={{ marginBottom: '1rem' }}>
+                    {modalErrors.general}
+                  </div>
+                )}
                 <div className="gps-form-grid gps-form-grid--2col">
                   <div className="gps-form-group">
                     <label htmlFor="create-project-name" className="gps-form-label">Project Name *</label>
                     <input
                       id="create-project-name"
                       type="text"
-                      className="gps-form-input"
+                      className={`gps-form-input ${modalErrors.name ? 'gps-form-input--error' : ''}`}
                       value={formData.name}
-                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      onChange={handleProjectNameChange}
                       required
                     />
+                    {modalErrors.name && (
+                      <span className="gps-form-error">{modalErrors.name}</span>
+                    )}
                   </div>
                   <div className="gps-form-group">
                     <label htmlFor="create-project-type" className="gps-form-label">Project Type *</label>
@@ -781,6 +891,57 @@ function ProjectManagement() {
 
                 <div className="gps-section">
                   <div className="gps-section-header">
+                    <h3 className="gps-section-title">File Drop Location (S3)</h3>
+                  </div>
+                  <p className="gps-form-hint" style={{ marginBottom: '12px' }}>
+                    Configure where files uploaded to this project will be stored. Required for internal projects.
+                  </p>
+                  <div className="gps-form-grid gps-form-grid--3col">
+                    <div className="gps-form-group">
+                      <label htmlFor="create-drop-connection" className="gps-form-label">Storage Connection</label>
+                      <select
+                        id="create-drop-connection"
+                        className="gps-form-select"
+                        value={formData.drop_location_connection_id}
+                        onChange={(e) => setFormData({ ...formData, drop_location_connection_id: e.target.value })}
+                      >
+                        <option value="">-- Select Connection --</option>
+                        {storageConnections.map(conn => (
+                          <option key={conn.connection_id} value={conn.connection_id}>
+                            {conn.name} ({conn.type})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="gps-form-group">
+                      <label htmlFor="create-drop-bucket" className="gps-form-label">Bucket Name</label>
+                      <input
+                        id="create-drop-bucket"
+                        type="text"
+                        className="gps-form-input"
+                        placeholder="e.g., my-data-bucket"
+                        value={formData.drop_location_bucket}
+                        onChange={(e) => setFormData({ ...formData, drop_location_bucket: e.target.value })}
+                      />
+                    </div>
+                    <div className="gps-form-group">
+                      <label htmlFor="create-drop-prefix" className="gps-form-label">Folder Prefix</label>
+                      <input
+                        id="create-drop-prefix"
+                        type="text"
+                        className="gps-form-input"
+                        placeholder="e.g., uploads/project-name/"
+                        value={formData.drop_location_prefix}
+                        onChange={(e) => setFormData({ ...formData, drop_location_prefix: e.target.value })}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <hr className="gps-divider" />
+
+                <div className="gps-section">
+                  <div className="gps-section-header">
                     <h3 className="gps-section-title">Sub-Projects</h3>
                     <button type="button" className="gps-btn gps-btn--primary gps-btn--small" onClick={handleAddSubProject}>
                       <FiFolderPlus style={{ marginRight: '0.25rem' }} /> Add Sub-Project
@@ -828,8 +989,8 @@ function ProjectManagement() {
                             <td>{sp.name}</td>
                             <td style={{ color: '#666' }}>{sp.description || '-'}</td>
                             <td>
-                              <span className={`gps-badge ${sp.is_active ? 'gps-badge--active' : 'gps-badge--archived'}`}>
-                                {sp.is_active ? 'Active' : 'Inactive'}
+                              <span className={`gps-badge ${sp.is_active === false ? 'gps-badge--archived' : 'gps-badge--active'}`}>
+                                {sp.is_active === false ? 'Inactive' : 'Active'}
                               </span>
                             </td>
                             <td>
@@ -881,6 +1042,11 @@ function ProjectManagement() {
             <div className="gps-modal-body">
               <div className="gps-modal-sections">
                 <form onSubmit={handleUpdate}>
+                  {modalErrors.general && (
+                    <div className="gps-alert gps-alert--error" style={{ marginBottom: '1rem' }}>
+                      {modalErrors.general}
+                    </div>
+                  )}
                   <h3 className="gps-section-title">Project Details</h3>
                   <div className="gps-form-grid gps-form-grid--2col">
                     <div className="gps-form-group">
@@ -888,11 +1054,14 @@ function ProjectManagement() {
                       <input
                         id="edit-project-name"
                         type="text"
-                        className="gps-form-input"
+                        className={`gps-form-input ${modalErrors.name ? 'gps-form-input--error' : ''}`}
                         value={formData.name}
-                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                        onChange={handleProjectNameChange}
                         required
                       />
+                      {modalErrors.name && (
+                        <span className="gps-form-error">{modalErrors.name}</span>
+                      )}
                     </div>
                     <div className="gps-form-group">
                       <label htmlFor="edit-project-type" className="gps-form-label">Project Type *</label>
@@ -918,6 +1087,74 @@ function ProjectManagement() {
                       rows="3"
                     />
                   </div>
+
+                  <div className="gps-form-group" style={{ marginTop: '1rem' }}>
+                    <label className="gps-form-label">Project Status</label>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                      <label className="gps-toggle-label" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+                        <input
+                          type="checkbox"
+                          checked={formData.is_active !== false}
+                          onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
+                          style={{ width: '1.25rem', height: '1.25rem' }}
+                        />
+                        <span style={{ fontWeight: formData.is_active !== false ? 600 : 400, color: formData.is_active !== false ? '#059669' : '#6b7280' }}>
+                          {formData.is_active !== false ? 'Active' : 'Inactive'}
+                        </span>
+                      </label>
+                    </div>
+                    {formData.is_active === false && (
+                      <div className="gps-alert gps-alert--warning" style={{ marginTop: '0.5rem', padding: '0.5rem 0.75rem' }}>
+                        Inactive projects cannot receive new file uploads or run jobs. Existing data remains accessible.
+                      </div>
+                    )}
+                  </div>
+
+                  <h4 className="gps-section-title" style={{ marginTop: '16px', marginBottom: '8px' }}>File Drop Location (S3)</h4>
+                  <p className="gps-form-hint" style={{ marginBottom: '12px' }}>
+                    Configure where files uploaded to this project will be stored.
+                  </p>
+                  <div className="gps-form-grid gps-form-grid--3col">
+                    <div className="gps-form-group">
+                      <label htmlFor="edit-drop-connection" className="gps-form-label">Storage Connection</label>
+                      <select
+                        id="edit-drop-connection"
+                        className="gps-form-select"
+                        value={formData.drop_location_connection_id}
+                        onChange={(e) => setFormData({ ...formData, drop_location_connection_id: e.target.value })}
+                      >
+                        <option value="">-- Select Connection --</option>
+                        {storageConnections.map(conn => (
+                          <option key={conn.connection_id} value={conn.connection_id}>
+                            {conn.name} ({conn.type})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="gps-form-group">
+                      <label htmlFor="edit-drop-bucket" className="gps-form-label">Bucket Name</label>
+                      <input
+                        id="edit-drop-bucket"
+                        type="text"
+                        className="gps-form-input"
+                        placeholder="e.g., my-data-bucket"
+                        value={formData.drop_location_bucket}
+                        onChange={(e) => setFormData({ ...formData, drop_location_bucket: e.target.value })}
+                      />
+                    </div>
+                    <div className="gps-form-group">
+                      <label htmlFor="edit-drop-prefix" className="gps-form-label">Folder Prefix</label>
+                      <input
+                        id="edit-drop-prefix"
+                        type="text"
+                        className="gps-form-input"
+                        placeholder="e.g., uploads/project-name/"
+                        value={formData.drop_location_prefix}
+                        onChange={(e) => setFormData({ ...formData, drop_location_prefix: e.target.value })}
+                      />
+                    </div>
+                  </div>
+
                   <div style={{ marginTop: '0.75rem' }}>
                     <button type="submit" className="gps-btn gps-btn--primary">Update Details</button>
                   </div>

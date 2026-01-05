@@ -51,7 +51,7 @@ function Monitor() {
     }
   }, [currentPage, pageSize, activeTab]);
   
-  const fetchAuditData = async () => {
+  const fetchAuditData = async (filtersOverride = null) => {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
@@ -62,9 +62,11 @@ function Monitor() {
         offset: offset
       };
       
-      if (auditFilters.status) params.status = auditFilters.status;
-      if (auditFilters.mappingName) params.mappingName = auditFilters.mappingName;
-      if (auditFilters.jobId) params.correlationId = auditFilters.jobId;
+      // Use override filters if provided, otherwise use state
+      const filters = filtersOverride !== null ? filtersOverride : auditFilters;
+      if (filters.status) params.status = filters.status;
+      if (filters.mappingName) params.mappingName = filters.mappingName;
+      if (filters.jobId) params.correlationId = filters.jobId;
       
       const response = await axios.get('/api/file-audit', {
         headers: { Authorization: `Bearer ${token}` },
@@ -92,9 +94,10 @@ function Monitor() {
   };
   
   const clearAuditFilters = () => {
-    setAuditFilters({ status: '', mappingName: '', jobId: '' });
+    const emptyFilters = { status: '', mappingName: '', jobId: '' };
+    setAuditFilters(emptyFilters);
     setCurrentPage(1);
-    setTimeout(() => fetchAuditData(), 0);
+    fetchAuditData(emptyFilters);
   };
   
   const hasActiveAuditFilters = auditFilters.status || auditFilters.mappingName || auditFilters.jobId;
@@ -105,13 +108,14 @@ function Monitor() {
   
   const applyBulkFilters = () => {
     setCurrentPage(1);
-    fetchBulkJobs();
+    fetchBulkJobs(null, 1);
   };
   
   const clearBulkFilters = () => {
-    setBulkFilters({ status: '', jobName: '' });
+    const emptyFilters = { status: '', jobName: '' };
+    setBulkFilters(emptyFilters);
     setCurrentPage(1);
-    setTimeout(() => fetchBulkJobs(), 0);
+    fetchBulkJobs(emptyFilters, 1);
   };
   
   const hasActiveBulkFilters = bulkFilters.status || bulkFilters.jobName;
@@ -126,19 +130,22 @@ function Monitor() {
     }
   };
   
-  const fetchBulkJobs = async () => {
+  const fetchBulkJobs = async (filtersOverride = null, pageOverride = null) => {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
-      const offset = (currentPage - 1) * pageSize;
+      const page = pageOverride !== null ? pageOverride : currentPage;
+      const offset = (page - 1) * pageSize;
       
       const params = {
         limit: pageSize,
         offset: offset
       };
       
-      if (bulkFilters.status) params.status = bulkFilters.status;
-      if (bulkFilters.jobName) params.jobName = bulkFilters.jobName;
+      // Use override filters if provided, otherwise use state
+      const filters = filtersOverride !== null ? filtersOverride : bulkFilters;
+      if (filters.status) params.status = filters.status;
+      if (filters.jobName) params.jobName = filters.jobName;
       
       const response = await axios.get('/api/bulk-profiling/jobs', {
         headers: { Authorization: `Bearer ${token}` },
@@ -156,7 +163,7 @@ function Monitor() {
     }
   };
   
-  const fetchLedgerData = async () => {
+  const fetchLedgerData = async (filtersOverride = null) => {
     try {
       setLoading(true);
       const offset = (currentPage - 1) * pageSize;
@@ -166,9 +173,10 @@ function Monitor() {
         offset: offset
       };
       
-      if (ledgerFilters.logLevel) filters.logLevel = ledgerFilters.logLevel;
-      if (ledgerFilters.actionType) filters.actionType = ledgerFilters.actionType;
-      if (ledgerFilters.jobId) filters.jobId = ledgerFilters.jobId;
+      const activeFilters = filtersOverride !== null ? filtersOverride : ledgerFilters;
+      if (activeFilters.logLevel) filters.logLevel = activeFilters.logLevel;
+      if (activeFilters.actionType) filters.actionType = activeFilters.actionType;
+      if (activeFilters.jobId) filters.jobId = activeFilters.jobId;
       
       const [entriesResult, statsResult] = await Promise.all([
         getAuditLedgerEntries(filters),
@@ -358,7 +366,7 @@ function Monitor() {
     <div className="gps-page-container">
       <div className="gps-page-header">
         <div className="gps-page-header-left">
-          <h1 className="gps-page-title">Data Observatory Monitor</h1>
+          <h1 className="gps-page-title">Job Monitor</h1>
           <p className="gps-page-subtitle">Monitor file audit logs and bulk profiling jobs</p>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
@@ -430,6 +438,7 @@ function Monitor() {
                   className="monitor-filter-select"
                 >
                   <option value="">All Statuses</option>
+                  <option value="success">Success</option>
                   <option value="completed">Completed</option>
                   <option value="running">Running</option>
                   <option value="failed">Failed</option>
@@ -691,6 +700,7 @@ function Monitor() {
                   className="monitor-filter-select"
                 >
                   <option value="">All Statuses</option>
+                  <option value="success">Success</option>
                   <option value="completed">Completed</option>
                   <option value="running">Running</option>
                   <option value="failed">Failed</option>
@@ -852,7 +862,7 @@ function Monitor() {
                   Apply Filters
                 </button>
                 {(ledgerFilters.jobId || ledgerFilters.logLevel) && (
-                  <button onClick={() => { setLedgerFilters({ logLevel: '', actionType: '', jobId: '' }); setCurrentPage(1); fetchLedgerData(); }} className="monitor-btn-clear">
+                  <button onClick={() => { setLedgerFilters({ logLevel: '', actionType: '', jobId: '' }); setCurrentPage(1); fetchLedgerData({ logLevel: '', actionType: '', jobId: '' }); }} className="monitor-btn-clear">
                     Clear
                   </button>
                 )}

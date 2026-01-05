@@ -1146,7 +1146,7 @@ function MappingWizard() {
                   style={{ fontSize: '10px', fontFamily: 'Inter' }}
                 >
                   <option value="">Select source connection</option>
-                  {connections.filter(c => c.connection_direction === 'source').map(conn => (
+                  {connections.map(conn => (
                     <option key={conn.id} value={conn.id}>
                       {conn.name} ({conn.type})
                     </option>
@@ -1675,7 +1675,7 @@ function MappingWizard() {
                   style={{ fontSize: '10px', fontFamily: 'Inter' }}
                 >
                   <option value="">Select target connection</option>
-                  {connections.filter(c => c.connection_direction === 'target').map(conn => (
+                  {connections.map(conn => (
                     <option key={conn.id} value={conn.id}>
                       {conn.name} ({conn.type})
                     </option>

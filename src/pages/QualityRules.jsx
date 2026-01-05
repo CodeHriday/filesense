@@ -56,17 +56,25 @@ function QualityRules() {
   const [filterSubProjects, setFilterSubProjects] = useState([]);
 
   useEffect(() => {
-    if (filterProjectId) {
-      const selectedProject = projects.find(p => String(p.id) === String(filterProjectId));
-      const subProjectsForFilter = selectedProject?.sub_projects || [];
-      setFilterSubProjects(subProjectsForFilter);
-    } else {
-      setFilterSubProjects([]);
-      if (filterSubProjectId) {
-        setFilterSubProjectId('');
+    const loadFilterSubProjects = async () => {
+      if (filterProjectId) {
+        try {
+          const response = await axios.get(`/api/projects/${filterProjectId}/sub-projects`);
+          const subs = response.data?.subProjects || response.data || [];
+          setFilterSubProjects(Array.isArray(subs) ? subs : []);
+        } catch (err) {
+          console.error('Failed to load filter subprojects:', err);
+          setFilterSubProjects([]);
+        }
+      } else {
+        setFilterSubProjects([]);
+        if (filterSubProjectId) {
+          setFilterSubProjectId('');
+        }
       }
-    }
-  }, [filterProjectId, projects]);
+    };
+    loadFilterSubProjects();
+  }, [filterProjectId]);
 
   const hasActiveFilters = filterProjectId || filterSubProjectId || filterRuleType || filterEnabled;
 
@@ -127,11 +135,9 @@ function QualityRules() {
     }
     
     try {
-      const allProjects = await getProjects();
-      const filteredSubProjects = Array.isArray(allProjects) 
-        ? allProjects.filter(p => p.parent_project_id === parseInt(parentProjectId))
-        : [];
-      setSubProjects(filteredSubProjects);
+      const response = await axios.get(`/api/projects/${parentProjectId}/sub-projects`);
+      const subs = response.data?.subProjects || response.data || [];
+      setSubProjects(Array.isArray(subs) ? subs : []);
     } catch (err) {
       console.error('Error fetching sub-projects:', err);
       setSubProjects([]);
@@ -1101,7 +1107,7 @@ function QualityRules() {
                       onChange={(e) => handleProjectChange(e.target.value)}
                     >
                       <option value="">All Projects</option>
-                      {projects.map(project => (
+                      {projects.filter(p => !p.parent_id).map(project => (
                         <option key={project.id} value={project.id}>
                           {project.name}
                         </option>
@@ -1213,7 +1219,7 @@ function QualityRules() {
           confirmModal.action();
           setConfirmModal({ ...confirmModal, isOpen: false });
         }}
-        onCancel={() => setConfirmModal({ ...confirmModal, isOpen: false })}
+        onClose={() => setConfirmModal({ ...confirmModal, isOpen: false })}
       />
     </div>
   );

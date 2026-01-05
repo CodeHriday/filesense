@@ -1546,7 +1546,7 @@ function FileUpload() {
                       <option value="">Select a project...</option>
                       {projects.map(project => (
                         <option key={project.id} value={project.id}>
-                          {project.name}
+                          {project.name}{project.is_active === false ? ' (Inactive)' : ''}
                         </option>
                       ))}
                     </>
@@ -1575,7 +1575,7 @@ function FileUpload() {
                       <option value="">None (use parent project)</option>
                       {subProjects.map(subProject => (
                         <option key={subProject.id} value={subProject.id}>
-                          {subProject.name}
+                          {subProject.name}{subProject.is_active === false ? ' (Inactive)' : ''}
                         </option>
                       ))}
                     </>
@@ -1952,7 +1952,7 @@ function FileUpload() {
                       </div>
                       <div className="fixed-width-columns-scroll">
                         {fixedWidthSchema.map((column, index) => (
-                          <div key={`fixed-width-${column.name || column.field || index}`} className="fixed-width-column-row">
+                          <div key={`fixed-width-row-${index}`} className="fixed-width-column-row">
                             <input 
                               type="text"
                               value={column.name}
@@ -2037,6 +2037,20 @@ function FileUpload() {
             {!selectedProject && (
               <div className="project-required-warning">
                 Please select a project to upload files
+              </div>
+            )}
+            
+            {/* Inactive project warning */}
+            {selectedProject && projects.find(p => p.id === selectedProject)?.is_active === false && (
+              <div className="gps-alert gps-alert--error" style={{ margin: '0.75rem 0' }}>
+                This project is inactive. File uploads are not allowed for inactive projects. Please activate the project in Project Management to upload files.
+              </div>
+            )}
+            
+            {/* Inactive subproject warning */}
+            {selectedProject && selectedSubProject && subProjects.find(sp => sp.id === selectedSubProject)?.is_active === false && (
+              <div className="gps-alert gps-alert--error" style={{ margin: '0.75rem 0' }}>
+                This sub-project is inactive. File uploads are not allowed for inactive sub-projects. Please activate the sub-project to upload files.
               </div>
             )}
           </div>
@@ -2461,15 +2475,28 @@ function FileUpload() {
         {!isProcessing && activeTab === 'upload-profile' ? (
           hasWritePermission('file') ? (
             selectedProject ? (
-              <FileDropzone 
-                key={`profile-${dropzoneKey}`}
-                onFileDrop={handleFileDrop}
-                onBatchFileDrop={handleBatchFileDrop}
-                acceptedFileTypes={['.csv', '.txt', '.json', '.parquet', '.xlsx', '.xml', '.zip', '.tar', '.tar.gz', '.tgz', '.tar.bz2', '.tbz2', '.gz', '.7z', '.sas7bdat', '.xpt', '.avro', '.dat']}
-                maxSizeMB={25}
-                multiple={true}
-                externalStatus={uploadStatus}
-              />
+              // Check if project or subproject is inactive
+              projects.find(p => p.id === selectedProject)?.is_active === false || 
+              (selectedSubProject && subProjects.find(sp => sp.id === selectedSubProject)?.is_active === false) ? (
+                <div className="dropzone-placeholder" style={{ borderColor: '#ef4444', background: '#fef2f2' }}>
+                  <FiUpload size={48} className="dropzone-placeholder-icon" style={{ color: '#ef4444' }} />
+                  <p className="dropzone-placeholder-text" style={{ color: '#991b1b' }}>
+                    {projects.find(p => p.id === selectedProject)?.is_active === false 
+                      ? 'This project is inactive. File uploads are disabled.'
+                      : 'This sub-project is inactive. File uploads are disabled.'}
+                  </p>
+                </div>
+              ) : (
+                <FileDropzone 
+                  key={`profile-${dropzoneKey}`}
+                  onFileDrop={handleFileDrop}
+                  onBatchFileDrop={handleBatchFileDrop}
+                  acceptedFileTypes={['.csv', '.txt', '.json', '.parquet', '.xlsx', '.xml', '.zip', '.tar', '.tar.gz', '.tgz', '.tar.bz2', '.tbz2', '.gz', '.7z', '.sas7bdat', '.xpt', '.avro', '.dat']}
+                  maxSizeMB={25}
+                  multiple={true}
+                  externalStatus={uploadStatus}
+                />
+              )
             ) : (
               <div className="dropzone-placeholder">
                 <FiUpload size={48} className="dropzone-placeholder-icon" />

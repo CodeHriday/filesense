@@ -6,6 +6,7 @@ node_modules/
 dist/
 utils/logs/
 logs/
+uploads/
 .gitignore
 .vscode/
 dbt*

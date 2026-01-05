@@ -144,14 +144,17 @@ router.get('/jobs', authenticateToken, async (req, res) => {
       status: req.query.status,
       projectId: req.query.projectId,
       createdBy: req.query.createdBy,
-      limit: req.query.limit
+      jobName: req.query.jobName,
+      limit: req.query.limit ? parseInt(req.query.limit) : undefined,
+      offset: req.query.offset ? parseInt(req.query.offset) : undefined
     };
     
-    const jobs = await BulkProfilingService.getAllJobs(filters);
+    const result = await BulkProfilingService.getAllJobs(filters);
     
     res.json({
       success: true,
-      jobs
+      jobs: result.jobs,
+      total: result.total
     });
     
   } catch (error) {

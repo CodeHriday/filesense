@@ -67,7 +67,7 @@ const Connections = () => {
     // Base required fields
     if (!formData.connection_name?.trim()) return false;
     if (!formData.connection_type) return false;
-    if (!formData.connection_direction) return false;
+    // connection_direction no longer required - connections can be used as source or target in mappings
     if (!formData.connection_user) return false;
     if (!formData.authentication_method) return false;
     
@@ -717,21 +717,8 @@ const Connections = () => {
           </select>
         </div>
         
-        <div className="form-group" style={compactStyles.formGroup}>
-          <label htmlFor="connection_direction" style={compactStyles.label}>Connection Direction <span style={{ color: '#dc2626' }}>*</span></label>
-          <select
-            id="connection_direction"
-            name="connection_direction"
-            className="form-control"
-            value={formData.connection_direction}
-            onChange={handleInputChange}
-            required
-            style={compactStyles.select}
-          >
-            <option value="source">Source (Read data from)</option>
-            <option value="target">Target (Write data to)</option>
-          </select>
-        </div>
+        {/* Connection direction field hidden - connections can be used as source or target in mappings */}
+        <input type="hidden" name="connection_direction" value={formData.connection_direction || 'source'} />
         
         <div className="form-group" style={compactStyles.formGroup}>
           <label htmlFor="connection_user" style={compactStyles.label}>Connection User <span style={{ color: '#dc2626' }}>*</span></label>
@@ -1481,10 +1468,8 @@ const Connections = () => {
     );
   });
 
-  // Then filter by active tab
-  const filteredConnections = searchedConnections.filter(conn => 
-    conn.connection_direction === activeTab || (!conn.connection_direction && activeTab === 'source')
-  );
+  // All connections shown in unified list (no source/target filtering)
+  const filteredConnections = searchedConnections;
 
   // Pagination logic
   const indexOfLastItem = currentPage * itemsPerPage;
@@ -1492,17 +1477,17 @@ const Connections = () => {
   const currentConnections = filteredConnections.slice(indexOfFirstItem, indexOfLastItem);
   const totalPages = Math.ceil(filteredConnections.length / itemsPerPage);
 
-  // Reset to page 1 when changing tabs or search term
+  // Reset to page 1 when search term changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [activeTab, searchTerm]);
+  }, [searchTerm]);
 
   return (
     <div className="gps-page-container">
       <div className="gps-page-header">
         <div className="gps-page-header-left">
           <h1 className="gps-page-title">Cloud Storage Connections</h1>
-          <p className="gps-page-subtitle">Manage source and target cloud storage connections</p>
+          <p className="gps-page-subtitle">Manage cloud storage connections for data processing</p>
         </div>
         {!showForm && hasWritePermission('connections') && (
           <button className="gps-btn gps-btn--primary" onClick={handleAddNew}>
@@ -1526,20 +1511,7 @@ const Connections = () => {
         </div>
       )}
       
-      <div className="gps-tabs">
-        <button 
-          className={`gps-tab ${activeTab === 'source' ? 'gps-tab--active' : ''}`}
-          onClick={() => setActiveTab('source')}
-        >
-          Source Connections
-        </button>
-        <button 
-          className={`gps-tab ${activeTab === 'target' ? 'gps-tab--active' : ''}`}
-          onClick={() => setActiveTab('target')}
-        >
-          Target Connections
-        </button>
-      </div>
+      {/* Connection direction tabs removed - connections can be used as source or target in mappings */}
       
       {error && <div className="gps-alert gps-alert--error">{error}</div>}
       
@@ -1603,8 +1575,8 @@ const Connections = () => {
                 <>
                   <div className="no-connections">
                     <FiServer className="empty-icon" />
-                    <p>No {activeTab} connections configured yet.</p>
-                    <p>Add a {activeTab} connection to {activeTab === 'source' ? 'import data from' : 'export data to'} cloud storage.</p>
+                    <p>No connections configured yet.</p>
+                    <p>Add a connection to configure cloud storage access for data processing.</p>
                     {hasWritePermission('connections') ? (
                       <button className="btn btn-primary" onClick={handleAddNew}>
                         Add Your First Connection
