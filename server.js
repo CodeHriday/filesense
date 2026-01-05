@@ -4974,6 +4974,28 @@ app.get('/api/audit/statistics', authenticateToken, requireAdmin, async (req, re
   }
 });
 
+app.get('/api/audit/summary', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const result = await req.app.locals.pool.query(`
+      SELECT 
+        COUNT(*) as total,
+        COUNT(*) FILTER (WHERE status = 'SUCCESS') as success_count,
+        COUNT(*) FILTER (WHERE status IN ('FAILURE', 'ERROR')) as failure_count,
+        COUNT(*) FILTER (WHERE DATE(timestamp) = CURRENT_DATE) as today_events
+      FROM audit_log
+    `);
+    res.json({
+      total: parseInt(result.rows[0].total) || 0,
+      successCount: parseInt(result.rows[0].success_count) || 0,
+      failureCount: parseInt(result.rows[0].failure_count) || 0,
+      todayEvents: parseInt(result.rows[0].today_events) || 0
+    });
+  } catch (error) {
+    logger.error('Error fetching audit summary', { error: error.message });
+    res.status(500).json({ error: 'Failed to fetch audit summary' });
+  }
+});
+
 app.post('/api/audit/archive', authenticateToken, requireAdmin, async (req, res) => {
   try {
     const { retention_days } = req.body;

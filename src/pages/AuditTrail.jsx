@@ -9,6 +9,7 @@ const AuditTrail = () => {
   const [loading, setLoading] = useState(true);
   const [selectedLog, setSelectedLog] = useState(null);
   const [statistics, setStatistics] = useState(null);
+  const [summaryData, setSummaryData] = useState({ total: 0, successCount: 0, failureCount: 0, todayEvents: 0 });
   const [retentionSettings, setRetentionSettings] = useState({
     retention_days: 30,
     auto_archive_enabled: false,
@@ -107,6 +108,7 @@ const AuditTrail = () => {
     fetchAuditLogs();
     fetchStatistics();
     fetchRetentionSettings();
+    fetchSummary();
   }, []);
 
   const fetchAuditLogs = async (overrideFilters = null) => {
@@ -145,6 +147,15 @@ const AuditTrail = () => {
       setRetentionSettings(response.data);
     } catch (error) {
       console.error('Error fetching retention settings:', error);
+    }
+  };
+
+  const fetchSummary = async () => {
+    try {
+      const response = await axios.get('/api/audit/summary');
+      setSummaryData(response.data);
+    } catch (error) {
+      console.error('Error fetching summary:', error);
     }
   };
 
@@ -572,7 +583,7 @@ const AuditTrail = () => {
           </div>
           <div>
             <div style={{ fontSize: '10px', color: '#6b7280', fontWeight: 500 }}>Total Events</div>
-            <div style={{ fontSize: '20px', fontWeight: 600, color: '#111827' }}>{summaryStats.total.toLocaleString()}</div>
+            <div style={{ fontSize: '20px', fontWeight: 600, color: '#111827' }}>{summaryData.total.toLocaleString()}</div>
           </div>
         </div>
         <div style={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px', padding: '16px', display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -581,7 +592,7 @@ const AuditTrail = () => {
           </div>
           <div>
             <div style={{ fontSize: '10px', color: '#6b7280', fontWeight: 500 }}>Successful</div>
-            <div style={{ fontSize: '20px', fontWeight: 600, color: '#16a34a' }}>{summaryStats.successCount.toLocaleString()}</div>
+            <div style={{ fontSize: '20px', fontWeight: 600, color: '#16a34a' }}>{summaryData.successCount.toLocaleString()}</div>
           </div>
         </div>
         <div style={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px', padding: '16px', display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -590,7 +601,7 @@ const AuditTrail = () => {
           </div>
           <div>
             <div style={{ fontSize: '10px', color: '#6b7280', fontWeight: 500 }}>Failed</div>
-            <div style={{ fontSize: '20px', fontWeight: 600, color: '#dc2626' }}>{summaryStats.failureCount.toLocaleString()}</div>
+            <div style={{ fontSize: '20px', fontWeight: 600, color: '#dc2626' }}>{summaryData.failureCount.toLocaleString()}</div>
           </div>
         </div>
         <div style={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px', padding: '16px', display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -599,7 +610,7 @@ const AuditTrail = () => {
           </div>
           <div>
             <div style={{ fontSize: '10px', color: '#6b7280', fontWeight: 500 }}>Today</div>
-            <div style={{ fontSize: '20px', fontWeight: 600, color: '#d97706' }}>{summaryStats.todayEvents.toLocaleString()}</div>
+            <div style={{ fontSize: '20px', fontWeight: 600, color: '#d97706' }}>{summaryData.todayEvents.toLocaleString()}</div>
           </div>
         </div>
       </div>
