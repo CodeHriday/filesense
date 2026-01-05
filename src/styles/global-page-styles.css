@@ -1777,6 +1777,26 @@
   color: var(--gps-text-muted);
 }
 
+.gps-pagination-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--gps-spacing-md);
+}
+
+.gps-pagination-size {
+  display: flex;
+  align-items: center;
+  gap: var(--gps-spacing-sm);
+  margin-left: var(--gps-spacing-lg);
+}
+
+.gps-pagination-size label {
+  font-family: var(--gps-font-family);
+  font-size: var(--gps-font-size-content);
+  color: var(--gps-text-muted);
+  white-space: nowrap;
+}
+
 /* ============================================
    LINK STYLES
    ============================================ */
