@@ -176,175 +176,160 @@ async function registerLocalUser(userData) {
     roles = []
   } = userData;
   
-  const client = await db.pool.connect();
+  // Validate required fields first (outside transaction)
+  const errors = [];
+  if (!username || username.trim() === '') {
+    errors.push('Username is required');
+  }
+  if (!email || email.trim() === '') {
+    errors.push('Email is required');
+  }
+  if (!password || password.trim() === '') {
+    errors.push('Password is required');
+  }
+  
+  if (errors.length > 0) {
+    return {
+      success: false,
+      message: 'Validation failed',
+      errors
+    };
+  }
+  
+  // Validate phone number if provided
+  if (phone_number) {
+    if (!/^\d*$/.test(phone_number)) {
+      return {
+        success: false,
+        message: 'Phone number can only contain numeric digits',
+        field: 'phone_number'
+      };
+    }
+    if (phone_number.length > 10) {
+      return {
+        success: false,
+        message: 'Phone number cannot exceed 10 digits',
+        field: 'phone_number'
+      };
+    }
+  }
+  
+  // Validate password strength
+  const passwordValidation = passwordSecurity.validatePasswordStrength(password);
+  if (!passwordValidation.valid) {
+    return {
+      success: false,
+      errors: passwordValidation.errors,
+      field: 'password'
+    };
+  }
+  
+  // Check if username exists (case-insensitive) - outside transaction
+  const existingUser = await db.query(
+    'SELECT id FROM users WHERE LOWER(username) = LOWER($1) OR LOWER(email) = LOWER($2)',
+    [username, email]
+  );
+  
+  if (existingUser.rows.length > 0) {
+    return {
+      success: false,
+      message: 'Username or email already exists'
+    };
+  }
+  
+  // Hash password before transaction
+  const hashedPassword = await bcrypt.hash(password, 10);
+  const passwordHistory = passwordSecurity.addToPasswordHistory(hashedPassword, []);
   
   try {
-    // Validate required fields
-    const errors = [];
-    if (!username || username.trim() === '') {
-      errors.push('Username is required');
-    }
-    if (!email || email.trim() === '') {
-      errors.push('Email is required');
-    }
-    if (!password || password.trim() === '') {
-      errors.push('Password is required');
-    }
-    
-    if (errors.length > 0) {
-      return {
-        success: false,
-        message: 'Validation failed',
-        errors
-      };
-    }
-    
-    // Validate phone number if provided
-    if (phone_number) {
-      if (!/^\d*$/.test(phone_number)) {
-        return {
-          success: false,
-          message: 'Phone number can only contain numeric digits',
-          field: 'phone_number'
-        };
-      }
-      if (phone_number.length > 10) {
-        return {
-          success: false,
-          message: 'Phone number cannot exceed 10 digits',
-          field: 'phone_number'
-        };
-      }
-    }
-    
-    // Validate password strength
-    const passwordValidation = passwordSecurity.validatePasswordStrength(password);
-    if (!passwordValidation.valid) {
-      return {
-        success: false,
-        errors: passwordValidation.errors,
-        field: 'password'
-      };
-    }
-    
-    // Check if username exists (case-insensitive)
-    const existingUser = await client.query(
-      'SELECT id FROM users WHERE LOWER(username) = LOWER($1) OR LOWER(email) = LOWER($2)',
-      [username, email]
-    );
-    
-    if (existingUser.rows.length > 0) {
-      return {
-        success: false,
-        message: 'Username or email already exists'
-      };
-    }
-    
-    // Start transaction
-    await client.query('BEGIN');
-    
-    // Hash password
-    const hashedPassword = await bcrypt.hash(password, 10);
-    
-    // Create user with initial password history
-    const passwordHistory = passwordSecurity.addToPasswordHistory(hashedPassword, []);
-    
-    const insertQuery = `
-      INSERT INTO users (
+    // Use db.transaction for proper transaction handling
+    const result = await db.transaction(async (client) => {
+      const insertQuery = `
+        INSERT INTO users (
+          username,
+          password,
+          email,
+          first_name,
+          last_name,
+          middle_name,
+          phone_number,
+          auth_provider,
+          password_history,
+          failed_login_attempts,
+          internal_user,
+          user_type
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+        RETURNING id, username, email, first_name, last_name, auth_provider, internal_user, user_type
+      `;
+      
+      const userResult = await client.query(insertQuery, [
         username,
-        password,
+        hashedPassword,
         email,
-        first_name,
-        last_name,
-        middle_name,
-        phone_number,
-        auth_provider,
-        password_history,
-        failed_login_attempts,
+        first_name || null,
+        last_name || null,
+        middle_name || null,
+        phone_number || null,
+        'local',
+        JSON.stringify(passwordHistory),
+        0,
         internal_user,
-        user_type
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-      RETURNING id, username, email, first_name, last_name, auth_provider, internal_user, user_type
-    `;
-    
-    const result = await client.query(insertQuery, [
-      username,
-      hashedPassword,
-      email,
-      first_name || null,
-      last_name || null,
-      middle_name || null,
-      phone_number || null,
-      'local',
-      JSON.stringify(passwordHistory),
-      0,
-      internal_user,
-      user_type || null
-    ]);
-    
-    const newUser = result.rows[0];
-    
-    // Assign roles to the user
-    if (roles && roles.length > 0) {
-      for (const role of roles) {
-        // Handle both role IDs (numbers) and role names (strings)
-        const roleIdentifier = typeof role === 'string' ? role : role;
-        const isNumeric = !isNaN(roleIdentifier);
-        
-        let roleId;
-        
-        if (isNumeric) {
-          // If it's a numeric ID, verify it exists
-          const roleResult = await client.query(
-            'SELECT id FROM roles WHERE id = $1',
-            [roleIdentifier]
-          );
+        user_type || null
+      ]);
+      
+      const newUser = userResult.rows[0];
+      
+      // Assign roles to the user
+      if (roles && roles.length > 0) {
+        for (const role of roles) {
+          const roleIdentifier = typeof role === 'string' ? role : role;
+          const isNumeric = !isNaN(roleIdentifier);
           
-          if (roleResult.rows.length > 0) {
-            roleId = roleResult.rows[0].id;
-          }
-        } else {
-          // If it's a role name, look it up
-          const roleResult = await client.query(
-            'SELECT id FROM roles WHERE name = $1',
-            [roleIdentifier]
-          );
+          let roleId;
           
-          if (roleResult.rows.length > 0) {
-            roleId = roleResult.rows[0].id;
+          if (isNumeric) {
+            const roleResult = await client.query(
+              'SELECT id FROM roles WHERE id = $1',
+              [roleIdentifier]
+            );
+            if (roleResult.rows.length > 0) {
+              roleId = roleResult.rows[0].id;
+            }
+          } else {
+            const roleResult = await client.query(
+              'SELECT id FROM roles WHERE name = $1',
+              [roleIdentifier]
+            );
+            if (roleResult.rows.length > 0) {
+              roleId = roleResult.rows[0].id;
+            }
           }
-        }
-        
-        if (roleId) {
-          // Insert user_role mapping
-          await client.query(
-            'INSERT INTO user_roles (user_id, role_id, created_at) VALUES ($1, $2, NOW())',
-            [newUser.id, roleId]
-          );
-        } else {
-          console.warn(`Role '${roleIdentifier}' not found in database, skipping assignment`);
+          
+          if (roleId) {
+            await client.query(
+              'INSERT INTO user_roles (user_id, role_id, created_at) VALUES ($1, $2, NOW())',
+              [newUser.id, roleId]
+            );
+          } else {
+            console.warn(`Role '${roleIdentifier}' not found in database, skipping assignment`);
+          }
         }
       }
-    }
-    
-    // Commit transaction
-    await client.query('COMMIT');
+      
+      return newUser;
+    });
     
     return {
       success: true,
       user: {
-        ...newUser,
+        ...result,
         roles
       }
     };
     
   } catch (error) {
-    // Rollback transaction on error
-    await client.query('ROLLBACK');
     console.error('Error registering user:', error);
     throw error;
-  } finally {
-    client.release();
   }
 }
 
