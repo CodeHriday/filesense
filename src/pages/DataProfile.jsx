@@ -566,8 +566,10 @@ function OwnershipModal({ fileId, currentOwnership, onClose, onSave, setErrorMes
       errors.ownerEmail = 'Please enter a valid email address';
     }
     
-    if (ownerContact.length > 50) {
-      errors.ownerContact = 'Owner Contact cannot exceed 50 characters';
+    if (ownerContact && !/^\d+$/.test(ownerContact)) {
+      errors.ownerContact = 'Owner Contact must contain only numbers';
+    } else if (ownerContact.length > 10) {
+      errors.ownerContact = 'Owner Contact cannot exceed 10 digits';
     }
     
     setFieldErrors(errors);
@@ -611,14 +613,16 @@ function OwnershipModal({ fileId, currentOwnership, onClose, onSave, setErrorMes
   };
 
   const handleContactChange = (e) => {
-    setOwnerContact(e.target.value);
+    const value = e.target.value.replace(/\D/g, '');
+    setOwnerContact(value);
     if (fieldErrors.ownerContact) {
       setFieldErrors(prev => ({ ...prev, ownerContact: '' }));
     }
   };
 
   const isFormValid = ownerName.trim() && ownerEmail.trim() && validateEmail(ownerEmail) && 
-                      ownerName.length <= 100 && ownerEmail.length <= 100 && ownerContact.length <= 50;
+                      ownerName.length <= 100 && ownerEmail.length <= 100 && ownerContact.length <= 10 &&
+                      (!ownerContact || /^\d*$/.test(ownerContact));
 
   return (
     <div className="modal-overlay">
@@ -665,11 +669,13 @@ function OwnershipModal({ fileId, currentOwnership, onClose, onSave, setErrorMes
           <label htmlFor="owner-contact-input">Owner Contact</label>
           <input
             id="owner-contact-input"
-            type="text"
+            type="tel"
             value={ownerContact}
             onChange={handleContactChange}
-            placeholder="Enter owner contact"
-            maxLength={50}
+            placeholder="Enter phone number"
+            maxLength={10}
+            inputMode="numeric"
+            pattern="[0-9]*"
             style={fieldErrors.ownerContact ? { borderColor: '#dc2626' } : {}}
           />
           {fieldErrors.ownerContact && (
