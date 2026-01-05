@@ -74,7 +74,7 @@ const ExecutiveDashboard = () => {
   const { data: fileTypeData } = useFileTypeDistribution(selectedProject);
   const fileTypeDistribution = fileTypeData?.fileTypes || [];
 
-  const { data: jobTrendData } = useJobTrend(selectedProject);
+  const { data: jobTrendData } = useJobTrend(timeRange, selectedProject);
   const jobTrend = jobTrendData?.jobTrend || [];
 
   const { data: schemaDriftData } = useSchemaDriftTrend(selectedProject);
@@ -1107,7 +1107,7 @@ const ExecutiveDashboard = () => {
       <div className="trend-charts-row">
         <div className="chart-card">
           <div className="chart-header">
-            <h3>Daily Job Trend (Last 30 Days)</h3>
+            <h3>Daily Job Trend (Last {timeRange} Days)</h3>
           </div>
           <div className="chart-container">
             {jobTrend.length > 0 ? (

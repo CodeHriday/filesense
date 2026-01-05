@@ -28,8 +28,9 @@ const fetchQualityTrend = async (projectId = null) => {
   return response.data;
 };
 
-const fetchJobTrend = async (projectId = null) => {
-  const params = projectId ? { project_id: projectId } : {};
+const fetchJobTrend = async (days = 30, projectId = null) => {
+  const params = { days };
+  if (projectId) params.project_id = projectId;
   const response = await axios.get(`${API_URL}/dashboard/job-trend`, {
     params,
     headers: getAuthHeader()
@@ -101,10 +102,10 @@ export const useQualityTrend = (projectId = null, options = {}) => {
   });
 };
 
-export const useJobTrend = (projectId = null, options = {}) => {
+export const useJobTrend = (days = 30, projectId = null, options = {}) => {
   return useQuery({
-    queryKey: [...QueryKeys.dashboard.jobTrend(), projectId],
-    queryFn: () => fetchJobTrend(projectId),
+    queryKey: [...QueryKeys.dashboard.jobTrend(), days, projectId],
+    queryFn: () => fetchJobTrend(days, projectId),
     staleTime: STALE_TIMES.DASHBOARD,
     gcTime: CACHE_TIMES.STANDARD,
     refetchOnMount: false,
