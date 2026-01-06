@@ -103,7 +103,7 @@ function ProjectManagement() {
         axios.get(`${API_BASE_URL}/projects/init-data?${params}`, {
           headers: { Authorization: `Bearer ${token}` }
         }),
-        axios.get(`${API_BASE_URL}/storage-connections`, {
+        axios.get(`${API_BASE_URL}/connections`, {
           headers: { Authorization: `Bearer ${token}` }
         }).catch(() => ({ data: [] }))
       ]);
@@ -112,7 +112,12 @@ function ProjectManagement() {
       setProjects(normalizedProjects);
       setAvailableUsers(projectsResponse.data.users || []);
       setAvailableGroups(projectsResponse.data.groups || []);
-      setStorageConnections(connectionsResponse.data || []);
+      const allConnections = connectionsResponse.data || [];
+      const storageTypes = ['aws', 's3', 'azure', 'azure_blob', 'gcp', 'gcs', 'local', 'sftp'];
+      const filteredStorageConnections = allConnections.filter(
+        conn => storageTypes.includes(conn.type?.toLowerCase())
+      );
+      setStorageConnections(filteredStorageConnections);
       setError(null);
     } catch (err) {
       setError('Failed to fetch projects');
