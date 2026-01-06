@@ -271,13 +271,26 @@ function createProjectRoutes(dbPool) {
       
       const isAdmin = userHasAllProjectAccess(req.user);
       let accessibleProjectIds = [];
+      let accessibleSubprojectIds = [];
+      let parentIdsFromSubprojects = [];
       
       if (!isAdmin) {
         const userProjects = await getUserProjects(req.user.id);
-        accessibleProjectIds = userProjects.map(p => p.id);
+        
+        // Separate parent projects and subprojects
+        for (const p of userProjects) {
+          if (p.parent_id) {
+            accessibleSubprojectIds.push(p.id);
+            if (!parentIdsFromSubprojects.includes(p.parent_id)) {
+              parentIdsFromSubprojects.push(p.parent_id);
+            }
+          } else {
+            accessibleProjectIds.push(p.id);
+          }
+        }
         
         // Non-admin with no project access gets empty data
-        if (accessibleProjectIds.length === 0) {
+        if (accessibleProjectIds.length === 0 && parentIdsFromSubprojects.length === 0) {
           return res.json({
             projects: [],
             users: [],
@@ -286,26 +299,27 @@ function createProjectRoutes(dbPool) {
         }
       }
       
-      // Build projects query
+      // Build projects query - only fetch top-level projects (parent_id IS NULL)
+      // For non-admins, include parent projects they have direct access to
+      // OR parent projects where they have access to at least one subproject
       let projectsQuery = `
         SELECT 
           p.*,
-          parent.name as parent_project_name,
           COUNT(DISTINCT pm.user_id) as member_count,
           COUNT(DISTINCT sp.id) as sub_project_count
         FROM projects p
-        LEFT JOIN projects parent ON p.parent_id = parent.id
         LEFT JOIN project_members pm ON p.id = pm.project_id
         LEFT JOIN projects sp ON p.id = sp.parent_id
-        WHERE 1=1
+        WHERE p.parent_id IS NULL
       `;
       const projectsParams = [];
       let paramIndex = 1;
       
-      // Always filter by accessible projects for non-admins
+      // For non-admins, filter to accessible projects OR parents of accessible subprojects
       if (!isAdmin) {
+        const allAccessibleParentIds = [...new Set([...accessibleProjectIds, ...parentIdsFromSubprojects])];
         projectsQuery += ` AND p.id = ANY($${paramIndex})`;
-        projectsParams.push(accessibleProjectIds);
+        projectsParams.push(allAccessibleParentIds);
         paramIndex++;
       }
       
@@ -321,14 +335,47 @@ function createProjectRoutes(dbPool) {
         projectsQuery += ` AND (p.is_archived IS NULL OR p.is_archived = false)`;
       }
       
-      projectsQuery += ` GROUP BY p.id, parent.name ORDER BY p.created_at DESC`;
+      projectsQuery += ` GROUP BY p.id ORDER BY p.created_at DESC`;
+      
+      // Build subprojects query - for non-admins, only fetch authorized subprojects
+      let subProjectsQuery = `
+        SELECT 
+          sp.*,
+          u.full_name as owner_name
+        FROM projects sp
+        LEFT JOIN users u ON sp.owner_id = u.id
+        WHERE sp.parent_id IS NOT NULL
+      `;
+      const subProjectsParams = [];
+      
+      if (!isAdmin) {
+        subProjectsQuery += ` AND sp.id = ANY($1)`;
+        subProjectsParams.push(accessibleSubprojectIds);
+      }
+      
+      subProjectsQuery += ` ORDER BY sp.name`;
       
       // Fetch all data in parallel
-      const [projectsResult, usersResult, groupsResult] = await Promise.all([
+      const [projectsResult, usersResult, groupsResult, subProjectsResult] = await Promise.all([
         dbPool.query(projectsQuery, projectsParams),
         dbPool.query('SELECT id, username, email, full_name FROM users ORDER BY username LIMIT 1000'),
-        dbPool.query('SELECT id, name, description FROM access_groups ORDER BY name')
+        dbPool.query('SELECT id, name, description FROM access_groups ORDER BY name'),
+        dbPool.query(subProjectsQuery, subProjectsParams)
       ]);
+      
+      // Build a map of parent_id -> subprojects
+      const subProjectsByParent = {};
+      subProjectsResult.rows.forEach(sp => {
+        if (!subProjectsByParent[sp.parent_id]) {
+          subProjectsByParent[sp.parent_id] = [];
+        }
+        subProjectsByParent[sp.parent_id].push({
+          ...sp,
+          is_active: sp.is_active !== false && sp.is_active !== 'false' && sp.is_active !== 'f',
+          total_size: 0,
+          file_count: 0
+        });
+      });
       
       systemLogger.info('Project management init data fetched', {
         userId: req.user?.id,
@@ -340,7 +387,8 @@ function createProjectRoutes(dbPool) {
         is_active: row.is_active !== false && row.is_active !== 'false' && row.is_active !== 'f',
         is_archived: row.is_archived === true || row.is_archived === 'true' || row.is_archived === 't',
         member_count: parseInt(row.member_count) || 0,
-        sub_project_count: parseInt(row.sub_project_count) || 0
+        sub_project_count: parseInt(row.sub_project_count) || 0,
+        sub_projects: subProjectsByParent[row.id] || []
       });
 
       res.json({
