@@ -92,7 +92,7 @@ router.get('/', isVendorUser, async (req, res) => {
  */
 router.get('/init-data', isVendorUser, async (req, res) => {
   try {
-    const { pool } = require('../config/database');
+    const db = require('../config/database');
     const { userHasAllProjectAccess } = require('../utils/permissionHelpers');
     const canManage = canManageVendors(req.user);
     
@@ -148,14 +148,14 @@ router.get('/init-data', isVendorUser, async (req, res) => {
         }
         
         projectsQuery += ' ORDER BY name';
-        const projectsResult = await pool.query(projectsQuery, params);
+        const projectsResult = await db.query(projectsQuery, params);
         projects = projectsResult.rows;
       } catch (err) {
         systemLogger.warn('Could not fetch projects', { error: err.message });
       }
       
       try {
-        const vendorUsersResult = await pool.query(`
+        const vendorUsersResult = await db.query(`
           SELECT 
             u.id,
             u.username,
