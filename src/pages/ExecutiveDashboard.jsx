@@ -80,7 +80,7 @@ const ExecutiveDashboard = () => {
   const { data: schemaDriftData } = useSchemaDriftTrend(timeRange, selectedProject);
   const schemaDriftTrend = schemaDriftData?.driftTrend || [];
 
-  const { data: qualityData } = useQualityTrend(selectedProject);
+  const { data: qualityData } = useQualityTrend(timeRange, selectedProject);
   const qualityViolations = qualityData?.violationsTrend || [];
 
   const { data: metricTrendsData } = useMetricTrends('daily', selectedProject);
@@ -893,7 +893,7 @@ const ExecutiveDashboard = () => {
 
         <div className="chart-card">
           <div className="chart-header">
-            <h3>Data Quality Violations (Last 30 Days)</h3>
+            <h3>Data Quality Violations (Last {timeRange} Days)</h3>
             <div className="quality-tabs">
               <button 
                 className={`tab-button ${activeQualityTab === 'all' ? 'active' : ''}`}
