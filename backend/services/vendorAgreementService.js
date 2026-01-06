@@ -2602,6 +2602,7 @@ class VendorAgreementService {
         pageSize = 10,
         projectId = null,
         vendorId = null,
+        vendorIds = null,
         status = null,
         userId,
         userRoles = [],
@@ -2627,12 +2628,20 @@ class VendorAgreementService {
         paramCounter++;
       }
       
-      // Filter by vendor if specified
-      if (vendorId) {
+      // Filter by vendor(s) if specified
+      if (vendorIds && vendorIds.length > 0) {
+        // Multiple vendor IDs - use ANY with explicit integer array cast
+        whereClauses.push(`va.vendor_id = ANY($${paramCounter}::integer[])`);
+        queryParams.push(vendorIds);
+        paramCounter++;
+      } else if (vendorId) {
+        // Single vendor ID - use equality
         whereClauses.push(`va.vendor_id = $${paramCounter}`);
         queryParams.push(vendorId);
         paramCounter++;
       }
+      // Note: When vendorIds is null, no vendor filtering is applied;
+      // role-based filtering (contact emails, project membership) handles access control
       
       // Filter by status if specified
       if (status) {

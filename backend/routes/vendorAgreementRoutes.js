@@ -255,21 +255,30 @@ router.get('/', async (req, res) => {
     const pageSize = parseInt(req.query.pageSize) || 10;
     const projectId = req.query.project_id ? parseInt(req.query.project_id) : null;
     let vendorId = req.query.vendor_id ? parseInt(req.query.vendor_id) : null;
+    let vendorIds = null; // Array of vendor IDs for multi-vendor users
     const status = req.query.status || null;
     const filterByMyVendor = req.query.filterByMyVendor === 'true';
     
-    // If filterByMyVendor is true, get the user's vendor ID and use it for filtering
-    // This ensures vendor users only see agreements for their own vendor organization
+    // If filterByMyVendor is true, get ALL vendor IDs where user is a contact
+    // This ensures vendor users see agreements for ALL their vendor organizations
     if (filterByMyVendor && !vendorId) {
       const vendorResult = await dbQuery(
         'SELECT id FROM vendors WHERE vendor_user_id = $1 AND status = $2',
         [req.user.id, 'active']
       );
       if (vendorResult.rows.length > 0) {
-        vendorId = vendorResult.rows[0].id;
-        systemLogger.info('Filtering agreements by user vendor', { 
+        vendorIds = vendorResult.rows.map(row => row.id);
+        systemLogger.info('Filtering agreements by user vendors', { 
           userId: req.user.id, 
-          vendorId 
+          vendorIds,
+          vendorCount: vendorIds.length
+        });
+      } else {
+        // No direct vendor associations - fall back to legacy contact-based filtering
+        // Leave vendorIds as null so the role-based filtering (contact emails, project membership) still applies
+        systemLogger.info('No vendor associations found, using contact-based filtering', { 
+          userId: req.user.id,
+          filterByMyVendor: true 
         });
       }
     }
@@ -293,6 +302,7 @@ router.get('/', async (req, res) => {
       pageSize,
       projectId,
       vendorId,
+      vendorIds,
       status,
       userId: req.user.id,
       userRoles: req.user.roles,
