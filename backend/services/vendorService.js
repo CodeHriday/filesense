@@ -3,7 +3,7 @@
  * Handles vendor CRUD operations, user account creation, and project associations
  */
 
-const { pool, query } = require('../config/database');
+const { getClient, query } = require('../config/database');
 const { systemLogger } = require('../utils/logger');
 const bcrypt = require('bcrypt');
 const crypto = require('crypto');
@@ -44,7 +44,7 @@ class VendorService {
    * @returns {Promise<Object>} Created vendor with user account
    */
   async createVendor(vendorData, createdBy) {
-    const client = await pool.connect();
+    const client = await getClient();
     
     try {
       await client.query('BEGIN');
@@ -588,7 +588,7 @@ class VendorService {
    * Update vendor
    */
   async updateVendor(vendorId, updateData, updatedBy) {
-    const client = await pool.connect();
+    const client = await getClient();
     
     try {
       await client.query('BEGIN');
@@ -1071,7 +1071,7 @@ class VendorService {
    * Only allows deletion of orphan vendors without active/locked/approved agreements
    */
   async deleteVendor(vendorId, deletedBy) {
-    const client = await pool.connect();
+    const client = await getClient();
     
     try {
       await client.query('BEGIN');
