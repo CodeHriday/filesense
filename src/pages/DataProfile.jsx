@@ -950,6 +950,10 @@ function DataProfile() {
   const [refreshingRules, setRefreshingRules] = useState(false); // Loading state for refresh button
   const VIOLATIONS_PER_PAGE = 20; // Pagination size
 
+  // Processing status polling state
+  const [isProcessing, setIsProcessing] = useState(false); // Track if file is still processing
+  const pollingIntervalRef = React.useRef(null);
+
   // Helper functions for column type checking
   const isNumericColumn = (column) => {
     const numericTypes = ['integer', 'decimal', 'number', 'float', 'int64', 'float64', 'int32', 'float32'];
@@ -1568,6 +1572,14 @@ function DataProfile() {
           setFileSensitivity(fullData.ownership.sensitivity_level);
         }
         
+        // Check if file is still processing - enable polling if so
+        const processingStatus = fullData.file?.processing_status;
+        if (processingStatus === 'queued' || processingStatus === 'processing') {
+          setIsProcessing(true);
+        } else {
+          setIsProcessing(false);
+        }
+        
         setError(null);
         setLoading(false);
       } catch (err) {
@@ -1579,6 +1591,82 @@ function DataProfile() {
     
     fetchData();
   }, [fileId]);
+
+  // Polling effect for files that are still processing
+  useEffect(() => {
+    // Clear any existing polling interval
+    if (pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current);
+      pollingIntervalRef.current = null;
+    }
+    
+    // Start polling if file is processing
+    if (isProcessing && fileId) {
+      console.log('Starting polling for file processing status');
+      
+      pollingIntervalRef.current = setInterval(async () => {
+        try {
+          const fullData = await getFileFullData(fileId);
+          
+          // Update ALL state from the full response (same as initial fetchData)
+          setFile(fullData.file);
+          setProfile(fullData.profile || {});
+          setOwnership(fullData.ownership);
+          setPolicies(fullData.filePolicies || []);
+          setFileTags(fullData.fileTags || []);
+          setAvailableTags(fullData.allGovernanceTags || []);
+          setAvailablePolicies(fullData.allGovernancePolicies || []);
+          
+          // Set column governance data
+          if (fullData.columnGovernance) {
+            const columns = fullData.profile?.columns || [];
+            const tagsMap = {};
+            const policiesMap = {};
+            
+            columns.forEach(column => {
+              const normalizedName = column.name?.toLowerCase();
+              tagsMap[column.name] = fullData.columnGovernance.tags?.[normalizedName] || [];
+              policiesMap[column.name] = fullData.columnGovernance.policies?.[normalizedName] || [];
+            });
+            
+            setAllColumnGovernanceTags(tagsMap);
+            setAllColumnPolicies(policiesMap);
+          }
+          
+          // Set file sensitivity from data_classification field (primary source) or ownership (fallback)
+          const classification = fullData.file?.data_classification || fullData.file?.dataClassification;
+          if (classification) {
+            setFileSensitivity(classification);
+          } else if (fullData.ownership?.sensitivity_level) {
+            setFileSensitivity(fullData.ownership.sensitivity_level);
+          }
+          
+          // Check if processing is complete
+          const processingStatus = fullData.file?.processing_status;
+          if (processingStatus !== 'queued' && processingStatus !== 'processing') {
+            console.log('File processing complete, stopping polling');
+            setIsProcessing(false);
+            
+            // Clear the interval
+            if (pollingIntervalRef.current) {
+              clearInterval(pollingIntervalRef.current);
+              pollingIntervalRef.current = null;
+            }
+          }
+        } catch (err) {
+          console.error('Error polling file status:', err);
+        }
+      }, 2000); // Poll every 2 seconds
+    }
+    
+    // Cleanup on unmount or when isProcessing changes
+    return () => {
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+        pollingIntervalRef.current = null;
+      }
+    };
+  }, [isProcessing, fileId]);
 
   const handleSensitivityChange = async (e) => {
     const newSensitivity = e.target.value;
@@ -3213,6 +3301,27 @@ function DataProfile() {
               </div>
             </div>
           </div>
+          
+          {isProcessing && (
+            <div className="info-banner" style={{ backgroundColor: '#dbeafe', borderColor: '#3b82f6', marginBottom: '20px', border: '1px solid #3b82f6', borderRadius: '8px', padding: '16px' }}>
+              <div className="error-banner-content" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div className="processing-spinner" style={{ 
+                  width: '24px', 
+                  height: '24px', 
+                  border: '3px solid #dbeafe',
+                  borderTop: '3px solid #3b82f6',
+                  borderRadius: '50%',
+                  animation: 'spin 1s linear infinite'
+                }}></div>
+                <div className="error-text-content">
+                  <h3 style={{ margin: '0 0 4px 0', fontSize: '14px', fontWeight: '600', color: '#1e40af' }}>Processing File...</h3>
+                  <p style={{ margin: 0, fontSize: '12px', color: '#3b82f6' }}>
+                    Your file is being analyzed. This page will automatically update when processing completes.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
           
           {file.processing_error && (
             <div className="processing-error-banner">
