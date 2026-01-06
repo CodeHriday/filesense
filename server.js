@@ -3260,7 +3260,9 @@ app.post('/api/files/drop', authenticateToken, uploadLimiter, upload.single('fil
           });
         }
         
-        const vendorId = vendorResult.rows[0].id;
+        // Collect ALL vendor IDs for multi-vendor users
+        const vendorIds = vendorResult.rows.map(row => row.id);
+        logger.info('User vendor associations for upload', { userId, vendorIds, vendorCount: vendorIds.length });
         
         // Get user email for contact validation
         const userResult = await dbPool.query(
@@ -3276,7 +3278,7 @@ app.post('/api/files/drop', authenticateToken, uploadLimiter, upload.single('fil
         const userEmail = userResult.rows[0].email;
         
         // Verify connection belongs to an authorized vendor agreement
-        // User must: 1) belong to the vendor org in the agreement, AND 2) be listed as a contact
+        // User must: 1) belong to the vendor org in the agreement (ANY of their vendors), AND 2) be listed as a contact
         const authResult = await dbPool.query(`
           SELECT 
             sc.*,
@@ -3292,7 +3294,7 @@ app.post('/api/files/drop', authenticateToken, uploadLimiter, upload.single('fil
           JOIN vendors v ON v.id = va.vendor_id
           WHERE sc.connection_id = $1
             AND sc.status = 'active'
-            AND va.vendor_id = $2
+            AND va.vendor_id = ANY($2::integer[])
             AND va.approval_status = 'governance_approved'
             AND va.is_locked = true
             AND va.status = 'active'
@@ -3301,7 +3303,7 @@ app.post('/api/files/drop', authenticateToken, uploadLimiter, upload.single('fil
               OR va.secondary_contact_email = $3
             )
           LIMIT 1
-        `, [connectionId, vendorId, userEmail]);
+        `, [connectionId, vendorIds, userEmail]);
         
         if (authResult.rows.length === 0) {
           try { fs.unlinkSync(file.path); } catch (e) {}
@@ -3322,8 +3324,9 @@ app.post('/api/files/drop', authenticateToken, uploadLimiter, upload.single('fil
           let errorDetail = 'No matching authorized agreement found';
           if (agreementCheck.rows.length > 0) {
             const agreement = agreementCheck.rows[0];
-            if (agreement.vendor_id !== vendorId) {
-              errorDetail = `This agreement belongs to vendor "${agreement.vendor_name}" (ID: ${agreement.vendor_id}), but you are associated with vendor ID: ${vendorId}`;
+            // Check if agreement's vendor is in the user's vendor associations
+            if (!vendorIds.includes(agreement.vendor_id)) {
+              errorDetail = `This agreement belongs to vendor "${agreement.vendor_name}" (ID: ${agreement.vendor_id}), but you are associated with vendor ID(s): ${vendorIds.join(', ')}`;
             } else if (agreement.primary_contact_email !== userEmail && agreement.secondary_contact_email !== userEmail) {
               errorDetail = `You (${userEmail}) are not listed as a primary or secondary contact on this agreement`;
             }
@@ -3332,7 +3335,7 @@ app.post('/api/files/drop', authenticateToken, uploadLimiter, upload.single('fil
           logger.warn('Unauthorized vendor upload attempt - no access to connection', { 
             userId, 
             userEmail,
-            vendorId, 
+            vendorIds, 
             connectionId,
             errorDetail
           });
