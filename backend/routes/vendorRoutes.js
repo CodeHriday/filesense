@@ -164,11 +164,10 @@ router.get('/init-data', isVendorUser, async (req, res) => {
             u.last_name,
             u.full_name,
             u.phone_number,
-            u.status
+            u.state
           FROM users u
           WHERE u.internal_user = false 
             AND u.user_type = 'Vendor'
-            AND u.status = 'active'
           ORDER BY u.first_name, u.last_name
         `);
         vendorUsers = vendorUsersResult.rows;
