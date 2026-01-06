@@ -83,6 +83,117 @@ router.get('/', isVendorUser, async (req, res) => {
 });
 
 /**
+ * GET /api/vendors/init-data
+ * Batch endpoint to get all data needed for VendorManagement page in a single call
+ * Replaces 3 separate API calls: vendors, projects, vendor-users
+ * Permission-aware: Returns data based on user's access level
+ * Projects are filtered by user's project access (same as /api/projects endpoint)
+ * NOTE: This route MUST be defined BEFORE /:id to prevent Express from matching 'init-data' as an ID
+ */
+router.get('/init-data', isVendorUser, async (req, res) => {
+  try {
+    const { pool } = require('../config/database');
+    const { userHasAllProjectAccess } = require('../utils/permissionHelpers');
+    const canManage = canManageVendors(req.user);
+    
+    const page = parseInt(req.query.page) || 1;
+    const pageSize = parseInt(req.query.pageSize) || 10;
+    const search = req.query.search || '';
+    
+    let vendorsData = { vendors: [], pagination: { totalPages: 1, totalCount: 0 } };
+    let projects = [];
+    let vendorUsers = [];
+    
+    if (req.isVendor && !canManage) {
+      const result = await vendorService.getVendorByUserId(req.user.id);
+      if (result.success) {
+        vendorsData = {
+          vendors: [result.vendor],
+          isOwnProfile: true,
+          pagination: { totalPages: 1, totalCount: 1 }
+        };
+      }
+    } else {
+      const filters = {};
+      if (search) filters.search = search;
+      
+      const result = await vendorService.getAllVendors(page, pageSize, filters);
+      vendorsData = {
+        vendors: result.vendors || [],
+        pagination: result.pagination || { totalPages: 1, totalCount: 0 }
+      };
+    }
+    
+    if (canManage) {
+      try {
+        const isAdmin = userHasAllProjectAccess(req.user);
+        let projectsQuery = `
+          SELECT id, name, description, project_type, status, created_at
+          FROM projects
+          WHERE parent_id IS NULL
+        `;
+        const params = [];
+        
+        if (!isAdmin) {
+          projectsQuery = `
+            SELECT DISTINCT p.id, p.name, p.description, p.project_type, p.status, p.created_at
+            FROM projects p
+            LEFT JOIN project_members pm ON p.id = pm.project_id
+            LEFT JOIN project_access_groups pag ON p.id = pag.project_id
+            LEFT JOIN user_groups ug ON pag.group_id = ug.group_id
+            WHERE p.parent_id IS NULL
+              AND (pm.user_id = $1 OR ug.user_id = $1)
+          `;
+          params.push(req.user.id);
+        }
+        
+        projectsQuery += ' ORDER BY name';
+        const projectsResult = await pool.query(projectsQuery, params);
+        projects = projectsResult.rows;
+      } catch (err) {
+        systemLogger.warn('Could not fetch projects', { error: err.message });
+      }
+      
+      try {
+        const vendorUsersResult = await pool.query(`
+          SELECT 
+            u.id,
+            u.username,
+            u.email,
+            u.first_name,
+            u.last_name,
+            u.full_name,
+            u.phone_number,
+            u.status
+          FROM users u
+          WHERE u.internal_user = false 
+            AND u.user_type = 'Vendor'
+            AND u.status = 'active'
+          ORDER BY u.first_name, u.last_name
+        `);
+        vendorUsers = vendorUsersResult.rows;
+      } catch (err) {
+        systemLogger.warn('Could not fetch vendor users', { error: err.message });
+      }
+    }
+    
+    res.json({
+      success: true,
+      vendors: vendorsData.vendors,
+      pagination: vendorsData.pagination,
+      isOwnProfile: vendorsData.isOwnProfile || false,
+      projects,
+      vendorUsers,
+      canManageVendors: canManage
+    });
+    
+  } catch (error) {
+    systemLogger.error('Error in GET /api/vendors/init-data', { error: error.message });
+    res.status(500).json({ error: 'Failed to fetch init data' });
+  }
+});
+
+/**
  * GET /api/vendors/:id
  * Get vendor by ID
  */
@@ -200,116 +311,6 @@ router.get('/project/:projectId', requireVendorManagement, async (req, res) => {
   } catch (error) {
     systemLogger.error('Error in GET /api/vendors/project/:projectId', { error: error.message });
     res.status(500).json({ error: 'Failed to fetch vendors' });
-  }
-});
-
-/**
- * GET /api/vendors/init-data
- * Batch endpoint to get all data needed for VendorManagement page in a single call
- * Replaces 3 separate API calls: vendors, projects, vendor-users
- * Permission-aware: Returns data based on user's access level
- * Projects are filtered by user's project access (same as /api/projects endpoint)
- */
-router.get('/init-data', isVendorUser, async (req, res) => {
-  try {
-    const { pool } = require('../config/database');
-    const { userHasAllProjectAccess } = require('../utils/permissionHelpers');
-    const canManage = canManageVendors(req.user);
-    
-    const page = parseInt(req.query.page) || 1;
-    const pageSize = parseInt(req.query.pageSize) || 10;
-    const search = req.query.search || '';
-    
-    let vendorsData = { vendors: [], pagination: { totalPages: 1, totalCount: 0 } };
-    let projects = [];
-    let vendorUsers = [];
-    
-    if (req.isVendor && !canManage) {
-      const result = await vendorService.getVendorByUserId(req.user.id);
-      if (result.success) {
-        vendorsData = {
-          vendors: [result.vendor],
-          isOwnProfile: true,
-          pagination: { totalPages: 1, totalCount: 1 }
-        };
-      }
-    } else {
-      const filters = {};
-      if (search) filters.search = search;
-      
-      const result = await vendorService.getAllVendors(page, pageSize, filters);
-      vendorsData = {
-        vendors: result.vendors || [],
-        pagination: result.pagination || { totalPages: 1, totalCount: 0 }
-      };
-    }
-    
-    if (canManage) {
-      try {
-        const isAdmin = userHasAllProjectAccess(req.user);
-        let projectsQuery = `
-          SELECT id, name, description, project_type, status, created_at
-          FROM projects
-          WHERE parent_id IS NULL
-        `;
-        const params = [];
-        
-        if (!isAdmin) {
-          projectsQuery = `
-            SELECT DISTINCT p.id, p.name, p.description, p.project_type, p.status, p.created_at
-            FROM projects p
-            LEFT JOIN project_members pm ON p.id = pm.project_id
-            LEFT JOIN project_access_groups pag ON p.id = pag.project_id
-            LEFT JOIN user_groups ug ON pag.group_id = ug.group_id
-            WHERE p.parent_id IS NULL
-              AND (pm.user_id = $1 OR ug.user_id = $1)
-          `;
-          params.push(req.user.id);
-        }
-        
-        projectsQuery += ' ORDER BY name';
-        const projectsResult = await pool.query(projectsQuery, params);
-        projects = projectsResult.rows;
-      } catch (err) {
-        systemLogger.warn('Could not fetch projects', { error: err.message });
-      }
-      
-      try {
-        const vendorUsersResult = await pool.query(`
-          SELECT 
-            u.id,
-            u.username,
-            u.email,
-            u.first_name,
-            u.last_name,
-            u.full_name,
-            u.phone_number,
-            u.status
-          FROM users u
-          WHERE u.internal_user = false 
-            AND u.user_type = 'Vendor'
-            AND u.status = 'active'
-          ORDER BY u.first_name, u.last_name
-        `);
-        vendorUsers = vendorUsersResult.rows;
-      } catch (err) {
-        systemLogger.warn('Could not fetch vendor users', { error: err.message });
-      }
-    }
-    
-    res.json({
-      success: true,
-      vendors: vendorsData.vendors,
-      pagination: vendorsData.pagination,
-      isOwnProfile: vendorsData.isOwnProfile || false,
-      projects,
-      vendorUsers,
-      canManageVendors: canManage
-    });
-    
-  } catch (error) {
-    systemLogger.error('Error in GET /api/vendors/init-data', { error: error.message });
-    res.status(500).json({ error: 'Failed to fetch init data' });
   }
 });
 
