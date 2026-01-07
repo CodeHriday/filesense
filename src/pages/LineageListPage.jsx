@@ -25,6 +25,9 @@ const LineageListPage = () => {
   const [totalGraphs, setTotalGraphs] = useState(0);
   const [searchTerm, setSearchTerm] = useState('');
   const [refreshingId, setRefreshingId] = useState(null);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [graphToDelete, setGraphToDelete] = useState(null);
+  const [deleting, setDeleting] = useState(false);
 
   const loadGraphs = useCallback(async () => {
     setLoading(true);
@@ -84,11 +87,17 @@ const LineageListPage = () => {
     }
   };
 
-  const handleDelete = async (graphId, graphName) => {
-    if (!window.confirm(`Are you sure you want to delete "${graphName}"?`)) return;
+  const handleDelete = (graphId, graphName) => {
+    setGraphToDelete({ id: graphId, name: graphName });
+    setDeleteModalOpen(true);
+  };
 
+  const confirmDelete = async () => {
+    if (!graphToDelete) return;
+    
+    setDeleting(true);
     try {
-      const response = await deleteSavedLineageGraph(graphId);
+      const response = await deleteSavedLineageGraph(graphToDelete.id);
       if (response.success) {
         addToast('success', 'Graph Deleted', 'Lineage graph has been deleted');
         loadGraphs();
@@ -98,7 +107,16 @@ const LineageListPage = () => {
     } catch (err) {
       console.error('Error deleting graph:', err);
       addToast('error', 'Delete Failed', err.message || 'Failed to delete graph');
+    } finally {
+      setDeleting(false);
+      setDeleteModalOpen(false);
+      setGraphToDelete(null);
     }
+  };
+
+  const cancelDelete = () => {
+    setDeleteModalOpen(false);
+    setGraphToDelete(null);
   };
 
   const formatDate = (dateString) => {
@@ -276,6 +294,37 @@ const LineageListPage = () => {
           </>
         )}
       </div>
+
+      {deleteModalOpen && (
+        <div className="gps-modal-overlay" onClick={cancelDelete}>
+          <div className="gps-modal gps-modal-sm" onClick={(e) => e.stopPropagation()}>
+            <div className="gps-modal-header">
+              <h3>Delete Lineage Graph</h3>
+              <button className="gps-modal-close" onClick={cancelDelete}>&times;</button>
+            </div>
+            <div className="gps-modal-body">
+              <p>Are you sure you want to delete <strong>"{graphToDelete?.name}"</strong>?</p>
+              <p className="gps-text-muted">This action cannot be undone.</p>
+            </div>
+            <div className="gps-modal-footer">
+              <button 
+                className="gps-btn gps-btn-secondary" 
+                onClick={cancelDelete}
+                disabled={deleting}
+              >
+                Cancel
+              </button>
+              <button 
+                className="gps-btn gps-btn-danger" 
+                onClick={confirmDelete}
+                disabled={deleting}
+              >
+                {deleting ? 'Deleting...' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </PageLayout>
   );
 };
