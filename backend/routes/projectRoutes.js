@@ -805,36 +805,69 @@ function createProjectRoutes(dbPool) {
   });
 
   // Get project members (all users assigned to a project - direct and group-based)
+  // Supports optional ?role=data_steward filter to only return users with Data Steward role
   router.get('/:projectId/members', async (req, res) => {
     try {
       const { projectId } = req.params;
+      const { role } = req.query;
       const userId = req.user?.id;
 
       if (!userId) {
         return res.status(401).json({ error: 'Unauthorized' });
       }
 
-      // Fetch all users who are members of this project (direct + group-based)
-      const result = await dbPool.query(`
-        SELECT DISTINCT
-          u.id,
-          u.email,
-          u.first_name,
-          u.last_name,
-          u.full_name
-        FROM users u
-        WHERE u.id IN (
-          -- Direct project members
-          SELECT user_id FROM project_members WHERE project_id = $1
-          UNION
-          -- Group-based project members
-          SELECT ug.user_id 
-          FROM project_access_groups pag
-          INNER JOIN user_groups ug ON pag.group_id = ug.group_id
-          WHERE pag.project_id = $1
-        )
-        ORDER BY u.full_name, u.email
-      `, [projectId]);
+      let result;
+      
+      if (role === 'data_steward') {
+        // Fetch project members who have the Data Steward role
+        result = await dbPool.query(`
+          SELECT DISTINCT
+            u.id,
+            u.username,
+            u.email,
+            u.first_name,
+            u.last_name,
+            COALESCE(u.full_name, TRIM(CONCAT(u.first_name, ' ', u.last_name))) as full_name
+          FROM users u
+          INNER JOIN user_roles ur ON u.id = ur.user_id
+          INNER JOIN roles r ON ur.role_id = r.id
+          WHERE r.name ILIKE '%data steward%'
+            AND u.id IN (
+              -- Direct project members
+              SELECT user_id FROM project_members WHERE project_id = $1
+              UNION
+              -- Group-based project members
+              SELECT ug.user_id 
+              FROM project_access_groups pag
+              INNER JOIN user_groups ug ON pag.group_id = ug.group_id
+              WHERE pag.project_id = $1
+            )
+          ORDER BY full_name, u.email
+        `, [projectId]);
+      } else {
+        // Fetch all users who are members of this project (direct + group-based)
+        result = await dbPool.query(`
+          SELECT DISTINCT
+            u.id,
+            u.username,
+            u.email,
+            u.first_name,
+            u.last_name,
+            COALESCE(u.full_name, TRIM(CONCAT(u.first_name, ' ', u.last_name))) as full_name
+          FROM users u
+          WHERE u.id IN (
+            -- Direct project members
+            SELECT user_id FROM project_members WHERE project_id = $1
+            UNION
+            -- Group-based project members
+            SELECT ug.user_id 
+            FROM project_access_groups pag
+            INNER JOIN user_groups ug ON pag.group_id = ug.group_id
+            WHERE pag.project_id = $1
+          )
+          ORDER BY full_name, u.email
+        `, [projectId]);
+      }
 
       res.json({ members: result.rows });
     } catch (error) {
