@@ -222,15 +222,13 @@ function createGroupRoutes(dbPool) {
 
       // Add role assignments if provided
       if (role_ids && Array.isArray(role_ids) && role_ids.length > 0) {
-        const roleValues = role_ids
-          .map(id => `(${newGroup.id}, ${parseInt(id, 10)})`)
-          .join(', ');
-        
-        await client.query(`
-          INSERT INTO access_group_roles (group_id, role_id)
-          VALUES ${roleValues}
-          ON CONFLICT (group_id, role_id) DO NOTHING
-        `);
+        for (const roleId of role_ids) {
+          await client.query(`
+            INSERT INTO access_group_roles (group_id, role_id, project_id)
+            VALUES ($1, $2, NULL)
+            ON CONFLICT DO NOTHING
+          `, [newGroup.id, parseInt(roleId, 10)]);
+        }
       }
 
       await client.query('COMMIT');

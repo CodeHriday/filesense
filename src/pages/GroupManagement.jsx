@@ -387,8 +387,10 @@ function GroupManagement() {
                     className="gps-form-input"
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    maxLength={50}
                     required
                   />
+                  <small className="gps-form-hint">{formData.name.length}/50 characters</small>
                 </div>
                 <div className="gps-form-group">
                   <label htmlFor="create-group-description" className="gps-form-label">Description</label>
@@ -499,8 +501,10 @@ function GroupManagement() {
                       className="gps-form-input"
                       value={formData.name}
                       onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      maxLength={50}
                       required
                     />
+                    <small className="gps-form-hint">{formData.name.length}/50 characters</small>
                   </div>
                   <div className="gps-form-group">
                     <label htmlFor="edit-group-description" className="gps-form-label">Description</label>
