@@ -84,14 +84,14 @@ class VendorService {
         throw new Error('Backup contact cannot be the same as primary contact');
       }
       
-      // Check if vendor with same email already exists
+      // Check if vendor with same name already exists (name should be unique, not email)
       const existingVendor = await client.query(
-        'SELECT id FROM vendors WHERE contact_email = $1',
-        [contact_email]
+        'SELECT id FROM vendors WHERE LOWER(vendor_name) = LOWER($1)',
+        [vendor_name]
       );
       
       if (existingVendor.rows.length > 0) {
-        throw new Error('Vendor with this email already exists');
+        throw new Error('Vendor with this name already exists');
       }
       
       // Generate unique vendor code
