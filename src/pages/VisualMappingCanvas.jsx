@@ -1168,7 +1168,11 @@ const VisualMappingCanvasContent = () => {
       return false;
     } else {
       setShowValidationErrors(false);
-      setSuccess('Validation passed - no issues found');
+      if (hasUnsavedChanges) {
+        setSuccess('Validation passed! Save your changes to enable Run.');
+      } else {
+        setSuccess('Validation passed - mapping is ready to run');
+      }
       return true;
     }
   };
@@ -1509,7 +1513,12 @@ const VisualMappingCanvasContent = () => {
           >
             <FaTerminal /> Console
           </button>
-          <button onClick={executeMapping} disabled={!isEditMode || isExecuting} className="visual-mapping-toolbar-btn visual-mapping-toolbar-btn-success">
+          <button 
+            onClick={executeMapping} 
+            disabled={!isEditMode || isExecuting || hasUnsavedChanges} 
+            className="visual-mapping-toolbar-btn visual-mapping-toolbar-btn-success"
+            title={hasUnsavedChanges ? 'Save your changes before running' : 'Execute the mapping'}
+          >
             <FiPlay /> {isExecuting ? 'Running...' : 'Run'}
           </button>
         </div>
@@ -1517,6 +1526,14 @@ const VisualMappingCanvasContent = () => {
       
       {error && <div className="visual-mapping-error">{error}</div>}
       {success && <div className="visual-mapping-success">{success}</div>}
+      
+      {/* Unsaved changes notification banner */}
+      {hasUnsavedChanges && (
+        <div className="visual-mapping-unsaved-banner">
+          <FaExclamationTriangle style={{ marginRight: '8px' }} />
+          You have unsaved changes. Save to apply your updates and enable Run.
+        </div>
+      )}
       
       {/* Connection validation error toast */}
       {connectionError && (

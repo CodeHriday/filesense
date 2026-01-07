@@ -760,47 +760,46 @@ const VendorManagement = () => {
       
       {/* Vendor Creation Success Modal */}
       {showSuccessModal && createdVendorInfo && (
-        <div className="modal-overlay" onClick={() => setShowSuccessModal(false)}>
-          <div className="modal vendor-success-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>Vendor Created Successfully</h2>
-              <button className="close-btn" onClick={() => setShowSuccessModal(false)}>×</button>
-            </div>
-            <div className="modal-body">
-              <div className="success-content">
-                <div className="success-icon">
-                  <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="2">
-                    <circle cx="12" cy="12" r="10" />
-                    <path d="M9 12l2 2 4-4" />
-                  </svg>
-                </div>
-                <h3 className="success-title">Vendor "{createdVendorInfo.vendorName}" has been created.</h3>
-                <p className="success-subtitle">
-                  A default project <strong>"{createdVendorInfo.projectName}"</strong> has been created.
-                </p>
-                <div className="success-info-box">
-                  <p>Please go to the project management page and add respective dev teams or users to provide them access to the project.</p>
-                </div>
+        <div className="gps-modal-overlay" onClick={() => setShowSuccessModal(false)}>
+          <div className="gps-modal gps-modal--sm gps-modal--centered" onClick={(e) => e.stopPropagation()}>
+            <div className="gps-modal-body">
+              <div className="gps-modal-icon gps-modal-icon--success">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <circle cx="12" cy="12" r="10" />
+                  <path d="M9 12l2 2 4-4" />
+                </svg>
               </div>
-            </div>
-            <div className="modal-actions">
-              <button 
-                type="button" 
-                className="btn-secondary" 
-                onClick={() => setShowSuccessModal(false)}
-              >
-                Close
-              </button>
-              <button 
-                type="button" 
-                className="btn-primary" 
-                onClick={() => {
-                  setShowSuccessModal(false);
-                  navigate('/project-management');
-                }}
-              >
-                Go to Project Management
-              </button>
+              
+              <h2 className="gps-modal-title">Vendor Created Successfully</h2>
+              
+              <p className="gps-modal-text">
+                Vendor <strong>"{createdVendorInfo.vendorName}"</strong> has been created.<br />
+                A default project <strong>"{createdVendorInfo.projectName}"</strong> has been created.
+              </p>
+              
+              <p className="gps-modal-text">
+                Please go to the project management page and add respective dev teams or users to provide them access to the project.
+              </p>
+              
+              <div className="gps-modal-actions">
+                <button 
+                  type="button" 
+                  className="gps-btn gps-btn--secondary" 
+                  onClick={() => setShowSuccessModal(false)}
+                >
+                  Close
+                </button>
+                <button 
+                  type="button" 
+                  className="gps-btn gps-btn--primary" 
+                  onClick={() => {
+                    setShowSuccessModal(false);
+                    navigate('/project-management');
+                  }}
+                >
+                  Go to Project Management
+                </button>
+              </div>
             </div>
           </div>
         </div>

@@ -136,6 +136,19 @@
   border-left: 3px solid #38a169;
 }
 
+/* Unsaved changes notification banner */
+.visual-mapping-unsaved-banner {
+  background: #fefcbf;
+  color: #744210;
+  padding: 8px 16px;
+  font-family: 'Inter', sans-serif;
+  font-size: 10px;
+  font-weight: 500;
+  border-left: 3px solid #d69e2e;
+  display: flex;
+  align-items: center;
+}
+
 /* Connection validation error toast */
 .visual-mapping-connection-error {
   position: fixed;
