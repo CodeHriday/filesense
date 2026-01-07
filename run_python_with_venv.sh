@@ -30,13 +30,14 @@ install_dependencies() {
     local python_cmd="$1"
     if [ -f "requirements.txt" ]; then
         echo "Installing Python dependencies from requirements.txt..."
-        $python_cmd -m pip install --quiet -r requirements.txt 2>/dev/null || true
-    elif [ -n "$REPL_ID" ] || [ -n "$REPLIT_DB_URL" ] || [ -d "/home/runner" ]; then
-        echo "Installing core Python dependencies in Replit environment..."
-        $python_cmd -m pip install --quiet \
+        $python_cmd -m pip install --quiet --user -r requirements.txt 2>/dev/null || true
+    else
+        echo "Installing core Python dependencies..."
+        $python_cmd -m pip install --quiet --user \
             Flask flask-cors pandas numpy boto3 \
             google-cloud-storage azure-storage-blob \
-            psycopg2-binary pyzipper pyreadstat fastavro 2>/dev/null || true
+            psycopg2-binary pyzipper pyreadstat fastavro \
+            openpyxl pyarrow defusedxml pillow 2>/dev/null || true
     fi
 }
 

@@ -825,7 +825,9 @@ class ConnectionService {
    */
   async testAWSConnection(config) {
     try {
-      const { access_key, secret_key, region, bucket_name } = config;
+      // Handle both field name formats: bucket_name and bucket
+      const bucket_name = config.bucket_name || config.bucket;
+      const { access_key, secret_key, region } = config;
       
       if (!access_key || !secret_key || !region || !bucket_name) {
         return {
@@ -854,7 +856,7 @@ class ConnectionService {
       if (error.code === 'NoSuchBucket') {
         return {
           success: false,
-          message: `Bucket '${config.bucket_name}' does not exist`
+          message: `Bucket '${config.bucket_name || config.bucket}' does not exist`
         };
       } else if (error.code === 'InvalidAccessKeyId') {
         return {

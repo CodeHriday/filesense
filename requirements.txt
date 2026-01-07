@@ -1,0 +1,47 @@
+# Core Python dependencies for Filevantage Data Observatory
+# Generated from pyproject.toml and profile_api.py analysis
+
+# Web Framework
+Flask>=3.1.2
+Flask-CORS>=6.0.1
+
+# Data Processing & Analysis
+pandas>=2.2.3
+numpy>=2.2.4
+pyarrow>=19.0.1
+
+# File Format Support
+openpyxl>=3.1.5
+pyreadstat>=1.2.9
+fastavro>=1.10.3
+pyzipper>=0.3.6
+defusedxml>=0.7.1
+
+# Database
+psycopg2-binary>=2.9.11
+
+# Cloud Storage
+boto3>=1.40.62
+google-cloud-storage>=3.4.1
+azure-storage-blob>=12.27.1
+
+# AI/ML Services
+openai>=1.75.0
+anthropic>=0.50.0
+
+# Utilities
+pillow>=11.3.0
+plotly>=6.0.1
+psutil>=7.1.0
+trafilatura>=2.0.0
+uuid>=1.30
+h11>=0.16.0
+ijson>=3.4.0.post0
+
+# Data Engineering
+dbt-core>=1.10.13
+dbt-postgres>=1.9.1
+
+# Specialized Libraries
+sift-stack-py>=0.9.1
+ml-eeg>=0.0.62
