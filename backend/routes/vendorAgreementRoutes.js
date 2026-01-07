@@ -522,26 +522,26 @@ router.get('/:id/full', checkAgreementAccess, async (req, res) => {
       SELECT 
         va.id,
         va.agreement_id,
-        va.stage,
+        va.approval_stage as stage,
         va.action,
         va.comments,
-        va.approved_by,
-        va.approved_at,
+        va.approver_user_id as approved_by,
+        va.approval_timestamp as approved_at,
         u.username as approved_by_username,
         u.email as approved_by_email
       FROM vendor_agreement_approvals va
-      LEFT JOIN users u ON va.approved_by = u.id
+      LEFT JOIN users u ON va.approver_user_id = u.id
       WHERE va.agreement_id = $1
-      ORDER BY va.approved_at DESC
+      ORDER BY va.approval_timestamp DESC
     `, [agreementId]);
     
     const changesResult = await dbQuery(`
       SELECT 
         vc.id,
         vc.agreement_id,
-        vc.field_name,
-        vc.old_value,
-        vc.new_value,
+        vc.change_type as field_name,
+        vc.previous_data as old_value,
+        vc.new_data as new_value,
         vc.changed_by,
         vc.changed_at,
         u.username as changed_by_username
