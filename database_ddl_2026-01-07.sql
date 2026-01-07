@@ -1,229 +1,307 @@
---
--- PostgreSQL database dump
---
+-- =====================================================
+-- DATA FILE OBSERVATORY - Database DDL Script
+-- Generated: 2026-01-07 07:22:09 UTC
+-- PostgreSQL Version: 16
+-- Total Tables: 167
+-- =====================================================
 
-\restrict Bi9Yzvg2yDbsnm5YE3GW5bWerrItEHTgjpWKm4Pu9fFVpjksLb29dXTN0U52Hff
+-- This script contains the complete database schema including:
+-- 1. Sequences
+-- 2. Table definitions
+-- 3. Primary key constraints
+-- 4. Foreign key constraints  
+-- 5. Indexes
 
--- Dumped from database version 16.11 (74c6bb6)
--- Dumped by pg_dump version 16.10
+-- =====================================================
+-- SECTION 1: SEQUENCES
+-- =====================================================
 
-SET statement_timeout = 0;
-SET lock_timeout = 0;
-SET idle_in_transaction_session_timeout = 0;
-SET client_encoding = 'UTF8';
-SET standard_conforming_strings = on;
-SELECT pg_catalog.set_config('search_path', '', false);
-SET check_function_bodies = false;
-SET xmloption = content;
-SET client_min_messages = warning;
-SET row_security = off;
+-- SEQUENCE: access_group_roles_id_seq
+CREATE SEQUENCE IF NOT EXISTS access_group_roles_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: access_groups_id_seq
+CREATE SEQUENCE IF NOT EXISTS access_groups_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: alert_aggregation_id_seq
+CREATE SEQUENCE IF NOT EXISTS alert_aggregation_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: alert_attachments_id_seq
+CREATE SEQUENCE IF NOT EXISTS alert_attachments_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: alert_events_id_seq
+CREATE SEQUENCE IF NOT EXISTS alert_events_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: alert_history_id_seq
+CREATE SEQUENCE IF NOT EXISTS alert_history_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: alert_policies_id_seq
+CREATE SEQUENCE IF NOT EXISTS alert_policies_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: alert_policy_recipients_id_seq
+CREATE SEQUENCE IF NOT EXISTS alert_policy_recipients_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: alert_rules_id_seq
+CREATE SEQUENCE IF NOT EXISTS alert_rules_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: alert_runs_id_seq
+CREATE SEQUENCE IF NOT EXISTS alert_runs_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: allowed_email_domains_id_seq
+CREATE SEQUENCE IF NOT EXISTS allowed_email_domains_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: anomalies_id_seq
+CREATE SEQUENCE IF NOT EXISTS anomalies_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: api_tokens_id_seq
+CREATE SEQUENCE IF NOT EXISTS api_tokens_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: app_settings_id_seq
+CREATE SEQUENCE IF NOT EXISTS app_settings_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: archive_extractions_id_seq
+CREATE SEQUENCE IF NOT EXISTS archive_extractions_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: archive_members_id_seq
+CREATE SEQUENCE IF NOT EXISTS archive_members_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: archived_files_id_seq
+CREATE SEQUENCE IF NOT EXISTS archived_files_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: attribute_definitions_id_seq
+CREATE SEQUENCE IF NOT EXISTS attribute_definitions_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: audit_ledger_id_seq
+CREATE SEQUENCE IF NOT EXISTS audit_ledger_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: audit_ledger_verification_id_seq
+CREATE SEQUENCE IF NOT EXISTS audit_ledger_verification_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: audit_log_audit_id_seq
+CREATE SEQUENCE IF NOT EXISTS audit_log_audit_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: audit_retention_settings_id_seq
+CREATE SEQUENCE IF NOT EXISTS audit_retention_settings_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: bulk_profiling_files_id_seq
+CREATE SEQUENCE IF NOT EXISTS bulk_profiling_files_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: business_processes_id_seq
+CREATE SEQUENCE IF NOT EXISTS business_processes_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: column_governance_tag_assignments_assignment_id_seq
+CREATE SEQUENCE IF NOT EXISTS column_governance_tag_assignments_assignment_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: column_mappings_id_seq
+CREATE SEQUENCE IF NOT EXISTS column_mappings_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: column_policy_assignments_assignment_id_seq
+CREATE SEQUENCE IF NOT EXISTS column_policy_assignments_assignment_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: column_sensitivity_tags_tag_id_seq
+CREATE SEQUENCE IF NOT EXISTS column_sensitivity_tags_tag_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: config_change_history_change_id_seq
+CREATE SEQUENCE IF NOT EXISTS config_change_history_change_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: connections_id_seq
+CREATE SEQUENCE IF NOT EXISTS connections_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: data_access_log_access_id_seq
+CREATE SEQUENCE IF NOT EXISTS data_access_log_access_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: dbt_executions_execution_id_seq
+CREATE SEQUENCE IF NOT EXISTS dbt_executions_execution_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: dbt_models_model_id_seq
+CREATE SEQUENCE IF NOT EXISTS dbt_models_model_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: dlq_jobs_id_seq
+CREATE SEQUENCE IF NOT EXISTS dlq_jobs_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: drop_location_config_id_seq
+CREATE SEQUENCE IF NOT EXISTS drop_location_config_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: encrypted_passwords_id_seq
+CREATE SEQUENCE IF NOT EXISTS encrypted_passwords_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: execution_audit_audit_id_seq
+CREATE SEQUENCE IF NOT EXISTS execution_audit_audit_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: file_audit_details_id_seq
+CREATE SEQUENCE IF NOT EXISTS file_audit_details_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: file_columns_id_seq
+CREATE SEQUENCE IF NOT EXISTS file_columns_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: file_errors_id_seq
+CREATE SEQUENCE IF NOT EXISTS file_errors_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: file_history_id_seq
+CREATE SEQUENCE IF NOT EXISTS file_history_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: file_lineage_id_seq
+CREATE SEQUENCE IF NOT EXISTS file_lineage_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: file_mappings_id_seq
+CREATE SEQUENCE IF NOT EXISTS file_mappings_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: file_ownership_ownership_id_seq
+CREATE SEQUENCE IF NOT EXISTS file_ownership_ownership_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: file_pattern_metrics_id_seq
+CREATE SEQUENCE IF NOT EXISTS file_pattern_metrics_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: file_policy_assignments_assignment_id_seq
+CREATE SEQUENCE IF NOT EXISTS file_policy_assignments_assignment_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: file_preview_data_preview_id_seq
+CREATE SEQUENCE IF NOT EXISTS file_preview_data_preview_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: file_processing_artifacts_id_seq
+CREATE SEQUENCE IF NOT EXISTS file_processing_artifacts_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: file_quality_checks_id_seq
+CREATE SEQUENCE IF NOT EXISTS file_quality_checks_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: file_quality_rules_id_seq
+CREATE SEQUENCE IF NOT EXISTS file_quality_rules_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: file_restorations_id_seq
+CREATE SEQUENCE IF NOT EXISTS file_restorations_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: file_schedules_id_seq
+CREATE SEQUENCE IF NOT EXISTS file_schedules_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: file_schema_details_id_seq
+CREATE SEQUENCE IF NOT EXISTS file_schema_details_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: file_schemas_id_seq
+CREATE SEQUENCE IF NOT EXISTS file_schemas_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: file_tag_assignments_assignment_id_seq
+CREATE SEQUENCE IF NOT EXISTS file_tag_assignments_assignment_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: files_id_seq
+CREATE SEQUENCE IF NOT EXISTS files_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: fixed_width_schemas_id_seq
+CREATE SEQUENCE IF NOT EXISTS fixed_width_schemas_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: frontend_audit_log_audit_id_seq
+CREATE SEQUENCE IF NOT EXISTS frontend_audit_log_audit_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: groups_id_seq
+CREATE SEQUENCE IF NOT EXISTS groups_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: idempotency_keys_id_seq
+CREATE SEQUENCE IF NOT EXISTS idempotency_keys_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: job_dependencies_dependency_id_seq
+CREATE SEQUENCE IF NOT EXISTS job_dependencies_dependency_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: job_group_dependencies_group_dependency_id_seq
+CREATE SEQUENCE IF NOT EXISTS job_group_dependencies_group_dependency_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: job_group_schedules_group_schedule_id_seq
+CREATE SEQUENCE IF NOT EXISTS job_group_schedules_group_schedule_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: job_history_id_seq
+CREATE SEQUENCE IF NOT EXISTS job_history_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: job_runs_id_seq
+CREATE SEQUENCE IF NOT EXISTS job_runs_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: job_schedules_id_seq
+CREATE SEQUENCE IF NOT EXISTS job_schedules_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: jobs_id_seq
+CREATE SEQUENCE IF NOT EXISTS jobs_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: lineage_views_id_seq
+CREATE SEQUENCE IF NOT EXISTS lineage_views_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: logical_file_groups_id_seq
+CREATE SEQUENCE IF NOT EXISTS logical_file_groups_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: mapping_group_executions_id_seq
+CREATE SEQUENCE IF NOT EXISTS mapping_group_executions_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: mapping_group_members_id_seq
+CREATE SEQUENCE IF NOT EXISTS mapping_group_members_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: mapping_groups_id_seq
+CREATE SEQUENCE IF NOT EXISTS mapping_groups_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: mapping_job_errors_id_seq
+CREATE SEQUENCE IF NOT EXISTS mapping_job_errors_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: migrations_id_seq
+CREATE SEQUENCE IF NOT EXISTS migrations_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: n_step_workflow_assets_id_seq
+CREATE SEQUENCE IF NOT EXISTS n_step_workflow_assets_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: n_step_workflow_run_steps_id_seq
+CREATE SEQUENCE IF NOT EXISTS n_step_workflow_run_steps_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: n_step_workflow_runs_id_seq
+CREATE SEQUENCE IF NOT EXISTS n_step_workflow_runs_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: n_step_workflow_steps_id_seq
+CREATE SEQUENCE IF NOT EXISTS n_step_workflow_steps_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: n_step_workflows_id_seq
+CREATE SEQUENCE IF NOT EXISTS n_step_workflows_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: notifications_id_seq
+CREATE SEQUENCE IF NOT EXISTS notifications_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: password_reset_requests_id_seq
+CREATE SEQUENCE IF NOT EXISTS password_reset_requests_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: permissions_id_seq
+CREATE SEQUENCE IF NOT EXISTS permissions_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: processing_events_id_seq
+CREATE SEQUENCE IF NOT EXISTS processing_events_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: profiling_metrics_id_seq
+CREATE SEQUENCE IF NOT EXISTS profiling_metrics_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: projects_id_seq
+CREATE SEQUENCE IF NOT EXISTS projects_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: quality_rule_configurations_id_seq
+CREATE SEQUENCE IF NOT EXISTS quality_rule_configurations_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: quality_rule_violations_id_seq
+CREATE SEQUENCE IF NOT EXISTS quality_rule_violations_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: quality_rules_id_seq
+CREATE SEQUENCE IF NOT EXISTS quality_rules_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: rbac_policies_id_seq
+CREATE SEQUENCE IF NOT EXISTS rbac_policies_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: resource_attributes_id_seq
+CREATE SEQUENCE IF NOT EXISTS resource_attributes_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: retention_policies_id_seq
+CREATE SEQUENCE IF NOT EXISTS retention_policies_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: retention_policy_runs_id_seq
+CREATE SEQUENCE IF NOT EXISTS retention_policy_runs_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: roles_id_seq
+CREATE SEQUENCE IF NOT EXISTS roles_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: schedules_id_seq
+CREATE SEQUENCE IF NOT EXISTS schedules_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: schema_migrations_id_seq
+CREATE SEQUENCE IF NOT EXISTS schema_migrations_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: schema_validation_job_files_id_seq
+CREATE SEQUENCE IF NOT EXISTS schema_validation_job_files_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: schema_validation_jobs_id_seq
+CREATE SEQUENCE IF NOT EXISTS schema_validation_jobs_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: scim_configurations_id_seq
+CREATE SEQUENCE IF NOT EXISTS scim_configurations_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: scim_resource_mappings_id_seq
+CREATE SEQUENCE IF NOT EXISTS scim_resource_mappings_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: scim_sync_logs_id_seq
+CREATE SEQUENCE IF NOT EXISTS scim_sync_logs_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: security_audit_log_security_audit_id_seq
+CREATE SEQUENCE IF NOT EXISTS security_audit_log_security_audit_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: sub_project_access_groups_id_seq
+CREATE SEQUENCE IF NOT EXISTS sub_project_access_groups_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: sub_project_members_id_seq
+CREATE SEQUENCE IF NOT EXISTS sub_project_members_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: tag_permissions_id_seq
+CREATE SEQUENCE IF NOT EXISTS tag_permissions_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: transform_connections_id_seq
+CREATE SEQUENCE IF NOT EXISTS transform_connections_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: transformation_executions_id_seq
+CREATE SEQUENCE IF NOT EXISTS transformation_executions_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: transformation_jobs_id_seq
+CREATE SEQUENCE IF NOT EXISTS transformation_jobs_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: transformation_lineage_id_seq
+CREATE SEQUENCE IF NOT EXISTS transformation_lineage_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: transformation_logs_id_seq
+CREATE SEQUENCE IF NOT EXISTS transformation_logs_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: transformation_mappings_id_seq
+CREATE SEQUENCE IF NOT EXISTS transformation_mappings_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: transformation_outputs_id_seq
+CREATE SEQUENCE IF NOT EXISTS transformation_outputs_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: transformation_quality_rules_id_seq
+CREATE SEQUENCE IF NOT EXISTS transformation_quality_rules_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: transformations_id_seq
+CREATE SEQUENCE IF NOT EXISTS transformations_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: upload_batches_id_seq
+CREATE SEQUENCE IF NOT EXISTS upload_batches_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: upload_file_records_id_seq
+CREATE SEQUENCE IF NOT EXISTS upload_file_records_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: upload_files_id_seq
+CREATE SEQUENCE IF NOT EXISTS upload_files_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: user_attributes_id_seq
+CREATE SEQUENCE IF NOT EXISTS user_attributes_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: user_badges_id_seq
+CREATE SEQUENCE IF NOT EXISTS user_badges_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: user_dashboard_settings_id_seq
+CREATE SEQUENCE IF NOT EXISTS user_dashboard_settings_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: user_sessions_id_seq
+CREATE SEQUENCE IF NOT EXISTS user_sessions_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: users_id_seq
+CREATE SEQUENCE IF NOT EXISTS users_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: vendor_agreement_approvals_id_seq
+CREATE SEQUENCE IF NOT EXISTS vendor_agreement_approvals_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: vendor_agreement_changes_id_seq
+CREATE SEQUENCE IF NOT EXISTS vendor_agreement_changes_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: vendor_agreement_documents_id_seq
+CREATE SEQUENCE IF NOT EXISTS vendor_agreement_documents_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: vendor_agreement_file_schemas_id_seq
+CREATE SEQUENCE IF NOT EXISTS vendor_agreement_file_schemas_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: vendor_agreements_id_seq
+CREATE SEQUENCE IF NOT EXISTS vendor_agreements_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: vendor_file_profiling_results_id_seq
+CREATE SEQUENCE IF NOT EXISTS vendor_file_profiling_results_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: vendor_sla_violations_id_seq
+CREATE SEQUENCE IF NOT EXISTS vendor_sla_violations_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: vendor_users_id_seq
+CREATE SEQUENCE IF NOT EXISTS vendor_users_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: vendors_id_seq
+CREATE SEQUENCE IF NOT EXISTS vendors_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: visual_lineage_graphs_id_seq
+CREATE SEQUENCE IF NOT EXISTS visual_lineage_graphs_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: visual_mapping_defs_id_seq
+CREATE SEQUENCE IF NOT EXISTS visual_mapping_defs_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: visual_mapping_edges_id_seq
+CREATE SEQUENCE IF NOT EXISTS visual_mapping_edges_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: visual_mapping_execution_logs_id_seq
+CREATE SEQUENCE IF NOT EXISTS visual_mapping_execution_logs_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: visual_mapping_executions_id_seq
+CREATE SEQUENCE IF NOT EXISTS visual_mapping_executions_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: visual_mapping_nodes_id_seq
+CREATE SEQUENCE IF NOT EXISTS visual_mapping_nodes_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: visual_workflow_execution_logs_id_seq
+CREATE SEQUENCE IF NOT EXISTS visual_workflow_execution_logs_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: visual_workflow_executions_id_seq
+CREATE SEQUENCE IF NOT EXISTS visual_workflow_executions_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: visual_workflows_id_seq
+CREATE SEQUENCE IF NOT EXISTS visual_workflows_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: workflow_executions_id_seq
+CREATE SEQUENCE IF NOT EXISTS workflow_executions_id_seq START WITH 1 INCREMENT BY 1;
+-- SEQUENCE: workflow_steps_id_seq
+CREATE SEQUENCE IF NOT EXISTS workflow_steps_id_seq START WITH 1 INCREMENT BY 1;
 
---
--- Name: uuid-ossp; Type: EXTENSION; Schema: -; Owner: -
---
-
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp" WITH SCHEMA public;
-
-
---
--- Name: EXTENSION "uuid-ossp"; Type: COMMENT; Schema: -; Owner: -
---
-
-COMMENT ON EXTENSION "uuid-ossp" IS 'generate universally unique identifiers (UUIDs)';
-
-
---
--- Name: file_failure_reason; Type: TYPE; Schema: public; Owner: -
---
-
-CREATE TYPE public.file_failure_reason AS ENUM (
-    'virus_detected',
-    'password_missing',
-    'unsupported_encoding',
-    'conversion_failed',
-    'extraction_failed',
-    'clamav_unavailable',
-    'malformed_file',
-    'schema_validation_failed'
-);
-
-
---
--- Name: job_failure_reason; Type: TYPE; Schema: public; Owner: -
---
-
-CREATE TYPE public.job_failure_reason AS ENUM (
-    'conversion_failed',
-    'unsupported_encoding',
-    'schema_mismatch',
-    'source_file_missing',
-    'target_write_failed',
-    'transformation_error'
-);
-
-
---
--- Name: cleanup_expired_policy_cache(); Type: FUNCTION; Schema: public; Owner: -
---
-
-CREATE FUNCTION public.cleanup_expired_policy_cache() RETURNS void
-    LANGUAGE plpgsql
-    AS $$
-      BEGIN
-        DELETE FROM policy_evaluation_cache WHERE expires_at < NOW();
-      END;
-      $$;
-
-
---
--- Name: get_user_projects(integer); Type: FUNCTION; Schema: public; Owner: -
---
-
-CREATE FUNCTION public.get_user_projects(user_id_param integer) RETURNS TABLE(project_id integer)
-    LANGUAGE plpgsql STABLE
-    AS $$
-BEGIN
-  RETURN QUERY
-  SELECT DISTINCT pm.project_id
-  FROM project_members pm
-  WHERE pm.user_id = user_id_param
-  
-  UNION
-  
-  SELECT DISTINCT pag.project_id
-  FROM project_access_groups pag
-  INNER JOIN user_groups ug ON pag.group_id = ug.group_id
-  WHERE ug.user_id = user_id_param;
-END;
-$$;
-
-
---
--- Name: prevent_audit_ledger_delete(); Type: FUNCTION; Schema: public; Owner: -
---
-
-CREATE FUNCTION public.prevent_audit_ledger_delete() RETURNS trigger
-    LANGUAGE plpgsql
-    AS $$
-      BEGIN
-        RAISE EXCEPTION 'Audit ledger entries are immutable and cannot be deleted';
-      END;
-      $$;
-
-
---
--- Name: prevent_audit_ledger_update(); Type: FUNCTION; Schema: public; Owner: -
---
-
-CREATE FUNCTION public.prevent_audit_ledger_update() RETURNS trigger
-    LANGUAGE plpgsql
-    AS $$
-      BEGIN
-        RAISE EXCEPTION 'Audit ledger entries are immutable and cannot be updated';
-      END;
-      $$;
-
-
---
--- Name: refresh_file_pattern_metrics_views(); Type: FUNCTION; Schema: public; Owner: -
---
-
-CREATE FUNCTION public.refresh_file_pattern_metrics_views() RETURNS trigger
-    LANGUAGE plpgsql
-    AS $$
-      BEGIN
-        -- Refresh weekly view concurrently (non-blocking)
-        REFRESH MATERIALIZED VIEW CONCURRENTLY file_pattern_metrics_weekly;
-        
-        -- Refresh monthly view concurrently (non-blocking)
-        REFRESH MATERIALIZED VIEW CONCURRENTLY file_pattern_metrics_monthly;
-        
-        RETURN NEW;
-      END;
-      $$;
-
-
---
--- Name: trigger_cleanup_policy_cache(); Type: FUNCTION; Schema: public; Owner: -
---
-
-CREATE FUNCTION public.trigger_cleanup_policy_cache() RETURNS trigger
-    LANGUAGE plpgsql
-    AS $$
-      BEGIN
-        PERFORM cleanup_expired_policy_cache();
-        RETURN NEW;
-      END;
-      $$;
-
-
---
--- Name: update_full_name(); Type: FUNCTION; Schema: public; Owner: -
---
-
-CREATE FUNCTION public.update_full_name() RETURNS trigger
-    LANGUAGE plpgsql
-    AS $$
-      BEGIN
-        NEW.full_name := TRIM(CONCAT_WS(' ', 
-          NEW.first_name, 
-          NEW.middle_name, 
-          NEW.last_name
-        ));
-        RETURN NEW;
-      END;
-      $$;
-
-
---
--- Name: update_updated_at_column(); Type: FUNCTION; Schema: public; Owner: -
---
-
-CREATE FUNCTION public.update_updated_at_column() RETURNS trigger
-    LANGUAGE plpgsql
-    AS $$
-      BEGIN
-        NEW.updated_at = NOW();
-        RETURN NEW;
-      END;
-      $$;
-
-
---
--- Name: update_vendor_agreement_file_schemas_updated_at(); Type: FUNCTION; Schema: public; Owner: -
---
-
-CREATE FUNCTION public.update_vendor_agreement_file_schemas_updated_at() RETURNS trigger
-    LANGUAGE plpgsql
-    AS $$
-      BEGIN
-        NEW.updated_at = CURRENT_TIMESTAMP;
-        RETURN NEW;
-      END;
-      $$;
-
-
---
--- Name: update_vendor_users_updated_at(); Type: FUNCTION; Schema: public; Owner: -
---
-
-CREATE FUNCTION public.update_vendor_users_updated_at() RETURNS trigger
-    LANGUAGE plpgsql
-    AS $$
-      BEGIN
-        NEW.updated_at = CURRENT_TIMESTAMP;
-        RETURN NEW;
-      END;
-      $$;
-
-
-SET default_tablespace = '';
-
-SET default_table_access_method = heap;
-
---
--- Name: access_group_members; Type: TABLE; Schema: public; Owner: -
---
+-- =====================================================
+-- SECTION 2: TABLE DEFINITIONS
+-- =====================================================
 
 CREATE TABLE public.access_group_members (
     group_id integer NOT NULL,
@@ -2973,31 +3051,7 @@ COMMENT ON COLUMN public.files.parent_archive_id IS 'References parent archive i
 
 COMMENT ON COLUMN public.files.failure_reason_code IS 'Database-enforced failure reason code. Use processing_error column for human-readable actionable messages.';
 
-
 --
--- Name: files_id_seq; Type: SEQUENCE; Schema: public; Owner: -
---
-
-CREATE SEQUENCE public.files_id_seq
-    AS integer
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-
---
--- Name: files_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
---
-
-ALTER SEQUENCE public.files_id_seq OWNED BY public.files.id;
-
-
---
--- Name: fixed_width_schemas; Type: TABLE; Schema: public; Owner: -
---
-
 CREATE TABLE public.fixed_width_schemas (
     id integer NOT NULL,
     file_id character varying(255) NOT NULL,
@@ -7092,7851 +7146,2154 @@ ALTER TABLE ONLY public.alert_rules ALTER COLUMN id SET DEFAULT nextval('public.
 
 
 --
--- Name: alert_runs id; Type: DEFAULT; Schema: public; Owner: -
---
 
-ALTER TABLE ONLY public.alert_runs ALTER COLUMN id SET DEFAULT nextval('public.alert_runs_id_seq'::regclass);
-
-
---
--- Name: allowed_email_domains id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.allowed_email_domains ALTER COLUMN id SET DEFAULT nextval('public.allowed_email_domains_id_seq'::regclass);
-
-
---
--- Name: anomalies id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.anomalies ALTER COLUMN id SET DEFAULT nextval('public.anomalies_id_seq'::regclass);
-
-
---
--- Name: api_tokens id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.api_tokens ALTER COLUMN id SET DEFAULT nextval('public.api_tokens_id_seq'::regclass);
-
-
---
--- Name: app_settings id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.app_settings ALTER COLUMN id SET DEFAULT nextval('public.app_settings_id_seq'::regclass);
-
-
---
--- Name: archive_extractions id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.archive_extractions ALTER COLUMN id SET DEFAULT nextval('public.archive_extractions_id_seq'::regclass);
-
-
---
--- Name: archive_members id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.archive_members ALTER COLUMN id SET DEFAULT nextval('public.archive_members_id_seq'::regclass);
-
-
---
--- Name: archived_files id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.archived_files ALTER COLUMN id SET DEFAULT nextval('public.archived_files_id_seq'::regclass);
-
-
---
--- Name: attribute_definitions id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.attribute_definitions ALTER COLUMN id SET DEFAULT nextval('public.attribute_definitions_id_seq'::regclass);
-
-
---
--- Name: audit_ledger id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.audit_ledger ALTER COLUMN id SET DEFAULT nextval('public.audit_ledger_id_seq'::regclass);
-
-
---
--- Name: audit_ledger_verification id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.audit_ledger_verification ALTER COLUMN id SET DEFAULT nextval('public.audit_ledger_verification_id_seq'::regclass);
-
-
---
--- Name: audit_log audit_id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.audit_log ALTER COLUMN audit_id SET DEFAULT nextval('public.audit_log_audit_id_seq'::regclass);
-
-
---
--- Name: audit_retention_settings id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.audit_retention_settings ALTER COLUMN id SET DEFAULT nextval('public.audit_retention_settings_id_seq'::regclass);
-
-
---
--- Name: bulk_profiling_files id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.bulk_profiling_files ALTER COLUMN id SET DEFAULT nextval('public.bulk_profiling_files_id_seq'::regclass);
-
-
---
--- Name: business_processes id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.business_processes ALTER COLUMN id SET DEFAULT nextval('public.business_processes_id_seq'::regclass);
-
-
---
--- Name: column_governance_tag_assignments assignment_id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.column_governance_tag_assignments ALTER COLUMN assignment_id SET DEFAULT nextval('public.column_governance_tag_assignments_assignment_id_seq'::regclass);
-
-
---
--- Name: column_mappings id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.column_mappings ALTER COLUMN id SET DEFAULT nextval('public.column_mappings_id_seq'::regclass);
-
-
---
--- Name: column_policy_assignments assignment_id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.column_policy_assignments ALTER COLUMN assignment_id SET DEFAULT nextval('public.column_policy_assignments_assignment_id_seq'::regclass);
-
-
---
--- Name: column_sensitivity_tags tag_id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.column_sensitivity_tags ALTER COLUMN tag_id SET DEFAULT nextval('public.column_sensitivity_tags_tag_id_seq'::regclass);
-
-
---
--- Name: config_change_history change_id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.config_change_history ALTER COLUMN change_id SET DEFAULT nextval('public.config_change_history_change_id_seq'::regclass);
-
-
---
--- Name: connections id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.connections ALTER COLUMN id SET DEFAULT nextval('public.connections_id_seq'::regclass);
-
-
---
--- Name: data_access_log access_id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.data_access_log ALTER COLUMN access_id SET DEFAULT nextval('public.data_access_log_access_id_seq'::regclass);
-
-
---
--- Name: dbt_executions execution_id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.dbt_executions ALTER COLUMN execution_id SET DEFAULT nextval('public.dbt_executions_execution_id_seq'::regclass);
-
-
---
--- Name: dbt_models model_id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.dbt_models ALTER COLUMN model_id SET DEFAULT nextval('public.dbt_models_model_id_seq'::regclass);
-
-
---
--- Name: dlq_jobs id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.dlq_jobs ALTER COLUMN id SET DEFAULT nextval('public.dlq_jobs_id_seq'::regclass);
-
-
---
--- Name: drop_location_config id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.drop_location_config ALTER COLUMN id SET DEFAULT nextval('public.drop_location_config_id_seq'::regclass);
-
-
---
--- Name: encrypted_passwords id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.encrypted_passwords ALTER COLUMN id SET DEFAULT nextval('public.encrypted_passwords_id_seq'::regclass);
-
-
---
--- Name: execution_audit audit_id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.execution_audit ALTER COLUMN audit_id SET DEFAULT nextval('public.execution_audit_audit_id_seq'::regclass);
-
-
---
--- Name: file_audit_details id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.file_audit_details ALTER COLUMN id SET DEFAULT nextval('public.file_audit_details_id_seq'::regclass);
-
-
---
--- Name: file_columns id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.file_columns ALTER COLUMN id SET DEFAULT nextval('public.file_columns_id_seq'::regclass);
-
-
---
--- Name: file_errors id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.file_errors ALTER COLUMN id SET DEFAULT nextval('public.file_errors_id_seq'::regclass);
-
-
---
--- Name: file_history id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.file_history ALTER COLUMN id SET DEFAULT nextval('public.file_history_id_seq'::regclass);
-
-
---
--- Name: file_lineage id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.file_lineage ALTER COLUMN id SET DEFAULT nextval('public.file_lineage_id_seq'::regclass);
-
-
---
--- Name: file_mappings id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.file_mappings ALTER COLUMN id SET DEFAULT nextval('public.file_mappings_id_seq'::regclass);
-
-
---
--- Name: file_ownership ownership_id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.file_ownership ALTER COLUMN ownership_id SET DEFAULT nextval('public.file_ownership_ownership_id_seq'::regclass);
-
-
---
--- Name: file_pattern_metrics id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.file_pattern_metrics ALTER COLUMN id SET DEFAULT nextval('public.file_pattern_metrics_id_seq'::regclass);
-
-
---
--- Name: file_policy_assignments assignment_id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.file_policy_assignments ALTER COLUMN assignment_id SET DEFAULT nextval('public.file_policy_assignments_assignment_id_seq'::regclass);
-
-
---
--- Name: file_preview_data preview_id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.file_preview_data ALTER COLUMN preview_id SET DEFAULT nextval('public.file_preview_data_preview_id_seq'::regclass);
-
-
---
--- Name: file_processing_artifacts id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.file_processing_artifacts ALTER COLUMN id SET DEFAULT nextval('public.file_processing_artifacts_id_seq'::regclass);
-
-
---
--- Name: file_quality_checks id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.file_quality_checks ALTER COLUMN id SET DEFAULT nextval('public.file_quality_checks_id_seq'::regclass);
-
-
---
--- Name: file_quality_rules id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.file_quality_rules ALTER COLUMN id SET DEFAULT nextval('public.file_quality_rules_id_seq'::regclass);
-
-
---
--- Name: file_restorations id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.file_restorations ALTER COLUMN id SET DEFAULT nextval('public.file_restorations_id_seq'::regclass);
-
-
---
--- Name: file_schedules id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.file_schedules ALTER COLUMN id SET DEFAULT nextval('public.file_schedules_id_seq'::regclass);
-
-
---
--- Name: file_schema_details id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.file_schema_details ALTER COLUMN id SET DEFAULT nextval('public.file_schema_details_id_seq'::regclass);
-
-
---
--- Name: file_schemas id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.file_schemas ALTER COLUMN id SET DEFAULT nextval('public.file_schemas_id_seq'::regclass);
-
-
---
--- Name: file_tag_assignments assignment_id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.file_tag_assignments ALTER COLUMN assignment_id SET DEFAULT nextval('public.file_tag_assignments_assignment_id_seq'::regclass);
-
-
---
--- Name: files id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.files ALTER COLUMN id SET DEFAULT nextval('public.files_id_seq'::regclass);
-
-
---
--- Name: fixed_width_schemas id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.fixed_width_schemas ALTER COLUMN id SET DEFAULT nextval('public.fixed_width_schemas_id_seq'::regclass);
-
-
---
--- Name: frontend_audit_log audit_id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.frontend_audit_log ALTER COLUMN audit_id SET DEFAULT nextval('public.frontend_audit_log_audit_id_seq'::regclass);
-
-
---
--- Name: groups id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.groups ALTER COLUMN id SET DEFAULT nextval('public.groups_id_seq'::regclass);
-
-
---
--- Name: idempotency_keys id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.idempotency_keys ALTER COLUMN id SET DEFAULT nextval('public.idempotency_keys_id_seq'::regclass);
-
-
---
--- Name: job_dependencies dependency_id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.job_dependencies ALTER COLUMN dependency_id SET DEFAULT nextval('public.job_dependencies_dependency_id_seq'::regclass);
-
-
---
--- Name: job_group_dependencies group_dependency_id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.job_group_dependencies ALTER COLUMN group_dependency_id SET DEFAULT nextval('public.job_group_dependencies_group_dependency_id_seq'::regclass);
-
-
---
--- Name: job_group_schedules group_schedule_id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.job_group_schedules ALTER COLUMN group_schedule_id SET DEFAULT nextval('public.job_group_schedules_group_schedule_id_seq'::regclass);
-
-
---
--- Name: job_history id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.job_history ALTER COLUMN id SET DEFAULT nextval('public.job_history_id_seq'::regclass);
-
-
---
--- Name: job_runs id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.job_runs ALTER COLUMN id SET DEFAULT nextval('public.job_runs_id_seq'::regclass);
-
-
---
--- Name: job_schedules id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.job_schedules ALTER COLUMN id SET DEFAULT nextval('public.job_schedules_id_seq'::regclass);
-
-
---
--- Name: jobs id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.jobs ALTER COLUMN id SET DEFAULT nextval('public.jobs_id_seq'::regclass);
-
-
---
--- Name: lineage_views id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.lineage_views ALTER COLUMN id SET DEFAULT nextval('public.lineage_views_id_seq'::regclass);
-
-
---
--- Name: logical_file_groups id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.logical_file_groups ALTER COLUMN id SET DEFAULT nextval('public.logical_file_groups_id_seq'::regclass);
-
-
---
--- Name: mapping_group_executions id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.mapping_group_executions ALTER COLUMN id SET DEFAULT nextval('public.mapping_group_executions_id_seq'::regclass);
-
-
---
--- Name: mapping_group_members id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.mapping_group_members ALTER COLUMN id SET DEFAULT nextval('public.mapping_group_members_id_seq'::regclass);
-
-
---
--- Name: mapping_groups id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.mapping_groups ALTER COLUMN id SET DEFAULT nextval('public.mapping_groups_id_seq'::regclass);
-
-
---
--- Name: mapping_job_errors id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.mapping_job_errors ALTER COLUMN id SET DEFAULT nextval('public.mapping_job_errors_id_seq'::regclass);
-
-
---
--- Name: migrations id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.migrations ALTER COLUMN id SET DEFAULT nextval('public.migrations_id_seq'::regclass);
-
-
---
--- Name: n_step_workflow_assets id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.n_step_workflow_assets ALTER COLUMN id SET DEFAULT nextval('public.n_step_workflow_assets_id_seq'::regclass);
-
-
---
--- Name: n_step_workflow_run_steps id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.n_step_workflow_run_steps ALTER COLUMN id SET DEFAULT nextval('public.n_step_workflow_run_steps_id_seq'::regclass);
-
-
---
--- Name: n_step_workflow_runs id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.n_step_workflow_runs ALTER COLUMN id SET DEFAULT nextval('public.n_step_workflow_runs_id_seq'::regclass);
-
-
---
--- Name: n_step_workflow_steps id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.n_step_workflow_steps ALTER COLUMN id SET DEFAULT nextval('public.n_step_workflow_steps_id_seq'::regclass);
-
-
---
--- Name: n_step_workflows id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.n_step_workflows ALTER COLUMN id SET DEFAULT nextval('public.n_step_workflows_id_seq'::regclass);
-
-
---
--- Name: notifications id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.notifications ALTER COLUMN id SET DEFAULT nextval('public.notifications_id_seq'::regclass);
-
-
---
--- Name: password_reset_requests id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.password_reset_requests ALTER COLUMN id SET DEFAULT nextval('public.password_reset_requests_id_seq'::regclass);
-
-
---
--- Name: permissions id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.permissions ALTER COLUMN id SET DEFAULT nextval('public.permissions_id_seq'::regclass);
-
-
---
--- Name: processing_events id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.processing_events ALTER COLUMN id SET DEFAULT nextval('public.processing_events_id_seq'::regclass);
-
-
---
--- Name: profiling_metrics id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.profiling_metrics ALTER COLUMN id SET DEFAULT nextval('public.profiling_metrics_id_seq'::regclass);
-
-
---
--- Name: projects id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.projects ALTER COLUMN id SET DEFAULT nextval('public.projects_id_seq'::regclass);
-
-
---
--- Name: quality_rule_configurations id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.quality_rule_configurations ALTER COLUMN id SET DEFAULT nextval('public.quality_rule_configurations_id_seq'::regclass);
-
-
---
--- Name: quality_rule_violations id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.quality_rule_violations ALTER COLUMN id SET DEFAULT nextval('public.quality_rule_violations_id_seq'::regclass);
-
-
---
--- Name: quality_rules id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.quality_rules ALTER COLUMN id SET DEFAULT nextval('public.quality_rules_id_seq'::regclass);
-
-
---
--- Name: rbac_policies id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.rbac_policies ALTER COLUMN id SET DEFAULT nextval('public.rbac_policies_id_seq'::regclass);
-
-
---
--- Name: resource_attributes id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.resource_attributes ALTER COLUMN id SET DEFAULT nextval('public.resource_attributes_id_seq'::regclass);
-
-
---
--- Name: retention_policies id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.retention_policies ALTER COLUMN id SET DEFAULT nextval('public.retention_policies_id_seq'::regclass);
-
-
---
--- Name: retention_policy_runs id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.retention_policy_runs ALTER COLUMN id SET DEFAULT nextval('public.retention_policy_runs_id_seq'::regclass);
-
-
---
--- Name: roles id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.roles ALTER COLUMN id SET DEFAULT nextval('public.roles_id_seq'::regclass);
-
-
---
--- Name: schedules id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.schedules ALTER COLUMN id SET DEFAULT nextval('public.schedules_id_seq'::regclass);
-
-
---
--- Name: schema_migrations id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.schema_migrations ALTER COLUMN id SET DEFAULT nextval('public.schema_migrations_id_seq'::regclass);
-
-
---
--- Name: schema_validation_job_files id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.schema_validation_job_files ALTER COLUMN id SET DEFAULT nextval('public.schema_validation_job_files_id_seq'::regclass);
-
-
---
--- Name: schema_validation_jobs id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.schema_validation_jobs ALTER COLUMN id SET DEFAULT nextval('public.schema_validation_jobs_id_seq'::regclass);
-
-
---
--- Name: scim_configurations id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.scim_configurations ALTER COLUMN id SET DEFAULT nextval('public.scim_configurations_id_seq'::regclass);
-
-
---
--- Name: scim_resource_mappings id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.scim_resource_mappings ALTER COLUMN id SET DEFAULT nextval('public.scim_resource_mappings_id_seq'::regclass);
-
-
---
--- Name: scim_sync_logs id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.scim_sync_logs ALTER COLUMN id SET DEFAULT nextval('public.scim_sync_logs_id_seq'::regclass);
-
-
---
--- Name: security_audit_log security_audit_id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.security_audit_log ALTER COLUMN security_audit_id SET DEFAULT nextval('public.security_audit_log_security_audit_id_seq'::regclass);
-
-
---
--- Name: sub_project_access_groups id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.sub_project_access_groups ALTER COLUMN id SET DEFAULT nextval('public.sub_project_access_groups_id_seq'::regclass);
-
-
---
--- Name: sub_project_members id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.sub_project_members ALTER COLUMN id SET DEFAULT nextval('public.sub_project_members_id_seq'::regclass);
-
-
---
--- Name: tag_permissions id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.tag_permissions ALTER COLUMN id SET DEFAULT nextval('public.tag_permissions_id_seq'::regclass);
-
-
---
--- Name: transform_connections id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.transform_connections ALTER COLUMN id SET DEFAULT nextval('public.transform_connections_id_seq'::regclass);
-
-
---
--- Name: transformation_executions id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.transformation_executions ALTER COLUMN id SET DEFAULT nextval('public.transformation_executions_id_seq'::regclass);
-
-
---
--- Name: transformation_jobs id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.transformation_jobs ALTER COLUMN id SET DEFAULT nextval('public.transformation_jobs_id_seq'::regclass);
-
-
---
--- Name: transformation_lineage id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.transformation_lineage ALTER COLUMN id SET DEFAULT nextval('public.transformation_lineage_id_seq'::regclass);
-
-
---
--- Name: transformation_logs id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.transformation_logs ALTER COLUMN id SET DEFAULT nextval('public.transformation_logs_id_seq'::regclass);
-
-
---
--- Name: transformation_mappings id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.transformation_mappings ALTER COLUMN id SET DEFAULT nextval('public.transformation_mappings_id_seq'::regclass);
-
-
---
--- Name: transformation_outputs id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.transformation_outputs ALTER COLUMN id SET DEFAULT nextval('public.transformation_outputs_id_seq'::regclass);
-
-
---
--- Name: transformation_quality_rules id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.transformation_quality_rules ALTER COLUMN id SET DEFAULT nextval('public.transformation_quality_rules_id_seq'::regclass);
-
-
---
--- Name: transformations id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.transformations ALTER COLUMN id SET DEFAULT nextval('public.transformations_id_seq'::regclass);
-
-
---
--- Name: upload_batches id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.upload_batches ALTER COLUMN id SET DEFAULT nextval('public.upload_batches_id_seq'::regclass);
-
-
---
--- Name: upload_file_records id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.upload_file_records ALTER COLUMN id SET DEFAULT nextval('public.upload_file_records_id_seq'::regclass);
-
-
---
--- Name: upload_files id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.upload_files ALTER COLUMN id SET DEFAULT nextval('public.upload_files_id_seq'::regclass);
-
-
---
--- Name: user_attributes id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.user_attributes ALTER COLUMN id SET DEFAULT nextval('public.user_attributes_id_seq'::regclass);
-
-
---
--- Name: user_badges id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.user_badges ALTER COLUMN id SET DEFAULT nextval('public.user_badges_id_seq'::regclass);
-
-
---
--- Name: user_dashboard_settings id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.user_dashboard_settings ALTER COLUMN id SET DEFAULT nextval('public.user_dashboard_settings_id_seq'::regclass);
-
-
---
--- Name: user_sessions id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.user_sessions ALTER COLUMN id SET DEFAULT nextval('public.user_sessions_id_seq'::regclass);
-
-
---
--- Name: users id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.users ALTER COLUMN id SET DEFAULT nextval('public.users_id_seq'::regclass);
-
-
---
--- Name: vendor_agreement_approvals id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.vendor_agreement_approvals ALTER COLUMN id SET DEFAULT nextval('public.vendor_agreement_approvals_id_seq'::regclass);
-
-
---
--- Name: vendor_agreement_changes id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.vendor_agreement_changes ALTER COLUMN id SET DEFAULT nextval('public.vendor_agreement_changes_id_seq'::regclass);
-
-
---
--- Name: vendor_agreement_documents id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.vendor_agreement_documents ALTER COLUMN id SET DEFAULT nextval('public.vendor_agreement_documents_id_seq'::regclass);
-
-
---
--- Name: vendor_agreement_file_schemas id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.vendor_agreement_file_schemas ALTER COLUMN id SET DEFAULT nextval('public.vendor_agreement_file_schemas_id_seq'::regclass);
-
-
---
--- Name: vendor_agreements id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.vendor_agreements ALTER COLUMN id SET DEFAULT nextval('public.vendor_agreements_id_seq'::regclass);
-
-
---
--- Name: vendor_file_profiling_results id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.vendor_file_profiling_results ALTER COLUMN id SET DEFAULT nextval('public.vendor_file_profiling_results_id_seq'::regclass);
-
-
---
--- Name: vendor_sla_violations id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.vendor_sla_violations ALTER COLUMN id SET DEFAULT nextval('public.vendor_sla_violations_id_seq'::regclass);
-
-
---
--- Name: vendor_users id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.vendor_users ALTER COLUMN id SET DEFAULT nextval('public.vendor_users_id_seq'::regclass);
-
-
---
--- Name: vendors id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.vendors ALTER COLUMN id SET DEFAULT nextval('public.vendors_id_seq'::regclass);
-
-
---
--- Name: visual_lineage_graphs id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.visual_lineage_graphs ALTER COLUMN id SET DEFAULT nextval('public.visual_lineage_graphs_id_seq'::regclass);
-
-
---
--- Name: visual_mapping_defs id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.visual_mapping_defs ALTER COLUMN id SET DEFAULT nextval('public.visual_mapping_defs_id_seq'::regclass);
-
-
---
--- Name: visual_mapping_edges id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.visual_mapping_edges ALTER COLUMN id SET DEFAULT nextval('public.visual_mapping_edges_id_seq'::regclass);
-
-
---
--- Name: visual_mapping_execution_logs id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.visual_mapping_execution_logs ALTER COLUMN id SET DEFAULT nextval('public.visual_mapping_execution_logs_id_seq'::regclass);
-
-
---
--- Name: visual_mapping_executions id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.visual_mapping_executions ALTER COLUMN id SET DEFAULT nextval('public.visual_mapping_executions_id_seq'::regclass);
-
-
---
--- Name: visual_mapping_nodes id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.visual_mapping_nodes ALTER COLUMN id SET DEFAULT nextval('public.visual_mapping_nodes_id_seq'::regclass);
-
-
---
--- Name: visual_workflow_execution_logs id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.visual_workflow_execution_logs ALTER COLUMN id SET DEFAULT nextval('public.visual_workflow_execution_logs_id_seq'::regclass);
-
-
---
--- Name: visual_workflow_executions id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.visual_workflow_executions ALTER COLUMN id SET DEFAULT nextval('public.visual_workflow_executions_id_seq'::regclass);
-
-
---
--- Name: visual_workflows id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.visual_workflows ALTER COLUMN id SET DEFAULT nextval('public.visual_workflows_id_seq'::regclass);
-
-
---
--- Name: workflow_executions id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.workflow_executions ALTER COLUMN id SET DEFAULT nextval('public.workflow_executions_id_seq'::regclass);
-
-
---
--- Name: workflow_steps id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.workflow_steps ALTER COLUMN id SET DEFAULT nextval('public.workflow_steps_id_seq'::regclass);
-
-
---
--- Name: access_group_members access_group_members_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.access_group_members
-    ADD CONSTRAINT access_group_members_pkey PRIMARY KEY (group_id, user_id);
-
-
---
--- Name: access_group_roles access_group_roles_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.access_group_roles
-    ADD CONSTRAINT access_group_roles_pkey PRIMARY KEY (id);
-
-
---
--- Name: access_groups access_groups_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.access_groups
-    ADD CONSTRAINT access_groups_pkey PRIMARY KEY (id);
-
-
---
--- Name: alert_aggregation alert_aggregation_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.alert_aggregation
-    ADD CONSTRAINT alert_aggregation_pkey PRIMARY KEY (id);
-
-
---
--- Name: alert_attachments alert_attachments_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.alert_attachments
-    ADD CONSTRAINT alert_attachments_pkey PRIMARY KEY (id);
-
-
---
--- Name: alert_events alert_events_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.alert_events
-    ADD CONSTRAINT alert_events_pkey PRIMARY KEY (id);
-
-
---
--- Name: alert_history alert_history_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.alert_history
-    ADD CONSTRAINT alert_history_pkey PRIMARY KEY (id);
-
-
---
--- Name: alert_policies alert_policies_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.alert_policies
-    ADD CONSTRAINT alert_policies_pkey PRIMARY KEY (id);
-
-
---
--- Name: alert_policy_recipients alert_policy_recipients_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.alert_policy_recipients
-    ADD CONSTRAINT alert_policy_recipients_pkey PRIMARY KEY (id);
-
-
---
--- Name: alert_rules alert_rules_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.alert_rules
-    ADD CONSTRAINT alert_rules_pkey PRIMARY KEY (id);
-
-
---
--- Name: alert_runs alert_runs_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.alert_runs
-    ADD CONSTRAINT alert_runs_pkey PRIMARY KEY (id);
-
-
---
--- Name: allowed_email_domains allowed_email_domains_domain_key; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.allowed_email_domains
-    ADD CONSTRAINT allowed_email_domains_domain_key UNIQUE (domain);
-
-
---
--- Name: allowed_email_domains allowed_email_domains_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.allowed_email_domains
-    ADD CONSTRAINT allowed_email_domains_pkey PRIMARY KEY (id);
-
-
---
--- Name: anomalies anomalies_anomaly_id_key; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.anomalies
-    ADD CONSTRAINT anomalies_anomaly_id_key UNIQUE (anomaly_id);
-
-
---
--- Name: anomalies anomalies_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.anomalies
-    ADD CONSTRAINT anomalies_pkey PRIMARY KEY (id);
-
-
---
--- Name: api_tokens api_tokens_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.api_tokens
-    ADD CONSTRAINT api_tokens_pkey PRIMARY KEY (id);
-
-
---
--- Name: api_tokens api_tokens_token_hash_key; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.api_tokens
-    ADD CONSTRAINT api_tokens_token_hash_key UNIQUE (token_hash);
-
-
---
--- Name: app_settings app_settings_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.app_settings
-    ADD CONSTRAINT app_settings_pkey PRIMARY KEY (id);
-
-
---
--- Name: app_settings app_settings_setting_key_key; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.app_settings
-    ADD CONSTRAINT app_settings_setting_key_key UNIQUE (setting_key);
-
-
---
--- Name: archive_extractions archive_extractions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.archive_extractions
-    ADD CONSTRAINT archive_extractions_pkey PRIMARY KEY (id);
-
-
---
--- Name: archive_members archive_members_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.archive_members
-    ADD CONSTRAINT archive_members_pkey PRIMARY KEY (id);
-
-
---
--- Name: archived_files archived_files_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.archived_files
-    ADD CONSTRAINT archived_files_pkey PRIMARY KEY (id);
-
-
---
--- Name: attribute_definitions attribute_definitions_attribute_key_key; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.attribute_definitions
-    ADD CONSTRAINT attribute_definitions_attribute_key_key UNIQUE (attribute_key);
-
-
---
--- Name: attribute_definitions attribute_definitions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.attribute_definitions
-    ADD CONSTRAINT attribute_definitions_pkey PRIMARY KEY (id);
-
-
---
--- Name: audit_ledger audit_ledger_entry_id_key; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.audit_ledger
-    ADD CONSTRAINT audit_ledger_entry_id_key UNIQUE (entry_id);
-
-
---
--- Name: audit_ledger audit_ledger_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.audit_ledger
-    ADD CONSTRAINT audit_ledger_pkey PRIMARY KEY (id);
-
-
---
--- Name: audit_ledger_sequence audit_ledger_sequence_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.audit_ledger_sequence
-    ADD CONSTRAINT audit_ledger_sequence_pkey PRIMARY KEY (tenant_id);
-
-
---
--- Name: audit_ledger_verification audit_ledger_verification_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.audit_ledger_verification
-    ADD CONSTRAINT audit_ledger_verification_pkey PRIMARY KEY (id);
-
-
---
--- Name: audit_log_archive audit_log_archive_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.audit_log_archive
-    ADD CONSTRAINT audit_log_archive_pkey PRIMARY KEY (audit_id);
-
-
---
--- Name: audit_log audit_log_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.audit_log
-    ADD CONSTRAINT audit_log_pkey PRIMARY KEY (audit_id);
-
-
---
--- Name: audit_retention_settings audit_retention_settings_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.audit_retention_settings
-    ADD CONSTRAINT audit_retention_settings_pkey PRIMARY KEY (id);
-
-
---
--- Name: bulk_profiling_files bulk_profiling_files_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.bulk_profiling_files
-    ADD CONSTRAINT bulk_profiling_files_pkey PRIMARY KEY (id);
-
-
---
--- Name: bulk_profiling_jobs bulk_profiling_jobs_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.bulk_profiling_jobs
-    ADD CONSTRAINT bulk_profiling_jobs_pkey PRIMARY KEY (id);
-
-
---
--- Name: business_processes business_processes_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.business_processes
-    ADD CONSTRAINT business_processes_pkey PRIMARY KEY (id);
-
-
---
--- Name: column_governance_tag_assignments column_governance_tag_assignments_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.column_governance_tag_assignments
-    ADD CONSTRAINT column_governance_tag_assignments_pkey PRIMARY KEY (assignment_id);
-
-
---
--- Name: column_mappings column_mappings_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.column_mappings
-    ADD CONSTRAINT column_mappings_pkey PRIMARY KEY (id);
-
-
---
--- Name: column_policy_assignments column_policy_assignments_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.column_policy_assignments
-    ADD CONSTRAINT column_policy_assignments_pkey PRIMARY KEY (assignment_id);
-
-
---
--- Name: column_sensitivity_tags column_sensitivity_tags_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.column_sensitivity_tags
-    ADD CONSTRAINT column_sensitivity_tags_pkey PRIMARY KEY (tag_id);
-
-
---
--- Name: config_change_history_archive config_change_history_archive_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.config_change_history_archive
-    ADD CONSTRAINT config_change_history_archive_pkey PRIMARY KEY (change_id);
-
-
---
--- Name: config_change_history config_change_history_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.config_change_history
-    ADD CONSTRAINT config_change_history_pkey PRIMARY KEY (change_id);
-
-
---
--- Name: connections connections_connection_name_key; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.connections
-    ADD CONSTRAINT connections_connection_name_key UNIQUE (connection_name);
-
-
---
--- Name: connections connections_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.connections
-    ADD CONSTRAINT connections_pkey PRIMARY KEY (id);
-
-
---
--- Name: data_access_log_archive data_access_log_archive_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.data_access_log_archive
-    ADD CONSTRAINT data_access_log_archive_pkey PRIMARY KEY (access_id);
-
-
---
--- Name: data_access_log data_access_log_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.data_access_log
-    ADD CONSTRAINT data_access_log_pkey PRIMARY KEY (access_id);
-
-
---
--- Name: dbt_executions dbt_executions_execution_uuid_key; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.dbt_executions
-    ADD CONSTRAINT dbt_executions_execution_uuid_key UNIQUE (execution_uuid);
-
-
---
--- Name: dbt_executions dbt_executions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.dbt_executions
-    ADD CONSTRAINT dbt_executions_pkey PRIMARY KEY (execution_id);
-
-
---
--- Name: dbt_models dbt_models_model_name_key; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.dbt_models
-    ADD CONSTRAINT dbt_models_model_name_key UNIQUE (model_name);
-
-
---
--- Name: dbt_models dbt_models_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.dbt_models
-    ADD CONSTRAINT dbt_models_pkey PRIMARY KEY (model_id);
-
-
---
--- Name: dlq_jobs dlq_jobs_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.dlq_jobs
-    ADD CONSTRAINT dlq_jobs_pkey PRIMARY KEY (id);
-
-
---
--- Name: drop_location_config drop_location_config_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.drop_location_config
-    ADD CONSTRAINT drop_location_config_pkey PRIMARY KEY (id);
-
-
---
--- Name: encrypted_passwords encrypted_passwords_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.encrypted_passwords
-    ADD CONSTRAINT encrypted_passwords_pkey PRIMARY KEY (id);
-
-
---
--- Name: execution_audit_archive execution_audit_archive_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.execution_audit_archive
-    ADD CONSTRAINT execution_audit_archive_pkey PRIMARY KEY (audit_id);
-
-
---
--- Name: execution_audit execution_audit_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.execution_audit
-    ADD CONSTRAINT execution_audit_pkey PRIMARY KEY (audit_id);
-
-
---
--- Name: file_audit_details file_audit_details_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.file_audit_details
-    ADD CONSTRAINT file_audit_details_pkey PRIMARY KEY (id);
-
-
---
--- Name: file_columns file_columns_file_id_column_name_file_role_key; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.file_columns
-    ADD CONSTRAINT file_columns_file_id_column_name_file_role_key UNIQUE (file_id, column_name, file_role);
-
-
---
--- Name: file_columns file_columns_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.file_columns
-    ADD CONSTRAINT file_columns_pkey PRIMARY KEY (id);
-
-
---
--- Name: file_errors file_errors_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.file_errors
-    ADD CONSTRAINT file_errors_pkey PRIMARY KEY (id);
-
-
---
--- Name: file_history file_history_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.file_history
-    ADD CONSTRAINT file_history_pkey PRIMARY KEY (id);
-
-
---
--- Name: file_lineage file_lineage_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.file_lineage
-    ADD CONSTRAINT file_lineage_pkey PRIMARY KEY (id);
-
-
---
--- Name: file_mappings file_mappings_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.file_mappings
-    ADD CONSTRAINT file_mappings_pkey PRIMARY KEY (id);
-
-
---
--- Name: file_ownership file_ownership_file_id_key; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.file_ownership
-    ADD CONSTRAINT file_ownership_file_id_key UNIQUE (file_id);
-
-
---
--- Name: file_ownership file_ownership_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.file_ownership
-    ADD CONSTRAINT file_ownership_pkey PRIMARY KEY (ownership_id);
-
-
---
--- Name: file_pattern_metrics file_pattern_metrics_file_pattern_metric_date_key; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.file_pattern_metrics
-    ADD CONSTRAINT file_pattern_metrics_file_pattern_metric_date_key UNIQUE (file_pattern, metric_date);
-
-
---
--- Name: file_pattern_metrics file_pattern_metrics_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.file_pattern_metrics
-    ADD CONSTRAINT file_pattern_metrics_pkey PRIMARY KEY (id);
-
-
---
--- Name: file_policy_assignments file_policy_assignments_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.file_policy_assignments
-    ADD CONSTRAINT file_policy_assignments_pkey PRIMARY KEY (assignment_id);
-
-
---
--- Name: file_preview_data file_preview_data_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.file_preview_data
-    ADD CONSTRAINT file_preview_data_pkey PRIMARY KEY (preview_id);
-
-
---
--- Name: file_processing_artifacts file_processing_artifacts_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.file_processing_artifacts
-    ADD CONSTRAINT file_processing_artifacts_pkey PRIMARY KEY (id);
-
-
---
--- Name: file_quality_checks file_quality_checks_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.file_quality_checks
-    ADD CONSTRAINT file_quality_checks_pkey PRIMARY KEY (id);
-
-
---
--- Name: file_quality_rules file_quality_rules_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.file_quality_rules
-    ADD CONSTRAINT file_quality_rules_pkey PRIMARY KEY (id);
-
-
---
--- Name: file_restorations file_restorations_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.file_restorations
-    ADD CONSTRAINT file_restorations_pkey PRIMARY KEY (id);
-
-
---
--- Name: file_schedules file_schedules_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.file_schedules
-    ADD CONSTRAINT file_schedules_pkey PRIMARY KEY (id);
-
-
---
--- Name: file_schema_details file_schema_details_file_id_file_schema_id_key; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.file_schema_details
-    ADD CONSTRAINT file_schema_details_file_id_file_schema_id_key UNIQUE (file_id, file_schema_id);
-
-
---
--- Name: file_schema_details file_schema_details_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.file_schema_details
-    ADD CONSTRAINT file_schema_details_pkey PRIMARY KEY (id);
-
-
---
--- Name: file_schemas file_schemas_file_id_schema_hash_key; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.file_schemas
-    ADD CONSTRAINT file_schemas_file_id_schema_hash_key UNIQUE (file_id, schema_hash);
-
-
---
--- Name: file_schemas file_schemas_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.file_schemas
-    ADD CONSTRAINT file_schemas_pkey PRIMARY KEY (id);
-
-
---
--- Name: file_tag_assignments file_tag_assignments_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.file_tag_assignments
-    ADD CONSTRAINT file_tag_assignments_pkey PRIMARY KEY (assignment_id);
-
-
---
--- Name: files files_file_id_key; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.files
-    ADD CONSTRAINT files_file_id_key UNIQUE (file_id);
-
-
---
--- Name: files files_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.files
-    ADD CONSTRAINT files_pkey PRIMARY KEY (id);
-
-
---
--- Name: fixed_width_schemas fixed_width_schemas_file_id_key; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.fixed_width_schemas
-    ADD CONSTRAINT fixed_width_schemas_file_id_key UNIQUE (file_id);
-
-
---
--- Name: fixed_width_schemas fixed_width_schemas_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.fixed_width_schemas
-    ADD CONSTRAINT fixed_width_schemas_pkey PRIMARY KEY (id);
-
-
---
--- Name: frontend_audit_log frontend_audit_log_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.frontend_audit_log
-    ADD CONSTRAINT frontend_audit_log_pkey PRIMARY KEY (audit_id);
-
-
---
--- Name: governance_policies governance_policies_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.governance_policies
-    ADD CONSTRAINT governance_policies_pkey PRIMARY KEY (policy_id);
-
-
---
--- Name: governance_tags governance_tags_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.governance_tags
-    ADD CONSTRAINT governance_tags_pkey PRIMARY KEY (tag_id);
-
-
---
--- Name: governance_tags governance_tags_tag_name_key; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.governance_tags
-    ADD CONSTRAINT governance_tags_tag_name_key UNIQUE (tag_name);
-
-
---
--- Name: group_policy_attachments group_policy_attachments_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.group_policy_attachments
-    ADD CONSTRAINT group_policy_attachments_pkey PRIMARY KEY (group_id, policy_id);
-
-
---
--- Name: groups groups_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.groups
-    ADD CONSTRAINT groups_pkey PRIMARY KEY (id);
-
-
---
--- Name: idempotency_keys idempotency_keys_key_key; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.idempotency_keys
-    ADD CONSTRAINT idempotency_keys_key_key UNIQUE (key);
-
-
---
--- Name: idempotency_keys idempotency_keys_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.idempotency_keys
-    ADD CONSTRAINT idempotency_keys_pkey PRIMARY KEY (id);
-
-
---
--- Name: job_dependencies job_dependencies_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.job_dependencies
-    ADD CONSTRAINT job_dependencies_pkey PRIMARY KEY (dependency_id);
-
-
---
--- Name: job_group_dependencies job_group_dependencies_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.job_group_dependencies
-    ADD CONSTRAINT job_group_dependencies_pkey PRIMARY KEY (group_dependency_id);
-
-
---
--- Name: job_group_jobs job_group_jobs_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.job_group_jobs
-    ADD CONSTRAINT job_group_jobs_pkey PRIMARY KEY (group_id, job_id);
-
-
---
--- Name: job_group_schedules job_group_schedules_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.job_group_schedules
-    ADD CONSTRAINT job_group_schedules_pkey PRIMARY KEY (group_schedule_id);
-
-
---
--- Name: job_groups job_groups_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.job_groups
-    ADD CONSTRAINT job_groups_pkey PRIMARY KEY (id);
-
-
---
--- Name: job_history job_history_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.job_history
-    ADD CONSTRAINT job_history_pkey PRIMARY KEY (id);
-
-
---
--- Name: job_runs job_runs_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.job_runs
-    ADD CONSTRAINT job_runs_pkey PRIMARY KEY (id);
-
-
---
--- Name: job_schedules job_schedules_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.job_schedules
-    ADD CONSTRAINT job_schedules_pkey PRIMARY KEY (id);
-
-
---
--- Name: jobs jobs_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.jobs
-    ADD CONSTRAINT jobs_pkey PRIMARY KEY (id);
-
-
---
--- Name: lineage_views lineage_views_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.lineage_views
-    ADD CONSTRAINT lineage_views_pkey PRIMARY KEY (id);
-
-
---
--- Name: logical_file_groups logical_file_groups_logical_file_id_key; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.logical_file_groups
-    ADD CONSTRAINT logical_file_groups_logical_file_id_key UNIQUE (logical_file_id);
-
-
---
--- Name: logical_file_groups logical_file_groups_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.logical_file_groups
-    ADD CONSTRAINT logical_file_groups_pkey PRIMARY KEY (id);
-
-
---
--- Name: logical_file_groups logical_file_groups_project_id_canonical_name_key; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.logical_file_groups
-    ADD CONSTRAINT logical_file_groups_project_id_canonical_name_key UNIQUE (project_id, canonical_name);
-
-
---
--- Name: mapping_group_executions mapping_group_executions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.mapping_group_executions
-    ADD CONSTRAINT mapping_group_executions_pkey PRIMARY KEY (id);
-
-
---
--- Name: mapping_group_members mapping_group_members_group_id_mapping_id_key; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.mapping_group_members
-    ADD CONSTRAINT mapping_group_members_group_id_mapping_id_key UNIQUE (group_id, mapping_id);
-
-
---
--- Name: mapping_group_members mapping_group_members_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.mapping_group_members
-    ADD CONSTRAINT mapping_group_members_pkey PRIMARY KEY (id);
-
-
---
--- Name: mapping_groups mapping_groups_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.mapping_groups
-    ADD CONSTRAINT mapping_groups_pkey PRIMARY KEY (id);
-
-
---
--- Name: mapping_job_errors mapping_job_errors_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.mapping_job_errors
-    ADD CONSTRAINT mapping_job_errors_pkey PRIMARY KEY (id);
-
-
---
--- Name: migrations migrations_name_key; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.migrations
-    ADD CONSTRAINT migrations_name_key UNIQUE (name);
-
-
---
--- Name: migrations migrations_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.migrations
-    ADD CONSTRAINT migrations_pkey PRIMARY KEY (id);
-
-
---
--- Name: n_step_workflow_assets n_step_workflow_assets_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.n_step_workflow_assets
-    ADD CONSTRAINT n_step_workflow_assets_pkey PRIMARY KEY (id);
-
-
---
--- Name: n_step_workflow_run_steps n_step_workflow_run_steps_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.n_step_workflow_run_steps
-    ADD CONSTRAINT n_step_workflow_run_steps_pkey PRIMARY KEY (id);
-
-
---
--- Name: n_step_workflow_runs n_step_workflow_runs_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.n_step_workflow_runs
-    ADD CONSTRAINT n_step_workflow_runs_pkey PRIMARY KEY (id);
-
-
---
--- Name: n_step_workflow_runs n_step_workflow_runs_run_id_key; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.n_step_workflow_runs
-    ADD CONSTRAINT n_step_workflow_runs_run_id_key UNIQUE (run_id);
-
-
---
--- Name: n_step_workflow_steps n_step_workflow_steps_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.n_step_workflow_steps
-    ADD CONSTRAINT n_step_workflow_steps_pkey PRIMARY KEY (id);
-
-
---
--- Name: n_step_workflow_steps n_step_workflow_steps_workflow_id_step_index_key; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.n_step_workflow_steps
-    ADD CONSTRAINT n_step_workflow_steps_workflow_id_step_index_key UNIQUE (workflow_id, step_index);
-
-
---
--- Name: n_step_workflows n_step_workflows_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.n_step_workflows
-    ADD CONSTRAINT n_step_workflows_pkey PRIMARY KEY (id);
-
-
---
--- Name: notifications notifications_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.notifications
-    ADD CONSTRAINT notifications_pkey PRIMARY KEY (id);
-
-
---
--- Name: password_reset_requests password_reset_requests_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.password_reset_requests
-    ADD CONSTRAINT password_reset_requests_pkey PRIMARY KEY (id);
-
-
---
--- Name: permissions permissions_name_key; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.permissions
-    ADD CONSTRAINT permissions_name_key UNIQUE (name);
-
-
---
--- Name: permissions permissions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.permissions
-    ADD CONSTRAINT permissions_pkey PRIMARY KEY (id);
-
-
---
--- Name: permissions permissions_resource_action_key; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.permissions
-    ADD CONSTRAINT permissions_resource_action_key UNIQUE (resource, action);
-
-
---
--- Name: policy_evaluation_cache policy_evaluation_cache_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.policy_evaluation_cache
-    ADD CONSTRAINT policy_evaluation_cache_pkey PRIMARY KEY (cache_key);
-
-
---
--- Name: processing_events processing_events_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.processing_events
-    ADD CONSTRAINT processing_events_pkey PRIMARY KEY (id);
-
-
---
--- Name: profiling_metrics profiling_metrics_file_id_file_role_key; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.profiling_metrics
-    ADD CONSTRAINT profiling_metrics_file_id_file_role_key UNIQUE (file_id, file_role);
-
-
---
--- Name: profiling_metrics profiling_metrics_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.profiling_metrics
-    ADD CONSTRAINT profiling_metrics_pkey PRIMARY KEY (id);
-
-
---
--- Name: project_access_groups project_access_groups_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.project_access_groups
-    ADD CONSTRAINT project_access_groups_pkey PRIMARY KEY (project_id, group_id);
-
-
---
--- Name: project_members project_members_project_user_unique; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.project_members
-    ADD CONSTRAINT project_members_project_user_unique UNIQUE (project_id, user_id);
-
-
---
--- Name: projects projects_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.projects
-    ADD CONSTRAINT projects_pkey PRIMARY KEY (id);
-
-
---
--- Name: quality_reports quality_reports_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.quality_reports
-    ADD CONSTRAINT quality_reports_pkey PRIMARY KEY (report_id);
-
-
---
--- Name: quality_rule_configurations quality_rule_configurations_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.quality_rule_configurations
-    ADD CONSTRAINT quality_rule_configurations_pkey PRIMARY KEY (id);
-
-
---
--- Name: quality_rule_violations quality_rule_violations_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.quality_rule_violations
-    ADD CONSTRAINT quality_rule_violations_pkey PRIMARY KEY (id);
-
-
---
--- Name: quality_rules quality_rules_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.quality_rules
-    ADD CONSTRAINT quality_rules_pkey PRIMARY KEY (id);
-
-
---
--- Name: rbac_policies rbac_policies_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.rbac_policies
-    ADD CONSTRAINT rbac_policies_pkey PRIMARY KEY (id);
-
-
---
--- Name: refresh_tokens refresh_tokens_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.refresh_tokens
-    ADD CONSTRAINT refresh_tokens_pkey PRIMARY KEY (id);
-
-
---
--- Name: refresh_tokens refresh_tokens_token_hash_key; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.refresh_tokens
-    ADD CONSTRAINT refresh_tokens_token_hash_key UNIQUE (token);
-
-
---
--- Name: resource_attributes resource_attributes_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.resource_attributes
-    ADD CONSTRAINT resource_attributes_pkey PRIMARY KEY (id);
-
-
---
--- Name: resource_policy_attachments resource_policy_attachments_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.resource_policy_attachments
-    ADD CONSTRAINT resource_policy_attachments_pkey PRIMARY KEY (resource_type, resource_id, policy_id);
-
-
---
--- Name: retention_policies retention_policies_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.retention_policies
-    ADD CONSTRAINT retention_policies_pkey PRIMARY KEY (id);
-
-
---
--- Name: retention_policy_runs retention_policy_runs_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.retention_policy_runs
-    ADD CONSTRAINT retention_policy_runs_pkey PRIMARY KEY (id);
-
-
---
--- Name: role_permissions role_permissions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.role_permissions
-    ADD CONSTRAINT role_permissions_pkey PRIMARY KEY (role_id, permission_id);
-
-
---
--- Name: roles roles_name_key; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.roles
-    ADD CONSTRAINT roles_name_key UNIQUE (name);
-
-
---
--- Name: roles roles_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.roles
-    ADD CONSTRAINT roles_pkey PRIMARY KEY (id);
-
-
---
--- Name: schedules schedules_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.schedules
-    ADD CONSTRAINT schedules_pkey PRIMARY KEY (id);
-
-
---
--- Name: schema_migrations schema_migrations_migration_name_key; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.schema_migrations
-    ADD CONSTRAINT schema_migrations_migration_name_key UNIQUE (migration_name);
-
-
---
--- Name: schema_migrations schema_migrations_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.schema_migrations
-    ADD CONSTRAINT schema_migrations_pkey PRIMARY KEY (id);
-
-
---
--- Name: schema_validation_job_files schema_validation_job_files_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.schema_validation_job_files
-    ADD CONSTRAINT schema_validation_job_files_pkey PRIMARY KEY (id);
-
-
---
--- Name: schema_validation_jobs schema_validation_jobs_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.schema_validation_jobs
-    ADD CONSTRAINT schema_validation_jobs_pkey PRIMARY KEY (id);
-
-
---
--- Name: scim_configurations scim_configurations_name_key; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.scim_configurations
-    ADD CONSTRAINT scim_configurations_name_key UNIQUE (name);
-
-
---
--- Name: scim_configurations scim_configurations_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.scim_configurations
-    ADD CONSTRAINT scim_configurations_pkey PRIMARY KEY (id);
-
-
---
--- Name: scim_resource_mappings scim_resource_mappings_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.scim_resource_mappings
-    ADD CONSTRAINT scim_resource_mappings_pkey PRIMARY KEY (id);
-
-
---
--- Name: scim_sync_logs scim_sync_logs_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.scim_sync_logs
-    ADD CONSTRAINT scim_sync_logs_pkey PRIMARY KEY (id);
-
-
---
--- Name: security_audit_log_archive security_audit_log_archive_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.security_audit_log_archive
-    ADD CONSTRAINT security_audit_log_archive_pkey PRIMARY KEY (security_audit_id);
-
-
---
--- Name: security_audit_log security_audit_log_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.security_audit_log
-    ADD CONSTRAINT security_audit_log_pkey PRIMARY KEY (security_audit_id);
-
-
---
--- Name: storage_connections storage_connections_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.storage_connections
-    ADD CONSTRAINT storage_connections_pkey PRIMARY KEY (connection_id);
-
-
---
--- Name: sub_project_access_groups sub_project_access_groups_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.sub_project_access_groups
-    ADD CONSTRAINT sub_project_access_groups_pkey PRIMARY KEY (id);
-
-
---
--- Name: sub_project_access_groups sub_project_access_groups_sub_project_id_group_id_key; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.sub_project_access_groups
-    ADD CONSTRAINT sub_project_access_groups_sub_project_id_group_id_key UNIQUE (sub_project_id, group_id);
-
-
---
--- Name: sub_project_members sub_project_members_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.sub_project_members
-    ADD CONSTRAINT sub_project_members_pkey PRIMARY KEY (id);
-
-
---
--- Name: sub_project_members sub_project_members_sub_project_id_user_id_key; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.sub_project_members
-    ADD CONSTRAINT sub_project_members_sub_project_id_user_id_key UNIQUE (sub_project_id, user_id);
-
-
---
--- Name: tag_permissions tag_permissions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.tag_permissions
-    ADD CONSTRAINT tag_permissions_pkey PRIMARY KEY (id);
-
-
---
--- Name: transform_connections transform_connections_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.transform_connections
-    ADD CONSTRAINT transform_connections_pkey PRIMARY KEY (id);
-
-
---
--- Name: transformation_executions transformation_executions_execution_id_key; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.transformation_executions
-    ADD CONSTRAINT transformation_executions_execution_id_key UNIQUE (execution_id);
-
-
---
--- Name: transformation_executions transformation_executions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.transformation_executions
-    ADD CONSTRAINT transformation_executions_pkey PRIMARY KEY (id);
-
-
---
--- Name: transformation_jobs transformation_jobs_job_id_key; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.transformation_jobs
-    ADD CONSTRAINT transformation_jobs_job_id_key UNIQUE (job_id);
-
-
---
--- Name: transformation_jobs transformation_jobs_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.transformation_jobs
-    ADD CONSTRAINT transformation_jobs_pkey PRIMARY KEY (id);
-
-
---
--- Name: transformation_lineage transformation_lineage_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.transformation_lineage
-    ADD CONSTRAINT transformation_lineage_pkey PRIMARY KEY (id);
-
-
---
--- Name: transformation_logs transformation_logs_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.transformation_logs
-    ADD CONSTRAINT transformation_logs_pkey PRIMARY KEY (id);
-
-
---
--- Name: transformation_mappings transformation_mappings_mapping_id_key; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.transformation_mappings
-    ADD CONSTRAINT transformation_mappings_mapping_id_key UNIQUE (mapping_id);
-
-
---
--- Name: transformation_mappings transformation_mappings_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.transformation_mappings
-    ADD CONSTRAINT transformation_mappings_pkey PRIMARY KEY (id);
-
-
---
--- Name: transformation_outputs transformation_outputs_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.transformation_outputs
-    ADD CONSTRAINT transformation_outputs_pkey PRIMARY KEY (id);
-
-
---
--- Name: transformation_quality_rules transformation_quality_rules_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.transformation_quality_rules
-    ADD CONSTRAINT transformation_quality_rules_pkey PRIMARY KEY (id);
-
-
---
--- Name: transformations transformations_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.transformations
-    ADD CONSTRAINT transformations_pkey PRIMARY KEY (id);
-
-
---
--- Name: transformations transformations_transformation_id_key; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.transformations
-    ADD CONSTRAINT transformations_transformation_id_key UNIQUE (transformation_id);
-
-
---
--- Name: vendor_agreements unique_agreement_code; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.vendor_agreements
-    ADD CONSTRAINT unique_agreement_code UNIQUE (agreement_code);
-
-
---
--- Name: archive_members unique_archive_member; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.archive_members
-    ADD CONSTRAINT unique_archive_member UNIQUE (parent_file_id, logical_name);
-
-
---
--- Name: column_policy_assignments unique_column_policy; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.column_policy_assignments
-    ADD CONSTRAINT unique_column_policy UNIQUE (file_id, column_name, policy_id);
-
-
---
--- Name: column_governance_tag_assignments unique_column_tag; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.column_governance_tag_assignments
-    ADD CONSTRAINT unique_column_tag UNIQUE (file_id, column_name, tag_id);
-
-
---
--- Name: encrypted_passwords unique_entity_password; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.encrypted_passwords
-    ADD CONSTRAINT unique_entity_password UNIQUE (entity_type, entity_id);
-
-
---
--- Name: access_groups unique_external_group; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.access_groups
-    ADD CONSTRAINT unique_external_group UNIQUE (idp_source, external_group_id);
-
-
---
--- Name: file_processing_artifacts unique_file_artifact; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.file_processing_artifacts
-    ADD CONSTRAINT unique_file_artifact UNIQUE (file_id, artifact_type);
-
-
---
--- Name: column_sensitivity_tags unique_file_column_tag; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.column_sensitivity_tags
-    ADD CONSTRAINT unique_file_column_tag UNIQUE (file_id, column_name);
-
-
---
--- Name: file_policy_assignments unique_file_policy; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.file_policy_assignments
-    ADD CONSTRAINT unique_file_policy UNIQUE (file_id, policy_id);
-
-
---
--- Name: file_quality_rules unique_file_quality_rule; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.file_quality_rules
-    ADD CONSTRAINT unique_file_quality_rule UNIQUE (file_id, quality_rule_id);
-
-
---
--- Name: file_preview_data unique_file_row; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.file_preview_data
-    ADD CONSTRAINT unique_file_row UNIQUE (file_id, row_number);
-
-
---
--- Name: quality_rule_configurations unique_file_rule; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.quality_rule_configurations
-    ADD CONSTRAINT unique_file_rule UNIQUE (file_id, rule_id);
-
-
---
--- Name: file_tag_assignments unique_file_tag; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.file_tag_assignments
-    ADD CONSTRAINT unique_file_tag UNIQUE (file_id, tag_id);
-
-
---
--- Name: job_group_dependencies unique_group_dependency; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.job_group_dependencies
-    ADD CONSTRAINT unique_group_dependency UNIQUE (group_id, depends_on_group_id);
-
-
---
--- Name: access_groups unique_group_name; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.access_groups
-    ADD CONSTRAINT unique_group_name UNIQUE (name);
-
-
---
--- Name: job_dependencies unique_job_dependency; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.job_dependencies
-    ADD CONSTRAINT unique_job_dependency UNIQUE (job_id, depends_on_job_id);
-
-
---
--- Name: scim_resource_mappings unique_platform_resource; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.scim_resource_mappings
-    ADD CONSTRAINT unique_platform_resource UNIQUE (config_id, platform_resource_type, platform_resource_id);
-
-
---
--- Name: rbac_policies unique_policy_name_per_project; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.rbac_policies
-    ADD CONSTRAINT unique_policy_name_per_project UNIQUE (name, project_id);
-
-
---
--- Name: resource_attributes unique_resource_attribute; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.resource_attributes
-    ADD CONSTRAINT unique_resource_attribute UNIQUE (resource_type, resource_id, attribute_key);
-
-
---
--- Name: scim_resource_mappings unique_scim_resource; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.scim_resource_mappings
-    ADD CONSTRAINT unique_scim_resource UNIQUE (config_id, scim_id);
-
-
---
--- Name: tag_permissions unique_tag_role; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.tag_permissions
-    ADD CONSTRAINT unique_tag_role UNIQUE (tag_id, role_id);
-
-
---
--- Name: transformation_quality_rules unique_transformation_quality_rule; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.transformation_quality_rules
-    ADD CONSTRAINT unique_transformation_quality_rule UNIQUE (mapping_id, quality_rule_id);
-
-
---
--- Name: user_attributes unique_user_attribute; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.user_attributes
-    ADD CONSTRAINT unique_user_attribute UNIQUE (user_id, attribute_key);
-
-
---
--- Name: vendors unique_vendor_code; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.vendors
-    ADD CONSTRAINT unique_vendor_code UNIQUE (vendor_code);
-
-
---
--- Name: upload_batches upload_batches_batch_id_key; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.upload_batches
-    ADD CONSTRAINT upload_batches_batch_id_key UNIQUE (batch_id);
-
-
---
--- Name: upload_batches upload_batches_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.upload_batches
-    ADD CONSTRAINT upload_batches_pkey PRIMARY KEY (id);
-
-
---
--- Name: upload_file_records upload_file_records_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.upload_file_records
-    ADD CONSTRAINT upload_file_records_pkey PRIMARY KEY (id);
-
-
---
--- Name: upload_files upload_files_file_id_key; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.upload_files
-    ADD CONSTRAINT upload_files_file_id_key UNIQUE (file_id);
-
-
---
--- Name: upload_files upload_files_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.upload_files
-    ADD CONSTRAINT upload_files_pkey PRIMARY KEY (id);
-
-
---
--- Name: user_attributes user_attributes_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.user_attributes
-    ADD CONSTRAINT user_attributes_pkey PRIMARY KEY (id);
-
-
---
--- Name: user_badges user_badges_badge_id_key; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.user_badges
-    ADD CONSTRAINT user_badges_badge_id_key UNIQUE (badge_id);
-
-
---
--- Name: user_badges user_badges_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.user_badges
-    ADD CONSTRAINT user_badges_pkey PRIMARY KEY (id);
-
-
---
--- Name: user_dashboard_settings user_dashboard_settings_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.user_dashboard_settings
-    ADD CONSTRAINT user_dashboard_settings_pkey PRIMARY KEY (id);
-
-
---
--- Name: user_groups user_groups_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.user_groups
-    ADD CONSTRAINT user_groups_pkey PRIMARY KEY (user_id, group_id);
-
-
---
--- Name: user_job_groups user_job_groups_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.user_job_groups
-    ADD CONSTRAINT user_job_groups_pkey PRIMARY KEY (user_id, group_id);
-
-
---
--- Name: user_policy_attachments user_policy_attachments_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.user_policy_attachments
-    ADD CONSTRAINT user_policy_attachments_pkey PRIMARY KEY (user_id, policy_id);
-
-
---
--- Name: user_roles user_roles_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.user_roles
-    ADD CONSTRAINT user_roles_pkey PRIMARY KEY (user_id, role_id);
-
-
---
--- Name: user_sessions user_sessions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.user_sessions
-    ADD CONSTRAINT user_sessions_pkey PRIMARY KEY (id);
-
-
---
--- Name: user_sessions user_sessions_token_key; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.user_sessions
-    ADD CONSTRAINT user_sessions_token_key UNIQUE (token);
-
-
---
--- Name: user_uuid_mapping user_uuid_mapping_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.user_uuid_mapping
-    ADD CONSTRAINT user_uuid_mapping_pkey PRIMARY KEY (user_id);
-
-
---
--- Name: users users_email_unique; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.users
-    ADD CONSTRAINT users_email_unique UNIQUE (email);
-
-
---
--- Name: users users_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.users
-    ADD CONSTRAINT users_pkey PRIMARY KEY (id);
-
-
---
--- Name: users users_unique; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.users
-    ADD CONSTRAINT users_unique UNIQUE (okta_id);
-
-
---
--- Name: vendor_agreement_approvals vendor_agreement_approvals_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.vendor_agreement_approvals
-    ADD CONSTRAINT vendor_agreement_approvals_pkey PRIMARY KEY (id);
-
-
---
--- Name: vendor_agreement_changes vendor_agreement_changes_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.vendor_agreement_changes
-    ADD CONSTRAINT vendor_agreement_changes_pkey PRIMARY KEY (id);
-
-
---
--- Name: vendor_agreement_documents vendor_agreement_documents_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.vendor_agreement_documents
-    ADD CONSTRAINT vendor_agreement_documents_pkey PRIMARY KEY (id);
-
-
---
--- Name: vendor_agreement_file_schemas vendor_agreement_file_schemas_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.vendor_agreement_file_schemas
-    ADD CONSTRAINT vendor_agreement_file_schemas_pkey PRIMARY KEY (id);
-
-
---
--- Name: vendor_agreements vendor_agreements_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.vendor_agreements
-    ADD CONSTRAINT vendor_agreements_pkey PRIMARY KEY (id);
-
-
---
--- Name: vendor_file_profiling_results vendor_file_profiling_results_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.vendor_file_profiling_results
-    ADD CONSTRAINT vendor_file_profiling_results_pkey PRIMARY KEY (id);
-
-
---
--- Name: vendor_sla_violations vendor_sla_violations_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.vendor_sla_violations
-    ADD CONSTRAINT vendor_sla_violations_pkey PRIMARY KEY (id);
-
-
---
--- Name: vendor_users vendor_users_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.vendor_users
-    ADD CONSTRAINT vendor_users_pkey PRIMARY KEY (id);
-
-
---
--- Name: vendors vendors_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.vendors
-    ADD CONSTRAINT vendors_pkey PRIMARY KEY (id);
-
-
---
--- Name: visual_lineage_graphs visual_lineage_graphs_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.visual_lineage_graphs
-    ADD CONSTRAINT visual_lineage_graphs_pkey PRIMARY KEY (id);
-
-
---
--- Name: visual_mapping_defs visual_mapping_defs_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.visual_mapping_defs
-    ADD CONSTRAINT visual_mapping_defs_pkey PRIMARY KEY (id);
-
-
---
--- Name: visual_mapping_edges visual_mapping_edges_mapping_id_edge_id_key; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.visual_mapping_edges
-    ADD CONSTRAINT visual_mapping_edges_mapping_id_edge_id_key UNIQUE (mapping_id, edge_id);
-
-
---
--- Name: visual_mapping_edges visual_mapping_edges_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.visual_mapping_edges
-    ADD CONSTRAINT visual_mapping_edges_pkey PRIMARY KEY (id);
-
-
---
--- Name: visual_mapping_execution_logs visual_mapping_execution_logs_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.visual_mapping_execution_logs
-    ADD CONSTRAINT visual_mapping_execution_logs_pkey PRIMARY KEY (id);
-
-
---
--- Name: visual_mapping_executions visual_mapping_executions_execution_id_key; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.visual_mapping_executions
-    ADD CONSTRAINT visual_mapping_executions_execution_id_key UNIQUE (execution_id);
-
-
---
--- Name: visual_mapping_executions visual_mapping_executions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.visual_mapping_executions
-    ADD CONSTRAINT visual_mapping_executions_pkey PRIMARY KEY (id);
-
-
---
--- Name: visual_mapping_nodes visual_mapping_nodes_mapping_id_node_id_key; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.visual_mapping_nodes
-    ADD CONSTRAINT visual_mapping_nodes_mapping_id_node_id_key UNIQUE (mapping_id, node_id);
-
-
---
--- Name: visual_mapping_nodes visual_mapping_nodes_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.visual_mapping_nodes
-    ADD CONSTRAINT visual_mapping_nodes_pkey PRIMARY KEY (id);
-
-
---
--- Name: visual_workflow_execution_logs visual_workflow_execution_logs_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.visual_workflow_execution_logs
-    ADD CONSTRAINT visual_workflow_execution_logs_pkey PRIMARY KEY (id);
-
-
---
--- Name: visual_workflow_executions visual_workflow_executions_execution_id_key; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.visual_workflow_executions
-    ADD CONSTRAINT visual_workflow_executions_execution_id_key UNIQUE (execution_id);
-
-
---
--- Name: visual_workflow_executions visual_workflow_executions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.visual_workflow_executions
-    ADD CONSTRAINT visual_workflow_executions_pkey PRIMARY KEY (id);
-
-
---
--- Name: visual_workflows visual_workflows_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.visual_workflows
-    ADD CONSTRAINT visual_workflows_pkey PRIMARY KEY (id);
-
-
---
--- Name: workflow_executions workflow_executions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.workflow_executions
-    ADD CONSTRAINT workflow_executions_pkey PRIMARY KEY (id);
-
-
---
--- Name: workflow_steps workflow_steps_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.workflow_steps
-    ADD CONSTRAINT workflow_steps_pkey PRIMARY KEY (id);
-
-
---
--- Name: idx_access_group_members_group; Type: INDEX; Schema: public; Owner: -
---
-
+-- =====================================================
+-- SECTION 3: PRIMARY KEY CONSTRAINTS
+-- =====================================================
+
+-- PK: access_group_members_pkey
+ALTER TABLE access_group_members ADD CONSTRAINT access_group_members_pkey PRIMARY KEY (group_id, user_id);
+-- PK: access_group_roles_pkey
+ALTER TABLE access_group_roles ADD CONSTRAINT access_group_roles_pkey PRIMARY KEY (id);
+-- PK: access_groups_pkey
+ALTER TABLE access_groups ADD CONSTRAINT access_groups_pkey PRIMARY KEY (id);
+-- PK: alert_aggregation_pkey
+ALTER TABLE alert_aggregation ADD CONSTRAINT alert_aggregation_pkey PRIMARY KEY (id);
+-- PK: alert_attachments_pkey
+ALTER TABLE alert_attachments ADD CONSTRAINT alert_attachments_pkey PRIMARY KEY (id);
+-- PK: alert_events_pkey
+ALTER TABLE alert_events ADD CONSTRAINT alert_events_pkey PRIMARY KEY (id);
+-- PK: alert_history_pkey
+ALTER TABLE alert_history ADD CONSTRAINT alert_history_pkey PRIMARY KEY (id);
+-- PK: alert_policies_pkey
+ALTER TABLE alert_policies ADD CONSTRAINT alert_policies_pkey PRIMARY KEY (id);
+-- PK: alert_policy_recipients_pkey
+ALTER TABLE alert_policy_recipients ADD CONSTRAINT alert_policy_recipients_pkey PRIMARY KEY (id);
+-- PK: alert_rules_pkey
+ALTER TABLE alert_rules ADD CONSTRAINT alert_rules_pkey PRIMARY KEY (id);
+-- PK: alert_runs_pkey
+ALTER TABLE alert_runs ADD CONSTRAINT alert_runs_pkey PRIMARY KEY (id);
+-- PK: allowed_email_domains_pkey
+ALTER TABLE allowed_email_domains ADD CONSTRAINT allowed_email_domains_pkey PRIMARY KEY (id);
+-- PK: anomalies_pkey
+ALTER TABLE anomalies ADD CONSTRAINT anomalies_pkey PRIMARY KEY (id);
+-- PK: api_tokens_pkey
+ALTER TABLE api_tokens ADD CONSTRAINT api_tokens_pkey PRIMARY KEY (id);
+-- PK: app_settings_pkey
+ALTER TABLE app_settings ADD CONSTRAINT app_settings_pkey PRIMARY KEY (id);
+-- PK: archive_extractions_pkey
+ALTER TABLE archive_extractions ADD CONSTRAINT archive_extractions_pkey PRIMARY KEY (id);
+-- PK: archive_members_pkey
+ALTER TABLE archive_members ADD CONSTRAINT archive_members_pkey PRIMARY KEY (id);
+-- PK: archived_files_pkey
+ALTER TABLE archived_files ADD CONSTRAINT archived_files_pkey PRIMARY KEY (id);
+-- PK: attribute_definitions_pkey
+ALTER TABLE attribute_definitions ADD CONSTRAINT attribute_definitions_pkey PRIMARY KEY (id);
+-- PK: audit_ledger_pkey
+ALTER TABLE audit_ledger ADD CONSTRAINT audit_ledger_pkey PRIMARY KEY (id);
+-- PK: audit_ledger_sequence_pkey
+ALTER TABLE audit_ledger_sequence ADD CONSTRAINT audit_ledger_sequence_pkey PRIMARY KEY (tenant_id);
+-- PK: audit_ledger_verification_pkey
+ALTER TABLE audit_ledger_verification ADD CONSTRAINT audit_ledger_verification_pkey PRIMARY KEY (id);
+-- PK: audit_log_pkey
+ALTER TABLE audit_log ADD CONSTRAINT audit_log_pkey PRIMARY KEY (audit_id);
+-- PK: audit_log_archive_pkey
+ALTER TABLE audit_log_archive ADD CONSTRAINT audit_log_archive_pkey PRIMARY KEY (audit_id);
+-- PK: audit_retention_settings_pkey
+ALTER TABLE audit_retention_settings ADD CONSTRAINT audit_retention_settings_pkey PRIMARY KEY (id);
+-- PK: bulk_profiling_files_pkey
+ALTER TABLE bulk_profiling_files ADD CONSTRAINT bulk_profiling_files_pkey PRIMARY KEY (id);
+-- PK: bulk_profiling_jobs_pkey
+ALTER TABLE bulk_profiling_jobs ADD CONSTRAINT bulk_profiling_jobs_pkey PRIMARY KEY (id);
+-- PK: business_processes_pkey
+ALTER TABLE business_processes ADD CONSTRAINT business_processes_pkey PRIMARY KEY (id);
+-- PK: column_governance_tag_assignments_pkey
+ALTER TABLE column_governance_tag_assignments ADD CONSTRAINT column_governance_tag_assignments_pkey PRIMARY KEY (assignment_id);
+-- PK: column_mappings_pkey
+ALTER TABLE column_mappings ADD CONSTRAINT column_mappings_pkey PRIMARY KEY (id);
+-- PK: column_policy_assignments_pkey
+ALTER TABLE column_policy_assignments ADD CONSTRAINT column_policy_assignments_pkey PRIMARY KEY (assignment_id);
+-- PK: column_sensitivity_tags_pkey
+ALTER TABLE column_sensitivity_tags ADD CONSTRAINT column_sensitivity_tags_pkey PRIMARY KEY (tag_id);
+-- PK: config_change_history_pkey
+ALTER TABLE config_change_history ADD CONSTRAINT config_change_history_pkey PRIMARY KEY (change_id);
+-- PK: config_change_history_archive_pkey
+ALTER TABLE config_change_history_archive ADD CONSTRAINT config_change_history_archive_pkey PRIMARY KEY (change_id);
+-- PK: connections_pkey
+ALTER TABLE connections ADD CONSTRAINT connections_pkey PRIMARY KEY (id);
+-- PK: data_access_log_pkey
+ALTER TABLE data_access_log ADD CONSTRAINT data_access_log_pkey PRIMARY KEY (access_id);
+-- PK: data_access_log_archive_pkey
+ALTER TABLE data_access_log_archive ADD CONSTRAINT data_access_log_archive_pkey PRIMARY KEY (access_id);
+-- PK: dbt_executions_pkey
+ALTER TABLE dbt_executions ADD CONSTRAINT dbt_executions_pkey PRIMARY KEY (execution_id);
+-- PK: dbt_models_pkey
+ALTER TABLE dbt_models ADD CONSTRAINT dbt_models_pkey PRIMARY KEY (model_id);
+-- PK: dlq_jobs_pkey
+ALTER TABLE dlq_jobs ADD CONSTRAINT dlq_jobs_pkey PRIMARY KEY (id);
+-- PK: drop_location_config_pkey
+ALTER TABLE drop_location_config ADD CONSTRAINT drop_location_config_pkey PRIMARY KEY (id);
+-- PK: encrypted_passwords_pkey
+ALTER TABLE encrypted_passwords ADD CONSTRAINT encrypted_passwords_pkey PRIMARY KEY (id);
+-- PK: execution_audit_pkey
+ALTER TABLE execution_audit ADD CONSTRAINT execution_audit_pkey PRIMARY KEY (audit_id);
+-- PK: execution_audit_archive_pkey
+ALTER TABLE execution_audit_archive ADD CONSTRAINT execution_audit_archive_pkey PRIMARY KEY (audit_id);
+-- PK: file_audit_details_pkey
+ALTER TABLE file_audit_details ADD CONSTRAINT file_audit_details_pkey PRIMARY KEY (id);
+-- PK: file_columns_pkey
+ALTER TABLE file_columns ADD CONSTRAINT file_columns_pkey PRIMARY KEY (id);
+-- PK: file_errors_pkey
+ALTER TABLE file_errors ADD CONSTRAINT file_errors_pkey PRIMARY KEY (id);
+-- PK: file_history_pkey
+ALTER TABLE file_history ADD CONSTRAINT file_history_pkey PRIMARY KEY (id);
+-- PK: file_lineage_pkey
+ALTER TABLE file_lineage ADD CONSTRAINT file_lineage_pkey PRIMARY KEY (id);
+-- PK: file_mappings_pkey
+ALTER TABLE file_mappings ADD CONSTRAINT file_mappings_pkey PRIMARY KEY (id);
+-- PK: file_ownership_pkey
+ALTER TABLE file_ownership ADD CONSTRAINT file_ownership_pkey PRIMARY KEY (ownership_id);
+-- PK: file_pattern_metrics_pkey
+ALTER TABLE file_pattern_metrics ADD CONSTRAINT file_pattern_metrics_pkey PRIMARY KEY (id);
+-- PK: file_policy_assignments_pkey
+ALTER TABLE file_policy_assignments ADD CONSTRAINT file_policy_assignments_pkey PRIMARY KEY (assignment_id);
+-- PK: file_preview_data_pkey
+ALTER TABLE file_preview_data ADD CONSTRAINT file_preview_data_pkey PRIMARY KEY (preview_id);
+-- PK: file_processing_artifacts_pkey
+ALTER TABLE file_processing_artifacts ADD CONSTRAINT file_processing_artifacts_pkey PRIMARY KEY (id);
+-- PK: file_quality_checks_pkey
+ALTER TABLE file_quality_checks ADD CONSTRAINT file_quality_checks_pkey PRIMARY KEY (id);
+-- PK: file_quality_rules_pkey
+ALTER TABLE file_quality_rules ADD CONSTRAINT file_quality_rules_pkey PRIMARY KEY (id);
+-- PK: file_restorations_pkey
+ALTER TABLE file_restorations ADD CONSTRAINT file_restorations_pkey PRIMARY KEY (id);
+-- PK: file_schedules_pkey
+ALTER TABLE file_schedules ADD CONSTRAINT file_schedules_pkey PRIMARY KEY (id);
+-- PK: file_schema_details_pkey
+ALTER TABLE file_schema_details ADD CONSTRAINT file_schema_details_pkey PRIMARY KEY (id);
+-- PK: file_schemas_pkey
+ALTER TABLE file_schemas ADD CONSTRAINT file_schemas_pkey PRIMARY KEY (id);
+-- PK: file_tag_assignments_pkey
+ALTER TABLE file_tag_assignments ADD CONSTRAINT file_tag_assignments_pkey PRIMARY KEY (assignment_id);
+-- PK: files_pkey
+ALTER TABLE files ADD CONSTRAINT files_pkey PRIMARY KEY (id);
+-- PK: fixed_width_schemas_pkey
+ALTER TABLE fixed_width_schemas ADD CONSTRAINT fixed_width_schemas_pkey PRIMARY KEY (id);
+-- PK: frontend_audit_log_pkey
+ALTER TABLE frontend_audit_log ADD CONSTRAINT frontend_audit_log_pkey PRIMARY KEY (audit_id);
+-- PK: governance_policies_pkey
+ALTER TABLE governance_policies ADD CONSTRAINT governance_policies_pkey PRIMARY KEY (policy_id);
+-- PK: governance_tags_pkey
+ALTER TABLE governance_tags ADD CONSTRAINT governance_tags_pkey PRIMARY KEY (tag_id);
+-- PK: group_policy_attachments_pkey
+ALTER TABLE group_policy_attachments ADD CONSTRAINT group_policy_attachments_pkey PRIMARY KEY (group_id, policy_id);
+-- PK: groups_pkey
+ALTER TABLE groups ADD CONSTRAINT groups_pkey PRIMARY KEY (id);
+-- PK: idempotency_keys_pkey
+ALTER TABLE idempotency_keys ADD CONSTRAINT idempotency_keys_pkey PRIMARY KEY (id);
+-- PK: job_dependencies_pkey
+ALTER TABLE job_dependencies ADD CONSTRAINT job_dependencies_pkey PRIMARY KEY (dependency_id);
+-- PK: job_group_dependencies_pkey
+ALTER TABLE job_group_dependencies ADD CONSTRAINT job_group_dependencies_pkey PRIMARY KEY (group_dependency_id);
+-- PK: job_group_jobs_pkey
+ALTER TABLE job_group_jobs ADD CONSTRAINT job_group_jobs_pkey PRIMARY KEY (group_id, job_id);
+-- PK: job_group_schedules_pkey
+ALTER TABLE job_group_schedules ADD CONSTRAINT job_group_schedules_pkey PRIMARY KEY (group_schedule_id);
+-- PK: job_groups_pkey
+ALTER TABLE job_groups ADD CONSTRAINT job_groups_pkey PRIMARY KEY (id);
+-- PK: job_history_pkey
+ALTER TABLE job_history ADD CONSTRAINT job_history_pkey PRIMARY KEY (id);
+-- PK: job_runs_pkey
+ALTER TABLE job_runs ADD CONSTRAINT job_runs_pkey PRIMARY KEY (id);
+-- PK: job_schedules_pkey
+ALTER TABLE job_schedules ADD CONSTRAINT job_schedules_pkey PRIMARY KEY (id);
+-- PK: jobs_pkey
+ALTER TABLE jobs ADD CONSTRAINT jobs_pkey PRIMARY KEY (id);
+-- PK: lineage_views_pkey
+ALTER TABLE lineage_views ADD CONSTRAINT lineage_views_pkey PRIMARY KEY (id);
+-- PK: logical_file_groups_pkey
+ALTER TABLE logical_file_groups ADD CONSTRAINT logical_file_groups_pkey PRIMARY KEY (id);
+-- PK: mapping_group_executions_pkey
+ALTER TABLE mapping_group_executions ADD CONSTRAINT mapping_group_executions_pkey PRIMARY KEY (id);
+-- PK: mapping_group_members_pkey
+ALTER TABLE mapping_group_members ADD CONSTRAINT mapping_group_members_pkey PRIMARY KEY (id);
+-- PK: mapping_groups_pkey
+ALTER TABLE mapping_groups ADD CONSTRAINT mapping_groups_pkey PRIMARY KEY (id);
+-- PK: mapping_job_errors_pkey
+ALTER TABLE mapping_job_errors ADD CONSTRAINT mapping_job_errors_pkey PRIMARY KEY (id);
+-- PK: migrations_pkey
+ALTER TABLE migrations ADD CONSTRAINT migrations_pkey PRIMARY KEY (id);
+-- PK: n_step_workflow_assets_pkey
+ALTER TABLE n_step_workflow_assets ADD CONSTRAINT n_step_workflow_assets_pkey PRIMARY KEY (id);
+-- PK: n_step_workflow_run_steps_pkey
+ALTER TABLE n_step_workflow_run_steps ADD CONSTRAINT n_step_workflow_run_steps_pkey PRIMARY KEY (id);
+-- PK: n_step_workflow_runs_pkey
+ALTER TABLE n_step_workflow_runs ADD CONSTRAINT n_step_workflow_runs_pkey PRIMARY KEY (id);
+-- PK: n_step_workflow_steps_pkey
+ALTER TABLE n_step_workflow_steps ADD CONSTRAINT n_step_workflow_steps_pkey PRIMARY KEY (id);
+-- PK: n_step_workflows_pkey
+ALTER TABLE n_step_workflows ADD CONSTRAINT n_step_workflows_pkey PRIMARY KEY (id);
+-- PK: notifications_pkey
+ALTER TABLE notifications ADD CONSTRAINT notifications_pkey PRIMARY KEY (id);
+-- PK: password_reset_requests_pkey
+ALTER TABLE password_reset_requests ADD CONSTRAINT password_reset_requests_pkey PRIMARY KEY (id);
+-- PK: permissions_pkey
+ALTER TABLE permissions ADD CONSTRAINT permissions_pkey PRIMARY KEY (id);
+-- PK: policy_evaluation_cache_pkey
+ALTER TABLE policy_evaluation_cache ADD CONSTRAINT policy_evaluation_cache_pkey PRIMARY KEY (cache_key);
+-- PK: processing_events_pkey
+ALTER TABLE processing_events ADD CONSTRAINT processing_events_pkey PRIMARY KEY (id);
+-- PK: profiling_metrics_pkey
+ALTER TABLE profiling_metrics ADD CONSTRAINT profiling_metrics_pkey PRIMARY KEY (id);
+-- PK: project_access_groups_pkey
+ALTER TABLE project_access_groups ADD CONSTRAINT project_access_groups_pkey PRIMARY KEY (project_id, group_id);
+-- PK: projects_pkey
+ALTER TABLE projects ADD CONSTRAINT projects_pkey PRIMARY KEY (id);
+-- PK: quality_reports_pkey
+ALTER TABLE quality_reports ADD CONSTRAINT quality_reports_pkey PRIMARY KEY (report_id);
+-- PK: quality_rule_configurations_pkey
+ALTER TABLE quality_rule_configurations ADD CONSTRAINT quality_rule_configurations_pkey PRIMARY KEY (id);
+-- PK: quality_rule_violations_pkey
+ALTER TABLE quality_rule_violations ADD CONSTRAINT quality_rule_violations_pkey PRIMARY KEY (id);
+-- PK: quality_rules_pkey
+ALTER TABLE quality_rules ADD CONSTRAINT quality_rules_pkey PRIMARY KEY (id);
+-- PK: rbac_policies_pkey
+ALTER TABLE rbac_policies ADD CONSTRAINT rbac_policies_pkey PRIMARY KEY (id);
+-- PK: refresh_tokens_pkey
+ALTER TABLE refresh_tokens ADD CONSTRAINT refresh_tokens_pkey PRIMARY KEY (id);
+-- PK: resource_attributes_pkey
+ALTER TABLE resource_attributes ADD CONSTRAINT resource_attributes_pkey PRIMARY KEY (id);
+-- PK: resource_policy_attachments_pkey
+ALTER TABLE resource_policy_attachments ADD CONSTRAINT resource_policy_attachments_pkey PRIMARY KEY (resource_type, resource_id, policy_id);
+-- PK: retention_policies_pkey
+ALTER TABLE retention_policies ADD CONSTRAINT retention_policies_pkey PRIMARY KEY (id);
+-- PK: retention_policy_runs_pkey
+ALTER TABLE retention_policy_runs ADD CONSTRAINT retention_policy_runs_pkey PRIMARY KEY (id);
+-- PK: role_permissions_pkey
+ALTER TABLE role_permissions ADD CONSTRAINT role_permissions_pkey PRIMARY KEY (role_id, permission_id);
+-- PK: roles_pkey
+ALTER TABLE roles ADD CONSTRAINT roles_pkey PRIMARY KEY (id);
+-- PK: schedules_pkey
+ALTER TABLE schedules ADD CONSTRAINT schedules_pkey PRIMARY KEY (id);
+-- PK: schema_migrations_pkey
+ALTER TABLE schema_migrations ADD CONSTRAINT schema_migrations_pkey PRIMARY KEY (id);
+-- PK: schema_validation_job_files_pkey
+ALTER TABLE schema_validation_job_files ADD CONSTRAINT schema_validation_job_files_pkey PRIMARY KEY (id);
+-- PK: schema_validation_jobs_pkey
+ALTER TABLE schema_validation_jobs ADD CONSTRAINT schema_validation_jobs_pkey PRIMARY KEY (id);
+-- PK: scim_configurations_pkey
+ALTER TABLE scim_configurations ADD CONSTRAINT scim_configurations_pkey PRIMARY KEY (id);
+-- PK: scim_resource_mappings_pkey
+ALTER TABLE scim_resource_mappings ADD CONSTRAINT scim_resource_mappings_pkey PRIMARY KEY (id);
+-- PK: scim_sync_logs_pkey
+ALTER TABLE scim_sync_logs ADD CONSTRAINT scim_sync_logs_pkey PRIMARY KEY (id);
+-- PK: security_audit_log_pkey
+ALTER TABLE security_audit_log ADD CONSTRAINT security_audit_log_pkey PRIMARY KEY (security_audit_id);
+-- PK: security_audit_log_archive_pkey
+ALTER TABLE security_audit_log_archive ADD CONSTRAINT security_audit_log_archive_pkey PRIMARY KEY (security_audit_id);
+-- PK: storage_connections_pkey
+ALTER TABLE storage_connections ADD CONSTRAINT storage_connections_pkey PRIMARY KEY (connection_id);
+-- PK: sub_project_access_groups_pkey
+ALTER TABLE sub_project_access_groups ADD CONSTRAINT sub_project_access_groups_pkey PRIMARY KEY (id);
+-- PK: sub_project_members_pkey
+ALTER TABLE sub_project_members ADD CONSTRAINT sub_project_members_pkey PRIMARY KEY (id);
+-- PK: tag_permissions_pkey
+ALTER TABLE tag_permissions ADD CONSTRAINT tag_permissions_pkey PRIMARY KEY (id);
+-- PK: transform_connections_pkey
+ALTER TABLE transform_connections ADD CONSTRAINT transform_connections_pkey PRIMARY KEY (id);
+-- PK: transformation_executions_pkey
+ALTER TABLE transformation_executions ADD CONSTRAINT transformation_executions_pkey PRIMARY KEY (id);
+-- PK: transformation_jobs_pkey
+ALTER TABLE transformation_jobs ADD CONSTRAINT transformation_jobs_pkey PRIMARY KEY (id);
+-- PK: transformation_lineage_pkey
+ALTER TABLE transformation_lineage ADD CONSTRAINT transformation_lineage_pkey PRIMARY KEY (id);
+-- PK: transformation_logs_pkey
+ALTER TABLE transformation_logs ADD CONSTRAINT transformation_logs_pkey PRIMARY KEY (id);
+-- PK: transformation_mappings_pkey
+ALTER TABLE transformation_mappings ADD CONSTRAINT transformation_mappings_pkey PRIMARY KEY (id);
+-- PK: transformation_outputs_pkey
+ALTER TABLE transformation_outputs ADD CONSTRAINT transformation_outputs_pkey PRIMARY KEY (id);
+-- PK: transformation_quality_rules_pkey
+ALTER TABLE transformation_quality_rules ADD CONSTRAINT transformation_quality_rules_pkey PRIMARY KEY (id);
+-- PK: transformations_pkey
+ALTER TABLE transformations ADD CONSTRAINT transformations_pkey PRIMARY KEY (id);
+-- PK: upload_batches_pkey
+ALTER TABLE upload_batches ADD CONSTRAINT upload_batches_pkey PRIMARY KEY (id);
+-- PK: upload_file_records_pkey
+ALTER TABLE upload_file_records ADD CONSTRAINT upload_file_records_pkey PRIMARY KEY (id);
+-- PK: upload_files_pkey
+ALTER TABLE upload_files ADD CONSTRAINT upload_files_pkey PRIMARY KEY (id);
+-- PK: user_attributes_pkey
+ALTER TABLE user_attributes ADD CONSTRAINT user_attributes_pkey PRIMARY KEY (id);
+-- PK: user_badges_pkey
+ALTER TABLE user_badges ADD CONSTRAINT user_badges_pkey PRIMARY KEY (id);
+-- PK: user_dashboard_settings_pkey
+ALTER TABLE user_dashboard_settings ADD CONSTRAINT user_dashboard_settings_pkey PRIMARY KEY (id);
+-- PK: user_groups_pkey
+ALTER TABLE user_groups ADD CONSTRAINT user_groups_pkey PRIMARY KEY (user_id, group_id);
+-- PK: user_job_groups_pkey
+ALTER TABLE user_job_groups ADD CONSTRAINT user_job_groups_pkey PRIMARY KEY (user_id, group_id);
+-- PK: user_policy_attachments_pkey
+ALTER TABLE user_policy_attachments ADD CONSTRAINT user_policy_attachments_pkey PRIMARY KEY (user_id, policy_id);
+-- PK: user_roles_pkey
+ALTER TABLE user_roles ADD CONSTRAINT user_roles_pkey PRIMARY KEY (user_id, role_id);
+-- PK: user_sessions_pkey
+ALTER TABLE user_sessions ADD CONSTRAINT user_sessions_pkey PRIMARY KEY (id);
+-- PK: user_uuid_mapping_pkey
+ALTER TABLE user_uuid_mapping ADD CONSTRAINT user_uuid_mapping_pkey PRIMARY KEY (user_id);
+-- PK: users_pkey
+ALTER TABLE users ADD CONSTRAINT users_pkey PRIMARY KEY (id);
+-- PK: vendor_agreement_approvals_pkey
+ALTER TABLE vendor_agreement_approvals ADD CONSTRAINT vendor_agreement_approvals_pkey PRIMARY KEY (id);
+-- PK: vendor_agreement_changes_pkey
+ALTER TABLE vendor_agreement_changes ADD CONSTRAINT vendor_agreement_changes_pkey PRIMARY KEY (id);
+-- PK: vendor_agreement_documents_pkey
+ALTER TABLE vendor_agreement_documents ADD CONSTRAINT vendor_agreement_documents_pkey PRIMARY KEY (id);
+-- PK: vendor_agreement_file_schemas_pkey
+ALTER TABLE vendor_agreement_file_schemas ADD CONSTRAINT vendor_agreement_file_schemas_pkey PRIMARY KEY (id);
+-- PK: vendor_agreements_pkey
+ALTER TABLE vendor_agreements ADD CONSTRAINT vendor_agreements_pkey PRIMARY KEY (id);
+-- PK: vendor_file_profiling_results_pkey
+ALTER TABLE vendor_file_profiling_results ADD CONSTRAINT vendor_file_profiling_results_pkey PRIMARY KEY (id);
+-- PK: vendor_sla_violations_pkey
+ALTER TABLE vendor_sla_violations ADD CONSTRAINT vendor_sla_violations_pkey PRIMARY KEY (id);
+-- PK: vendor_users_pkey
+ALTER TABLE vendor_users ADD CONSTRAINT vendor_users_pkey PRIMARY KEY (id);
+-- PK: vendors_pkey
+ALTER TABLE vendors ADD CONSTRAINT vendors_pkey PRIMARY KEY (id);
+-- PK: visual_lineage_graphs_pkey
+ALTER TABLE visual_lineage_graphs ADD CONSTRAINT visual_lineage_graphs_pkey PRIMARY KEY (id);
+-- PK: visual_mapping_defs_pkey
+ALTER TABLE visual_mapping_defs ADD CONSTRAINT visual_mapping_defs_pkey PRIMARY KEY (id);
+-- PK: visual_mapping_edges_pkey
+ALTER TABLE visual_mapping_edges ADD CONSTRAINT visual_mapping_edges_pkey PRIMARY KEY (id);
+-- PK: visual_mapping_execution_logs_pkey
+ALTER TABLE visual_mapping_execution_logs ADD CONSTRAINT visual_mapping_execution_logs_pkey PRIMARY KEY (id);
+-- PK: visual_mapping_executions_pkey
+ALTER TABLE visual_mapping_executions ADD CONSTRAINT visual_mapping_executions_pkey PRIMARY KEY (id);
+-- PK: visual_mapping_nodes_pkey
+ALTER TABLE visual_mapping_nodes ADD CONSTRAINT visual_mapping_nodes_pkey PRIMARY KEY (id);
+-- PK: visual_workflow_execution_logs_pkey
+ALTER TABLE visual_workflow_execution_logs ADD CONSTRAINT visual_workflow_execution_logs_pkey PRIMARY KEY (id);
+-- PK: visual_workflow_executions_pkey
+ALTER TABLE visual_workflow_executions ADD CONSTRAINT visual_workflow_executions_pkey PRIMARY KEY (id);
+-- PK: visual_workflows_pkey
+ALTER TABLE visual_workflows ADD CONSTRAINT visual_workflows_pkey PRIMARY KEY (id);
+-- PK: workflow_executions_pkey
+ALTER TABLE workflow_executions ADD CONSTRAINT workflow_executions_pkey PRIMARY KEY (id);
+-- PK: workflow_steps_pkey
+ALTER TABLE workflow_steps ADD CONSTRAINT workflow_steps_pkey PRIMARY KEY (id);
+
+-- =====================================================
+-- SECTION 4: FOREIGN KEY CONSTRAINTS
+-- =====================================================
+
+-- FK: access_group_members_added_by_fkey
+ALTER TABLE access_group_members ADD CONSTRAINT access_group_members_added_by_fkey FOREIGN KEY (added_by) REFERENCES users(id);
+-- FK: access_group_members_group_id_fkey
+ALTER TABLE access_group_members ADD CONSTRAINT access_group_members_group_id_fkey FOREIGN KEY (group_id) REFERENCES access_groups(id);
+-- FK: access_group_members_user_id_fkey
+ALTER TABLE access_group_members ADD CONSTRAINT access_group_members_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id);
+-- FK: access_group_roles_assigned_by_fkey
+ALTER TABLE access_group_roles ADD CONSTRAINT access_group_roles_assigned_by_fkey FOREIGN KEY (assigned_by) REFERENCES users(id);
+-- FK: access_group_roles_group_id_fkey
+ALTER TABLE access_group_roles ADD CONSTRAINT access_group_roles_group_id_fkey FOREIGN KEY (group_id) REFERENCES access_groups(id);
+-- FK: access_group_roles_project_id_fkey
+ALTER TABLE access_group_roles ADD CONSTRAINT access_group_roles_project_id_fkey FOREIGN KEY (project_id) REFERENCES projects(id);
+-- FK: access_group_roles_role_id_fkey
+ALTER TABLE access_group_roles ADD CONSTRAINT access_group_roles_role_id_fkey FOREIGN KEY (role_id) REFERENCES roles(id);
+-- FK: access_groups_created_by_fkey
+ALTER TABLE access_groups ADD CONSTRAINT access_groups_created_by_fkey FOREIGN KEY (created_by) REFERENCES users(id);
+-- FK: alert_aggregation_policy_id_fkey
+ALTER TABLE alert_aggregation ADD CONSTRAINT alert_aggregation_policy_id_fkey FOREIGN KEY (policy_id) REFERENCES alert_policies(id);
+-- FK: alert_attachments_run_id_fkey
+ALTER TABLE alert_attachments ADD CONSTRAINT alert_attachments_run_id_fkey FOREIGN KEY (run_id) REFERENCES alert_runs(id);
+-- FK: alert_events_run_id_fkey
+ALTER TABLE alert_events ADD CONSTRAINT alert_events_run_id_fkey FOREIGN KEY (run_id) REFERENCES alert_runs(id);
+-- FK: alert_events_vendor_sla_violation_id_fkey
+ALTER TABLE alert_events ADD CONSTRAINT alert_events_vendor_sla_violation_id_fkey FOREIGN KEY (vendor_sla_violation_id) REFERENCES vendor_sla_violations(id);
+-- FK: alert_history_file_id_fkey
+ALTER TABLE alert_history ADD CONSTRAINT alert_history_file_id_fkey FOREIGN KEY (file_id) REFERENCES files(file_id);
+-- FK: alert_history_rule_id_fkey
+ALTER TABLE alert_history ADD CONSTRAINT alert_history_rule_id_fkey FOREIGN KEY (rule_id) REFERENCES alert_rules(id);
+-- FK: alert_policies_created_by_fkey
+ALTER TABLE alert_policies ADD CONSTRAINT alert_policies_created_by_fkey FOREIGN KEY (created_by) REFERENCES users(id);
+-- FK: alert_policies_email_connection_id_fkey
+ALTER TABLE alert_policies ADD CONSTRAINT alert_policies_email_connection_id_fkey FOREIGN KEY (email_connection_id) REFERENCES storage_connections(connection_id);
+-- FK: alert_policies_project_id_fkey
+ALTER TABLE alert_policies ADD CONSTRAINT alert_policies_project_id_fkey FOREIGN KEY (project_id) REFERENCES projects(id);
+-- FK: alert_policy_recipients_policy_id_fkey
+ALTER TABLE alert_policy_recipients ADD CONSTRAINT alert_policy_recipients_policy_id_fkey FOREIGN KEY (policy_id) REFERENCES alert_policies(id);
+-- FK: alert_policy_recipients_user_id_fkey
+ALTER TABLE alert_policy_recipients ADD CONSTRAINT alert_policy_recipients_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id);
+-- FK: alert_runs_email_connection_id_fkey
+ALTER TABLE alert_runs ADD CONSTRAINT alert_runs_email_connection_id_fkey FOREIGN KEY (email_connection_id) REFERENCES storage_connections(connection_id);
+-- FK: alert_runs_policy_id_fkey
+ALTER TABLE alert_runs ADD CONSTRAINT alert_runs_policy_id_fkey FOREIGN KEY (policy_id) REFERENCES alert_policies(id);
+-- FK: allowed_email_domains_created_by_fkey
+ALTER TABLE allowed_email_domains ADD CONSTRAINT allowed_email_domains_created_by_fkey FOREIGN KEY (created_by) REFERENCES users(id);
+-- FK: api_tokens_created_by_fkey
+ALTER TABLE api_tokens ADD CONSTRAINT api_tokens_created_by_fkey FOREIGN KEY (created_by) REFERENCES users(id);
+-- FK: api_tokens_project_id_fkey
+ALTER TABLE api_tokens ADD CONSTRAINT api_tokens_project_id_fkey FOREIGN KEY (project_id) REFERENCES projects(id);
+-- FK: api_tokens_revoked_by_fkey
+ALTER TABLE api_tokens ADD CONSTRAINT api_tokens_revoked_by_fkey FOREIGN KEY (revoked_by) REFERENCES users(id);
+-- FK: api_tokens_user_id_fkey
+ALTER TABLE api_tokens ADD CONSTRAINT api_tokens_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id);
+-- FK: archive_extractions_file_id_fkey
+ALTER TABLE archive_extractions ADD CONSTRAINT archive_extractions_file_id_fkey FOREIGN KEY (file_id) REFERENCES files(file_id);
+-- FK: archive_members_extracted_file_id_fkey
+ALTER TABLE archive_members ADD CONSTRAINT archive_members_extracted_file_id_fkey FOREIGN KEY (extracted_file_id) REFERENCES files(file_id);
+-- FK: archive_members_parent_file_id_fkey
+ALTER TABLE archive_members ADD CONSTRAINT archive_members_parent_file_id_fkey FOREIGN KEY (parent_file_id) REFERENCES files(file_id);
+-- FK: archived_files_archived_by_fkey
+ALTER TABLE archived_files ADD CONSTRAINT archived_files_archived_by_fkey FOREIGN KEY (archived_by) REFERENCES users(id);
+-- FK: archived_files_deleted_by_fkey
+ALTER TABLE archived_files ADD CONSTRAINT archived_files_deleted_by_fkey FOREIGN KEY (deleted_by) REFERENCES users(id);
+-- FK: archived_files_policy_id_fkey
+ALTER TABLE archived_files ADD CONSTRAINT archived_files_policy_id_fkey FOREIGN KEY (policy_id) REFERENCES retention_policies(id);
+-- FK: archived_files_restored_by_fkey
+ALTER TABLE archived_files ADD CONSTRAINT archived_files_restored_by_fkey FOREIGN KEY (restored_by) REFERENCES users(id);
+-- FK: audit_log_parent_audit_id_fkey
+ALTER TABLE audit_log ADD CONSTRAINT audit_log_parent_audit_id_fkey FOREIGN KEY (parent_audit_id) REFERENCES audit_log(audit_id);
+-- FK: bulk_profiling_files_job_id_fkey
+ALTER TABLE bulk_profiling_files ADD CONSTRAINT bulk_profiling_files_job_id_fkey FOREIGN KEY (job_id) REFERENCES bulk_profiling_jobs(id);
+-- FK: bulk_profiling_jobs_sub_project_id_fkey
+ALTER TABLE bulk_profiling_jobs ADD CONSTRAINT bulk_profiling_jobs_sub_project_id_fkey FOREIGN KEY (sub_project_id) REFERENCES projects(id);
+-- FK: business_processes_group_id_fkey
+ALTER TABLE business_processes ADD CONSTRAINT business_processes_group_id_fkey FOREIGN KEY (group_id) REFERENCES groups(id);
+-- FK: fk_business_processes_project
+ALTER TABLE business_processes ADD CONSTRAINT fk_business_processes_project FOREIGN KEY (project_id) REFERENCES projects(id);
+-- FK: fk_column_tag_file
+ALTER TABLE column_governance_tag_assignments ADD CONSTRAINT fk_column_tag_file FOREIGN KEY (file_id) REFERENCES files(file_id);
+-- FK: fk_column_tag_tag
+ALTER TABLE column_governance_tag_assignments ADD CONSTRAINT fk_column_tag_tag FOREIGN KEY (tag_id) REFERENCES governance_tags(tag_id);
+-- FK: column_mappings_source_file_id_fkey
+ALTER TABLE column_mappings ADD CONSTRAINT column_mappings_source_file_id_fkey FOREIGN KEY (source_file_id) REFERENCES files(file_id);
+-- FK: fk_column_policy_file
+ALTER TABLE column_policy_assignments ADD CONSTRAINT fk_column_policy_file FOREIGN KEY (file_id) REFERENCES files(file_id);
+-- FK: fk_column_policy_policy
+ALTER TABLE column_policy_assignments ADD CONSTRAINT fk_column_policy_policy FOREIGN KEY (policy_id) REFERENCES governance_policies(policy_id);
+-- FK: fk_column_tags_file
+ALTER TABLE column_sensitivity_tags ADD CONSTRAINT fk_column_tags_file FOREIGN KEY (file_id) REFERENCES files(file_id);
+-- FK: dlq_jobs_file_id_fkey
+ALTER TABLE dlq_jobs ADD CONSTRAINT dlq_jobs_file_id_fkey FOREIGN KEY (file_id) REFERENCES files(file_id);
+-- FK: dlq_jobs_project_id_fkey
+ALTER TABLE dlq_jobs ADD CONSTRAINT dlq_jobs_project_id_fkey FOREIGN KEY (project_id) REFERENCES projects(id);
+-- FK: dlq_jobs_resolved_by_fkey
+ALTER TABLE dlq_jobs ADD CONSTRAINT dlq_jobs_resolved_by_fkey FOREIGN KEY (resolved_by) REFERENCES users(id);
+-- FK: dlq_jobs_vendor_agreement_id_fkey
+ALTER TABLE dlq_jobs ADD CONSTRAINT dlq_jobs_vendor_agreement_id_fkey FOREIGN KEY (vendor_agreement_id) REFERENCES vendor_agreements(id);
+-- FK: drop_location_config_created_by_fkey
+ALTER TABLE drop_location_config ADD CONSTRAINT drop_location_config_created_by_fkey FOREIGN KEY (created_by) REFERENCES users(id);
+-- FK: drop_location_config_updated_by_fkey
+ALTER TABLE drop_location_config ADD CONSTRAINT drop_location_config_updated_by_fkey FOREIGN KEY (updated_by) REFERENCES users(id);
+-- FK: encrypted_passwords_created_by_fkey
+ALTER TABLE encrypted_passwords ADD CONSTRAINT encrypted_passwords_created_by_fkey FOREIGN KEY (created_by) REFERENCES users(id);
+-- FK: file_audit_details_parent_audit_id_fkey
+ALTER TABLE file_audit_details ADD CONSTRAINT file_audit_details_parent_audit_id_fkey FOREIGN KEY (parent_audit_id) REFERENCES file_audit_details(id);
+-- FK: file_audit_details_transformation_job_id_fkey
+ALTER TABLE file_audit_details ADD CONSTRAINT file_audit_details_transformation_job_id_fkey FOREIGN KEY (transformation_job_id) REFERENCES transformation_jobs(id);
+-- FK: file_columns_file_id_fkey
+ALTER TABLE file_columns ADD CONSTRAINT file_columns_file_id_fkey FOREIGN KEY (file_id) REFERENCES files(file_id);
+-- FK: file_history_file_id_fkey
+ALTER TABLE file_history ADD CONSTRAINT file_history_file_id_fkey FOREIGN KEY (file_id) REFERENCES files(file_id);
+-- FK: file_lineage_source_file_id_fkey
+ALTER TABLE file_lineage ADD CONSTRAINT file_lineage_source_file_id_fkey FOREIGN KEY (source_file_id) REFERENCES files(file_id);
+-- FK: file_lineage_target_file_id_fkey
+ALTER TABLE file_lineage ADD CONSTRAINT file_lineage_target_file_id_fkey FOREIGN KEY (target_file_id) REFERENCES files(file_id);
+-- FK: fk_file_ownership_file
+ALTER TABLE file_ownership ADD CONSTRAINT fk_file_ownership_file FOREIGN KEY (file_id) REFERENCES files(file_id);
+-- FK: fk_file_ownership_user
+ALTER TABLE file_ownership ADD CONSTRAINT fk_file_ownership_user FOREIGN KEY (owner_user_id) REFERENCES users(id);
+-- FK: fk_policy_assignment_file
+ALTER TABLE file_policy_assignments ADD CONSTRAINT fk_policy_assignment_file FOREIGN KEY (file_id) REFERENCES files(file_id);
+-- FK: fk_policy_assignment_policy
+ALTER TABLE file_policy_assignments ADD CONSTRAINT fk_policy_assignment_policy FOREIGN KEY (policy_id) REFERENCES governance_policies(policy_id);
+-- FK: fk_policy_assignment_user
+ALTER TABLE file_policy_assignments ADD CONSTRAINT fk_policy_assignment_user FOREIGN KEY (assigned_by) REFERENCES users(id);
+-- FK: fk_file_preview_file
+ALTER TABLE file_preview_data ADD CONSTRAINT fk_file_preview_file FOREIGN KEY (file_id) REFERENCES files(file_id);
+-- FK: file_processing_artifacts_created_by_fkey
+ALTER TABLE file_processing_artifacts ADD CONSTRAINT file_processing_artifacts_created_by_fkey FOREIGN KEY (created_by) REFERENCES users(id);
+-- FK: file_processing_artifacts_file_id_fkey
+ALTER TABLE file_processing_artifacts ADD CONSTRAINT file_processing_artifacts_file_id_fkey FOREIGN KEY (file_id) REFERENCES files(file_id);
+-- FK: fk_file_quality_rules_file
+ALTER TABLE file_quality_rules ADD CONSTRAINT fk_file_quality_rules_file FOREIGN KEY (file_id) REFERENCES files(file_id);
+-- FK: fk_file_quality_rules_rule
+ALTER TABLE file_quality_rules ADD CONSTRAINT fk_file_quality_rules_rule FOREIGN KEY (quality_rule_id) REFERENCES quality_rules(id);
+-- FK: file_restorations_archived_file_id_fkey
+ALTER TABLE file_restorations ADD CONSTRAINT file_restorations_archived_file_id_fkey FOREIGN KEY (archived_file_id) REFERENCES archived_files(id);
+-- FK: file_restorations_requested_by_fkey
+ALTER TABLE file_restorations ADD CONSTRAINT file_restorations_requested_by_fkey FOREIGN KEY (requested_by) REFERENCES users(id);
+-- FK: file_schedules_sub_project_id_fkey
+ALTER TABLE file_schedules ADD CONSTRAINT file_schedules_sub_project_id_fkey FOREIGN KEY (sub_project_id) REFERENCES projects(id);
+-- FK: fk_file
+ALTER TABLE file_schedules ADD CONSTRAINT fk_file FOREIGN KEY (file_id) REFERENCES files(file_id);
+-- FK: fk_file_schedules_project
+ALTER TABLE file_schedules ADD CONSTRAINT fk_file_schedules_project FOREIGN KEY (project_id) REFERENCES projects(id);
+-- FK: file_schemas_logical_file_id_fkey
+ALTER TABLE file_schemas ADD CONSTRAINT file_schemas_logical_file_id_fkey FOREIGN KEY (logical_file_id) REFERENCES logical_file_groups(logical_file_id);
+-- FK: fk_tag_assignment_file
+ALTER TABLE file_tag_assignments ADD CONSTRAINT fk_tag_assignment_file FOREIGN KEY (file_id) REFERENCES files(file_id);
+-- FK: fk_tag_assignment_tag
+ALTER TABLE file_tag_assignments ADD CONSTRAINT fk_tag_assignment_tag FOREIGN KEY (tag_id) REFERENCES governance_tags(tag_id);
+-- FK: fk_tag_assignment_user
+ALTER TABLE file_tag_assignments ADD CONSTRAINT fk_tag_assignment_user FOREIGN KEY (assigned_by) REFERENCES users(id);
+-- FK: files_logical_file_id_fkey
+ALTER TABLE files ADD CONSTRAINT files_logical_file_id_fkey FOREIGN KEY (logical_file_id) REFERENCES logical_file_groups(logical_file_id);
+-- FK: files_parent_archive_id_fkey
+ALTER TABLE files ADD CONSTRAINT files_parent_archive_id_fkey FOREIGN KEY (parent_archive_id) REFERENCES files(file_id);
+-- FK: files_sub_project_id_fkey
+ALTER TABLE files ADD CONSTRAINT files_sub_project_id_fkey FOREIGN KEY (sub_project_id) REFERENCES projects(id);
+-- FK: files_vendor_agreement_id_fkey
+ALTER TABLE files ADD CONSTRAINT files_vendor_agreement_id_fkey FOREIGN KEY (vendor_agreement_id) REFERENCES vendor_agreements(id);
+-- FK: fk_files_project
+ALTER TABLE files ADD CONSTRAINT fk_files_project FOREIGN KEY (project_id) REFERENCES projects(id);
+-- FK: fixed_width_schemas_created_by_fkey
+ALTER TABLE fixed_width_schemas ADD CONSTRAINT fixed_width_schemas_created_by_fkey FOREIGN KEY (created_by) REFERENCES users(id);
+-- FK: fk_policy_creator
+ALTER TABLE governance_policies ADD CONSTRAINT fk_policy_creator FOREIGN KEY (created_by) REFERENCES users(id);
+-- FK: fk_tag_creator
+ALTER TABLE governance_tags ADD CONSTRAINT fk_tag_creator FOREIGN KEY (created_by) REFERENCES users(id);
+-- FK: group_policy_attachments_attached_by_fkey
+ALTER TABLE group_policy_attachments ADD CONSTRAINT group_policy_attachments_attached_by_fkey FOREIGN KEY (attached_by) REFERENCES users(id);
+-- FK: group_policy_attachments_group_id_fkey
+ALTER TABLE group_policy_attachments ADD CONSTRAINT group_policy_attachments_group_id_fkey FOREIGN KEY (group_id) REFERENCES access_groups(id);
+-- FK: group_policy_attachments_policy_id_fkey
+ALTER TABLE group_policy_attachments ADD CONSTRAINT group_policy_attachments_policy_id_fkey FOREIGN KEY (policy_id) REFERENCES rbac_policies(id);
+-- FK: idempotency_keys_user_id_fkey
+ALTER TABLE idempotency_keys ADD CONSTRAINT idempotency_keys_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id);
+-- FK: job_dependencies_depends_on_job_id_fkey
+ALTER TABLE job_dependencies ADD CONSTRAINT job_dependencies_depends_on_job_id_fkey FOREIGN KEY (depends_on_job_id) REFERENCES file_schedules(id);
+-- FK: job_dependencies_job_id_fkey
+ALTER TABLE job_dependencies ADD CONSTRAINT job_dependencies_job_id_fkey FOREIGN KEY (job_id) REFERENCES file_schedules(id);
+-- FK: job_group_dependencies_depends_on_group_id_fkey
+ALTER TABLE job_group_dependencies ADD CONSTRAINT job_group_dependencies_depends_on_group_id_fkey FOREIGN KEY (depends_on_group_id) REFERENCES job_groups(id);
+-- FK: job_group_dependencies_group_id_fkey
+ALTER TABLE job_group_dependencies ADD CONSTRAINT job_group_dependencies_group_id_fkey FOREIGN KEY (group_id) REFERENCES job_groups(id);
+-- FK: fk_job_group_schedules_project
+ALTER TABLE job_group_schedules ADD CONSTRAINT fk_job_group_schedules_project FOREIGN KEY (project_id) REFERENCES projects(id);
+-- FK: job_group_schedules_group_id_fkey
+ALTER TABLE job_group_schedules ADD CONSTRAINT job_group_schedules_group_id_fkey FOREIGN KEY (group_id) REFERENCES job_groups(id);
+-- FK: job_history_job_id_fkey
+ALTER TABLE job_history ADD CONSTRAINT job_history_job_id_fkey FOREIGN KEY (job_id) REFERENCES jobs(id);
+-- FK: job_runs_job_id_fkey
+ALTER TABLE job_runs ADD CONSTRAINT job_runs_job_id_fkey FOREIGN KEY (job_id) REFERENCES jobs(id);
+-- FK: fk_job_schedules_project
+ALTER TABLE job_schedules ADD CONSTRAINT fk_job_schedules_project FOREIGN KEY (project_id) REFERENCES projects(id);
+-- FK: jobs_created_by_fkey
+ALTER TABLE jobs ADD CONSTRAINT jobs_created_by_fkey FOREIGN KEY (created_by) REFERENCES users(id);
+-- FK: lineage_views_project_id_fkey
+ALTER TABLE lineage_views ADD CONSTRAINT lineage_views_project_id_fkey FOREIGN KEY (project_id) REFERENCES projects(id);
+-- FK: lineage_views_user_id_fkey
+ALTER TABLE lineage_views ADD CONSTRAINT lineage_views_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id);
+-- FK: logical_file_groups_project_id_fkey
+ALTER TABLE logical_file_groups ADD CONSTRAINT logical_file_groups_project_id_fkey FOREIGN KEY (project_id) REFERENCES projects(id);
+-- FK: fk_mapping_group_executions_project
+ALTER TABLE mapping_group_executions ADD CONSTRAINT fk_mapping_group_executions_project FOREIGN KEY (project_id) REFERENCES projects(id);
+-- FK: mapping_group_executions_group_id_fkey
+ALTER TABLE mapping_group_executions ADD CONSTRAINT mapping_group_executions_group_id_fkey FOREIGN KEY (group_id) REFERENCES mapping_groups(id);
+-- FK: mapping_group_members_group_id_fkey
+ALTER TABLE mapping_group_members ADD CONSTRAINT mapping_group_members_group_id_fkey FOREIGN KEY (group_id) REFERENCES mapping_groups(id);
+-- FK: mapping_group_members_mapping_id_fkey
+ALTER TABLE mapping_group_members ADD CONSTRAINT mapping_group_members_mapping_id_fkey FOREIGN KEY (mapping_id) REFERENCES transformation_mappings(mapping_id);
+-- FK: fk_mapping_groups_project
+ALTER TABLE mapping_groups ADD CONSTRAINT fk_mapping_groups_project FOREIGN KEY (project_id) REFERENCES projects(id);
+-- FK: mapping_groups_sub_project_id_fkey
+ALTER TABLE mapping_groups ADD CONSTRAINT mapping_groups_sub_project_id_fkey FOREIGN KEY (sub_project_id) REFERENCES projects(id);
+-- FK: n_step_workflow_assets_step_id_fkey
+ALTER TABLE n_step_workflow_assets ADD CONSTRAINT n_step_workflow_assets_step_id_fkey FOREIGN KEY (step_id) REFERENCES n_step_workflow_steps(id);
+-- FK: n_step_workflow_run_steps_run_id_fkey
+ALTER TABLE n_step_workflow_run_steps ADD CONSTRAINT n_step_workflow_run_steps_run_id_fkey FOREIGN KEY (run_id) REFERENCES n_step_workflow_runs(id);
+-- FK: n_step_workflow_runs_triggered_by_fkey
+ALTER TABLE n_step_workflow_runs ADD CONSTRAINT n_step_workflow_runs_triggered_by_fkey FOREIGN KEY (triggered_by) REFERENCES users(id);
+-- FK: n_step_workflow_runs_workflow_id_fkey
+ALTER TABLE n_step_workflow_runs ADD CONSTRAINT n_step_workflow_runs_workflow_id_fkey FOREIGN KEY (workflow_id) REFERENCES n_step_workflows(id);
+-- FK: n_step_workflow_steps_workflow_id_fkey
+ALTER TABLE n_step_workflow_steps ADD CONSTRAINT n_step_workflow_steps_workflow_id_fkey FOREIGN KEY (workflow_id) REFERENCES n_step_workflows(id);
+-- FK: fk_n_step_workflows_project
+ALTER TABLE n_step_workflows ADD CONSTRAINT fk_n_step_workflows_project FOREIGN KEY (project_id) REFERENCES projects(id);
+-- FK: n_step_workflows_created_by_fkey
+ALTER TABLE n_step_workflows ADD CONSTRAINT n_step_workflows_created_by_fkey FOREIGN KEY (created_by) REFERENCES users(id);
+-- FK: n_step_workflows_sub_project_id_fkey
+ALTER TABLE n_step_workflows ADD CONSTRAINT n_step_workflows_sub_project_id_fkey FOREIGN KEY (sub_project_id) REFERENCES projects(id);
+-- FK: notifications_user_id_fkey
+ALTER TABLE notifications ADD CONSTRAINT notifications_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id);
+-- FK: password_reset_requests_approved_by_fkey
+ALTER TABLE password_reset_requests ADD CONSTRAINT password_reset_requests_approved_by_fkey FOREIGN KEY (approved_by) REFERENCES users(id);
+-- FK: password_reset_requests_user_id_fkey
+ALTER TABLE password_reset_requests ADD CONSTRAINT password_reset_requests_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id);
+-- FK: processing_events_file_id_fkey
+ALTER TABLE processing_events ADD CONSTRAINT processing_events_file_id_fkey FOREIGN KEY (file_id) REFERENCES files(file_id);
+-- FK: project_access_groups_added_by_fkey
+ALTER TABLE project_access_groups ADD CONSTRAINT project_access_groups_added_by_fkey FOREIGN KEY (added_by) REFERENCES users(id);
+-- FK: project_access_groups_group_id_fkey
+ALTER TABLE project_access_groups ADD CONSTRAINT project_access_groups_group_id_fkey FOREIGN KEY (group_id) REFERENCES access_groups(id);
+-- FK: project_access_groups_project_id_fkey
+ALTER TABLE project_access_groups ADD CONSTRAINT project_access_groups_project_id_fkey FOREIGN KEY (project_id) REFERENCES projects(id);
+-- FK: project_members_invited_by_fkey
+ALTER TABLE project_members ADD CONSTRAINT project_members_invited_by_fkey FOREIGN KEY (invited_by) REFERENCES users(id);
+-- FK: project_members_project_id_fkey
+ALTER TABLE project_members ADD CONSTRAINT project_members_project_id_fkey FOREIGN KEY (project_id) REFERENCES projects(id);
+-- FK: project_members_user_id_fkey
+ALTER TABLE project_members ADD CONSTRAINT project_members_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id);
+-- FK: projects_owner_id_fkey
+ALTER TABLE projects ADD CONSTRAINT projects_owner_id_fkey FOREIGN KEY (owner_id) REFERENCES users(id);
+-- FK: projects_parent_id_fkey
+ALTER TABLE projects ADD CONSTRAINT projects_parent_id_fkey FOREIGN KEY (parent_id) REFERENCES projects(id);
+-- FK: quality_reports_file_id_fkey
+ALTER TABLE quality_reports ADD CONSTRAINT quality_reports_file_id_fkey FOREIGN KEY (file_id) REFERENCES files(file_id);
+-- FK: quality_rule_configurations_created_by_fkey
+ALTER TABLE quality_rule_configurations ADD CONSTRAINT quality_rule_configurations_created_by_fkey FOREIGN KEY (created_by) REFERENCES users(id);
+-- FK: quality_rule_configurations_rule_id_fkey
+ALTER TABLE quality_rule_configurations ADD CONSTRAINT quality_rule_configurations_rule_id_fkey FOREIGN KEY (rule_id) REFERENCES quality_rules(id);
+-- FK: quality_rule_violations_resolved_by_fkey
+ALTER TABLE quality_rule_violations ADD CONSTRAINT quality_rule_violations_resolved_by_fkey FOREIGN KEY (resolved_by) REFERENCES users(id);
+-- FK: quality_rule_violations_rule_id_fkey
+ALTER TABLE quality_rule_violations ADD CONSTRAINT quality_rule_violations_rule_id_fkey FOREIGN KEY (rule_id) REFERENCES quality_rules(id);
+-- FK: quality_rules_created_by_fkey
+ALTER TABLE quality_rules ADD CONSTRAINT quality_rules_created_by_fkey FOREIGN KEY (created_by) REFERENCES users(id);
+-- FK: quality_rules_sub_project_id_fkey
+ALTER TABLE quality_rules ADD CONSTRAINT quality_rules_sub_project_id_fkey FOREIGN KEY (sub_project_id) REFERENCES projects(id);
+-- FK: rbac_policies_created_by_fkey
+ALTER TABLE rbac_policies ADD CONSTRAINT rbac_policies_created_by_fkey FOREIGN KEY (created_by) REFERENCES users(id);
+-- FK: rbac_policies_project_id_fkey
+ALTER TABLE rbac_policies ADD CONSTRAINT rbac_policies_project_id_fkey FOREIGN KEY (project_id) REFERENCES projects(id);
+-- FK: refresh_tokens_user_id_fkey
+ALTER TABLE refresh_tokens ADD CONSTRAINT refresh_tokens_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id);
+-- FK: resource_attributes_created_by_fkey
+ALTER TABLE resource_attributes ADD CONSTRAINT resource_attributes_created_by_fkey FOREIGN KEY (created_by) REFERENCES users(id);
+-- FK: resource_policy_attachments_attached_by_fkey
+ALTER TABLE resource_policy_attachments ADD CONSTRAINT resource_policy_attachments_attached_by_fkey FOREIGN KEY (attached_by) REFERENCES users(id);
+-- FK: resource_policy_attachments_policy_id_fkey
+ALTER TABLE resource_policy_attachments ADD CONSTRAINT resource_policy_attachments_policy_id_fkey FOREIGN KEY (policy_id) REFERENCES rbac_policies(id);
+-- FK: retention_policies_created_by_fkey
+ALTER TABLE retention_policies ADD CONSTRAINT retention_policies_created_by_fkey FOREIGN KEY (created_by) REFERENCES users(id);
+-- FK: retention_policy_runs_executed_by_fkey
+ALTER TABLE retention_policy_runs ADD CONSTRAINT retention_policy_runs_executed_by_fkey FOREIGN KEY (executed_by) REFERENCES users(id);
+-- FK: retention_policy_runs_policy_id_fkey
+ALTER TABLE retention_policy_runs ADD CONSTRAINT retention_policy_runs_policy_id_fkey FOREIGN KEY (policy_id) REFERENCES retention_policies(id);
+-- FK: role_permissions_permission_id_fkey
+ALTER TABLE role_permissions ADD CONSTRAINT role_permissions_permission_id_fkey FOREIGN KEY (permission_id) REFERENCES permissions(id);
+-- FK: role_permissions_role_id_fkey
+ALTER TABLE role_permissions ADD CONSTRAINT role_permissions_role_id_fkey FOREIGN KEY (role_id) REFERENCES roles(id);
+-- FK: fk_schedules_project
+ALTER TABLE schedules ADD CONSTRAINT fk_schedules_project FOREIGN KEY (project_id) REFERENCES projects(id);
+-- FK: schedules_sub_project_id_fkey
+ALTER TABLE schedules ADD CONSTRAINT schedules_sub_project_id_fkey FOREIGN KEY (sub_project_id) REFERENCES projects(id);
+-- FK: schema_validation_job_files_job_id_fkey
+ALTER TABLE schema_validation_job_files ADD CONSTRAINT schema_validation_job_files_job_id_fkey FOREIGN KEY (job_id) REFERENCES schema_validation_jobs(id);
+-- FK: schema_validation_jobs_created_by_fkey
+ALTER TABLE schema_validation_jobs ADD CONSTRAINT schema_validation_jobs_created_by_fkey FOREIGN KEY (created_by) REFERENCES users(id);
+-- FK: schema_validation_jobs_project_id_fkey
+ALTER TABLE schema_validation_jobs ADD CONSTRAINT schema_validation_jobs_project_id_fkey FOREIGN KEY (project_id) REFERENCES projects(id);
+-- FK: schema_validation_jobs_vendor_agreement_id_fkey
+ALTER TABLE schema_validation_jobs ADD CONSTRAINT schema_validation_jobs_vendor_agreement_id_fkey FOREIGN KEY (vendor_agreement_id) REFERENCES vendor_agreements(id);
+-- FK: scim_resource_mappings_config_id_fkey
+ALTER TABLE scim_resource_mappings ADD CONSTRAINT scim_resource_mappings_config_id_fkey FOREIGN KEY (config_id) REFERENCES scim_configurations(id);
+-- FK: scim_sync_logs_config_id_fkey
+ALTER TABLE scim_sync_logs ADD CONSTRAINT scim_sync_logs_config_id_fkey FOREIGN KEY (config_id) REFERENCES scim_configurations(id);
+-- FK: fk_storage_connections_project
+ALTER TABLE storage_connections ADD CONSTRAINT fk_storage_connections_project FOREIGN KEY (project_id) REFERENCES projects(id);
+-- FK: storage_connections_deleted_by_fkey
+ALTER TABLE storage_connections ADD CONSTRAINT storage_connections_deleted_by_fkey FOREIGN KEY (deleted_by) REFERENCES users(id);
+-- FK: sub_project_access_groups_group_id_fkey
+ALTER TABLE sub_project_access_groups ADD CONSTRAINT sub_project_access_groups_group_id_fkey FOREIGN KEY (group_id) REFERENCES access_groups(id);
+-- FK: sub_project_access_groups_sub_project_id_fkey
+ALTER TABLE sub_project_access_groups ADD CONSTRAINT sub_project_access_groups_sub_project_id_fkey FOREIGN KEY (sub_project_id) REFERENCES projects(id);
+-- FK: sub_project_members_sub_project_id_fkey
+ALTER TABLE sub_project_members ADD CONSTRAINT sub_project_members_sub_project_id_fkey FOREIGN KEY (sub_project_id) REFERENCES projects(id);
+-- FK: sub_project_members_user_id_fkey
+ALTER TABLE sub_project_members ADD CONSTRAINT sub_project_members_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id);
+-- FK: fk_tag_permission_role
+ALTER TABLE tag_permissions ADD CONSTRAINT fk_tag_permission_role FOREIGN KEY (role_id) REFERENCES roles(id);
+-- FK: fk_tag_permission_tag
+ALTER TABLE tag_permissions ADD CONSTRAINT fk_tag_permission_tag FOREIGN KEY (tag_id) REFERENCES governance_tags(tag_id);
+-- FK: fk_transform_connections_project
+ALTER TABLE transform_connections ADD CONSTRAINT fk_transform_connections_project FOREIGN KEY (project_id) REFERENCES projects(id);
+-- FK: fk_transformation_jobs_project
+ALTER TABLE transformation_jobs ADD CONSTRAINT fk_transformation_jobs_project FOREIGN KEY (project_id) REFERENCES projects(id);
+-- FK: transformation_jobs_mapping_group_execution_id_fkey
+ALTER TABLE transformation_jobs ADD CONSTRAINT transformation_jobs_mapping_group_execution_id_fkey FOREIGN KEY (mapping_group_execution_id) REFERENCES mapping_group_executions(id);
+-- FK: transformation_jobs_mapping_id_fkey
+ALTER TABLE transformation_jobs ADD CONSTRAINT transformation_jobs_mapping_id_fkey FOREIGN KEY (mapping_id) REFERENCES transformation_mappings(mapping_id);
+-- FK: transformation_jobs_visual_workflow_execution_id_fkey
+ALTER TABLE transformation_jobs ADD CONSTRAINT transformation_jobs_visual_workflow_execution_id_fkey FOREIGN KEY (visual_workflow_execution_id) REFERENCES visual_workflow_executions(id);
+-- FK: transformation_jobs_workflow_execution_id_fkey
+ALTER TABLE transformation_jobs ADD CONSTRAINT transformation_jobs_workflow_execution_id_fkey FOREIGN KEY (workflow_execution_id) REFERENCES n_step_workflow_runs(id);
+-- FK: transformation_logs_job_id_fkey
+ALTER TABLE transformation_logs ADD CONSTRAINT transformation_logs_job_id_fkey FOREIGN KEY (job_id) REFERENCES transformation_jobs(job_id);
+-- FK: fk_transformation_mappings_project
+ALTER TABLE transformation_mappings ADD CONSTRAINT fk_transformation_mappings_project FOREIGN KEY (project_id) REFERENCES projects(id);
+-- FK: transformation_mappings_sub_project_id_fkey
+ALTER TABLE transformation_mappings ADD CONSTRAINT transformation_mappings_sub_project_id_fkey FOREIGN KEY (sub_project_id) REFERENCES projects(id);
+-- FK: transformation_mappings_vendor_agreement_file_schema_id_fkey
+ALTER TABLE transformation_mappings ADD CONSTRAINT transformation_mappings_vendor_agreement_file_schema_id_fkey FOREIGN KEY (vendor_agreement_file_schema_id) REFERENCES vendor_agreement_file_schemas(id);
+-- FK: transformation_mappings_vendor_agreement_id_fkey
+ALTER TABLE transformation_mappings ADD CONSTRAINT transformation_mappings_vendor_agreement_id_fkey FOREIGN KEY (vendor_agreement_id) REFERENCES vendor_agreements(id);
+-- FK: transformation_mappings_visual_mapping_id_fkey
+ALTER TABLE transformation_mappings ADD CONSTRAINT transformation_mappings_visual_mapping_id_fkey FOREIGN KEY (visual_mapping_id) REFERENCES visual_mapping_defs(id);
+-- FK: fk_transformation_quality_rules_mapping
+ALTER TABLE transformation_quality_rules ADD CONSTRAINT fk_transformation_quality_rules_mapping FOREIGN KEY (mapping_id) REFERENCES transformation_mappings(mapping_id);
+-- FK: fk_transformation_quality_rules_rule
+ALTER TABLE transformation_quality_rules ADD CONSTRAINT fk_transformation_quality_rules_rule FOREIGN KEY (quality_rule_id) REFERENCES quality_rules(id);
+-- FK: upload_batches_api_token_id_fkey
+ALTER TABLE upload_batches ADD CONSTRAINT upload_batches_api_token_id_fkey FOREIGN KEY (api_token_id) REFERENCES api_tokens(id);
+-- FK: upload_batches_project_id_fkey
+ALTER TABLE upload_batches ADD CONSTRAINT upload_batches_project_id_fkey FOREIGN KEY (project_id) REFERENCES projects(id);
+-- FK: upload_batches_user_id_fkey
+ALTER TABLE upload_batches ADD CONSTRAINT upload_batches_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id);
+-- FK: upload_file_records_upload_file_id_fkey
+ALTER TABLE upload_file_records ADD CONSTRAINT upload_file_records_upload_file_id_fkey FOREIGN KEY (upload_file_id) REFERENCES upload_files(id);
+-- FK: upload_files_batch_id_fkey
+ALTER TABLE upload_files ADD CONSTRAINT upload_files_batch_id_fkey FOREIGN KEY (batch_id) REFERENCES upload_batches(id);
+-- FK: user_attributes_created_by_fkey
+ALTER TABLE user_attributes ADD CONSTRAINT user_attributes_created_by_fkey FOREIGN KEY (created_by) REFERENCES users(id);
+-- FK: user_attributes_user_id_fkey
+ALTER TABLE user_attributes ADD CONSTRAINT user_attributes_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id);
+-- FK: user_badges_file_id_fkey
+ALTER TABLE user_badges ADD CONSTRAINT user_badges_file_id_fkey FOREIGN KEY (file_id) REFERENCES files(file_id);
+-- FK: user_groups_group_id_fkey
+ALTER TABLE user_groups ADD CONSTRAINT user_groups_group_id_fkey FOREIGN KEY (group_id) REFERENCES access_groups(id);
+-- FK: user_groups_user_id_fkey
+ALTER TABLE user_groups ADD CONSTRAINT user_groups_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id);
+-- FK: user_policy_attachments_attached_by_fkey
+ALTER TABLE user_policy_attachments ADD CONSTRAINT user_policy_attachments_attached_by_fkey FOREIGN KEY (attached_by) REFERENCES users(id);
+-- FK: user_policy_attachments_policy_id_fkey
+ALTER TABLE user_policy_attachments ADD CONSTRAINT user_policy_attachments_policy_id_fkey FOREIGN KEY (policy_id) REFERENCES rbac_policies(id);
+-- FK: user_policy_attachments_user_id_fkey
+ALTER TABLE user_policy_attachments ADD CONSTRAINT user_policy_attachments_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id);
+-- FK: user_roles_role_id_fkey
+ALTER TABLE user_roles ADD CONSTRAINT user_roles_role_id_fkey FOREIGN KEY (role_id) REFERENCES roles(id);
+-- FK: user_roles_user_id_fkey
+ALTER TABLE user_roles ADD CONSTRAINT user_roles_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id);
+-- FK: user_sessions_user_id_fkey
+ALTER TABLE user_sessions ADD CONSTRAINT user_sessions_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id);
+-- FK: users_vendor_id_fkey
+ALTER TABLE users ADD CONSTRAINT users_vendor_id_fkey FOREIGN KEY (vendor_id) REFERENCES vendors(id);
+-- FK: vendor_agreement_approvals_agreement_id_fkey
+ALTER TABLE vendor_agreement_approvals ADD CONSTRAINT vendor_agreement_approvals_agreement_id_fkey FOREIGN KEY (agreement_id) REFERENCES vendor_agreements(id);
+-- FK: vendor_agreement_approvals_approver_user_id_fkey
+ALTER TABLE vendor_agreement_approvals ADD CONSTRAINT vendor_agreement_approvals_approver_user_id_fkey FOREIGN KEY (approver_user_id) REFERENCES users(id);
+-- FK: vendor_agreement_changes_agreement_id_fkey
+ALTER TABLE vendor_agreement_changes ADD CONSTRAINT vendor_agreement_changes_agreement_id_fkey FOREIGN KEY (agreement_id) REFERENCES vendor_agreements(id);
+-- FK: vendor_agreement_changes_changed_by_fkey
+ALTER TABLE vendor_agreement_changes ADD CONSTRAINT vendor_agreement_changes_changed_by_fkey FOREIGN KEY (changed_by) REFERENCES users(id);
+-- FK: vendor_agreement_documents_agreement_id_fkey
+ALTER TABLE vendor_agreement_documents ADD CONSTRAINT vendor_agreement_documents_agreement_id_fkey FOREIGN KEY (agreement_id) REFERENCES vendor_agreements(id);
+-- FK: vendor_agreement_documents_approval_id_fkey
+ALTER TABLE vendor_agreement_documents ADD CONSTRAINT vendor_agreement_documents_approval_id_fkey FOREIGN KEY (approval_id) REFERENCES vendor_agreement_approvals(id);
+-- FK: vendor_agreement_documents_uploaded_by_fkey
+ALTER TABLE vendor_agreement_documents ADD CONSTRAINT vendor_agreement_documents_uploaded_by_fkey FOREIGN KEY (uploaded_by) REFERENCES users(id);
+-- FK: vendor_agreement_file_schemas_created_by_fkey
+ALTER TABLE vendor_agreement_file_schemas ADD CONSTRAINT vendor_agreement_file_schemas_created_by_fkey FOREIGN KEY (created_by) REFERENCES users(id);
+-- FK: vendor_agreement_file_schemas_updated_by_fkey
+ALTER TABLE vendor_agreement_file_schemas ADD CONSTRAINT vendor_agreement_file_schemas_updated_by_fkey FOREIGN KEY (updated_by) REFERENCES users(id);
+-- FK: vendor_agreement_file_schemas_vendor_agreement_id_fkey
+ALTER TABLE vendor_agreement_file_schemas ADD CONSTRAINT vendor_agreement_file_schemas_vendor_agreement_id_fkey FOREIGN KEY (vendor_agreement_id) REFERENCES vendor_agreements(id);
+-- FK: vendor_agreements_created_by_fkey
+ALTER TABLE vendor_agreements ADD CONSTRAINT vendor_agreements_created_by_fkey FOREIGN KEY (created_by) REFERENCES users(id);
+-- FK: vendor_agreements_file_owner_user_id_fkey
+ALTER TABLE vendor_agreements ADD CONSTRAINT vendor_agreements_file_owner_user_id_fkey FOREIGN KEY (file_owner_user_id) REFERENCES users(id);
+-- FK: vendor_agreements_governance_approved_by_fkey
+ALTER TABLE vendor_agreements ADD CONSTRAINT vendor_agreements_governance_approved_by_fkey FOREIGN KEY (governance_approved_by) REFERENCES users(id);
+-- FK: vendor_agreements_governance_manager_user_id_fkey
+ALTER TABLE vendor_agreements ADD CONSTRAINT vendor_agreements_governance_manager_user_id_fkey FOREIGN KEY (governance_manager_user_id) REFERENCES users(id);
+-- FK: vendor_agreements_owner_approved_by_fkey
+ALTER TABLE vendor_agreements ADD CONSTRAINT vendor_agreements_owner_approved_by_fkey FOREIGN KEY (owner_approved_by) REFERENCES users(id);
+-- FK: vendor_agreements_project_id_fkey
+ALTER TABLE vendor_agreements ADD CONSTRAINT vendor_agreements_project_id_fkey FOREIGN KEY (project_id) REFERENCES projects(id);
+-- FK: vendor_agreements_sub_project_id_fkey
+ALTER TABLE vendor_agreements ADD CONSTRAINT vendor_agreements_sub_project_id_fkey FOREIGN KEY (sub_project_id) REFERENCES projects(id);
+-- FK: vendor_agreements_updated_by_fkey
+ALTER TABLE vendor_agreements ADD CONSTRAINT vendor_agreements_updated_by_fkey FOREIGN KEY (updated_by) REFERENCES users(id);
+-- FK: vendor_agreements_vendor_approved_by_fkey
+ALTER TABLE vendor_agreements ADD CONSTRAINT vendor_agreements_vendor_approved_by_fkey FOREIGN KEY (vendor_approved_by) REFERENCES users(id);
+-- FK: vendor_agreements_vendor_connection_id_fkey
+ALTER TABLE vendor_agreements ADD CONSTRAINT vendor_agreements_vendor_connection_id_fkey FOREIGN KEY (vendor_connection_id) REFERENCES storage_connections(connection_id);
+-- FK: vendor_agreements_vendor_id_fkey
+ALTER TABLE vendor_agreements ADD CONSTRAINT vendor_agreements_vendor_id_fkey FOREIGN KEY (vendor_id) REFERENCES vendors(id);
+-- FK: vendor_file_profiling_results_connection_id_fkey
+ALTER TABLE vendor_file_profiling_results ADD CONSTRAINT vendor_file_profiling_results_connection_id_fkey FOREIGN KEY (connection_id) REFERENCES storage_connections(connection_id);
+-- FK: vendor_file_profiling_results_file_id_fkey
+ALTER TABLE vendor_file_profiling_results ADD CONSTRAINT vendor_file_profiling_results_file_id_fkey FOREIGN KEY (file_id) REFERENCES files(file_id);
+-- FK: vendor_file_profiling_results_uploaded_by_user_id_fkey
+ALTER TABLE vendor_file_profiling_results ADD CONSTRAINT vendor_file_profiling_results_uploaded_by_user_id_fkey FOREIGN KEY (uploaded_by_user_id) REFERENCES users(id);
+-- FK: vendor_file_profiling_results_vendor_id_fkey
+ALTER TABLE vendor_file_profiling_results ADD CONSTRAINT vendor_file_profiling_results_vendor_id_fkey FOREIGN KEY (vendor_id) REFERENCES vendors(id);
+-- FK: vendor_sla_violations_agreement_id_fkey
+ALTER TABLE vendor_sla_violations ADD CONSTRAINT vendor_sla_violations_agreement_id_fkey FOREIGN KEY (agreement_id) REFERENCES vendor_agreements(id);
+-- FK: vendor_users_created_by_fkey
+ALTER TABLE vendor_users ADD CONSTRAINT vendor_users_created_by_fkey FOREIGN KEY (created_by) REFERENCES users(id);
+-- FK: vendor_users_updated_by_fkey
+ALTER TABLE vendor_users ADD CONSTRAINT vendor_users_updated_by_fkey FOREIGN KEY (updated_by) REFERENCES users(id);
+-- FK: vendor_users_vendor_id_fkey
+ALTER TABLE vendor_users ADD CONSTRAINT vendor_users_vendor_id_fkey FOREIGN KEY (vendor_id) REFERENCES vendors(id);
+-- FK: vendors_created_by_fkey
+ALTER TABLE vendors ADD CONSTRAINT vendors_created_by_fkey FOREIGN KEY (created_by) REFERENCES users(id);
+-- FK: vendors_project_id_fkey
+ALTER TABLE vendors ADD CONSTRAINT vendors_project_id_fkey FOREIGN KEY (project_id) REFERENCES projects(id);
+-- FK: vendors_updated_by_fkey
+ALTER TABLE vendors ADD CONSTRAINT vendors_updated_by_fkey FOREIGN KEY (updated_by) REFERENCES users(id);
+-- FK: vendors_vendor_user_id_fkey
+ALTER TABLE vendors ADD CONSTRAINT vendors_vendor_user_id_fkey FOREIGN KEY (vendor_user_id) REFERENCES users(id);
+-- FK: visual_lineage_graphs_created_by_fkey
+ALTER TABLE visual_lineage_graphs ADD CONSTRAINT visual_lineage_graphs_created_by_fkey FOREIGN KEY (created_by) REFERENCES users(id);
+-- FK: visual_lineage_graphs_project_id_fkey
+ALTER TABLE visual_lineage_graphs ADD CONSTRAINT visual_lineage_graphs_project_id_fkey FOREIGN KEY (project_id) REFERENCES projects(id);
+-- FK: visual_mapping_defs_created_by_fkey
+ALTER TABLE visual_mapping_defs ADD CONSTRAINT visual_mapping_defs_created_by_fkey FOREIGN KEY (created_by) REFERENCES users(id);
+-- FK: visual_mapping_defs_project_id_fkey
+ALTER TABLE visual_mapping_defs ADD CONSTRAINT visual_mapping_defs_project_id_fkey FOREIGN KEY (project_id) REFERENCES projects(id);
+-- FK: visual_mapping_edges_mapping_id_fkey
+ALTER TABLE visual_mapping_edges ADD CONSTRAINT visual_mapping_edges_mapping_id_fkey FOREIGN KEY (mapping_id) REFERENCES visual_mapping_defs(id);
+-- FK: visual_mapping_execution_logs_mapping_id_fkey
+ALTER TABLE visual_mapping_execution_logs ADD CONSTRAINT visual_mapping_execution_logs_mapping_id_fkey FOREIGN KEY (mapping_id) REFERENCES visual_mapping_defs(id);
+-- FK: visual_mapping_executions_mapping_id_fkey
+ALTER TABLE visual_mapping_executions ADD CONSTRAINT visual_mapping_executions_mapping_id_fkey FOREIGN KEY (mapping_id) REFERENCES visual_mapping_defs(id);
+-- FK: visual_mapping_executions_transformation_id_fkey
+ALTER TABLE visual_mapping_executions ADD CONSTRAINT visual_mapping_executions_transformation_id_fkey FOREIGN KEY (transformation_id) REFERENCES transformation_mappings(id);
+-- FK: visual_mapping_executions_triggered_by_fkey
+ALTER TABLE visual_mapping_executions ADD CONSTRAINT visual_mapping_executions_triggered_by_fkey FOREIGN KEY (triggered_by) REFERENCES users(id);
+-- FK: visual_mapping_nodes_mapping_id_fkey
+ALTER TABLE visual_mapping_nodes ADD CONSTRAINT visual_mapping_nodes_mapping_id_fkey FOREIGN KEY (mapping_id) REFERENCES visual_mapping_defs(id);
+-- FK: visual_workflow_execution_logs_workflow_id_fkey
+ALTER TABLE visual_workflow_execution_logs ADD CONSTRAINT visual_workflow_execution_logs_workflow_id_fkey FOREIGN KEY (workflow_id) REFERENCES visual_workflows(id);
+-- FK: visual_workflow_executions_project_id_fkey
+ALTER TABLE visual_workflow_executions ADD CONSTRAINT visual_workflow_executions_project_id_fkey FOREIGN KEY (project_id) REFERENCES projects(id);
+-- FK: visual_workflow_executions_triggered_by_fkey
+ALTER TABLE visual_workflow_executions ADD CONSTRAINT visual_workflow_executions_triggered_by_fkey FOREIGN KEY (triggered_by) REFERENCES users(id);
+-- FK: visual_workflow_executions_workflow_id_fkey
+ALTER TABLE visual_workflow_executions ADD CONSTRAINT visual_workflow_executions_workflow_id_fkey FOREIGN KEY (workflow_id) REFERENCES visual_workflows(id);
+-- FK: visual_workflows_created_by_fkey
+ALTER TABLE visual_workflows ADD CONSTRAINT visual_workflows_created_by_fkey FOREIGN KEY (created_by) REFERENCES users(id);
+-- FK: visual_workflows_project_id_fkey
+ALTER TABLE visual_workflows ADD CONSTRAINT visual_workflows_project_id_fkey FOREIGN KEY (project_id) REFERENCES projects(id);
+-- FK: visual_workflows_sub_project_id_fkey
+ALTER TABLE visual_workflows ADD CONSTRAINT visual_workflows_sub_project_id_fkey FOREIGN KEY (sub_project_id) REFERENCES projects(id);
+-- FK: fk_workflow_executions_project
+ALTER TABLE workflow_executions ADD CONSTRAINT fk_workflow_executions_project FOREIGN KEY (project_id) REFERENCES projects(id);
+-- FK: workflow_executions_current_step_id_fkey
+ALTER TABLE workflow_executions ADD CONSTRAINT workflow_executions_current_step_id_fkey FOREIGN KEY (current_step_id) REFERENCES workflow_steps(id);
+-- FK: workflow_executions_workflow_id_fkey
+ALTER TABLE workflow_executions ADD CONSTRAINT workflow_executions_workflow_id_fkey FOREIGN KEY (workflow_id) REFERENCES business_processes(id);
+-- FK: fk_workflow_steps_project
+ALTER TABLE workflow_steps ADD CONSTRAINT fk_workflow_steps_project FOREIGN KEY (project_id) REFERENCES projects(id);
+-- FK: workflow_steps_depends_on_fkey
+ALTER TABLE workflow_steps ADD CONSTRAINT workflow_steps_depends_on_fkey FOREIGN KEY (depends_on) REFERENCES workflow_steps(id);
+-- FK: workflow_steps_workflow_id_fkey
+ALTER TABLE workflow_steps ADD CONSTRAINT workflow_steps_workflow_id_fkey FOREIGN KEY (workflow_id) REFERENCES business_processes(id);
+
+-- =====================================================
+-- SECTION 5: INDEXES
+-- =====================================================
+
+-- INDEX: access_group_members_pkey
+CREATE UNIQUE INDEX access_group_members_pkey ON public.access_group_members USING btree (group_id, user_id);
+-- INDEX: idx_access_group_members_group
 CREATE INDEX idx_access_group_members_group ON public.access_group_members USING btree (group_id);
-
-
---
--- Name: idx_access_group_members_source; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: idx_access_group_members_source
 CREATE INDEX idx_access_group_members_source ON public.access_group_members USING btree (source);
-
-
---
--- Name: idx_access_group_members_user; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: idx_access_group_members_user
 CREATE INDEX idx_access_group_members_user ON public.access_group_members USING btree (user_id);
-
-
---
--- Name: idx_access_group_roles_global_unique; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: access_group_roles_pkey
+CREATE UNIQUE INDEX access_group_roles_pkey ON public.access_group_roles USING btree (id);
+-- INDEX: idx_access_group_roles_global_unique
 CREATE UNIQUE INDEX idx_access_group_roles_global_unique ON public.access_group_roles USING btree (group_id, role_id) WHERE (project_id IS NULL);
-
-
---
--- Name: idx_access_group_roles_group; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: idx_access_group_roles_group
 CREATE INDEX idx_access_group_roles_group ON public.access_group_roles USING btree (group_id);
-
-
---
--- Name: idx_access_group_roles_project; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: idx_access_group_roles_project
 CREATE INDEX idx_access_group_roles_project ON public.access_group_roles USING btree (project_id) WHERE (project_id IS NOT NULL);
-
-
---
--- Name: idx_access_group_roles_project_unique; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: idx_access_group_roles_project_unique
 CREATE UNIQUE INDEX idx_access_group_roles_project_unique ON public.access_group_roles USING btree (group_id, role_id, project_id) WHERE (project_id IS NOT NULL);
-
-
---
--- Name: idx_access_group_roles_role; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: idx_access_group_roles_role
 CREATE INDEX idx_access_group_roles_role ON public.access_group_roles USING btree (role_id);
-
-
---
--- Name: idx_access_groups_external_id; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: access_groups_pkey
+CREATE UNIQUE INDEX access_groups_pkey ON public.access_groups USING btree (id);
+-- INDEX: idx_access_groups_external_id
 CREATE INDEX idx_access_groups_external_id ON public.access_groups USING btree (external_group_id) WHERE (external_group_id IS NOT NULL);
-
-
---
--- Name: idx_access_groups_idp_source; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: idx_access_groups_idp_source
 CREATE INDEX idx_access_groups_idp_source ON public.access_groups USING btree (idp_source) WHERE (idp_source IS NOT NULL);
-
-
---
--- Name: idx_access_groups_sync_enabled; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: idx_access_groups_sync_enabled
 CREATE INDEX idx_access_groups_sync_enabled ON public.access_groups USING btree (sync_enabled) WHERE (sync_enabled = true);
-
-
---
--- Name: idx_access_groups_type; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: idx_access_groups_type
 CREATE INDEX idx_access_groups_type ON public.access_groups USING btree (group_type);
-
-
---
--- Name: idx_alert_aggregation_policy_id; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: unique_external_group
+CREATE UNIQUE INDEX unique_external_group ON public.access_groups USING btree (idp_source, external_group_id);
+-- INDEX: unique_group_name
+CREATE UNIQUE INDEX unique_group_name ON public.access_groups USING btree (name);
+-- INDEX: alert_aggregation_pkey
+CREATE UNIQUE INDEX alert_aggregation_pkey ON public.alert_aggregation USING btree (id);
+-- INDEX: idx_alert_aggregation_policy_id
 CREATE INDEX idx_alert_aggregation_policy_id ON public.alert_aggregation USING btree (policy_id);
-
-
---
--- Name: idx_alert_aggregation_ttl; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: idx_alert_aggregation_ttl
 CREATE INDEX idx_alert_aggregation_ttl ON public.alert_aggregation USING btree (aggregation_ttl);
-
-
---
--- Name: idx_alert_attachments_run_id; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: alert_attachments_pkey
+CREATE UNIQUE INDEX alert_attachments_pkey ON public.alert_attachments USING btree (id);
+-- INDEX: idx_alert_attachments_run_id
 CREATE INDEX idx_alert_attachments_run_id ON public.alert_attachments USING btree (run_id);
-
-
---
--- Name: idx_alert_events_run_id; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: alert_events_pkey
+CREATE UNIQUE INDEX alert_events_pkey ON public.alert_events USING btree (id);
+-- INDEX: idx_alert_events_run_id
 CREATE INDEX idx_alert_events_run_id ON public.alert_events USING btree (run_id);
-
-
---
--- Name: idx_alert_events_vendor_sla; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: idx_alert_events_vendor_sla
 CREATE INDEX idx_alert_events_vendor_sla ON public.alert_events USING btree (vendor_sla_violation_id) WHERE (vendor_sla_violation_id IS NOT NULL);
-
-
---
--- Name: idx_alert_policies_entity; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: alert_history_pkey
+CREATE UNIQUE INDEX alert_history_pkey ON public.alert_history USING btree (id);
+-- INDEX: alert_policies_pkey
+CREATE UNIQUE INDEX alert_policies_pkey ON public.alert_policies USING btree (id);
+-- INDEX: idx_alert_policies_entity
 CREATE INDEX idx_alert_policies_entity ON public.alert_policies USING btree (entity_type, entity_id);
-
-
---
--- Name: idx_alert_policies_project_id; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: idx_alert_policies_project_id
 CREATE INDEX idx_alert_policies_project_id ON public.alert_policies USING btree (project_id);
-
-
---
--- Name: idx_alert_policies_vendor_sla; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: idx_alert_policies_vendor_sla
 CREATE INDEX idx_alert_policies_vendor_sla ON public.alert_policies USING btree (entity_type, entity_id) WHERE (((entity_type)::text = 'vendor_sla'::text) AND (enabled = true));
-
-
---
--- Name: idx_alert_policy_recipients_policy_id; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: alert_policy_recipients_pkey
+CREATE UNIQUE INDEX alert_policy_recipients_pkey ON public.alert_policy_recipients USING btree (id);
+-- INDEX: idx_alert_policy_recipients_policy_id
 CREATE INDEX idx_alert_policy_recipients_policy_id ON public.alert_policy_recipients USING btree (policy_id);
-
-
---
--- Name: idx_alert_runs_policy_id; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: alert_rules_pkey
+CREATE UNIQUE INDEX alert_rules_pkey ON public.alert_rules USING btree (id);
+-- INDEX: alert_runs_pkey
+CREATE UNIQUE INDEX alert_runs_pkey ON public.alert_runs USING btree (id);
+-- INDEX: idx_alert_runs_policy_id
 CREATE INDEX idx_alert_runs_policy_id ON public.alert_runs USING btree (policy_id);
-
-
---
--- Name: idx_allowed_email_domains_domain; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: allowed_email_domains_domain_key
+CREATE UNIQUE INDEX allowed_email_domains_domain_key ON public.allowed_email_domains USING btree (domain);
+-- INDEX: allowed_email_domains_pkey
+CREATE UNIQUE INDEX allowed_email_domains_pkey ON public.allowed_email_domains USING btree (id);
+-- INDEX: idx_allowed_email_domains_domain
 CREATE INDEX idx_allowed_email_domains_domain ON public.allowed_email_domains USING btree (domain) WHERE (is_active = true);
-
-
---
--- Name: idx_anomalies_detected; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: anomalies_anomaly_id_key
+CREATE UNIQUE INDEX anomalies_anomaly_id_key ON public.anomalies USING btree (anomaly_id);
+-- INDEX: anomalies_pkey
+CREATE UNIQUE INDEX anomalies_pkey ON public.anomalies USING btree (id);
+-- INDEX: idx_anomalies_detected
 CREATE INDEX idx_anomalies_detected ON public.anomalies USING btree (detected_at DESC);
-
-
---
--- Name: idx_anomalies_file; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: idx_anomalies_file
 CREATE INDEX idx_anomalies_file ON public.anomalies USING btree (file_id);
-
-
---
--- Name: idx_anomalies_job; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: idx_anomalies_job
 CREATE INDEX idx_anomalies_job ON public.anomalies USING btree (job_id);
-
-
---
--- Name: idx_anomalies_mapping; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: idx_anomalies_mapping
 CREATE INDEX idx_anomalies_mapping ON public.anomalies USING btree (mapping_id);
-
-
---
--- Name: idx_anomalies_severity_detected; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: idx_anomalies_severity_detected
 CREATE INDEX idx_anomalies_severity_detected ON public.anomalies USING btree (severity, detected_at DESC);
-
-
---
--- Name: idx_anomalies_status; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: idx_anomalies_status
 CREATE INDEX idx_anomalies_status ON public.anomalies USING btree (status);
-
-
---
--- Name: idx_anomalies_type; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: idx_anomalies_type
 CREATE INDEX idx_anomalies_type ON public.anomalies USING btree (anomaly_type);
-
-
---
--- Name: idx_anomalies_type_detected; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: idx_anomalies_type_detected
 CREATE INDEX idx_anomalies_type_detected ON public.anomalies USING btree (anomaly_type, detected_at DESC);
-
-
---
--- Name: idx_api_tokens_active; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: api_tokens_pkey
+CREATE UNIQUE INDEX api_tokens_pkey ON public.api_tokens USING btree (id);
+-- INDEX: api_tokens_token_hash_key
+CREATE UNIQUE INDEX api_tokens_token_hash_key ON public.api_tokens USING btree (token_hash);
+-- INDEX: idx_api_tokens_active
 CREATE INDEX idx_api_tokens_active ON public.api_tokens USING btree (is_active, expires_at);
-
-
---
--- Name: idx_api_tokens_token_hash; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: idx_api_tokens_token_hash
 CREATE INDEX idx_api_tokens_token_hash ON public.api_tokens USING btree (token_hash);
-
-
---
--- Name: idx_api_tokens_user_project; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: idx_api_tokens_user_project
 CREATE INDEX idx_api_tokens_user_project ON public.api_tokens USING btree (user_id, project_id);
-
-
---
--- Name: idx_app_settings_key; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: app_settings_pkey
+CREATE UNIQUE INDEX app_settings_pkey ON public.app_settings USING btree (id);
+-- INDEX: app_settings_setting_key_key
+CREATE UNIQUE INDEX app_settings_setting_key_key ON public.app_settings USING btree (setting_key);
+-- INDEX: idx_app_settings_key
 CREATE INDEX idx_app_settings_key ON public.app_settings USING btree (setting_key);
-
-
---
--- Name: idx_archive_extractions_failed; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: archive_extractions_pkey
+CREATE UNIQUE INDEX archive_extractions_pkey ON public.archive_extractions USING btree (id);
+-- INDEX: idx_archive_extractions_failed
 CREATE INDEX idx_archive_extractions_failed ON public.archive_extractions USING btree (extraction_status, password_required) WHERE ((extraction_status)::text = ANY ((ARRAY['failed'::character varying, 'password_required'::character varying])::text[]));
-
-
---
--- Name: idx_archive_extractions_file_id; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: idx_archive_extractions_file_id
 CREATE INDEX idx_archive_extractions_file_id ON public.archive_extractions USING btree (file_id);
-
-
---
--- Name: idx_archive_extractions_status; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: idx_archive_extractions_status
 CREATE INDEX idx_archive_extractions_status ON public.archive_extractions USING btree (extraction_status);
-
-
---
--- Name: idx_archive_members_extracted; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: archive_members_pkey
+CREATE UNIQUE INDEX archive_members_pkey ON public.archive_members USING btree (id);
+-- INDEX: idx_archive_members_extracted
 CREATE INDEX idx_archive_members_extracted ON public.archive_members USING btree (extracted_file_id);
-
-
---
--- Name: idx_archive_members_parent; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: idx_archive_members_parent
 CREATE INDEX idx_archive_members_parent ON public.archive_members USING btree (parent_file_id);
-
-
---
--- Name: idx_archive_members_status; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: idx_archive_members_status
 CREATE INDEX idx_archive_members_status ON public.archive_members USING btree (extraction_status);
-
-
---
--- Name: idx_archived_files_archived_at; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: unique_archive_member
+CREATE UNIQUE INDEX unique_archive_member ON public.archive_members USING btree (parent_file_id, logical_name);
+-- INDEX: archived_files_pkey
+CREATE UNIQUE INDEX archived_files_pkey ON public.archived_files USING btree (id);
+-- INDEX: idx_archived_files_archived_at
 CREATE INDEX idx_archived_files_archived_at ON public.archived_files USING btree (archived_at);
-
-
---
--- Name: idx_archived_files_file_id; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: idx_archived_files_file_id
 CREATE INDEX idx_archived_files_file_id ON public.archived_files USING btree (file_id);
-
-
---
--- Name: idx_archived_files_policy_id; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: idx_archived_files_policy_id
 CREATE INDEX idx_archived_files_policy_id ON public.archived_files USING btree (policy_id);
-
-
---
--- Name: idx_archived_files_restored; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: idx_archived_files_restored
 CREATE INDEX idx_archived_files_restored ON public.archived_files USING btree (is_restored);
-
-
---
--- Name: idx_archived_files_storage_type; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: idx_archived_files_storage_type
 CREATE INDEX idx_archived_files_storage_type ON public.archived_files USING btree (archive_storage_type);
-
-
---
--- Name: idx_artifacts_file_id; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_artifacts_file_id ON public.file_processing_artifacts USING btree (file_id);
-
-
---
--- Name: idx_artifacts_type; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_artifacts_type ON public.file_processing_artifacts USING btree (artifact_type);
-
-
---
--- Name: idx_attribute_definitions_scope; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: attribute_definitions_attribute_key_key
+CREATE UNIQUE INDEX attribute_definitions_attribute_key_key ON public.attribute_definitions USING btree (attribute_key);
+-- INDEX: attribute_definitions_pkey
+CREATE UNIQUE INDEX attribute_definitions_pkey ON public.attribute_definitions USING btree (id);
+-- INDEX: idx_attribute_definitions_scope
 CREATE INDEX idx_attribute_definitions_scope ON public.attribute_definitions USING btree (scope);
-
-
---
--- Name: idx_attribute_definitions_system; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: idx_attribute_definitions_system
 CREATE INDEX idx_attribute_definitions_system ON public.attribute_definitions USING btree (is_system);
-
-
---
--- Name: idx_audit_ledger_action; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: audit_ledger_entry_id_key
+CREATE UNIQUE INDEX audit_ledger_entry_id_key ON public.audit_ledger USING btree (entry_id);
+-- INDEX: audit_ledger_pkey
+CREATE UNIQUE INDEX audit_ledger_pkey ON public.audit_ledger USING btree (id);
+-- INDEX: idx_audit_ledger_action
 CREATE INDEX idx_audit_ledger_action ON public.audit_ledger USING btree (action_type, event_timestamp DESC);
-
-
---
--- Name: idx_audit_ledger_actor; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: idx_audit_ledger_actor
 CREATE INDEX idx_audit_ledger_actor ON public.audit_ledger USING btree (actor_id, event_timestamp DESC);
-
-
---
--- Name: idx_audit_ledger_correlation; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: idx_audit_ledger_correlation
 CREATE INDEX idx_audit_ledger_correlation ON public.audit_ledger USING btree (correlation_id, sequence_number);
-
-
---
--- Name: idx_audit_ledger_entity; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: idx_audit_ledger_entity
 CREATE INDEX idx_audit_ledger_entity ON public.audit_ledger USING btree (entity_type, entity_id);
-
-
---
--- Name: idx_audit_ledger_job; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: idx_audit_ledger_job
 CREATE INDEX idx_audit_ledger_job ON public.audit_ledger USING btree (job_id, sequence_number);
-
-
---
--- Name: idx_audit_ledger_level; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: idx_audit_ledger_level
 CREATE INDEX idx_audit_ledger_level ON public.audit_ledger USING btree (log_level, event_timestamp DESC);
-
-
---
--- Name: idx_audit_ledger_tenant_seq; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: idx_audit_ledger_tenant_seq
 CREATE INDEX idx_audit_ledger_tenant_seq ON public.audit_ledger USING btree (tenant_id, sequence_number DESC);
-
-
---
--- Name: idx_audit_ledger_timestamp; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: idx_audit_ledger_timestamp
 CREATE INDEX idx_audit_ledger_timestamp ON public.audit_ledger USING btree (event_timestamp DESC);
-
-
---
--- Name: idx_audit_log_action; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: audit_ledger_sequence_pkey
+CREATE UNIQUE INDEX audit_ledger_sequence_pkey ON public.audit_ledger_sequence USING btree (tenant_id);
+-- INDEX: audit_ledger_verification_pkey
+CREATE UNIQUE INDEX audit_ledger_verification_pkey ON public.audit_ledger_verification USING btree (id);
+-- INDEX: audit_log_pkey
+CREATE UNIQUE INDEX audit_log_pkey ON public.audit_log USING btree (audit_id);
+-- INDEX: idx_audit_log_action
 CREATE INDEX idx_audit_log_action ON public.audit_log USING btree (action_type, "timestamp" DESC);
-
-
---
--- Name: idx_audit_log_archive_archived; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_audit_log_archive_archived ON public.audit_log_archive USING btree (archived_at DESC);
-
-
---
--- Name: idx_audit_log_archive_timestamp; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_audit_log_archive_timestamp ON public.audit_log_archive USING btree ("timestamp" DESC);
-
-
---
--- Name: idx_audit_log_archive_user; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_audit_log_archive_user ON public.audit_log_archive USING btree (user_id, "timestamp" DESC);
-
-
---
--- Name: idx_audit_log_entity; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: idx_audit_log_entity
 CREATE INDEX idx_audit_log_entity ON public.audit_log USING btree (entity_type, entity_id);
-
-
---
--- Name: idx_audit_log_entity_action_time; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: idx_audit_log_entity_action_time
 CREATE INDEX idx_audit_log_entity_action_time ON public.audit_log USING btree (entity_type, action_type, "timestamp" DESC);
-
-
---
--- Name: idx_audit_log_request; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: idx_audit_log_request
 CREATE INDEX idx_audit_log_request ON public.audit_log USING btree (request_id);
-
-
---
--- Name: idx_audit_log_timestamp; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: idx_audit_log_timestamp
 CREATE INDEX idx_audit_log_timestamp ON public.audit_log USING btree ("timestamp" DESC);
-
-
---
--- Name: idx_audit_log_user; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: idx_audit_log_user
 CREATE INDEX idx_audit_log_user ON public.audit_log USING btree (user_id, "timestamp" DESC);
-
-
---
--- Name: idx_audit_log_user_entity_time; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: idx_audit_log_user_entity_time
 CREATE INDEX idx_audit_log_user_entity_time ON public.audit_log USING btree (user_id, entity_type, "timestamp" DESC);
-
-
---
--- Name: idx_bulk_profiling_files_job_id; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: audit_log_archive_pkey
+CREATE UNIQUE INDEX audit_log_archive_pkey ON public.audit_log_archive USING btree (audit_id);
+-- INDEX: idx_audit_log_archive_archived
+CREATE INDEX idx_audit_log_archive_archived ON public.audit_log_archive USING btree (archived_at DESC);
+-- INDEX: idx_audit_log_archive_timestamp
+CREATE INDEX idx_audit_log_archive_timestamp ON public.audit_log_archive USING btree ("timestamp" DESC);
+-- INDEX: idx_audit_log_archive_user
+CREATE INDEX idx_audit_log_archive_user ON public.audit_log_archive USING btree (user_id, "timestamp" DESC);
+-- INDEX: audit_retention_settings_pkey
+CREATE UNIQUE INDEX audit_retention_settings_pkey ON public.audit_retention_settings USING btree (id);
+-- INDEX: bulk_profiling_files_pkey
+CREATE UNIQUE INDEX bulk_profiling_files_pkey ON public.bulk_profiling_files USING btree (id);
+-- INDEX: idx_bulk_profiling_files_job_id
 CREATE INDEX idx_bulk_profiling_files_job_id ON public.bulk_profiling_files USING btree (job_id);
-
-
---
--- Name: idx_bulk_profiling_files_status; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: idx_bulk_profiling_files_status
 CREATE INDEX idx_bulk_profiling_files_status ON public.bulk_profiling_files USING btree (status);
-
-
---
--- Name: idx_bulk_profiling_jobs_created_by; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: bulk_profiling_jobs_pkey
+CREATE UNIQUE INDEX bulk_profiling_jobs_pkey ON public.bulk_profiling_jobs USING btree (id);
+-- INDEX: idx_bulk_profiling_jobs_created_by
 CREATE INDEX idx_bulk_profiling_jobs_created_by ON public.bulk_profiling_jobs USING btree (created_by);
-
-
---
--- Name: idx_bulk_profiling_jobs_status; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: idx_bulk_profiling_jobs_status
 CREATE INDEX idx_bulk_profiling_jobs_status ON public.bulk_profiling_jobs USING btree (status);
-
-
---
--- Name: idx_business_processes_group_id; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: business_processes_pkey
+CREATE UNIQUE INDEX business_processes_pkey ON public.business_processes USING btree (id);
+-- INDEX: idx_business_processes_group_id
 CREATE INDEX idx_business_processes_group_id ON public.business_processes USING btree (group_id);
-
-
---
--- Name: idx_business_processes_project_id; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: idx_business_processes_project_id
 CREATE INDEX idx_business_processes_project_id ON public.business_processes USING btree (project_id);
-
-
---
--- Name: idx_business_processes_updated_at; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: idx_business_processes_updated_at
 CREATE INDEX idx_business_processes_updated_at ON public.business_processes USING btree (updated_at DESC);
-
-
---
--- Name: idx_column_policy_column; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_column_policy_column ON public.column_policy_assignments USING btree (file_id, column_name);
-
-
---
--- Name: idx_column_policy_file_id; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_column_policy_file_id ON public.column_policy_assignments USING btree (file_id);
-
-
---
--- Name: idx_column_tag_column; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: column_governance_tag_assignments_pkey
+CREATE UNIQUE INDEX column_governance_tag_assignments_pkey ON public.column_governance_tag_assignments USING btree (assignment_id);
+-- INDEX: idx_column_tag_column
 CREATE INDEX idx_column_tag_column ON public.column_governance_tag_assignments USING btree (file_id, column_name);
-
-
---
--- Name: idx_column_tag_file_id; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: idx_column_tag_file_id
 CREATE INDEX idx_column_tag_file_id ON public.column_governance_tag_assignments USING btree (file_id);
-
-
---
--- Name: idx_column_tags_classification; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: unique_column_tag
+CREATE UNIQUE INDEX unique_column_tag ON public.column_governance_tag_assignments USING btree (file_id, column_name, tag_id);
+-- INDEX: column_mappings_pkey
+CREATE UNIQUE INDEX column_mappings_pkey ON public.column_mappings USING btree (id);
+-- INDEX: column_policy_assignments_pkey
+CREATE UNIQUE INDEX column_policy_assignments_pkey ON public.column_policy_assignments USING btree (assignment_id);
+-- INDEX: idx_column_policy_column
+CREATE INDEX idx_column_policy_column ON public.column_policy_assignments USING btree (file_id, column_name);
+-- INDEX: idx_column_policy_file_id
+CREATE INDEX idx_column_policy_file_id ON public.column_policy_assignments USING btree (file_id);
+-- INDEX: unique_column_policy
+CREATE UNIQUE INDEX unique_column_policy ON public.column_policy_assignments USING btree (file_id, column_name, policy_id);
+-- INDEX: column_sensitivity_tags_pkey
+CREATE UNIQUE INDEX column_sensitivity_tags_pkey ON public.column_sensitivity_tags USING btree (tag_id);
+-- INDEX: idx_column_tags_classification
 CREATE INDEX idx_column_tags_classification ON public.column_sensitivity_tags USING btree (sensitivity_level);
-
-
---
--- Name: idx_column_tags_file_id; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: idx_column_tags_file_id
 CREATE INDEX idx_column_tags_file_id ON public.column_sensitivity_tags USING btree (file_id);
-
-
---
--- Name: idx_config_change_entity; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: unique_file_column_tag
+CREATE UNIQUE INDEX unique_file_column_tag ON public.column_sensitivity_tags USING btree (file_id, column_name);
+-- INDEX: config_change_history_pkey
+CREATE UNIQUE INDEX config_change_history_pkey ON public.config_change_history USING btree (change_id);
+-- INDEX: idx_config_change_entity
 CREATE INDEX idx_config_change_entity ON public.config_change_history USING btree (entity_type, entity_id, "timestamp" DESC);
-
-
---
--- Name: idx_config_change_history_archive_archived; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_config_change_history_archive_archived ON public.config_change_history_archive USING btree (archived_at DESC);
-
-
---
--- Name: idx_config_change_history_archive_timestamp; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_config_change_history_archive_timestamp ON public.config_change_history_archive USING btree ("timestamp" DESC);
-
-
---
--- Name: idx_config_change_timestamp; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: idx_config_change_timestamp
 CREATE INDEX idx_config_change_timestamp ON public.config_change_history USING btree ("timestamp" DESC);
-
-
---
--- Name: idx_config_change_user; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: idx_config_change_user
 CREATE INDEX idx_config_change_user ON public.config_change_history USING btree (changed_by_user, "timestamp" DESC);
-
-
---
--- Name: idx_connections_name_unique_lower; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE UNIQUE INDEX idx_connections_name_unique_lower ON public.storage_connections USING btree (lower((name)::text));
-
-
---
--- Name: idx_data_access_file; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: config_change_history_archive_pkey
+CREATE UNIQUE INDEX config_change_history_archive_pkey ON public.config_change_history_archive USING btree (change_id);
+-- INDEX: idx_config_change_history_archive_archived
+CREATE INDEX idx_config_change_history_archive_archived ON public.config_change_history_archive USING btree (archived_at DESC);
+-- INDEX: idx_config_change_history_archive_timestamp
+CREATE INDEX idx_config_change_history_archive_timestamp ON public.config_change_history_archive USING btree ("timestamp" DESC);
+-- INDEX: connections_connection_name_key
+CREATE UNIQUE INDEX connections_connection_name_key ON public.connections USING btree (connection_name);
+-- INDEX: connections_pkey
+CREATE UNIQUE INDEX connections_pkey ON public.connections USING btree (id);
+-- INDEX: data_access_log_pkey
+CREATE UNIQUE INDEX data_access_log_pkey ON public.data_access_log USING btree (access_id);
+-- INDEX: idx_data_access_file
 CREATE INDEX idx_data_access_file ON public.data_access_log USING btree (file_id, "timestamp" DESC);
-
-
---
--- Name: idx_data_access_log_archive_archived; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_data_access_log_archive_archived ON public.data_access_log_archive USING btree (archived_at DESC);
-
-
---
--- Name: idx_data_access_log_archive_timestamp; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_data_access_log_archive_timestamp ON public.data_access_log_archive USING btree ("timestamp" DESC);
-
-
---
--- Name: idx_data_access_log_archive_user; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_data_access_log_archive_user ON public.data_access_log_archive USING btree (user_id, "timestamp" DESC);
-
-
---
--- Name: idx_data_access_pii; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: idx_data_access_pii
 CREATE INDEX idx_data_access_pii ON public.data_access_log USING btree (contains_pii, "timestamp" DESC) WHERE (contains_pii = true);
-
-
---
--- Name: idx_data_access_timestamp; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: idx_data_access_timestamp
 CREATE INDEX idx_data_access_timestamp ON public.data_access_log USING btree ("timestamp" DESC);
-
-
---
--- Name: idx_data_access_user; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: idx_data_access_user
 CREATE INDEX idx_data_access_user ON public.data_access_log USING btree (user_id, "timestamp" DESC);
-
-
---
--- Name: idx_dbt_executions_created; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: data_access_log_archive_pkey
+CREATE UNIQUE INDEX data_access_log_archive_pkey ON public.data_access_log_archive USING btree (access_id);
+-- INDEX: idx_data_access_log_archive_archived
+CREATE INDEX idx_data_access_log_archive_archived ON public.data_access_log_archive USING btree (archived_at DESC);
+-- INDEX: idx_data_access_log_archive_timestamp
+CREATE INDEX idx_data_access_log_archive_timestamp ON public.data_access_log_archive USING btree ("timestamp" DESC);
+-- INDEX: idx_data_access_log_archive_user
+CREATE INDEX idx_data_access_log_archive_user ON public.data_access_log_archive USING btree (user_id, "timestamp" DESC);
+-- INDEX: dbt_executions_execution_uuid_key
+CREATE UNIQUE INDEX dbt_executions_execution_uuid_key ON public.dbt_executions USING btree (execution_uuid);
+-- INDEX: dbt_executions_pkey
+CREATE UNIQUE INDEX dbt_executions_pkey ON public.dbt_executions USING btree (execution_id);
+-- INDEX: idx_dbt_executions_created
 CREATE INDEX idx_dbt_executions_created ON public.dbt_executions USING btree (created_at DESC);
-
-
---
--- Name: idx_dbt_executions_status; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: idx_dbt_executions_status
 CREATE INDEX idx_dbt_executions_status ON public.dbt_executions USING btree (status);
-
-
---
--- Name: idx_dbt_executions_triggered_by; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: idx_dbt_executions_triggered_by
 CREATE INDEX idx_dbt_executions_triggered_by ON public.dbt_executions USING btree (triggered_by);
-
-
---
--- Name: idx_dbt_executions_uuid; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: idx_dbt_executions_uuid
 CREATE INDEX idx_dbt_executions_uuid ON public.dbt_executions USING btree (execution_uuid);
-
-
---
--- Name: idx_dbt_models_name; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: dbt_models_model_name_key
+CREATE UNIQUE INDEX dbt_models_model_name_key ON public.dbt_models USING btree (model_name);
+-- INDEX: dbt_models_pkey
+CREATE UNIQUE INDEX dbt_models_pkey ON public.dbt_models USING btree (model_id);
+-- INDEX: idx_dbt_models_name
 CREATE INDEX idx_dbt_models_name ON public.dbt_models USING btree (model_name);
-
-
---
--- Name: idx_dbt_models_status; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: idx_dbt_models_status
 CREATE INDEX idx_dbt_models_status ON public.dbt_models USING btree (last_run_status);
-
-
---
--- Name: idx_dbt_models_type; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: idx_dbt_models_type
 CREATE INDEX idx_dbt_models_type ON public.dbt_models USING btree (model_type);
-
-
---
--- Name: idx_dbt_models_updated; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: idx_dbt_models_updated
 CREATE INDEX idx_dbt_models_updated ON public.dbt_models USING btree (updated_at DESC);
-
-
---
--- Name: idx_dlq_jobs_created_at; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: dlq_jobs_pkey
+CREATE UNIQUE INDEX dlq_jobs_pkey ON public.dlq_jobs USING btree (id);
+-- INDEX: idx_dlq_jobs_created_at
 CREATE INDEX idx_dlq_jobs_created_at ON public.dlq_jobs USING btree (created_at);
-
-
---
--- Name: idx_dlq_jobs_error_code; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: idx_dlq_jobs_error_code
 CREATE INDEX idx_dlq_jobs_error_code ON public.dlq_jobs USING btree (error_code);
-
-
---
--- Name: idx_dlq_jobs_file_id; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: idx_dlq_jobs_file_id
 CREATE INDEX idx_dlq_jobs_file_id ON public.dlq_jobs USING btree (file_id);
-
-
---
--- Name: idx_dlq_jobs_project_id; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: idx_dlq_jobs_project_id
 CREATE INDEX idx_dlq_jobs_project_id ON public.dlq_jobs USING btree (project_id);
-
-
---
--- Name: idx_dlq_jobs_status; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: idx_dlq_jobs_status
 CREATE INDEX idx_dlq_jobs_status ON public.dlq_jobs USING btree (status);
-
-
---
--- Name: idx_dlq_jobs_vendor_agreement; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: idx_dlq_jobs_vendor_agreement
 CREATE INDEX idx_dlq_jobs_vendor_agreement ON public.dlq_jobs USING btree (vendor_agreement_id) WHERE (vendor_agreement_id IS NOT NULL);
-
-
---
--- Name: idx_encrypted_passwords_entity; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: drop_location_config_pkey
+CREATE UNIQUE INDEX drop_location_config_pkey ON public.drop_location_config USING btree (id);
+-- INDEX: encrypted_passwords_pkey
+CREATE UNIQUE INDEX encrypted_passwords_pkey ON public.encrypted_passwords USING btree (id);
+-- INDEX: idx_encrypted_passwords_entity
 CREATE INDEX idx_encrypted_passwords_entity ON public.encrypted_passwords USING btree (entity_type, entity_id);
-
-
---
--- Name: idx_encrypted_passwords_rotation; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: idx_encrypted_passwords_rotation
 CREATE INDEX idx_encrypted_passwords_rotation ON public.encrypted_passwords USING btree (rotation_scheduled_at) WHERE (rotation_scheduled_at IS NOT NULL);
-
-
---
--- Name: idx_execution_audit_archive_archived; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_execution_audit_archive_archived ON public.execution_audit_archive USING btree (archived_at DESC);
-
-
---
--- Name: idx_execution_audit_archive_timestamp; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_execution_audit_archive_timestamp ON public.execution_audit_archive USING btree ("timestamp" DESC);
-
-
---
--- Name: idx_execution_audit_entity; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: unique_entity_password
+CREATE UNIQUE INDEX unique_entity_password ON public.encrypted_passwords USING btree (entity_type, entity_id);
+-- INDEX: execution_audit_pkey
+CREATE UNIQUE INDEX execution_audit_pkey ON public.execution_audit USING btree (audit_id);
+-- INDEX: idx_execution_audit_entity
 CREATE INDEX idx_execution_audit_entity ON public.execution_audit USING btree (execution_type, entity_id);
-
-
---
--- Name: idx_execution_audit_execution; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: idx_execution_audit_execution
 CREATE INDEX idx_execution_audit_execution ON public.execution_audit USING btree (execution_id, "timestamp" DESC);
-
-
---
--- Name: idx_execution_audit_status; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: idx_execution_audit_status
 CREATE INDEX idx_execution_audit_status ON public.execution_audit USING btree (new_status, "timestamp" DESC);
-
-
---
--- Name: idx_file_audit_correlation_id; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: execution_audit_archive_pkey
+CREATE UNIQUE INDEX execution_audit_archive_pkey ON public.execution_audit_archive USING btree (audit_id);
+-- INDEX: idx_execution_audit_archive_archived
+CREATE INDEX idx_execution_audit_archive_archived ON public.execution_audit_archive USING btree (archived_at DESC);
+-- INDEX: idx_execution_audit_archive_timestamp
+CREATE INDEX idx_execution_audit_archive_timestamp ON public.execution_audit_archive USING btree ("timestamp" DESC);
+-- INDEX: file_audit_details_pkey
+CREATE UNIQUE INDEX file_audit_details_pkey ON public.file_audit_details USING btree (id);
+-- INDEX: idx_file_audit_correlation_id
 CREATE INDEX idx_file_audit_correlation_id ON public.file_audit_details USING btree (correlation_id);
-
-
---
--- Name: idx_file_audit_created_dt; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: idx_file_audit_created_dt
 CREATE INDEX idx_file_audit_created_dt ON public.file_audit_details USING btree (created_dt);
-
-
---
--- Name: idx_file_audit_file_id; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: idx_file_audit_file_id
 CREATE INDEX idx_file_audit_file_id ON public.file_audit_details USING btree (file_id);
-
-
---
--- Name: idx_file_audit_file_role; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: idx_file_audit_file_role
 CREATE INDEX idx_file_audit_file_role ON public.file_audit_details USING btree (file_role);
-
-
---
--- Name: idx_file_audit_parent; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: idx_file_audit_parent
 CREATE INDEX idx_file_audit_parent ON public.file_audit_details USING btree (parent_audit_id);
-
-
---
--- Name: idx_file_audit_status; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: idx_file_audit_status
 CREATE INDEX idx_file_audit_status ON public.file_audit_details USING btree (status);
-
-
---
--- Name: idx_file_columns_file_id; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: file_columns_file_id_column_name_file_role_key
+CREATE UNIQUE INDEX file_columns_file_id_column_name_file_role_key ON public.file_columns USING btree (file_id, column_name, file_role);
+-- INDEX: file_columns_pkey
+CREATE UNIQUE INDEX file_columns_pkey ON public.file_columns USING btree (id);
+-- INDEX: idx_file_columns_file_id
 CREATE INDEX idx_file_columns_file_id ON public.file_columns USING btree (file_id);
-
-
---
--- Name: idx_file_columns_file_timestamp; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: idx_file_columns_file_timestamp
 CREATE INDEX idx_file_columns_file_timestamp ON public.file_columns USING btree (file_id, profile_timestamp DESC);
-
-
---
--- Name: idx_file_errors_created_at; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: file_errors_pkey
+CREATE UNIQUE INDEX file_errors_pkey ON public.file_errors USING btree (id);
+-- INDEX: idx_file_errors_created_at
 CREATE INDEX idx_file_errors_created_at ON public.file_errors USING btree (created_at DESC);
-
-
---
--- Name: idx_file_errors_file_id; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: idx_file_errors_file_id
 CREATE INDEX idx_file_errors_file_id ON public.file_errors USING btree (file_id);
-
-
---
--- Name: idx_file_errors_severity; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: idx_file_errors_severity
 CREATE INDEX idx_file_errors_severity ON public.file_errors USING btree (severity);
-
-
---
--- Name: idx_file_errors_status; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: idx_file_errors_status
 CREATE INDEX idx_file_errors_status ON public.file_errors USING btree (status);
-
-
---
--- Name: idx_file_errors_type; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: idx_file_errors_type
 CREATE INDEX idx_file_errors_type ON public.file_errors USING btree (error_type);
-
-
---
--- Name: idx_file_ownership_file_id; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: file_history_pkey
+CREATE UNIQUE INDEX file_history_pkey ON public.file_history USING btree (id);
+-- INDEX: file_lineage_pkey
+CREATE UNIQUE INDEX file_lineage_pkey ON public.file_lineage USING btree (id);
+-- INDEX: file_mappings_pkey
+CREATE UNIQUE INDEX file_mappings_pkey ON public.file_mappings USING btree (id);
+-- INDEX: file_ownership_file_id_key
+CREATE UNIQUE INDEX file_ownership_file_id_key ON public.file_ownership USING btree (file_id);
+-- INDEX: file_ownership_pkey
+CREATE UNIQUE INDEX file_ownership_pkey ON public.file_ownership USING btree (ownership_id);
+-- INDEX: idx_file_ownership_file_id
 CREATE INDEX idx_file_ownership_file_id ON public.file_ownership USING btree (file_id);
-
-
---
--- Name: idx_file_ownership_user_id; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: idx_file_ownership_user_id
 CREATE INDEX idx_file_ownership_user_id ON public.file_ownership USING btree (owner_user_id);
-
-
---
--- Name: idx_file_pattern_metrics_alerts; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: file_pattern_metrics_file_pattern_metric_date_key
+CREATE UNIQUE INDEX file_pattern_metrics_file_pattern_metric_date_key ON public.file_pattern_metrics USING btree (file_pattern, metric_date);
+-- INDEX: file_pattern_metrics_pkey
+CREATE UNIQUE INDEX file_pattern_metrics_pkey ON public.file_pattern_metrics USING btree (id);
+-- INDEX: idx_file_pattern_metrics_alerts
 CREATE INDEX idx_file_pattern_metrics_alerts ON public.file_pattern_metrics USING btree (has_alerts, file_pattern);
-
-
---
--- Name: idx_file_pattern_metrics_date; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: idx_file_pattern_metrics_date
 CREATE INDEX idx_file_pattern_metrics_date ON public.file_pattern_metrics USING btree (metric_date DESC);
-
-
---
--- Name: idx_file_pattern_metrics_monthly_pattern_month; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE UNIQUE INDEX idx_file_pattern_metrics_monthly_pattern_month ON public.file_pattern_metrics_monthly USING btree (file_pattern, month_start DESC);
-
-
---
--- Name: idx_file_pattern_metrics_pattern; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: idx_file_pattern_metrics_pattern
 CREATE INDEX idx_file_pattern_metrics_pattern ON public.file_pattern_metrics USING btree (file_pattern);
-
-
---
--- Name: idx_file_pattern_metrics_pattern_date; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: idx_file_pattern_metrics_pattern_date
 CREATE INDEX idx_file_pattern_metrics_pattern_date ON public.file_pattern_metrics USING btree (file_pattern, metric_date DESC);
-
-
---
--- Name: idx_file_pattern_metrics_retention; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: idx_file_pattern_metrics_retention
 CREATE INDEX idx_file_pattern_metrics_retention ON public.file_pattern_metrics USING btree (retention_until);
-
-
---
--- Name: idx_file_pattern_metrics_weekly_pattern_week; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: idx_file_pattern_metrics_monthly_pattern_month
+CREATE UNIQUE INDEX idx_file_pattern_metrics_monthly_pattern_month ON public.file_pattern_metrics_monthly USING btree (file_pattern, month_start DESC);
+-- INDEX: idx_file_pattern_metrics_weekly_pattern_week
 CREATE UNIQUE INDEX idx_file_pattern_metrics_weekly_pattern_week ON public.file_pattern_metrics_weekly USING btree (file_pattern, week_start DESC);
-
-
---
--- Name: idx_file_preview_data_created_at; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_file_preview_data_created_at ON public.file_preview_data USING btree (created_at);
-
-
---
--- Name: idx_file_preview_data_file_id; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_file_preview_data_file_id ON public.file_preview_data USING btree (file_id);
-
-
---
--- Name: idx_file_quality_rules_file_id; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_file_quality_rules_file_id ON public.file_quality_rules USING btree (file_id);
-
-
---
--- Name: idx_file_quality_rules_rule_id; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_file_quality_rules_rule_id ON public.file_quality_rules USING btree (quality_rule_id);
-
-
---
--- Name: idx_file_restorations_archived_file; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_file_restorations_archived_file ON public.file_restorations USING btree (archived_file_id);
-
-
---
--- Name: idx_file_restorations_requested_at; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_file_restorations_requested_at ON public.file_restorations USING btree (requested_at);
-
-
---
--- Name: idx_file_restorations_status; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_file_restorations_status ON public.file_restorations USING btree (status);
-
-
---
--- Name: idx_file_schedules_file_id; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_file_schedules_file_id ON public.file_schedules USING btree (file_id);
-
-
---
--- Name: idx_file_schema_active; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_file_schema_active ON public.file_schema_details USING btree (active_flag);
-
-
---
--- Name: idx_file_schema_correlation; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_file_schema_correlation ON public.file_schema_details USING btree (correlation_id);
-
-
---
--- Name: idx_file_schema_file_id; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_file_schema_file_id ON public.file_schema_details USING btree (file_id);
-
-
---
--- Name: idx_file_schema_hash; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_file_schema_hash ON public.file_schema_details USING btree (schema_hash);
-
-
---
--- Name: idx_file_schema_schema_id; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_file_schema_schema_id ON public.file_schema_details USING btree (file_schema_id);
-
-
---
--- Name: idx_file_schemas_column_metadata; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_file_schemas_column_metadata ON public.vendor_agreement_file_schemas USING gin (column_metadata);
-
-
---
--- Name: idx_file_schemas_file; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_file_schemas_file ON public.file_schemas USING btree (file_id);
-
-
---
--- Name: idx_file_schemas_hash; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_file_schemas_hash ON public.file_schemas USING btree (schema_hash);
-
-
---
--- Name: idx_file_schemas_logical_file; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_file_schemas_logical_file ON public.file_schemas USING btree (logical_file_id, captured_at DESC);
-
-
---
--- Name: idx_file_schemas_pattern; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_file_schemas_pattern ON public.file_schemas USING btree (file_pattern);
-
-
---
--- Name: idx_file_schemas_quality_rules; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_file_schemas_quality_rules ON public.vendor_agreement_file_schemas USING gin (quality_rule_ids);
-
-
---
--- Name: idx_files_correlation_id; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_files_correlation_id ON public.files USING btree (correlation_id);
-
-
---
--- Name: idx_files_created_at; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_files_created_at ON public.files USING btree (created_at DESC);
-
-
---
--- Name: idx_files_failure_reason_code; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_files_failure_reason_code ON public.files USING btree (failure_reason_code) WHERE (failure_reason_code IS NOT NULL);
-
-
---
--- Name: idx_files_file_role; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_files_file_role ON public.files USING btree (file_role);
-
-
---
--- Name: idx_files_is_archive; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_files_is_archive ON public.files USING btree (is_archive) WHERE (is_archive = true);
-
-
---
--- Name: idx_files_logical_file; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_files_logical_file ON public.files USING btree (logical_file_id);
-
-
---
--- Name: idx_files_parent_archive; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_files_parent_archive ON public.files USING btree (parent_archive_id) WHERE (parent_archive_id IS NOT NULL);
-
-
---
--- Name: idx_files_project_created; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_files_project_created ON public.files USING btree (project_id, created_at DESC) WHERE (project_id IS NOT NULL);
-
-
---
--- Name: idx_files_project_id; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_files_project_id ON public.files USING btree (project_id);
-
-
---
--- Name: idx_files_source_format; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_files_source_format ON public.files USING btree (source_format) WHERE (source_format IS NOT NULL);
-
-
---
--- Name: idx_files_sub_project; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_files_sub_project ON public.files USING btree (sub_project_id);
-
-
---
--- Name: idx_files_updated_at; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_files_updated_at ON public.files USING btree (updated_at DESC);
-
-
---
--- Name: idx_files_vendor_agreement_created; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_files_vendor_agreement_created ON public.files USING btree (vendor_agreement_id, created_at DESC) WHERE (vendor_agreement_id IS NOT NULL);
-
-
---
--- Name: idx_files_vendor_agreement_id; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_files_vendor_agreement_id ON public.files USING btree (vendor_agreement_id);
-
-
---
--- Name: idx_fixed_width_schemas_file_id; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_fixed_width_schemas_file_id ON public.fixed_width_schemas USING btree (file_id);
-
-
---
--- Name: idx_frontend_audit_log_error; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_frontend_audit_log_error ON public.frontend_audit_log USING btree ("timestamp" DESC) WHERE (error_message IS NOT NULL);
-
-
---
--- Name: idx_frontend_audit_log_event; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_frontend_audit_log_event ON public.frontend_audit_log USING btree (event_type, "timestamp" DESC);
-
-
---
--- Name: idx_frontend_audit_log_timestamp; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_frontend_audit_log_timestamp ON public.frontend_audit_log USING btree ("timestamp" DESC);
-
-
---
--- Name: idx_frontend_audit_log_user; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_frontend_audit_log_user ON public.frontend_audit_log USING btree (user_id, "timestamp" DESC);
-
-
---
--- Name: idx_group_policy_attachments_group; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_group_policy_attachments_group ON public.group_policy_attachments USING btree (group_id);
-
-
---
--- Name: idx_group_policy_attachments_policy; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_group_policy_attachments_policy ON public.group_policy_attachments USING btree (policy_id);
-
-
---
--- Name: idx_groups_name; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_groups_name ON public.groups USING btree (name);
-
-
---
--- Name: idx_idempotency_expires; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_idempotency_expires ON public.idempotency_keys USING btree (expires_at);
-
-
---
--- Name: idx_idempotency_key; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_idempotency_key ON public.idempotency_keys USING btree (key);
-
-
---
--- Name: idx_idempotency_user; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_idempotency_user ON public.idempotency_keys USING btree (user_id);
-
-
---
--- Name: idx_job_dependencies_depends_on; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_job_dependencies_depends_on ON public.job_dependencies USING btree (depends_on_job_id);
-
-
---
--- Name: idx_job_dependencies_job; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_job_dependencies_job ON public.job_dependencies USING btree (job_id);
-
-
---
--- Name: idx_job_group_dependencies_depends_on; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_job_group_dependencies_depends_on ON public.job_group_dependencies USING btree (depends_on_group_id);
-
-
---
--- Name: idx_job_group_dependencies_group; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_job_group_dependencies_group ON public.job_group_dependencies USING btree (group_id);
-
-
---
--- Name: idx_job_group_jobs_group_id; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_job_group_jobs_group_id ON public.job_group_jobs USING btree (group_id);
-
-
---
--- Name: idx_job_group_jobs_job_id; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_job_group_jobs_job_id ON public.job_group_jobs USING btree (job_id);
-
-
---
--- Name: idx_job_group_schedules_enabled; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_job_group_schedules_enabled ON public.job_group_schedules USING btree (enabled) WHERE (enabled = true);
-
-
---
--- Name: idx_job_group_schedules_group; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_job_group_schedules_group ON public.job_group_schedules USING btree (group_id);
-
-
---
--- Name: idx_job_schedules_job_id; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_job_schedules_job_id ON public.job_schedules USING btree (job_id);
-
-
---
--- Name: idx_jobs_business_process_id; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_jobs_business_process_id ON public.jobs USING btree (business_process_id);
-
-
---
--- Name: idx_jobs_updated_at; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_jobs_updated_at ON public.jobs USING btree (updated_at DESC);
-
-
---
--- Name: idx_lineage_views_root; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_lineage_views_root ON public.lineage_views USING btree (root_type, root_id);
-
-
---
--- Name: idx_lineage_views_user_id; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_lineage_views_user_id ON public.lineage_views USING btree (user_id);
-
-
---
--- Name: idx_logical_file_groups_canonical; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_logical_file_groups_canonical ON public.logical_file_groups USING btree (canonical_name);
-
-
---
--- Name: idx_logical_file_groups_changes; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_logical_file_groups_changes ON public.logical_file_groups USING btree (has_schema_changes) WHERE (has_schema_changes = true);
-
-
---
--- Name: idx_logical_file_groups_pattern; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_logical_file_groups_pattern ON public.logical_file_groups USING btree (file_pattern);
-
-
---
--- Name: idx_logical_file_groups_project; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_logical_file_groups_project ON public.logical_file_groups USING btree (project_id);
-
-
---
--- Name: idx_mapping_group_executions_group_id; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_mapping_group_executions_group_id ON public.mapping_group_executions USING btree (group_id);
-
-
---
--- Name: idx_mapping_group_executions_project_id; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_mapping_group_executions_project_id ON public.mapping_group_executions USING btree (project_id);
-
-
---
--- Name: idx_mapping_group_members_group_id; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_mapping_group_members_group_id ON public.mapping_group_members USING btree (group_id);
-
-
---
--- Name: idx_mapping_group_members_mapping_id; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_mapping_group_members_mapping_id ON public.mapping_group_members USING btree (mapping_id);
-
-
---
--- Name: idx_mapping_groups_project_id; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_mapping_groups_project_id ON public.mapping_groups USING btree (project_id);
-
-
---
--- Name: idx_mapping_job_errors_created_at; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_mapping_job_errors_created_at ON public.mapping_job_errors USING btree (created_at DESC);
-
-
---
--- Name: idx_mapping_job_errors_job_id; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_mapping_job_errors_job_id ON public.mapping_job_errors USING btree (job_id);
-
-
---
--- Name: idx_mapping_job_errors_mapping_id; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_mapping_job_errors_mapping_id ON public.mapping_job_errors USING btree (mapping_id);
-
-
---
--- Name: idx_mapping_job_errors_severity; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_mapping_job_errors_severity ON public.mapping_job_errors USING btree (severity);
-
-
---
--- Name: idx_mapping_job_errors_status; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_mapping_job_errors_status ON public.mapping_job_errors USING btree (status);
-
-
---
--- Name: idx_mapping_job_errors_type; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_mapping_job_errors_type ON public.mapping_job_errors USING btree (error_type);
-
-
---
--- Name: idx_mv_file_processing_day_type; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE UNIQUE INDEX idx_mv_file_processing_day_type ON public.mv_file_processing_summary USING btree (day, file_type);
-
-
---
--- Name: idx_mv_job_trends_hour_status; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE UNIQUE INDEX idx_mv_job_trends_hour_status ON public.mv_job_trends_hourly USING btree (hour, status);
-
-
---
--- Name: idx_n_step_workflow_assets_step; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_n_step_workflow_assets_step ON public.n_step_workflow_assets USING btree (step_id);
-
-
---
--- Name: idx_n_step_workflow_run_steps_run; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_n_step_workflow_run_steps_run ON public.n_step_workflow_run_steps USING btree (run_id);
-
-
---
--- Name: idx_n_step_workflow_runs_workflow; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_n_step_workflow_runs_workflow ON public.n_step_workflow_runs USING btree (workflow_id);
-
-
---
--- Name: idx_n_step_workflow_steps_workflow; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_n_step_workflow_steps_workflow ON public.n_step_workflow_steps USING btree (workflow_id);
-
-
---
--- Name: idx_n_step_workflows_project_id; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_n_step_workflows_project_id ON public.n_step_workflows USING btree (project_id);
-
-
---
--- Name: idx_notifications_entity; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_notifications_entity ON public.notifications USING btree (entity_type, entity_id);
-
-
---
--- Name: idx_notifications_is_read; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_notifications_is_read ON public.notifications USING btree (user_id, is_read);
-
-
---
--- Name: idx_notifications_user_id; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_notifications_user_id ON public.notifications USING btree (user_id);
-
-
---
--- Name: idx_password_reset_requests_status; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_password_reset_requests_status ON public.password_reset_requests USING btree (status);
-
-
---
--- Name: idx_password_reset_requests_user; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_password_reset_requests_user ON public.password_reset_requests USING btree (user_id);
-
-
---
--- Name: idx_permissions_action; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_permissions_action ON public.permissions USING btree (action);
-
-
---
--- Name: idx_permissions_id; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_permissions_id ON public.permissions USING btree (id);
-
-
---
--- Name: idx_permissions_name; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_permissions_name ON public.permissions USING btree (name);
-
-
---
--- Name: idx_permissions_resource; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_permissions_resource ON public.permissions USING btree (resource);
-
-
---
--- Name: idx_policy_assignments_file_id; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: file_policy_assignments_pkey
+CREATE UNIQUE INDEX file_policy_assignments_pkey ON public.file_policy_assignments USING btree (assignment_id);
+-- INDEX: idx_policy_assignments_file_id
 CREATE INDEX idx_policy_assignments_file_id ON public.file_policy_assignments USING btree (file_id);
-
-
---
--- Name: idx_policy_assignments_policy_id; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: idx_policy_assignments_policy_id
 CREATE INDEX idx_policy_assignments_policy_id ON public.file_policy_assignments USING btree (policy_id);
-
-
---
--- Name: idx_policy_cache_expires; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_policy_cache_expires ON public.policy_evaluation_cache USING btree (expires_at);
-
-
---
--- Name: idx_policy_cache_user; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_policy_cache_user ON public.policy_evaluation_cache USING btree (user_id);
-
-
---
--- Name: idx_processing_events_created_at; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_processing_events_created_at ON public.processing_events USING btree (created_at);
-
-
---
--- Name: idx_processing_events_file_id; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_processing_events_file_id ON public.processing_events USING btree (file_id);
-
-
---
--- Name: idx_processing_events_job_id; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_processing_events_job_id ON public.processing_events USING btree (job_id);
-
-
---
--- Name: idx_processing_events_stage; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_processing_events_stage ON public.processing_events USING btree (event_stage);
-
-
---
--- Name: idx_processing_events_type; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_processing_events_type ON public.processing_events USING btree (event_type);
-
-
---
--- Name: idx_profiling_metrics_date; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_profiling_metrics_date ON public.profiling_metrics USING btree (profiled_at DESC);
-
-
---
--- Name: idx_profiling_metrics_file; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_profiling_metrics_file ON public.profiling_metrics USING btree (file_id);
-
-
---
--- Name: idx_profiling_metrics_file_timestamp; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_profiling_metrics_file_timestamp ON public.profiling_metrics USING btree (file_id, profile_timestamp DESC);
-
-
---
--- Name: idx_profiling_metrics_job_role; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_profiling_metrics_job_role ON public.profiling_metrics USING btree (job_id, file_role);
-
-
---
--- Name: idx_profiling_metrics_mapping; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_profiling_metrics_mapping ON public.profiling_metrics USING btree (mapping_id);
-
-
---
--- Name: idx_project_access_groups_group_project; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_project_access_groups_group_project ON public.project_access_groups USING btree (group_id, project_id);
-
-
---
--- Name: idx_project_members_project; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_project_members_project ON public.project_members USING btree (project_id);
-
-
---
--- Name: idx_project_members_user; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_project_members_user ON public.project_members USING btree (user_id);
-
-
---
--- Name: idx_project_members_user_project; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_project_members_user_project ON public.project_members USING btree (user_id, project_id);
-
-
---
--- Name: idx_projects_active; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_projects_active ON public.projects USING btree (is_active) WHERE (is_active = true);
-
-
---
--- Name: idx_projects_is_default; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_projects_is_default ON public.projects USING btree (is_default) WHERE (is_default = true);
-
-
---
--- Name: idx_projects_owner; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_projects_owner ON public.projects USING btree (owner_id);
-
-
---
--- Name: idx_projects_owner_name_unique; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE UNIQUE INDEX idx_projects_owner_name_unique ON public.projects USING btree (owner_id, lower((name)::text));
-
-
---
--- Name: idx_projects_parent; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_projects_parent ON public.projects USING btree (parent_id);
-
-
---
--- Name: idx_quality_rule_configs_file; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_quality_rule_configs_file ON public.quality_rule_configurations USING btree (file_id);
-
-
---
--- Name: idx_quality_rule_configs_rule; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_quality_rule_configs_rule ON public.quality_rule_configurations USING btree (rule_id);
-
-
---
--- Name: idx_quality_rule_violations_created_at; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_quality_rule_violations_created_at ON public.quality_rule_violations USING btree (created_at DESC);
-
-
---
--- Name: idx_quality_rule_violations_file_id; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_quality_rule_violations_file_id ON public.quality_rule_violations USING btree (file_id);
-
-
---
--- Name: idx_quality_rule_violations_job_id; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_quality_rule_violations_job_id ON public.quality_rule_violations USING btree (job_id);
-
-
---
--- Name: idx_quality_rule_violations_rule_id; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_quality_rule_violations_rule_id ON public.quality_rule_violations USING btree (rule_id);
-
-
---
--- Name: idx_quality_rule_violations_severity; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_quality_rule_violations_severity ON public.quality_rule_violations USING btree (severity);
-
-
---
--- Name: idx_quality_rule_violations_status; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_quality_rule_violations_status ON public.quality_rule_violations USING btree (status);
-
-
---
--- Name: idx_quality_rules_enabled; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_quality_rules_enabled ON public.quality_rules USING btree (enabled);
-
-
---
--- Name: idx_quality_rules_project_id; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_quality_rules_project_id ON public.quality_rules USING btree (project_id);
-
-
---
--- Name: idx_quality_rules_type; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_quality_rules_type ON public.quality_rules USING btree (rule_type);
-
-
---
--- Name: idx_rbac_policies_active; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_rbac_policies_active ON public.rbac_policies USING btree (is_active) WHERE (is_active = true);
-
-
---
--- Name: idx_rbac_policies_global; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_rbac_policies_global ON public.rbac_policies USING btree (is_global) WHERE (is_global = true);
-
-
---
--- Name: idx_rbac_policies_project; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_rbac_policies_project ON public.rbac_policies USING btree (project_id) WHERE (project_id IS NOT NULL);
-
-
---
--- Name: idx_rbac_policies_type; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_rbac_policies_type ON public.rbac_policies USING btree (policy_type);
-
-
---
--- Name: idx_refresh_tokens_expires_at; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_refresh_tokens_expires_at ON public.refresh_tokens USING btree (expires_at);
-
-
---
--- Name: idx_refresh_tokens_token_hash; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_refresh_tokens_token_hash ON public.refresh_tokens USING btree (token);
-
-
---
--- Name: idx_refresh_tokens_user_id; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_refresh_tokens_user_id ON public.refresh_tokens USING btree (user_id);
-
-
---
--- Name: idx_resource_attributes_key; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_resource_attributes_key ON public.resource_attributes USING btree (attribute_key);
-
-
---
--- Name: idx_resource_attributes_resource; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_resource_attributes_resource ON public.resource_attributes USING btree (resource_type, resource_id);
-
-
---
--- Name: idx_resource_attributes_type; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_resource_attributes_type ON public.resource_attributes USING btree (resource_type);
-
-
---
--- Name: idx_resource_policy_attachments_policy; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_resource_policy_attachments_policy ON public.resource_policy_attachments USING btree (policy_id);
-
-
---
--- Name: idx_resource_policy_attachments_resource; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_resource_policy_attachments_resource ON public.resource_policy_attachments USING btree (resource_type, resource_id);
-
-
---
--- Name: idx_resource_policy_attachments_type; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_resource_policy_attachments_type ON public.resource_policy_attachments USING btree (resource_type);
-
-
---
--- Name: idx_retention_policies_enabled; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_retention_policies_enabled ON public.retention_policies USING btree (enabled);
-
-
---
--- Name: idx_retention_policies_next_run; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_retention_policies_next_run ON public.retention_policies USING btree (next_run_at) WHERE (enabled = true);
-
-
---
--- Name: idx_retention_policies_priority; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_retention_policies_priority ON public.retention_policies USING btree (priority);
-
-
---
--- Name: idx_retention_runs_policy; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_retention_runs_policy ON public.retention_policy_runs USING btree (policy_id);
-
-
---
--- Name: idx_retention_runs_started_at; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_retention_runs_started_at ON public.retention_policy_runs USING btree (started_at);
-
-
---
--- Name: idx_retention_runs_status; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_retention_runs_status ON public.retention_policy_runs USING btree (status);
-
-
---
--- Name: idx_role_permissions_role_id_perm_id; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_role_permissions_role_id_perm_id ON public.role_permissions USING btree (role_id, permission_id);
-
-
---
--- Name: idx_roles_name; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_roles_name ON public.roles USING btree (name);
-
-
---
--- Name: idx_schedules_entity; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_schedules_entity ON public.schedules USING btree (entity_type, entity_id);
-
-
---
--- Name: idx_schedules_next_run; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_schedules_next_run ON public.schedules USING btree (next_run) WHERE (is_active = true);
-
-
---
--- Name: idx_schedules_project_id; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_schedules_project_id ON public.schedules USING btree (project_id);
-
-
---
--- Name: idx_schema_validation_job_files_job; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_schema_validation_job_files_job ON public.schema_validation_job_files USING btree (job_id);
-
-
---
--- Name: idx_schema_validation_jobs_project; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_schema_validation_jobs_project ON public.schema_validation_jobs USING btree (project_id);
-
-
---
--- Name: idx_schema_validation_jobs_status; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_schema_validation_jobs_status ON public.schema_validation_jobs USING btree (status);
-
-
---
--- Name: idx_scim_configurations_active; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_scim_configurations_active ON public.scim_configurations USING btree (is_active) WHERE (is_active = true);
-
-
---
--- Name: idx_scim_configurations_idp_type; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_scim_configurations_idp_type ON public.scim_configurations USING btree (idp_type);
-
-
---
--- Name: idx_scim_mappings_config; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_scim_mappings_config ON public.scim_resource_mappings USING btree (config_id);
-
-
---
--- Name: idx_scim_mappings_platform; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_scim_mappings_platform ON public.scim_resource_mappings USING btree (platform_resource_type, platform_resource_id);
-
-
---
--- Name: idx_scim_mappings_scim_id; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_scim_mappings_scim_id ON public.scim_resource_mappings USING btree (scim_id);
-
-
---
--- Name: idx_scim_sync_logs_config; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_scim_sync_logs_config ON public.scim_sync_logs USING btree (config_id);
-
-
---
--- Name: idx_scim_sync_logs_started; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_scim_sync_logs_started ON public.scim_sync_logs USING btree (started_at DESC);
-
-
---
--- Name: idx_scim_sync_logs_status; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_scim_sync_logs_status ON public.scim_sync_logs USING btree (status);
-
-
---
--- Name: idx_security_audit_event; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_security_audit_event ON public.security_audit_log USING btree (event_type, "timestamp" DESC);
-
-
---
--- Name: idx_security_audit_log_archive_archived; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_security_audit_log_archive_archived ON public.security_audit_log_archive USING btree (archived_at DESC);
-
-
---
--- Name: idx_security_audit_log_archive_timestamp; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_security_audit_log_archive_timestamp ON public.security_audit_log_archive USING btree ("timestamp" DESC);
-
-
---
--- Name: idx_security_audit_log_archive_user; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_security_audit_log_archive_user ON public.security_audit_log_archive USING btree (user_id, "timestamp" DESC);
-
-
---
--- Name: idx_security_audit_severity; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_security_audit_severity ON public.security_audit_log USING btree (severity, "timestamp" DESC) WHERE ((severity)::text = ANY ((ARRAY['WARNING'::character varying, 'CRITICAL'::character varying])::text[]));
-
-
---
--- Name: idx_security_audit_timestamp; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_security_audit_timestamp ON public.security_audit_log USING btree ("timestamp" DESC);
-
-
---
--- Name: idx_security_audit_user; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_security_audit_user ON public.security_audit_log USING btree (user_id, "timestamp" DESC);
-
-
---
--- Name: idx_storage_connections_auth_method; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_storage_connections_auth_method ON public.storage_connections USING btree (authentication_method);
-
-
---
--- Name: idx_storage_connections_project_id; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_storage_connections_project_id ON public.storage_connections USING btree (project_id);
-
-
---
--- Name: idx_storage_connections_user; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_storage_connections_user ON public.storage_connections USING btree (connection_user);
-
-
---
--- Name: idx_tag_assignments_file_id; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: unique_file_policy
+CREATE UNIQUE INDEX unique_file_policy ON public.file_policy_assignments USING btree (file_id, policy_id);
+-- INDEX: file_preview_data_pkey
+CREATE UNIQUE INDEX file_preview_data_pkey ON public.file_preview_data USING btree (preview_id);
+-- INDEX: idx_file_preview_data_created_at
+CREATE INDEX idx_file_preview_data_created_at ON public.file_preview_data USING btree (created_at);
+-- INDEX: idx_file_preview_data_file_id
+CREATE INDEX idx_file_preview_data_file_id ON public.file_preview_data USING btree (file_id);
+-- INDEX: unique_file_row
+CREATE UNIQUE INDEX unique_file_row ON public.file_preview_data USING btree (file_id, row_number);
+-- INDEX: file_processing_artifacts_pkey
+CREATE UNIQUE INDEX file_processing_artifacts_pkey ON public.file_processing_artifacts USING btree (id);
+-- INDEX: idx_artifacts_file_id
+CREATE INDEX idx_artifacts_file_id ON public.file_processing_artifacts USING btree (file_id);
+-- INDEX: idx_artifacts_type
+CREATE INDEX idx_artifacts_type ON public.file_processing_artifacts USING btree (artifact_type);
+-- INDEX: unique_file_artifact
+CREATE UNIQUE INDEX unique_file_artifact ON public.file_processing_artifacts USING btree (file_id, artifact_type);
+-- INDEX: file_quality_checks_pkey
+CREATE UNIQUE INDEX file_quality_checks_pkey ON public.file_quality_checks USING btree (id);
+-- INDEX: file_quality_rules_pkey
+CREATE UNIQUE INDEX file_quality_rules_pkey ON public.file_quality_rules USING btree (id);
+-- INDEX: idx_file_quality_rules_file_id
+CREATE INDEX idx_file_quality_rules_file_id ON public.file_quality_rules USING btree (file_id);
+-- INDEX: idx_file_quality_rules_rule_id
+CREATE INDEX idx_file_quality_rules_rule_id ON public.file_quality_rules USING btree (quality_rule_id);
+-- INDEX: unique_file_quality_rule
+CREATE UNIQUE INDEX unique_file_quality_rule ON public.file_quality_rules USING btree (file_id, quality_rule_id);
+-- INDEX: file_restorations_pkey
+CREATE UNIQUE INDEX file_restorations_pkey ON public.file_restorations USING btree (id);
+-- INDEX: idx_file_restorations_archived_file
+CREATE INDEX idx_file_restorations_archived_file ON public.file_restorations USING btree (archived_file_id);
+-- INDEX: idx_file_restorations_requested_at
+CREATE INDEX idx_file_restorations_requested_at ON public.file_restorations USING btree (requested_at);
+-- INDEX: idx_file_restorations_status
+CREATE INDEX idx_file_restorations_status ON public.file_restorations USING btree (status);
+-- INDEX: file_schedules_pkey
+CREATE UNIQUE INDEX file_schedules_pkey ON public.file_schedules USING btree (id);
+-- INDEX: idx_file_schedules_file_id
+CREATE INDEX idx_file_schedules_file_id ON public.file_schedules USING btree (file_id);
+-- INDEX: file_schema_details_file_id_file_schema_id_key
+CREATE UNIQUE INDEX file_schema_details_file_id_file_schema_id_key ON public.file_schema_details USING btree (file_id, file_schema_id);
+-- INDEX: file_schema_details_pkey
+CREATE UNIQUE INDEX file_schema_details_pkey ON public.file_schema_details USING btree (id);
+-- INDEX: idx_file_schema_active
+CREATE INDEX idx_file_schema_active ON public.file_schema_details USING btree (active_flag);
+-- INDEX: idx_file_schema_correlation
+CREATE INDEX idx_file_schema_correlation ON public.file_schema_details USING btree (correlation_id);
+-- INDEX: idx_file_schema_file_id
+CREATE INDEX idx_file_schema_file_id ON public.file_schema_details USING btree (file_id);
+-- INDEX: idx_file_schema_hash
+CREATE INDEX idx_file_schema_hash ON public.file_schema_details USING btree (schema_hash);
+-- INDEX: idx_file_schema_schema_id
+CREATE INDEX idx_file_schema_schema_id ON public.file_schema_details USING btree (file_schema_id);
+-- INDEX: file_schemas_file_id_schema_hash_key
+CREATE UNIQUE INDEX file_schemas_file_id_schema_hash_key ON public.file_schemas USING btree (file_id, schema_hash);
+-- INDEX: file_schemas_pkey
+CREATE UNIQUE INDEX file_schemas_pkey ON public.file_schemas USING btree (id);
+-- INDEX: idx_file_schemas_file
+CREATE INDEX idx_file_schemas_file ON public.file_schemas USING btree (file_id);
+-- INDEX: idx_file_schemas_hash
+CREATE INDEX idx_file_schemas_hash ON public.file_schemas USING btree (schema_hash);
+-- INDEX: idx_file_schemas_logical_file
+CREATE INDEX idx_file_schemas_logical_file ON public.file_schemas USING btree (logical_file_id, captured_at DESC);
+-- INDEX: idx_file_schemas_pattern
+CREATE INDEX idx_file_schemas_pattern ON public.file_schemas USING btree (file_pattern);
+-- INDEX: file_tag_assignments_pkey
+CREATE UNIQUE INDEX file_tag_assignments_pkey ON public.file_tag_assignments USING btree (assignment_id);
+-- INDEX: idx_tag_assignments_file_id
 CREATE INDEX idx_tag_assignments_file_id ON public.file_tag_assignments USING btree (file_id);
-
-
---
--- Name: idx_tag_assignments_tag_id; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: idx_tag_assignments_tag_id
 CREATE INDEX idx_tag_assignments_tag_id ON public.file_tag_assignments USING btree (tag_id);
-
-
---
--- Name: idx_tag_permissions_role_id; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: unique_file_tag
+CREATE UNIQUE INDEX unique_file_tag ON public.file_tag_assignments USING btree (file_id, tag_id);
+-- INDEX: files_file_id_key
+CREATE UNIQUE INDEX files_file_id_key ON public.files USING btree (file_id);
+-- INDEX: files_pkey
+CREATE UNIQUE INDEX files_pkey ON public.files USING btree (id);
+-- INDEX: idx_files_correlation_id
+CREATE INDEX idx_files_correlation_id ON public.files USING btree (correlation_id);
+-- INDEX: idx_files_created_at
+CREATE INDEX idx_files_created_at ON public.files USING btree (created_at DESC);
+-- INDEX: idx_files_failure_reason_code
+CREATE INDEX idx_files_failure_reason_code ON public.files USING btree (failure_reason_code) WHERE (failure_reason_code IS NOT NULL);
+-- INDEX: idx_files_file_role
+CREATE INDEX idx_files_file_role ON public.files USING btree (file_role);
+-- INDEX: idx_files_is_archive
+CREATE INDEX idx_files_is_archive ON public.files USING btree (is_archive) WHERE (is_archive = true);
+-- INDEX: idx_files_logical_file
+CREATE INDEX idx_files_logical_file ON public.files USING btree (logical_file_id);
+-- INDEX: idx_files_parent_archive
+CREATE INDEX idx_files_parent_archive ON public.files USING btree (parent_archive_id) WHERE (parent_archive_id IS NOT NULL);
+-- INDEX: idx_files_project_created
+CREATE INDEX idx_files_project_created ON public.files USING btree (project_id, created_at DESC) WHERE (project_id IS NOT NULL);
+-- INDEX: idx_files_project_id
+CREATE INDEX idx_files_project_id ON public.files USING btree (project_id);
+-- INDEX: idx_files_source_format
+CREATE INDEX idx_files_source_format ON public.files USING btree (source_format) WHERE (source_format IS NOT NULL);
+-- INDEX: idx_files_sub_project
+CREATE INDEX idx_files_sub_project ON public.files USING btree (sub_project_id);
+-- INDEX: idx_files_updated_at
+CREATE INDEX idx_files_updated_at ON public.files USING btree (updated_at DESC);
+-- INDEX: idx_files_vendor_agreement_created
+CREATE INDEX idx_files_vendor_agreement_created ON public.files USING btree (vendor_agreement_id, created_at DESC) WHERE (vendor_agreement_id IS NOT NULL);
+-- INDEX: idx_files_vendor_agreement_id
+CREATE INDEX idx_files_vendor_agreement_id ON public.files USING btree (vendor_agreement_id);
+-- INDEX: fixed_width_schemas_file_id_key
+CREATE UNIQUE INDEX fixed_width_schemas_file_id_key ON public.fixed_width_schemas USING btree (file_id);
+-- INDEX: fixed_width_schemas_pkey
+CREATE UNIQUE INDEX fixed_width_schemas_pkey ON public.fixed_width_schemas USING btree (id);
+-- INDEX: idx_fixed_width_schemas_file_id
+CREATE INDEX idx_fixed_width_schemas_file_id ON public.fixed_width_schemas USING btree (file_id);
+-- INDEX: frontend_audit_log_pkey
+CREATE UNIQUE INDEX frontend_audit_log_pkey ON public.frontend_audit_log USING btree (audit_id);
+-- INDEX: idx_frontend_audit_log_error
+CREATE INDEX idx_frontend_audit_log_error ON public.frontend_audit_log USING btree ("timestamp" DESC) WHERE (error_message IS NOT NULL);
+-- INDEX: idx_frontend_audit_log_event
+CREATE INDEX idx_frontend_audit_log_event ON public.frontend_audit_log USING btree (event_type, "timestamp" DESC);
+-- INDEX: idx_frontend_audit_log_timestamp
+CREATE INDEX idx_frontend_audit_log_timestamp ON public.frontend_audit_log USING btree ("timestamp" DESC);
+-- INDEX: idx_frontend_audit_log_user
+CREATE INDEX idx_frontend_audit_log_user ON public.frontend_audit_log USING btree (user_id, "timestamp" DESC);
+-- INDEX: governance_policies_pkey
+CREATE UNIQUE INDEX governance_policies_pkey ON public.governance_policies USING btree (policy_id);
+-- INDEX: governance_tags_pkey
+CREATE UNIQUE INDEX governance_tags_pkey ON public.governance_tags USING btree (tag_id);
+-- INDEX: governance_tags_tag_name_key
+CREATE UNIQUE INDEX governance_tags_tag_name_key ON public.governance_tags USING btree (tag_name);
+-- INDEX: group_policy_attachments_pkey
+CREATE UNIQUE INDEX group_policy_attachments_pkey ON public.group_policy_attachments USING btree (group_id, policy_id);
+-- INDEX: idx_group_policy_attachments_group
+CREATE INDEX idx_group_policy_attachments_group ON public.group_policy_attachments USING btree (group_id);
+-- INDEX: idx_group_policy_attachments_policy
+CREATE INDEX idx_group_policy_attachments_policy ON public.group_policy_attachments USING btree (policy_id);
+-- INDEX: groups_pkey
+CREATE UNIQUE INDEX groups_pkey ON public.groups USING btree (id);
+-- INDEX: idx_groups_name
+CREATE INDEX idx_groups_name ON public.groups USING btree (name);
+-- INDEX: idempotency_keys_key_key
+CREATE UNIQUE INDEX idempotency_keys_key_key ON public.idempotency_keys USING btree (key);
+-- INDEX: idempotency_keys_pkey
+CREATE UNIQUE INDEX idempotency_keys_pkey ON public.idempotency_keys USING btree (id);
+-- INDEX: idx_idempotency_expires
+CREATE INDEX idx_idempotency_expires ON public.idempotency_keys USING btree (expires_at);
+-- INDEX: idx_idempotency_key
+CREATE INDEX idx_idempotency_key ON public.idempotency_keys USING btree (key);
+-- INDEX: idx_idempotency_user
+CREATE INDEX idx_idempotency_user ON public.idempotency_keys USING btree (user_id);
+-- INDEX: idx_job_dependencies_depends_on
+CREATE INDEX idx_job_dependencies_depends_on ON public.job_dependencies USING btree (depends_on_job_id);
+-- INDEX: idx_job_dependencies_job
+CREATE INDEX idx_job_dependencies_job ON public.job_dependencies USING btree (job_id);
+-- INDEX: job_dependencies_pkey
+CREATE UNIQUE INDEX job_dependencies_pkey ON public.job_dependencies USING btree (dependency_id);
+-- INDEX: unique_job_dependency
+CREATE UNIQUE INDEX unique_job_dependency ON public.job_dependencies USING btree (job_id, depends_on_job_id);
+-- INDEX: idx_job_group_dependencies_depends_on
+CREATE INDEX idx_job_group_dependencies_depends_on ON public.job_group_dependencies USING btree (depends_on_group_id);
+-- INDEX: idx_job_group_dependencies_group
+CREATE INDEX idx_job_group_dependencies_group ON public.job_group_dependencies USING btree (group_id);
+-- INDEX: job_group_dependencies_pkey
+CREATE UNIQUE INDEX job_group_dependencies_pkey ON public.job_group_dependencies USING btree (group_dependency_id);
+-- INDEX: unique_group_dependency
+CREATE UNIQUE INDEX unique_group_dependency ON public.job_group_dependencies USING btree (group_id, depends_on_group_id);
+-- INDEX: idx_job_group_jobs_group_id
+CREATE INDEX idx_job_group_jobs_group_id ON public.job_group_jobs USING btree (group_id);
+-- INDEX: idx_job_group_jobs_job_id
+CREATE INDEX idx_job_group_jobs_job_id ON public.job_group_jobs USING btree (job_id);
+-- INDEX: job_group_jobs_pkey
+CREATE UNIQUE INDEX job_group_jobs_pkey ON public.job_group_jobs USING btree (group_id, job_id);
+-- INDEX: idx_job_group_schedules_enabled
+CREATE INDEX idx_job_group_schedules_enabled ON public.job_group_schedules USING btree (enabled) WHERE (enabled = true);
+-- INDEX: idx_job_group_schedules_group
+CREATE INDEX idx_job_group_schedules_group ON public.job_group_schedules USING btree (group_id);
+-- INDEX: job_group_schedules_pkey
+CREATE UNIQUE INDEX job_group_schedules_pkey ON public.job_group_schedules USING btree (group_schedule_id);
+-- INDEX: job_groups_pkey
+CREATE UNIQUE INDEX job_groups_pkey ON public.job_groups USING btree (id);
+-- INDEX: job_history_pkey
+CREATE UNIQUE INDEX job_history_pkey ON public.job_history USING btree (id);
+-- INDEX: job_runs_pkey
+CREATE UNIQUE INDEX job_runs_pkey ON public.job_runs USING btree (id);
+-- INDEX: idx_job_schedules_job_id
+CREATE INDEX idx_job_schedules_job_id ON public.job_schedules USING btree (job_id);
+-- INDEX: job_schedules_pkey
+CREATE UNIQUE INDEX job_schedules_pkey ON public.job_schedules USING btree (id);
+-- INDEX: idx_jobs_business_process_id
+CREATE INDEX idx_jobs_business_process_id ON public.jobs USING btree (business_process_id);
+-- INDEX: idx_jobs_updated_at
+CREATE INDEX idx_jobs_updated_at ON public.jobs USING btree (updated_at DESC);
+-- INDEX: jobs_pkey
+CREATE UNIQUE INDEX jobs_pkey ON public.jobs USING btree (id);
+-- INDEX: idx_lineage_views_root
+CREATE INDEX idx_lineage_views_root ON public.lineage_views USING btree (root_type, root_id);
+-- INDEX: idx_lineage_views_user_id
+CREATE INDEX idx_lineage_views_user_id ON public.lineage_views USING btree (user_id);
+-- INDEX: lineage_views_pkey
+CREATE UNIQUE INDEX lineage_views_pkey ON public.lineage_views USING btree (id);
+-- INDEX: idx_logical_file_groups_canonical
+CREATE INDEX idx_logical_file_groups_canonical ON public.logical_file_groups USING btree (canonical_name);
+-- INDEX: idx_logical_file_groups_changes
+CREATE INDEX idx_logical_file_groups_changes ON public.logical_file_groups USING btree (has_schema_changes) WHERE (has_schema_changes = true);
+-- INDEX: idx_logical_file_groups_pattern
+CREATE INDEX idx_logical_file_groups_pattern ON public.logical_file_groups USING btree (file_pattern);
+-- INDEX: idx_logical_file_groups_project
+CREATE INDEX idx_logical_file_groups_project ON public.logical_file_groups USING btree (project_id);
+-- INDEX: logical_file_groups_logical_file_id_key
+CREATE UNIQUE INDEX logical_file_groups_logical_file_id_key ON public.logical_file_groups USING btree (logical_file_id);
+-- INDEX: logical_file_groups_pkey
+CREATE UNIQUE INDEX logical_file_groups_pkey ON public.logical_file_groups USING btree (id);
+-- INDEX: logical_file_groups_project_id_canonical_name_key
+CREATE UNIQUE INDEX logical_file_groups_project_id_canonical_name_key ON public.logical_file_groups USING btree (project_id, canonical_name);
+-- INDEX: idx_mapping_group_executions_group_id
+CREATE INDEX idx_mapping_group_executions_group_id ON public.mapping_group_executions USING btree (group_id);
+-- INDEX: idx_mapping_group_executions_project_id
+CREATE INDEX idx_mapping_group_executions_project_id ON public.mapping_group_executions USING btree (project_id);
+-- INDEX: mapping_group_executions_pkey
+CREATE UNIQUE INDEX mapping_group_executions_pkey ON public.mapping_group_executions USING btree (id);
+-- INDEX: idx_mapping_group_members_group_id
+CREATE INDEX idx_mapping_group_members_group_id ON public.mapping_group_members USING btree (group_id);
+-- INDEX: idx_mapping_group_members_mapping_id
+CREATE INDEX idx_mapping_group_members_mapping_id ON public.mapping_group_members USING btree (mapping_id);
+-- INDEX: mapping_group_members_group_id_mapping_id_key
+CREATE UNIQUE INDEX mapping_group_members_group_id_mapping_id_key ON public.mapping_group_members USING btree (group_id, mapping_id);
+-- INDEX: mapping_group_members_pkey
+CREATE UNIQUE INDEX mapping_group_members_pkey ON public.mapping_group_members USING btree (id);
+-- INDEX: idx_mapping_groups_project_id
+CREATE INDEX idx_mapping_groups_project_id ON public.mapping_groups USING btree (project_id);
+-- INDEX: mapping_groups_pkey
+CREATE UNIQUE INDEX mapping_groups_pkey ON public.mapping_groups USING btree (id);
+-- INDEX: idx_mapping_job_errors_created_at
+CREATE INDEX idx_mapping_job_errors_created_at ON public.mapping_job_errors USING btree (created_at DESC);
+-- INDEX: idx_mapping_job_errors_job_id
+CREATE INDEX idx_mapping_job_errors_job_id ON public.mapping_job_errors USING btree (job_id);
+-- INDEX: idx_mapping_job_errors_mapping_id
+CREATE INDEX idx_mapping_job_errors_mapping_id ON public.mapping_job_errors USING btree (mapping_id);
+-- INDEX: idx_mapping_job_errors_severity
+CREATE INDEX idx_mapping_job_errors_severity ON public.mapping_job_errors USING btree (severity);
+-- INDEX: idx_mapping_job_errors_status
+CREATE INDEX idx_mapping_job_errors_status ON public.mapping_job_errors USING btree (status);
+-- INDEX: idx_mapping_job_errors_type
+CREATE INDEX idx_mapping_job_errors_type ON public.mapping_job_errors USING btree (error_type);
+-- INDEX: mapping_job_errors_pkey
+CREATE UNIQUE INDEX mapping_job_errors_pkey ON public.mapping_job_errors USING btree (id);
+-- INDEX: migrations_name_key
+CREATE UNIQUE INDEX migrations_name_key ON public.migrations USING btree (name);
+-- INDEX: migrations_pkey
+CREATE UNIQUE INDEX migrations_pkey ON public.migrations USING btree (id);
+-- INDEX: idx_mv_file_processing_day_type
+CREATE UNIQUE INDEX idx_mv_file_processing_day_type ON public.mv_file_processing_summary USING btree (day, file_type);
+-- INDEX: idx_mv_job_trends_hour_status
+CREATE UNIQUE INDEX idx_mv_job_trends_hour_status ON public.mv_job_trends_hourly USING btree (hour, status);
+-- INDEX: idx_n_step_workflow_assets_step
+CREATE INDEX idx_n_step_workflow_assets_step ON public.n_step_workflow_assets USING btree (step_id);
+-- INDEX: n_step_workflow_assets_pkey
+CREATE UNIQUE INDEX n_step_workflow_assets_pkey ON public.n_step_workflow_assets USING btree (id);
+-- INDEX: idx_n_step_workflow_run_steps_run
+CREATE INDEX idx_n_step_workflow_run_steps_run ON public.n_step_workflow_run_steps USING btree (run_id);
+-- INDEX: n_step_workflow_run_steps_pkey
+CREATE UNIQUE INDEX n_step_workflow_run_steps_pkey ON public.n_step_workflow_run_steps USING btree (id);
+-- INDEX: idx_n_step_workflow_runs_workflow
+CREATE INDEX idx_n_step_workflow_runs_workflow ON public.n_step_workflow_runs USING btree (workflow_id);
+-- INDEX: n_step_workflow_runs_pkey
+CREATE UNIQUE INDEX n_step_workflow_runs_pkey ON public.n_step_workflow_runs USING btree (id);
+-- INDEX: n_step_workflow_runs_run_id_key
+CREATE UNIQUE INDEX n_step_workflow_runs_run_id_key ON public.n_step_workflow_runs USING btree (run_id);
+-- INDEX: idx_n_step_workflow_steps_workflow
+CREATE INDEX idx_n_step_workflow_steps_workflow ON public.n_step_workflow_steps USING btree (workflow_id);
+-- INDEX: n_step_workflow_steps_pkey
+CREATE UNIQUE INDEX n_step_workflow_steps_pkey ON public.n_step_workflow_steps USING btree (id);
+-- INDEX: n_step_workflow_steps_workflow_id_step_index_key
+CREATE UNIQUE INDEX n_step_workflow_steps_workflow_id_step_index_key ON public.n_step_workflow_steps USING btree (workflow_id, step_index);
+-- INDEX: idx_n_step_workflows_project_id
+CREATE INDEX idx_n_step_workflows_project_id ON public.n_step_workflows USING btree (project_id);
+-- INDEX: n_step_workflows_pkey
+CREATE UNIQUE INDEX n_step_workflows_pkey ON public.n_step_workflows USING btree (id);
+-- INDEX: idx_notifications_entity
+CREATE INDEX idx_notifications_entity ON public.notifications USING btree (entity_type, entity_id);
+-- INDEX: idx_notifications_is_read
+CREATE INDEX idx_notifications_is_read ON public.notifications USING btree (user_id, is_read);
+-- INDEX: idx_notifications_user_id
+CREATE INDEX idx_notifications_user_id ON public.notifications USING btree (user_id);
+-- INDEX: notifications_pkey
+CREATE UNIQUE INDEX notifications_pkey ON public.notifications USING btree (id);
+-- INDEX: idx_password_reset_requests_status
+CREATE INDEX idx_password_reset_requests_status ON public.password_reset_requests USING btree (status);
+-- INDEX: idx_password_reset_requests_user
+CREATE INDEX idx_password_reset_requests_user ON public.password_reset_requests USING btree (user_id);
+-- INDEX: password_reset_requests_pkey
+CREATE UNIQUE INDEX password_reset_requests_pkey ON public.password_reset_requests USING btree (id);
+-- INDEX: idx_permissions_action
+CREATE INDEX idx_permissions_action ON public.permissions USING btree (action);
+-- INDEX: idx_permissions_id
+CREATE INDEX idx_permissions_id ON public.permissions USING btree (id);
+-- INDEX: idx_permissions_name
+CREATE INDEX idx_permissions_name ON public.permissions USING btree (name);
+-- INDEX: idx_permissions_resource
+CREATE INDEX idx_permissions_resource ON public.permissions USING btree (resource);
+-- INDEX: permissions_name_key
+CREATE UNIQUE INDEX permissions_name_key ON public.permissions USING btree (name);
+-- INDEX: permissions_pkey
+CREATE UNIQUE INDEX permissions_pkey ON public.permissions USING btree (id);
+-- INDEX: permissions_resource_action_key
+CREATE UNIQUE INDEX permissions_resource_action_key ON public.permissions USING btree (resource, action);
+-- INDEX: idx_policy_cache_expires
+CREATE INDEX idx_policy_cache_expires ON public.policy_evaluation_cache USING btree (expires_at);
+-- INDEX: idx_policy_cache_user
+CREATE INDEX idx_policy_cache_user ON public.policy_evaluation_cache USING btree (user_id);
+-- INDEX: policy_evaluation_cache_pkey
+CREATE UNIQUE INDEX policy_evaluation_cache_pkey ON public.policy_evaluation_cache USING btree (cache_key);
+-- INDEX: idx_processing_events_created_at
+CREATE INDEX idx_processing_events_created_at ON public.processing_events USING btree (created_at);
+-- INDEX: idx_processing_events_file_id
+CREATE INDEX idx_processing_events_file_id ON public.processing_events USING btree (file_id);
+-- INDEX: idx_processing_events_job_id
+CREATE INDEX idx_processing_events_job_id ON public.processing_events USING btree (job_id);
+-- INDEX: idx_processing_events_stage
+CREATE INDEX idx_processing_events_stage ON public.processing_events USING btree (event_stage);
+-- INDEX: idx_processing_events_type
+CREATE INDEX idx_processing_events_type ON public.processing_events USING btree (event_type);
+-- INDEX: processing_events_pkey
+CREATE UNIQUE INDEX processing_events_pkey ON public.processing_events USING btree (id);
+-- INDEX: idx_profiling_metrics_date
+CREATE INDEX idx_profiling_metrics_date ON public.profiling_metrics USING btree (profiled_at DESC);
+-- INDEX: idx_profiling_metrics_file
+CREATE INDEX idx_profiling_metrics_file ON public.profiling_metrics USING btree (file_id);
+-- INDEX: idx_profiling_metrics_file_timestamp
+CREATE INDEX idx_profiling_metrics_file_timestamp ON public.profiling_metrics USING btree (file_id, profile_timestamp DESC);
+-- INDEX: idx_profiling_metrics_job_role
+CREATE INDEX idx_profiling_metrics_job_role ON public.profiling_metrics USING btree (job_id, file_role);
+-- INDEX: idx_profiling_metrics_mapping
+CREATE INDEX idx_profiling_metrics_mapping ON public.profiling_metrics USING btree (mapping_id);
+-- INDEX: profiling_metrics_file_id_file_role_key
+CREATE UNIQUE INDEX profiling_metrics_file_id_file_role_key ON public.profiling_metrics USING btree (file_id, file_role);
+-- INDEX: profiling_metrics_pkey
+CREATE UNIQUE INDEX profiling_metrics_pkey ON public.profiling_metrics USING btree (id);
+-- INDEX: idx_project_access_groups_group_project
+CREATE INDEX idx_project_access_groups_group_project ON public.project_access_groups USING btree (group_id, project_id);
+-- INDEX: project_access_groups_pkey
+CREATE UNIQUE INDEX project_access_groups_pkey ON public.project_access_groups USING btree (project_id, group_id);
+-- INDEX: idx_project_members_project
+CREATE INDEX idx_project_members_project ON public.project_members USING btree (project_id);
+-- INDEX: idx_project_members_user
+CREATE INDEX idx_project_members_user ON public.project_members USING btree (user_id);
+-- INDEX: idx_project_members_user_project
+CREATE INDEX idx_project_members_user_project ON public.project_members USING btree (user_id, project_id);
+-- INDEX: project_members_project_user_unique
+CREATE UNIQUE INDEX project_members_project_user_unique ON public.project_members USING btree (project_id, user_id);
+-- INDEX: idx_projects_active
+CREATE INDEX idx_projects_active ON public.projects USING btree (is_active) WHERE (is_active = true);
+-- INDEX: idx_projects_is_default
+CREATE INDEX idx_projects_is_default ON public.projects USING btree (is_default) WHERE (is_default = true);
+-- INDEX: idx_projects_owner
+CREATE INDEX idx_projects_owner ON public.projects USING btree (owner_id);
+-- INDEX: idx_projects_owner_name_unique
+CREATE UNIQUE INDEX idx_projects_owner_name_unique ON public.projects USING btree (owner_id, lower((name)::text));
+-- INDEX: idx_projects_parent
+CREATE INDEX idx_projects_parent ON public.projects USING btree (parent_id);
+-- INDEX: projects_pkey
+CREATE UNIQUE INDEX projects_pkey ON public.projects USING btree (id);
+-- INDEX: quality_reports_pkey
+CREATE UNIQUE INDEX quality_reports_pkey ON public.quality_reports USING btree (report_id);
+-- INDEX: idx_quality_rule_configs_file
+CREATE INDEX idx_quality_rule_configs_file ON public.quality_rule_configurations USING btree (file_id);
+-- INDEX: idx_quality_rule_configs_rule
+CREATE INDEX idx_quality_rule_configs_rule ON public.quality_rule_configurations USING btree (rule_id);
+-- INDEX: quality_rule_configurations_pkey
+CREATE UNIQUE INDEX quality_rule_configurations_pkey ON public.quality_rule_configurations USING btree (id);
+-- INDEX: unique_file_rule
+CREATE UNIQUE INDEX unique_file_rule ON public.quality_rule_configurations USING btree (file_id, rule_id);
+-- INDEX: idx_quality_rule_violations_created_at
+CREATE INDEX idx_quality_rule_violations_created_at ON public.quality_rule_violations USING btree (created_at DESC);
+-- INDEX: idx_quality_rule_violations_file_id
+CREATE INDEX idx_quality_rule_violations_file_id ON public.quality_rule_violations USING btree (file_id);
+-- INDEX: idx_quality_rule_violations_job_id
+CREATE INDEX idx_quality_rule_violations_job_id ON public.quality_rule_violations USING btree (job_id);
+-- INDEX: idx_quality_rule_violations_rule_id
+CREATE INDEX idx_quality_rule_violations_rule_id ON public.quality_rule_violations USING btree (rule_id);
+-- INDEX: idx_quality_rule_violations_severity
+CREATE INDEX idx_quality_rule_violations_severity ON public.quality_rule_violations USING btree (severity);
+-- INDEX: idx_quality_rule_violations_status
+CREATE INDEX idx_quality_rule_violations_status ON public.quality_rule_violations USING btree (status);
+-- INDEX: quality_rule_violations_pkey
+CREATE UNIQUE INDEX quality_rule_violations_pkey ON public.quality_rule_violations USING btree (id);
+-- INDEX: idx_quality_rules_enabled
+CREATE INDEX idx_quality_rules_enabled ON public.quality_rules USING btree (enabled);
+-- INDEX: idx_quality_rules_project_id
+CREATE INDEX idx_quality_rules_project_id ON public.quality_rules USING btree (project_id);
+-- INDEX: idx_quality_rules_type
+CREATE INDEX idx_quality_rules_type ON public.quality_rules USING btree (rule_type);
+-- INDEX: quality_rules_pkey
+CREATE UNIQUE INDEX quality_rules_pkey ON public.quality_rules USING btree (id);
+-- INDEX: idx_rbac_policies_active
+CREATE INDEX idx_rbac_policies_active ON public.rbac_policies USING btree (is_active) WHERE (is_active = true);
+-- INDEX: idx_rbac_policies_global
+CREATE INDEX idx_rbac_policies_global ON public.rbac_policies USING btree (is_global) WHERE (is_global = true);
+-- INDEX: idx_rbac_policies_project
+CREATE INDEX idx_rbac_policies_project ON public.rbac_policies USING btree (project_id) WHERE (project_id IS NOT NULL);
+-- INDEX: idx_rbac_policies_type
+CREATE INDEX idx_rbac_policies_type ON public.rbac_policies USING btree (policy_type);
+-- INDEX: rbac_policies_pkey
+CREATE UNIQUE INDEX rbac_policies_pkey ON public.rbac_policies USING btree (id);
+-- INDEX: unique_policy_name_per_project
+CREATE UNIQUE INDEX unique_policy_name_per_project ON public.rbac_policies USING btree (name, project_id);
+-- INDEX: idx_refresh_tokens_expires_at
+CREATE INDEX idx_refresh_tokens_expires_at ON public.refresh_tokens USING btree (expires_at);
+-- INDEX: idx_refresh_tokens_token_hash
+CREATE INDEX idx_refresh_tokens_token_hash ON public.refresh_tokens USING btree (token);
+-- INDEX: idx_refresh_tokens_user_id
+CREATE INDEX idx_refresh_tokens_user_id ON public.refresh_tokens USING btree (user_id);
+-- INDEX: refresh_tokens_pkey
+CREATE UNIQUE INDEX refresh_tokens_pkey ON public.refresh_tokens USING btree (id);
+-- INDEX: refresh_tokens_token_hash_key
+CREATE UNIQUE INDEX refresh_tokens_token_hash_key ON public.refresh_tokens USING btree (token);
+-- INDEX: idx_resource_attributes_key
+CREATE INDEX idx_resource_attributes_key ON public.resource_attributes USING btree (attribute_key);
+-- INDEX: idx_resource_attributes_resource
+CREATE INDEX idx_resource_attributes_resource ON public.resource_attributes USING btree (resource_type, resource_id);
+-- INDEX: idx_resource_attributes_type
+CREATE INDEX idx_resource_attributes_type ON public.resource_attributes USING btree (resource_type);
+-- INDEX: resource_attributes_pkey
+CREATE UNIQUE INDEX resource_attributes_pkey ON public.resource_attributes USING btree (id);
+-- INDEX: unique_resource_attribute
+CREATE UNIQUE INDEX unique_resource_attribute ON public.resource_attributes USING btree (resource_type, resource_id, attribute_key);
+-- INDEX: idx_resource_policy_attachments_policy
+CREATE INDEX idx_resource_policy_attachments_policy ON public.resource_policy_attachments USING btree (policy_id);
+-- INDEX: idx_resource_policy_attachments_resource
+CREATE INDEX idx_resource_policy_attachments_resource ON public.resource_policy_attachments USING btree (resource_type, resource_id);
+-- INDEX: idx_resource_policy_attachments_type
+CREATE INDEX idx_resource_policy_attachments_type ON public.resource_policy_attachments USING btree (resource_type);
+-- INDEX: resource_policy_attachments_pkey
+CREATE UNIQUE INDEX resource_policy_attachments_pkey ON public.resource_policy_attachments USING btree (resource_type, resource_id, policy_id);
+-- INDEX: idx_retention_policies_enabled
+CREATE INDEX idx_retention_policies_enabled ON public.retention_policies USING btree (enabled);
+-- INDEX: idx_retention_policies_next_run
+CREATE INDEX idx_retention_policies_next_run ON public.retention_policies USING btree (next_run_at) WHERE (enabled = true);
+-- INDEX: idx_retention_policies_priority
+CREATE INDEX idx_retention_policies_priority ON public.retention_policies USING btree (priority);
+-- INDEX: retention_policies_pkey
+CREATE UNIQUE INDEX retention_policies_pkey ON public.retention_policies USING btree (id);
+-- INDEX: idx_retention_runs_policy
+CREATE INDEX idx_retention_runs_policy ON public.retention_policy_runs USING btree (policy_id);
+-- INDEX: idx_retention_runs_started_at
+CREATE INDEX idx_retention_runs_started_at ON public.retention_policy_runs USING btree (started_at);
+-- INDEX: idx_retention_runs_status
+CREATE INDEX idx_retention_runs_status ON public.retention_policy_runs USING btree (status);
+-- INDEX: retention_policy_runs_pkey
+CREATE UNIQUE INDEX retention_policy_runs_pkey ON public.retention_policy_runs USING btree (id);
+-- INDEX: idx_role_permissions_role_id_perm_id
+CREATE INDEX idx_role_permissions_role_id_perm_id ON public.role_permissions USING btree (role_id, permission_id);
+-- INDEX: role_permissions_pkey
+CREATE UNIQUE INDEX role_permissions_pkey ON public.role_permissions USING btree (role_id, permission_id);
+-- INDEX: idx_roles_name
+CREATE INDEX idx_roles_name ON public.roles USING btree (name);
+-- INDEX: roles_name_key
+CREATE UNIQUE INDEX roles_name_key ON public.roles USING btree (name);
+-- INDEX: roles_pkey
+CREATE UNIQUE INDEX roles_pkey ON public.roles USING btree (id);
+-- INDEX: idx_schedules_entity
+CREATE INDEX idx_schedules_entity ON public.schedules USING btree (entity_type, entity_id);
+-- INDEX: idx_schedules_next_run
+CREATE INDEX idx_schedules_next_run ON public.schedules USING btree (next_run) WHERE (is_active = true);
+-- INDEX: idx_schedules_project_id
+CREATE INDEX idx_schedules_project_id ON public.schedules USING btree (project_id);
+-- INDEX: schedules_pkey
+CREATE UNIQUE INDEX schedules_pkey ON public.schedules USING btree (id);
+-- INDEX: schema_migrations_migration_name_key
+CREATE UNIQUE INDEX schema_migrations_migration_name_key ON public.schema_migrations USING btree (migration_name);
+-- INDEX: schema_migrations_pkey
+CREATE UNIQUE INDEX schema_migrations_pkey ON public.schema_migrations USING btree (id);
+-- INDEX: idx_schema_validation_job_files_job
+CREATE INDEX idx_schema_validation_job_files_job ON public.schema_validation_job_files USING btree (job_id);
+-- INDEX: schema_validation_job_files_pkey
+CREATE UNIQUE INDEX schema_validation_job_files_pkey ON public.schema_validation_job_files USING btree (id);
+-- INDEX: idx_schema_validation_jobs_project
+CREATE INDEX idx_schema_validation_jobs_project ON public.schema_validation_jobs USING btree (project_id);
+-- INDEX: idx_schema_validation_jobs_status
+CREATE INDEX idx_schema_validation_jobs_status ON public.schema_validation_jobs USING btree (status);
+-- INDEX: schema_validation_jobs_pkey
+CREATE UNIQUE INDEX schema_validation_jobs_pkey ON public.schema_validation_jobs USING btree (id);
+-- INDEX: idx_scim_configurations_active
+CREATE INDEX idx_scim_configurations_active ON public.scim_configurations USING btree (is_active) WHERE (is_active = true);
+-- INDEX: idx_scim_configurations_idp_type
+CREATE INDEX idx_scim_configurations_idp_type ON public.scim_configurations USING btree (idp_type);
+-- INDEX: scim_configurations_name_key
+CREATE UNIQUE INDEX scim_configurations_name_key ON public.scim_configurations USING btree (name);
+-- INDEX: scim_configurations_pkey
+CREATE UNIQUE INDEX scim_configurations_pkey ON public.scim_configurations USING btree (id);
+-- INDEX: idx_scim_mappings_config
+CREATE INDEX idx_scim_mappings_config ON public.scim_resource_mappings USING btree (config_id);
+-- INDEX: idx_scim_mappings_platform
+CREATE INDEX idx_scim_mappings_platform ON public.scim_resource_mappings USING btree (platform_resource_type, platform_resource_id);
+-- INDEX: idx_scim_mappings_scim_id
+CREATE INDEX idx_scim_mappings_scim_id ON public.scim_resource_mappings USING btree (scim_id);
+-- INDEX: scim_resource_mappings_pkey
+CREATE UNIQUE INDEX scim_resource_mappings_pkey ON public.scim_resource_mappings USING btree (id);
+-- INDEX: unique_platform_resource
+CREATE UNIQUE INDEX unique_platform_resource ON public.scim_resource_mappings USING btree (config_id, platform_resource_type, platform_resource_id);
+-- INDEX: unique_scim_resource
+CREATE UNIQUE INDEX unique_scim_resource ON public.scim_resource_mappings USING btree (config_id, scim_id);
+-- INDEX: idx_scim_sync_logs_config
+CREATE INDEX idx_scim_sync_logs_config ON public.scim_sync_logs USING btree (config_id);
+-- INDEX: idx_scim_sync_logs_started
+CREATE INDEX idx_scim_sync_logs_started ON public.scim_sync_logs USING btree (started_at DESC);
+-- INDEX: idx_scim_sync_logs_status
+CREATE INDEX idx_scim_sync_logs_status ON public.scim_sync_logs USING btree (status);
+-- INDEX: scim_sync_logs_pkey
+CREATE UNIQUE INDEX scim_sync_logs_pkey ON public.scim_sync_logs USING btree (id);
+-- INDEX: idx_security_audit_event
+CREATE INDEX idx_security_audit_event ON public.security_audit_log USING btree (event_type, "timestamp" DESC);
+-- INDEX: idx_security_audit_severity
+CREATE INDEX idx_security_audit_severity ON public.security_audit_log USING btree (severity, "timestamp" DESC) WHERE ((severity)::text = ANY ((ARRAY['WARNING'::character varying, 'CRITICAL'::character varying])::text[]));
+-- INDEX: idx_security_audit_timestamp
+CREATE INDEX idx_security_audit_timestamp ON public.security_audit_log USING btree ("timestamp" DESC);
+-- INDEX: idx_security_audit_user
+CREATE INDEX idx_security_audit_user ON public.security_audit_log USING btree (user_id, "timestamp" DESC);
+-- INDEX: security_audit_log_pkey
+CREATE UNIQUE INDEX security_audit_log_pkey ON public.security_audit_log USING btree (security_audit_id);
+-- INDEX: idx_security_audit_log_archive_archived
+CREATE INDEX idx_security_audit_log_archive_archived ON public.security_audit_log_archive USING btree (archived_at DESC);
+-- INDEX: idx_security_audit_log_archive_timestamp
+CREATE INDEX idx_security_audit_log_archive_timestamp ON public.security_audit_log_archive USING btree ("timestamp" DESC);
+-- INDEX: idx_security_audit_log_archive_user
+CREATE INDEX idx_security_audit_log_archive_user ON public.security_audit_log_archive USING btree (user_id, "timestamp" DESC);
+-- INDEX: security_audit_log_archive_pkey
+CREATE UNIQUE INDEX security_audit_log_archive_pkey ON public.security_audit_log_archive USING btree (security_audit_id);
+-- INDEX: idx_connections_name_unique_lower
+CREATE UNIQUE INDEX idx_connections_name_unique_lower ON public.storage_connections USING btree (lower((name)::text));
+-- INDEX: idx_storage_connections_auth_method
+CREATE INDEX idx_storage_connections_auth_method ON public.storage_connections USING btree (authentication_method);
+-- INDEX: idx_storage_connections_project_id
+CREATE INDEX idx_storage_connections_project_id ON public.storage_connections USING btree (project_id);
+-- INDEX: idx_storage_connections_user
+CREATE INDEX idx_storage_connections_user ON public.storage_connections USING btree (connection_user);
+-- INDEX: storage_connections_pkey
+CREATE UNIQUE INDEX storage_connections_pkey ON public.storage_connections USING btree (connection_id);
+-- INDEX: sub_project_access_groups_pkey
+CREATE UNIQUE INDEX sub_project_access_groups_pkey ON public.sub_project_access_groups USING btree (id);
+-- INDEX: sub_project_access_groups_sub_project_id_group_id_key
+CREATE UNIQUE INDEX sub_project_access_groups_sub_project_id_group_id_key ON public.sub_project_access_groups USING btree (sub_project_id, group_id);
+-- INDEX: sub_project_members_pkey
+CREATE UNIQUE INDEX sub_project_members_pkey ON public.sub_project_members USING btree (id);
+-- INDEX: sub_project_members_sub_project_id_user_id_key
+CREATE UNIQUE INDEX sub_project_members_sub_project_id_user_id_key ON public.sub_project_members USING btree (sub_project_id, user_id);
+-- INDEX: idx_tag_permissions_role_id
 CREATE INDEX idx_tag_permissions_role_id ON public.tag_permissions USING btree (role_id);
-
-
---
--- Name: idx_tag_permissions_tag_id; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: idx_tag_permissions_tag_id
 CREATE INDEX idx_tag_permissions_tag_id ON public.tag_permissions USING btree (tag_id);
-
-
---
--- Name: idx_transformation_jobs_failure_reason_code; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: tag_permissions_pkey
+CREATE UNIQUE INDEX tag_permissions_pkey ON public.tag_permissions USING btree (id);
+-- INDEX: unique_tag_role
+CREATE UNIQUE INDEX unique_tag_role ON public.tag_permissions USING btree (tag_id, role_id);
+-- INDEX: transform_connections_pkey
+CREATE UNIQUE INDEX transform_connections_pkey ON public.transform_connections USING btree (id);
+-- INDEX: transformation_executions_execution_id_key
+CREATE UNIQUE INDEX transformation_executions_execution_id_key ON public.transformation_executions USING btree (execution_id);
+-- INDEX: transformation_executions_pkey
+CREATE UNIQUE INDEX transformation_executions_pkey ON public.transformation_executions USING btree (id);
+-- INDEX: idx_transformation_jobs_failure_reason_code
 CREATE INDEX idx_transformation_jobs_failure_reason_code ON public.transformation_jobs USING btree (failure_reason_code) WHERE (failure_reason_code IS NOT NULL);
-
-
---
--- Name: idx_transformation_jobs_mapping; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: idx_transformation_jobs_mapping
 CREATE INDEX idx_transformation_jobs_mapping ON public.transformation_jobs USING btree (mapping_id);
-
-
---
--- Name: idx_transformation_jobs_mapping_status; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: idx_transformation_jobs_mapping_status
 CREATE INDEX idx_transformation_jobs_mapping_status ON public.transformation_jobs USING btree (mapping_id, status, created_at DESC);
-
-
---
--- Name: idx_transformation_jobs_project_id; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: idx_transformation_jobs_project_id
 CREATE INDEX idx_transformation_jobs_project_id ON public.transformation_jobs USING btree (project_id);
-
-
---
--- Name: idx_transformation_jobs_project_status; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: idx_transformation_jobs_project_status
 CREATE INDEX idx_transformation_jobs_project_status ON public.transformation_jobs USING btree (project_id, status, created_at DESC) WHERE (project_id IS NOT NULL);
-
-
---
--- Name: idx_transformation_jobs_start; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: idx_transformation_jobs_start
 CREATE INDEX idx_transformation_jobs_start ON public.transformation_jobs USING btree (start_time DESC);
-
-
---
--- Name: idx_transformation_jobs_status; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: idx_transformation_jobs_status
 CREATE INDEX idx_transformation_jobs_status ON public.transformation_jobs USING btree (status);
-
-
---
--- Name: idx_transformation_jobs_status_created; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: idx_transformation_jobs_status_created
 CREATE INDEX idx_transformation_jobs_status_created ON public.transformation_jobs USING btree (status, created_at DESC);
-
-
---
--- Name: idx_transformation_lineage_column_mappings; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: transformation_jobs_job_id_key
+CREATE UNIQUE INDEX transformation_jobs_job_id_key ON public.transformation_jobs USING btree (job_id);
+-- INDEX: transformation_jobs_pkey
+CREATE UNIQUE INDEX transformation_jobs_pkey ON public.transformation_jobs USING btree (id);
+-- INDEX: idx_transformation_lineage_column_mappings
 CREATE INDEX idx_transformation_lineage_column_mappings ON public.transformation_lineage USING gin (column_mappings);
-
-
---
--- Name: idx_transformation_logs_job; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: transformation_lineage_pkey
+CREATE UNIQUE INDEX transformation_lineage_pkey ON public.transformation_lineage USING btree (id);
+-- INDEX: idx_transformation_logs_job
 CREATE INDEX idx_transformation_logs_job ON public.transformation_logs USING btree (job_id);
-
-
---
--- Name: idx_transformation_logs_level; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: idx_transformation_logs_level
 CREATE INDEX idx_transformation_logs_level ON public.transformation_logs USING btree (log_level);
-
-
---
--- Name: idx_transformation_logs_timestamp; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: idx_transformation_logs_timestamp
 CREATE INDEX idx_transformation_logs_timestamp ON public.transformation_logs USING btree ("timestamp" DESC);
-
-
---
--- Name: idx_transformation_mappings_pattern; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: transformation_logs_pkey
+CREATE UNIQUE INDEX transformation_logs_pkey ON public.transformation_logs USING btree (id);
+-- INDEX: idx_transformation_mappings_pattern
 CREATE INDEX idx_transformation_mappings_pattern ON public.transformation_mappings USING btree (source_file_pattern);
-
-
---
--- Name: idx_transformation_mappings_project_id; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: idx_transformation_mappings_project_id
 CREATE INDEX idx_transformation_mappings_project_id ON public.transformation_mappings USING btree (project_id);
-
-
---
--- Name: idx_transformation_mappings_source; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: idx_transformation_mappings_source
 CREATE INDEX idx_transformation_mappings_source ON public.transformation_mappings USING btree (source_connection_id);
-
-
---
--- Name: idx_transformation_mappings_status; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: idx_transformation_mappings_status
 CREATE INDEX idx_transformation_mappings_status ON public.transformation_mappings USING btree (status);
-
-
---
--- Name: idx_transformation_mappings_sub_project_id; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: idx_transformation_mappings_sub_project_id
 CREATE INDEX idx_transformation_mappings_sub_project_id ON public.transformation_mappings USING btree (sub_project_id);
-
-
---
--- Name: idx_transformation_mappings_vendor_agreement_id; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: idx_transformation_mappings_vendor_agreement_id
 CREATE INDEX idx_transformation_mappings_vendor_agreement_id ON public.transformation_mappings USING btree (vendor_agreement_id);
-
-
---
--- Name: idx_transformation_quality_rules_mapping_id; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: transformation_mappings_mapping_id_key
+CREATE UNIQUE INDEX transformation_mappings_mapping_id_key ON public.transformation_mappings USING btree (mapping_id);
+-- INDEX: transformation_mappings_pkey
+CREATE UNIQUE INDEX transformation_mappings_pkey ON public.transformation_mappings USING btree (id);
+-- INDEX: transformation_outputs_pkey
+CREATE UNIQUE INDEX transformation_outputs_pkey ON public.transformation_outputs USING btree (id);
+-- INDEX: idx_transformation_quality_rules_mapping_id
 CREATE INDEX idx_transformation_quality_rules_mapping_id ON public.transformation_quality_rules USING btree (mapping_id);
-
-
---
--- Name: idx_transformation_quality_rules_rule_id; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: idx_transformation_quality_rules_rule_id
 CREATE INDEX idx_transformation_quality_rules_rule_id ON public.transformation_quality_rules USING btree (quality_rule_id);
-
-
---
--- Name: idx_upload_batches_batch_id; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: transformation_quality_rules_pkey
+CREATE UNIQUE INDEX transformation_quality_rules_pkey ON public.transformation_quality_rules USING btree (id);
+-- INDEX: unique_transformation_quality_rule
+CREATE UNIQUE INDEX unique_transformation_quality_rule ON public.transformation_quality_rules USING btree (mapping_id, quality_rule_id);
+-- INDEX: transformations_pkey
+CREATE UNIQUE INDEX transformations_pkey ON public.transformations USING btree (id);
+-- INDEX: transformations_transformation_id_key
+CREATE UNIQUE INDEX transformations_transformation_id_key ON public.transformations USING btree (transformation_id);
+-- INDEX: idx_upload_batches_batch_id
 CREATE INDEX idx_upload_batches_batch_id ON public.upload_batches USING btree (batch_id);
-
-
---
--- Name: idx_upload_batches_status; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: idx_upload_batches_status
 CREATE INDEX idx_upload_batches_status ON public.upload_batches USING btree (status, created_at DESC);
-
-
---
--- Name: idx_upload_batches_user_project; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: idx_upload_batches_user_project
 CREATE INDEX idx_upload_batches_user_project ON public.upload_batches USING btree (user_id, project_id);
-
-
---
--- Name: idx_upload_file_records_file_status; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: upload_batches_batch_id_key
+CREATE UNIQUE INDEX upload_batches_batch_id_key ON public.upload_batches USING btree (batch_id);
+-- INDEX: upload_batches_pkey
+CREATE UNIQUE INDEX upload_batches_pkey ON public.upload_batches USING btree (id);
+-- INDEX: idx_upload_file_records_file_status
 CREATE INDEX idx_upload_file_records_file_status ON public.upload_file_records USING btree (upload_file_id, status);
-
-
---
--- Name: idx_upload_files_batch_id; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: upload_file_records_pkey
+CREATE UNIQUE INDEX upload_file_records_pkey ON public.upload_file_records USING btree (id);
+-- INDEX: idx_upload_files_batch_id
 CREATE INDEX idx_upload_files_batch_id ON public.upload_files USING btree (batch_id);
-
-
---
--- Name: idx_upload_files_catalog; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: idx_upload_files_catalog
 CREATE INDEX idx_upload_files_catalog ON public.upload_files USING btree (catalog_file_id);
-
-
---
--- Name: idx_upload_files_file_id; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: idx_upload_files_file_id
 CREATE INDEX idx_upload_files_file_id ON public.upload_files USING btree (file_id);
-
-
---
--- Name: idx_upload_files_status; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: idx_upload_files_status
 CREATE INDEX idx_upload_files_status ON public.upload_files USING btree (status, uploaded_at DESC);
-
-
---
--- Name: idx_user_attributes_key; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: upload_files_file_id_key
+CREATE UNIQUE INDEX upload_files_file_id_key ON public.upload_files USING btree (file_id);
+-- INDEX: upload_files_pkey
+CREATE UNIQUE INDEX upload_files_pkey ON public.upload_files USING btree (id);
+-- INDEX: idx_user_attributes_key
 CREATE INDEX idx_user_attributes_key ON public.user_attributes USING btree (attribute_key);
-
-
---
--- Name: idx_user_attributes_source; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: idx_user_attributes_source
 CREATE INDEX idx_user_attributes_source ON public.user_attributes USING btree (source);
-
-
---
--- Name: idx_user_attributes_user; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: idx_user_attributes_user
 CREATE INDEX idx_user_attributes_user ON public.user_attributes USING btree (user_id);
-
-
---
--- Name: idx_user_groups_group_id; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: unique_user_attribute
+CREATE UNIQUE INDEX unique_user_attribute ON public.user_attributes USING btree (user_id, attribute_key);
+-- INDEX: user_attributes_pkey
+CREATE UNIQUE INDEX user_attributes_pkey ON public.user_attributes USING btree (id);
+-- INDEX: user_badges_badge_id_key
+CREATE UNIQUE INDEX user_badges_badge_id_key ON public.user_badges USING btree (badge_id);
+-- INDEX: user_badges_pkey
+CREATE UNIQUE INDEX user_badges_pkey ON public.user_badges USING btree (id);
+-- INDEX: user_dashboard_settings_pkey
+CREATE UNIQUE INDEX user_dashboard_settings_pkey ON public.user_dashboard_settings USING btree (id);
+-- INDEX: idx_user_groups_group_id
 CREATE INDEX idx_user_groups_group_id ON public.user_groups USING btree (group_id);
-
-
---
--- Name: idx_user_groups_user_group; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: idx_user_groups_user_group
 CREATE INDEX idx_user_groups_user_group ON public.user_groups USING btree (user_id, group_id);
-
-
---
--- Name: idx_user_groups_user_id; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: idx_user_groups_user_id
 CREATE INDEX idx_user_groups_user_id ON public.user_groups USING btree (user_id);
-
-
---
--- Name: idx_user_policy_attachments_policy; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: user_groups_pkey
+CREATE UNIQUE INDEX user_groups_pkey ON public.user_groups USING btree (user_id, group_id);
+-- INDEX: user_job_groups_pkey
+CREATE UNIQUE INDEX user_job_groups_pkey ON public.user_job_groups USING btree (user_id, group_id);
+-- INDEX: idx_user_policy_attachments_policy
 CREATE INDEX idx_user_policy_attachments_policy ON public.user_policy_attachments USING btree (policy_id);
-
-
---
--- Name: idx_user_policy_attachments_user; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: idx_user_policy_attachments_user
 CREATE INDEX idx_user_policy_attachments_user ON public.user_policy_attachments USING btree (user_id);
-
-
---
--- Name: idx_user_roles_user_id_role_id; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: user_policy_attachments_pkey
+CREATE UNIQUE INDEX user_policy_attachments_pkey ON public.user_policy_attachments USING btree (user_id, policy_id);
+-- INDEX: idx_user_roles_user_id_role_id
 CREATE INDEX idx_user_roles_user_id_role_id ON public.user_roles USING btree (user_id, role_id);
-
-
---
--- Name: idx_users_auth_provider; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: user_roles_pkey
+CREATE UNIQUE INDEX user_roles_pkey ON public.user_roles USING btree (user_id, role_id);
+-- INDEX: user_sessions_pkey
+CREATE UNIQUE INDEX user_sessions_pkey ON public.user_sessions USING btree (id);
+-- INDEX: user_sessions_token_key
+CREATE UNIQUE INDEX user_sessions_token_key ON public.user_sessions USING btree (token);
+-- INDEX: user_uuid_mapping_pkey
+CREATE UNIQUE INDEX user_uuid_mapping_pkey ON public.user_uuid_mapping USING btree (user_id);
+-- INDEX: idx_users_auth_provider
 CREATE INDEX idx_users_auth_provider ON public.users USING btree (auth_provider);
-
-
---
--- Name: idx_users_external_id; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: idx_users_external_id
 CREATE UNIQUE INDEX idx_users_external_id ON public.users USING btree (external_id) WHERE (external_id IS NOT NULL);
-
-
---
--- Name: idx_users_id; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: idx_users_id
 CREATE INDEX idx_users_id ON public.users USING btree (id);
-
-
---
--- Name: idx_users_username; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: idx_users_username
 CREATE INDEX idx_users_username ON public.users USING btree (lower((username)::text));
-
-
---
--- Name: idx_vendor_agreement_approvals_agreement_id; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_vendor_agreement_approvals_agreement_id ON public.vendor_agreement_approvals USING btree (agreement_id);
-
-
---
--- Name: idx_vendor_agreement_approvals_approver; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_vendor_agreement_approvals_approver ON public.vendor_agreement_approvals USING btree (approver_user_id);
-
-
---
--- Name: idx_vendor_agreement_changes_agreement_id; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_vendor_agreement_changes_agreement_id ON public.vendor_agreement_changes USING btree (agreement_id);
-
-
---
--- Name: idx_vendor_agreement_changes_changed_by; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_vendor_agreement_changes_changed_by ON public.vendor_agreement_changes USING btree (changed_by);
-
-
---
--- Name: idx_vendor_agreement_documents_agreement; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_vendor_agreement_documents_agreement ON public.vendor_agreement_documents USING btree (agreement_id);
-
-
---
--- Name: idx_vendor_agreement_documents_approval; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_vendor_agreement_documents_approval ON public.vendor_agreement_documents USING btree (approval_id);
-
-
---
--- Name: idx_vendor_agreement_file_schemas_agreement_id; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_vendor_agreement_file_schemas_agreement_id ON public.vendor_agreement_file_schemas USING btree (vendor_agreement_id);
-
-
---
--- Name: idx_vendor_agreement_file_schemas_priority; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_vendor_agreement_file_schemas_priority ON public.vendor_agreement_file_schemas USING btree (vendor_agreement_id, priority, is_active);
-
-
---
--- Name: idx_vendor_agreements_agreement_code; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_vendor_agreements_agreement_code ON public.vendor_agreements USING btree (agreement_code);
-
-
---
--- Name: idx_vendor_agreements_approval_status; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_vendor_agreements_approval_status ON public.vendor_agreements USING btree (approval_status);
-
-
---
--- Name: idx_vendor_agreements_connection_id; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_vendor_agreements_connection_id ON public.vendor_agreements USING btree (vendor_connection_id);
-
-
---
--- Name: idx_vendor_agreements_file_owner; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_vendor_agreements_file_owner ON public.vendor_agreements USING btree (file_owner_user_id);
-
-
---
--- Name: idx_vendor_agreements_governance_manager; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_vendor_agreements_governance_manager ON public.vendor_agreements USING btree (governance_manager_user_id);
-
-
---
--- Name: idx_vendor_agreements_project_id; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_vendor_agreements_project_id ON public.vendor_agreements USING btree (project_id);
-
-
---
--- Name: idx_vendor_agreements_sla_enabled; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_vendor_agreements_sla_enabled ON public.vendor_agreements USING btree (sla_enabled) WHERE (sla_enabled = true);
-
-
---
--- Name: idx_vendor_agreements_stakeholder_groups; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_vendor_agreements_stakeholder_groups ON public.vendor_agreements USING gin (additional_stakeholder_group_ids);
-
-
---
--- Name: idx_vendor_agreements_stakeholder_users; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_vendor_agreements_stakeholder_users ON public.vendor_agreements USING gin (additional_stakeholder_user_ids);
-
-
---
--- Name: idx_vendor_agreements_sub_project_id; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_vendor_agreements_sub_project_id ON public.vendor_agreements USING btree (sub_project_id);
-
-
---
--- Name: idx_vendor_agreements_vendor_id; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_vendor_agreements_vendor_id ON public.vendor_agreements USING btree (vendor_id);
-
-
---
--- Name: idx_vendor_file_profiling_connection_id; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_vendor_file_profiling_connection_id ON public.vendor_file_profiling_results USING btree (connection_id);
-
-
---
--- Name: idx_vendor_file_profiling_file_id; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_vendor_file_profiling_file_id ON public.vendor_file_profiling_results USING btree (file_id);
-
-
---
--- Name: idx_vendor_file_profiling_profiled_at; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_vendor_file_profiling_profiled_at ON public.vendor_file_profiling_results USING btree (profiled_at DESC);
-
-
---
--- Name: idx_vendor_file_profiling_quality_score; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_vendor_file_profiling_quality_score ON public.vendor_file_profiling_results USING btree (quality_score);
-
-
---
--- Name: idx_vendor_file_profiling_vendor_id; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_vendor_file_profiling_vendor_id ON public.vendor_file_profiling_results USING btree (vendor_id);
-
-
---
--- Name: idx_vendor_profiling_created_at; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_vendor_profiling_created_at ON public.vendor_file_profiling_results USING btree (created_at DESC);
-
-
---
--- Name: idx_vendor_profiling_file_id; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_vendor_profiling_file_id ON public.vendor_file_profiling_results USING btree (file_id);
-
-
---
--- Name: idx_vendor_profiling_user_id; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_vendor_profiling_user_id ON public.vendor_file_profiling_results USING btree (uploaded_by_user_id);
-
-
---
--- Name: idx_vendor_profiling_vendor_id; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_vendor_profiling_vendor_id ON public.vendor_file_profiling_results USING btree (vendor_id);
-
-
---
--- Name: idx_vendor_sla_violations_agreement_id; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_vendor_sla_violations_agreement_id ON public.vendor_sla_violations USING btree (agreement_id);
-
-
---
--- Name: idx_vendor_sla_violations_alert_sent; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_vendor_sla_violations_alert_sent ON public.vendor_sla_violations USING btree (alert_sent) WHERE (alert_sent = false);
-
-
---
--- Name: idx_vendor_sla_violations_resolved; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_vendor_sla_violations_resolved ON public.vendor_sla_violations USING btree (resolved) WHERE (resolved = false);
-
-
---
--- Name: idx_vendor_users_email; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_vendor_users_email ON public.vendor_users USING btree (email);
-
-
---
--- Name: idx_vendor_users_is_active; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_vendor_users_is_active ON public.vendor_users USING btree (is_active);
-
-
---
--- Name: idx_vendor_users_vendor_id; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_vendor_users_vendor_id ON public.vendor_users USING btree (vendor_id);
-
-
---
--- Name: idx_vendors_project_id; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_vendors_project_id ON public.vendors USING btree (project_id);
-
-
---
--- Name: idx_vendors_status; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_vendors_status ON public.vendors USING btree (status);
-
-
---
--- Name: idx_vendors_vendor_code; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_vendors_vendor_code ON public.vendors USING btree (vendor_code);
-
-
---
--- Name: idx_vendors_vendor_user_id; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_vendors_vendor_user_id ON public.vendors USING btree (vendor_user_id);
-
-
---
--- Name: idx_visual_lineage_graphs_created_by; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_visual_lineage_graphs_created_by ON public.visual_lineage_graphs USING btree (created_by);
-
-
---
--- Name: idx_visual_lineage_graphs_is_active; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_visual_lineage_graphs_is_active ON public.visual_lineage_graphs USING btree (is_active);
-
-
---
--- Name: idx_visual_lineage_graphs_project; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_visual_lineage_graphs_project ON public.visual_lineage_graphs USING btree (project_id);
-
-
---
--- Name: idx_visual_mapping_defs_active; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_visual_mapping_defs_active ON public.visual_mapping_defs USING btree (is_active);
-
-
---
--- Name: idx_visual_mapping_defs_project; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_visual_mapping_defs_project ON public.visual_mapping_defs USING btree (project_id);
-
-
---
--- Name: idx_visual_mapping_edges_mapping; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_visual_mapping_edges_mapping ON public.visual_mapping_edges USING btree (mapping_id);
-
-
---
--- Name: idx_visual_mapping_exec_logs_exec_id; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_visual_mapping_exec_logs_exec_id ON public.visual_mapping_execution_logs USING btree (execution_id);
-
-
---
--- Name: idx_visual_mapping_exec_logs_mapping; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_visual_mapping_exec_logs_mapping ON public.visual_mapping_execution_logs USING btree (mapping_id);
-
-
---
--- Name: idx_visual_mapping_exec_logs_started; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_visual_mapping_exec_logs_started ON public.visual_mapping_execution_logs USING btree (started_at DESC);
-
-
---
--- Name: idx_visual_mapping_executions_mapping; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_visual_mapping_executions_mapping ON public.visual_mapping_executions USING btree (mapping_id);
-
-
---
--- Name: idx_visual_mapping_executions_status; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_visual_mapping_executions_status ON public.visual_mapping_executions USING btree (status);
-
-
---
--- Name: idx_visual_mapping_nodes_mapping; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_visual_mapping_nodes_mapping ON public.visual_mapping_nodes USING btree (mapping_id);
-
-
---
--- Name: idx_visual_workflow_exec_logs_exec_id; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_visual_workflow_exec_logs_exec_id ON public.visual_workflow_execution_logs USING btree (execution_id);
-
-
---
--- Name: idx_visual_workflow_execution_logs_started_at; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_visual_workflow_execution_logs_started_at ON public.visual_workflow_execution_logs USING btree (started_at DESC);
-
-
---
--- Name: idx_visual_workflow_execution_logs_workflow_id; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_visual_workflow_execution_logs_workflow_id ON public.visual_workflow_execution_logs USING btree (workflow_id);
-
-
---
--- Name: idx_visual_workflow_executions_execution_id; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_visual_workflow_executions_execution_id ON public.visual_workflow_executions USING btree (execution_id);
-
-
---
--- Name: idx_visual_workflow_executions_status; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_visual_workflow_executions_status ON public.visual_workflow_executions USING btree (status);
-
-
---
--- Name: idx_visual_workflow_executions_triggered_by; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_visual_workflow_executions_triggered_by ON public.visual_workflow_executions USING btree (triggered_by);
-
-
---
--- Name: idx_visual_workflow_executions_workflow_id; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_visual_workflow_executions_workflow_id ON public.visual_workflow_executions USING btree (workflow_id);
-
-
---
--- Name: idx_visual_workflows_created_by; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_visual_workflows_created_by ON public.visual_workflows USING btree (created_by);
-
-
---
--- Name: idx_visual_workflows_is_active; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_visual_workflows_is_active ON public.visual_workflows USING btree (is_active);
-
-
---
--- Name: idx_visual_workflows_project_id; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_visual_workflows_project_id ON public.visual_workflows USING btree (project_id);
-
-
---
--- Name: idx_visual_workflows_sub_project_id; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_visual_workflows_sub_project_id ON public.visual_workflows USING btree (sub_project_id);
-
-
---
--- Name: idx_workflow_executions_project_id; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_workflow_executions_project_id ON public.workflow_executions USING btree (project_id);
-
-
---
--- Name: idx_workflow_executions_workflow_id; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_workflow_executions_workflow_id ON public.workflow_executions USING btree (workflow_id);
-
-
---
--- Name: idx_workflow_steps_depends_on; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_workflow_steps_depends_on ON public.workflow_steps USING btree (depends_on);
-
-
---
--- Name: idx_workflow_steps_project_id; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_workflow_steps_project_id ON public.workflow_steps USING btree (project_id);
-
-
---
--- Name: idx_workflow_steps_workflow_id; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_workflow_steps_workflow_id ON public.workflow_steps USING btree (workflow_id);
-
-
---
--- Name: users_username_lower_idx; Type: INDEX; Schema: public; Owner: -
---
-
+-- INDEX: users_email_unique
+CREATE UNIQUE INDEX users_email_unique ON public.users USING btree (email);
+-- INDEX: users_pkey
+CREATE UNIQUE INDEX users_pkey ON public.users USING btree (id);
+-- INDEX: users_unique
+CREATE UNIQUE INDEX users_unique ON public.users USING btree (okta_id);
+-- INDEX: users_username_lower_idx
 CREATE UNIQUE INDEX users_username_lower_idx ON public.users USING btree (lower((username)::text));
-
-
---
--- Name: audit_ledger audit_ledger_immutable_delete; Type: TRIGGER; Schema: public; Owner: -
---
-
-CREATE TRIGGER audit_ledger_immutable_delete BEFORE DELETE ON public.audit_ledger FOR EACH ROW EXECUTE FUNCTION public.prevent_audit_ledger_delete();
-
-
---
--- Name: audit_ledger audit_ledger_immutable_update; Type: TRIGGER; Schema: public; Owner: -
---
-
-CREATE TRIGGER audit_ledger_immutable_update BEFORE UPDATE ON public.audit_ledger FOR EACH ROW EXECUTE FUNCTION public.prevent_audit_ledger_update();
-
-
---
--- Name: policy_evaluation_cache trigger_cleanup_policy_cache_on_insert; Type: TRIGGER; Schema: public; Owner: -
---
-
-CREATE TRIGGER trigger_cleanup_policy_cache_on_insert AFTER INSERT ON public.policy_evaluation_cache FOR EACH STATEMENT EXECUTE FUNCTION public.trigger_cleanup_policy_cache();
-
-
---
--- Name: file_pattern_metrics trigger_refresh_file_pattern_metrics_views; Type: TRIGGER; Schema: public; Owner: -
---
-
-CREATE TRIGGER trigger_refresh_file_pattern_metrics_views AFTER INSERT OR UPDATE ON public.file_pattern_metrics FOR EACH STATEMENT EXECUTE FUNCTION public.refresh_file_pattern_metrics_views();
-
-
---
--- Name: users trigger_update_full_name; Type: TRIGGER; Schema: public; Owner: -
---
-
-CREATE TRIGGER trigger_update_full_name BEFORE INSERT OR UPDATE OF first_name, middle_name, last_name ON public.users FOR EACH ROW EXECUTE FUNCTION public.update_full_name();
-
-
---
--- Name: vendor_agreement_file_schemas trigger_update_vendor_agreement_file_schemas_updated_at; Type: TRIGGER; Schema: public; Owner: -
---
-
-CREATE TRIGGER trigger_update_vendor_agreement_file_schemas_updated_at BEFORE UPDATE ON public.vendor_agreement_file_schemas FOR EACH ROW EXECUTE FUNCTION public.update_vendor_agreement_file_schemas_updated_at();
-
-
---
--- Name: vendor_users trigger_vendor_users_updated_at; Type: TRIGGER; Schema: public; Owner: -
---
-
-CREATE TRIGGER trigger_vendor_users_updated_at BEFORE UPDATE ON public.vendor_users FOR EACH ROW EXECUTE FUNCTION public.update_vendor_users_updated_at();
-
-
---
--- Name: access_groups update_access_groups_updated_at; Type: TRIGGER; Schema: public; Owner: -
---
-
-CREATE TRIGGER update_access_groups_updated_at BEFORE UPDATE ON public.access_groups FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
-
-
---
--- Name: attribute_definitions update_attribute_definitions_updated_at; Type: TRIGGER; Schema: public; Owner: -
---
-
-CREATE TRIGGER update_attribute_definitions_updated_at BEFORE UPDATE ON public.attribute_definitions FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
-
-
---
--- Name: dlq_jobs update_dlq_jobs_updated_at; Type: TRIGGER; Schema: public; Owner: -
---
-
-CREATE TRIGGER update_dlq_jobs_updated_at BEFORE UPDATE ON public.dlq_jobs FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
-
-
---
--- Name: project_members update_project_members_updated_at; Type: TRIGGER; Schema: public; Owner: -
---
-
-CREATE TRIGGER update_project_members_updated_at BEFORE UPDATE ON public.project_members FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
-
-
---
--- Name: projects update_projects_updated_at; Type: TRIGGER; Schema: public; Owner: -
---
-
-CREATE TRIGGER update_projects_updated_at BEFORE UPDATE ON public.projects FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
-
-
---
--- Name: rbac_policies update_rbac_policies_updated_at; Type: TRIGGER; Schema: public; Owner: -
---
-
-CREATE TRIGGER update_rbac_policies_updated_at BEFORE UPDATE ON public.rbac_policies FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
-
-
---
--- Name: resource_attributes update_resource_attributes_updated_at; Type: TRIGGER; Schema: public; Owner: -
---
-
-CREATE TRIGGER update_resource_attributes_updated_at BEFORE UPDATE ON public.resource_attributes FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
-
-
---
--- Name: scim_configurations update_scim_configurations_updated_at; Type: TRIGGER; Schema: public; Owner: -
---
-
-CREATE TRIGGER update_scim_configurations_updated_at BEFORE UPDATE ON public.scim_configurations FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
-
-
---
--- Name: scim_resource_mappings update_scim_resource_mappings_updated_at; Type: TRIGGER; Schema: public; Owner: -
---
-
-CREATE TRIGGER update_scim_resource_mappings_updated_at BEFORE UPDATE ON public.scim_resource_mappings FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
-
-
---
--- Name: user_attributes update_user_attributes_updated_at; Type: TRIGGER; Schema: public; Owner: -
---
-
-CREATE TRIGGER update_user_attributes_updated_at BEFORE UPDATE ON public.user_attributes FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
-
-
---
--- Name: access_group_members access_group_members_added_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.access_group_members
-    ADD CONSTRAINT access_group_members_added_by_fkey FOREIGN KEY (added_by) REFERENCES public.users(id) ON DELETE SET NULL;
-
-
---
--- Name: access_group_members access_group_members_group_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.access_group_members
-    ADD CONSTRAINT access_group_members_group_id_fkey FOREIGN KEY (group_id) REFERENCES public.access_groups(id) ON DELETE CASCADE;
-
-
---
--- Name: access_group_members access_group_members_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.access_group_members
-    ADD CONSTRAINT access_group_members_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
-
-
---
--- Name: access_group_roles access_group_roles_assigned_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.access_group_roles
-    ADD CONSTRAINT access_group_roles_assigned_by_fkey FOREIGN KEY (assigned_by) REFERENCES public.users(id) ON DELETE SET NULL;
-
-
---
--- Name: access_group_roles access_group_roles_group_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.access_group_roles
-    ADD CONSTRAINT access_group_roles_group_id_fkey FOREIGN KEY (group_id) REFERENCES public.access_groups(id) ON DELETE CASCADE;
-
-
---
--- Name: access_group_roles access_group_roles_project_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.access_group_roles
-    ADD CONSTRAINT access_group_roles_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id) ON DELETE CASCADE;
-
-
---
--- Name: access_group_roles access_group_roles_role_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.access_group_roles
-    ADD CONSTRAINT access_group_roles_role_id_fkey FOREIGN KEY (role_id) REFERENCES public.roles(id) ON DELETE CASCADE;
-
-
---
--- Name: access_groups access_groups_created_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.access_groups
-    ADD CONSTRAINT access_groups_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(id) ON DELETE SET NULL;
-
-
---
--- Name: alert_aggregation alert_aggregation_policy_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.alert_aggregation
-    ADD CONSTRAINT alert_aggregation_policy_id_fkey FOREIGN KEY (policy_id) REFERENCES public.alert_policies(id) ON DELETE CASCADE;
-
-
---
--- Name: alert_attachments alert_attachments_run_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.alert_attachments
-    ADD CONSTRAINT alert_attachments_run_id_fkey FOREIGN KEY (run_id) REFERENCES public.alert_runs(id) ON DELETE CASCADE;
-
-
---
--- Name: alert_events alert_events_run_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.alert_events
-    ADD CONSTRAINT alert_events_run_id_fkey FOREIGN KEY (run_id) REFERENCES public.alert_runs(id) ON DELETE CASCADE;
-
-
---
--- Name: alert_events alert_events_vendor_sla_violation_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.alert_events
-    ADD CONSTRAINT alert_events_vendor_sla_violation_id_fkey FOREIGN KEY (vendor_sla_violation_id) REFERENCES public.vendor_sla_violations(id) ON DELETE SET NULL;
-
-
---
--- Name: alert_history alert_history_file_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.alert_history
-    ADD CONSTRAINT alert_history_file_id_fkey FOREIGN KEY (file_id) REFERENCES public.files(file_id) ON DELETE CASCADE;
-
-
---
--- Name: alert_history alert_history_rule_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.alert_history
-    ADD CONSTRAINT alert_history_rule_id_fkey FOREIGN KEY (rule_id) REFERENCES public.alert_rules(id) ON DELETE CASCADE;
-
-
---
--- Name: alert_policies alert_policies_created_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.alert_policies
-    ADD CONSTRAINT alert_policies_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(id) ON DELETE SET NULL;
-
-
---
--- Name: alert_policies alert_policies_email_connection_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.alert_policies
-    ADD CONSTRAINT alert_policies_email_connection_id_fkey FOREIGN KEY (email_connection_id) REFERENCES public.storage_connections(connection_id) ON DELETE SET NULL;
-
-
---
--- Name: alert_policies alert_policies_project_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.alert_policies
-    ADD CONSTRAINT alert_policies_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id) ON DELETE CASCADE;
-
-
---
--- Name: alert_policy_recipients alert_policy_recipients_policy_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.alert_policy_recipients
-    ADD CONSTRAINT alert_policy_recipients_policy_id_fkey FOREIGN KEY (policy_id) REFERENCES public.alert_policies(id) ON DELETE CASCADE;
-
-
---
--- Name: alert_policy_recipients alert_policy_recipients_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.alert_policy_recipients
-    ADD CONSTRAINT alert_policy_recipients_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
-
-
---
--- Name: alert_runs alert_runs_email_connection_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.alert_runs
-    ADD CONSTRAINT alert_runs_email_connection_id_fkey FOREIGN KEY (email_connection_id) REFERENCES public.storage_connections(connection_id) ON DELETE SET NULL;
-
-
---
--- Name: alert_runs alert_runs_policy_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.alert_runs
-    ADD CONSTRAINT alert_runs_policy_id_fkey FOREIGN KEY (policy_id) REFERENCES public.alert_policies(id) ON DELETE CASCADE;
-
-
---
--- Name: allowed_email_domains allowed_email_domains_created_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.allowed_email_domains
-    ADD CONSTRAINT allowed_email_domains_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(id);
-
-
---
--- Name: api_tokens api_tokens_created_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.api_tokens
-    ADD CONSTRAINT api_tokens_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(id);
-
-
---
--- Name: api_tokens api_tokens_project_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.api_tokens
-    ADD CONSTRAINT api_tokens_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id) ON DELETE CASCADE;
-
-
---
--- Name: api_tokens api_tokens_revoked_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.api_tokens
-    ADD CONSTRAINT api_tokens_revoked_by_fkey FOREIGN KEY (revoked_by) REFERENCES public.users(id);
-
-
---
--- Name: api_tokens api_tokens_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.api_tokens
-    ADD CONSTRAINT api_tokens_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
-
-
---
--- Name: archive_extractions archive_extractions_file_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.archive_extractions
-    ADD CONSTRAINT archive_extractions_file_id_fkey FOREIGN KEY (file_id) REFERENCES public.files(file_id) ON DELETE CASCADE;
-
-
---
--- Name: archive_members archive_members_extracted_file_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.archive_members
-    ADD CONSTRAINT archive_members_extracted_file_id_fkey FOREIGN KEY (extracted_file_id) REFERENCES public.files(file_id) ON DELETE SET NULL;
-
-
---
--- Name: archive_members archive_members_parent_file_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.archive_members
-    ADD CONSTRAINT archive_members_parent_file_id_fkey FOREIGN KEY (parent_file_id) REFERENCES public.files(file_id) ON DELETE CASCADE;
-
-
---
--- Name: archived_files archived_files_archived_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.archived_files
-    ADD CONSTRAINT archived_files_archived_by_fkey FOREIGN KEY (archived_by) REFERENCES public.users(id);
-
-
---
--- Name: archived_files archived_files_deleted_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.archived_files
-    ADD CONSTRAINT archived_files_deleted_by_fkey FOREIGN KEY (deleted_by) REFERENCES public.users(id);
-
-
---
--- Name: archived_files archived_files_policy_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.archived_files
-    ADD CONSTRAINT archived_files_policy_id_fkey FOREIGN KEY (policy_id) REFERENCES public.retention_policies(id);
-
-
---
--- Name: archived_files archived_files_restored_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.archived_files
-    ADD CONSTRAINT archived_files_restored_by_fkey FOREIGN KEY (restored_by) REFERENCES public.users(id);
-
-
---
--- Name: audit_log audit_log_parent_audit_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.audit_log
-    ADD CONSTRAINT audit_log_parent_audit_id_fkey FOREIGN KEY (parent_audit_id) REFERENCES public.audit_log(audit_id);
-
-
---
--- Name: bulk_profiling_files bulk_profiling_files_job_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.bulk_profiling_files
-    ADD CONSTRAINT bulk_profiling_files_job_id_fkey FOREIGN KEY (job_id) REFERENCES public.bulk_profiling_jobs(id) ON DELETE CASCADE;
-
-
---
--- Name: bulk_profiling_jobs bulk_profiling_jobs_sub_project_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.bulk_profiling_jobs
-    ADD CONSTRAINT bulk_profiling_jobs_sub_project_id_fkey FOREIGN KEY (sub_project_id) REFERENCES public.projects(id);
-
-
---
--- Name: business_processes business_processes_group_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.business_processes
-    ADD CONSTRAINT business_processes_group_id_fkey FOREIGN KEY (group_id) REFERENCES public.groups(id) ON DELETE SET NULL;
-
-
---
--- Name: column_mappings column_mappings_source_file_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.column_mappings
-    ADD CONSTRAINT column_mappings_source_file_id_fkey FOREIGN KEY (source_file_id) REFERENCES public.files(file_id) ON DELETE CASCADE;
-
-
---
--- Name: dlq_jobs dlq_jobs_file_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.dlq_jobs
-    ADD CONSTRAINT dlq_jobs_file_id_fkey FOREIGN KEY (file_id) REFERENCES public.files(file_id) ON DELETE CASCADE;
-
-
---
--- Name: dlq_jobs dlq_jobs_project_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.dlq_jobs
-    ADD CONSTRAINT dlq_jobs_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id) ON DELETE CASCADE;
-
-
---
--- Name: dlq_jobs dlq_jobs_resolved_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.dlq_jobs
-    ADD CONSTRAINT dlq_jobs_resolved_by_fkey FOREIGN KEY (resolved_by) REFERENCES public.users(id);
-
-
---
--- Name: dlq_jobs dlq_jobs_vendor_agreement_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.dlq_jobs
-    ADD CONSTRAINT dlq_jobs_vendor_agreement_id_fkey FOREIGN KEY (vendor_agreement_id) REFERENCES public.vendor_agreements(id) ON DELETE SET NULL;
-
-
---
--- Name: drop_location_config drop_location_config_created_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.drop_location_config
-    ADD CONSTRAINT drop_location_config_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(id);
-
-
---
--- Name: drop_location_config drop_location_config_updated_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.drop_location_config
-    ADD CONSTRAINT drop_location_config_updated_by_fkey FOREIGN KEY (updated_by) REFERENCES public.users(id);
-
-
---
--- Name: encrypted_passwords encrypted_passwords_created_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.encrypted_passwords
-    ADD CONSTRAINT encrypted_passwords_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(id);
-
-
---
--- Name: file_audit_details file_audit_details_parent_audit_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.file_audit_details
-    ADD CONSTRAINT file_audit_details_parent_audit_id_fkey FOREIGN KEY (parent_audit_id) REFERENCES public.file_audit_details(id);
-
-
---
--- Name: file_audit_details file_audit_details_transformation_job_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.file_audit_details
-    ADD CONSTRAINT file_audit_details_transformation_job_id_fkey FOREIGN KEY (transformation_job_id) REFERENCES public.transformation_jobs(id);
-
-
---
--- Name: file_columns file_columns_file_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.file_columns
-    ADD CONSTRAINT file_columns_file_id_fkey FOREIGN KEY (file_id) REFERENCES public.files(file_id) ON DELETE CASCADE;
-
-
---
--- Name: file_history file_history_file_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.file_history
-    ADD CONSTRAINT file_history_file_id_fkey FOREIGN KEY (file_id) REFERENCES public.files(file_id) ON DELETE CASCADE;
-
-
---
--- Name: file_lineage file_lineage_source_file_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.file_lineage
-    ADD CONSTRAINT file_lineage_source_file_id_fkey FOREIGN KEY (source_file_id) REFERENCES public.files(file_id) ON DELETE CASCADE;
-
-
---
--- Name: file_lineage file_lineage_target_file_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.file_lineage
-    ADD CONSTRAINT file_lineage_target_file_id_fkey FOREIGN KEY (target_file_id) REFERENCES public.files(file_id) ON DELETE CASCADE;
-
-
---
--- Name: file_processing_artifacts file_processing_artifacts_created_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.file_processing_artifacts
-    ADD CONSTRAINT file_processing_artifacts_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(id);
-
-
---
--- Name: file_processing_artifacts file_processing_artifacts_file_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.file_processing_artifacts
-    ADD CONSTRAINT file_processing_artifacts_file_id_fkey FOREIGN KEY (file_id) REFERENCES public.files(file_id) ON DELETE CASCADE;
-
-
---
--- Name: file_restorations file_restorations_archived_file_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.file_restorations
-    ADD CONSTRAINT file_restorations_archived_file_id_fkey FOREIGN KEY (archived_file_id) REFERENCES public.archived_files(id);
-
-
---
--- Name: file_restorations file_restorations_requested_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.file_restorations
-    ADD CONSTRAINT file_restorations_requested_by_fkey FOREIGN KEY (requested_by) REFERENCES public.users(id);
-
-
---
--- Name: file_schedules file_schedules_sub_project_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.file_schedules
-    ADD CONSTRAINT file_schedules_sub_project_id_fkey FOREIGN KEY (sub_project_id) REFERENCES public.projects(id) ON DELETE SET NULL;
-
-
---
--- Name: file_schemas file_schemas_logical_file_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.file_schemas
-    ADD CONSTRAINT file_schemas_logical_file_id_fkey FOREIGN KEY (logical_file_id) REFERENCES public.logical_file_groups(logical_file_id) ON DELETE SET NULL;
-
-
---
--- Name: files files_logical_file_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.files
-    ADD CONSTRAINT files_logical_file_id_fkey FOREIGN KEY (logical_file_id) REFERENCES public.logical_file_groups(logical_file_id) ON DELETE SET NULL;
-
-
---
--- Name: files files_parent_archive_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.files
-    ADD CONSTRAINT files_parent_archive_id_fkey FOREIGN KEY (parent_archive_id) REFERENCES public.files(file_id) ON DELETE CASCADE;
-
-
---
--- Name: files files_sub_project_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.files
-    ADD CONSTRAINT files_sub_project_id_fkey FOREIGN KEY (sub_project_id) REFERENCES public.projects(id) ON DELETE SET NULL;
-
-
---
--- Name: files files_vendor_agreement_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.files
-    ADD CONSTRAINT files_vendor_agreement_id_fkey FOREIGN KEY (vendor_agreement_id) REFERENCES public.vendor_agreements(id);
-
-
---
--- Name: fixed_width_schemas fixed_width_schemas_created_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.fixed_width_schemas
-    ADD CONSTRAINT fixed_width_schemas_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(id);
-
-
---
--- Name: business_processes fk_business_processes_project; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.business_processes
-    ADD CONSTRAINT fk_business_processes_project FOREIGN KEY (project_id) REFERENCES public.projects(id) ON DELETE CASCADE;
-
-
---
--- Name: column_policy_assignments fk_column_policy_file; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.column_policy_assignments
-    ADD CONSTRAINT fk_column_policy_file FOREIGN KEY (file_id) REFERENCES public.files(file_id) ON DELETE CASCADE;
-
-
---
--- Name: column_policy_assignments fk_column_policy_policy; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.column_policy_assignments
-    ADD CONSTRAINT fk_column_policy_policy FOREIGN KEY (policy_id) REFERENCES public.governance_policies(policy_id) ON DELETE CASCADE;
-
-
---
--- Name: column_governance_tag_assignments fk_column_tag_file; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.column_governance_tag_assignments
-    ADD CONSTRAINT fk_column_tag_file FOREIGN KEY (file_id) REFERENCES public.files(file_id) ON DELETE CASCADE;
-
-
---
--- Name: column_governance_tag_assignments fk_column_tag_tag; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.column_governance_tag_assignments
-    ADD CONSTRAINT fk_column_tag_tag FOREIGN KEY (tag_id) REFERENCES public.governance_tags(tag_id) ON DELETE CASCADE;
-
-
---
--- Name: column_sensitivity_tags fk_column_tags_file; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.column_sensitivity_tags
-    ADD CONSTRAINT fk_column_tags_file FOREIGN KEY (file_id) REFERENCES public.files(file_id) ON DELETE CASCADE;
-
-
---
--- Name: file_schedules fk_file; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.file_schedules
-    ADD CONSTRAINT fk_file FOREIGN KEY (file_id) REFERENCES public.files(file_id) ON DELETE CASCADE;
-
-
---
--- Name: file_ownership fk_file_ownership_file; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.file_ownership
-    ADD CONSTRAINT fk_file_ownership_file FOREIGN KEY (file_id) REFERENCES public.files(file_id) ON DELETE CASCADE;
-
-
---
--- Name: file_ownership fk_file_ownership_user; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.file_ownership
-    ADD CONSTRAINT fk_file_ownership_user FOREIGN KEY (owner_user_id) REFERENCES public.users(id) ON DELETE SET NULL;
-
-
---
--- Name: file_preview_data fk_file_preview_file; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.file_preview_data
-    ADD CONSTRAINT fk_file_preview_file FOREIGN KEY (file_id) REFERENCES public.files(file_id) ON DELETE CASCADE;
-
-
---
--- Name: file_quality_rules fk_file_quality_rules_file; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.file_quality_rules
-    ADD CONSTRAINT fk_file_quality_rules_file FOREIGN KEY (file_id) REFERENCES public.files(file_id) ON DELETE CASCADE;
-
-
---
--- Name: file_quality_rules fk_file_quality_rules_rule; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.file_quality_rules
-    ADD CONSTRAINT fk_file_quality_rules_rule FOREIGN KEY (quality_rule_id) REFERENCES public.quality_rules(id) ON DELETE CASCADE;
-
-
---
--- Name: file_schedules fk_file_schedules_project; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.file_schedules
-    ADD CONSTRAINT fk_file_schedules_project FOREIGN KEY (project_id) REFERENCES public.projects(id) ON DELETE CASCADE;
-
-
---
--- Name: files fk_files_project; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.files
-    ADD CONSTRAINT fk_files_project FOREIGN KEY (project_id) REFERENCES public.projects(id) ON DELETE CASCADE;
-
-
---
--- Name: job_group_schedules fk_job_group_schedules_project; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.job_group_schedules
-    ADD CONSTRAINT fk_job_group_schedules_project FOREIGN KEY (project_id) REFERENCES public.projects(id) ON DELETE CASCADE;
-
-
---
--- Name: job_schedules fk_job_schedules_project; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.job_schedules
-    ADD CONSTRAINT fk_job_schedules_project FOREIGN KEY (project_id) REFERENCES public.projects(id) ON DELETE CASCADE;
-
-
---
--- Name: mapping_group_executions fk_mapping_group_executions_project; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.mapping_group_executions
-    ADD CONSTRAINT fk_mapping_group_executions_project FOREIGN KEY (project_id) REFERENCES public.projects(id) ON DELETE CASCADE;
-
-
---
--- Name: mapping_groups fk_mapping_groups_project; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.mapping_groups
-    ADD CONSTRAINT fk_mapping_groups_project FOREIGN KEY (project_id) REFERENCES public.projects(id) ON DELETE CASCADE;
-
-
---
--- Name: n_step_workflows fk_n_step_workflows_project; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.n_step_workflows
-    ADD CONSTRAINT fk_n_step_workflows_project FOREIGN KEY (project_id) REFERENCES public.projects(id) ON DELETE CASCADE;
-
-
---
--- Name: file_policy_assignments fk_policy_assignment_file; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.file_policy_assignments
-    ADD CONSTRAINT fk_policy_assignment_file FOREIGN KEY (file_id) REFERENCES public.files(file_id) ON DELETE CASCADE;
-
-
---
--- Name: file_policy_assignments fk_policy_assignment_policy; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.file_policy_assignments
-    ADD CONSTRAINT fk_policy_assignment_policy FOREIGN KEY (policy_id) REFERENCES public.governance_policies(policy_id) ON DELETE CASCADE;
-
-
---
--- Name: file_policy_assignments fk_policy_assignment_user; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.file_policy_assignments
-    ADD CONSTRAINT fk_policy_assignment_user FOREIGN KEY (assigned_by) REFERENCES public.users(id) ON DELETE SET NULL;
-
-
---
--- Name: governance_policies fk_policy_creator; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.governance_policies
-    ADD CONSTRAINT fk_policy_creator FOREIGN KEY (created_by) REFERENCES public.users(id) ON DELETE SET NULL;
-
-
---
--- Name: schedules fk_schedules_project; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.schedules
-    ADD CONSTRAINT fk_schedules_project FOREIGN KEY (project_id) REFERENCES public.projects(id) ON DELETE CASCADE;
-
-
---
--- Name: storage_connections fk_storage_connections_project; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.storage_connections
-    ADD CONSTRAINT fk_storage_connections_project FOREIGN KEY (project_id) REFERENCES public.projects(id);
-
-
---
--- Name: file_tag_assignments fk_tag_assignment_file; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.file_tag_assignments
-    ADD CONSTRAINT fk_tag_assignment_file FOREIGN KEY (file_id) REFERENCES public.files(file_id) ON DELETE CASCADE;
-
-
---
--- Name: file_tag_assignments fk_tag_assignment_tag; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.file_tag_assignments
-    ADD CONSTRAINT fk_tag_assignment_tag FOREIGN KEY (tag_id) REFERENCES public.governance_tags(tag_id) ON DELETE CASCADE;
-
-
---
--- Name: file_tag_assignments fk_tag_assignment_user; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.file_tag_assignments
-    ADD CONSTRAINT fk_tag_assignment_user FOREIGN KEY (assigned_by) REFERENCES public.users(id) ON DELETE SET NULL;
-
-
---
--- Name: governance_tags fk_tag_creator; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.governance_tags
-    ADD CONSTRAINT fk_tag_creator FOREIGN KEY (created_by) REFERENCES public.users(id) ON DELETE SET NULL;
-
-
---
--- Name: tag_permissions fk_tag_permission_role; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.tag_permissions
-    ADD CONSTRAINT fk_tag_permission_role FOREIGN KEY (role_id) REFERENCES public.roles(id) ON DELETE CASCADE;
-
-
---
--- Name: tag_permissions fk_tag_permission_tag; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.tag_permissions
-    ADD CONSTRAINT fk_tag_permission_tag FOREIGN KEY (tag_id) REFERENCES public.governance_tags(tag_id) ON DELETE CASCADE;
-
-
---
--- Name: transform_connections fk_transform_connections_project; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.transform_connections
-    ADD CONSTRAINT fk_transform_connections_project FOREIGN KEY (project_id) REFERENCES public.projects(id) ON DELETE CASCADE;
-
-
---
--- Name: transformation_jobs fk_transformation_jobs_project; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.transformation_jobs
-    ADD CONSTRAINT fk_transformation_jobs_project FOREIGN KEY (project_id) REFERENCES public.projects(id) ON DELETE CASCADE;
-
-
---
--- Name: transformation_mappings fk_transformation_mappings_project; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.transformation_mappings
-    ADD CONSTRAINT fk_transformation_mappings_project FOREIGN KEY (project_id) REFERENCES public.projects(id) ON DELETE CASCADE;
-
-
---
--- Name: transformation_quality_rules fk_transformation_quality_rules_mapping; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.transformation_quality_rules
-    ADD CONSTRAINT fk_transformation_quality_rules_mapping FOREIGN KEY (mapping_id) REFERENCES public.transformation_mappings(mapping_id) ON DELETE CASCADE;
-
-
---
--- Name: transformation_quality_rules fk_transformation_quality_rules_rule; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.transformation_quality_rules
-    ADD CONSTRAINT fk_transformation_quality_rules_rule FOREIGN KEY (quality_rule_id) REFERENCES public.quality_rules(id) ON DELETE CASCADE;
-
-
---
--- Name: workflow_executions fk_workflow_executions_project; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.workflow_executions
-    ADD CONSTRAINT fk_workflow_executions_project FOREIGN KEY (project_id) REFERENCES public.projects(id) ON DELETE CASCADE;
-
-
---
--- Name: workflow_steps fk_workflow_steps_project; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.workflow_steps
-    ADD CONSTRAINT fk_workflow_steps_project FOREIGN KEY (project_id) REFERENCES public.projects(id) ON DELETE CASCADE;
-
-
---
--- Name: group_policy_attachments group_policy_attachments_attached_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.group_policy_attachments
-    ADD CONSTRAINT group_policy_attachments_attached_by_fkey FOREIGN KEY (attached_by) REFERENCES public.users(id) ON DELETE SET NULL;
-
-
---
--- Name: group_policy_attachments group_policy_attachments_group_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.group_policy_attachments
-    ADD CONSTRAINT group_policy_attachments_group_id_fkey FOREIGN KEY (group_id) REFERENCES public.access_groups(id) ON DELETE CASCADE;
-
-
---
--- Name: group_policy_attachments group_policy_attachments_policy_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.group_policy_attachments
-    ADD CONSTRAINT group_policy_attachments_policy_id_fkey FOREIGN KEY (policy_id) REFERENCES public.rbac_policies(id) ON DELETE CASCADE;
-
-
---
--- Name: idempotency_keys idempotency_keys_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.idempotency_keys
-    ADD CONSTRAINT idempotency_keys_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
-
-
---
--- Name: job_dependencies job_dependencies_depends_on_job_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.job_dependencies
-    ADD CONSTRAINT job_dependencies_depends_on_job_id_fkey FOREIGN KEY (depends_on_job_id) REFERENCES public.file_schedules(id) ON DELETE CASCADE;
-
-
---
--- Name: job_dependencies job_dependencies_job_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.job_dependencies
-    ADD CONSTRAINT job_dependencies_job_id_fkey FOREIGN KEY (job_id) REFERENCES public.file_schedules(id) ON DELETE CASCADE;
-
-
---
--- Name: job_group_dependencies job_group_dependencies_depends_on_group_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.job_group_dependencies
-    ADD CONSTRAINT job_group_dependencies_depends_on_group_id_fkey FOREIGN KEY (depends_on_group_id) REFERENCES public.job_groups(id) ON DELETE CASCADE;
-
-
---
--- Name: job_group_dependencies job_group_dependencies_group_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.job_group_dependencies
-    ADD CONSTRAINT job_group_dependencies_group_id_fkey FOREIGN KEY (group_id) REFERENCES public.job_groups(id) ON DELETE CASCADE;
-
-
---
--- Name: job_group_schedules job_group_schedules_group_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.job_group_schedules
-    ADD CONSTRAINT job_group_schedules_group_id_fkey FOREIGN KEY (group_id) REFERENCES public.job_groups(id) ON DELETE CASCADE;
-
-
---
--- Name: job_history job_history_job_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.job_history
-    ADD CONSTRAINT job_history_job_id_fkey FOREIGN KEY (job_id) REFERENCES public.jobs(id) ON DELETE CASCADE;
-
-
---
--- Name: job_runs job_runs_job_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.job_runs
-    ADD CONSTRAINT job_runs_job_id_fkey FOREIGN KEY (job_id) REFERENCES public.jobs(id) ON DELETE CASCADE;
-
-
---
--- Name: jobs jobs_created_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.jobs
-    ADD CONSTRAINT jobs_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(id);
-
-
---
--- Name: lineage_views lineage_views_project_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.lineage_views
-    ADD CONSTRAINT lineage_views_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id) ON DELETE SET NULL;
-
-
---
--- Name: lineage_views lineage_views_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.lineage_views
-    ADD CONSTRAINT lineage_views_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
-
-
---
--- Name: logical_file_groups logical_file_groups_project_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.logical_file_groups
-    ADD CONSTRAINT logical_file_groups_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id) ON DELETE CASCADE;
-
-
---
--- Name: mapping_group_executions mapping_group_executions_group_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.mapping_group_executions
-    ADD CONSTRAINT mapping_group_executions_group_id_fkey FOREIGN KEY (group_id) REFERENCES public.mapping_groups(id) ON DELETE CASCADE;
-
-
---
--- Name: mapping_group_members mapping_group_members_group_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.mapping_group_members
-    ADD CONSTRAINT mapping_group_members_group_id_fkey FOREIGN KEY (group_id) REFERENCES public.mapping_groups(id) ON DELETE CASCADE;
-
-
---
--- Name: mapping_group_members mapping_group_members_mapping_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.mapping_group_members
-    ADD CONSTRAINT mapping_group_members_mapping_id_fkey FOREIGN KEY (mapping_id) REFERENCES public.transformation_mappings(mapping_id) ON DELETE CASCADE;
-
-
---
--- Name: mapping_groups mapping_groups_sub_project_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.mapping_groups
-    ADD CONSTRAINT mapping_groups_sub_project_id_fkey FOREIGN KEY (sub_project_id) REFERENCES public.projects(id) ON DELETE SET NULL;
-
-
---
--- Name: n_step_workflow_assets n_step_workflow_assets_step_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.n_step_workflow_assets
-    ADD CONSTRAINT n_step_workflow_assets_step_id_fkey FOREIGN KEY (step_id) REFERENCES public.n_step_workflow_steps(id) ON DELETE CASCADE;
-
-
---
--- Name: n_step_workflow_run_steps n_step_workflow_run_steps_run_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.n_step_workflow_run_steps
-    ADD CONSTRAINT n_step_workflow_run_steps_run_id_fkey FOREIGN KEY (run_id) REFERENCES public.n_step_workflow_runs(id) ON DELETE CASCADE;
-
-
---
--- Name: n_step_workflow_runs n_step_workflow_runs_triggered_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.n_step_workflow_runs
-    ADD CONSTRAINT n_step_workflow_runs_triggered_by_fkey FOREIGN KEY (triggered_by) REFERENCES public.users(id);
-
-
---
--- Name: n_step_workflow_runs n_step_workflow_runs_workflow_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.n_step_workflow_runs
-    ADD CONSTRAINT n_step_workflow_runs_workflow_id_fkey FOREIGN KEY (workflow_id) REFERENCES public.n_step_workflows(id);
-
-
---
--- Name: n_step_workflow_steps n_step_workflow_steps_workflow_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.n_step_workflow_steps
-    ADD CONSTRAINT n_step_workflow_steps_workflow_id_fkey FOREIGN KEY (workflow_id) REFERENCES public.n_step_workflows(id) ON DELETE CASCADE;
-
-
---
--- Name: n_step_workflows n_step_workflows_created_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.n_step_workflows
-    ADD CONSTRAINT n_step_workflows_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(id);
-
-
---
--- Name: n_step_workflows n_step_workflows_sub_project_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.n_step_workflows
-    ADD CONSTRAINT n_step_workflows_sub_project_id_fkey FOREIGN KEY (sub_project_id) REFERENCES public.projects(id) ON DELETE SET NULL;
-
-
---
--- Name: notifications notifications_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.notifications
-    ADD CONSTRAINT notifications_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
-
-
---
--- Name: password_reset_requests password_reset_requests_approved_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.password_reset_requests
-    ADD CONSTRAINT password_reset_requests_approved_by_fkey FOREIGN KEY (approved_by) REFERENCES public.users(id) ON DELETE SET NULL;
-
-
---
--- Name: password_reset_requests password_reset_requests_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.password_reset_requests
-    ADD CONSTRAINT password_reset_requests_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
-
-
---
--- Name: processing_events processing_events_file_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.processing_events
-    ADD CONSTRAINT processing_events_file_id_fkey FOREIGN KEY (file_id) REFERENCES public.files(file_id) ON DELETE CASCADE;
-
-
---
--- Name: project_access_groups project_access_groups_added_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.project_access_groups
-    ADD CONSTRAINT project_access_groups_added_by_fkey FOREIGN KEY (added_by) REFERENCES public.users(id);
-
-
---
--- Name: project_access_groups project_access_groups_group_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.project_access_groups
-    ADD CONSTRAINT project_access_groups_group_id_fkey FOREIGN KEY (group_id) REFERENCES public.access_groups(id) ON DELETE CASCADE;
-
-
---
--- Name: project_access_groups project_access_groups_project_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.project_access_groups
-    ADD CONSTRAINT project_access_groups_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id) ON DELETE CASCADE;
-
-
---
--- Name: project_members project_members_invited_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.project_members
-    ADD CONSTRAINT project_members_invited_by_fkey FOREIGN KEY (invited_by) REFERENCES public.users(id) ON DELETE SET NULL;
-
-
---
--- Name: project_members project_members_project_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.project_members
-    ADD CONSTRAINT project_members_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id) ON DELETE CASCADE;
-
-
---
--- Name: project_members project_members_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.project_members
-    ADD CONSTRAINT project_members_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
-
-
---
--- Name: projects projects_owner_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.projects
-    ADD CONSTRAINT projects_owner_id_fkey FOREIGN KEY (owner_id) REFERENCES public.users(id) ON DELETE SET NULL;
-
-
---
--- Name: projects projects_parent_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.projects
-    ADD CONSTRAINT projects_parent_id_fkey FOREIGN KEY (parent_id) REFERENCES public.projects(id) ON DELETE CASCADE;
-
-
---
--- Name: quality_reports quality_reports_file_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.quality_reports
-    ADD CONSTRAINT quality_reports_file_id_fkey FOREIGN KEY (file_id) REFERENCES public.files(file_id) ON DELETE CASCADE;
-
-
---
--- Name: quality_rule_configurations quality_rule_configurations_created_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.quality_rule_configurations
-    ADD CONSTRAINT quality_rule_configurations_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(id);
-
-
---
--- Name: quality_rule_configurations quality_rule_configurations_rule_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.quality_rule_configurations
-    ADD CONSTRAINT quality_rule_configurations_rule_id_fkey FOREIGN KEY (rule_id) REFERENCES public.quality_rules(id) ON DELETE CASCADE;
-
-
---
--- Name: quality_rule_violations quality_rule_violations_resolved_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.quality_rule_violations
-    ADD CONSTRAINT quality_rule_violations_resolved_by_fkey FOREIGN KEY (resolved_by) REFERENCES public.users(id);
-
-
---
--- Name: quality_rule_violations quality_rule_violations_rule_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.quality_rule_violations
-    ADD CONSTRAINT quality_rule_violations_rule_id_fkey FOREIGN KEY (rule_id) REFERENCES public.quality_rules(id) ON DELETE CASCADE;
-
-
---
--- Name: quality_rules quality_rules_created_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.quality_rules
-    ADD CONSTRAINT quality_rules_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(id);
-
-
---
--- Name: quality_rules quality_rules_sub_project_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.quality_rules
-    ADD CONSTRAINT quality_rules_sub_project_id_fkey FOREIGN KEY (sub_project_id) REFERENCES public.projects(id) ON DELETE CASCADE;
-
-
---
--- Name: rbac_policies rbac_policies_created_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.rbac_policies
-    ADD CONSTRAINT rbac_policies_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(id) ON DELETE SET NULL;
-
-
---
--- Name: rbac_policies rbac_policies_project_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.rbac_policies
-    ADD CONSTRAINT rbac_policies_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id) ON DELETE CASCADE;
-
-
---
--- Name: refresh_tokens refresh_tokens_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.refresh_tokens
-    ADD CONSTRAINT refresh_tokens_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
-
-
---
--- Name: resource_attributes resource_attributes_created_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.resource_attributes
-    ADD CONSTRAINT resource_attributes_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(id) ON DELETE SET NULL;
-
-
---
--- Name: resource_policy_attachments resource_policy_attachments_attached_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.resource_policy_attachments
-    ADD CONSTRAINT resource_policy_attachments_attached_by_fkey FOREIGN KEY (attached_by) REFERENCES public.users(id) ON DELETE SET NULL;
-
-
---
--- Name: resource_policy_attachments resource_policy_attachments_policy_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.resource_policy_attachments
-    ADD CONSTRAINT resource_policy_attachments_policy_id_fkey FOREIGN KEY (policy_id) REFERENCES public.rbac_policies(id) ON DELETE CASCADE;
-
-
---
--- Name: retention_policies retention_policies_created_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.retention_policies
-    ADD CONSTRAINT retention_policies_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(id);
-
-
---
--- Name: retention_policy_runs retention_policy_runs_executed_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.retention_policy_runs
-    ADD CONSTRAINT retention_policy_runs_executed_by_fkey FOREIGN KEY (executed_by) REFERENCES public.users(id);
-
-
---
--- Name: retention_policy_runs retention_policy_runs_policy_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.retention_policy_runs
-    ADD CONSTRAINT retention_policy_runs_policy_id_fkey FOREIGN KEY (policy_id) REFERENCES public.retention_policies(id);
-
-
---
--- Name: role_permissions role_permissions_permission_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.role_permissions
-    ADD CONSTRAINT role_permissions_permission_id_fkey FOREIGN KEY (permission_id) REFERENCES public.permissions(id) ON DELETE CASCADE;
-
-
---
--- Name: role_permissions role_permissions_role_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.role_permissions
-    ADD CONSTRAINT role_permissions_role_id_fkey FOREIGN KEY (role_id) REFERENCES public.roles(id) ON DELETE CASCADE;
-
-
---
--- Name: schedules schedules_sub_project_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.schedules
-    ADD CONSTRAINT schedules_sub_project_id_fkey FOREIGN KEY (sub_project_id) REFERENCES public.projects(id) ON DELETE SET NULL;
-
-
---
--- Name: schema_validation_job_files schema_validation_job_files_job_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.schema_validation_job_files
-    ADD CONSTRAINT schema_validation_job_files_job_id_fkey FOREIGN KEY (job_id) REFERENCES public.schema_validation_jobs(id) ON DELETE CASCADE;
-
-
---
--- Name: schema_validation_jobs schema_validation_jobs_created_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.schema_validation_jobs
-    ADD CONSTRAINT schema_validation_jobs_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(id);
-
-
---
--- Name: schema_validation_jobs schema_validation_jobs_project_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.schema_validation_jobs
-    ADD CONSTRAINT schema_validation_jobs_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id);
-
-
---
--- Name: schema_validation_jobs schema_validation_jobs_vendor_agreement_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.schema_validation_jobs
-    ADD CONSTRAINT schema_validation_jobs_vendor_agreement_id_fkey FOREIGN KEY (vendor_agreement_id) REFERENCES public.vendor_agreements(id);
-
-
---
--- Name: scim_resource_mappings scim_resource_mappings_config_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.scim_resource_mappings
-    ADD CONSTRAINT scim_resource_mappings_config_id_fkey FOREIGN KEY (config_id) REFERENCES public.scim_configurations(id) ON DELETE CASCADE;
-
-
---
--- Name: scim_sync_logs scim_sync_logs_config_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.scim_sync_logs
-    ADD CONSTRAINT scim_sync_logs_config_id_fkey FOREIGN KEY (config_id) REFERENCES public.scim_configurations(id) ON DELETE CASCADE;
-
-
---
--- Name: storage_connections storage_connections_deleted_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.storage_connections
-    ADD CONSTRAINT storage_connections_deleted_by_fkey FOREIGN KEY (deleted_by) REFERENCES public.users(id) ON DELETE SET NULL;
-
-
---
--- Name: sub_project_access_groups sub_project_access_groups_group_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.sub_project_access_groups
-    ADD CONSTRAINT sub_project_access_groups_group_id_fkey FOREIGN KEY (group_id) REFERENCES public.access_groups(id) ON DELETE CASCADE;
-
-
---
--- Name: sub_project_access_groups sub_project_access_groups_sub_project_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.sub_project_access_groups
-    ADD CONSTRAINT sub_project_access_groups_sub_project_id_fkey FOREIGN KEY (sub_project_id) REFERENCES public.projects(id) ON DELETE CASCADE;
-
-
---
--- Name: sub_project_members sub_project_members_sub_project_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.sub_project_members
-    ADD CONSTRAINT sub_project_members_sub_project_id_fkey FOREIGN KEY (sub_project_id) REFERENCES public.projects(id) ON DELETE CASCADE;
-
-
---
--- Name: sub_project_members sub_project_members_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.sub_project_members
-    ADD CONSTRAINT sub_project_members_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
-
-
---
--- Name: transformation_jobs transformation_jobs_mapping_group_execution_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.transformation_jobs
-    ADD CONSTRAINT transformation_jobs_mapping_group_execution_id_fkey FOREIGN KEY (mapping_group_execution_id) REFERENCES public.mapping_group_executions(id);
-
-
---
--- Name: transformation_jobs transformation_jobs_mapping_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.transformation_jobs
-    ADD CONSTRAINT transformation_jobs_mapping_id_fkey FOREIGN KEY (mapping_id) REFERENCES public.transformation_mappings(mapping_id) ON DELETE SET NULL;
-
-
---
--- Name: transformation_jobs transformation_jobs_visual_workflow_execution_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.transformation_jobs
-    ADD CONSTRAINT transformation_jobs_visual_workflow_execution_id_fkey FOREIGN KEY (visual_workflow_execution_id) REFERENCES public.visual_workflow_executions(id);
-
-
---
--- Name: transformation_jobs transformation_jobs_workflow_execution_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.transformation_jobs
-    ADD CONSTRAINT transformation_jobs_workflow_execution_id_fkey FOREIGN KEY (workflow_execution_id) REFERENCES public.n_step_workflow_runs(id) ON DELETE SET NULL;
-
-
---
--- Name: transformation_logs transformation_logs_job_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.transformation_logs
-    ADD CONSTRAINT transformation_logs_job_id_fkey FOREIGN KEY (job_id) REFERENCES public.transformation_jobs(job_id) ON DELETE CASCADE;
-
-
---
--- Name: transformation_mappings transformation_mappings_sub_project_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.transformation_mappings
-    ADD CONSTRAINT transformation_mappings_sub_project_id_fkey FOREIGN KEY (sub_project_id) REFERENCES public.projects(id) ON DELETE SET NULL;
-
-
---
--- Name: transformation_mappings transformation_mappings_vendor_agreement_file_schema_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.transformation_mappings
-    ADD CONSTRAINT transformation_mappings_vendor_agreement_file_schema_id_fkey FOREIGN KEY (vendor_agreement_file_schema_id) REFERENCES public.vendor_agreement_file_schemas(id);
-
-
---
--- Name: transformation_mappings transformation_mappings_vendor_agreement_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.transformation_mappings
-    ADD CONSTRAINT transformation_mappings_vendor_agreement_id_fkey FOREIGN KEY (vendor_agreement_id) REFERENCES public.vendor_agreements(id) ON DELETE SET NULL;
-
-
---
--- Name: transformation_mappings transformation_mappings_visual_mapping_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.transformation_mappings
-    ADD CONSTRAINT transformation_mappings_visual_mapping_id_fkey FOREIGN KEY (visual_mapping_id) REFERENCES public.visual_mapping_defs(id) ON DELETE SET NULL;
-
-
---
--- Name: upload_batches upload_batches_api_token_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.upload_batches
-    ADD CONSTRAINT upload_batches_api_token_id_fkey FOREIGN KEY (api_token_id) REFERENCES public.api_tokens(id);
-
-
---
--- Name: upload_batches upload_batches_project_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.upload_batches
-    ADD CONSTRAINT upload_batches_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id);
-
-
---
--- Name: upload_batches upload_batches_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.upload_batches
-    ADD CONSTRAINT upload_batches_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id);
-
-
---
--- Name: upload_file_records upload_file_records_upload_file_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.upload_file_records
-    ADD CONSTRAINT upload_file_records_upload_file_id_fkey FOREIGN KEY (upload_file_id) REFERENCES public.upload_files(id) ON DELETE CASCADE;
-
-
---
--- Name: upload_files upload_files_batch_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.upload_files
-    ADD CONSTRAINT upload_files_batch_id_fkey FOREIGN KEY (batch_id) REFERENCES public.upload_batches(id) ON DELETE CASCADE;
-
-
---
--- Name: user_attributes user_attributes_created_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.user_attributes
-    ADD CONSTRAINT user_attributes_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(id) ON DELETE SET NULL;
-
-
---
--- Name: user_attributes user_attributes_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.user_attributes
-    ADD CONSTRAINT user_attributes_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
-
-
---
--- Name: user_badges user_badges_file_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.user_badges
-    ADD CONSTRAINT user_badges_file_id_fkey FOREIGN KEY (file_id) REFERENCES public.files(file_id);
-
-
---
--- Name: user_groups user_groups_group_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.user_groups
-    ADD CONSTRAINT user_groups_group_id_fkey FOREIGN KEY (group_id) REFERENCES public.access_groups(id) ON DELETE CASCADE;
-
-
---
--- Name: user_groups user_groups_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.user_groups
-    ADD CONSTRAINT user_groups_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
-
-
---
--- Name: user_policy_attachments user_policy_attachments_attached_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.user_policy_attachments
-    ADD CONSTRAINT user_policy_attachments_attached_by_fkey FOREIGN KEY (attached_by) REFERENCES public.users(id) ON DELETE SET NULL;
-
-
---
--- Name: user_policy_attachments user_policy_attachments_policy_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.user_policy_attachments
-    ADD CONSTRAINT user_policy_attachments_policy_id_fkey FOREIGN KEY (policy_id) REFERENCES public.rbac_policies(id) ON DELETE CASCADE;
-
-
---
--- Name: user_policy_attachments user_policy_attachments_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.user_policy_attachments
-    ADD CONSTRAINT user_policy_attachments_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
-
-
---
--- Name: user_roles user_roles_role_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.user_roles
-    ADD CONSTRAINT user_roles_role_id_fkey FOREIGN KEY (role_id) REFERENCES public.roles(id) ON DELETE CASCADE;
-
-
---
--- Name: user_roles user_roles_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.user_roles
-    ADD CONSTRAINT user_roles_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
-
-
---
--- Name: user_sessions user_sessions_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.user_sessions
-    ADD CONSTRAINT user_sessions_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
-
-
---
--- Name: users users_vendor_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.users
-    ADD CONSTRAINT users_vendor_id_fkey FOREIGN KEY (vendor_id) REFERENCES public.vendors(id) ON DELETE SET NULL;
-
-
---
--- Name: vendor_agreement_approvals vendor_agreement_approvals_agreement_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.vendor_agreement_approvals
-    ADD CONSTRAINT vendor_agreement_approvals_agreement_id_fkey FOREIGN KEY (agreement_id) REFERENCES public.vendor_agreements(id) ON DELETE CASCADE;
-
-
---
--- Name: vendor_agreement_approvals vendor_agreement_approvals_approver_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.vendor_agreement_approvals
-    ADD CONSTRAINT vendor_agreement_approvals_approver_user_id_fkey FOREIGN KEY (approver_user_id) REFERENCES public.users(id) ON DELETE CASCADE;
-
-
---
--- Name: vendor_agreement_changes vendor_agreement_changes_agreement_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.vendor_agreement_changes
-    ADD CONSTRAINT vendor_agreement_changes_agreement_id_fkey FOREIGN KEY (agreement_id) REFERENCES public.vendor_agreements(id) ON DELETE CASCADE;
-
-
---
--- Name: vendor_agreement_changes vendor_agreement_changes_changed_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.vendor_agreement_changes
-    ADD CONSTRAINT vendor_agreement_changes_changed_by_fkey FOREIGN KEY (changed_by) REFERENCES public.users(id) ON DELETE CASCADE;
-
-
---
--- Name: vendor_agreement_documents vendor_agreement_documents_agreement_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.vendor_agreement_documents
-    ADD CONSTRAINT vendor_agreement_documents_agreement_id_fkey FOREIGN KEY (agreement_id) REFERENCES public.vendor_agreements(id) ON DELETE CASCADE;
-
-
---
--- Name: vendor_agreement_documents vendor_agreement_documents_approval_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.vendor_agreement_documents
-    ADD CONSTRAINT vendor_agreement_documents_approval_id_fkey FOREIGN KEY (approval_id) REFERENCES public.vendor_agreement_approvals(id) ON DELETE SET NULL;
-
-
---
--- Name: vendor_agreement_documents vendor_agreement_documents_uploaded_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.vendor_agreement_documents
-    ADD CONSTRAINT vendor_agreement_documents_uploaded_by_fkey FOREIGN KEY (uploaded_by) REFERENCES public.users(id) ON DELETE CASCADE;
-
-
---
--- Name: vendor_agreement_file_schemas vendor_agreement_file_schemas_created_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.vendor_agreement_file_schemas
-    ADD CONSTRAINT vendor_agreement_file_schemas_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(id) ON DELETE SET NULL;
-
-
---
--- Name: vendor_agreement_file_schemas vendor_agreement_file_schemas_updated_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.vendor_agreement_file_schemas
-    ADD CONSTRAINT vendor_agreement_file_schemas_updated_by_fkey FOREIGN KEY (updated_by) REFERENCES public.users(id) ON DELETE SET NULL;
-
-
---
--- Name: vendor_agreement_file_schemas vendor_agreement_file_schemas_vendor_agreement_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.vendor_agreement_file_schemas
-    ADD CONSTRAINT vendor_agreement_file_schemas_vendor_agreement_id_fkey FOREIGN KEY (vendor_agreement_id) REFERENCES public.vendor_agreements(id) ON DELETE CASCADE;
-
-
---
--- Name: vendor_agreements vendor_agreements_created_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.vendor_agreements
-    ADD CONSTRAINT vendor_agreements_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(id) ON DELETE SET NULL;
-
-
---
--- Name: vendor_agreements vendor_agreements_file_owner_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.vendor_agreements
-    ADD CONSTRAINT vendor_agreements_file_owner_user_id_fkey FOREIGN KEY (file_owner_user_id) REFERENCES public.users(id) ON DELETE SET NULL;
-
-
---
--- Name: vendor_agreements vendor_agreements_governance_approved_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.vendor_agreements
-    ADD CONSTRAINT vendor_agreements_governance_approved_by_fkey FOREIGN KEY (governance_approved_by) REFERENCES public.users(id) ON DELETE SET NULL;
-
-
---
--- Name: vendor_agreements vendor_agreements_governance_manager_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.vendor_agreements
-    ADD CONSTRAINT vendor_agreements_governance_manager_user_id_fkey FOREIGN KEY (governance_manager_user_id) REFERENCES public.users(id) ON DELETE SET NULL;
-
-
---
--- Name: vendor_agreements vendor_agreements_owner_approved_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.vendor_agreements
-    ADD CONSTRAINT vendor_agreements_owner_approved_by_fkey FOREIGN KEY (owner_approved_by) REFERENCES public.users(id) ON DELETE SET NULL;
-
-
---
--- Name: vendor_agreements vendor_agreements_project_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.vendor_agreements
-    ADD CONSTRAINT vendor_agreements_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id) ON DELETE SET NULL;
-
-
---
--- Name: vendor_agreements vendor_agreements_sub_project_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.vendor_agreements
-    ADD CONSTRAINT vendor_agreements_sub_project_id_fkey FOREIGN KEY (sub_project_id) REFERENCES public.projects(id) ON DELETE SET NULL;
-
-
---
--- Name: vendor_agreements vendor_agreements_updated_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.vendor_agreements
-    ADD CONSTRAINT vendor_agreements_updated_by_fkey FOREIGN KEY (updated_by) REFERENCES public.users(id) ON DELETE SET NULL;
-
-
---
--- Name: vendor_agreements vendor_agreements_vendor_approved_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.vendor_agreements
-    ADD CONSTRAINT vendor_agreements_vendor_approved_by_fkey FOREIGN KEY (vendor_approved_by) REFERENCES public.users(id) ON DELETE SET NULL;
-
-
---
--- Name: vendor_agreements vendor_agreements_vendor_connection_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.vendor_agreements
-    ADD CONSTRAINT vendor_agreements_vendor_connection_id_fkey FOREIGN KEY (vendor_connection_id) REFERENCES public.storage_connections(connection_id) ON DELETE SET NULL;
-
-
---
--- Name: vendor_agreements vendor_agreements_vendor_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.vendor_agreements
-    ADD CONSTRAINT vendor_agreements_vendor_id_fkey FOREIGN KEY (vendor_id) REFERENCES public.vendors(id) ON DELETE CASCADE;
-
-
---
--- Name: vendor_file_profiling_results vendor_file_profiling_results_connection_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.vendor_file_profiling_results
-    ADD CONSTRAINT vendor_file_profiling_results_connection_id_fkey FOREIGN KEY (connection_id) REFERENCES public.storage_connections(connection_id);
-
-
---
--- Name: vendor_file_profiling_results vendor_file_profiling_results_file_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.vendor_file_profiling_results
-    ADD CONSTRAINT vendor_file_profiling_results_file_id_fkey FOREIGN KEY (file_id) REFERENCES public.files(file_id) ON DELETE CASCADE;
-
-
---
--- Name: vendor_file_profiling_results vendor_file_profiling_results_uploaded_by_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.vendor_file_profiling_results
-    ADD CONSTRAINT vendor_file_profiling_results_uploaded_by_user_id_fkey FOREIGN KEY (uploaded_by_user_id) REFERENCES public.users(id);
-
-
---
--- Name: vendor_file_profiling_results vendor_file_profiling_results_vendor_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.vendor_file_profiling_results
-    ADD CONSTRAINT vendor_file_profiling_results_vendor_id_fkey FOREIGN KEY (vendor_id) REFERENCES public.vendors(id);
-
-
---
--- Name: vendor_sla_violations vendor_sla_violations_agreement_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.vendor_sla_violations
-    ADD CONSTRAINT vendor_sla_violations_agreement_id_fkey FOREIGN KEY (agreement_id) REFERENCES public.vendor_agreements(id) ON DELETE CASCADE;
-
-
---
--- Name: vendor_users vendor_users_created_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.vendor_users
-    ADD CONSTRAINT vendor_users_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(id);
-
-
---
--- Name: vendor_users vendor_users_updated_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.vendor_users
-    ADD CONSTRAINT vendor_users_updated_by_fkey FOREIGN KEY (updated_by) REFERENCES public.users(id);
-
-
---
--- Name: vendor_users vendor_users_vendor_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.vendor_users
-    ADD CONSTRAINT vendor_users_vendor_id_fkey FOREIGN KEY (vendor_id) REFERENCES public.vendors(id) ON DELETE CASCADE;
-
-
---
--- Name: vendors vendors_created_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.vendors
-    ADD CONSTRAINT vendors_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(id) ON DELETE SET NULL;
-
-
---
--- Name: vendors vendors_project_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.vendors
-    ADD CONSTRAINT vendors_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id) ON DELETE SET NULL;
-
-
---
--- Name: vendors vendors_updated_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.vendors
-    ADD CONSTRAINT vendors_updated_by_fkey FOREIGN KEY (updated_by) REFERENCES public.users(id) ON DELETE SET NULL;
-
-
---
--- Name: vendors vendors_vendor_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.vendors
-    ADD CONSTRAINT vendors_vendor_user_id_fkey FOREIGN KEY (vendor_user_id) REFERENCES public.users(id) ON DELETE SET NULL;
-
-
---
--- Name: visual_lineage_graphs visual_lineage_graphs_created_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.visual_lineage_graphs
-    ADD CONSTRAINT visual_lineage_graphs_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(id);
-
-
---
--- Name: visual_lineage_graphs visual_lineage_graphs_project_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.visual_lineage_graphs
-    ADD CONSTRAINT visual_lineage_graphs_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id);
-
-
---
--- Name: visual_mapping_defs visual_mapping_defs_created_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.visual_mapping_defs
-    ADD CONSTRAINT visual_mapping_defs_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(id);
-
-
---
--- Name: visual_mapping_defs visual_mapping_defs_project_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.visual_mapping_defs
-    ADD CONSTRAINT visual_mapping_defs_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id) ON DELETE CASCADE;
-
-
---
--- Name: visual_mapping_edges visual_mapping_edges_mapping_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.visual_mapping_edges
-    ADD CONSTRAINT visual_mapping_edges_mapping_id_fkey FOREIGN KEY (mapping_id) REFERENCES public.visual_mapping_defs(id) ON DELETE CASCADE;
-
-
---
--- Name: visual_mapping_execution_logs visual_mapping_execution_logs_mapping_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.visual_mapping_execution_logs
-    ADD CONSTRAINT visual_mapping_execution_logs_mapping_id_fkey FOREIGN KEY (mapping_id) REFERENCES public.visual_mapping_defs(id) ON DELETE CASCADE;
-
-
---
--- Name: visual_mapping_executions visual_mapping_executions_mapping_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.visual_mapping_executions
-    ADD CONSTRAINT visual_mapping_executions_mapping_id_fkey FOREIGN KEY (mapping_id) REFERENCES public.visual_mapping_defs(id) ON DELETE CASCADE;
-
-
---
--- Name: visual_mapping_executions visual_mapping_executions_transformation_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.visual_mapping_executions
-    ADD CONSTRAINT visual_mapping_executions_transformation_id_fkey FOREIGN KEY (transformation_id) REFERENCES public.transformation_mappings(id) ON DELETE SET NULL;
-
-
---
--- Name: visual_mapping_executions visual_mapping_executions_triggered_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.visual_mapping_executions
-    ADD CONSTRAINT visual_mapping_executions_triggered_by_fkey FOREIGN KEY (triggered_by) REFERENCES public.users(id);
-
-
---
--- Name: visual_mapping_nodes visual_mapping_nodes_mapping_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.visual_mapping_nodes
-    ADD CONSTRAINT visual_mapping_nodes_mapping_id_fkey FOREIGN KEY (mapping_id) REFERENCES public.visual_mapping_defs(id) ON DELETE CASCADE;
-
-
---
--- Name: visual_workflow_execution_logs visual_workflow_execution_logs_workflow_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.visual_workflow_execution_logs
-    ADD CONSTRAINT visual_workflow_execution_logs_workflow_id_fkey FOREIGN KEY (workflow_id) REFERENCES public.visual_workflows(id) ON DELETE CASCADE;
-
-
---
--- Name: visual_workflow_executions visual_workflow_executions_project_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.visual_workflow_executions
-    ADD CONSTRAINT visual_workflow_executions_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id);
-
-
---
--- Name: visual_workflow_executions visual_workflow_executions_triggered_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.visual_workflow_executions
-    ADD CONSTRAINT visual_workflow_executions_triggered_by_fkey FOREIGN KEY (triggered_by) REFERENCES public.users(id);
-
-
---
--- Name: visual_workflow_executions visual_workflow_executions_workflow_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.visual_workflow_executions
-    ADD CONSTRAINT visual_workflow_executions_workflow_id_fkey FOREIGN KEY (workflow_id) REFERENCES public.visual_workflows(id);
-
-
---
--- Name: visual_workflows visual_workflows_created_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.visual_workflows
-    ADD CONSTRAINT visual_workflows_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(id);
-
-
---
--- Name: visual_workflows visual_workflows_project_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.visual_workflows
-    ADD CONSTRAINT visual_workflows_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id) ON DELETE SET NULL;
-
-
---
--- Name: visual_workflows visual_workflows_sub_project_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.visual_workflows
-    ADD CONSTRAINT visual_workflows_sub_project_id_fkey FOREIGN KEY (sub_project_id) REFERENCES public.projects(id) ON DELETE SET NULL;
-
-
---
--- Name: workflow_executions workflow_executions_current_step_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.workflow_executions
-    ADD CONSTRAINT workflow_executions_current_step_id_fkey FOREIGN KEY (current_step_id) REFERENCES public.workflow_steps(id);
-
-
---
--- Name: workflow_executions workflow_executions_workflow_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.workflow_executions
-    ADD CONSTRAINT workflow_executions_workflow_id_fkey FOREIGN KEY (workflow_id) REFERENCES public.business_processes(id) ON DELETE CASCADE;
-
-
---
--- Name: workflow_steps workflow_steps_depends_on_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.workflow_steps
-    ADD CONSTRAINT workflow_steps_depends_on_fkey FOREIGN KEY (depends_on) REFERENCES public.workflow_steps(id) ON DELETE SET NULL;
-
-
---
--- Name: workflow_steps workflow_steps_workflow_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.workflow_steps
-    ADD CONSTRAINT workflow_steps_workflow_id_fkey FOREIGN KEY (workflow_id) REFERENCES public.business_processes(id) ON DELETE CASCADE;
-
-
---
--- PostgreSQL database dump complete
---
-
-\unrestrict Bi9Yzvg2yDbsnm5YE3GW5bWerrItEHTgjpWKm4Pu9fFVpjksLb29dXTN0U52Hff
-
+-- INDEX: idx_vendor_agreement_approvals_agreement_id
+CREATE INDEX idx_vendor_agreement_approvals_agreement_id ON public.vendor_agreement_approvals USING btree (agreement_id);
+-- INDEX: idx_vendor_agreement_approvals_approver
+CREATE INDEX idx_vendor_agreement_approvals_approver ON public.vendor_agreement_approvals USING btree (approver_user_id);
+-- INDEX: vendor_agreement_approvals_pkey
+CREATE UNIQUE INDEX vendor_agreement_approvals_pkey ON public.vendor_agreement_approvals USING btree (id);
+-- INDEX: idx_vendor_agreement_changes_agreement_id
+CREATE INDEX idx_vendor_agreement_changes_agreement_id ON public.vendor_agreement_changes USING btree (agreement_id);
+-- INDEX: idx_vendor_agreement_changes_changed_by
+CREATE INDEX idx_vendor_agreement_changes_changed_by ON public.vendor_agreement_changes USING btree (changed_by);
+-- INDEX: vendor_agreement_changes_pkey
+CREATE UNIQUE INDEX vendor_agreement_changes_pkey ON public.vendor_agreement_changes USING btree (id);
+-- INDEX: idx_vendor_agreement_documents_agreement
+CREATE INDEX idx_vendor_agreement_documents_agreement ON public.vendor_agreement_documents USING btree (agreement_id);
+-- INDEX: idx_vendor_agreement_documents_approval
+CREATE INDEX idx_vendor_agreement_documents_approval ON public.vendor_agreement_documents USING btree (approval_id);
+-- INDEX: vendor_agreement_documents_pkey
+CREATE UNIQUE INDEX vendor_agreement_documents_pkey ON public.vendor_agreement_documents USING btree (id);
+-- INDEX: idx_file_schemas_column_metadata
+CREATE INDEX idx_file_schemas_column_metadata ON public.vendor_agreement_file_schemas USING gin (column_metadata);
+-- INDEX: idx_file_schemas_quality_rules
+CREATE INDEX idx_file_schemas_quality_rules ON public.vendor_agreement_file_schemas USING gin (quality_rule_ids);
+-- INDEX: idx_vendor_agreement_file_schemas_agreement_id
+CREATE INDEX idx_vendor_agreement_file_schemas_agreement_id ON public.vendor_agreement_file_schemas USING btree (vendor_agreement_id);
+-- INDEX: idx_vendor_agreement_file_schemas_priority
+CREATE INDEX idx_vendor_agreement_file_schemas_priority ON public.vendor_agreement_file_schemas USING btree (vendor_agreement_id, priority, is_active);
+-- INDEX: vendor_agreement_file_schemas_pkey
+CREATE UNIQUE INDEX vendor_agreement_file_schemas_pkey ON public.vendor_agreement_file_schemas USING btree (id);
+-- INDEX: idx_vendor_agreements_agreement_code
+CREATE INDEX idx_vendor_agreements_agreement_code ON public.vendor_agreements USING btree (agreement_code);
+-- INDEX: idx_vendor_agreements_approval_status
+CREATE INDEX idx_vendor_agreements_approval_status ON public.vendor_agreements USING btree (approval_status);
+-- INDEX: idx_vendor_agreements_connection_id
+CREATE INDEX idx_vendor_agreements_connection_id ON public.vendor_agreements USING btree (vendor_connection_id);
+-- INDEX: idx_vendor_agreements_file_owner
+CREATE INDEX idx_vendor_agreements_file_owner ON public.vendor_agreements USING btree (file_owner_user_id);
+-- INDEX: idx_vendor_agreements_governance_manager
+CREATE INDEX idx_vendor_agreements_governance_manager ON public.vendor_agreements USING btree (governance_manager_user_id);
+-- INDEX: idx_vendor_agreements_project_id
+CREATE INDEX idx_vendor_agreements_project_id ON public.vendor_agreements USING btree (project_id);
+-- INDEX: idx_vendor_agreements_sla_enabled
+CREATE INDEX idx_vendor_agreements_sla_enabled ON public.vendor_agreements USING btree (sla_enabled) WHERE (sla_enabled = true);
+-- INDEX: idx_vendor_agreements_stakeholder_groups
+CREATE INDEX idx_vendor_agreements_stakeholder_groups ON public.vendor_agreements USING gin (additional_stakeholder_group_ids);
+-- INDEX: idx_vendor_agreements_stakeholder_users
+CREATE INDEX idx_vendor_agreements_stakeholder_users ON public.vendor_agreements USING gin (additional_stakeholder_user_ids);
+-- INDEX: idx_vendor_agreements_sub_project_id
+CREATE INDEX idx_vendor_agreements_sub_project_id ON public.vendor_agreements USING btree (sub_project_id);
+-- INDEX: idx_vendor_agreements_vendor_id
+CREATE INDEX idx_vendor_agreements_vendor_id ON public.vendor_agreements USING btree (vendor_id);
+-- INDEX: unique_agreement_code
+CREATE UNIQUE INDEX unique_agreement_code ON public.vendor_agreements USING btree (agreement_code);
+-- INDEX: vendor_agreements_pkey
+CREATE UNIQUE INDEX vendor_agreements_pkey ON public.vendor_agreements USING btree (id);
+-- INDEX: idx_vendor_file_profiling_connection_id
+CREATE INDEX idx_vendor_file_profiling_connection_id ON public.vendor_file_profiling_results USING btree (connection_id);
+-- INDEX: idx_vendor_file_profiling_file_id
+CREATE INDEX idx_vendor_file_profiling_file_id ON public.vendor_file_profiling_results USING btree (file_id);
+-- INDEX: idx_vendor_file_profiling_profiled_at
+CREATE INDEX idx_vendor_file_profiling_profiled_at ON public.vendor_file_profiling_results USING btree (profiled_at DESC);
+-- INDEX: idx_vendor_file_profiling_quality_score
+CREATE INDEX idx_vendor_file_profiling_quality_score ON public.vendor_file_profiling_results USING btree (quality_score);
+-- INDEX: idx_vendor_file_profiling_vendor_id
+CREATE INDEX idx_vendor_file_profiling_vendor_id ON public.vendor_file_profiling_results USING btree (vendor_id);
+-- INDEX: idx_vendor_profiling_created_at
+CREATE INDEX idx_vendor_profiling_created_at ON public.vendor_file_profiling_results USING btree (created_at DESC);
+-- INDEX: idx_vendor_profiling_file_id
+CREATE INDEX idx_vendor_profiling_file_id ON public.vendor_file_profiling_results USING btree (file_id);
+-- INDEX: idx_vendor_profiling_user_id
+CREATE INDEX idx_vendor_profiling_user_id ON public.vendor_file_profiling_results USING btree (uploaded_by_user_id);
+-- INDEX: idx_vendor_profiling_vendor_id
+CREATE INDEX idx_vendor_profiling_vendor_id ON public.vendor_file_profiling_results USING btree (vendor_id);
+-- INDEX: vendor_file_profiling_results_pkey
+CREATE UNIQUE INDEX vendor_file_profiling_results_pkey ON public.vendor_file_profiling_results USING btree (id);
+-- INDEX: idx_vendor_sla_violations_agreement_id
+CREATE INDEX idx_vendor_sla_violations_agreement_id ON public.vendor_sla_violations USING btree (agreement_id);
+-- INDEX: idx_vendor_sla_violations_alert_sent
+CREATE INDEX idx_vendor_sla_violations_alert_sent ON public.vendor_sla_violations USING btree (alert_sent) WHERE (alert_sent = false);
+-- INDEX: idx_vendor_sla_violations_resolved
+CREATE INDEX idx_vendor_sla_violations_resolved ON public.vendor_sla_violations USING btree (resolved) WHERE (resolved = false);
+-- INDEX: vendor_sla_violations_pkey
+CREATE UNIQUE INDEX vendor_sla_violations_pkey ON public.vendor_sla_violations USING btree (id);
+-- INDEX: idx_vendor_users_email
+CREATE INDEX idx_vendor_users_email ON public.vendor_users USING btree (email);
+-- INDEX: idx_vendor_users_is_active
+CREATE INDEX idx_vendor_users_is_active ON public.vendor_users USING btree (is_active);
+-- INDEX: idx_vendor_users_vendor_id
+CREATE INDEX idx_vendor_users_vendor_id ON public.vendor_users USING btree (vendor_id);
+-- INDEX: vendor_users_pkey
+CREATE UNIQUE INDEX vendor_users_pkey ON public.vendor_users USING btree (id);
+-- INDEX: idx_vendors_project_id
+CREATE INDEX idx_vendors_project_id ON public.vendors USING btree (project_id);
+-- INDEX: idx_vendors_status
+CREATE INDEX idx_vendors_status ON public.vendors USING btree (status);
+-- INDEX: idx_vendors_vendor_code
+CREATE INDEX idx_vendors_vendor_code ON public.vendors USING btree (vendor_code);
+-- INDEX: idx_vendors_vendor_user_id
+CREATE INDEX idx_vendors_vendor_user_id ON public.vendors USING btree (vendor_user_id);
+-- INDEX: unique_vendor_code
+CREATE UNIQUE INDEX unique_vendor_code ON public.vendors USING btree (vendor_code);
+-- INDEX: vendors_pkey
+CREATE UNIQUE INDEX vendors_pkey ON public.vendors USING btree (id);
+-- INDEX: idx_visual_lineage_graphs_created_by
+CREATE INDEX idx_visual_lineage_graphs_created_by ON public.visual_lineage_graphs USING btree (created_by);
+-- INDEX: idx_visual_lineage_graphs_is_active
+CREATE INDEX idx_visual_lineage_graphs_is_active ON public.visual_lineage_graphs USING btree (is_active);
+-- INDEX: idx_visual_lineage_graphs_project
+CREATE INDEX idx_visual_lineage_graphs_project ON public.visual_lineage_graphs USING btree (project_id);
+-- INDEX: visual_lineage_graphs_pkey
+CREATE UNIQUE INDEX visual_lineage_graphs_pkey ON public.visual_lineage_graphs USING btree (id);
+-- INDEX: idx_visual_mapping_defs_active
+CREATE INDEX idx_visual_mapping_defs_active ON public.visual_mapping_defs USING btree (is_active);
+-- INDEX: idx_visual_mapping_defs_project
+CREATE INDEX idx_visual_mapping_defs_project ON public.visual_mapping_defs USING btree (project_id);
+-- INDEX: visual_mapping_defs_pkey
+CREATE UNIQUE INDEX visual_mapping_defs_pkey ON public.visual_mapping_defs USING btree (id);
+-- INDEX: idx_visual_mapping_edges_mapping
+CREATE INDEX idx_visual_mapping_edges_mapping ON public.visual_mapping_edges USING btree (mapping_id);
+-- INDEX: visual_mapping_edges_mapping_id_edge_id_key
+CREATE UNIQUE INDEX visual_mapping_edges_mapping_id_edge_id_key ON public.visual_mapping_edges USING btree (mapping_id, edge_id);
+-- INDEX: visual_mapping_edges_pkey
+CREATE UNIQUE INDEX visual_mapping_edges_pkey ON public.visual_mapping_edges USING btree (id);
+-- INDEX: idx_visual_mapping_exec_logs_exec_id
+CREATE INDEX idx_visual_mapping_exec_logs_exec_id ON public.visual_mapping_execution_logs USING btree (execution_id);
+-- INDEX: idx_visual_mapping_exec_logs_mapping
+CREATE INDEX idx_visual_mapping_exec_logs_mapping ON public.visual_mapping_execution_logs USING btree (mapping_id);
+-- INDEX: idx_visual_mapping_exec_logs_started
+CREATE INDEX idx_visual_mapping_exec_logs_started ON public.visual_mapping_execution_logs USING btree (started_at DESC);
+-- INDEX: visual_mapping_execution_logs_pkey
+CREATE UNIQUE INDEX visual_mapping_execution_logs_pkey ON public.visual_mapping_execution_logs USING btree (id);
+-- INDEX: idx_visual_mapping_executions_mapping
+CREATE INDEX idx_visual_mapping_executions_mapping ON public.visual_mapping_executions USING btree (mapping_id);
+-- INDEX: idx_visual_mapping_executions_status
+CREATE INDEX idx_visual_mapping_executions_status ON public.visual_mapping_executions USING btree (status);
+-- INDEX: visual_mapping_executions_execution_id_key
+CREATE UNIQUE INDEX visual_mapping_executions_execution_id_key ON public.visual_mapping_executions USING btree (execution_id);
+-- INDEX: visual_mapping_executions_pkey
+CREATE UNIQUE INDEX visual_mapping_executions_pkey ON public.visual_mapping_executions USING btree (id);
+-- INDEX: idx_visual_mapping_nodes_mapping
+CREATE INDEX idx_visual_mapping_nodes_mapping ON public.visual_mapping_nodes USING btree (mapping_id);
+-- INDEX: visual_mapping_nodes_mapping_id_node_id_key
+CREATE UNIQUE INDEX visual_mapping_nodes_mapping_id_node_id_key ON public.visual_mapping_nodes USING btree (mapping_id, node_id);
+-- INDEX: visual_mapping_nodes_pkey
+CREATE UNIQUE INDEX visual_mapping_nodes_pkey ON public.visual_mapping_nodes USING btree (id);
+-- INDEX: idx_visual_workflow_exec_logs_exec_id
+CREATE INDEX idx_visual_workflow_exec_logs_exec_id ON public.visual_workflow_execution_logs USING btree (execution_id);
+-- INDEX: idx_visual_workflow_execution_logs_started_at
+CREATE INDEX idx_visual_workflow_execution_logs_started_at ON public.visual_workflow_execution_logs USING btree (started_at DESC);
+-- INDEX: idx_visual_workflow_execution_logs_workflow_id
+CREATE INDEX idx_visual_workflow_execution_logs_workflow_id ON public.visual_workflow_execution_logs USING btree (workflow_id);
+-- INDEX: visual_workflow_execution_logs_pkey
+CREATE UNIQUE INDEX visual_workflow_execution_logs_pkey ON public.visual_workflow_execution_logs USING btree (id);
+-- INDEX: idx_visual_workflow_executions_execution_id
+CREATE INDEX idx_visual_workflow_executions_execution_id ON public.visual_workflow_executions USING btree (execution_id);
+-- INDEX: idx_visual_workflow_executions_status
+CREATE INDEX idx_visual_workflow_executions_status ON public.visual_workflow_executions USING btree (status);
+-- INDEX: idx_visual_workflow_executions_triggered_by
+CREATE INDEX idx_visual_workflow_executions_triggered_by ON public.visual_workflow_executions USING btree (triggered_by);
+-- INDEX: idx_visual_workflow_executions_workflow_id
+CREATE INDEX idx_visual_workflow_executions_workflow_id ON public.visual_workflow_executions USING btree (workflow_id);
+-- INDEX: visual_workflow_executions_execution_id_key
+CREATE UNIQUE INDEX visual_workflow_executions_execution_id_key ON public.visual_workflow_executions USING btree (execution_id);
+-- INDEX: visual_workflow_executions_pkey
+CREATE UNIQUE INDEX visual_workflow_executions_pkey ON public.visual_workflow_executions USING btree (id);
+-- INDEX: idx_visual_workflows_created_by
+CREATE INDEX idx_visual_workflows_created_by ON public.visual_workflows USING btree (created_by);
+-- INDEX: idx_visual_workflows_is_active
+CREATE INDEX idx_visual_workflows_is_active ON public.visual_workflows USING btree (is_active);
+-- INDEX: idx_visual_workflows_project_id
+CREATE INDEX idx_visual_workflows_project_id ON public.visual_workflows USING btree (project_id);
+-- INDEX: idx_visual_workflows_sub_project_id
+CREATE INDEX idx_visual_workflows_sub_project_id ON public.visual_workflows USING btree (sub_project_id);
+-- INDEX: visual_workflows_pkey
+CREATE UNIQUE INDEX visual_workflows_pkey ON public.visual_workflows USING btree (id);
+-- INDEX: idx_workflow_executions_project_id
+CREATE INDEX idx_workflow_executions_project_id ON public.workflow_executions USING btree (project_id);
+-- INDEX: idx_workflow_executions_workflow_id
+CREATE INDEX idx_workflow_executions_workflow_id ON public.workflow_executions USING btree (workflow_id);
+-- INDEX: workflow_executions_pkey
+CREATE UNIQUE INDEX workflow_executions_pkey ON public.workflow_executions USING btree (id);
+-- INDEX: idx_workflow_steps_depends_on
+CREATE INDEX idx_workflow_steps_depends_on ON public.workflow_steps USING btree (depends_on);
+-- INDEX: idx_workflow_steps_project_id
+CREATE INDEX idx_workflow_steps_project_id ON public.workflow_steps USING btree (project_id);
+-- INDEX: idx_workflow_steps_workflow_id
+CREATE INDEX idx_workflow_steps_workflow_id ON public.workflow_steps USING btree (workflow_id);
+-- INDEX: workflow_steps_pkey
+CREATE UNIQUE INDEX workflow_steps_pkey ON public.workflow_steps USING btree (id);
