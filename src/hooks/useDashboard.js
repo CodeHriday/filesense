@@ -19,8 +19,9 @@ const fetchExecutiveMetrics = async (days = 30, projectId = null) => {
   return response.data;
 };
 
-const fetchQualityTrend = async (projectId = null) => {
-  const params = projectId ? { project_id: projectId } : {};
+const fetchQualityTrend = async (days = 30, projectId = null) => {
+  const params = { days };
+  if (projectId) params.project_id = projectId;
   const response = await axios.get(`${API_URL}/dashboard/quality-violations-trend`, {
     params,
     headers: getAuthHeader()
@@ -92,10 +93,10 @@ export const useExecutiveMetrics = (days = 30, projectId = null, options = {}) =
   });
 };
 
-export const useQualityTrend = (projectId = null, options = {}) => {
+export const useQualityTrend = (days = 30, projectId = null, options = {}) => {
   return useQuery({
-    queryKey: [...QueryKeys.dashboard.qualityTrend(), projectId],
-    queryFn: () => fetchQualityTrend(projectId),
+    queryKey: [...QueryKeys.dashboard.qualityTrend(), days, projectId],
+    queryFn: () => fetchQualityTrend(days, projectId),
     staleTime: STALE_TIMES.DASHBOARD,
     gcTime: CACHE_TIMES.STANDARD,
     refetchOnMount: false,

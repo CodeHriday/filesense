@@ -2,13 +2,13 @@ const express = require('express');
 const router = express.Router();
 const connectionService = require('../services/ConnectionService');
 const { encrypt, decrypt } = require('../utils/encryption');
-const { pool } = require('../config/database');
+const db = require('../config/database');
 const PasswordVaultService = require('../services/passwordVaultService');
 const AuditService = require('../services/AuditService');
 const { systemLogger } = require('../utils/logger');
 const { userHasAdminAccess } = require('../utils/permissionHelpers');
 
-const passwordVault = new PasswordVaultService(pool, new AuditService(pool), systemLogger);
+const passwordVault = new PasswordVaultService(db, new AuditService(db), systemLogger);
 
 /**
  * @route   GET /api/connections
@@ -394,7 +394,7 @@ router.post('/', async (req, res) => {
         );
         
         // Update has_archive_password flag
-        await pool.query(
+        await db.query(
           'UPDATE storage_connections SET has_archive_password = true WHERE connection_id = $1',
           [newConnection.connection_id]
         );
@@ -412,7 +412,7 @@ router.post('/', async (req, res) => {
         });
         
         // Attempt compensating delete
-        await pool.query(
+        await db.query(
           'DELETE FROM storage_connections WHERE connection_id = $1',
           [newConnection.connection_id]
         ).catch(deleteError => {
@@ -514,7 +514,7 @@ router.put('/:id', async (req, res) => {
     // Check project access before allowing update
     const isAdmin = userHasAdminAccess(req.user);
     if (!isAdmin) {
-      const checkResult = await pool.query(
+      const checkResult = await db.query(
         'SELECT project_id FROM storage_connections WHERE connection_id = $1',
         [id]
       );
@@ -537,7 +537,7 @@ router.put('/:id', async (req, res) => {
     }
     
     // Get existing connection
-    const existing = await pool.query(
+    const existing = await db.query(
       'SELECT config, authentication_method FROM storage_connections WHERE connection_id = $1',
       [id]
     );
@@ -677,7 +677,7 @@ router.put('/:id', async (req, res) => {
     values.push(id);
     
     // Update connection
-    const result = await pool.query(
+    const result = await db.query(
       `UPDATE storage_connections 
        SET ${updates.join(', ')}
        WHERE connection_id = $${paramIndex}
@@ -700,7 +700,7 @@ router.put('/:id', async (req, res) => {
         );
         
         // Update has_archive_password flag
-        await pool.query(
+        await db.query(
           'UPDATE storage_connections SET has_archive_password = true WHERE connection_id = $1',
           [id]
         );
@@ -711,13 +711,13 @@ router.put('/:id', async (req, res) => {
         });
       } else {
         // If empty string/null, remove the password
-        await pool.query(
+        await db.query(
           'DELETE FROM encrypted_passwords WHERE entity_type = $1 AND entity_id = $2',
           ['connection', id.toString()]
         );
         
         // Update has_archive_password flag
-        await pool.query(
+        await db.query(
           'UPDATE storage_connections SET has_archive_password = false WHERE connection_id = $1',
           [id]
         );
@@ -759,7 +759,7 @@ router.get('/:id/dependencies', async (req, res) => {
     };
 
     // Check vendor_agreements
-    const vendorAgreements = await pool.query(
+    const vendorAgreements = await db.query(
       `SELECT va.id, v.vendor_name, va.file_name 
        FROM vendor_agreements va
        LEFT JOIN vendors v ON va.vendor_id = v.id
@@ -778,7 +778,7 @@ router.get('/:id/dependencies', async (req, res) => {
     }
 
     // Check vendor_file_profiling_results
-    const vendorProfiling = await pool.query(
+    const vendorProfiling = await db.query(
       `SELECT COUNT(DISTINCT file_id) as count 
        FROM vendor_file_profiling_results 
        WHERE connection_id = $1`,
@@ -793,7 +793,7 @@ router.get('/:id/dependencies', async (req, res) => {
     }
 
     // Check transformation_mappings (source and target)
-    const transformMappings = await pool.query(
+    const transformMappings = await db.query(
       `SELECT mapping_id, mapping_name 
        FROM transformation_mappings 
        WHERE source_connection_id = $1 OR target_connection_id = $1`,
@@ -811,7 +811,7 @@ router.get('/:id/dependencies', async (req, res) => {
     }
 
     // Check mapping_groups (through mapping_group_members -> transformation_mappings)
-    const mappingGroups = await pool.query(
+    const mappingGroups = await db.query(
       `SELECT DISTINCT mg.id as group_id, mg.name as group_name 
        FROM mapping_groups mg
        INNER JOIN mapping_group_members mgm ON mg.id = mgm.group_id
@@ -873,7 +873,7 @@ router.delete('/:id', async (req, res) => {
     const dependencies = [];
     
     // Check vendor_agreements
-    const vendorAgreements = await pool.query(
+    const vendorAgreements = await db.query(
       `SELECT va.id, v.vendor_name, va.file_name 
        FROM vendor_agreements va
        LEFT JOIN vendors v ON va.vendor_id = v.id
@@ -889,7 +889,7 @@ router.delete('/:id', async (req, res) => {
     }
 
     // Check vendor_file_profiling_results
-    const vendorProfiling = await pool.query(
+    const vendorProfiling = await db.query(
       `SELECT COUNT(DISTINCT file_id) as count 
        FROM vendor_file_profiling_results 
        WHERE connection_id = $1`,
@@ -904,7 +904,7 @@ router.delete('/:id', async (req, res) => {
     }
 
     // Check transformation_mappings
-    const transformMappings = await pool.query(
+    const transformMappings = await db.query(
       `SELECT mapping_id, mapping_name 
        FROM transformation_mappings 
        WHERE source_connection_id = $1 OR target_connection_id = $1`,
@@ -919,7 +919,7 @@ router.delete('/:id', async (req, res) => {
     }
 
     // Check mapping_groups (through mapping_group_members -> transformation_mappings)
-    const mappingGroups = await pool.query(
+    const mappingGroups = await db.query(
       `SELECT DISTINCT mg.id as group_id, mg.name as group_name 
        FROM mapping_groups mg
        INNER JOIN mapping_group_members mgm ON mg.id = mgm.group_id
@@ -986,7 +986,7 @@ router.patch('/:id/soft-delete', async (req, res) => {
     }
     
     // Perform soft delete
-    const result = await pool.query(
+    const result = await db.query(
       `UPDATE storage_connections 
        SET is_deleted = TRUE, 
            deleted_at = NOW(), 
@@ -1039,7 +1039,7 @@ router.patch('/:id/restore', async (req, res) => {
     }
     
     // Restore connection
-    const result = await pool.query(
+    const result = await db.query(
       `UPDATE storage_connections 
        SET is_deleted = FALSE, 
            deleted_at = NULL, 
@@ -1140,7 +1140,7 @@ router.post('/:id/test', async (req, res) => {
     const { id } = req.params;
     
     // Fetch connection from storage_connections
-    const result = await pool.query(
+    const result = await db.query(
       'SELECT config, type, authentication_method, auth_config FROM storage_connections WHERE connection_id = $1',
       [id]
     );
@@ -1359,7 +1359,7 @@ router.post('/:id/browse', async (req, res) => {
     const { prefix = '' } = req.body; // Optional prefix to browse from a specific folder
     
     // Fetch connection from database
-    const result = await pool.query(
+    const result = await db.query(
       'SELECT config, type, authentication_method, auth_config FROM storage_connections WHERE connection_id = $1 AND status = $2',
       [id, 'active']
     );

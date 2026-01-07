@@ -1371,6 +1371,8 @@ router.get('/quality-violations-trend', dashboardCacheMiddleware, async (req, re
     const userRoles = req.user.roles || [];
     const isAdmin = userHasAdminAccess(req.user);
     const projectId = req.query.project_id ? parseInt(req.query.project_id, 10) : null;
+    const days = req.query.days ? parseInt(req.query.days, 10) : 30;
+    const validDays = Math.min(Math.max(days, 1), 365);
 
     let violationsTrendQuery;
     let queryParams;
@@ -1384,13 +1386,13 @@ router.get('/quality-violations-trend', dashboardCacheMiddleware, async (req, re
           FROM quality_rule_violations qrv
           INNER JOIN quality_rules qr ON qrv.rule_id = qr.id
           INNER JOIN files f ON qrv.file_id = f.file_id
-          WHERE qrv.created_at >= CURRENT_DATE - INTERVAL '30 days'
-          AND f.project_id = $1
+          WHERE qrv.created_at >= CURRENT_DATE - INTERVAL '1 day' * $1
+          AND f.project_id = $2
           AND qr.rule_type IN ('completeness', 'uniqueness', 'validity', 'consistency', 'accuracy')
           GROUP BY DATE(qrv.created_at), qr.rule_type
           ORDER BY DATE(qrv.created_at), qr.rule_type
         `;
-        queryParams = [projectId];
+        queryParams = [validDays, projectId];
       } else if(isAdmin && !projectId) {
         violationsTrendQuery = `
           SELECT 
@@ -1399,12 +1401,12 @@ router.get('/quality-violations-trend', dashboardCacheMiddleware, async (req, re
             COUNT(*) as violation_count
           FROM quality_rule_violations qrv
           INNER JOIN quality_rules qr ON qrv.rule_id = qr.id
-          WHERE qrv.created_at >= CURRENT_DATE - INTERVAL '30 days'
+          WHERE qrv.created_at >= CURRENT_DATE - INTERVAL '1 day' * $1
           AND qr.rule_type IN ('completeness', 'uniqueness', 'validity', 'consistency', 'accuracy')
           GROUP BY DATE(qrv.created_at), qr.rule_type
           ORDER BY DATE(qrv.created_at), qr.rule_type
         `;
-        queryParams = [];
+        queryParams = [validDays];
     } else if(!isAdmin && projectId) {
         violationsTrendQuery = `
           WITH accessible_projects AS (
@@ -1418,13 +1420,13 @@ router.get('/quality-violations-trend', dashboardCacheMiddleware, async (req, re
           INNER JOIN quality_rules qr ON qrv.rule_id = qr.id
           INNER JOIN files f ON qrv.file_id = f.file_id
           INNER JOIN accessible_projects ap ON f.project_id = ap.project_id
-          WHERE qrv.created_at >= CURRENT_DATE - INTERVAL '30 days'
-          AND f.project_id = $2
+          WHERE qrv.created_at >= CURRENT_DATE - INTERVAL '1 day' * $2
+          AND f.project_id = $3
           AND qr.rule_type IN ('completeness', 'uniqueness', 'validity', 'consistency', 'accuracy')
           GROUP BY DATE(qrv.created_at), qr.rule_type
           ORDER BY DATE(qrv.created_at), qr.rule_type
         `;
-        queryParams = [userId, projectId];
+        queryParams = [userId, validDays, projectId];
       } else {
         violationsTrendQuery = `
           WITH accessible_projects AS (
@@ -1438,12 +1440,12 @@ router.get('/quality-violations-trend', dashboardCacheMiddleware, async (req, re
           INNER JOIN quality_rules qr ON qrv.rule_id = qr.id
           INNER JOIN files f ON qrv.file_id = f.file_id
           INNER JOIN accessible_projects ap ON f.project_id = ap.project_id
-          WHERE qrv.created_at >= CURRENT_DATE - INTERVAL '30 days'
+          WHERE qrv.created_at >= CURRENT_DATE - INTERVAL '1 day' * $2
           AND qr.rule_type IN ('completeness', 'uniqueness', 'validity', 'consistency', 'accuracy')
           GROUP BY DATE(qrv.created_at), qr.rule_type
           ORDER BY DATE(qrv.created_at), qr.rule_type
         `;
-        queryParams = [userId];
+        queryParams = [userId, validDays];
     }
 
     const result = await pool.query(violationsTrendQuery, queryParams);
