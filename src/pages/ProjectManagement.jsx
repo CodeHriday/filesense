@@ -31,7 +31,8 @@ function ProjectManagement() {
     sub_projects: [],
     drop_location_connection_id: '',
     drop_location_bucket: '',
-    drop_location_prefix: ''
+    drop_location_prefix: '',
+    adhoc_upload_connection_id: ''
   });
 
   const [storageConnections, setStorageConnections] = useState([]);
@@ -369,7 +370,8 @@ function ProjectManagement() {
       is_active: project.is_active !== false, // default to true if undefined
       drop_location_connection_id: project.drop_location_connection_id || '',
       drop_location_bucket: project.drop_location_bucket || '',
-      drop_location_prefix: project.drop_location_prefix || ''
+      drop_location_prefix: project.drop_location_prefix || '',
+      adhoc_upload_connection_id: project.adhoc_upload_connection_id || ''
     });
     setShowEditModal(true);
   };
@@ -404,7 +406,8 @@ function ProjectManagement() {
       sub_projects: [],
       drop_location_connection_id: '',
       drop_location_bucket: '',
-      drop_location_prefix: ''
+      drop_location_prefix: '',
+      adhoc_upload_connection_id: ''
     });
     setSubProjectFormData({ name: '', description: '', is_active: true });
     setModalErrors({ name: '', general: '' });
@@ -422,7 +425,8 @@ function ProjectManagement() {
       sub_projects: [],
       drop_location_connection_id: '',
       drop_location_bucket: '',
-      drop_location_prefix: ''
+      drop_location_prefix: '',
+      adhoc_upload_connection_id: ''
     });
     setMemberFormData({ user_id: '' });
     setGroupFormData({ group_id: '' });
@@ -896,6 +900,35 @@ function ProjectManagement() {
 
                 <div className="gps-section">
                   <div className="gps-section-header">
+                    <h3 className="gps-section-title">Adhoc File Upload Connection</h3>
+                  </div>
+                  <p className="gps-form-hint" style={{ marginBottom: '12px' }}>
+                    Select the cloud storage connection for adhoc file uploads. Projects without a connection cannot upload files.
+                  </p>
+                  <div className="gps-form-grid gps-form-grid--1col">
+                    <div className="gps-form-group">
+                      <label htmlFor="create-adhoc-connection" className="gps-form-label">Adhoc Upload Connection</label>
+                      <select
+                        id="create-adhoc-connection"
+                        className="gps-form-select"
+                        value={formData.adhoc_upload_connection_id}
+                        onChange={(e) => setFormData({ ...formData, adhoc_upload_connection_id: e.target.value })}
+                      >
+                        <option value="">-- No Connection (Uploads Disabled) --</option>
+                        {storageConnections.map(conn => (
+                          <option key={conn.connection_id} value={conn.connection_id}>
+                            {conn.name} ({conn.type})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                <hr className="gps-divider" />
+
+                <div className="gps-section">
+                  <div className="gps-section-header">
                     <h3 className="gps-section-title">File Drop Location (S3)</h3>
                   </div>
                   <p className="gps-form-hint" style={{ marginBottom: '12px' }}>
@@ -1113,6 +1146,29 @@ function ProjectManagement() {
                         Inactive projects cannot receive new file uploads or run jobs. Existing data remains accessible.
                       </div>
                     )}
+                  </div>
+
+                  <h4 className="gps-section-title" style={{ marginTop: '16px', marginBottom: '8px' }}>Adhoc File Upload Connection</h4>
+                  <p className="gps-form-hint" style={{ marginBottom: '12px' }}>
+                    Select the cloud storage connection for adhoc file uploads. Projects without a connection cannot upload files.
+                  </p>
+                  <div className="gps-form-grid gps-form-grid--1col">
+                    <div className="gps-form-group">
+                      <label htmlFor="edit-adhoc-connection" className="gps-form-label">Adhoc Upload Connection</label>
+                      <select
+                        id="edit-adhoc-connection"
+                        className="gps-form-select"
+                        value={formData.adhoc_upload_connection_id}
+                        onChange={(e) => setFormData({ ...formData, adhoc_upload_connection_id: e.target.value })}
+                      >
+                        <option value="">-- No Connection (Uploads Disabled) --</option>
+                        {storageConnections.map(conn => (
+                          <option key={conn.connection_id} value={conn.connection_id}>
+                            {conn.name} ({conn.type})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
 
                   <h4 className="gps-section-title" style={{ marginTop: '16px', marginBottom: '8px' }}>File Drop Location (S3)</h4>

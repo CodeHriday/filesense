@@ -458,7 +458,7 @@ function createProjectRoutes(dbPool) {
   router.post('/', burstRateLimit, hourlyRateLimit, projectIdempotency, async (req, res) => {
     const client = await dbPool.connect();
     try {
-      const { name, description, parent_id, is_default, project_type, metadata, settings, member_ids, group_ids, sub_projects, drop_location_bucket, drop_location_prefix, drop_location_connection_id } = req.body;
+      const { name, description, parent_id, is_default, project_type, metadata, settings, member_ids, group_ids, sub_projects, drop_location_bucket, drop_location_prefix, drop_location_connection_id, adhoc_upload_connection_id } = req.body;
       const userId = req.user?.id;
 
       if (!name) {
@@ -539,10 +539,10 @@ function createProjectRoutes(dbPool) {
       }
 
       const result = await client.query(`
-        INSERT INTO projects (name, description, parent_id, owner_id, is_default, project_type, metadata, settings, drop_location_bucket, drop_location_prefix, drop_location_connection_id)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+        INSERT INTO projects (name, description, parent_id, owner_id, is_default, project_type, metadata, settings, drop_location_bucket, drop_location_prefix, drop_location_connection_id, adhoc_upload_connection_id)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
         RETURNING *
-      `, [name.trim(), description, parent_id || null, userId, is_default || false, project_type || 'internal', metadata || {}, settings || {}, drop_location_bucket || null, drop_location_prefix || null, drop_location_connection_id || null]);
+      `, [name.trim(), description, parent_id || null, userId, is_default || false, project_type || 'internal', metadata || {}, settings || {}, drop_location_bucket || null, drop_location_prefix || null, drop_location_connection_id || null, adhoc_upload_connection_id || null]);
 
       const newProject = result.rows[0];
 
@@ -944,7 +944,7 @@ function createProjectRoutes(dbPool) {
   router.put('/:projectId', async (req, res) => {
     try {
       const { projectId } = req.params;
-      const { name, description, parent_id, is_archived, is_active, project_type, metadata, settings, drop_location_bucket, drop_location_prefix, drop_location_connection_id } = req.body;
+      const { name, description, parent_id, is_archived, is_active, project_type, metadata, settings, drop_location_bucket, drop_location_prefix, drop_location_connection_id, adhoc_upload_connection_id } = req.body;
 
       // If attempting to deactivate a project, check for active subprojects
       if (is_active === false) {
@@ -1020,6 +1020,11 @@ function createProjectRoutes(dbPool) {
       if (drop_location_connection_id !== undefined) {
         updates.push(`drop_location_connection_id = $${paramIndex}`);
         params.push(drop_location_connection_id || null);
+        paramIndex++;
+      }
+      if (adhoc_upload_connection_id !== undefined) {
+        updates.push(`adhoc_upload_connection_id = $${paramIndex}`);
+        params.push(adhoc_upload_connection_id || null);
         paramIndex++;
       }
 

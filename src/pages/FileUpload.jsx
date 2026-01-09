@@ -1580,7 +1580,7 @@ function FileUpload() {
                       <option value="">Select a project...</option>
                       {projects.map(project => (
                         <option key={project.id} value={project.id}>
-                          {project.name}{project.is_active === false ? ' (Inactive)' : ''}
+                          {project.name}{project.is_active === false ? ' (Inactive)' : ''}{!project.adhoc_upload_connection_id ? ' (No upload connection)' : ''}
                         </option>
                       ))}
                     </>
@@ -2081,6 +2081,13 @@ function FileUpload() {
               </div>
             )}
             
+            {/* No upload connection warning */}
+            {selectedProject && projects.find(p => p.id === selectedProject)?.is_active !== false && !projects.find(p => p.id === selectedProject)?.adhoc_upload_connection_id && (
+              <div className="gps-alert gps-alert--warning" style={{ margin: '0.75rem 0' }}>
+                This project does not have an upload connection configured. File uploads are disabled until an administrator configures an adhoc upload connection in Project Management.
+              </div>
+            )}
+            
             {/* Inactive subproject warning */}
             {selectedProject && selectedSubProject && subProjects.find(sp => sp.id === selectedSubProject)?.is_active === false && (
               <div className="gps-alert gps-alert--error" style={{ margin: '0.75rem 0' }}>
@@ -2509,7 +2516,7 @@ function FileUpload() {
         {!isProcessing && activeTab === 'upload-profile' ? (
           hasWritePermission('file') ? (
             selectedProject ? (
-              // Check if project or subproject is inactive
+              // Check if project or subproject is inactive, or no upload connection
               projects.find(p => p.id === selectedProject)?.is_active === false || 
               (selectedSubProject && subProjects.find(sp => sp.id === selectedSubProject)?.is_active === false) ? (
                 <div className="dropzone-placeholder" style={{ borderColor: '#ef4444', background: '#fef2f2' }}>
@@ -2518,6 +2525,13 @@ function FileUpload() {
                     {projects.find(p => p.id === selectedProject)?.is_active === false 
                       ? 'This project is inactive. File uploads are disabled.'
                       : 'This sub-project is inactive. File uploads are disabled.'}
+                  </p>
+                </div>
+              ) : !projects.find(p => p.id === selectedProject)?.adhoc_upload_connection_id ? (
+                <div className="dropzone-placeholder" style={{ borderColor: '#f59e0b', background: '#fffbeb' }}>
+                  <FiUpload size={48} className="dropzone-placeholder-icon" style={{ color: '#d97706' }} />
+                  <p className="dropzone-placeholder-text" style={{ color: '#92400e' }}>
+                    No upload connection configured for this project. Please ask an administrator to configure an adhoc upload connection in Project Management.
                   </p>
                 </div>
               ) : (

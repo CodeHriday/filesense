@@ -2550,6 +2550,50 @@ app.post('/api/files/upload', authenticateToken, invalidateCache('cache:*:*files
       }
     }
     
+    // For NON-CONTRACT uploads (no agreementId), validate adhoc_upload_connection_id is configured
+    // Contract validation uploads use the vendor agreement's drop connection, not adhoc
+    let adhocUploadConnectionId = null;
+    
+    if (!agreementId) {
+      // Check if project has adhoc_upload_connection_id configured
+      const projectUploadConfigResult = await dbPool.query(
+        'SELECT id, name, adhoc_upload_connection_id FROM projects WHERE id = $1',
+        [projectId]
+      );
+      
+      if (projectUploadConfigResult.rows.length === 0) {
+        req.files.forEach(file => {
+          try { fs.unlinkSync(file.path); } catch (e) {}
+        });
+        return res.status(404).json({
+          error: 'Project not found',
+          message: 'The specified project does not exist'
+        });
+      }
+      
+      const projectConfig = projectUploadConfigResult.rows[0];
+      
+      // If no adhoc upload connection is configured, reject the upload
+      if (!projectConfig.adhoc_upload_connection_id) {
+        req.files.forEach(file => {
+          try { fs.unlinkSync(file.path); } catch (e) {}
+        });
+        logger.warn('Adhoc upload rejected - no connection configured for project', {
+          projectId,
+          projectName: projectConfig.name,
+          userId: req.user?.id
+        });
+        return res.status(400).json({
+          error: 'Upload not configured',
+          message: `File uploads are not enabled for project "${projectConfig.name}". An administrator must configure an adhoc upload connection for this project.`,
+          code: 'ADHOC_UPLOAD_CONNECTION_MISSING'
+        });
+      }
+      
+      // Store the connection ID for later use in file processing
+      adhocUploadConnectionId = projectConfig.adhoc_upload_connection_id;
+    }
+    
     const userId = req.user ? req.user.id : null;
     const crypto = require('crypto');
     
@@ -2712,7 +2756,8 @@ app.post('/api/files/upload', authenticateToken, invalidateCache('cache:*:*files
           delimiter,
           headerConfig: effectiveHeaderConfig,
           fixedWidthSchema: effectiveFixedWidthSchema,
-          archivePassword
+          archivePassword,
+          adhocUploadConnectionId
         }, {
           attempts: 3,
           backoff: { type: 'exponential', delay: 5000 },
@@ -3022,6 +3067,43 @@ app.post('/api/files/drop', authenticateToken, uploadLimiter, upload.single('fil
     // Check if vendor uploaded with specific connection and agreement
     const connectionId = req.query.connectionId;
     const agreementId = req.query.agreementId;
+    
+    // For NON-VENDOR uploads (no connectionId), validate adhoc_upload_connection_id is configured
+    if (!connectionId) {
+      const projectUploadConfigResult = await dbPool.query(
+        'SELECT id, name, adhoc_upload_connection_id FROM projects WHERE id = $1',
+        [projectId]
+      );
+      
+      if (projectUploadConfigResult.rows.length === 0) {
+        if (file && file.path) {
+          try { fs.unlinkSync(file.path); } catch (e) {}
+        }
+        return res.status(404).json({
+          error: 'Project not found',
+          message: 'The specified project does not exist'
+        });
+      }
+      
+      const projectConfig = projectUploadConfigResult.rows[0];
+      
+      // If no adhoc upload connection is configured, reject the upload
+      if (!projectConfig.adhoc_upload_connection_id) {
+        if (file && file.path) {
+          try { fs.unlinkSync(file.path); } catch (e) {}
+        }
+        logger.warn('Drop upload rejected - no adhoc connection configured for project', {
+          projectId,
+          projectName: projectConfig.name,
+          userId: req.user?.id
+        });
+        return res.status(400).json({
+          error: 'Upload not configured',
+          message: `File uploads are not enabled for project "${projectConfig.name}". An administrator must configure an adhoc upload connection for this project.`,
+          code: 'ADHOC_UPLOAD_CONNECTION_MISSING'
+        });
+      }
+    }
     
     // Track matched pattern for later use in profiling (declared outside block for accessibility)
     let vendorAgreementMatchedPattern = null;
