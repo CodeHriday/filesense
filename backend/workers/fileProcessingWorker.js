@@ -364,8 +364,7 @@ class FileProcessingWorker {
             prefix: dropLocationPrefix
           });
           
-          const ConnectionService = require('../services/ConnectionService');
-          const connectionService = new ConnectionService();
+          const connectionService = require('../services/ConnectionService');
           const connection = await connectionService.getConnectionById(dropLocationConnectionId);
           
           if (connection && connection.config) {
