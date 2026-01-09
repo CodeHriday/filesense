@@ -2553,45 +2553,100 @@ app.post('/api/files/upload', authenticateToken, invalidateCache('cache:*:*files
     // For NON-CONTRACT uploads (no agreementId), validate drop_location_connection_id is configured
     // Contract validation uploads use the vendor agreement's drop connection, not adhoc
     let dropLocationConnectionId = null;
+    let dropLocationBucket = null;
+    let dropLocationPrefix = null;
     
     if (!agreementId) {
-      // Check if project has drop_location_connection_id configured
-      const projectUploadConfigResult = await dbPool.query(
-        'SELECT id, name, drop_location_connection_id FROM projects WHERE id = $1',
-        [projectId]
-      );
-      
-      if (projectUploadConfigResult.rows.length === 0) {
-        req.files.forEach(file => {
-          try { fs.unlinkSync(file.path); } catch (e) {}
-        });
-        return res.status(404).json({
-          error: 'Project not found',
-          message: 'The specified project does not exist'
-        });
+      // First, check if sub-project has its own drop location configured (if sub_project_id is provided)
+      if (subProjectId) {
+        const subProjectConfigResult = await dbPool.query(
+          'SELECT id, name, drop_location_connection_id, drop_location_bucket, drop_location_prefix, parent_id FROM projects WHERE id = $1',
+          [subProjectId]
+        );
+        
+        if (subProjectConfigResult.rows.length > 0) {
+          const subProjectConfig = subProjectConfigResult.rows[0];
+          
+          // SECURITY: Verify sub-project belongs to the specified parent project
+          if (subProjectConfig.parent_id !== projectId) {
+            req.files.forEach(file => {
+              try { fs.unlinkSync(file.path); } catch (e) {}
+            });
+            logger.warn('Upload rejected - sub-project parent mismatch', {
+              subProjectId,
+              specifiedProjectId: projectId,
+              actualParentId: subProjectConfig.parent_id,
+              userId: req.user?.id
+            });
+            return res.status(400).json({
+              error: 'Invalid sub-project',
+              message: 'The specified sub-project does not belong to the selected project'
+            });
+          }
+          
+          if (subProjectConfig.drop_location_connection_id) {
+            dropLocationConnectionId = subProjectConfig.drop_location_connection_id;
+            dropLocationBucket = subProjectConfig.drop_location_bucket;
+            dropLocationPrefix = subProjectConfig.drop_location_prefix;
+            logger.info('Using sub-project drop location', {
+              subProjectId,
+              subProjectName: subProjectConfig.name,
+              connectionId: dropLocationConnectionId
+            });
+          }
+        } else {
+          // Sub-project not found
+          req.files.forEach(file => {
+            try { fs.unlinkSync(file.path); } catch (e) {}
+          });
+          return res.status(404).json({
+            error: 'Sub-project not found',
+            message: 'The specified sub-project does not exist'
+          });
+        }
       }
       
-      const projectConfig = projectUploadConfigResult.rows[0];
-      
-      // If no drop location connection is configured, reject the upload
-      if (!projectConfig.drop_location_connection_id) {
-        req.files.forEach(file => {
-          try { fs.unlinkSync(file.path); } catch (e) {}
-        });
-        logger.warn('Upload rejected - no File Drop Location configured for project', {
-          projectId,
-          projectName: projectConfig.name,
-          userId: req.user?.id
-        });
-        return res.status(400).json({
-          error: 'Upload not configured',
-          message: `File uploads are not enabled for project "${projectConfig.name}". An administrator must configure a File Drop Location for this project.`,
-          code: 'DROP_LOCATION_CONNECTION_MISSING'
-        });
+      // If no sub-project drop location found, check parent project
+      if (!dropLocationConnectionId) {
+        const projectUploadConfigResult = await dbPool.query(
+          'SELECT id, name, drop_location_connection_id, drop_location_bucket, drop_location_prefix FROM projects WHERE id = $1',
+          [projectId]
+        );
+        
+        if (projectUploadConfigResult.rows.length === 0) {
+          req.files.forEach(file => {
+            try { fs.unlinkSync(file.path); } catch (e) {}
+          });
+          return res.status(404).json({
+            error: 'Project not found',
+            message: 'The specified project does not exist'
+          });
+        }
+        
+        const projectConfig = projectUploadConfigResult.rows[0];
+        
+        // If no drop location connection is configured, reject the upload
+        if (!projectConfig.drop_location_connection_id) {
+          req.files.forEach(file => {
+            try { fs.unlinkSync(file.path); } catch (e) {}
+          });
+          logger.warn('Upload rejected - no File Drop Location configured for project', {
+            projectId,
+            projectName: projectConfig.name,
+            userId: req.user?.id
+          });
+          return res.status(400).json({
+            error: 'Upload not configured',
+            message: `File uploads are not enabled for project "${projectConfig.name}". An administrator must configure a File Drop Location for this project.`,
+            code: 'DROP_LOCATION_CONNECTION_MISSING'
+          });
+        }
+        
+        // Store the connection ID and path for later use in file processing
+        dropLocationConnectionId = projectConfig.drop_location_connection_id;
+        dropLocationBucket = projectConfig.drop_location_bucket;
+        dropLocationPrefix = projectConfig.drop_location_prefix;
       }
-      
-      // Store the connection ID for later use in file processing
-      dropLocationConnectionId = projectConfig.drop_location_connection_id;
     }
     
     const userId = req.user ? req.user.id : null;
@@ -3069,39 +3124,92 @@ app.post('/api/files/drop', authenticateToken, uploadLimiter, upload.single('fil
     const agreementId = req.query.agreementId;
     
     // For NON-VENDOR uploads (no connectionId), validate drop_location_connection_id is configured
+    // Check sub-project first if provided, then fall back to parent project
     if (!connectionId) {
-      const projectUploadConfigResult = await dbPool.query(
-        'SELECT id, name, drop_location_connection_id FROM projects WHERE id = $1',
-        [projectId]
-      );
+      let dropConnectionFound = false;
+      const subProjectId = req.body.sub_project_id ? parseInt(req.body.sub_project_id) : null;
       
-      if (projectUploadConfigResult.rows.length === 0) {
-        if (file && file.path) {
-          try { fs.unlinkSync(file.path); } catch (e) {}
+      // Check sub-project drop location first
+      if (subProjectId) {
+        const subProjectConfigResult = await dbPool.query(
+          'SELECT id, name, drop_location_connection_id, parent_id FROM projects WHERE id = $1',
+          [subProjectId]
+        );
+        
+        if (subProjectConfigResult.rows.length > 0) {
+          const subProjectConfig = subProjectConfigResult.rows[0];
+          
+          // SECURITY: Verify sub-project belongs to the specified parent project
+          if (subProjectConfig.parent_id !== projectId) {
+            if (file && file.path) {
+              try { fs.unlinkSync(file.path); } catch (e) {}
+            }
+            logger.warn('Drop upload rejected - sub-project parent mismatch', {
+              subProjectId,
+              specifiedProjectId: projectId,
+              actualParentId: subProjectConfig.parent_id,
+              userId: req.user?.id
+            });
+            return res.status(400).json({
+              error: 'Invalid sub-project',
+              message: 'The specified sub-project does not belong to the selected project'
+            });
+          }
+          
+          if (subProjectConfig.drop_location_connection_id) {
+            dropConnectionFound = true;
+            logger.info('Using sub-project drop location for drop upload', {
+              subProjectId,
+              subProjectName: subProjectConfig.name
+            });
+          }
+        } else {
+          // Sub-project not found
+          if (file && file.path) {
+            try { fs.unlinkSync(file.path); } catch (e) {}
+          }
+          return res.status(404).json({
+            error: 'Sub-project not found',
+            message: 'The specified sub-project does not exist'
+          });
         }
-        return res.status(404).json({
-          error: 'Project not found',
-          message: 'The specified project does not exist'
-        });
       }
       
-      const projectConfig = projectUploadConfigResult.rows[0];
-      
-      // If no drop location connection is configured, reject the upload
-      if (!projectConfig.drop_location_connection_id) {
-        if (file && file.path) {
-          try { fs.unlinkSync(file.path); } catch (e) {}
+      // If no sub-project drop location, check parent project
+      if (!dropConnectionFound) {
+        const projectUploadConfigResult = await dbPool.query(
+          'SELECT id, name, drop_location_connection_id FROM projects WHERE id = $1',
+          [projectId]
+        );
+        
+        if (projectUploadConfigResult.rows.length === 0) {
+          if (file && file.path) {
+            try { fs.unlinkSync(file.path); } catch (e) {}
+          }
+          return res.status(404).json({
+            error: 'Project not found',
+            message: 'The specified project does not exist'
+          });
         }
-        logger.warn('Drop upload rejected - no File Drop Location configured for project', {
-          projectId,
-          projectName: projectConfig.name,
-          userId: req.user?.id
-        });
-        return res.status(400).json({
-          error: 'Upload not configured',
-          message: `File uploads are not enabled for project "${projectConfig.name}". An administrator must configure a File Drop Location for this project.`,
-          code: 'DROP_LOCATION_CONNECTION_MISSING'
-        });
+        
+        const projectConfig = projectUploadConfigResult.rows[0];
+        
+        // If no drop location connection is configured, reject the upload
+        if (!projectConfig.drop_location_connection_id) {
+          if (file && file.path) {
+            try { fs.unlinkSync(file.path); } catch (e) {}
+          }
+          logger.warn('Drop upload rejected - no File Drop Location configured for project', {
+            projectId,
+            projectName: projectConfig.name,
+            userId: req.user?.id
+          });
+          return res.status(400).json({
+            error: 'Upload not configured',
+            message: `File uploads are not enabled for project "${projectConfig.name}". An administrator must configure a File Drop Location for this project.`,
+            code: 'DROP_LOCATION_CONNECTION_MISSING'
+          });
+        }
       }
     }
     
