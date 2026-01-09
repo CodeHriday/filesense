@@ -2812,7 +2812,9 @@ app.post('/api/files/upload', authenticateToken, invalidateCache('cache:*:*files
           headerConfig: effectiveHeaderConfig,
           fixedWidthSchema: effectiveFixedWidthSchema,
           archivePassword,
-          adhocUploadConnectionId
+          dropLocationConnectionId,
+          dropLocationBucket,
+          dropLocationPrefix
         }, {
           attempts: 3,
           backoff: { type: 'exponential', delay: 5000 },
