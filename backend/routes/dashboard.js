@@ -2029,19 +2029,24 @@ router.get('/batch', dashboardCacheMiddleware, async (req, res) => {
       promiseKeys.push('projectHealth');
     }
 
-    // File Type Distribution - match original endpoint logic
+    // File Type Distribution
     if (includeSet.has('fileTypeDistribution')) {
       const fileTypeQuery = `
         SELECT 
-          f.file_type,
-          COUNT(*) as count,
-          SUM(f.file_size::bigint) as total_size,
-          AVG(f.quality_score) as avg_quality
-        FROM files f
-        LEFT JOIN file_audit_details fad ON f.file_id = fad.file_id
-        WHERE ${projectAccessClauseAliased} ${projectFilterAliased}
-          AND (fad.file_role IS NULL OR fad.file_role != 'target')
-        GROUP BY f.file_type
+          COALESCE(LOWER(
+            CASE 
+              WHEN filename LIKE '%.csv' THEN 'csv'
+              WHEN filename LIKE '%.json' THEN 'json'
+              WHEN filename LIKE '%.xlsx' OR filename LIKE '%.xls' THEN 'excel'
+              WHEN filename LIKE '%.parquet' THEN 'parquet'
+              WHEN filename LIKE '%.xml' THEN 'xml'
+              ELSE 'other'
+            END
+          ), 'unknown') as file_type,
+          COUNT(*) as count
+        FROM files
+        WHERE ${projectAccessClause} ${projectFilter}
+        GROUP BY 1
         ORDER BY count DESC
       `;
       promises.push(pool.query(fileTypeQuery));
@@ -2147,16 +2152,6 @@ router.get('/batch', dashboardCacheMiddleware, async (req, res) => {
 
     // Execute all queries in parallel
     const results = await Promise.all(promises);
-    
-    // Debug: Log query results
-    console.log('[BATCH DEBUG] isAdmin:', isAdmin, 'userId:', userId);
-    console.log('[BATCH DEBUG] promiseKeys:', promiseKeys);
-    results.forEach((r, i) => {
-      console.log(`[BATCH DEBUG] ${promiseKeys[i]}: ${r?.rows?.length || 0} rows`);
-      if (r?.rows?.length > 0) {
-        console.log(`[BATCH DEBUG] ${promiseKeys[i]} first row:`, JSON.stringify(r.rows[0]));
-      }
-    });
 
     // Map results to response
     results.forEach((queryResult, index) => {
@@ -2199,8 +2194,7 @@ router.get('/batch', dashboardCacheMiddleware, async (req, res) => {
             fileType: row.file_type || 'unknown',
             count,
             percentage: totalFiles > 0 ? parseFloat(((count / totalFiles) * 100).toFixed(1)) : 0,
-            avgQuality: row.avg_quality ? parseFloat(row.avg_quality).toFixed(1) : null,
-            totalSize: parseInt(row.total_size) || 0
+            avgQuality: 0 // Not available in this simplified query
           };
         });
       } else if (key === 'jobTrend') {
