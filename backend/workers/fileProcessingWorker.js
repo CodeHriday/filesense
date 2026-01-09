@@ -1128,6 +1128,9 @@ class FileProcessingWorker {
       // Cleanup: Delete uploaded file after successful processing
       await this.cleanupUploadedFile(filePath, 'success');
 
+      // Trigger garbage collection after processing to free memory
+      this.triggerGarbageCollection();
+
     } catch (error) {
       this.logger.error('Error processing file job', {
         jobId,
@@ -2662,6 +2665,29 @@ print(json.dumps(result))
         error: error.message
       });
       // Don't throw - cleanup failure shouldn't fail the job
+    }
+  }
+
+  /**
+   * Trigger garbage collection after file processing to free memory
+   * Only works if Node.js was started with --expose-gc flag
+   */
+  triggerGarbageCollection() {
+    try {
+      if (global.gc) {
+        const before = process.memoryUsage();
+        global.gc();
+        const after = process.memoryUsage();
+        const freedMB = Math.round((before.heapUsed - after.heapUsed) / 1024 / 1024);
+        if (freedMB > 5) {
+          this.logger.info('Garbage collection freed memory', {
+            freedMB,
+            heapUsedMB: Math.round(after.heapUsed / 1024 / 1024)
+          });
+        }
+      }
+    } catch (error) {
+      // Silently ignore GC errors
     }
   }
 
