@@ -1580,7 +1580,7 @@ function FileUpload() {
                       <option value="">Select a project...</option>
                       {projects.map(project => (
                         <option key={project.id} value={project.id}>
-                          {project.name}{project.is_active === false ? ' (Inactive)' : ''}{!project.adhoc_upload_connection_id ? ' (No upload connection)' : ''}
+                          {project.name}{project.is_active === false ? ' (Inactive)' : ''}{!project.drop_location_connection_id ? ' (No upload connection)' : ''}
                         </option>
                       ))}
                     </>
@@ -2082,9 +2082,9 @@ function FileUpload() {
             )}
             
             {/* No upload connection warning */}
-            {selectedProject && projects.find(p => p.id === selectedProject)?.is_active !== false && !projects.find(p => p.id === selectedProject)?.adhoc_upload_connection_id && (
+            {selectedProject && projects.find(p => p.id === selectedProject)?.is_active !== false && !projects.find(p => p.id === selectedProject)?.drop_location_connection_id && (
               <div className="gps-alert gps-alert--warning" style={{ margin: '0.75rem 0' }}>
-                This project does not have an upload connection configured. File uploads are disabled until an administrator configures an adhoc upload connection in Project Management.
+                This project does not have a File Drop Location configured. File uploads are disabled until an administrator configures a storage connection in Project Management.
               </div>
             )}
             
@@ -2527,11 +2527,11 @@ function FileUpload() {
                       : 'This sub-project is inactive. File uploads are disabled.'}
                   </p>
                 </div>
-              ) : !projects.find(p => p.id === selectedProject)?.adhoc_upload_connection_id ? (
+              ) : !projects.find(p => p.id === selectedProject)?.drop_location_connection_id ? (
                 <div className="dropzone-placeholder" style={{ borderColor: '#f59e0b', background: '#fffbeb' }}>
                   <FiUpload size={48} className="dropzone-placeholder-icon" style={{ color: '#d97706' }} />
                   <p className="dropzone-placeholder-text" style={{ color: '#92400e' }}>
-                    No upload connection configured for this project. Please ask an administrator to configure an adhoc upload connection in Project Management.
+                    No File Drop Location configured for this project. Please ask an administrator to configure a storage connection in Project Management.
                   </p>
                 </div>
               ) : (

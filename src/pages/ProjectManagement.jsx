@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
-import { FiEdit2, FiTrash2, FiFolderPlus, FiChevronRight, FiChevronDown, FiFolder, FiRefreshCw, FiSearch } from 'react-icons/fi';
+import { FiEdit2, FiTrash2, FiFolderPlus, FiChevronRight, FiChevronDown, FiFolder, FiRefreshCw, FiSearch, FiX } from 'react-icons/fi';
 import ConfirmModal from '../components/ConfirmModal';
 import SubProjectManagement from '../components/SubProjectManagement';
 import EditSubProjectModal from '../components/EditSubProjectModal';
+import S3FolderBrowser from '../components/S3FolderBrowser';
 import '../styles/global-page-styles.css';
 
 const API_BASE_URL = '/api';
@@ -31,8 +32,7 @@ function ProjectManagement() {
     sub_projects: [],
     drop_location_connection_id: '',
     drop_location_bucket: '',
-    drop_location_prefix: '',
-    adhoc_upload_connection_id: ''
+    drop_location_prefix: ''
   });
 
   const [storageConnections, setStorageConnections] = useState([]);
@@ -74,6 +74,7 @@ function ProjectManagement() {
   const [showEditSubProjectModal, setShowEditSubProjectModal] = useState(false);
   const [selectedSubProject, setSelectedSubProject] = useState(null);
   const [currentProjectId, setCurrentProjectId] = useState(null);
+  const [showS3Browser, setShowS3Browser] = useState(false);
 
   const normalizeBoolean = (value) => {
     if (value === false || value === 'false' || value === 'f' || value === '0' || value === 0) {
@@ -370,8 +371,7 @@ function ProjectManagement() {
       is_active: project.is_active !== false, // default to true if undefined
       drop_location_connection_id: project.drop_location_connection_id || '',
       drop_location_bucket: project.drop_location_bucket || '',
-      drop_location_prefix: project.drop_location_prefix || '',
-      adhoc_upload_connection_id: project.adhoc_upload_connection_id || ''
+      drop_location_prefix: project.drop_location_prefix || ''
     });
     setShowEditModal(true);
   };
@@ -406,8 +406,7 @@ function ProjectManagement() {
       sub_projects: [],
       drop_location_connection_id: '',
       drop_location_bucket: '',
-      drop_location_prefix: '',
-      adhoc_upload_connection_id: ''
+      drop_location_prefix: ''
     });
     setSubProjectFormData({ name: '', description: '', is_active: true });
     setModalErrors({ name: '', general: '' });
@@ -425,14 +424,24 @@ function ProjectManagement() {
       sub_projects: [],
       drop_location_connection_id: '',
       drop_location_bucket: '',
-      drop_location_prefix: '',
-      adhoc_upload_connection_id: ''
+      drop_location_prefix: ''
     });
     setMemberFormData({ user_id: '' });
     setGroupFormData({ group_id: '' });
     setSelectedProject(null);
     setModalErrors({ name: '', general: '' });
     setShowEditModal(false);
+  };
+
+  const handleS3PathSelect = (path) => {
+    const selectedConnection = storageConnections.find(c => c.id === formData.drop_location_connection_id);
+    const bucketName = selectedConnection?.bucket_name || selectedConnection?.config?.bucket_name || '';
+    setFormData({
+      ...formData,
+      drop_location_bucket: bucketName,
+      drop_location_prefix: path.startsWith('/') ? path.slice(1) : path
+    });
+    setShowS3Browser(false);
   };
 
   const openDeleteProjectConfirm = (project) => {
@@ -900,39 +909,10 @@ function ProjectManagement() {
 
                 <div className="gps-section">
                   <div className="gps-section-header">
-                    <h3 className="gps-section-title">Adhoc File Upload Connection</h3>
-                  </div>
-                  <p className="gps-form-hint" style={{ marginBottom: '12px' }}>
-                    Select the cloud storage connection for adhoc file uploads. Projects without a connection cannot upload files.
-                  </p>
-                  <div className="gps-form-grid gps-form-grid--1col">
-                    <div className="gps-form-group">
-                      <label htmlFor="create-adhoc-connection" className="gps-form-label">Adhoc Upload Connection</label>
-                      <select
-                        id="create-adhoc-connection"
-                        className="gps-form-select"
-                        value={formData.adhoc_upload_connection_id}
-                        onChange={(e) => setFormData({ ...formData, adhoc_upload_connection_id: e.target.value })}
-                      >
-                        <option value="">-- No Connection (Uploads Disabled) --</option>
-                        {storageConnections.map(conn => (
-                          <option key={conn.connection_id} value={conn.connection_id}>
-                            {conn.name} ({conn.type})
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-                </div>
-
-                <hr className="gps-divider" />
-
-                <div className="gps-section">
-                  <div className="gps-section-header">
                     <h3 className="gps-section-title">File Drop Location (S3)</h3>
                   </div>
                   <p className="gps-form-hint" style={{ marginBottom: '12px' }}>
-                    Configure where files uploaded to this project will be stored. Required for internal projects.
+                    Configure where files uploaded to this project will be stored. Projects without a connection cannot upload files.
                   </p>
                   <div className="gps-form-grid gps-form-grid--3col">
                     <div className="gps-form-group">
@@ -945,7 +925,7 @@ function ProjectManagement() {
                       >
                         <option value="">-- Select Connection --</option>
                         {storageConnections.map(conn => (
-                          <option key={conn.connection_id} value={conn.connection_id}>
+                          <option key={conn.id} value={conn.id}>
                             {conn.name} ({conn.type})
                           </option>
                         ))}
@@ -960,18 +940,31 @@ function ProjectManagement() {
                         placeholder="e.g., my-data-bucket"
                         value={formData.drop_location_bucket}
                         onChange={(e) => setFormData({ ...formData, drop_location_bucket: e.target.value })}
+                        readOnly
                       />
                     </div>
                     <div className="gps-form-group">
                       <label htmlFor="create-drop-prefix" className="gps-form-label">Folder Prefix</label>
-                      <input
-                        id="create-drop-prefix"
-                        type="text"
-                        className="gps-form-input"
-                        placeholder="e.g., uploads/project-name/"
-                        value={formData.drop_location_prefix}
-                        onChange={(e) => setFormData({ ...formData, drop_location_prefix: e.target.value })}
-                      />
+                      <div style={{ display: 'flex', gap: '0.5rem' }}>
+                        <input
+                          id="create-drop-prefix"
+                          type="text"
+                          className="gps-form-input"
+                          placeholder="e.g., uploads/project-name/"
+                          value={formData.drop_location_prefix}
+                          onChange={(e) => setFormData({ ...formData, drop_location_prefix: e.target.value })}
+                          style={{ flex: 1 }}
+                        />
+                        <button
+                          type="button"
+                          className="gps-btn gps-btn--secondary gps-btn--small"
+                          onClick={() => setShowS3Browser(true)}
+                          disabled={!formData.drop_location_connection_id}
+                          title={formData.drop_location_connection_id ? 'Browse folders' : 'Select a connection first'}
+                        >
+                          Browse
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1148,32 +1141,9 @@ function ProjectManagement() {
                     )}
                   </div>
 
-                  <h4 className="gps-section-title" style={{ marginTop: '16px', marginBottom: '8px' }}>Adhoc File Upload Connection</h4>
-                  <p className="gps-form-hint" style={{ marginBottom: '12px' }}>
-                    Select the cloud storage connection for adhoc file uploads. Projects without a connection cannot upload files.
-                  </p>
-                  <div className="gps-form-grid gps-form-grid--1col">
-                    <div className="gps-form-group">
-                      <label htmlFor="edit-adhoc-connection" className="gps-form-label">Adhoc Upload Connection</label>
-                      <select
-                        id="edit-adhoc-connection"
-                        className="gps-form-select"
-                        value={formData.adhoc_upload_connection_id}
-                        onChange={(e) => setFormData({ ...formData, adhoc_upload_connection_id: e.target.value })}
-                      >
-                        <option value="">-- No Connection (Uploads Disabled) --</option>
-                        {storageConnections.map(conn => (
-                          <option key={conn.connection_id} value={conn.connection_id}>
-                            {conn.name} ({conn.type})
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-
                   <h4 className="gps-section-title" style={{ marginTop: '16px', marginBottom: '8px' }}>File Drop Location (S3)</h4>
                   <p className="gps-form-hint" style={{ marginBottom: '12px' }}>
-                    Configure where files uploaded to this project will be stored.
+                    Configure where files uploaded to this project will be stored. Projects without a connection cannot upload files.
                   </p>
                   <div className="gps-form-grid gps-form-grid--3col">
                     <div className="gps-form-group">
@@ -1186,7 +1156,7 @@ function ProjectManagement() {
                       >
                         <option value="">-- Select Connection --</option>
                         {storageConnections.map(conn => (
-                          <option key={conn.connection_id} value={conn.connection_id}>
+                          <option key={conn.id} value={conn.id}>
                             {conn.name} ({conn.type})
                           </option>
                         ))}
@@ -1201,18 +1171,31 @@ function ProjectManagement() {
                         placeholder="e.g., my-data-bucket"
                         value={formData.drop_location_bucket}
                         onChange={(e) => setFormData({ ...formData, drop_location_bucket: e.target.value })}
+                        readOnly
                       />
                     </div>
                     <div className="gps-form-group">
                       <label htmlFor="edit-drop-prefix" className="gps-form-label">Folder Prefix</label>
-                      <input
-                        id="edit-drop-prefix"
-                        type="text"
-                        className="gps-form-input"
-                        placeholder="e.g., uploads/project-name/"
-                        value={formData.drop_location_prefix}
-                        onChange={(e) => setFormData({ ...formData, drop_location_prefix: e.target.value })}
-                      />
+                      <div style={{ display: 'flex', gap: '0.5rem' }}>
+                        <input
+                          id="edit-drop-prefix"
+                          type="text"
+                          className="gps-form-input"
+                          placeholder="e.g., uploads/project-name/"
+                          value={formData.drop_location_prefix}
+                          onChange={(e) => setFormData({ ...formData, drop_location_prefix: e.target.value })}
+                          style={{ flex: 1 }}
+                        />
+                        <button
+                          type="button"
+                          className="gps-btn gps-btn--secondary gps-btn--small"
+                          onClick={() => setShowS3Browser(true)}
+                          disabled={!formData.drop_location_connection_id}
+                          title={formData.drop_location_connection_id ? 'Browse folders' : 'Select a connection first'}
+                        >
+                          Browse
+                        </button>
+                      </div>
                     </div>
                   </div>
 
@@ -1399,6 +1382,31 @@ function ProjectManagement() {
         subProject={selectedSubProject}
         onUpdate={handleSubProjectUpdate}
       />
+
+      {showS3Browser && formData.drop_location_connection_id && (
+        <div className="gps-modal-overlay" style={{ zIndex: 2000 }}>
+          <div className="gps-modal" style={{ maxWidth: '800px' }}>
+            <div className="gps-modal-header">
+              <h2 className="gps-modal-title">Browse Folder</h2>
+              <button className="gps-modal-close" onClick={() => setShowS3Browser(false)}>
+                <FiX size={20} />
+              </button>
+            </div>
+            <div className="gps-modal-body" style={{ maxHeight: '500px', overflow: 'auto' }}>
+              <S3FolderBrowser
+                connectionId={formData.drop_location_connection_id}
+                onSelectPath={handleS3PathSelect}
+                browseEndpoint="/api/bulk-profiling/browse"
+              />
+            </div>
+            <div className="gps-modal-footer">
+              <button className="gps-btn gps-btn--secondary" onClick={() => setShowS3Browser(false)}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }
