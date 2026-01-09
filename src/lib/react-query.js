@@ -10,6 +10,7 @@ export const STALE_TIMES = {
   DASHBOARD: 1000 * 60,          // 60 seconds - dashboard metrics
   STANDARD: 1000 * 60 * 2,       // 2 minutes - transformations, mappings, workflows
   SLOW_CHANGING: 1000 * 60 * 5,  // 5 minutes - user permissions, settings
+  STATIC_DATA: 1000 * 60 * 15,   // 15 minutes - quality rules, reference data (rarely changes)
 };
 
 /**

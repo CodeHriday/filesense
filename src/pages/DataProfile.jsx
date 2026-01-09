@@ -953,6 +953,20 @@ function DataProfile() {
   // Processing status polling state
   const [isProcessing, setIsProcessing] = useState(false); // Track if file is still processing
   const pollingIntervalRef = React.useRef(null);
+  const pollingStartTimeRef = React.useRef(null);
+  
+  const getAdaptivePollingDelay = () => {
+    if (!pollingStartTimeRef.current) return 2000;
+    
+    const elapsedMs = Date.now() - pollingStartTimeRef.current;
+    const elapsedSeconds = elapsedMs / 1000;
+    
+    if (elapsedSeconds < 30) {
+      return 2000; // First 30 seconds: 2s interval
+    } else {
+      return 5000; // After 30 seconds: 5s interval
+    }
+  };
 
   // Helper functions for column type checking
   const isNumericColumn = (column) => {
@@ -1592,79 +1606,88 @@ function DataProfile() {
     fetchData();
   }, [fileId]);
 
-  // Polling effect for files that are still processing
+  // Polling effect for files that are still processing - uses adaptive intervals
   useEffect(() => {
-    // Clear any existing polling interval
+    // Clear any existing polling
     if (pollingIntervalRef.current) {
-      clearInterval(pollingIntervalRef.current);
+      clearTimeout(pollingIntervalRef.current);
       pollingIntervalRef.current = null;
     }
     
+    const pollFileStatus = async () => {
+      try {
+        const fullData = await getFileFullData(fileId);
+        
+        // Update ALL state from the full response (same as initial fetchData)
+        setFile(fullData.file);
+        setProfile(fullData.profile || {});
+        setOwnership(fullData.ownership);
+        setPolicies(fullData.filePolicies || []);
+        setFileTags(fullData.fileTags || []);
+        setAvailableTags(fullData.allGovernanceTags || []);
+        setAvailablePolicies(fullData.allGovernancePolicies || []);
+        
+        // Set column governance data
+        if (fullData.columnGovernance) {
+          const columns = fullData.profile?.columns || [];
+          const tagsMap = {};
+          const policiesMap = {};
+          
+          columns.forEach(column => {
+            const normalizedName = column.name?.toLowerCase();
+            tagsMap[column.name] = fullData.columnGovernance.tags?.[normalizedName] || [];
+            policiesMap[column.name] = fullData.columnGovernance.policies?.[normalizedName] || [];
+          });
+          
+          setAllColumnGovernanceTags(tagsMap);
+          setAllColumnPolicies(policiesMap);
+        }
+        
+        // Set file sensitivity from data_classification field (primary source) or ownership (fallback)
+        const classification = fullData.file?.data_classification || fullData.file?.dataClassification;
+        if (classification) {
+          setFileSensitivity(classification);
+        } else if (fullData.ownership?.sensitivity_level) {
+          setFileSensitivity(fullData.ownership.sensitivity_level);
+        }
+        
+        // Check if processing is complete
+        const processingStatus = fullData.file?.processing_status;
+        if (processingStatus !== 'queued' && processingStatus !== 'processing') {
+          console.log('File processing complete, stopping polling');
+          setIsProcessing(false);
+          pollingStartTimeRef.current = null;
+          return; // Stop polling
+        }
+        
+        // Schedule next poll with adaptive delay
+        const delay = getAdaptivePollingDelay();
+        pollingIntervalRef.current = setTimeout(pollFileStatus, delay);
+      } catch (err) {
+        console.error('Error polling file status:', err);
+        // Still schedule next poll on error
+        const delay = getAdaptivePollingDelay();
+        pollingIntervalRef.current = setTimeout(pollFileStatus, delay);
+      }
+    };
+    
     // Start polling if file is processing
     if (isProcessing && fileId) {
-      console.log('Starting polling for file processing status');
+      console.log('Starting adaptive polling for file processing status');
+      pollingStartTimeRef.current = Date.now();
       
-      pollingIntervalRef.current = setInterval(async () => {
-        try {
-          const fullData = await getFileFullData(fileId);
-          
-          // Update ALL state from the full response (same as initial fetchData)
-          setFile(fullData.file);
-          setProfile(fullData.profile || {});
-          setOwnership(fullData.ownership);
-          setPolicies(fullData.filePolicies || []);
-          setFileTags(fullData.fileTags || []);
-          setAvailableTags(fullData.allGovernanceTags || []);
-          setAvailablePolicies(fullData.allGovernancePolicies || []);
-          
-          // Set column governance data
-          if (fullData.columnGovernance) {
-            const columns = fullData.profile?.columns || [];
-            const tagsMap = {};
-            const policiesMap = {};
-            
-            columns.forEach(column => {
-              const normalizedName = column.name?.toLowerCase();
-              tagsMap[column.name] = fullData.columnGovernance.tags?.[normalizedName] || [];
-              policiesMap[column.name] = fullData.columnGovernance.policies?.[normalizedName] || [];
-            });
-            
-            setAllColumnGovernanceTags(tagsMap);
-            setAllColumnPolicies(policiesMap);
-          }
-          
-          // Set file sensitivity from data_classification field (primary source) or ownership (fallback)
-          const classification = fullData.file?.data_classification || fullData.file?.dataClassification;
-          if (classification) {
-            setFileSensitivity(classification);
-          } else if (fullData.ownership?.sensitivity_level) {
-            setFileSensitivity(fullData.ownership.sensitivity_level);
-          }
-          
-          // Check if processing is complete
-          const processingStatus = fullData.file?.processing_status;
-          if (processingStatus !== 'queued' && processingStatus !== 'processing') {
-            console.log('File processing complete, stopping polling');
-            setIsProcessing(false);
-            
-            // Clear the interval
-            if (pollingIntervalRef.current) {
-              clearInterval(pollingIntervalRef.current);
-              pollingIntervalRef.current = null;
-            }
-          }
-        } catch (err) {
-          console.error('Error polling file status:', err);
-        }
-      }, 2000); // Poll every 2 seconds
+      // Start first poll
+      const delay = getAdaptivePollingDelay();
+      pollingIntervalRef.current = setTimeout(pollFileStatus, delay);
     }
     
     // Cleanup on unmount or when isProcessing changes
     return () => {
       if (pollingIntervalRef.current) {
-        clearInterval(pollingIntervalRef.current);
+        clearTimeout(pollingIntervalRef.current);
         pollingIntervalRef.current = null;
       }
+      pollingStartTimeRef.current = null;
     };
   }, [isProcessing, fileId]);
 

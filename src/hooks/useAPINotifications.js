@@ -40,7 +40,9 @@ export const useMarkNotificationRead = () => {
   return useMutation({
     mutationFn: markNotificationAsRead,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: QueryKeys.notifications.all });
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: QueryKeys.notifications.all });
+      }, 30000);
     }
   });
 };

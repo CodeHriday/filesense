@@ -71,6 +71,7 @@ function FileUpload() {
   const [batchUploadStatus, setBatchUploadStatus] = useState(null); // Track batch upload progress
   const [batchResults, setBatchResults] = useState(null); // Store batch upload results
   const pollingInterval = useRef(null);
+  const pollingStartTime = useRef(null);
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
@@ -524,8 +525,10 @@ function FileUpload() {
   useEffect(() => {
     return () => {
       if (pollingInterval.current) {
-        clearInterval(pollingInterval.current);
+        clearTimeout(pollingInterval.current);
+        pollingInterval.current = null;
       }
+      pollingStartTime.current = null;
     };
   }, []);
   
@@ -831,9 +834,10 @@ function FileUpload() {
       if (isComplete) {
         // Stop polling
         if (pollingInterval.current) {
-          clearInterval(pollingInterval.current);
+          clearTimeout(pollingInterval.current);
           pollingInterval.current = null;
         }
+        pollingStartTime.current = null;
         
         setIsProcessing(false);
         
@@ -847,19 +851,48 @@ function FileUpload() {
     }
   };
   
+  const getAdaptivePollingDelay = () => {
+    if (!pollingStartTime.current) return 1000;
+    
+    const elapsedMs = Date.now() - pollingStartTime.current;
+    const elapsedSeconds = elapsedMs / 1000;
+    
+    if (elapsedSeconds < 10) {
+      return 1000; // First 10 seconds: 1s interval
+    } else if (elapsedSeconds < 30) {
+      return 3000; // 10-30 seconds: 3s interval
+    } else {
+      return 5000; // After 30 seconds: 5s interval
+    }
+  };
+  
+  const scheduleNextPoll = (fileId) => {
+    if (pollingInterval.current) {
+      clearTimeout(pollingInterval.current);
+    }
+    
+    const delay = getAdaptivePollingDelay();
+    pollingInterval.current = setTimeout(async () => {
+      await pollProcessingStatus(fileId);
+      // Schedule next poll if still processing
+      if (pollingInterval.current !== null) {
+        scheduleNextPoll(fileId);
+      }
+    }, delay);
+  };
+  
   const startPolling = (fileId) => {
     // Clear any existing polling
     if (pollingInterval.current) {
-      clearInterval(pollingInterval.current);
+      clearTimeout(pollingInterval.current);
     }
     
-    // Poll every 500ms for real-time updates
-    pollingInterval.current = setInterval(() => {
-      pollProcessingStatus(fileId);
-    }, 500);
+    // Track when polling started for adaptive intervals
+    pollingStartTime.current = Date.now();
     
-    // Also poll immediately
+    // Poll immediately, then schedule next
     pollProcessingStatus(fileId);
+    scheduleNextPoll(fileId);
   };
   
   const handleTestConnection = async () => {
@@ -1331,9 +1364,10 @@ function FileUpload() {
   const handleUploadAnother = () => {
     // Clear any polling
     if (pollingInterval.current) {
-      clearInterval(pollingInterval.current);
+      clearTimeout(pollingInterval.current);
       pollingInterval.current = null;
     }
+    pollingStartTime.current = null;
     
     setUploadStatus(null);
     setUploadedFile(null);

@@ -163,7 +163,7 @@ export const useProjects = (options = {}) => {
   return useQuery({
     queryKey: QueryKeys.projects.list(),
     queryFn: fetchProjects,
-    staleTime: STALE_TIMES.SLOW_CHANGING,
+    staleTime: STALE_TIMES.STATIC_DATA, // Increased from SLOW_CHANGING for API optimization
     gcTime: CACHE_TIMES.LONG,
     refetchOnMount: false,
     ...options
