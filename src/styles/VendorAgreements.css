@@ -661,7 +661,7 @@
   font-weight: var(--gps-font-weight-semibold, 600);
   color: var(--gps-text-muted, #666666);
   font-size: 10px;
-  text-transform: uppercase;
+  text-transform: none;
   letter-spacing: 0.3px;
 }
 

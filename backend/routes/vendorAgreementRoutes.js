@@ -518,6 +518,7 @@ router.get('/:id/full', checkAgreementAccess, async (req, res) => {
     const agreementId = parseInt(req.params.id);
     
     
+    // Fetch approvals with user info
     const approvalsResult = await dbQuery(`
       SELECT 
         va.id,
@@ -525,26 +526,62 @@ router.get('/:id/full', checkAgreementAccess, async (req, res) => {
         va.approval_stage as stage,
         va.action,
         va.comments,
-        va.approver_user_id as approved_by,
-        va.approval_timestamp as approved_at,
-        u.username as approved_by_username,
-        u.email as approved_by_email
+        va.approver_user_id,
+        va.approver_user_id as user_id,
+        va.approval_timestamp,
+        u.username,
+        u.email as user_email,
+        COALESCE(u.first_name || ' ' || u.last_name, u.username) as display_name
       FROM vendor_agreement_approvals va
       LEFT JOIN users u ON va.approver_user_id = u.id
       WHERE va.agreement_id = $1
       ORDER BY va.approval_timestamp DESC
     `, [agreementId]);
     
+    // Fetch documents for each approval
+    const documentsResult = await dbQuery(`
+      SELECT 
+        id,
+        approval_id,
+        document_name,
+        document_type,
+        file_size,
+        mime_type,
+        uploaded_at
+      FROM vendor_agreement_documents
+      WHERE agreement_id = $1
+      ORDER BY uploaded_at DESC
+    `, [agreementId]);
+    
+    // Group documents by approval_id
+    const documentsByApproval = {};
+    for (const doc of documentsResult.rows) {
+      if (!documentsByApproval[doc.approval_id]) {
+        documentsByApproval[doc.approval_id] = [];
+      }
+      documentsByApproval[doc.approval_id].push(doc);
+    }
+    
+    // Attach documents to each approval
+    const approvalsWithDocs = approvalsResult.rows.map(approval => ({
+      ...approval,
+      documents: documentsByApproval[approval.id] || []
+    }));
+    
+    // Fetch change history with user info and summary
     const changesResult = await dbQuery(`
       SELECT 
         vc.id,
         vc.agreement_id,
-        vc.change_type as field_name,
+        vc.change_type,
         vc.previous_data as old_value,
         vc.new_data as new_value,
+        vc.changes_summary,
         vc.changed_by,
+        vc.changed_by as user_id,
         vc.changed_at,
-        u.username as changed_by_username
+        u.username,
+        COALESCE(u.first_name || ' ' || u.last_name, u.username) as display_name
       FROM vendor_agreement_changes vc
       LEFT JOIN users u ON vc.changed_by = u.id
       WHERE vc.agreement_id = $1
@@ -555,7 +592,7 @@ router.get('/:id/full', checkAgreementAccess, async (req, res) => {
     res.json({
       success: true,
       agreement: req.agreement,
-      approvals: approvalsResult.rows,
+      approvals: approvalsWithDocs,
       changes: changesResult.rows,
       userRole: req.isAdmin ? 'admin' : (req.isVendor ? 'vendor' : 'owner')
     });
