@@ -2,7 +2,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getSLAStatus, getSLAViolations, getSLASummary, runManualSLACheck } from '../api/slaService';
 import { QueryKeys, STALE_TIMES, CACHE_TIMES } from '../lib/react-query';
 
-const SLA_REFETCH_INTERVAL = 1000 * 60;
+// Auto-polling disabled for API optimization - use manual refresh instead
+// const SLA_REFETCH_INTERVAL = 1000 * 60;
 
 const fetchSLAData = async () => {
   const [summaryRes, statusRes, violationsRes] = await Promise.all([
@@ -24,9 +25,9 @@ export const useSLAMonitoring = (options = {}) => {
     queryFn: fetchSLAData,
     staleTime: STALE_TIMES.FAST_CHANGING,
     gcTime: CACHE_TIMES.SHORT,
-    refetchInterval: SLA_REFETCH_INTERVAL,
+    refetchInterval: false, // Disabled for API optimization - on-demand only
     refetchIntervalInBackground: false,
-    refetchOnMount: false,
+    refetchOnMount: true, // Load fresh data on page visit
     ...options
   });
 };

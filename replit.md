@@ -37,6 +37,26 @@ The application is a modern single-page application built with React (TypeScript
 ### Performance Optimizations
 Includes Redis-based permission caching, database indexing, reduced audit trail records, optimized PostgreSQL functions, reduced API polling, and a dual-layer response caching middleware.
 
+### Archived Modules (January 2026)
+The following modules have been archived to reduce API calls and improve AWS rate limiting compliance:
+-   **DataStories** - Data storytelling feature (route `/stories` disabled)
+-   **DBTTransformations** - DBT model execution UI (route `/dbt-transformations` disabled)
+-   **WorkflowBuilder, WorkflowTest, WorkflowCanvasStandalone** - Legacy workflow tools replaced by Visual Workflows
+-   **HooksDemo** - Development testing page
+
+### API Polling Optimization (January 2026)
+To reduce AWS API rate limiting, auto-polling has been disabled in favor of on-demand loading:
+-   **Badges page** - Manual refresh button added, loads on page visit
+-   **Anomalies page** - Manual refresh button added, loads on page visit
+-   **useSLAMonitoring hook** - refetchInterval disabled, loads on mount
+-   **useAPINotifications hook** - refetchInterval disabled, loads on mount
+-   **useApiStatus hook** - refetchInterval disabled, loads on mount
+
+**Preserved real-time polling** (critical for user experience):
+-   Jobs Monitor - real-time job status updates
+-   FileUpload - immediate file processing feedback
+-   DataProfile - file profiling status updates
+
 ### Enterprise Performance Infrastructure
 Features database optimizations (composite, partial, and covering indexes, materialized views with background refresh), API performance enhancements (cursor-based pagination, enterprise caching middleware, per-user rate limiting), and streaming file processing (constant memory usage, bulk insert optimization, memory-efficient analysis). Enhanced `/api/health` endpoint reports comprehensive system status.
 

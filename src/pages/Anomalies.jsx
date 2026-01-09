@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
+import { FiRefreshCw } from 'react-icons/fi';
 import './Anomalies.css';
 import HealingRecommendations from '../components/HealingRecommendations';
 
@@ -27,12 +28,7 @@ const Anomalies = () => {
   // Recommendations modal
   const [recommendationsAnomaly, setRecommendationsAnomaly] = useState(null);
 
-  useEffect(() => {
-    fetchAnomalies();
-    fetchStatistics();
-  }, [filters]);
-
-  const fetchAnomalies = async () => {
+  const fetchAnomalies = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -51,16 +47,26 @@ const Anomalies = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [filters]);
 
-  const fetchStatistics = async () => {
+  const fetchStatistics = useCallback(async () => {
     try {
       const response = await axios.get(`${API_BASE_URL}/api/ml/anomalies/statistics`);
       setStatistics(response.data);
     } catch (err) {
       console.error('Error fetching statistics:', err);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchAnomalies();
+    fetchStatistics();
+  }, [fetchAnomalies, fetchStatistics]);
+
+  const handleRefresh = useCallback(() => {
+    fetchAnomalies();
+    fetchStatistics();
+  }, [fetchAnomalies, fetchStatistics]);
 
   const handleResolve = async () => {
     if (!selectedAnomaly || !resolutionNotes.trim()) {
@@ -107,7 +113,17 @@ const Anomalies = () => {
   return (
     <div className="anomalies-container">
       <div className="anomalies-header">
-        <h1>Anomaly Detection</h1>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <h1>Anomaly Detection</h1>
+          <button 
+            className="gps-btn gps-btn-secondary" 
+            onClick={handleRefresh} 
+            disabled={loading}
+            style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+          >
+            <FiRefreshCw className={loading ? 'spinning' : ''} /> Refresh
+          </button>
+        </div>
         <p>ML-based anomaly detection for data quality monitoring</p>
       </div>
 

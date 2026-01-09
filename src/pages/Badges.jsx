@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { FiAward, FiLock, FiInfo } from 'react-icons/fi';
+import React, { useState, useEffect, useCallback } from 'react';
+import { FiAward, FiLock, FiInfo, FiRefreshCw } from 'react-icons/fi';
 import { getUserBadges, getBadgeDefinitions, BADGE_DEFINITIONS } from '../api/badgeService';
 import AchievementBadge from '../components/AchievementBadge';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -11,45 +11,45 @@ const Badges = () => {
   const [activeFilter, setActiveFilter] = useState('all');
   const [selectedBadge, setSelectedBadge] = useState(null);
 
-  useEffect(() => {
-    const fetchBadges = async () => {
-      try {
-        setLoading(true);
-        // Get user's earned badges
-        const userBadges = await getUserBadges();
-        
-        // Get all possible badge definitions
-        const allBadgeDefinitions = getBadgeDefinitions();
-        
-        // Map earned badges
-        const earnedBadges = userBadges.map(badge => ({
-          ...badge,
-          ...BADGE_DEFINITIONS[badge.badgeId],
-          isLocked: false
+  const fetchBadges = useCallback(async () => {
+    try {
+      setLoading(true);
+      // Get user's earned badges
+      const userBadges = await getUserBadges();
+      
+      // Get all possible badge definitions
+      const allBadgeDefinitions = getBadgeDefinitions();
+      
+      // Map earned badges
+      const earnedBadges = userBadges.map(badge => ({
+        ...badge,
+        ...BADGE_DEFINITIONS[badge.badgeId],
+        isLocked: false
+      }));
+      
+      // Map locked badges (badges not yet earned)
+      const earnedBadgeIds = new Set(userBadges.map(b => b.badgeId));
+      const lockedBadges = allBadgeDefinitions
+        .filter(def => !earnedBadgeIds.has(def.type + '-' + def.level))
+        .map(def => ({
+          ...def,
+          badgeId: def.type + '-' + def.level,
+          isLocked: true,
+          score: null
         }));
-        
-        // Map locked badges (badges not yet earned)
-        const earnedBadgeIds = new Set(userBadges.map(b => b.badgeId));
-        const lockedBadges = allBadgeDefinitions
-          .filter(def => !earnedBadgeIds.has(def.type + '-' + def.level))
-          .map(def => ({
-            ...def,
-            badgeId: def.type + '-' + def.level,
-            isLocked: true,
-            score: null
-          }));
-        
-        // Combine earned and locked badges
-        setBadges([...earnedBadges, ...lockedBadges]);
-      } catch (error) {
-        console.error('Error fetching badges:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    fetchBadges();
+      
+      // Combine earned and locked badges
+      setBadges([...earnedBadges, ...lockedBadges]);
+    } catch (error) {
+      console.error('Error fetching badges:', error);
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    fetchBadges();
+  }, [fetchBadges]);
 
   // Filter badges by type
   const filteredBadges = badges.filter(badge => {
@@ -84,7 +84,17 @@ const Badges = () => {
   return (
     <div className="badges-container">
       <div className="page-header">
-        <h1><FiAward className="page-header-icon" /> Achievement Badges</h1>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <h1><FiAward className="page-header-icon" /> Achievement Badges</h1>
+          <button 
+            className="gps-btn gps-btn-secondary" 
+            onClick={fetchBadges} 
+            disabled={loading}
+            style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+          >
+            <FiRefreshCw className={loading ? 'spinning' : ''} /> Refresh
+          </button>
+        </div>
         <p>Track your data quality achievements and unlock special badges.</p>
       </div>
       

@@ -3,7 +3,8 @@ import axios from 'axios';
 import { QueryKeys, CACHE_TIMES } from '../lib/react-query';
 
 const NOTIFICATIONS_STALE_TIME = 1000 * 30;
-const NOTIFICATIONS_REFETCH_INTERVAL = 1000 * 60;
+// Auto-polling disabled for API optimization - use manual refresh instead
+// const NOTIFICATIONS_REFETCH_INTERVAL = 1000 * 60;
 
 const fetchNotifications = async () => {
   const response = await axios.get('/api/notifications');
@@ -26,8 +27,8 @@ export const useAPINotifications = (options = {}) => {
     queryFn: fetchNotifications,
     staleTime: NOTIFICATIONS_STALE_TIME,
     gcTime: CACHE_TIMES.STANDARD,
-    refetchOnMount: false,
-    refetchInterval: NOTIFICATIONS_REFETCH_INTERVAL,
+    refetchOnMount: true, // Load fresh data on page visit
+    refetchInterval: false, // Disabled for API optimization - on-demand only
     refetchIntervalInBackground: false,
     ...options
   });

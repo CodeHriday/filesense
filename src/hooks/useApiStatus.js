@@ -9,8 +9,9 @@ export const useApiStatus = (options = {}) => {
   return useQuery({
     queryKey: ['apiStatus'],
     queryFn: testApiConnection,
-    // Refresh the status check every minute
-    refetchInterval: 60000,
+    // Auto-polling disabled for API optimization - on-demand only
+    refetchInterval: false,
+    refetchOnMount: true, // Check on page visit
     // Don't refetch on window focus by default (would be annoying)
     refetchOnWindowFocus: false,
     // More aggressive retry for API connection

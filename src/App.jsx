@@ -60,7 +60,7 @@ const LineageListPage = lazy(() => import('./pages/LineageListPage'));
 const Monitor = lazy(() => import('./pages/Monitor'));
 const Scheduler = lazy(() => import('./pages/Scheduler'));
 const Badges = lazy(() => import('./pages/Badges'));
-const DataStories = lazy(() => import('./pages/DataStories'));
+// DataStories - ARCHIVED (not in use)
 const DashboardSettings = lazy(() => import('./pages/DashboardSettings'));
 const UserManagement = lazy(() => import('./pages/UserManagement'));
 const RoleManagement = lazy(() => import('./pages/RoleManagement'));
@@ -73,8 +73,8 @@ const VendorAgreements = lazy(() => import('./pages/VendorAgreements'));
 const VendorFileUpload = lazy(() => import('./pages/VendorFileUpload'));
 const VendorFileQuality = lazy(() => import('./pages/VendorFileQuality'));
 const SLAMonitoring = lazy(() => import('./pages/SLAMonitoring'));
-const DBTTransformations = lazy(() => import('./pages/DBTTransformations'));
-const HooksDemo = lazy(() => import('./pages/HooksDemo'));
+// DBTTransformations - ARCHIVED (not in use)
+// HooksDemo - ARCHIVED (development only)
 const Groups = lazy(() => import('./pages/Groups'));
 const BusinessProcesses = lazy(() => import('./pages/BusinessProcesses'));
 const Jobs = lazy(() => import('./pages/Jobs'));
@@ -100,9 +100,9 @@ const OAuth2Callback = lazy(() => import('./pages/OAuth2Callback').then(m => ({ 
 const APITokens = lazy(() => import('./pages/APITokens'));
 const APIDocumentation = lazy(() => import('./pages/APIDocumentation'));
 const FailedJobs = lazy(() => import('./pages/FailedJobs'));
-const WorkflowCanvasStandalone = lazy(() => import('./pages/WorkflowCanvasStandalone'));
-const WorkflowTest = lazy(() => import('./pages/WorkflowTest'));
-const WorkflowBuilder = lazy(() => import('./pages/archived/WorkflowBuilder'));
+// WorkflowCanvasStandalone - ARCHIVED (not in use)
+// WorkflowTest - ARCHIVED (development only)
+// WorkflowBuilder - ARCHIVED (already in archived folder)
 const WorkflowManager = lazy(() => import('./pages/WorkflowManager'));
 const VisualMappingCanvas = lazy(() => import('./pages/VisualMappingCanvas'));
 const VisualMappingManager = lazy(() => import('./pages/VisualMappingManager'));
@@ -371,7 +371,7 @@ function AppContent({ showOnboarding, setShowOnboarding }) {
                 <Route path="/monitor" element={<ProtectedRoute><Monitor /></ProtectedRoute>} />
                 <Route path="/scheduler" element={<ProtectedRoute><Scheduler /></ProtectedRoute>} />
                 <Route path="/badges" element={<ProtectedRoute><Badges /></ProtectedRoute>} />
-                <Route path="/stories" element={<ProtectedRoute><DataStories /></ProtectedRoute>} />
+                {/* ARCHIVED: <Route path="/stories" element={<ProtectedRoute><DataStories /></ProtectedRoute>} /> */}
                 <Route path="/dashboard-settings" element={<ProtectedRoute><DashboardSettings /></ProtectedRoute>} />
                 <Route path="/users" element={<ProtectedRoute><UserManagement /></ProtectedRoute>} />
                 <Route path="/roles" element={<ProtectedRoute><RoleManagement /></ProtectedRoute>} />
@@ -385,7 +385,7 @@ function AppContent({ showOnboarding, setShowOnboarding }) {
                 <Route path="/vendor-file-upload" element={<ProtectedRoute><VendorFileUpload /></ProtectedRoute>} />
                 <Route path="/vendor-file-quality" element={<ProtectedRoute><VendorFileQuality /></ProtectedRoute>} />
                 <Route path="/sla-monitoring" element={<ProtectedRoute><SLAMonitoring /></ProtectedRoute>} />
-                <Route path="/dbt-transformations" element={<ProtectedRoute><DBTTransformations /></ProtectedRoute>} />
+                {/* ARCHIVED: <Route path="/dbt-transformations" element={<ProtectedRoute><DBTTransformations /></ProtectedRoute>} /> */}
                 <Route path="/failed-jobs" element={<ProtectedRoute><FailedJobs /></ProtectedRoute>} />
                 {/* Business Process Management routes */}
                 <Route path="/groups" element={<ProtectedRoute><Groups /></ProtectedRoute>} />
@@ -402,7 +402,7 @@ function AppContent({ showOnboarding, setShowOnboarding }) {
                 <Route path="/mapping-groups/create" element={<ProtectedRoute><MappingGroupForm /></ProtectedRoute>} />
                 <Route path="/mapping-groups/:groupId/edit" element={<ProtectedRoute><MappingGroupForm /></ProtectedRoute>} />
                 <Route path="/workflows" element={<ProtectedRoute><NStepWorkflows /></ProtectedRoute>} />
-                <Route path="/workflow-builder" element={<ProtectedRoute><WorkflowBuilder /></ProtectedRoute>} />
+                {/* ARCHIVED: <Route path="/workflow-builder" element={<ProtectedRoute><WorkflowBuilder /></ProtectedRoute>} /> */}
                 <Route path="/workflow-manager" element={<ProtectedRoute><WorkflowManager /></ProtectedRoute>} />
                 <Route path="/visual-mappings/new" element={<ProtectedRoute><VisualMappingCanvas /></ProtectedRoute>} />
                 <Route path="/visual-mappings/:mappingId" element={<ProtectedRoute><VisualMappingCanvas /></ProtectedRoute>} />
@@ -426,12 +426,12 @@ function AppContent({ showOnboarding, setShowOnboarding }) {
                 <Route path="/alert-history" element={<ProtectedRoute><AlertHistory /></ProtectedRoute>} />
                 <Route path="/email-providers" element={<ProtectedRoute><EmailProvidersConfig /></ProtectedRoute>} />
                 <Route path="/oauth2-callback" element={<OAuth2Callback />} />
-                <Route path="/workflow-canvas" element={<ProtectedRoute><WorkflowCanvasStandalone /></ProtectedRoute>} />
-                <Route path="/workflow-test" element={<ProtectedRoute><WorkflowTest /></ProtectedRoute>} />
+                {/* ARCHIVED: <Route path="/workflow-canvas" element={<ProtectedRoute><WorkflowCanvasStandalone /></ProtectedRoute>} /> */}
+                {/* ARCHIVED: <Route path="/workflow-test" element={<ProtectedRoute><WorkflowTest /></ProtectedRoute>} /> */}
                 <Route path="/documentation" element={<ProtectedRoute><Documentation /></ProtectedRoute>} />
                 <Route path="/help" element={<ProtectedRoute><Documentation /></ProtectedRoute>} />
-                {/* Development Routes */}
-                <Route path="/hooks-demo" element={<ProtectedRoute><HooksDemo /></ProtectedRoute>} />
+                {/* Development Routes - ARCHIVED */}
+                {/* ARCHIVED: <Route path="/hooks-demo" element={<ProtectedRoute><HooksDemo /></ProtectedRoute>} /> */}
                 <Route path="/performance-optimizations" element={<ProtectedRoute><PerformanceOptimizations /></ProtectedRoute>} />
                 <Route path="/login" element={currentUser ? <Navigate to="/" replace /> : <Login />} />
                 <Route path="*" element={<Navigate to="/" replace />} />

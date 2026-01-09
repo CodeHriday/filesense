@@ -420,14 +420,14 @@ export const APP_FEATURES = [
     showInSidebar: true
   },
   
-  // Data Stories & Jobs
+  // Data Stories & Jobs - ARCHIVED
   { 
     id: 'stories', 
     name: 'Data Stories', 
     category: 'Jobs and Monitoring',
     icon: FiBookOpen,
     route: '/stories',
-    showInSidebar: true
+    showInSidebar: false // ARCHIVED - not in use
   },
   { 
     id: 'jobs', 
