@@ -956,7 +956,7 @@ function DataProfile() {
 
   // Helper functions for column type checking
   const isNumericColumn = (column) => {
-    const numericTypes = ['integer', 'decimal', 'number', 'float', 'int64', 'float64', 'int32', 'float32'];
+    const numericTypes = ['integer', 'int', 'decimal', 'number', 'float', 'int64', 'float64', 'int32', 'float32', 'bigint', 'smallint', 'double', 'numeric'];
     return column.type && numericTypes.includes(column.type.toLowerCase());
   };
 

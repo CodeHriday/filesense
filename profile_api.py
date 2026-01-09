@@ -1332,59 +1332,125 @@ def profile_vendor_file(file_path, filename, password=None, fixed_width_schema=N
         if len(non_null) == 0:
             return []
         
-        total_sample = min(1000, len(non_null))
+        # Use consistent sample size for all pattern detection
+        sample_size = min(1000, len(non_null))
+        sample_data = non_null.head(sample_size)
+        
+        # Helper function to generate COBOL-style picture clause
+        def get_picture_clause(values, total_count):
+            """Generate COBOL-style picture clause (e.g., 9(8), X(10), 9(8).9(2))"""
+            if len(values) == 0:
+                return None
+            
+            sample_strs = values.astype(str)
+            
+            # Analyze the pattern of each value
+            patterns_found = {}
+            for val in sample_strs:
+                # Build picture clause for this value
+                picture = ''
+                i = 0
+                while i < len(val):
+                    char = val[i]
+                    if char.isdigit():
+                        # Count consecutive digits
+                        count = 0
+                        while i < len(val) and val[i].isdigit():
+                            count += 1
+                            i += 1
+                        picture += f'9({count})' if count > 1 else '9'
+                    elif char == '.':
+                        picture += '.'
+                        i += 1
+                    elif char == '-':
+                        picture += '-'
+                        i += 1
+                    elif char == '/':
+                        picture += '/'
+                        i += 1
+                    elif char.isalpha():
+                        # Count consecutive letters
+                        count = 0
+                        while i < len(val) and val[i].isalpha():
+                            count += 1
+                            i += 1
+                        picture += f'A({count})' if count > 1 else 'A'
+                    else:
+                        # Any other character
+                        count = 0
+                        start_char = char
+                        while i < len(val) and val[i] == start_char:
+                            count += 1
+                            i += 1
+                        picture += f'X({count})' if count > 1 else 'X'
+                
+                if picture:
+                    patterns_found[picture] = patterns_found.get(picture, 0) + 1
+            
+            if not patterns_found:
+                return None
+            
+            # Return the most common pattern
+            most_common = max(patterns_found.items(), key=lambda x: x[1])
+            return most_common[0], most_common[1], total_count
         
         # Check if this is a numeric column
         if pd.api.types.is_numeric_dtype(col_data):
-            numeric_sample = non_null.head(1000)
+            numeric_patterns = []
             
             # Check for integer vs decimal pattern
-            is_integer = numeric_sample.apply(lambda x: float(x) == int(x) if pd.notna(x) else True)
+            is_integer = sample_data.apply(lambda x: float(x) == int(x) if pd.notna(x) else True)
             integer_count = is_integer.sum()
             
-            if integer_count == total_sample:
+            if integer_count == sample_size:
                 # Check for specific integer patterns
-                min_val = numeric_sample.min()
-                max_val = numeric_sample.max()
+                min_val = sample_data.min()
+                max_val = sample_data.max()
                 
                 if min_val >= 0 and max_val <= 100:
-                    patterns['Percentage (0-100)'] = {'count': total_sample, 'percentage': 100.0}
+                    numeric_patterns.append({'pattern': 'Percentage (0-100)', 'count': sample_size, 'percentage': 100.0})
                 elif min_val >= 0:
-                    patterns['Positive Integer'] = {'count': total_sample, 'percentage': 100.0}
+                    numeric_patterns.append({'pattern': 'Positive Integer', 'count': sample_size, 'percentage': 100.0})
                 elif max_val <= 0:
-                    patterns['Negative Integer'] = {'count': total_sample, 'percentage': 100.0}
+                    numeric_patterns.append({'pattern': 'Negative Integer', 'count': sample_size, 'percentage': 100.0})
                 else:
-                    patterns['Integer'] = {'count': total_sample, 'percentage': 100.0}
+                    numeric_patterns.append({'pattern': 'Integer', 'count': sample_size, 'percentage': 100.0})
             else:
-                decimal_count = total_sample - integer_count
-                
-                # Check decimal places
-                decimal_places = numeric_sample.apply(lambda x: len(str(x).split('.')[-1]) if '.' in str(x) else 0)
+                decimal_count = sample_size - integer_count
+                decimal_places = sample_data.apply(lambda x: len(str(x).split('.')[-1]) if '.' in str(x) else 0)
                 avg_decimals = decimal_places.mean()
                 
                 if avg_decimals <= 2:
-                    patterns['Decimal (2 places)'] = {'count': decimal_count, 'percentage': round((decimal_count / total_sample) * 100, 1)}
+                    numeric_patterns.append({'pattern': 'Decimal (2 places)', 'count': decimal_count, 'percentage': round((decimal_count / sample_size) * 100, 1)})
                 else:
-                    patterns['Decimal'] = {'count': decimal_count, 'percentage': round((decimal_count / total_sample) * 100, 1)}
+                    numeric_patterns.append({'pattern': f'Decimal ({int(avg_decimals)} places)', 'count': decimal_count, 'percentage': round((decimal_count / sample_size) * 100, 1)})
             
-            # Convert to array format for numeric columns
-            pattern_array = []
-            for pattern_name, stats in patterns.items():
-                pattern_array.append({
+            # Also add COBOL-style picture clause for numeric data
+            picture_result = get_picture_clause(sample_data, sample_size)
+            if picture_result:
+                pattern_name, count, total = picture_result
+                numeric_patterns.append({
                     'pattern': pattern_name,
-                    'count': stats['count'],
-                    'percentage': stats['percentage']
+                    'count': count,
+                    'percentage': round((count / total) * 100, 1)
                 })
-            return pattern_array
+            
+            return numeric_patterns
         
-        # Sample up to 1000 values for string pattern detection
-        sample = non_null.head(1000).astype(str)
+        # Use the same sample for string pattern detection
+        sample = sample_data.astype(str)
+        
+        # Try COBOL-style picture clause for strings too
+        picture_result = get_picture_clause(sample_data, sample_size)
+        if picture_result:
+            pattern_name, count, total = picture_result
+            patterns[pattern_name] = {'count': count, 'percentage': round((count / total) * 100, 1)}
         
         # Email pattern
         email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
         email_matches = sample.str.match(email_pattern).sum()
-        if email_matches > total_sample * 0.7:
-            patterns['Email'] = {'count': email_matches, 'percentage': round((email_matches / total_sample) * 100, 1)}
+        if email_matches > sample_size * 0.7:
+            patterns['Email'] = {'count': email_matches, 'percentage': round((email_matches / sample_size) * 100, 1)}
         
         # Phone patterns (US)
         phone_patterns = [
@@ -1395,8 +1461,8 @@ def profile_vendor_file(file_path, filename, password=None, fixed_width_schema=N
         ]
         for pattern, name in phone_patterns:
             matches = sample.str.match(pattern).sum()
-            if matches > total_sample * 0.7:
-                patterns[name] = {'count': matches, 'percentage': round((matches / total_sample) * 100, 1)}
+            if matches > sample_size * 0.7:
+                patterns[name] = {'count': matches, 'percentage': round((matches / sample_size) * 100, 1)}
         
         # Date patterns
         date_patterns = [
@@ -1407,14 +1473,14 @@ def profile_vendor_file(file_path, filename, password=None, fixed_width_schema=N
         ]
         for pattern, name in date_patterns:
             matches = sample.str.match(pattern).sum()
-            if matches > total_sample * 0.7:
-                patterns[name] = {'count': matches, 'percentage': round((matches / total_sample) * 100, 1)}
+            if matches > sample_size * 0.7:
+                patterns[name] = {'count': matches, 'percentage': round((matches / sample_size) * 100, 1)}
         
         # SSN pattern
         ssn_pattern = r'^\d{3}-\d{2}-\d{4}$'
         ssn_matches = sample.str.match(ssn_pattern).sum()
-        if ssn_matches > total_sample * 0.7:
-            patterns['SSN (xxx-xx-xxxx)'] = {'count': ssn_matches, 'percentage': round((ssn_matches / total_sample) * 100, 1)}
+        if ssn_matches > sample_size * 0.7:
+            patterns['SSN (xxx-xx-xxxx)'] = {'count': ssn_matches, 'percentage': round((ssn_matches / sample_size) * 100, 1)}
         
         # ZIP code patterns
         zip_patterns = [
@@ -1423,14 +1489,14 @@ def profile_vendor_file(file_path, filename, password=None, fixed_width_schema=N
         ]
         for pattern, name in zip_patterns:
             matches = sample.str.match(pattern).sum()
-            if matches > total_sample * 0.7:
-                patterns[name] = {'count': matches, 'percentage': round((matches / total_sample) * 100, 1)}
+            if matches > sample_size * 0.7:
+                patterns[name] = {'count': matches, 'percentage': round((matches / sample_size) * 100, 1)}
         
         # Credit card pattern (basic)
         cc_pattern = r'^\d{4}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4}$'
         cc_matches = sample.str.match(cc_pattern).sum()
-        if cc_matches > total_sample * 0.7:
-            patterns['Credit Card'] = {'count': cc_matches, 'percentage': round((cc_matches / total_sample) * 100, 1)}
+        if cc_matches > sample_size * 0.7:
+            patterns['Credit Card'] = {'count': cc_matches, 'percentage': round((cc_matches / sample_size) * 100, 1)}
         
         # Convert to array format expected by UI
         pattern_array = []

@@ -5778,8 +5778,11 @@ app.get('/api/files/:fileId/full',
           median: null,
           stdDev: null,
           histogram: null,
+          patterns: [],
           most_frequent_value: '[REDACTED]',
           least_frequent_value: '[REDACTED]',
+          most_frequent_count: null,
+          least_frequent_count: null,
           _accessLevel: isMasked ? 'masked' : 'denied'
         };
       }
@@ -5795,9 +5798,18 @@ app.get('/api/files/:fileId/full',
         mean: col.mean_value,
         median: col.median_value,
         stdDev: col.std_dev,
-        histogram: col.histogram ? JSON.parse(col.histogram) : null,
+        histogram: (() => {
+          if (!col.histogram) return null;
+          if (typeof col.histogram === 'string') {
+            try { return JSON.parse(col.histogram); } catch { return null; }
+          }
+          return col.histogram;
+        })(),
+        patterns: col.patterns || [],
         most_frequent_value: col.most_frequent_value,
         least_frequent_value: col.least_frequent_value,
+        most_frequent_count: col.most_frequent_count,
+        least_frequent_count: col.least_frequent_count,
         _accessLevel: 'full'
       };
     });
