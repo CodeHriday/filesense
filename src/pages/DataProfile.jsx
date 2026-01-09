@@ -1853,7 +1853,11 @@ function DataProfile() {
                   {columns.map(column => {
                     const totalRows = file.row_count || basicInfo.rowCount || 100;
                     const nullCount = column.missing || 0;
-                    const completeness = Math.round(((totalRows - nullCount) / totalRows) * 100);
+                    // Use 1 decimal place for high completeness to avoid showing 100% when there are nulls
+                    const rawCompleteness = ((totalRows - nullCount) / totalRows) * 100;
+                    const completeness = rawCompleteness > 99 && rawCompleteness < 100
+                      ? parseFloat(rawCompleteness.toFixed(1))
+                      : Math.round(rawCompleteness);
                     
                     const columnGovernanceTags = allColumnGovernanceTags[column.name] || [];
                     const columnPoliciesData = allColumnPolicies[column.name] || [];
@@ -2069,7 +2073,11 @@ function DataProfile() {
                 <tbody>
                   {columnAnalysis.map((column) => {
                     const nullCount = column.missing || 0;
-                    const missingPercentage = Math.round((nullCount / totalRows) * 100);
+                    // Use 1 decimal place for small percentages to avoid showing 0% when there are nulls
+                    const rawMissingPct = (nullCount / totalRows) * 100;
+                    const missingPercentage = rawMissingPct < 1 && rawMissingPct > 0 
+                      ? rawMissingPct.toFixed(1) 
+                      : Math.round(rawMissingPct);
                     const governanceTags = allColumnGovernanceTags[column.name] || [];
                     const { quality } = column;
 

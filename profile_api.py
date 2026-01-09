@@ -1332,9 +1332,53 @@ def profile_vendor_file(file_path, filename, password=None, fixed_width_schema=N
         if len(non_null) == 0:
             return []
         
-        # Sample up to 1000 values for pattern detection
+        total_sample = min(1000, len(non_null))
+        
+        # Check if this is a numeric column
+        if pd.api.types.is_numeric_dtype(col_data):
+            numeric_sample = non_null.head(1000)
+            
+            # Check for integer vs decimal pattern
+            is_integer = numeric_sample.apply(lambda x: float(x) == int(x) if pd.notna(x) else True)
+            integer_count = is_integer.sum()
+            
+            if integer_count == total_sample:
+                # Check for specific integer patterns
+                min_val = numeric_sample.min()
+                max_val = numeric_sample.max()
+                
+                if min_val >= 0 and max_val <= 100:
+                    patterns['Percentage (0-100)'] = {'count': total_sample, 'percentage': 100.0}
+                elif min_val >= 0:
+                    patterns['Positive Integer'] = {'count': total_sample, 'percentage': 100.0}
+                elif max_val <= 0:
+                    patterns['Negative Integer'] = {'count': total_sample, 'percentage': 100.0}
+                else:
+                    patterns['Integer'] = {'count': total_sample, 'percentage': 100.0}
+            else:
+                decimal_count = total_sample - integer_count
+                
+                # Check decimal places
+                decimal_places = numeric_sample.apply(lambda x: len(str(x).split('.')[-1]) if '.' in str(x) else 0)
+                avg_decimals = decimal_places.mean()
+                
+                if avg_decimals <= 2:
+                    patterns['Decimal (2 places)'] = {'count': decimal_count, 'percentage': round((decimal_count / total_sample) * 100, 1)}
+                else:
+                    patterns['Decimal'] = {'count': decimal_count, 'percentage': round((decimal_count / total_sample) * 100, 1)}
+            
+            # Convert to array format for numeric columns
+            pattern_array = []
+            for pattern_name, stats in patterns.items():
+                pattern_array.append({
+                    'pattern': pattern_name,
+                    'count': stats['count'],
+                    'percentage': stats['percentage']
+                })
+            return pattern_array
+        
+        # Sample up to 1000 values for string pattern detection
         sample = non_null.head(1000).astype(str)
-        total_sample = len(sample)
         
         # Email pattern
         email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
