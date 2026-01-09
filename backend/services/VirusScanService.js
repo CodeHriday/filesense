@@ -101,6 +101,18 @@ class VirusScanService {
   }
 
   /**
+   * Reset the scanner state to allow re-initialization
+   * Call this if you want to retry after a previous failure
+   */
+  reset() {
+    this.initialized = false;
+    this.unavailable = false;
+    this.initPromise = null;
+    this.clamav = null;
+    systemLogger.info('ClamAV scanner state reset');
+  }
+
+  /**
    * Initialize ClamAV scanner
    */
   async initialize() {
@@ -113,6 +125,15 @@ class VirusScanService {
       systemLogger.warn('Virus scanning is disabled (DISABLE_VIRUS_SCAN=true)');
       this.unavailable = true;
       return null;
+    }
+
+    // If previously marked unavailable but definitions might now exist, reset and retry
+    if (this.unavailable && !this.initPromise) {
+      const dbPath = '/home/runner/.clamav';
+      if (this.checkVirusDefinitions(dbPath)) {
+        systemLogger.info('Virus definitions now available, resetting unavailable state');
+        this.unavailable = false;
+      }
     }
 
     // If initialization is already in progress, wait for it
