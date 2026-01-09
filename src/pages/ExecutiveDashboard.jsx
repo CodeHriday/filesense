@@ -16,13 +16,7 @@ import {
 } from 'chart.js';
 import ChartDataLabels from 'chartjs-plugin-datalabels';
 import {
-  useExecutiveMetrics,
-  useQualityTrend,
-  useJobTrend,
-  useProjectHealth,
-  useFileTypeDistribution,
-  useSchemaDriftTrend,
-  useMetricTrends,
+  useDashboardBatch,
   useProjects,
   useInvalidateDashboard
 } from '../hooks';
@@ -60,35 +54,24 @@ const ExecutiveDashboard = () => {
   const { data: projectsData } = useProjects();
   const projects = Array.isArray(projectsData) ? projectsData : [];
 
-  const { data: projectHealthData } = useProjectHealth();
-  const projectHealthScores = projectHealthData?.projects || [];
-
   const { 
-    data: metricsData, 
-    isLoading: metricsLoading, 
-    error: metricsError,
-    isFetching: metricsRefreshing 
-  } = useExecutiveMetrics(timeRange, selectedProject);
-  const metrics = metricsData?.success ? metricsData.metrics : null;
+    data: batchData, 
+    isLoading: batchLoading, 
+    error: batchError,
+    isFetching: batchRefreshing 
+  } = useDashboardBatch(timeRange, selectedProject, 'daily');
 
-  const { data: fileTypeData } = useFileTypeDistribution(selectedProject);
-  const fileTypeDistribution = fileTypeData?.fileTypes || [];
+  const projectHealthScores = batchData?.projectHealth || [];
+  const metrics = batchData?.executiveMetrics || null;
+  const fileTypeDistribution = batchData?.fileTypeDistribution || [];
+  const jobTrend = batchData?.jobTrend || [];
+  const schemaDriftTrend = batchData?.schemaDriftTrend || [];
+  const qualityViolations = batchData?.qualityViolationsTrend || [];
+  const metricTrends = batchData?.metricTrends ? { fileUploads: batchData.metricTrends } : {};
 
-  const { data: jobTrendData } = useJobTrend(timeRange, selectedProject);
-  const jobTrend = jobTrendData?.jobTrend || [];
-
-  const { data: schemaDriftData } = useSchemaDriftTrend(timeRange, selectedProject);
-  const schemaDriftTrend = schemaDriftData?.driftTrend || [];
-
-  const { data: qualityData } = useQualityTrend(timeRange, selectedProject);
-  const qualityViolations = qualityData?.violationsTrend || [];
-
-  const { data: metricTrendsData } = useMetricTrends('daily', selectedProject);
-  const metricTrends = metricTrendsData?.success ? metricTrendsData.trends : {};
-
-  const loading = metricsLoading;
-  const refreshing = metricsRefreshing && !metricsLoading;
-  const error = metricsError?.response?.data?.error || (metricsError ? 'Failed to load metrics. Please try again.' : null);
+  const loading = batchLoading;
+  const refreshing = batchRefreshing && !batchLoading;
+  const error = batchError?.response?.data?.error || (batchError ? 'Failed to load metrics. Please try again.' : null);
 
   // TrendIcon component - defined early to avoid hoisting issues
   const TrendIcon = ({ direction }) => {
@@ -276,7 +259,7 @@ const ExecutiveDashboard = () => {
           color: '#374151', 
           font: { size: 10, family: "'Inter', sans-serif", weight: '500' },
           callback: function(value, index, ticks) {
-            const label = this.getLabelForValue(value);
+            const label = this.getLabelForValue(value) || '';
             return label.length > 15 ? label.substring(0, 15) + '...' : label;
           }
         }
@@ -286,11 +269,11 @@ const ExecutiveDashboard = () => {
 
   const fileTypeChartData = {
     labels: fileTypeDistribution.map(ft => {
-      const type = ft.fileType.toLowerCase();
+      const type = (ft.fileType || 'unknown').toLowerCase();
       return type.charAt(0).toUpperCase() + type.slice(1);
     }),
     datasets: [{
-      data: fileTypeDistribution.map(ft => ft.count),
+      data: fileTypeDistribution.map(ft => ft.count || 0),
       backgroundColor: [
         '#025043',
         '#2ECC71',
