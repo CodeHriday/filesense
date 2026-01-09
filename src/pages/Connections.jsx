@@ -752,11 +752,6 @@ const Connections = () => {
           >
             <option value="key-based">Key-Based (Access Keys/Secrets)</option>
             <option value="aws-iam-role">AWS IAM Role (Assume Role)</option>
-            <option value="gcp-sa-oidc">GCP Service Account OIDC</option>
-            <option value="azure-managed-identity">Azure Managed Identity</option>
-            <option value="db-short-lived-token">Database Short-Lived Token</option>
-            <option value="oauth2">OAuth 2.0</option>
-            <option value="kerberos">Kerberos</option>
           </select>
           <small className="form-text text-muted" style={compactStyles.helperText}>
             Choose the authentication method for this connection
