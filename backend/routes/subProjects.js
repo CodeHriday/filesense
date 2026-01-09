@@ -42,6 +42,9 @@ router.get('/:projectId/sub-projects', authenticateToken, async (req, res) => {
         p.settings,
         p.created_at,
         p.updated_at,
+        p.drop_location_connection_id,
+        p.drop_location_bucket,
+        p.drop_location_prefix,
         u.username as owner_name,
         COUNT(DISTINCT f.file_id) as file_count,
         COALESCE(SUM(f.file_size), 0) as total_size
@@ -167,7 +170,7 @@ router.post('/:projectId/sub-projects', authenticateToken, async (req, res) => {
 router.put('/:projectId/sub-projects/:subProjectId', authenticateToken, async (req, res) => {
   try {
     const { projectId, subProjectId } = req.params;
-    const { name, description, is_active } = req.body;
+    const { name, description, is_active, drop_location_connection_id, drop_location_bucket, drop_location_prefix } = req.body;
     const pool = req.app.locals.pool;
     const userId = req.user.id;
     const isAdmin = userHasAdminAccess(req.user);
@@ -230,6 +233,18 @@ router.put('/:projectId/sub-projects/:subProjectId', authenticateToken, async (r
       updates.push(`is_active = $${paramCount++}`);
       values.push(is_active);
     }
+    if (drop_location_connection_id !== undefined) {
+      updates.push(`drop_location_connection_id = $${paramCount++}`);
+      values.push(drop_location_connection_id || null);
+    }
+    if (drop_location_bucket !== undefined) {
+      updates.push(`drop_location_bucket = $${paramCount++}`);
+      values.push(drop_location_bucket || null);
+    }
+    if (drop_location_prefix !== undefined) {
+      updates.push(`drop_location_prefix = $${paramCount++}`);
+      values.push(drop_location_prefix || null);
+    }
 
     updates.push(`updated_at = NOW()`);
     values.push(subProjectId);
@@ -240,7 +255,8 @@ router.put('/:projectId/sub-projects/:subProjectId', authenticateToken, async (r
       WHERE id = $${paramCount}
       RETURNING 
         id, name, description, parent_id, owner_id, is_active,
-        metadata, settings, created_at, updated_at
+        metadata, settings, created_at, updated_at,
+        drop_location_connection_id, drop_location_bucket, drop_location_prefix
     `, values);
 
     systemLogger.info('Sub-project updated', {
