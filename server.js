@@ -28,6 +28,7 @@ const { setupEnhancedFeatures } = require('./backend/integration');
 const { getQueue } = require('./backend/queue/queueFactory');
 const FileProcessingWorker = require('./backend/workers/fileProcessingWorker');
 const SchedulerWorker = require('./backend/workers/schedulerWorker');
+const UploadCleanupWorker = require('./backend/workers/uploadCleanupWorker');
 const SLAMonitorWorker = require('./backend/workers/slaMonitorWorker');
 const InsightsAggregationWorker = require('./backend/workers/insightsAggregationWorker');
 const RetentionPolicyWorker = require('./backend/workers/retentionPolicyWorker');
@@ -48,6 +49,14 @@ const schedulerWorker = new SchedulerWorker(
   60000 // Check every 60 seconds
 );
 // Note: Scheduler worker startup moved to startServer() function after database initialization
+
+// Initialize upload cleanup worker (removes orphaned uploads older than 1 hour, checks every 15 minutes)
+const uploadCleanupWorker = new UploadCleanupWorker(
+  diContainer.get('logger'),
+  path.join(__dirname, 'uploads'),
+  3600000 // 1 hour max age
+);
+uploadCleanupWorker.start();
 
 // Initialize SLA monitor worker (checks vendor file arrival SLAs every 15 minutes)
 const slaMonitorWorker = new SLAMonitorWorker(
@@ -12853,6 +12862,11 @@ const gracefulShutdown = async (signal) => {
     // Stop retention policy worker
     if (retentionWorker) {
       retentionWorker.stop();
+    }
+    
+    // Stop upload cleanup worker
+    if (uploadCleanupWorker) {
+      await uploadCleanupWorker.stop();
     }
     
     // Stop file processing worker
