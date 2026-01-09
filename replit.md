@@ -49,13 +49,16 @@ To reduce AWS API rate limiting, auto-polling has been disabled in favor of on-d
 -   **Badges page** - Manual refresh button added, loads on page visit
 -   **Anomalies page** - Manual refresh button added, loads on page visit
 -   **useSLAMonitoring hook** - refetchInterval disabled, loads on mount
--   **useAPINotifications hook** - refetchInterval disabled, loads on mount
+-   **useAPINotifications hook** - refetchInterval disabled, loads on mount, 30s delayed invalidation
 -   **useApiStatus hook** - refetchInterval disabled, loads on mount
 
-**Preserved real-time polling** (critical for user experience):
--   Jobs Monitor - real-time job status updates
--   FileUpload - immediate file processing feedback
--   DataProfile - file profiling status updates
+**Adaptive Polling** (smart interval adjustment based on runtime):
+-   **Jobs Monitor** - 5s for <1min, 10s for 1-10min, 30s for >10min; list refresh 90s
+-   **FileUpload** - 1s for <10s, 3s for 10-30s, 5s for >30s elapsed
+-   **DataProfile** - 2s for <30s, 5s for >30s elapsed
+
+**Static Data Caching** (STATIC_DATA staleTime = 15 minutes):
+-   **useProjects** - Project lists cached for 15 minutes
 
 ### Enterprise Performance Infrastructure
 Features database optimizations (composite, partial, and covering indexes, materialized views with background refresh), API performance enhancements (cursor-based pagination, enterprise caching middleware, per-user rate limiting), and streaming file processing (constant memory usage, bulk insert optimization, memory-efficient analysis). Enhanced `/api/health` endpoint reports comprehensive system status.
