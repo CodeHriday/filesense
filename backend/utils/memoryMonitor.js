@@ -12,6 +12,11 @@
 
 const os = require('os');
 
+// Alert callback for memory circuit breaker trips
+let alertCallback = null;
+let lastAlertTime = 0;
+const ALERT_COOLDOWN_MS = 300000; // 5 minutes between alerts
+
 // Configuration from environment variables
 const MAX_MEMORY_PERCENT = parseInt(process.env.MAX_MEMORY_PERCENT) || 85;
 const WARNING_MEMORY_PERCENT = parseInt(process.env.WARNING_MEMORY_PERCENT) || 75;
@@ -80,6 +85,22 @@ function checkMemoryStatus() {
       circuitBreakerOpen = true;
       memoryStats.breaker_trips++;
       console.warn(`🔴 CIRCUIT BREAKER OPENED: Memory at ${usage.usage_percent}%`);
+      
+      // Send alert if callback is configured and cooldown has passed
+      const now = Date.now();
+      if (alertCallback && (now - lastAlertTime) > ALERT_COOLDOWN_MS) {
+        lastAlertTime = now;
+        try {
+          alertCallback({
+            type: 'memory_critical',
+            message: `Circuit breaker opened: Memory at ${usage.usage_percent}%`,
+            usage,
+            timestamp: new Date().toISOString()
+          });
+        } catch (err) {
+          console.error('Failed to send memory alert:', err.message);
+        }
+      }
     }
   } else if (usage.usage_percent >= WARNING_MEMORY_PERCENT) {
     status = 'warning';
@@ -215,6 +236,14 @@ function hasEnoughMemory(requiredMB) {
   };
 }
 
+/**
+ * Set callback function to be called when circuit breaker trips
+ * @param {Function} callback - Function that receives alert data
+ */
+function setAlertCallback(callback) {
+  alertCallback = callback;
+}
+
 module.exports = {
   getMemoryUsage,
   checkMemoryStatus,
@@ -224,6 +253,7 @@ module.exports = {
   logMemoryStatus,
   startMonitoring,
   hasEnoughMemory,
+  setAlertCallback,
   
   // Export for testing/debugging
   _test: {
