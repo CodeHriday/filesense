@@ -82,17 +82,6 @@ const fetchProjects = async () => {
   return response.data;
 };
 
-const fetchDashboardBatch = async (days = 30, projectId = null, granularity = 'daily', include = null) => {
-  const params = { days, granularity };
-  if (projectId) params.project_id = projectId;
-  if (include) params.include = include;
-  const response = await axios.get(`${API_URL}/dashboard/batch`, {
-    params,
-    headers: getAuthHeader()
-  });
-  return response.data;
-};
-
 export const useExecutiveMetrics = (days = 30, projectId = null, options = {}) => {
   return useQuery({
     queryKey: [...QueryKeys.dashboard.executiveMetrics(days), projectId],
@@ -187,15 +176,4 @@ export const useInvalidateDashboard = () => {
   return () => {
     queryClient.invalidateQueries({ queryKey: QueryKeys.dashboard.all });
   };
-};
-
-export const useDashboardBatch = (days = 30, projectId = null, granularity = 'daily', include = null, options = {}) => {
-  return useQuery({
-    queryKey: ['dashboard', 'batch', days, projectId, granularity, include],
-    queryFn: () => fetchDashboardBatch(days, projectId, granularity, include),
-    staleTime: STALE_TIMES.DASHBOARD,
-    gcTime: CACHE_TIMES.STANDARD,
-    refetchOnMount: false,
-    ...options
-  });
 };
