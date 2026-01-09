@@ -78,6 +78,29 @@ class FileProcessingWorker {
   }
 
   /**
+   * Get MIME content type for file upload to S3
+   */
+  getContentType(fileType) {
+    const mimeTypes = {
+      'csv': 'text/csv',
+      'json': 'application/json',
+      'xml': 'application/xml',
+      'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'xls': 'application/vnd.ms-excel',
+      'parquet': 'application/octet-stream',
+      'avro': 'application/avro',
+      'dat': 'application/octet-stream',
+      'txt': 'text/plain',
+      'zip': 'application/zip',
+      '7z': 'application/x-7z-compressed',
+      'tar': 'application/x-tar',
+      'tar.gz': 'application/gzip',
+      'tar.bz2': 'application/x-bzip2'
+    };
+    return mimeTypes[fileType] || 'application/octet-stream';
+  }
+
+  /**
    * Categorize error and determine failure reason code
    * @param {Error} error - Error object
    * @returns {Object} - {reasonCode, actionableMessage}
@@ -293,6 +316,108 @@ class FileProcessingWorker {
       
       // Update progress: Starting
       await this.queue.updateProgress(jobId, 10);
+
+      // Step 0.1: Virus scan the uploaded file (security check)
+      const virusScanService = require('../services/VirusScanService');
+      try {
+        this.logger.info('Starting virus scan for uploaded file', { fileId, filePath });
+        const scanResult = await virusScanService.scanFile(filePath);
+        
+        if (scanResult.isInfected) {
+          this.logger.error('Virus detected in uploaded file', {
+            fileId,
+            filename: originalName,
+            viruses: scanResult.viruses
+          });
+          throw new Error(`Virus detected: ${scanResult.viruses?.join(', ') || 'Unknown threat'}`);
+        }
+        
+        this.logger.info('Virus scan passed', {
+          fileId,
+          filename: originalName,
+          skipped: scanResult.skipped || false,
+          message: scanResult.skipped ? 'Scan skipped - virus definitions unavailable' : 'No threats detected'
+        });
+      } catch (scanError) {
+        if (scanError.message.includes('Virus detected')) {
+          throw scanError; // Re-throw virus detection errors
+        }
+        // Log scan errors but continue processing (graceful degradation)
+        this.logger.warn('Virus scan failed, continuing with processing', {
+          fileId,
+          error: scanError.message
+        });
+      }
+      
+      await this.queue.updateProgress(jobId, 15);
+
+      // Step 0.2: Upload file to S3 drop location if configured
+      const { dropLocationConnectionId, dropLocationBucket, dropLocationPrefix } = job.data;
+      let s3UploadedPath = null;
+      
+      if (dropLocationConnectionId && dropLocationBucket) {
+        try {
+          this.logger.info('Uploading file to S3 drop location', {
+            fileId,
+            connectionId: dropLocationConnectionId,
+            bucket: dropLocationBucket,
+            prefix: dropLocationPrefix
+          });
+          
+          const ConnectionService = require('../services/ConnectionService');
+          const connectionService = new ConnectionService();
+          const connection = await connectionService.getConnectionById(dropLocationConnectionId);
+          
+          if (connection && connection.config) {
+            const config = typeof connection.config === 'string' 
+              ? JSON.parse(connection.config) 
+              : connection.config;
+            const decryptedConfig = connectionService.decryptSensitiveFieldsIfNeeded(connection.type, config);
+            
+            // Build S3 key with prefix
+            const s3Key = dropLocationPrefix 
+              ? `${dropLocationPrefix.replace(/\/$/, '')}/${originalName}`
+              : originalName;
+            
+            // Upload to S3
+            const AWS = require('aws-sdk');
+            const s3 = new AWS.S3({
+              accessKeyId: decryptedConfig.access_key || decryptedConfig.access_key_id,
+              secretAccessKey: decryptedConfig.secret_key || decryptedConfig.secret_access_key,
+              region: decryptedConfig.region || 'us-east-1'
+            });
+            
+            const fileContent = require('fs').readFileSync(filePath);
+            await s3.putObject({
+              Bucket: dropLocationBucket,
+              Key: s3Key,
+              Body: fileContent,
+              ContentType: this.getContentType(fileType)
+            }).promise();
+            
+            s3UploadedPath = `s3://${dropLocationBucket}/${s3Key}`;
+            
+            this.logger.info('File uploaded to S3 successfully', {
+              fileId,
+              s3Path: s3UploadedPath
+            });
+            
+            // Update file record with S3 location
+            await this.dbPool.query(
+              `UPDATE files SET metadata = COALESCE(metadata, '{}'::jsonb) || $1::jsonb WHERE file_id = $2`,
+              [JSON.stringify({ s3_location: s3UploadedPath, s3_bucket: dropLocationBucket, s3_key: s3Key }), fileId]
+            );
+          }
+        } catch (s3Error) {
+          this.logger.error('Failed to upload file to S3', {
+            fileId,
+            error: s3Error.message
+          });
+          // Continue processing even if S3 upload fails - file is still available locally
+        }
+      }
+      
+      await this.queue.updateProgress(jobId, 20);
 
       // Step 0.5: Check if file is an archive and retrieve password if needed
       // archivePassword may come from job.data (ad-hoc upload) or password vault (vendor agreement)

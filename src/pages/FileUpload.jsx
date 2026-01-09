@@ -2088,6 +2088,30 @@ function FileUpload() {
               </div>
             )}
             
+            {/* S3 Drop Location Display - Show when project has configured location */}
+            {selectedProject && projects.find(p => p.id === selectedProject)?.drop_location_connection_id && (
+              <div className="gps-alert gps-alert--info" style={{ margin: '0.75rem 0', background: '#eff6ff', border: '1px solid #3b82f6' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <FiFolder style={{ color: '#3b82f6', fontSize: '16px' }} />
+                  <span style={{ fontWeight: 600, color: '#1e40af' }}>File Drop Location (S3)</span>
+                </div>
+                <div style={{ marginTop: '6px', fontSize: '12px', color: '#475569' }}>
+                  <span style={{ fontWeight: 500 }}>Bucket:</span>{' '}
+                  <code style={{ background: '#dbeafe', padding: '2px 6px', borderRadius: '4px', color: '#1e40af' }}>
+                    {projects.find(p => p.id === selectedProject)?.drop_location_bucket || 'Not specified'}
+                  </code>
+                  {projects.find(p => p.id === selectedProject)?.drop_location_prefix && (
+                    <>
+                      <span style={{ marginLeft: '12px', fontWeight: 500 }}>Prefix:</span>{' '}
+                      <code style={{ background: '#dbeafe', padding: '2px 6px', borderRadius: '4px', color: '#1e40af' }}>
+                        {projects.find(p => p.id === selectedProject)?.drop_location_prefix}
+                      </code>
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
+            
             {/* Inactive subproject warning */}
             {selectedProject && selectedSubProject && subProjects.find(sp => sp.id === selectedSubProject)?.is_active === false && (
               <div className="gps-alert gps-alert--error" style={{ margin: '0.75rem 0' }}>

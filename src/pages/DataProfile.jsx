@@ -1587,8 +1587,9 @@ function DataProfile() {
         }
         
         // Check if file is still processing - enable polling if so
-        const processingStatus = fullData.file?.processing_status;
-        if (processingStatus === 'queued' || processingStatus === 'processing') {
+        // Backend uses processing_step field with values: pending, queued, scanning, profiling, complete, failed
+        const processingStep = fullData.file?.processing_step;
+        if (processingStep && processingStep !== 'complete' && processingStep !== 'failed') {
           setIsProcessing(true);
         } else {
           setIsProcessing(false);
@@ -1652,8 +1653,9 @@ function DataProfile() {
         }
         
         // Check if processing is complete
-        const processingStatus = fullData.file?.processing_status;
-        if (processingStatus !== 'queued' && processingStatus !== 'processing') {
+        // Backend uses processing_step field with values: pending, queued, scanning, profiling, complete, failed
+        const processingStep = fullData.file?.processing_step;
+        if (processingStep === 'complete' || processingStep === 'failed') {
           console.log('File processing complete, stopping polling');
           setIsProcessing(false);
           pollingStartTimeRef.current = null;
@@ -1805,7 +1807,11 @@ function DataProfile() {
                 <FiFileText size={18} />
               </div>
               <div>
-                <h3 style={{ fontSize: '18px', fontWeight: '700', margin: '0 0 2px 0', color: '#333' }}>{formatNumber(file.row_count || basicInfo.rowCount || 0)}</h3>
+                <h3 style={{ fontSize: '18px', fontWeight: '700', margin: '0 0 2px 0', color: '#333' }}>
+                  {isProcessing && !file.row_count && !basicInfo.rowCount ? (
+                    <span style={{ color: '#3b82f6', fontSize: '12px' }}>Processing...</span>
+                  ) : formatNumber(file.row_count || basicInfo.rowCount || 0)}
+                </h3>
                 <p style={{ fontSize: '10px', color: '#666', margin: 0 }}>Rows</p>
               </div>
             </div>
@@ -1817,7 +1823,11 @@ function DataProfile() {
                 <FiBarChart2 size={18} />
               </div>
               <div>
-                <h3 style={{ fontSize: '18px', fontWeight: '700', margin: '0 0 2px 0', color: '#333' }}>{file.column_count || columns.length || 0}</h3>
+                <h3 style={{ fontSize: '18px', fontWeight: '700', margin: '0 0 2px 0', color: '#333' }}>
+                  {isProcessing && !file.column_count && columns.length === 0 ? (
+                    <span style={{ color: '#3b82f6', fontSize: '12px' }}>Processing...</span>
+                  ) : (file.column_count || columns.length || 0)}
+                </h3>
                 <p style={{ fontSize: '10px', color: '#666', margin: 0 }}>Columns</p>
               </div>
             </div>
@@ -1848,7 +1858,11 @@ function DataProfile() {
                 <FiCopy size={18} />
               </div>
               <div>
-                <h3 style={{ fontSize: '18px', fontWeight: '700', margin: '0 0 2px 0', color: '#333' }}>{formatNumber(file.duplicate_records_count || 0)}</h3>
+                <h3 style={{ fontSize: '18px', fontWeight: '700', margin: '0 0 2px 0', color: '#333' }}>
+                  {isProcessing && file.duplicate_records_count === null ? (
+                    <span style={{ color: '#3b82f6', fontSize: '12px' }}>Processing...</span>
+                  ) : formatNumber(file.duplicate_records_count || 0)}
+                </h3>
                 <p style={{ fontSize: '10px', color: '#666', margin: 0 }}>Duplicate Records ({formatDecimal(file.duplicate_records_percentage || 0, 1)}%)</p>
               </div>
             </div>
