@@ -2147,6 +2147,16 @@ router.get('/batch', dashboardCacheMiddleware, async (req, res) => {
 
     // Execute all queries in parallel
     const results = await Promise.all(promises);
+    
+    // Debug: Log query results
+    console.log('[BATCH DEBUG] isAdmin:', isAdmin, 'userId:', userId);
+    console.log('[BATCH DEBUG] promiseKeys:', promiseKeys);
+    results.forEach((r, i) => {
+      console.log(`[BATCH DEBUG] ${promiseKeys[i]}: ${r?.rows?.length || 0} rows`);
+      if (r?.rows?.length > 0) {
+        console.log(`[BATCH DEBUG] ${promiseKeys[i]} first row:`, JSON.stringify(r.rows[0]));
+      }
+    });
 
     // Map results to response
     results.forEach((queryResult, index) => {
