@@ -2,25 +2,7 @@ modules = ["python-3.11", "nodejs-20", "python3", "rust", "postgresql-16"]
 
 [nix]
 channel = "stable-24_05"
-packages = [
-  "arrow-cpp",
-  "freetype",
-  "glibcLocales",
-  "lcms2",
-  "libiconv",
-  "libimagequant",
-  "libjpeg",
-  "libtiff",
-  "libwebp",
-  "libxcrypt",
-  "openjpeg",
-  "pkg-config",
-  "readstat",
-  "tcl",
-  "tk",
-  "yajl",
-  "zlib",
-]
+packages = ["arrow-cpp", "freetype", "glibcLocales", "lcms2", "libiconv", "libimagequant", "libjpeg", "libtiff", "libwebp", "libxcrypt", "openjpeg", "pkg-config", "readstat", "tcl", "tk", "yajl", "zlib"]
 
 [deployment]
 deploymentTarget = "gce"

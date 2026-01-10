@@ -45,3 +45,6 @@ dbt-postgres>=1.9.1
 # Specialized Libraries
 sift-stack-py>=0.9.1
 ml-eeg>=0.0.62
+pytest
+pytest-asyncio
+pytest-cov
