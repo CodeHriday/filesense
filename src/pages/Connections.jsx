@@ -77,11 +77,16 @@ const Connections = () => {
     if (providerType === 'aws') {
       if (!formData.region?.trim()) return false;
       if (!formData.bucket_name?.trim()) return false;
-      if (!editMode || !formData.has_access_key) {
-        if (!formData.access_key?.trim()) return false;
-      }
-      if (!editMode || !formData.has_secret_key) {
-        if (!formData.secret_key?.trim()) return false;
+      
+      if (formData.authentication_method === 'key-based') {
+        if (!editMode || !formData.has_access_key) {
+          if (!formData.access_key?.trim()) return false;
+        }
+        if (!editMode || !formData.has_secret_key) {
+          if (!formData.secret_key?.trim()) return false;
+        }
+      } else if (formData.authentication_method === 'aws-iam-role') {
+        if (!formData.iam_role_arn?.trim()) return false;
       }
     } else if (providerType === 'gcp') {
       if (!formData.project_id?.trim()) return false;
@@ -191,6 +196,8 @@ const Connections = () => {
     bucket_name: '',
     access_key: '',
     secret_key: '',
+    iam_role_arn: '',
+    external_id: '',
     project_id: '',
     client_email: '',
     private_key: '',
@@ -285,6 +292,8 @@ const Connections = () => {
       bucket_name: '',
       access_key: '',
       secret_key: '',
+      iam_role_arn: '',
+      external_id: '',
       project_id: '',
       client_email: '',
       private_key: '',
@@ -322,12 +331,15 @@ const Connections = () => {
     
     // Add type-specific fields (use providerType to handle vendor connections correctly)
     if (providerType === 'aws') {
+      const authConfig = connection.auth_config || {};
       newFormData = {
         ...newFormData,
         region: connection.region || config?.region || '',
         bucket_name: connection.bucket_name || config?.bucket || config?.bucket_name || '',
         access_key: '', // Don't prefill for security
         secret_key: '', // Don't prefill for security
+        iam_role_arn: authConfig.iam_role_arn || authConfig.role_arn || '',
+        external_id: authConfig.external_id || '',
         path: connection.path || config?.path_prefix || '',
         // Store flags to show credential status in UI
         has_access_key: connection.has_access_key || !!config?.access_key || !!config?.access_key_id,
@@ -465,9 +477,38 @@ const Connections = () => {
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     
+    // Handle authentication method changes - clear auth-specific fields
+    if (name === 'authentication_method') {
+      if (value === 'key-based') {
+        // Switching to key-based: clear IAM role fields
+        setFormData({ 
+          ...formData, 
+          [name]: value, 
+          iam_role_arn: '', 
+          external_id: '' 
+        });
+      } else if (value === 'aws-iam-role') {
+        // Switching to IAM role: clear access key fields
+        setFormData({ 
+          ...formData, 
+          [name]: value, 
+          access_key: '', 
+          secret_key: '' 
+        });
+      } else {
+        setFormData({ ...formData, [name]: value });
+      }
+      // Reset test state when changing auth method
+      setConnectionDetailsModified(true);
+      setTestSuccessful(false);
+      setTestCredentials(null);
+      return;
+    }
+    
     // Track if connection details (not path) are modified
     const connectionDetailFields = [
       'region', 'bucket_name', 'access_key', 'secret_key',
+      'iam_role_arn', 'external_id',
       'project_id', 'client_email', 'private_key',
       'account_name', 'account_key', 'container_name'
     ];
@@ -862,45 +903,88 @@ const Connections = () => {
             </small>
           </div>
           
-          <div className="form-group" style={compactStyles.formGroup}>
-            <label htmlFor="access_key" style={compactStyles.label}>Access Key ID <span style={{ color: '#dc2626' }}>*</span></label>
-            <input
-              type="text"
-              id="access_key"
-              name="access_key"
-              className="form-control"
-              value={formData.access_key}
-              onChange={handleInputChange}
-              required={!editMode || !formData.has_access_key}
-              placeholder={editMode && formData.has_access_key ? '(saved - leave blank to keep)' : ''}
-              style={compactStyles.input}
-            />
-            {editMode && formData.has_access_key && (
-              <small className="form-text text-muted" style={compactStyles.helperText}>
-                ✓ Access key is saved. Leave blank to keep existing, or enter new value to update.
-              </small>
-            )}
-          </div>
+          {formData.authentication_method === 'key-based' && (
+            <>
+              <div className="form-group" style={compactStyles.formGroup}>
+                <label htmlFor="access_key" style={compactStyles.label}>Access Key ID <span style={{ color: '#dc2626' }}>*</span></label>
+                <input
+                  type="text"
+                  id="access_key"
+                  name="access_key"
+                  className="form-control"
+                  value={formData.access_key}
+                  onChange={handleInputChange}
+                  required={!editMode || !formData.has_access_key}
+                  placeholder={editMode && formData.has_access_key ? '(saved - leave blank to keep)' : ''}
+                  style={compactStyles.input}
+                />
+                {editMode && formData.has_access_key && (
+                  <small className="form-text text-muted" style={compactStyles.helperText}>
+                    ✓ Access key is saved. Leave blank to keep existing, or enter new value to update.
+                  </small>
+                )}
+              </div>
+              
+              <div className="form-group" style={compactStyles.formGroup}>
+                <label htmlFor="secret_key" style={compactStyles.label}>Secret Access Key <span style={{ color: '#dc2626' }}>*</span></label>
+                <input
+                  type="password"
+                  id="secret_key"
+                  name="secret_key"
+                  className="form-control"
+                  value={formData.secret_key}
+                  onChange={handleInputChange}
+                  required={!editMode || !formData.has_secret_key}
+                  placeholder={editMode && formData.has_secret_key ? '(saved - leave blank to keep)' : ''}
+                  style={compactStyles.input}
+                />
+                {editMode && formData.has_secret_key && (
+                  <small className="form-text text-muted" style={compactStyles.helperText}>
+                    ✓ Secret key is saved. Leave blank to keep existing, or enter new value to update.
+                  </small>
+                )}
+              </div>
+            </>
+          )}
           
-          <div className="form-group" style={compactStyles.formGroup}>
-            <label htmlFor="secret_key" style={compactStyles.label}>Secret Access Key <span style={{ color: '#dc2626' }}>*</span></label>
-            <input
-              type="password"
-              id="secret_key"
-              name="secret_key"
-              className="form-control"
-              value={formData.secret_key}
-              onChange={handleInputChange}
-              required={!editMode || !formData.has_secret_key}
-              placeholder={editMode && formData.has_secret_key ? '(saved - leave blank to keep)' : ''}
-              style={compactStyles.input}
-            />
-            {editMode && formData.has_secret_key && (
-              <small className="form-text text-muted" style={compactStyles.helperText}>
-                ✓ Secret key is saved. Leave blank to keep existing, or enter new value to update.
-              </small>
-            )}
-          </div>
+          {formData.authentication_method === 'aws-iam-role' && (
+            <>
+              <div className="form-group form-group-full" style={compactStyles.formGroup}>
+                <label htmlFor="iam_role_arn" style={compactStyles.label}>IAM Role ARN <span style={{ color: '#dc2626' }}>*</span></label>
+                <input
+                  type="text"
+                  id="iam_role_arn"
+                  name="iam_role_arn"
+                  className="form-control"
+                  value={formData.iam_role_arn || ''}
+                  onChange={handleInputChange}
+                  required
+                  placeholder="arn:aws:iam::123456789012:role/MyRole"
+                  style={compactStyles.input}
+                />
+                <small className="form-text text-muted" style={compactStyles.helperText}>
+                  The ARN of the IAM role to assume for accessing the S3 bucket
+                </small>
+              </div>
+              
+              <div className="form-group" style={compactStyles.formGroup}>
+                <label htmlFor="external_id" style={compactStyles.label}>External ID</label>
+                <input
+                  type="text"
+                  id="external_id"
+                  name="external_id"
+                  className="form-control"
+                  value={formData.external_id || ''}
+                  onChange={handleInputChange}
+                  placeholder="Optional external ID for cross-account access"
+                  style={compactStyles.input}
+                />
+                <small className="form-text text-muted" style={compactStyles.helperText}>
+                  Optional: External ID for cross-account role assumption
+                </small>
+              </div>
+            </>
+          )}
         </div>
       );
     } else if (providerType === 'gcp') {
