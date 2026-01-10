@@ -1,0 +1,1528 @@
+
+<!doctype html>
+<html lang="en">
+
+<head>
+    <title>Code coverage report for src/App.jsx</title>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" href="../prettify.css" />
+    <link rel="stylesheet" href="../base.css" />
+    <link rel="shortcut icon" type="image/x-icon" href="../favicon.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style type='text/css'>
+        .coverage-summary .sorter {
+            background-image: url(../sort-arrow-sprite.png);
+        }
+    </style>
+</head>
+    
+<body>
+<div class='wrapper'>
+    <div class='pad1'>
+        <h1><a href="../index.html">All files</a> / <a href="index.html">src</a> App.jsx</h1>
+        <div class='clearfix'>
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">0% </span>
+                <span class="quiet">Statements</span>
+                <span class='fraction'>0/213</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">0% </span>
+                <span class="quiet">Branches</span>
+                <span class='fraction'>0/53</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">0% </span>
+                <span class="quiet">Functions</span>
+                <span class='fraction'>0/86</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">0% </span>
+                <span class="quiet">Lines</span>
+                <span class='fraction'>0/141</span>
+            </div>
+        
+            
+        </div>
+        <p class="quiet">
+            Press <em>n</em> or <em>j</em> to go to the next uncovered block, <em>b</em>, <em>p</em> or <em>k</em> for the previous block.
+        </p>
+        <template id="filterTemplate">
+            <div class="quiet">
+                Filter:
+                <input type="search" id="fileSearch">
+            </div>
+        </template>
+    </div>
+    <div class='status-line low'></div>
+    <pre><table class="coverage">
+<tr><td class="line-count quiet"><a name='L1'></a><a href='#L1'>1</a>
+<a name='L2'></a><a href='#L2'>2</a>
+<a name='L3'></a><a href='#L3'>3</a>
+<a name='L4'></a><a href='#L4'>4</a>
+<a name='L5'></a><a href='#L5'>5</a>
+<a name='L6'></a><a href='#L6'>6</a>
+<a name='L7'></a><a href='#L7'>7</a>
+<a name='L8'></a><a href='#L8'>8</a>
+<a name='L9'></a><a href='#L9'>9</a>
+<a name='L10'></a><a href='#L10'>10</a>
+<a name='L11'></a><a href='#L11'>11</a>
+<a name='L12'></a><a href='#L12'>12</a>
+<a name='L13'></a><a href='#L13'>13</a>
+<a name='L14'></a><a href='#L14'>14</a>
+<a name='L15'></a><a href='#L15'>15</a>
+<a name='L16'></a><a href='#L16'>16</a>
+<a name='L17'></a><a href='#L17'>17</a>
+<a name='L18'></a><a href='#L18'>18</a>
+<a name='L19'></a><a href='#L19'>19</a>
+<a name='L20'></a><a href='#L20'>20</a>
+<a name='L21'></a><a href='#L21'>21</a>
+<a name='L22'></a><a href='#L22'>22</a>
+<a name='L23'></a><a href='#L23'>23</a>
+<a name='L24'></a><a href='#L24'>24</a>
+<a name='L25'></a><a href='#L25'>25</a>
+<a name='L26'></a><a href='#L26'>26</a>
+<a name='L27'></a><a href='#L27'>27</a>
+<a name='L28'></a><a href='#L28'>28</a>
+<a name='L29'></a><a href='#L29'>29</a>
+<a name='L30'></a><a href='#L30'>30</a>
+<a name='L31'></a><a href='#L31'>31</a>
+<a name='L32'></a><a href='#L32'>32</a>
+<a name='L33'></a><a href='#L33'>33</a>
+<a name='L34'></a><a href='#L34'>34</a>
+<a name='L35'></a><a href='#L35'>35</a>
+<a name='L36'></a><a href='#L36'>36</a>
+<a name='L37'></a><a href='#L37'>37</a>
+<a name='L38'></a><a href='#L38'>38</a>
+<a name='L39'></a><a href='#L39'>39</a>
+<a name='L40'></a><a href='#L40'>40</a>
+<a name='L41'></a><a href='#L41'>41</a>
+<a name='L42'></a><a href='#L42'>42</a>
+<a name='L43'></a><a href='#L43'>43</a>
+<a name='L44'></a><a href='#L44'>44</a>
+<a name='L45'></a><a href='#L45'>45</a>
+<a name='L46'></a><a href='#L46'>46</a>
+<a name='L47'></a><a href='#L47'>47</a>
+<a name='L48'></a><a href='#L48'>48</a>
+<a name='L49'></a><a href='#L49'>49</a>
+<a name='L50'></a><a href='#L50'>50</a>
+<a name='L51'></a><a href='#L51'>51</a>
+<a name='L52'></a><a href='#L52'>52</a>
+<a name='L53'></a><a href='#L53'>53</a>
+<a name='L54'></a><a href='#L54'>54</a>
+<a name='L55'></a><a href='#L55'>55</a>
+<a name='L56'></a><a href='#L56'>56</a>
+<a name='L57'></a><a href='#L57'>57</a>
+<a name='L58'></a><a href='#L58'>58</a>
+<a name='L59'></a><a href='#L59'>59</a>
+<a name='L60'></a><a href='#L60'>60</a>
+<a name='L61'></a><a href='#L61'>61</a>
+<a name='L62'></a><a href='#L62'>62</a>
+<a name='L63'></a><a href='#L63'>63</a>
+<a name='L64'></a><a href='#L64'>64</a>
+<a name='L65'></a><a href='#L65'>65</a>
+<a name='L66'></a><a href='#L66'>66</a>
+<a name='L67'></a><a href='#L67'>67</a>
+<a name='L68'></a><a href='#L68'>68</a>
+<a name='L69'></a><a href='#L69'>69</a>
+<a name='L70'></a><a href='#L70'>70</a>
+<a name='L71'></a><a href='#L71'>71</a>
+<a name='L72'></a><a href='#L72'>72</a>
+<a name='L73'></a><a href='#L73'>73</a>
+<a name='L74'></a><a href='#L74'>74</a>
+<a name='L75'></a><a href='#L75'>75</a>
+<a name='L76'></a><a href='#L76'>76</a>
+<a name='L77'></a><a href='#L77'>77</a>
+<a name='L78'></a><a href='#L78'>78</a>
+<a name='L79'></a><a href='#L79'>79</a>
+<a name='L80'></a><a href='#L80'>80</a>
+<a name='L81'></a><a href='#L81'>81</a>
+<a name='L82'></a><a href='#L82'>82</a>
+<a name='L83'></a><a href='#L83'>83</a>
+<a name='L84'></a><a href='#L84'>84</a>
+<a name='L85'></a><a href='#L85'>85</a>
+<a name='L86'></a><a href='#L86'>86</a>
+<a name='L87'></a><a href='#L87'>87</a>
+<a name='L88'></a><a href='#L88'>88</a>
+<a name='L89'></a><a href='#L89'>89</a>
+<a name='L90'></a><a href='#L90'>90</a>
+<a name='L91'></a><a href='#L91'>91</a>
+<a name='L92'></a><a href='#L92'>92</a>
+<a name='L93'></a><a href='#L93'>93</a>
+<a name='L94'></a><a href='#L94'>94</a>
+<a name='L95'></a><a href='#L95'>95</a>
+<a name='L96'></a><a href='#L96'>96</a>
+<a name='L97'></a><a href='#L97'>97</a>
+<a name='L98'></a><a href='#L98'>98</a>
+<a name='L99'></a><a href='#L99'>99</a>
+<a name='L100'></a><a href='#L100'>100</a>
+<a name='L101'></a><a href='#L101'>101</a>
+<a name='L102'></a><a href='#L102'>102</a>
+<a name='L103'></a><a href='#L103'>103</a>
+<a name='L104'></a><a href='#L104'>104</a>
+<a name='L105'></a><a href='#L105'>105</a>
+<a name='L106'></a><a href='#L106'>106</a>
+<a name='L107'></a><a href='#L107'>107</a>
+<a name='L108'></a><a href='#L108'>108</a>
+<a name='L109'></a><a href='#L109'>109</a>
+<a name='L110'></a><a href='#L110'>110</a>
+<a name='L111'></a><a href='#L111'>111</a>
+<a name='L112'></a><a href='#L112'>112</a>
+<a name='L113'></a><a href='#L113'>113</a>
+<a name='L114'></a><a href='#L114'>114</a>
+<a name='L115'></a><a href='#L115'>115</a>
+<a name='L116'></a><a href='#L116'>116</a>
+<a name='L117'></a><a href='#L117'>117</a>
+<a name='L118'></a><a href='#L118'>118</a>
+<a name='L119'></a><a href='#L119'>119</a>
+<a name='L120'></a><a href='#L120'>120</a>
+<a name='L121'></a><a href='#L121'>121</a>
+<a name='L122'></a><a href='#L122'>122</a>
+<a name='L123'></a><a href='#L123'>123</a>
+<a name='L124'></a><a href='#L124'>124</a>
+<a name='L125'></a><a href='#L125'>125</a>
+<a name='L126'></a><a href='#L126'>126</a>
+<a name='L127'></a><a href='#L127'>127</a>
+<a name='L128'></a><a href='#L128'>128</a>
+<a name='L129'></a><a href='#L129'>129</a>
+<a name='L130'></a><a href='#L130'>130</a>
+<a name='L131'></a><a href='#L131'>131</a>
+<a name='L132'></a><a href='#L132'>132</a>
+<a name='L133'></a><a href='#L133'>133</a>
+<a name='L134'></a><a href='#L134'>134</a>
+<a name='L135'></a><a href='#L135'>135</a>
+<a name='L136'></a><a href='#L136'>136</a>
+<a name='L137'></a><a href='#L137'>137</a>
+<a name='L138'></a><a href='#L138'>138</a>
+<a name='L139'></a><a href='#L139'>139</a>
+<a name='L140'></a><a href='#L140'>140</a>
+<a name='L141'></a><a href='#L141'>141</a>
+<a name='L142'></a><a href='#L142'>142</a>
+<a name='L143'></a><a href='#L143'>143</a>
+<a name='L144'></a><a href='#L144'>144</a>
+<a name='L145'></a><a href='#L145'>145</a>
+<a name='L146'></a><a href='#L146'>146</a>
+<a name='L147'></a><a href='#L147'>147</a>
+<a name='L148'></a><a href='#L148'>148</a>
+<a name='L149'></a><a href='#L149'>149</a>
+<a name='L150'></a><a href='#L150'>150</a>
+<a name='L151'></a><a href='#L151'>151</a>
+<a name='L152'></a><a href='#L152'>152</a>
+<a name='L153'></a><a href='#L153'>153</a>
+<a name='L154'></a><a href='#L154'>154</a>
+<a name='L155'></a><a href='#L155'>155</a>
+<a name='L156'></a><a href='#L156'>156</a>
+<a name='L157'></a><a href='#L157'>157</a>
+<a name='L158'></a><a href='#L158'>158</a>
+<a name='L159'></a><a href='#L159'>159</a>
+<a name='L160'></a><a href='#L160'>160</a>
+<a name='L161'></a><a href='#L161'>161</a>
+<a name='L162'></a><a href='#L162'>162</a>
+<a name='L163'></a><a href='#L163'>163</a>
+<a name='L164'></a><a href='#L164'>164</a>
+<a name='L165'></a><a href='#L165'>165</a>
+<a name='L166'></a><a href='#L166'>166</a>
+<a name='L167'></a><a href='#L167'>167</a>
+<a name='L168'></a><a href='#L168'>168</a>
+<a name='L169'></a><a href='#L169'>169</a>
+<a name='L170'></a><a href='#L170'>170</a>
+<a name='L171'></a><a href='#L171'>171</a>
+<a name='L172'></a><a href='#L172'>172</a>
+<a name='L173'></a><a href='#L173'>173</a>
+<a name='L174'></a><a href='#L174'>174</a>
+<a name='L175'></a><a href='#L175'>175</a>
+<a name='L176'></a><a href='#L176'>176</a>
+<a name='L177'></a><a href='#L177'>177</a>
+<a name='L178'></a><a href='#L178'>178</a>
+<a name='L179'></a><a href='#L179'>179</a>
+<a name='L180'></a><a href='#L180'>180</a>
+<a name='L181'></a><a href='#L181'>181</a>
+<a name='L182'></a><a href='#L182'>182</a>
+<a name='L183'></a><a href='#L183'>183</a>
+<a name='L184'></a><a href='#L184'>184</a>
+<a name='L185'></a><a href='#L185'>185</a>
+<a name='L186'></a><a href='#L186'>186</a>
+<a name='L187'></a><a href='#L187'>187</a>
+<a name='L188'></a><a href='#L188'>188</a>
+<a name='L189'></a><a href='#L189'>189</a>
+<a name='L190'></a><a href='#L190'>190</a>
+<a name='L191'></a><a href='#L191'>191</a>
+<a name='L192'></a><a href='#L192'>192</a>
+<a name='L193'></a><a href='#L193'>193</a>
+<a name='L194'></a><a href='#L194'>194</a>
+<a name='L195'></a><a href='#L195'>195</a>
+<a name='L196'></a><a href='#L196'>196</a>
+<a name='L197'></a><a href='#L197'>197</a>
+<a name='L198'></a><a href='#L198'>198</a>
+<a name='L199'></a><a href='#L199'>199</a>
+<a name='L200'></a><a href='#L200'>200</a>
+<a name='L201'></a><a href='#L201'>201</a>
+<a name='L202'></a><a href='#L202'>202</a>
+<a name='L203'></a><a href='#L203'>203</a>
+<a name='L204'></a><a href='#L204'>204</a>
+<a name='L205'></a><a href='#L205'>205</a>
+<a name='L206'></a><a href='#L206'>206</a>
+<a name='L207'></a><a href='#L207'>207</a>
+<a name='L208'></a><a href='#L208'>208</a>
+<a name='L209'></a><a href='#L209'>209</a>
+<a name='L210'></a><a href='#L210'>210</a>
+<a name='L211'></a><a href='#L211'>211</a>
+<a name='L212'></a><a href='#L212'>212</a>
+<a name='L213'></a><a href='#L213'>213</a>
+<a name='L214'></a><a href='#L214'>214</a>
+<a name='L215'></a><a href='#L215'>215</a>
+<a name='L216'></a><a href='#L216'>216</a>
+<a name='L217'></a><a href='#L217'>217</a>
+<a name='L218'></a><a href='#L218'>218</a>
+<a name='L219'></a><a href='#L219'>219</a>
+<a name='L220'></a><a href='#L220'>220</a>
+<a name='L221'></a><a href='#L221'>221</a>
+<a name='L222'></a><a href='#L222'>222</a>
+<a name='L223'></a><a href='#L223'>223</a>
+<a name='L224'></a><a href='#L224'>224</a>
+<a name='L225'></a><a href='#L225'>225</a>
+<a name='L226'></a><a href='#L226'>226</a>
+<a name='L227'></a><a href='#L227'>227</a>
+<a name='L228'></a><a href='#L228'>228</a>
+<a name='L229'></a><a href='#L229'>229</a>
+<a name='L230'></a><a href='#L230'>230</a>
+<a name='L231'></a><a href='#L231'>231</a>
+<a name='L232'></a><a href='#L232'>232</a>
+<a name='L233'></a><a href='#L233'>233</a>
+<a name='L234'></a><a href='#L234'>234</a>
+<a name='L235'></a><a href='#L235'>235</a>
+<a name='L236'></a><a href='#L236'>236</a>
+<a name='L237'></a><a href='#L237'>237</a>
+<a name='L238'></a><a href='#L238'>238</a>
+<a name='L239'></a><a href='#L239'>239</a>
+<a name='L240'></a><a href='#L240'>240</a>
+<a name='L241'></a><a href='#L241'>241</a>
+<a name='L242'></a><a href='#L242'>242</a>
+<a name='L243'></a><a href='#L243'>243</a>
+<a name='L244'></a><a href='#L244'>244</a>
+<a name='L245'></a><a href='#L245'>245</a>
+<a name='L246'></a><a href='#L246'>246</a>
+<a name='L247'></a><a href='#L247'>247</a>
+<a name='L248'></a><a href='#L248'>248</a>
+<a name='L249'></a><a href='#L249'>249</a>
+<a name='L250'></a><a href='#L250'>250</a>
+<a name='L251'></a><a href='#L251'>251</a>
+<a name='L252'></a><a href='#L252'>252</a>
+<a name='L253'></a><a href='#L253'>253</a>
+<a name='L254'></a><a href='#L254'>254</a>
+<a name='L255'></a><a href='#L255'>255</a>
+<a name='L256'></a><a href='#L256'>256</a>
+<a name='L257'></a><a href='#L257'>257</a>
+<a name='L258'></a><a href='#L258'>258</a>
+<a name='L259'></a><a href='#L259'>259</a>
+<a name='L260'></a><a href='#L260'>260</a>
+<a name='L261'></a><a href='#L261'>261</a>
+<a name='L262'></a><a href='#L262'>262</a>
+<a name='L263'></a><a href='#L263'>263</a>
+<a name='L264'></a><a href='#L264'>264</a>
+<a name='L265'></a><a href='#L265'>265</a>
+<a name='L266'></a><a href='#L266'>266</a>
+<a name='L267'></a><a href='#L267'>267</a>
+<a name='L268'></a><a href='#L268'>268</a>
+<a name='L269'></a><a href='#L269'>269</a>
+<a name='L270'></a><a href='#L270'>270</a>
+<a name='L271'></a><a href='#L271'>271</a>
+<a name='L272'></a><a href='#L272'>272</a>
+<a name='L273'></a><a href='#L273'>273</a>
+<a name='L274'></a><a href='#L274'>274</a>
+<a name='L275'></a><a href='#L275'>275</a>
+<a name='L276'></a><a href='#L276'>276</a>
+<a name='L277'></a><a href='#L277'>277</a>
+<a name='L278'></a><a href='#L278'>278</a>
+<a name='L279'></a><a href='#L279'>279</a>
+<a name='L280'></a><a href='#L280'>280</a>
+<a name='L281'></a><a href='#L281'>281</a>
+<a name='L282'></a><a href='#L282'>282</a>
+<a name='L283'></a><a href='#L283'>283</a>
+<a name='L284'></a><a href='#L284'>284</a>
+<a name='L285'></a><a href='#L285'>285</a>
+<a name='L286'></a><a href='#L286'>286</a>
+<a name='L287'></a><a href='#L287'>287</a>
+<a name='L288'></a><a href='#L288'>288</a>
+<a name='L289'></a><a href='#L289'>289</a>
+<a name='L290'></a><a href='#L290'>290</a>
+<a name='L291'></a><a href='#L291'>291</a>
+<a name='L292'></a><a href='#L292'>292</a>
+<a name='L293'></a><a href='#L293'>293</a>
+<a name='L294'></a><a href='#L294'>294</a>
+<a name='L295'></a><a href='#L295'>295</a>
+<a name='L296'></a><a href='#L296'>296</a>
+<a name='L297'></a><a href='#L297'>297</a>
+<a name='L298'></a><a href='#L298'>298</a>
+<a name='L299'></a><a href='#L299'>299</a>
+<a name='L300'></a><a href='#L300'>300</a>
+<a name='L301'></a><a href='#L301'>301</a>
+<a name='L302'></a><a href='#L302'>302</a>
+<a name='L303'></a><a href='#L303'>303</a>
+<a name='L304'></a><a href='#L304'>304</a>
+<a name='L305'></a><a href='#L305'>305</a>
+<a name='L306'></a><a href='#L306'>306</a>
+<a name='L307'></a><a href='#L307'>307</a>
+<a name='L308'></a><a href='#L308'>308</a>
+<a name='L309'></a><a href='#L309'>309</a>
+<a name='L310'></a><a href='#L310'>310</a>
+<a name='L311'></a><a href='#L311'>311</a>
+<a name='L312'></a><a href='#L312'>312</a>
+<a name='L313'></a><a href='#L313'>313</a>
+<a name='L314'></a><a href='#L314'>314</a>
+<a name='L315'></a><a href='#L315'>315</a>
+<a name='L316'></a><a href='#L316'>316</a>
+<a name='L317'></a><a href='#L317'>317</a>
+<a name='L318'></a><a href='#L318'>318</a>
+<a name='L319'></a><a href='#L319'>319</a>
+<a name='L320'></a><a href='#L320'>320</a>
+<a name='L321'></a><a href='#L321'>321</a>
+<a name='L322'></a><a href='#L322'>322</a>
+<a name='L323'></a><a href='#L323'>323</a>
+<a name='L324'></a><a href='#L324'>324</a>
+<a name='L325'></a><a href='#L325'>325</a>
+<a name='L326'></a><a href='#L326'>326</a>
+<a name='L327'></a><a href='#L327'>327</a>
+<a name='L328'></a><a href='#L328'>328</a>
+<a name='L329'></a><a href='#L329'>329</a>
+<a name='L330'></a><a href='#L330'>330</a>
+<a name='L331'></a><a href='#L331'>331</a>
+<a name='L332'></a><a href='#L332'>332</a>
+<a name='L333'></a><a href='#L333'>333</a>
+<a name='L334'></a><a href='#L334'>334</a>
+<a name='L335'></a><a href='#L335'>335</a>
+<a name='L336'></a><a href='#L336'>336</a>
+<a name='L337'></a><a href='#L337'>337</a>
+<a name='L338'></a><a href='#L338'>338</a>
+<a name='L339'></a><a href='#L339'>339</a>
+<a name='L340'></a><a href='#L340'>340</a>
+<a name='L341'></a><a href='#L341'>341</a>
+<a name='L342'></a><a href='#L342'>342</a>
+<a name='L343'></a><a href='#L343'>343</a>
+<a name='L344'></a><a href='#L344'>344</a>
+<a name='L345'></a><a href='#L345'>345</a>
+<a name='L346'></a><a href='#L346'>346</a>
+<a name='L347'></a><a href='#L347'>347</a>
+<a name='L348'></a><a href='#L348'>348</a>
+<a name='L349'></a><a href='#L349'>349</a>
+<a name='L350'></a><a href='#L350'>350</a>
+<a name='L351'></a><a href='#L351'>351</a>
+<a name='L352'></a><a href='#L352'>352</a>
+<a name='L353'></a><a href='#L353'>353</a>
+<a name='L354'></a><a href='#L354'>354</a>
+<a name='L355'></a><a href='#L355'>355</a>
+<a name='L356'></a><a href='#L356'>356</a>
+<a name='L357'></a><a href='#L357'>357</a>
+<a name='L358'></a><a href='#L358'>358</a>
+<a name='L359'></a><a href='#L359'>359</a>
+<a name='L360'></a><a href='#L360'>360</a>
+<a name='L361'></a><a href='#L361'>361</a>
+<a name='L362'></a><a href='#L362'>362</a>
+<a name='L363'></a><a href='#L363'>363</a>
+<a name='L364'></a><a href='#L364'>364</a>
+<a name='L365'></a><a href='#L365'>365</a>
+<a name='L366'></a><a href='#L366'>366</a>
+<a name='L367'></a><a href='#L367'>367</a>
+<a name='L368'></a><a href='#L368'>368</a>
+<a name='L369'></a><a href='#L369'>369</a>
+<a name='L370'></a><a href='#L370'>370</a>
+<a name='L371'></a><a href='#L371'>371</a>
+<a name='L372'></a><a href='#L372'>372</a>
+<a name='L373'></a><a href='#L373'>373</a>
+<a name='L374'></a><a href='#L374'>374</a>
+<a name='L375'></a><a href='#L375'>375</a>
+<a name='L376'></a><a href='#L376'>376</a>
+<a name='L377'></a><a href='#L377'>377</a>
+<a name='L378'></a><a href='#L378'>378</a>
+<a name='L379'></a><a href='#L379'>379</a>
+<a name='L380'></a><a href='#L380'>380</a>
+<a name='L381'></a><a href='#L381'>381</a>
+<a name='L382'></a><a href='#L382'>382</a>
+<a name='L383'></a><a href='#L383'>383</a>
+<a name='L384'></a><a href='#L384'>384</a>
+<a name='L385'></a><a href='#L385'>385</a>
+<a name='L386'></a><a href='#L386'>386</a>
+<a name='L387'></a><a href='#L387'>387</a>
+<a name='L388'></a><a href='#L388'>388</a>
+<a name='L389'></a><a href='#L389'>389</a>
+<a name='L390'></a><a href='#L390'>390</a>
+<a name='L391'></a><a href='#L391'>391</a>
+<a name='L392'></a><a href='#L392'>392</a>
+<a name='L393'></a><a href='#L393'>393</a>
+<a name='L394'></a><a href='#L394'>394</a>
+<a name='L395'></a><a href='#L395'>395</a>
+<a name='L396'></a><a href='#L396'>396</a>
+<a name='L397'></a><a href='#L397'>397</a>
+<a name='L398'></a><a href='#L398'>398</a>
+<a name='L399'></a><a href='#L399'>399</a>
+<a name='L400'></a><a href='#L400'>400</a>
+<a name='L401'></a><a href='#L401'>401</a>
+<a name='L402'></a><a href='#L402'>402</a>
+<a name='L403'></a><a href='#L403'>403</a>
+<a name='L404'></a><a href='#L404'>404</a>
+<a name='L405'></a><a href='#L405'>405</a>
+<a name='L406'></a><a href='#L406'>406</a>
+<a name='L407'></a><a href='#L407'>407</a>
+<a name='L408'></a><a href='#L408'>408</a>
+<a name='L409'></a><a href='#L409'>409</a>
+<a name='L410'></a><a href='#L410'>410</a>
+<a name='L411'></a><a href='#L411'>411</a>
+<a name='L412'></a><a href='#L412'>412</a>
+<a name='L413'></a><a href='#L413'>413</a>
+<a name='L414'></a><a href='#L414'>414</a>
+<a name='L415'></a><a href='#L415'>415</a>
+<a name='L416'></a><a href='#L416'>416</a>
+<a name='L417'></a><a href='#L417'>417</a>
+<a name='L418'></a><a href='#L418'>418</a>
+<a name='L419'></a><a href='#L419'>419</a>
+<a name='L420'></a><a href='#L420'>420</a>
+<a name='L421'></a><a href='#L421'>421</a>
+<a name='L422'></a><a href='#L422'>422</a>
+<a name='L423'></a><a href='#L423'>423</a>
+<a name='L424'></a><a href='#L424'>424</a>
+<a name='L425'></a><a href='#L425'>425</a>
+<a name='L426'></a><a href='#L426'>426</a>
+<a name='L427'></a><a href='#L427'>427</a>
+<a name='L428'></a><a href='#L428'>428</a>
+<a name='L429'></a><a href='#L429'>429</a>
+<a name='L430'></a><a href='#L430'>430</a>
+<a name='L431'></a><a href='#L431'>431</a>
+<a name='L432'></a><a href='#L432'>432</a>
+<a name='L433'></a><a href='#L433'>433</a>
+<a name='L434'></a><a href='#L434'>434</a>
+<a name='L435'></a><a href='#L435'>435</a>
+<a name='L436'></a><a href='#L436'>436</a>
+<a name='L437'></a><a href='#L437'>437</a>
+<a name='L438'></a><a href='#L438'>438</a>
+<a name='L439'></a><a href='#L439'>439</a>
+<a name='L440'></a><a href='#L440'>440</a>
+<a name='L441'></a><a href='#L441'>441</a>
+<a name='L442'></a><a href='#L442'>442</a>
+<a name='L443'></a><a href='#L443'>443</a>
+<a name='L444'></a><a href='#L444'>444</a>
+<a name='L445'></a><a href='#L445'>445</a>
+<a name='L446'></a><a href='#L446'>446</a>
+<a name='L447'></a><a href='#L447'>447</a>
+<a name='L448'></a><a href='#L448'>448</a>
+<a name='L449'></a><a href='#L449'>449</a>
+<a name='L450'></a><a href='#L450'>450</a>
+<a name='L451'></a><a href='#L451'>451</a>
+<a name='L452'></a><a href='#L452'>452</a>
+<a name='L453'></a><a href='#L453'>453</a>
+<a name='L454'></a><a href='#L454'>454</a>
+<a name='L455'></a><a href='#L455'>455</a>
+<a name='L456'></a><a href='#L456'>456</a>
+<a name='L457'></a><a href='#L457'>457</a>
+<a name='L458'></a><a href='#L458'>458</a>
+<a name='L459'></a><a href='#L459'>459</a>
+<a name='L460'></a><a href='#L460'>460</a>
+<a name='L461'></a><a href='#L461'>461</a>
+<a name='L462'></a><a href='#L462'>462</a>
+<a name='L463'></a><a href='#L463'>463</a>
+<a name='L464'></a><a href='#L464'>464</a>
+<a name='L465'></a><a href='#L465'>465</a>
+<a name='L466'></a><a href='#L466'>466</a>
+<a name='L467'></a><a href='#L467'>467</a>
+<a name='L468'></a><a href='#L468'>468</a>
+<a name='L469'></a><a href='#L469'>469</a>
+<a name='L470'></a><a href='#L470'>470</a>
+<a name='L471'></a><a href='#L471'>471</a>
+<a name='L472'></a><a href='#L472'>472</a>
+<a name='L473'></a><a href='#L473'>473</a>
+<a name='L474'></a><a href='#L474'>474</a>
+<a name='L475'></a><a href='#L475'>475</a>
+<a name='L476'></a><a href='#L476'>476</a>
+<a name='L477'></a><a href='#L477'>477</a>
+<a name='L478'></a><a href='#L478'>478</a>
+<a name='L479'></a><a href='#L479'>479</a>
+<a name='L480'></a><a href='#L480'>480</a>
+<a name='L481'></a><a href='#L481'>481</a>
+<a name='L482'></a><a href='#L482'>482</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import React, { useState, useEffect, Suspense, lazy } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import ErrorBoundary from './components/ErrorBoundary';
+import { initializeAuditInterceptor } from './utils/auditInterceptor';
+import PropTypes from 'prop-types';
+&nbsp;
+&nbsp;
+// Loading fallback component
+const LoadingFallback = <span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >() =&gt; (</span></span>
+<span class="cstat-no" title="statement not covered" >  &lt;div className="loading-screen" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}&gt;</span>
+    &lt;div&gt;Loading...&lt;/div&gt;
+  &lt;/div&gt;
+);
+&nbsp;
+// External link component for BlumeETL redirect
+const BlumeETLRedirect = <span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >() =&gt; {</span></span>
+<span class="cstat-no" title="statement not covered" >  useEffect(<span class="fstat-no" title="function not covered" >() =&gt; {</span></span>
+<span class="cstat-no" title="statement not covered" >    window.location.href = "https://blume-etl.example.com";</span>
+  }, []);
+<span class="cstat-no" title="statement not covered" >  return &lt;div className="loading-screen"&gt;Redirecting to BlumeETL...&lt;/div&gt;;</span>
+};
+&nbsp;
+// Core components (loaded immediately)
+import Sidebar from './components/Sidebar';
+import NotificationList from './components/Notifications/NotificationList';
+import ToastContainer from './components/ToastContainer';
+import Login from './pages/Login';
+import OktaCallback from './pages/OktaCallback';
+import InactivityTimer from './components/InactivityTimer';
+&nbsp;
+// Context providers (needed immediately)
+import { AccessibilityProvider } from './context/AccessibilityContext';
+import AuthProvider, { useAuth, AUTH_STATUS } from './context/AuthContext';
+import { SidebarProvider, useSidebar } from './context/SidebarContext';
+import { AnnouncementProvider } from './components/accessibility';
+import { ToastProvider } from './context/ToastContext';
+import { NotificationsProvider, ModalProvider } from './hooks';
+import { NotificationProvider } from './contexts/NotificationContext';
+import { isVendorUser } from './utils/userHelpers';
+&nbsp;
+// Lazy-loaded page components (heavy components loaded on demand)
+const <span class="cstat-no" title="statement not covered" >PerformanceOptimizations = lazy(<span class="fstat-no" title="function not covered" >() =&gt; <span class="cstat-no" title="statement not covered" >i</span>mport('./pages/PerformanceOptimizations'));</span></span>
+const <span class="cstat-no" title="statement not covered" >ExecutiveDashboard = lazy(<span class="fstat-no" title="function not covered" >() =&gt; <span class="cstat-no" title="statement not covered" >i</span>mport('./pages/ExecutiveDashboard'));</span></span>
+const <span class="cstat-no" title="statement not covered" >FileUpload = lazy(<span class="fstat-no" title="function not covered" >() =&gt; <span class="cstat-no" title="statement not covered" >i</span>mport('./pages/FileUpload'));</span></span>
+const <span class="cstat-no" title="statement not covered" >FileCatalog = lazy(<span class="fstat-no" title="function not covered" >() =&gt; <span class="cstat-no" title="statement not covered" >i</span>mport('./pages/FileCatalog').then(<span class="fstat-no" title="function not covered" >m =&gt; ({</span> <span class="cstat-no" title="statement not covered" >default: m.FileCatalog })));</span></span></span>
+const <span class="cstat-no" title="statement not covered" >DataProfile = lazy(<span class="fstat-no" title="function not covered" >() =&gt; <span class="cstat-no" title="statement not covered" >i</span>mport('./pages/DataProfile'));</span></span>
+const <span class="cstat-no" title="statement not covered" >QualityChecks = lazy(<span class="fstat-no" title="function not covered" >() =&gt; <span class="cstat-no" title="statement not covered" >i</span>mport('./pages/QualityChecks'));</span></span>
+const <span class="cstat-no" title="statement not covered" >QualityReport = lazy(<span class="fstat-no" title="function not covered" >() =&gt; <span class="cstat-no" title="statement not covered" >i</span>mport('./pages/QualityReport'));</span></span>
+const <span class="cstat-no" title="statement not covered" >QualityRules = lazy(<span class="fstat-no" title="function not covered" >() =&gt; <span class="cstat-no" title="statement not covered" >i</span>mport('./pages/QualityRules'));</span></span>
+const <span class="cstat-no" title="statement not covered" >ErrorReview = lazy(<span class="fstat-no" title="function not covered" >() =&gt; <span class="cstat-no" title="statement not covered" >i</span>mport('./pages/ErrorReview'));</span></span>
+const <span class="cstat-no" title="statement not covered" >Connections = lazy(<span class="fstat-no" title="function not covered" >() =&gt; <span class="cstat-no" title="statement not covered" >i</span>mport('./pages/Connections'));</span></span>
+const <span class="cstat-no" title="statement not covered" >Mappings = lazy(<span class="fstat-no" title="function not covered" >() =&gt; <span class="cstat-no" title="statement not covered" >i</span>mport('./pages/Mappings'));</span></span>
+const <span class="cstat-no" title="statement not covered" >MappingWizard = lazy(<span class="fstat-no" title="function not covered" >() =&gt; <span class="cstat-no" title="statement not covered" >i</span>mport('./pages/MappingWizard'));</span></span>
+const <span class="cstat-no" title="statement not covered" >ETLJobDetails = lazy(<span class="fstat-no" title="function not covered" >() =&gt; <span class="cstat-no" title="statement not covered" >i</span>mport('./pages/ETLJobDetails'));</span></span>
+const <span class="cstat-no" title="statement not covered" >Transform = lazy(<span class="fstat-no" title="function not covered" >() =&gt; <span class="cstat-no" title="statement not covered" >i</span>mport('./pages/Transform'));</span></span>
+const <span class="cstat-no" title="statement not covered" >FileLineage = lazy(<span class="fstat-no" title="function not covered" >() =&gt; <span class="cstat-no" title="statement not covered" >i</span>mport('./pages/FileLineage'));</span></span>
+const <span class="cstat-no" title="statement not covered" >LineageImpact = lazy(<span class="fstat-no" title="function not covered" >() =&gt; <span class="cstat-no" title="statement not covered" >i</span>mport('./pages/LineageImpact'));</span></span>
+const <span class="cstat-no" title="statement not covered" >LineagePage = lazy(<span class="fstat-no" title="function not covered" >() =&gt; <span class="cstat-no" title="statement not covered" >i</span>mport('./pages/LineagePage'));</span></span>
+const <span class="cstat-no" title="statement not covered" >LineageListPage = lazy(<span class="fstat-no" title="function not covered" >() =&gt; <span class="cstat-no" title="statement not covered" >i</span>mport('./pages/LineageListPage'));</span></span>
+const <span class="cstat-no" title="statement not covered" >Monitor = lazy(<span class="fstat-no" title="function not covered" >() =&gt; <span class="cstat-no" title="statement not covered" >i</span>mport('./pages/Monitor'));</span></span>
+const <span class="cstat-no" title="statement not covered" >Scheduler = lazy(<span class="fstat-no" title="function not covered" >() =&gt; <span class="cstat-no" title="statement not covered" >i</span>mport('./pages/Scheduler'));</span></span>
+const <span class="cstat-no" title="statement not covered" >Badges = lazy(<span class="fstat-no" title="function not covered" >() =&gt; <span class="cstat-no" title="statement not covered" >i</span>mport('./pages/Badges'));</span></span>
+// DataStories - ARCHIVED (not in use)
+const <span class="cstat-no" title="statement not covered" >DashboardSettings = lazy(<span class="fstat-no" title="function not covered" >() =&gt; <span class="cstat-no" title="statement not covered" >i</span>mport('./pages/DashboardSettings'));</span></span>
+const <span class="cstat-no" title="statement not covered" >UserManagement = lazy(<span class="fstat-no" title="function not covered" >() =&gt; <span class="cstat-no" title="statement not covered" >i</span>mport('./pages/UserManagement'));</span></span>
+const <span class="cstat-no" title="statement not covered" >RoleManagement = lazy(<span class="fstat-no" title="function not covered" >() =&gt; <span class="cstat-no" title="statement not covered" >i</span>mport('./pages/RoleManagement'));</span></span>
+const <span class="cstat-no" title="statement not covered" >AuditTrail = lazy(<span class="fstat-no" title="function not covered" >() =&gt; <span class="cstat-no" title="statement not covered" >i</span>mport('./pages/AuditTrail'));</span></span>
+const <span class="cstat-no" title="statement not covered" >Notifications = lazy(<span class="fstat-no" title="function not covered" >() =&gt; <span class="cstat-no" title="statement not covered" >i</span>mport('./pages/Notifications'));</span></span>
+const <span class="cstat-no" title="statement not covered" >VendorManagement = lazy(<span class="fstat-no" title="function not covered" >() =&gt; <span class="cstat-no" title="statement not covered" >i</span>mport('./pages/VendorManagement'));</span></span>
+const <span class="cstat-no" title="statement not covered" >VendorUserManagement = lazy(<span class="fstat-no" title="function not covered" >() =&gt; <span class="cstat-no" title="statement not covered" >i</span>mport('./pages/VendorUserManagement'));</span></span>
+const <span class="cstat-no" title="statement not covered" >VendorRoleManagement = lazy(<span class="fstat-no" title="function not covered" >() =&gt; <span class="cstat-no" title="statement not covered" >i</span>mport('./pages/VendorRoleManagement'));</span></span>
+const <span class="cstat-no" title="statement not covered" >VendorAgreements = lazy(<span class="fstat-no" title="function not covered" >() =&gt; <span class="cstat-no" title="statement not covered" >i</span>mport('./pages/VendorAgreements'));</span></span>
+const <span class="cstat-no" title="statement not covered" >VendorFileUpload = lazy(<span class="fstat-no" title="function not covered" >() =&gt; <span class="cstat-no" title="statement not covered" >i</span>mport('./pages/VendorFileUpload'));</span></span>
+const <span class="cstat-no" title="statement not covered" >VendorFileQuality = lazy(<span class="fstat-no" title="function not covered" >() =&gt; <span class="cstat-no" title="statement not covered" >i</span>mport('./pages/VendorFileQuality'));</span></span>
+const <span class="cstat-no" title="statement not covered" >SLAMonitoring = lazy(<span class="fstat-no" title="function not covered" >() =&gt; <span class="cstat-no" title="statement not covered" >i</span>mport('./pages/SLAMonitoring'));</span></span>
+// DBTTransformations - ARCHIVED (not in use)
+// HooksDemo - ARCHIVED (development only)
+const <span class="cstat-no" title="statement not covered" >Groups = lazy(<span class="fstat-no" title="function not covered" >() =&gt; <span class="cstat-no" title="statement not covered" >i</span>mport('./pages/Groups'));</span></span>
+const <span class="cstat-no" title="statement not covered" >BusinessProcesses = lazy(<span class="fstat-no" title="function not covered" >() =&gt; <span class="cstat-no" title="statement not covered" >i</span>mport('./pages/BusinessProcesses'));</span></span>
+const <span class="cstat-no" title="statement not covered" >Jobs = lazy(<span class="fstat-no" title="function not covered" >() =&gt; <span class="cstat-no" title="statement not covered" >i</span>mport('./pages/Jobs'));</span></span>
+const <span class="cstat-no" title="statement not covered" >ProcessedFileCatalog = lazy(<span class="fstat-no" title="function not covered" >() =&gt; <span class="cstat-no" title="statement not covered" >i</span>mport('./pages/ProcessedFileCatalog'));</span></span>
+const <span class="cstat-no" title="statement not covered" >MappingGroups = lazy(<span class="fstat-no" title="function not covered" >() =&gt; <span class="cstat-no" title="statement not covered" >i</span>mport('./pages/MappingGroups'));</span></span>
+const <span class="cstat-no" title="statement not covered" >MappingGroupForm = lazy(<span class="fstat-no" title="function not covered" >() =&gt; <span class="cstat-no" title="statement not covered" >i</span>mport('./pages/MappingGroupForm'));</span></span>
+const <span class="cstat-no" title="statement not covered" >NStepWorkflows = lazy(<span class="fstat-no" title="function not covered" >() =&gt; <span class="cstat-no" title="statement not covered" >i</span>mport('./pages/NStepWorkflows'));</span></span>
+const <span class="cstat-no" title="statement not covered" >ETLScheduler = lazy(<span class="fstat-no" title="function not covered" >() =&gt; <span class="cstat-no" title="statement not covered" >i</span>mport('./pages/ETLScheduler'));</span></span>
+const <span class="cstat-no" title="statement not covered" >SchedulerForm = lazy(<span class="fstat-no" title="function not covered" >() =&gt; <span class="cstat-no" title="statement not covered" >i</span>mport('./pages/SchedulerForm'));</span></span>
+const <span class="cstat-no" title="statement not covered" >PolicyManagement = lazy(<span class="fstat-no" title="function not covered" >() =&gt; <span class="cstat-no" title="statement not covered" >i</span>mport('./pages/PolicyManagement'));</span></span>
+const <span class="cstat-no" title="statement not covered" >TagManagement = lazy(<span class="fstat-no" title="function not covered" >() =&gt; <span class="cstat-no" title="statement not covered" >i</span>mport('./pages/TagManagement'));</span></span>
+const <span class="cstat-no" title="statement not covered" >ProjectManagement = lazy(<span class="fstat-no" title="function not covered" >() =&gt; <span class="cstat-no" title="statement not covered" >i</span>mport('./pages/ProjectManagement'));</span></span>
+const <span class="cstat-no" title="statement not covered" >Projects = lazy(<span class="fstat-no" title="function not covered" >() =&gt; <span class="cstat-no" title="statement not covered" >i</span>mport('./pages/Projects'));</span></span>
+const <span class="cstat-no" title="statement not covered" >GroupManagement = lazy(<span class="fstat-no" title="function not covered" >() =&gt; <span class="cstat-no" title="statement not covered" >i</span>mport('./pages/GroupManagement'));</span></span>
+const <span class="cstat-no" title="statement not covered" >SystemCleanup = lazy(<span class="fstat-no" title="function not covered" >() =&gt; <span class="cstat-no" title="statement not covered" >i</span>mport('./pages/SystemCleanup'));</span></span>
+const <span class="cstat-no" title="statement not covered" >RetentionPolicies = lazy(<span class="fstat-no" title="function not covered" >() =&gt; <span class="cstat-no" title="statement not covered" >i</span>mport('./pages/RetentionPolicies'));</span></span>
+const <span class="cstat-no" title="statement not covered" >ArchivedFiles = lazy(<span class="fstat-no" title="function not covered" >() =&gt; <span class="cstat-no" title="statement not covered" >i</span>mport('./pages/ArchivedFiles'));</span></span>
+const <span class="cstat-no" title="statement not covered" >Anomalies = lazy(<span class="fstat-no" title="function not covered" >() =&gt; <span class="cstat-no" title="statement not covered" >i</span>mport('./pages/Anomalies'));</span></span>
+const <span class="cstat-no" title="statement not covered" >AlertsConfig = lazy(<span class="fstat-no" title="function not covered" >() =&gt; <span class="cstat-no" title="statement not covered" >i</span>mport('./pages/AlertsConfig').then(<span class="fstat-no" title="function not covered" >m =&gt; ({</span> <span class="cstat-no" title="statement not covered" >default: m.AlertsConfig })));</span></span></span>
+const <span class="cstat-no" title="statement not covered" >EmailProvidersConfig = lazy(<span class="fstat-no" title="function not covered" >() =&gt; <span class="cstat-no" title="statement not covered" >i</span>mport('./pages/EmailProvidersConfig').then(<span class="fstat-no" title="function not covered" >m =&gt; ({</span> <span class="cstat-no" title="statement not covered" >default: m.EmailProvidersConfig })));</span></span></span>
+const <span class="cstat-no" title="statement not covered" >AlertHistory = lazy(<span class="fstat-no" title="function not covered" >() =&gt; <span class="cstat-no" title="statement not covered" >i</span>mport('./pages/AlertHistory'));</span></span>
+const <span class="cstat-no" title="statement not covered" >OAuth2Callback = lazy(<span class="fstat-no" title="function not covered" >() =&gt; <span class="cstat-no" title="statement not covered" >i</span>mport('./pages/OAuth2Callback').then(<span class="fstat-no" title="function not covered" >m =&gt; ({</span> <span class="cstat-no" title="statement not covered" >default: m.OAuth2Callback })));</span></span></span>
+const <span class="cstat-no" title="statement not covered" >APITokens = lazy(<span class="fstat-no" title="function not covered" >() =&gt; <span class="cstat-no" title="statement not covered" >i</span>mport('./pages/APITokens'));</span></span>
+const <span class="cstat-no" title="statement not covered" >APIDocumentation = lazy(<span class="fstat-no" title="function not covered" >() =&gt; <span class="cstat-no" title="statement not covered" >i</span>mport('./pages/APIDocumentation'));</span></span>
+const <span class="cstat-no" title="statement not covered" >FailedJobs = lazy(<span class="fstat-no" title="function not covered" >() =&gt; <span class="cstat-no" title="statement not covered" >i</span>mport('./pages/FailedJobs'));</span></span>
+// WorkflowCanvasStandalone - ARCHIVED (not in use)
+// WorkflowTest - ARCHIVED (development only)
+// WorkflowBuilder - ARCHIVED (already in archived folder)
+const <span class="cstat-no" title="statement not covered" >WorkflowManager = lazy(<span class="fstat-no" title="function not covered" >() =&gt; <span class="cstat-no" title="statement not covered" >i</span>mport('./pages/WorkflowManager'));</span></span>
+const <span class="cstat-no" title="statement not covered" >VisualMappingCanvas = lazy(<span class="fstat-no" title="function not covered" >() =&gt; <span class="cstat-no" title="statement not covered" >i</span>mport('./pages/VisualMappingCanvas'));</span></span>
+const <span class="cstat-no" title="statement not covered" >VisualMappingManager = lazy(<span class="fstat-no" title="function not covered" >() =&gt; <span class="cstat-no" title="statement not covered" >i</span>mport('./pages/VisualMappingManager'));</span></span>
+const <span class="cstat-no" title="statement not covered" >Documentation = lazy(<span class="fstat-no" title="function not covered" >() =&gt; <span class="cstat-no" title="statement not covered" >i</span>mport('./pages/Documentation'));</span></span>
+&nbsp;
+// Styles
+import './App.css';
+import './styles/accessibility.css';
+import './styles/Login.css';
+import './styles/UserManagement.css';
+import './styles/RoleManagement.css';
+import './styles/AIPredictiveInsights.css';
+import './styles/Groups.css';
+import './styles/BusinessProcesses.css';
+import './styles/Jobs.css';
+import './styles/Transformations.css';
+import './styles/ETLOrchestration.css';
+import './styles/global-page-styles.css';
+import { getSecret } from './config/secrets';
+&nbsp;
+function <span class="fstat-no" title="function not covered" >generateCodeVerifier(l</span>ength = <span class="branch-0 cbranch-no" title="branch not covered" >64) {</span>
+  const array = <span class="cstat-no" title="statement not covered" >new Uint8Array(length);</span>
+<span class="cstat-no" title="statement not covered" >  window.crypto.getRandomValues(array);</span>
+<span class="cstat-no" title="statement not covered" >  return btoa(String.fromCharCode(...array))</span>
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '');
+}
+&nbsp;
+// Generate a code challenge from the verifier
+async function <span class="fstat-no" title="function not covered" >generateCodeChallenge(v</span>erifier) {
+  const encoder = <span class="cstat-no" title="statement not covered" >new TextEncoder();</span>
+  const data = <span class="cstat-no" title="statement not covered" >encoder.encode(verifier);</span>
+  const digest = <span class="cstat-no" title="statement not covered" >await window.crypto.subtle.digest('SHA-256', data);</span>
+  const base64Digest = <span class="cstat-no" title="statement not covered" >btoa(String.fromCharCode(...new Uint8Array(digest)))</span>
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '');
+<span class="cstat-no" title="statement not covered" >  return base64Digest;</span>
+}
+&nbsp;
+/**
+ * Initiate Okta login
+ */
+async function <span class="fstat-no" title="function not covered" >initiateOktaLogin(){</span>
+  const verifier = <span class="cstat-no" title="statement not covered" >generateCodeVerifier();</span>
+    const challenge = <span class="cstat-no" title="statement not covered" >await generateCodeChallenge(verifier);</span>
+    
+<span class="cstat-no" title="statement not covered" >    document.cookie = `codeVerifier=${verifier}; path=/; secure; samesite=strict`;</span>
+&nbsp;
+<span class="cstat-no" title="statement not covered" >    localStorage.setItem('pkce_verifier', verifier);</span>
+    const <span class="cstat-no" title="statement not covered" >oktaDomain = getSecret('OKTA_DOMAIN');</span>
+    const <span class="cstat-no" title="statement not covered" >clientId = getSecret('OKTA_CLIENT_ID');</span>
+    
+    const authUrl = <span class="cstat-no" title="statement not covered" >`${oktaDomain}/oauth2/default/v1/authorize?` +</span>
+      new URLSearchParams({
+        client_id: clientId || '',
+        response_type: 'code',
+        scope: 'openid profile email',
+        redirect_uri: getSecret('OKTA_REDIRECT_URI') || 'http://localhost:5000/auth/callback',
+        state: 'xyz',
+        code_challenge: challenge,
+        code_challenge_method: 'S256'
+      });
+<span class="cstat-no" title="statement not covered" >    window.location.href = authUrl;</span>
+};
+&nbsp;
+// Protected route component
+const ProtectedRoute = <span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >({</span> children }) =&gt; {</span>
+  const { currentUser, authStatus <span class="cstat-no" title="statement not covered" >} = useAuth();</span>
+  const <span class="cstat-no" title="statement not covered" >location = useLocation();</span>
+  const pathname = <span class="cstat-no" title="statement not covered" >location.pathname;</span>
+  
+  // Use authStatus for atomic routing decisions
+  // This prevents the race condition where loading=false before currentUser is set
+<span class="cstat-no" title="statement not covered" >  if (authStatus === AUTH_STATUS.CHECKING) {</span>
+<span class="cstat-no" title="statement not covered" >    return &lt;div className="loading-screen"&gt;Loading...&lt;/div&gt;;</span>
+  }
+  
+<span class="cstat-no" title="statement not covered" >  if (authStatus === AUTH_STATUS.UNAUTHENTICATED || !currentUser) {</span>
+    // Pass current location so Login can redirect back after authentication
+<span class="cstat-no" title="statement not covered" >    return &lt;Navigate to="/login" state={{ from: location }} replace /&gt;;</span>
+  }
+  
+  // Extract route parameters to pass to children if it's a function
+  // This handles routes like /profile/:fileId
+<span class="cstat-no" title="statement not covered" >  if (typeof children === 'function') {</span>
+    // Extract fileId from the path based on various possible route patterns
+    let fileId = <span class="cstat-no" title="statement not covered" >null;</span>
+    const profileMatch = <span class="cstat-no" title="statement not covered" >pathname.match(/\/profile\/([^\/]+)/);</span>
+    const qualityMatch = <span class="cstat-no" title="statement not covered" >pathname.match(/\/quality\/([^\/]+)/);</span>
+    const reportMatch = <span class="cstat-no" title="statement not covered" >pathname.match(/\/report\/([^\/]+)/);</span>
+    const lineageMatch = <span class="cstat-no" title="statement not covered" >pathname.match(/\/lineage\/impact\/([^\/]+)/);</span>
+    
+<span class="cstat-no" title="statement not covered" >    if (profileMatch) <span class="cstat-no" title="statement not covered" >fileId = profileMatch[1<span class="cstat-no" title="statement not covered" >];</span></span></span>
+    else if (qualityMatch) <span class="cstat-no" title="statement not covered" >fileId = qualityMatch[1<span class="cstat-no" title="statement not covered" >];</span></span>
+    else if (reportMatch) <span class="cstat-no" title="statement not covered" >fileId = reportMatch[1<span class="cstat-no" title="statement not covered" >];</span></span>
+    else if (lineageMatch) <span class="cstat-no" title="statement not covered" >fileId = lineageMatch[1];</span>
+    
+    // Also validate fileId format is reasonable (not "undefined" as string)
+<span class="cstat-no" title="statement not covered" >    if (fileId === 'undefined') <span class="cstat-no" title="statement not covered" >fileId = null;</span></span>
+    
+<span class="cstat-no" title="statement not covered" >    return children({ fileId });</span>
+  }
+  
+<span class="cstat-no" title="statement not covered" >  return children;</span>
+};
+<span class="cstat-no" title="statement not covered" >ProtectedRoute.propTypes = {</span>
+  children: PropTypes.oneOfType([
+    PropTypes.node,
+    PropTypes.func
+  ]).isRequired
+};
+&nbsp;
+// Component to redirect vendor users to vendor file upload page, others to executive dashboard
+const DashboardOrRedirect = <span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >() =&gt; {</span></span>
+  const { currentUser <span class="cstat-no" title="statement not covered" >} = useAuth();</span>
+  
+  // Redirect vendor users to the vendor file upload page
+<span class="cstat-no" title="statement not covered" >  if (isVendorUser(currentUser)) {</span>
+<span class="cstat-no" title="statement not covered" >    return &lt;Navigate to="/vendor-file-upload" replace /&gt;;</span>
+  }
+  
+  // Show executive dashboard for all other users
+<span class="cstat-no" title="statement not covered" >  return &lt;ExecutiveDashboard /&gt;;</span>
+};
+&nbsp;
+// Component to block vendor users from accessing regular file upload
+const FileUploadOrRedirect = <span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >() =&gt; {</span></span>
+  const { currentUser <span class="cstat-no" title="statement not covered" >} = useAuth();</span>
+  
+  // Redirect vendor users away from regular file upload
+<span class="cstat-no" title="statement not covered" >  if (isVendorUser(currentUser)) {</span>
+<span class="cstat-no" title="statement not covered" >    return &lt;Navigate to="/vendor-file-upload" replace /&gt;;</span>
+  }
+  
+  // Show regular file upload for non-vendor users
+<span class="cstat-no" title="statement not covered" >  return &lt;FileUpload /&gt;;</span>
+};
+&nbsp;
+function <span class="fstat-no" title="function not covered" >App() {</span>
+  const [showOnboarding, setShowOnboarding<span class="cstat-no" title="statement not covered" >] = useState(false);</span>
+  
+<span class="cstat-no" title="statement not covered" >  useEffect(<span class="fstat-no" title="function not covered" >() =&gt; {</span></span>
+<span class="cstat-no" title="statement not covered" >    initializeAuditInterceptor();</span>
+  }, []);
+  
+<span class="cstat-no" title="statement not covered" >  return (</span>
+    &lt;ErrorBoundary componentName="App"&gt;
+      &lt;AccessibilityProvider&gt;
+        &lt;AuthProvider&gt;
+          &lt;SidebarProvider&gt;
+            &lt;AnnouncementProvider&gt;
+              &lt;NotificationProvider&gt;
+                &lt;ToastProvider&gt;
+                  &lt;NotificationsProvider&gt;
+                    &lt;ModalProvider&gt;
+                      &lt;Router&gt;
+                        &lt;AppContent showOnboarding={showOnboarding} setShowOnboarding={setShowOnboarding} /&gt;
+                      &lt;/Router&gt;
+                    &lt;/ModalProvider&gt;
+                  &lt;/NotificationsProvider&gt;
+                &lt;/ToastProvider&gt;
+              &lt;/NotificationProvider&gt;
+            &lt;/AnnouncementProvider&gt;
+          &lt;/SidebarProvider&gt;
+        &lt;/AuthProvider&gt;
+      &lt;/AccessibilityProvider&gt;
+    &lt;/ErrorBoundary&gt;
+  );
+}
+&nbsp;
+// Separate component to use useAuth() hook inside Router context
+function <span class="fstat-no" title="function not covered" >AppContent({</span> showOnboarding, setShowOnboarding }) {
+<span class="cstat-no" title="statement not covered" >   if(window.location.href.includes('?iss=')) {</span>
+<span class="cstat-no" title="statement not covered" >      initiateOktaLogin();</span>
+<span class="cstat-no" title="statement not covered" >      return;</span>
+    }
+  const { currentUser, authStatus <span class="cstat-no" title="statement not covered" >} = useAuth();</span>
+  const <span class="cstat-no" title="statement not covered" >location = useLocation();</span>
+  const { isCollapsed <span class="cstat-no" title="statement not covered" >} = useSidebar();</span>
+  const [showAIInsights, setShowAIInsights<span class="cstat-no" title="statement not covered" >] = useState(false);</span>
+  const [selectedFileId, setSelectedFileId<span class="cstat-no" title="statement not covered" >] = useState(null);</span>
+  
+  // Show loading while auth status is being determined
+  // This prevents premature redirect to login before auth check completes
+<span class="cstat-no" title="statement not covered" >  if (authStatus === AUTH_STATUS.CHECKING) {</span>
+<span class="cstat-no" title="statement not covered" >    return &lt;div className="loading-screen"&gt;Loading...&lt;/div&gt;;</span>
+  }
+  
+  // Function to toggle AI Insights sidebar
+  const toggleAIInsights = <span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >(f</span>ileId = <span class="branch-0 cbranch-no" title="branch not covered" >null) =&gt; {</span></span>
+<span class="cstat-no" title="statement not covered" >    setSelectedFileId(fileId);</span>
+<span class="cstat-no" title="statement not covered" >    setShowAIInsights(<span class="fstat-no" title="function not covered" >prev =&gt; <span class="cstat-no" title="statement not covered" >f</span>ileId ? true : !prev)</span>;</span>
+  };
+  
+<span class="cstat-no" title="statement not covered" >  return (</span>
+    &lt;div className="app"&gt;
+      {/* Skip to main content link for keyboard users */}
+      &lt;a href="#main-content" className="skip-link"&gt;Skip to main content&lt;/a&gt;
+      
+      {/* Show sidebar only if logged in */}
+      {currentUser &amp;&amp; (
+        &lt;&gt;
+          &lt;InactivityTimer /&gt;
+          &lt;div className="main-container"&gt;
+            &lt;Sidebar /&gt;
+            &lt;main id="main-content" className={`content ${isCollapsed ? 'sidebar-collapsed' : ''} full-width`} tabIndex="-1"&gt;
+              &lt;Suspense fallback={&lt;LoadingFallback /&gt;}&gt;
+              &lt;Routes&gt;
+                &lt;Route path="/" element={&lt;ProtectedRoute&gt;&lt;DashboardOrRedirect /&gt;&lt;/ProtectedRoute&gt;} /&gt;
+                &lt;Route path="/executive-dashboard" element={&lt;ProtectedRoute&gt;&lt;ExecutiveDashboard /&gt;&lt;/ProtectedRoute&gt;} /&gt;
+                &lt;Route path="/upload" element={&lt;ProtectedRoute&gt;&lt;FileUploadOrRedirect /&gt;&lt;/ProtectedRoute&gt;} /&gt;
+                &lt;Route path="/drop" element={&lt;ProtectedRoute&gt;&lt;FileUploadOrRedirect /&gt;&lt;/ProtectedRoute&gt;} /&gt;
+                &lt;Route path="/file-catalog" element={&lt;ProtectedRoute&gt;&lt;FileCatalog /&gt;&lt;/ProtectedRoute&gt;} /&gt;
+                &lt;Route path="/profile/:fileId" element={&lt;ProtectedRoute&gt;
+                  {<span class="fstat-no" title="function not covered" >({</span> fileId }) =&gt; {
+                    // Only render DataProfile if fileId exists
+<span class="cstat-no" title="statement not covered" >                    return fileId ? (</span>
+                      &lt;DataProfile showAIInsights={toggleAIInsights} /&gt;
+                    ) : (
+                      &lt;Navigate to="/catalog" replace /&gt;
+                    );
+                  }}
+                &lt;/ProtectedRoute&gt;} /&gt;
+                &lt;Route path="/quality/:fileId" element={&lt;ProtectedRoute&gt;
+                  {<span class="fstat-no" title="function not covered" >({</span> fileId }) =&gt; {
+<span class="cstat-no" title="statement not covered" >                    return fileId ? (</span>
+                      &lt;QualityChecks showAIInsights={toggleAIInsights} /&gt;
+                    ) : (
+                      &lt;Navigate to="/catalog" replace /&gt;
+                    );
+                  }}
+                &lt;/ProtectedRoute&gt;} /&gt;
+                &lt;Route path="/report/:fileId" element={&lt;ProtectedRoute&gt;
+                  {<span class="fstat-no" title="function not covered" >({</span> fileId }) =&gt; {
+<span class="cstat-no" title="statement not covered" >                    return fileId ? (</span>
+                      &lt;QualityReport /&gt;
+                    ) : (
+                      &lt;Navigate to="/catalog" replace /&gt;
+                    );
+                  }}
+                &lt;/ProtectedRoute&gt;} /&gt;
+                &lt;Route path="/quality-rules" element={&lt;ProtectedRoute&gt;&lt;QualityRules /&gt;&lt;/ProtectedRoute&gt;} /&gt;
+                &lt;Route path="/alerts" element={&lt;Navigate to="/quality-rules" replace /&gt;} /&gt;
+                &lt;Route path="/error-review" element={&lt;ProtectedRoute&gt;&lt;ErrorReview /&gt;&lt;/ProtectedRoute&gt;} /&gt;
+                &lt;Route path="/connections" element={&lt;ProtectedRoute&gt;&lt;Connections /&gt;&lt;/ProtectedRoute&gt;} /&gt;
+                &lt;Route path="/mappings" element={&lt;ProtectedRoute&gt;&lt;Mappings /&gt;&lt;/ProtectedRoute&gt;} /&gt;
+                &lt;Route path="/mappings/create" element={&lt;ProtectedRoute&gt;&lt;MappingWizard /&gt;&lt;/ProtectedRoute&gt;} /&gt;
+                &lt;Route path="/mappings/edit/:mappingId" element={&lt;ProtectedRoute&gt;&lt;MappingWizard /&gt;&lt;/ProtectedRoute&gt;} /&gt;
+                &lt;Route path="/transformations" element={&lt;ProtectedRoute&gt;&lt;Transform /&gt;&lt;/ProtectedRoute&gt;} /&gt;
+                &lt;Route path="/transform" element={&lt;ProtectedRoute&gt;&lt;Transform /&gt;&lt;/ProtectedRoute&gt;} /&gt;
+                &lt;Route path="/lineage" element={&lt;ProtectedRoute&gt;&lt;FileLineage /&gt;&lt;/ProtectedRoute&gt;} /&gt;
+                &lt;Route path="/visual-lineage" element={&lt;ProtectedRoute&gt;&lt;LineageListPage /&gt;&lt;/ProtectedRoute&gt;} /&gt;
+                &lt;Route path="/visual-lineage/new" element={&lt;ProtectedRoute&gt;&lt;LineagePage /&gt;&lt;/ProtectedRoute&gt;} /&gt;
+                &lt;Route path="/visual-lineage/:graphId" element={&lt;ProtectedRoute&gt;&lt;LineagePage /&gt;&lt;/ProtectedRoute&gt;} /&gt;
+                &lt;Route path="/lineage/impact/:fileId" element={&lt;ProtectedRoute&gt;
+                  {<span class="fstat-no" title="function not covered" >({</span> fileId }) =&gt; {
+<span class="cstat-no" title="statement not covered" >                    return fileId ? (</span>
+                      &lt;LineageImpact /&gt;
+                    ) : (
+                      &lt;Navigate to="/lineage" replace /&gt;
+                    );
+                  }}
+                &lt;/ProtectedRoute&gt;} /&gt;
+                &lt;Route path="/monitor" element={&lt;ProtectedRoute&gt;&lt;Monitor /&gt;&lt;/ProtectedRoute&gt;} /&gt;
+                &lt;Route path="/scheduler" element={&lt;ProtectedRoute&gt;&lt;Scheduler /&gt;&lt;/ProtectedRoute&gt;} /&gt;
+                &lt;Route path="/badges" element={&lt;ProtectedRoute&gt;&lt;Badges /&gt;&lt;/ProtectedRoute&gt;} /&gt;
+                {/* ARCHIVED: &lt;Route path="/stories" element={&lt;ProtectedRoute&gt;&lt;DataStories /&gt;&lt;/ProtectedRoute&gt;} /&gt; */}
+                &lt;Route path="/dashboard-settings" element={&lt;ProtectedRoute&gt;&lt;DashboardSettings /&gt;&lt;/ProtectedRoute&gt;} /&gt;
+                &lt;Route path="/users" element={&lt;ProtectedRoute&gt;&lt;UserManagement /&gt;&lt;/ProtectedRoute&gt;} /&gt;
+                &lt;Route path="/roles" element={&lt;ProtectedRoute&gt;&lt;RoleManagement /&gt;&lt;/ProtectedRoute&gt;} /&gt;
+                &lt;Route path="/audit-trail" element={&lt;ProtectedRoute&gt;&lt;AuditTrail /&gt;&lt;/ProtectedRoute&gt;} /&gt;
+                &lt;Route path="/notifications" element={&lt;ProtectedRoute&gt;&lt;Notifications /&gt;&lt;/ProtectedRoute&gt;} /&gt;
+                &lt;Route path="/vendor-management" element={&lt;ProtectedRoute&gt;&lt;VendorManagement /&gt;&lt;/ProtectedRoute&gt;} /&gt;
+                &lt;Route path="/vendors" element={&lt;ProtectedRoute&gt;&lt;VendorManagement /&gt;&lt;/ProtectedRoute&gt;} /&gt;
+                &lt;Route path="/vendor-users" element={&lt;ProtectedRoute&gt;&lt;VendorUserManagement /&gt;&lt;/ProtectedRoute&gt;} /&gt;
+                &lt;Route path="/vendor-roles" element={&lt;ProtectedRoute&gt;&lt;VendorRoleManagement /&gt;&lt;/ProtectedRoute&gt;} /&gt;
+                &lt;Route path="/vendor-agreements" element={&lt;ProtectedRoute&gt;&lt;VendorAgreements /&gt;&lt;/ProtectedRoute&gt;} /&gt;
+                &lt;Route path="/vendor-file-upload" element={&lt;ProtectedRoute&gt;&lt;VendorFileUpload /&gt;&lt;/ProtectedRoute&gt;} /&gt;
+                &lt;Route path="/vendor-file-quality" element={&lt;ProtectedRoute&gt;&lt;VendorFileQuality /&gt;&lt;/ProtectedRoute&gt;} /&gt;
+                &lt;Route path="/sla-monitoring" element={&lt;ProtectedRoute&gt;&lt;SLAMonitoring /&gt;&lt;/ProtectedRoute&gt;} /&gt;
+                {/* ARCHIVED: &lt;Route path="/dbt-transformations" element={&lt;ProtectedRoute&gt;&lt;DBTTransformations /&gt;&lt;/ProtectedRoute&gt;} /&gt; */}
+                &lt;Route path="/failed-jobs" element={&lt;ProtectedRoute&gt;&lt;FailedJobs /&gt;&lt;/ProtectedRoute&gt;} /&gt;
+                {/* Business Process Management routes */}
+                &lt;Route path="/groups" element={&lt;ProtectedRoute&gt;&lt;Groups /&gt;&lt;/ProtectedRoute&gt;} /&gt;
+                &lt;Route path="/business-processes" element={&lt;ProtectedRoute&gt;&lt;BusinessProcesses /&gt;&lt;/ProtectedRoute&gt;} /&gt;
+                &lt;Route path="/business-processes/:processId" element={&lt;ProtectedRoute&gt;&lt;Jobs /&gt;&lt;/ProtectedRoute&gt;} /&gt;
+                &lt;Route path="/jobs" element={&lt;ProtectedRoute&gt;&lt;Jobs /&gt;&lt;/ProtectedRoute&gt;} /&gt;
+                &lt;Route path="/jobs/:jobId" element={&lt;ProtectedRoute&gt;&lt;Jobs /&gt;&lt;/ProtectedRoute&gt;} /&gt;
+                &lt;Route path="/etl-jobs/:jobId" element={&lt;ProtectedRoute&gt;&lt;ETLJobDetails /&gt;&lt;/ProtectedRoute&gt;} /&gt;
+                &lt;Route path="/transformation-catalog" element={&lt;ProtectedRoute&gt;&lt;ProcessedFileCatalog /&gt;&lt;/ProtectedRoute&gt;} /&gt;
+                &lt;Route path="/processed-catalog" element={&lt;ProtectedRoute&gt;&lt;ProcessedFileCatalog /&gt;&lt;/ProtectedRoute&gt;} /&gt;
+                {/* ProcessManagementWizard route removed */}
+                {/* ETL Orchestration routes */}
+                &lt;Route path="/mapping-groups" element={&lt;ProtectedRoute&gt;&lt;MappingGroups /&gt;&lt;/ProtectedRoute&gt;} /&gt;
+                &lt;Route path="/mapping-groups/create" element={&lt;ProtectedRoute&gt;&lt;MappingGroupForm /&gt;&lt;/ProtectedRoute&gt;} /&gt;
+                &lt;Route path="/mapping-groups/:groupId/edit" element={&lt;ProtectedRoute&gt;&lt;MappingGroupForm /&gt;&lt;/ProtectedRoute&gt;} /&gt;
+                &lt;Route path="/workflows" element={&lt;ProtectedRoute&gt;&lt;NStepWorkflows /&gt;&lt;/ProtectedRoute&gt;} /&gt;
+                {/* ARCHIVED: &lt;Route path="/workflow-builder" element={&lt;ProtectedRoute&gt;&lt;WorkflowBuilder /&gt;&lt;/ProtectedRoute&gt;} /&gt; */}
+                &lt;Route path="/workflow-manager" element={&lt;ProtectedRoute&gt;&lt;WorkflowManager /&gt;&lt;/ProtectedRoute&gt;} /&gt;
+                &lt;Route path="/visual-mappings/new" element={&lt;ProtectedRoute&gt;&lt;VisualMappingCanvas /&gt;&lt;/ProtectedRoute&gt;} /&gt;
+                &lt;Route path="/visual-mappings/:mappingId" element={&lt;ProtectedRoute&gt;&lt;VisualMappingCanvas /&gt;&lt;/ProtectedRoute&gt;} /&gt;
+                &lt;Route path="/visual-mappings/manage" element={&lt;ProtectedRoute&gt;&lt;VisualMappingManager /&gt;&lt;/ProtectedRoute&gt;} /&gt;
+                &lt;Route path="/etl-scheduler" element={&lt;ProtectedRoute&gt;&lt;ETLScheduler /&gt;&lt;/ProtectedRoute&gt;} /&gt;
+                &lt;Route path="/etl-scheduler/create" element={&lt;ProtectedRoute&gt;&lt;SchedulerForm /&gt;&lt;/ProtectedRoute&gt;} /&gt;
+                &lt;Route path="/etl-scheduler/:scheduleId/edit" element={&lt;ProtectedRoute&gt;&lt;SchedulerForm /&gt;&lt;/ProtectedRoute&gt;} /&gt;
+                {/* Data Governance &amp; RBAC routes */}
+                &lt;Route path="/policy-management" element={&lt;ProtectedRoute&gt;&lt;PolicyManagement /&gt;&lt;/ProtectedRoute&gt;} /&gt;
+                &lt;Route path="/retention-policies" element={&lt;ProtectedRoute&gt;&lt;RetentionPolicies /&gt;&lt;/ProtectedRoute&gt;} /&gt;
+                &lt;Route path="/archived-files" element={&lt;ProtectedRoute&gt;&lt;ArchivedFiles /&gt;&lt;/ProtectedRoute&gt;} /&gt;
+                &lt;Route path="/anomalies" element={&lt;ProtectedRoute&gt;&lt;Anomalies /&gt;&lt;/ProtectedRoute&gt;} /&gt;
+                &lt;Route path="/tag-management" element={&lt;ProtectedRoute&gt;&lt;TagManagement /&gt;&lt;/ProtectedRoute&gt;} /&gt;
+                &lt;Route path="/api-tokens" element={&lt;ProtectedRoute&gt;&lt;APITokens /&gt;&lt;/ProtectedRoute&gt;} /&gt;
+                &lt;Route path="/api-documentation" element={&lt;ProtectedRoute&gt;&lt;APIDocumentation /&gt;&lt;/ProtectedRoute&gt;} /&gt;
+                &lt;Route path="/projects" element={&lt;ProtectedRoute&gt;&lt;Projects /&gt;&lt;/ProtectedRoute&gt;} /&gt;
+                &lt;Route path="/project-management" element={&lt;ProtectedRoute&gt;&lt;ProjectManagement /&gt;&lt;/ProtectedRoute&gt;} /&gt;
+                &lt;Route path="/group-management" element={&lt;ProtectedRoute&gt;&lt;GroupManagement /&gt;&lt;/ProtectedRoute&gt;} /&gt;
+                &lt;Route path="/system-cleanup" element={&lt;ProtectedRoute&gt;&lt;SystemCleanup /&gt;&lt;/ProtectedRoute&gt;} /&gt;
+                &lt;Route path="/alerts-config" element={&lt;ProtectedRoute&gt;&lt;AlertsConfig /&gt;&lt;/ProtectedRoute&gt;} /&gt;
+                &lt;Route path="/alert-history" element={&lt;ProtectedRoute&gt;&lt;AlertHistory /&gt;&lt;/ProtectedRoute&gt;} /&gt;
+                &lt;Route path="/email-providers" element={&lt;ProtectedRoute&gt;&lt;EmailProvidersConfig /&gt;&lt;/ProtectedRoute&gt;} /&gt;
+                &lt;Route path="/oauth2-callback" element={&lt;OAuth2Callback /&gt;} /&gt;
+                {/* ARCHIVED: &lt;Route path="/workflow-canvas" element={&lt;ProtectedRoute&gt;&lt;WorkflowCanvasStandalone /&gt;&lt;/ProtectedRoute&gt;} /&gt; */}
+                {/* ARCHIVED: &lt;Route path="/workflow-test" element={&lt;ProtectedRoute&gt;&lt;WorkflowTest /&gt;&lt;/ProtectedRoute&gt;} /&gt; */}
+                &lt;Route path="/documentation" element={&lt;ProtectedRoute&gt;&lt;Documentation /&gt;&lt;/ProtectedRoute&gt;} /&gt;
+                &lt;Route path="/help" element={&lt;ProtectedRoute&gt;&lt;Documentation /&gt;&lt;/ProtectedRoute&gt;} /&gt;
+                {/* Development Routes - ARCHIVED */}
+                {/* ARCHIVED: &lt;Route path="/hooks-demo" element={&lt;ProtectedRoute&gt;&lt;HooksDemo /&gt;&lt;/ProtectedRoute&gt;} /&gt; */}
+                &lt;Route path="/performance-optimizations" element={&lt;ProtectedRoute&gt;&lt;PerformanceOptimizations /&gt;&lt;/ProtectedRoute&gt;} /&gt;
+                &lt;Route path="/login" element={currentUser ? &lt;Navigate to="/" replace /&gt; : &lt;Login /&gt;} /&gt;
+                &lt;Route path="*" element={&lt;Navigate to="/" replace /&gt;} /&gt;
+              &lt;/Routes&gt;
+              &lt;/Suspense&gt;
+            &lt;/main&gt;
+          &lt;/div&gt;
+          
+          {/* AI Insights Sidebar - only show when toggled */}
+          {showAIInsights &amp;&amp; selectedFileId &amp;&amp; (
+            &lt;div className="ai-insights-container"&gt;
+              {/* Import dynamically to reduce initial load time */}
+              {React.lazy(<span class="fstat-no" title="function not covered" >() =&gt; <span class="cstat-no" title="statement not covered" >i</span>mport('./components/AIPredictiveInsights')).render({</span>
+                fileId: selectedFileId,
+                onClose: <span class="fstat-no" title="function not covered" >() =&gt; <span class="cstat-no" title="statement not covered" >s</span>etShowAIInsights(false)</span>
+              })}
+            &lt;/div&gt;
+          )}
+        &lt;/&gt;
+      )}
+      
+      {/* Login route when not logged in - only show after auth check confirms unauthenticated */}
+      {authStatus === AUTH_STATUS.UNAUTHENTICATED &amp;&amp; (
+        &lt;Routes&gt;
+          &lt;Route path="/login" element={&lt;Login /&gt;} /&gt;
+          &lt;Route path="/auth/callback" element={&lt;OktaCallback /&gt;} /&gt;
+          &lt;Route path="*" element={&lt;Navigate to="/login" state={{ from: location }} replace /&gt;} /&gt;
+        &lt;/Routes&gt;
+      )}
+      
+      {/* Accessibility Widget - hidden */}
+      
+      {/* Onboarding Wizard removed - no longer displayed */}
+      
+      {/* Global Notifications */}
+      &lt;NotificationList /&gt;
+      
+      {/* Toast Notifications */}
+      &lt;ToastContainer /&gt;
+    &lt;/div&gt;
+  );
+}
+<span class="cstat-no" title="statement not covered" >AppContent.propTypes = {</span>
+  showOnboarding: PropTypes.bool.isRequired,
+  setShowOnboarding: PropTypes.func.isRequired
+};
+&nbsp;
+export default App;</pre></td></tr></table></pre>
+
+                <div class='push'></div><!-- for sticky footer -->
+            </div><!-- /wrapper -->
+            <div class='footer quiet pad2 space-top1 center small'>
+                Code coverage generated by
+                <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
+                at 2026-01-10T05:41:11.992Z
+            </div>
+        <script src="../prettify.js"></script>
+        <script>
+            window.onload = function () {
+                prettyPrint();
+            };
+        </script>
+        <script src="../sorter.js"></script>
+        <script src="../block-navigation.js"></script>
+    </body>
+</html>
+    
