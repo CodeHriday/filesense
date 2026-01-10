@@ -698,23 +698,35 @@ const Connections = () => {
         
         <div className="form-group" style={compactStyles.formGroup}>
           <label htmlFor="connection_type" style={compactStyles.label}>Connection Type <span style={{ color: '#dc2626' }}>*</span></label>
-          <select
-            id="connection_type"
-            name="connection_type"
-            className="form-control"
-            value={formData.connection_type}
-            onChange={handleConnectionTypeChange}
-            required
-            style={compactStyles.select}
-          >
-            <option value="aws">AWS S3</option>
-            <option value="gcp">Google Cloud Storage</option>
-            <option value="azure">Azure Blob Storage</option>
-            <option value="snowflake">Snowflake</option>
-            <option value="databricks">Databricks</option>
-            <option value="sharepoint">SharePoint</option>
-            <option value="outlook">Outlook</option>
-          </select>
+          {editMode && formData.connection_type && formData.connection_type !== 'aws' ? (
+            <input
+              type="text"
+              id="connection_type_display"
+              className="form-control"
+              value={{
+                gcp: 'Google Cloud Storage',
+                azure: 'Azure Blob Storage',
+                snowflake: 'Snowflake',
+                databricks: 'Databricks',
+                sharepoint: 'SharePoint',
+                outlook: 'Outlook'
+              }[formData.connection_type] || formData.connection_type}
+              disabled
+              style={{ ...compactStyles.input, backgroundColor: '#f3f4f6', cursor: 'not-allowed' }}
+            />
+          ) : (
+            <select
+              id="connection_type"
+              name="connection_type"
+              className="form-control"
+              value={formData.connection_type}
+              onChange={handleConnectionTypeChange}
+              required
+              style={compactStyles.select}
+            >
+              <option value="aws">AWS S3</option>
+            </select>
+          )}
         </div>
         
         {/* Connection direction field hidden - connections can be used as source or target in mappings */}

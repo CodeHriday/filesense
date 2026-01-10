@@ -1125,18 +1125,26 @@ const ConnectionModal = ({
           
           <div style={compactStyles.formGroup}>
             <label htmlFor="provider" style={compactStyles.label}>Provider <span style={{ color: '#dc2626' }}>*</span></label>
-            <select
-              id="provider"
-              name="provider"
-              value={formData.provider}
-              onChange={handleInputChange}
-              required
-              style={compactStyles.select}
-            >
-              <option value="aws">AWS S3</option>
-              <option value="gcp">Google Cloud Storage</option>
-              <option value="azure">Azure Blob Storage</option>
-            </select>
+            {connection && formData.provider && formData.provider !== 'aws' ? (
+              <input
+                type="text"
+                id="provider_display"
+                value={{ gcp: 'Google Cloud Storage', azure: 'Azure Blob Storage' }[formData.provider] || formData.provider}
+                disabled
+                style={{ ...compactStyles.input, backgroundColor: '#f3f4f6', cursor: 'not-allowed' }}
+              />
+            ) : (
+              <select
+                id="provider"
+                name="provider"
+                value={formData.provider}
+                onChange={handleInputChange}
+                required
+                style={compactStyles.select}
+              >
+                <option value="aws">AWS S3</option>
+              </select>
+            )}
           </div>
           
           {renderProviderFields()}
