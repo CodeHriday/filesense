@@ -23,30 +23,30 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">17.92% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>0/106</span>
+                <span class='fraction'>19/106</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">4.16% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>0/72</span>
+                <span class='fraction'>3/72</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">14.28% </span>
                 <span class="quiet">Functions</span>
-                <span class='fraction'>0/14</span>
+                <span class='fraction'>2/14</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">18.26% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>0/104</span>
+                <span class='fraction'>19/104</span>
             </div>
         
             
@@ -511,26 +511,26 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">5x</span>
+<span class="cline-any cline-yes">5x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">5x</span>
+<span class="cline-any cline-yes">5x</span>
+<span class="cline-any cline-yes">5x</span>
+<span class="cline-any cline-yes">5x</span>
+<span class="cline-any cline-yes">5x</span>
+<span class="cline-any cline-yes">5x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">5x</span>
+<span class="cline-any cline-yes">5x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -612,11 +612,11 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -910,7 +910,7 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">/**
  * Gmail OAuth2 Email Adapter
  * 
@@ -935,26 +935,26 @@
  * @fileoverview NOSONAR - This file uses secure HTTPS/TLS protocols only
  */
 &nbsp;
-const EmailProviderAdapter = <span class="cstat-no" title="statement not covered" >require('./EmailProviderAdapter');</span>
-const nodemailer = <span class="cstat-no" title="statement not covered" >require('nodemailer');</span>
-const axios = <span class="cstat-no" title="statement not covered" >require('axios');</span>
-const { systemLogger } = <span class="cstat-no" title="statement not covered" >require('../../utils/logger');</span>
-const { createCredentialsSummary } = <span class="cstat-no" title="statement not covered" >require('../../utils/credentialSanitizer');</span>
+const EmailProviderAdapter = require('./EmailProviderAdapter');
+const nodemailer = require('nodemailer');
+const axios = require('axios');
+const { systemLogger } = require('../../utils/logger');
+const { createCredentialsSummary } = require('../../utils/credentialSanitizer');
 &nbsp;
 class GmailOAuth2Adapter extends EmailProviderAdapter {
-<span class="fstat-no" title="function not covered" >  co</span>nstructor(config) {
-<span class="cstat-no" title="statement not covered" >    super(config);</span>
-<span class="cstat-no" title="statement not covered" >    this.providerName = 'gmail_oauth2';</span>
+  constructor(config) {
+    super(config);
+    this.providerName = 'gmail_oauth2';
     
-<span class="cstat-no" title="statement not covered" >    this.clientId = config.client_id;</span>
-<span class="cstat-no" title="statement not covered" >    this.clientSecret = config.client_secret;</span>
-<span class="cstat-no" title="statement not covered" >    this.refreshToken = config.refresh_token;</span>
-<span class="cstat-no" title="statement not covered" >    this.accessToken = config.access_token;</span>
-<span class="cstat-no" title="statement not covered" >    this.fromEmail = config.from_email;</span>
-<span class="cstat-no" title="statement not covered" >    this.expiresAt = config.expires_at ? new Date(config.expires_at) : null;</span>
+    this.clientId = config.client_id;
+    this.clientSecret = config.client_secret;
+    this.refreshToken = config.refresh_token;
+    this.accessToken = config.access_token;
+    this.fromEmail = config.from_email;
+    this.expiresAt = config.expires_at ? new Date(config.expires_at) : null;
     
-<span class="cstat-no" title="statement not covered" >    this.tokenEndpoint = 'https://oauth2.googleapis.com/token'; </span>// NOSONAR - Google OAuth2 endpoint uses HTTPS
-<span class="cstat-no" title="statement not covered" >    this.revokeEndpoint = 'https://oauth2.googleapis.com/revoke'; </span>// NOSONAR - Google OAuth2 endpoint uses HTTPS
+    this.tokenEndpoint = 'https://oauth2.googleapis.com/token'; // NOSONAR - Google OAuth2 endpoint uses HTTPS
+    this.revokeEndpoint = 'https://oauth2.googleapis.com/revoke'; // NOSONAR - Google OAuth2 endpoint uses HTTPS
   }
 &nbsp;
   /**
@@ -1035,12 +1035,12 @@ class GmailOAuth2Adapter extends EmailProviderAdapter {
    * Check if access token is expired or will expire soon (within 5 minutes)
    * @returns {boolean}
    */
-<span class="fstat-no" title="function not covered" >  is</span>TokenExpired() {
-<span class="cstat-no" title="statement not covered" >    if (!this.expiresAt) {</span>
+  isTokenExpired() {
+    <span class="missing-if-branch" title="if path not taken" >I</span>if (!this.expiresAt) {
 <span class="cstat-no" title="statement not covered" >      return !this.accessToken; </span>// If no expiry info, check if token exists
     }
-    const bufferTime = <span class="cstat-no" title="statement not covered" >5 * 60 * 1000;</span> // 5 minutes buffer
-<span class="cstat-no" title="statement not covered" >    return Date.now() &gt;= (this.expiresAt.getTime() - bufferTime);</span>
+    const bufferTime = 5 * 60 * 1000; // 5 minutes buffer
+    return Date.now() &gt;= (this.expiresAt.getTime() - bufferTime);
   }
 &nbsp;
   /**
@@ -1334,7 +1334,7 @@ class GmailOAuth2Adapter extends EmailProviderAdapter {
 }
 &nbsp;
 /* eslint-enable sonarjs/no-hardcoded-credentials */
-<span class="cstat-no" title="statement not covered" >module.exports = GmailOAuth2Adapter;</span>
+module.exports = GmailOAuth2Adapter;
 &nbsp;</pre></td></tr></table></pre>
 
                 <div class='push'></div><!-- for sticky footer -->
@@ -1342,7 +1342,7 @@ class GmailOAuth2Adapter extends EmailProviderAdapter {
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-01-10T05:40:53.987Z
+                at 2026-01-10T05:45:28.087Z
             </div>
         <script src="../../../prettify.js"></script>
         <script>

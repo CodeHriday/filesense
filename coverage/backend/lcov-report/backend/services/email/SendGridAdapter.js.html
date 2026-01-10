@@ -23,30 +23,30 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">11.5% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>0/113</span>
+                <span class='fraction'>13/113</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">4.51% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>0/155</span>
+                <span class='fraction'>7/155</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">7.69% </span>
                 <span class="quiet">Functions</span>
-                <span class='fraction'>0/13</span>
+                <span class='fraction'>1/13</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">12.26% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>0/106</span>
+                <span class='fraction'>13/106</span>
             </div>
         
             
@@ -405,24 +405,24 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">6x</span>
+<span class="cline-any cline-yes">6x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">6x</span>
+<span class="cline-any cline-yes">6x</span>
+<span class="cline-any cline-yes">6x</span>
+<span class="cline-any cline-yes">6x</span>
+<span class="cline-any cline-yes">5x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">6x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -716,7 +716,7 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">/**
  * SendGrid Email Provider Adapter
  * 
@@ -732,24 +732,24 @@
  * - Safe logging (no secrets, truncated errors)
  */
 &nbsp;
-const EmailProviderAdapter = <span class="cstat-no" title="statement not covered" >require('./EmailProviderAdapter');</span>
-const sgMail = <span class="cstat-no" title="statement not covered" >require('@sendgrid/mail');</span>
-const axios = <span class="cstat-no" title="statement not covered" >require('axios');</span>
-const { systemLogger } = <span class="cstat-no" title="statement not covered" >require('../../utils/logger');</span>
+const EmailProviderAdapter = require('./EmailProviderAdapter');
+const sgMail = require('@sendgrid/mail');
+const axios = require('axios');
+const { systemLogger } = require('../../utils/logger');
 &nbsp;
 class SendGridAdapter extends EmailProviderAdapter {
-<span class="fstat-no" title="function not covered" >  co</span>nstructor(config = <span class="branch-0 cbranch-no" title="branch not covered" >{})</span> {
-<span class="cstat-no" title="statement not covered" >    super(config);</span>
-<span class="cstat-no" title="statement not covered" >    this.providerName = 'sendgrid';</span>
+  constructor(config = <span class="branch-0 cbranch-no" title="branch not covered" >{})</span> {
+    super(config);
+    this.providerName = 'sendgrid';
     // normalization: allow api_key or apiKey
-<span class="cstat-no" title="statement not covered" >    this.apiKey = config.api_key || config.apiKey || process.env.SENDGRID_API_KEY;</span>
-<span class="cstat-no" title="statement not covered" >    this.config = config;</span>
-<span class="cstat-no" title="statement not covered" >    this.baseUrl = 'https://api.sendgrid.com/v3';</span>
-<span class="cstat-no" title="statement not covered" >    if (this.apiKey) {</span>
-<span class="cstat-no" title="statement not covered" >      sgMail.setApiKey(this.apiKey);</span>
+    this.apiKey = config.api_key || config.apiKey || process.env.SENDGRID_API_KEY;
+    this.config = config;
+    this.baseUrl = 'https://api.sendgrid.com/v3';
+    if (this.apiKey) {
+      sgMail.setApiKey(this.apiKey);
     }
     // default axios options for optional API calls (e.g., Email Activity)
-<span class="cstat-no" title="statement not covered" >    this.axiosInstance = axios.create({</span>
+    this.axiosInstance = axios.create({
       baseURL: this.baseUrl,
       timeout: config.axiosTimeoutMs || 10_000,
       headers: {
@@ -1043,7 +1043,7 @@ class SendGridAdapter extends EmailProviderAdapter {
   }
 }
 &nbsp;
-<span class="cstat-no" title="statement not covered" >module.exports = SendGridAdapter;</span>
+module.exports = SendGridAdapter;
 &nbsp;</pre></td></tr></table></pre>
 
                 <div class='push'></div><!-- for sticky footer -->
@@ -1051,7 +1051,7 @@ class SendGridAdapter extends EmailProviderAdapter {
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-01-10T05:40:53.987Z
+                at 2026-01-10T05:45:28.087Z
             </div>
         <script src="../../../prettify.js"></script>
         <script>

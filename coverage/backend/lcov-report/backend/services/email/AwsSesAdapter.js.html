@@ -23,30 +23,30 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">10.38% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>0/77</span>
+                <span class='fraction'>8/77</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">3.84% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>0/52</span>
+                <span class='fraction'>2/52</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">14.28% </span>
                 <span class="quiet">Functions</span>
-                <span class='fraction'>0/7</span>
+                <span class='fraction'>1/7</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">10.38% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>0/77</span>
+                <span class='fraction'>8/77</span>
             </div>
         
             
@@ -331,18 +331,18 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">5x</span>
+<span class="cline-any cline-yes">5x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">5x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -584,7 +584,7 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">/**
  * AWS SES Email Provider Adapter
  * 
@@ -592,18 +592,18 @@
  * Supports attachments, HTML content, and delivery tracking.
  */
 &nbsp;
-const EmailProviderAdapter = <span class="cstat-no" title="statement not covered" >require('./EmailProviderAdapter');</span>
-const AWS = <span class="cstat-no" title="statement not covered" >require('aws-sdk');</span>
-const crypto = <span class="cstat-no" title="statement not covered" >require('crypto');</span>
-const { systemLogger } = <span class="cstat-no" title="statement not covered" >require('../../utils/logger');</span>
+const EmailProviderAdapter = require('./EmailProviderAdapter');
+const AWS = require('aws-sdk');
+const crypto = require('crypto');
+const { systemLogger } = require('../../utils/logger');
 &nbsp;
 class AwsSesAdapter extends EmailProviderAdapter {
-<span class="fstat-no" title="function not covered" >  co</span>nstructor(config) {
-<span class="cstat-no" title="statement not covered" >    super(config);</span>
-<span class="cstat-no" title="statement not covered" >    this.providerName = 'aws_ses';</span>
+  constructor(config) {
+    super(config);
+    this.providerName = 'aws_ses';
     
     // Configure AWS SES
-<span class="cstat-no" title="statement not covered" >    this.ses = new AWS.SES({</span>
+    this.ses = new AWS.SES({
       accessKeyId: config.access_key_id,
       secretAccessKey: config.secret_access_key,
       region: config.region || 'us-east-1'
@@ -845,7 +845,7 @@ class AwsSesAdapter extends EmailProviderAdapter {
   }
 }
 &nbsp;
-<span class="cstat-no" title="statement not covered" >module.exports = AwsSesAdapter;</span>
+module.exports = AwsSesAdapter;
 &nbsp;</pre></td></tr></table></pre>
 
                 <div class='push'></div><!-- for sticky footer -->
@@ -853,7 +853,7 @@ class AwsSesAdapter extends EmailProviderAdapter {
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-01-10T05:40:53.987Z
+                at 2026-01-10T05:45:28.087Z
             </div>
         <script src="../../../prettify.js"></script>
         <script>

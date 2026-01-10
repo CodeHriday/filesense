@@ -23,30 +23,30 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">19.54% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>0/87</span>
+                <span class='fraction'>17/87</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">7.84% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>0/51</span>
+                <span class='fraction'>4/51</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">21.42% </span>
                 <span class="quiet">Functions</span>
-                <span class='fraction'>0/14</span>
+                <span class='fraction'>3/14</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">19.76% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>0/86</span>
+                <span class='fraction'>17/86</span>
             </div>
         
             
@@ -345,37 +345,37 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">5x</span>
+<span class="cline-any cline-yes">5x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">5x</span>
+<span class="cline-any cline-yes">4x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">5x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">7x</span>
+<span class="cline-any cline-yes">7x</span>
+<span class="cline-any cline-yes">6x</span>
+<span class="cline-any cline-yes">6x</span>
+<span class="cline-any cline-yes">6x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">7x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-yes">4x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -612,7 +612,7 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">/**
  * Azure Communication Services Email Adapter
  * 
@@ -620,37 +620,37 @@
  * Supports HTML content, attachments, and delivery tracking.
  */
 &nbsp;
-const EmailProviderAdapter = <span class="cstat-no" title="statement not covered" >require('./EmailProviderAdapter');</span>
-const axios = <span class="cstat-no" title="statement not covered" >require('axios');</span>
-const { systemLogger } = <span class="cstat-no" title="statement not covered" >require('../../utils/logger');</span>
+const EmailProviderAdapter = require('./EmailProviderAdapter');
+const axios = require('axios');
+const { systemLogger } = require('../../utils/logger');
 &nbsp;
 class AzureEmailAdapter extends EmailProviderAdapter {
-<span class="fstat-no" title="function not covered" >  co</span>nstructor(config) {
-<span class="cstat-no" title="statement not covered" >    super(config);</span>
-<span class="cstat-no" title="statement not covered" >    this.providerName = 'azure_email';</span>
+  constructor(config) {
+    super(config);
+    this.providerName = 'azure_email';
     
     // Parse connection string
-<span class="cstat-no" title="statement not covered" >    this.parseConnectionString(config.connection_string);</span>
-<span class="cstat-no" title="statement not covered" >    this.accessKey = config.access_key;</span>
+    this.parseConnectionString(config.connection_string);
+    this.accessKey = config.access_key;
   }
 &nbsp;
   /**
    * Parse Azure Communication Services connection string
    */
-<span class="fstat-no" title="function not covered" >  pa</span>rseConnectionString(connectionString) {
-    const parts = <span class="cstat-no" title="statement not covered" >connectionString.split(';').reduce(<span class="fstat-no" title="function not covered" >(a</span>cc, part) =&gt; {</span>
+  parseConnectionString(connectionString) {
+    const parts = connectionString.split(';').reduce((acc, part) =&gt; {
       // Split only on the first '=' to preserve base64 padding in access key
-      const eqIndex = <span class="cstat-no" title="statement not covered" >part.indexOf('=');</span>
-<span class="cstat-no" title="statement not covered" >      if (eqIndex &gt; 0) {</span>
-        const key = <span class="cstat-no" title="statement not covered" >part.substring(0, eqIndex).toLowerCase();</span>
-        const value = <span class="cstat-no" title="statement not covered" >part.substring(eqIndex + 1);</span>
-<span class="cstat-no" title="statement not covered" >        acc[key] = value;</span>
+      const eqIndex = part.indexOf('=');
+      if (eqIndex &gt; 0) {
+        const key = part.substring(0, eqIndex).toLowerCase();
+        const value = part.substring(eqIndex + 1);
+        acc[key] = value;
       }
-<span class="cstat-no" title="statement not covered" >      return acc;</span>
+      return acc;
     }, {});
 &nbsp;
-<span class="cstat-no" title="statement not covered" >    this.endpoint = parts.endpoint;</span>
-<span class="cstat-no" title="statement not covered" >    this.accessKey = parts.accesskey || this.accessKey;</span>
+    this.endpoint = parts.endpoint;
+    this.accessKey = parts.accesskey || this.accessKey;
   }
 &nbsp;
   /**
@@ -887,7 +887,7 @@ class AzureEmailAdapter extends EmailProviderAdapter {
   }
 }
 &nbsp;
-<span class="cstat-no" title="statement not covered" >module.exports = AzureEmailAdapter;</span>
+module.exports = AzureEmailAdapter;
 &nbsp;</pre></td></tr></table></pre>
 
                 <div class='push'></div><!-- for sticky footer -->
@@ -895,7 +895,7 @@ class AzureEmailAdapter extends EmailProviderAdapter {
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-01-10T05:40:53.987Z
+                at 2026-01-10T05:45:28.087Z
             </div>
         <script src="../../../prettify.js"></script>
         <script>
