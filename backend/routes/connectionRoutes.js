@@ -1374,6 +1374,10 @@ router.post('/:id/browse', async (req, res) => {
       : connection.config;
     
     const type = connection.type;
+    const authMethod = connection.authentication_method || 'key-based';
+    const authConfig = connection.auth_config 
+      ? (typeof connection.auth_config === 'string' ? JSON.parse(connection.auth_config) : connection.auth_config)
+      : {};
     
     // Decrypt credentials
     const decryptedConfig = connectionService.decryptSensitiveFields(type, config);
@@ -1383,13 +1387,33 @@ router.post('/:id/browse', async (req, res) => {
     // Browse based on connection type
     if (type === 'aws') {
       const AWS = require('aws-sdk');
-      const s3 = new AWS.S3({
-        accessKeyId: decryptedConfig.access_key,
-        secretAccessKey: decryptedConfig.secret_key,
-        region: decryptedConfig.region || 'us-east-1',
-        endpoint: decryptedConfig.endpoint,
-        s3ForcePathStyle: true
-      });
+      let s3;
+      
+      if (authMethod === 'aws-iam-role' && authConfig.iam_role_arn) {
+        const credentials = await connectionService.getAssumedRoleCredentials(
+          {
+            role_arn: authConfig.iam_role_arn,
+            external_id: authConfig.external_id,
+            session_duration: 3600,
+            session_name: 'DataObservatory-Browse'
+          },
+          decryptedConfig.region || 'us-east-1'
+        );
+        s3 = new AWS.S3({
+          region: decryptedConfig.region || 'us-east-1',
+          credentials,
+          endpoint: decryptedConfig.endpoint,
+          s3ForcePathStyle: !!decryptedConfig.endpoint
+        });
+      } else {
+        s3 = new AWS.S3({
+          accessKeyId: decryptedConfig.access_key,
+          secretAccessKey: decryptedConfig.secret_key,
+          region: decryptedConfig.region || 'us-east-1',
+          endpoint: decryptedConfig.endpoint,
+          s3ForcePathStyle: true
+        });
+      }
       
       const params = {
         Bucket: decryptedConfig.bucket,

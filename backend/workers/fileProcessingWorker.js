@@ -368,23 +368,13 @@ class FileProcessingWorker {
           const connection = await connectionService.getConnectionById(dropLocationConnectionId);
           
           if (connection && connection.config) {
-            const config = typeof connection.config === 'string' 
-              ? JSON.parse(connection.config) 
-              : connection.config;
-            const decryptedConfig = connectionService.decryptSensitiveFieldsIfNeeded(connection.type, config);
-            
             // Build S3 key with prefix
             const s3Key = dropLocationPrefix 
               ? `${dropLocationPrefix.replace(/\/$/, '')}/${originalName}`
               : originalName;
             
-            // Upload to S3
-            const AWS = require('aws-sdk');
-            const s3 = new AWS.S3({
-              accessKeyId: decryptedConfig.access_key || decryptedConfig.access_key_id,
-              secretAccessKey: decryptedConfig.secret_key || decryptedConfig.secret_access_key,
-              region: decryptedConfig.region || 'us-east-1'
-            });
+            // Use ConnectionService to create S3 client (supports IAM role authentication)
+            const s3 = await connectionService.createS3Client(connection);
             
             const fileContent = require('fs').readFileSync(filePath);
             await s3.putObject({

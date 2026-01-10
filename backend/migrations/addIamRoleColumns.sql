@@ -1,0 +1,23 @@
+-- Migration: Add IAM Role Authentication Support
+-- Date: 2026-01-10
+-- Description: Documents IAM role authentication support using existing storage_connections structure
+-- 
+-- The storage_connections table already supports IAM-based authentication via:
+--   - authentication_method: 'key-based' | 'aws-iam-role' | 'gcp-sa-oidc' | 'azure-managed-identity' | etc.
+--   - auth_config (JSONB): Stores role_arn, external_id, session_duration, etc.
+--
+-- AWS Authentication Modes:
+--   1. key-based (static keys): config contains { access_key_id, secret_access_key, region }
+--   2. aws-iam-role (instance profile): No credentials passed, SDK uses default chain
+--   3. aws-iam-role (assume role): auth_config contains { role_arn, external_id, session_duration }
+--
+-- Example auth_config for AssumeRole:
+-- {
+--   "role_arn": "arn:aws:iam::123456789012:role/DataObservatoryRole",
+--   "external_id": "optional-external-id",
+--   "session_duration": 3600,
+--   "session_name": "DataObservatorySession"
+-- }
+
+-- No schema changes needed - using existing structure
+SELECT 'IAM Role authentication support documentation added' as status;

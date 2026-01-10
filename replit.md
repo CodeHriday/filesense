@@ -17,7 +17,7 @@ The application is a modern single-page application built with React (TypeScript
 -   **Database (PostgreSQL):** Stores metadata, user management, file catalogs, and audit logs, optimized with connection pooling and performance indexes.
 -   **File Storage:** Local file system with integrated support for AWS S3, Google Cloud Storage, and Azure Blob Storage. All uploads are scanned by ClamAV.
 -   **Caching:** Multi-layer caching with Redis and in-memory fallback, including automatic invalidation and Redis graceful degradation.
--   **Security:** Features ClamAV for virus scanning, enterprise-grade RBAC with column-level security and intelligent data masking, AES-256-CBC encryption for cloud credentials, and hybrid authentication with strong password policies and Okta SSO.
+-   **Security:** Features ClamAV for virus scanning, enterprise-grade RBAC with column-level security and intelligent data masking, AES-256-CBC encryption for cloud credentials, hybrid authentication with strong password policies and Okta SSO, and AWS IAM Role-based authentication with STS AssumeRole support for enterprise deployments.
 -   **Audit System:** Comprehensive, enterprise-grade audit logging across five tables with a full-featured UI.
 
 ### Feature Specifications
@@ -62,6 +62,15 @@ To reduce AWS API rate limiting, auto-polling has been disabled in favor of on-d
 
 ### Enterprise Performance Infrastructure
 Features database optimizations (composite, partial, and covering indexes, materialized views with background refresh), API performance enhancements (cursor-based pagination, enterprise caching middleware, per-user rate limiting), and streaming file processing (constant memory usage, bulk insert optimization, memory-efficient analysis). Enhanced `/api/health` endpoint reports comprehensive system status.
+
+### AWS IAM Role Authentication (January 2026)
+The platform now supports enterprise-grade IAM role-based authentication as an alternative to static access keys:
+-   **Authentication Modes**: `key-based` (static access key/secret), `aws-iam-role` (instance profile or AssumeRole)
+-   **AssumeRole Support**: Full STS AssumeRole with external_id, session_duration, and session_name configuration
+-   **Credential Caching**: Assumed role credentials cached for 45 minutes to minimize STS API calls
+-   **Centralized Factory**: `ConnectionService.createS3Client()` and `createSesClient()` methods handle all AWS client creation
+-   **Scope**: S3 storage connections, SES email adapters, file processing worker uploads, and connection browsing
+-   **UI**: Connection Modal supports authentication method selection with IAM Role ARN and External ID fields
 
 ### Critical Implementation Details
 Group-based access control is managed via `access_groups`, `user_groups`, and `project_access_groups` tables. Dashboard metrics for non-admin users combine direct project membership with group-based membership.

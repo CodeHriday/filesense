@@ -6,7 +6,209 @@ const snowflake = require('snowflake-sdk');
 const axios = require('axios');
 const { encrypt, decrypt } = require('../utils/encryption');
 
+const assumedRoleCache = new Map();
+const ASSUMED_ROLE_CACHE_TTL = 45 * 60 * 1000;
+
 class ConnectionService {
+  
+  /**
+   * Safely decrypt a value - handles both encrypted and plaintext values
+   * @param {string} value - The value to decrypt
+   * @returns {string} - The decrypted value (or original if already plaintext)
+   */
+  safeDecrypt(value) {
+    if (!value) return value;
+    try {
+      return decrypt(value);
+    } catch (e) {
+      return value;
+    }
+  }
+  
+  /**
+   * Create AWS credentials based on authentication method
+   * Supports: static keys, IAM role (instance profile), and AssumeRole
+   * Handles both encrypted and plaintext credentials safely.
+   * 
+   * @param {Object} connection - Connection object from storage_connections
+   * @returns {Promise<AWS.Credentials|null>} - AWS credentials or null for default chain
+   */
+  async getAwsCredentials(connection) {
+    const config = connection.config || {};
+    const authConfig = connection.auth_config || {};
+    const authMethod = connection.authentication_method || 'key-based';
+    
+    if (authMethod === 'key-based') {
+      const accessKey = config.access_key || config.access_key_id;
+      const secretKey = config.secret_key || config.secret_access_key;
+      
+      if (!accessKey || !secretKey) {
+        throw new Error('Static key authentication requires access_key and secret_key');
+      }
+      
+      return new AWS.Credentials({
+        accessKeyId: this.safeDecrypt(accessKey),
+        secretAccessKey: this.safeDecrypt(secretKey)
+      });
+    }
+    
+    if (authMethod === 'aws-iam-role') {
+      if (authConfig.role_arn) {
+        return await this.getAssumedRoleCredentials(authConfig, config.region);
+      }
+      return null;
+    }
+    
+    return null;
+  }
+  
+  /**
+   * Get credentials by assuming an IAM role via STS
+   * Includes caching to avoid excessive AssumeRole calls
+   * 
+   * @param {Object} authConfig - Auth config with role_arn, external_id, etc.
+   * @param {string} region - AWS region
+   * @returns {Promise<AWS.Credentials>} - Assumed role credentials
+   */
+  async getAssumedRoleCredentials(authConfig, region = 'us-east-1') {
+    const { role_arn, external_id, session_duration = 3600, session_name } = authConfig;
+    
+    if (!role_arn) {
+      throw new Error('role_arn is required for AssumeRole authentication');
+    }
+    
+    const cacheKey = `${role_arn}:${external_id || 'none'}`;
+    const cached = assumedRoleCache.get(cacheKey);
+    
+    if (cached && cached.expiration > Date.now()) {
+      return cached.credentials;
+    }
+    
+    const sts = new AWS.STS({ region });
+    
+    const params = {
+      RoleArn: role_arn,
+      RoleSessionName: session_name || `DataObservatory-${Date.now()}`,
+      DurationSeconds: Math.min(session_duration, 43200)
+    };
+    
+    if (external_id) {
+      params.ExternalId = external_id;
+    }
+    
+    try {
+      const response = await sts.assumeRole(params).promise();
+      const credentials = new AWS.Credentials({
+        accessKeyId: response.Credentials.AccessKeyId,
+        secretAccessKey: response.Credentials.SecretAccessKey,
+        sessionToken: response.Credentials.SessionToken
+      });
+      
+      assumedRoleCache.set(cacheKey, {
+        credentials,
+        expiration: Date.now() + ASSUMED_ROLE_CACHE_TTL
+      });
+      
+      console.log(`Successfully assumed role: ${role_arn}`);
+      return credentials;
+    } catch (error) {
+      console.error(`Failed to assume role ${role_arn}:`, error.message);
+      throw new Error(`AssumeRole failed: ${error.message}`);
+    }
+  }
+  
+  /**
+   * Create an S3 client with appropriate credentials based on connection auth method
+   * Handles JSON string config and encrypted credentials internally.
+   * 
+   * @param {Object} connection - Connection object from storage_connections
+   * @param {Object} options - Additional S3 client options
+   * @returns {Promise<AWS.S3>} - Configured S3 client
+   */
+  async createS3Client(connection, options = {}) {
+    const rawConfig = connection.config;
+    const config = typeof rawConfig === 'string' ? JSON.parse(rawConfig) : (rawConfig || {});
+    const rawAuthConfig = connection.auth_config;
+    const authConfig = typeof rawAuthConfig === 'string' ? JSON.parse(rawAuthConfig) : (rawAuthConfig || {});
+    
+    const normalizedConnection = {
+      ...connection,
+      config,
+      auth_config: authConfig
+    };
+    
+    const region = config.region || options.region || 'us-east-1';
+    
+    const s3Config = {
+      region,
+      ...options
+    };
+    
+    if (config.endpoint) {
+      s3Config.endpoint = config.endpoint;
+      s3Config.s3ForcePathStyle = true;
+    }
+    
+    const credentials = await this.getAwsCredentials(normalizedConnection);
+    if (credentials) {
+      s3Config.credentials = credentials;
+    }
+    
+    return new AWS.S3(s3Config);
+  }
+  
+  /**
+   * Create an SES client with appropriate credentials based on connection auth method
+   * Handles JSON string config and encrypted credentials internally.
+   * 
+   * @param {Object} connection - Connection object from storage_connections
+   * @param {Object} options - Additional SES client options
+   * @returns {Promise<AWS.SES>} - Configured SES client
+   */
+  async createSesClient(connection, options = {}) {
+    const rawConfig = connection.config;
+    const config = typeof rawConfig === 'string' ? JSON.parse(rawConfig) : (rawConfig || {});
+    const rawAuthConfig = connection.auth_config;
+    const authConfig = typeof rawAuthConfig === 'string' ? JSON.parse(rawAuthConfig) : (rawAuthConfig || {});
+    
+    const normalizedConnection = {
+      ...connection,
+      config,
+      auth_config: authConfig
+    };
+    
+    const region = config.region || options.region || 'us-east-1';
+    
+    const sesConfig = {
+      region,
+      ...options
+    };
+    
+    const credentials = await this.getAwsCredentials(normalizedConnection);
+    if (credentials) {
+      sesConfig.credentials = credentials;
+    }
+    
+    return new AWS.SES(sesConfig);
+  }
+  
+  /**
+   * Create an S3 client from raw config (for backward compatibility)
+   * Supports both key-based and IAM role authentication
+   * 
+   * @param {Object} config - Raw configuration object
+   * @param {string} authMethod - Authentication method (key-based or aws-iam-role)
+   * @param {Object} authConfig - Additional auth config for IAM role
+   * @returns {Promise<AWS.S3>} - Configured S3 client
+   */
+  async createS3ClientFromConfig(config, authMethod = 'key-based', authConfig = {}) {
+    const connection = {
+      config,
+      authentication_method: authMethod,
+      auth_config: authConfig
+    };
+    return this.createS3Client(connection);
+  }
   /**
    * Encrypt sensitive credentials in config based on connection type
    * @param {string} type - Connection type
@@ -825,30 +1027,78 @@ class ConnectionService {
    */
   async testAWSConnection(config) {
     try {
-      // Handle both field name formats: bucket_name and bucket
       const bucket_name = config.bucket_name || config.bucket;
-      const { access_key, secret_key, region } = config;
+      const region = config.region || 'us-east-1';
+      const authConfig = config.auth_config || {};
+      const authMethod = authConfig.iam_role_arn ? 'aws-iam-role' : 'key-based';
       
-      if (!access_key || !secret_key || !region || !bucket_name) {
+      if (!bucket_name) {
         return {
           success: false,
-          message: 'Missing required AWS credentials (access key, secret key, region, or bucket name)'
+          message: 'Missing required bucket name'
         };
       }
       
-      // Configure AWS SDK
-      const s3 = new AWS.S3({
-        accessKeyId: access_key,
-        secretAccessKey: secret_key,
-        region: region
-      });
+      if (!region) {
+        return {
+          success: false,
+          message: 'Missing required AWS region'
+        };
+      }
       
-      // Test connection by checking if bucket exists and is accessible
+      let s3;
+      
+      if (authMethod === 'aws-iam-role' && authConfig.iam_role_arn) {
+        console.log(`Testing AWS S3 connection with IAM Role: ${authConfig.iam_role_arn}`);
+        
+        try {
+          const credentials = await this.getAssumedRoleCredentials(
+            {
+              role_arn: authConfig.iam_role_arn,
+              external_id: authConfig.external_id,
+              session_duration: 900,
+              session_name: 'DataObservatory-Test'
+            },
+            region
+          );
+          
+          s3 = new AWS.S3({
+            region,
+            credentials
+          });
+        } catch (roleError) {
+          return {
+            success: false,
+            message: `Failed to assume IAM role: ${roleError.message}`
+          };
+        }
+      } else {
+        const access_key = config.access_key || config.access_key_id;
+        const secret_key = config.secret_key || config.secret_access_key;
+        
+        if (!access_key || !secret_key) {
+          return {
+            success: false,
+            message: 'Missing required AWS credentials (access key and secret key)'
+          };
+        }
+        
+        s3 = new AWS.S3({
+          accessKeyId: access_key,
+          secretAccessKey: secret_key,
+          region
+        });
+      }
+      
       await s3.headBucket({ Bucket: bucket_name }).promise();
+      
+      const authDescription = authMethod === 'aws-iam-role' 
+        ? `via IAM Role (${authConfig.iam_role_arn})`
+        : 'with access keys';
       
       return {
         success: true,
-        message: `Successfully connected to AWS S3 bucket '${bucket_name}' in region '${region}'`
+        message: `Successfully connected to AWS S3 bucket '${bucket_name}' in region '${region}' ${authDescription}`
       };
     } catch (error) {
       console.error('AWS connection test failed:', error);
