@@ -1139,7 +1139,7 @@ router.get('/:id/test', async (req, res) => {
 
 /**
  * @route   POST /api/connections/:id/test
- * @desc    Test a saved connection from storage_connections (unified connection management)
+ * @desc    Test a saved connection with optional form updates (for edit mode testing)
  * @access  Protected (requires connection:execute permission)
  */
 router.post('/:id/test', async (req, res) => {
@@ -1153,8 +1153,12 @@ router.post('/:id/test', async (req, res) => {
     }
     
     const { id } = req.params;
+    const formData = req.body || {};
     
-    // Fetch connection from storage_connections
+    console.log('[TEST WITH UPDATES] Connection ID:', id);
+    console.log('[TEST WITH UPDATES] Form data keys:', Object.keys(formData));
+    
+    // Fetch saved connection from storage_connections
     const result = await db.query(
       'SELECT config, type, authentication_method, auth_config FROM storage_connections WHERE connection_id = $1',
       [id]
@@ -1165,26 +1169,143 @@ router.post('/:id/test', async (req, res) => {
     }
     
     const connection = result.rows[0];
-    const config = typeof connection.config === 'string' 
+    const savedConfig = typeof connection.config === 'string' 
       ? JSON.parse(connection.config) 
-      : connection.config;
+      : connection.config || {};
     
-    const auth_config = connection.auth_config 
+    const savedAuthConfig = connection.auth_config 
       ? (typeof connection.auth_config === 'string' ? JSON.parse(connection.auth_config) : connection.auth_config)
       : {};
     
-    // Merge auth_config into config for testing
-    const testConfig = { ...config, auth_config };
+    // Determine effective type and auth method
+    const effectiveType = formData.connection_type || connection.type || savedConfig.provider;
+    const effectiveAuthMethod = formData.authentication_method || connection.authentication_method || 'key-based';
+    
+    console.log('[TEST WITH UPDATES] Effective type:', effectiveType, 'Auth method:', effectiveAuthMethod);
+    
+    // Build test config by merging form data with saved data
+    const testConfig = {
+      provider: effectiveType,
+      connection_type: effectiveType,
+      storage_type: effectiveType === 'aws' ? 's3' : effectiveType === 'gcp' ? 'gcs' : 'azure-blob'
+    };
+    
+    // Build auth_config for testing
+    const testAuthConfig = {};
+    
+    if (effectiveAuthMethod === 'aws-iam-role') {
+      // IAM Role authentication - merge form data with saved data
+      testConfig.region = formData.region || savedConfig.region;
+      testConfig.bucket = formData.bucket || savedConfig.bucket;
+      testConfig.path_prefix = formData.path_prefix !== undefined ? formData.path_prefix : savedConfig.path_prefix;
+      
+      // IAM Role ARN: use form data if provided, else saved
+      testAuthConfig.iam_role_arn = formData.iam_role_arn || savedAuthConfig.iam_role_arn;
+      testAuthConfig.external_id = formData.external_id || savedAuthConfig.external_id;
+      
+      // Source credentials: use form data if provided, else decrypt saved credentials
+      if (formData.source_access_key && formData.source_secret_key) {
+        // Fresh credentials from form - use directly (not encrypted)
+        testAuthConfig.source_access_key = formData.source_access_key;
+        testAuthConfig.source_secret_key = formData.source_secret_key;
+        console.log('[TEST WITH UPDATES] Using fresh source credentials from form');
+      } else if (savedAuthConfig.source_access_key && savedAuthConfig.source_secret_key) {
+        // Use saved encrypted credentials - decrypt them
+        try {
+          testAuthConfig.source_access_key = decrypt(savedAuthConfig.source_access_key);
+          testAuthConfig.source_secret_key = decrypt(savedAuthConfig.source_secret_key);
+          console.log('[TEST WITH UPDATES] Using decrypted saved source credentials');
+        } catch (decryptError) {
+          console.error('[TEST WITH UPDATES] Failed to decrypt saved credentials:', decryptError.message);
+          // Fallback to using encrypted values as-is (they might be plaintext)
+          testAuthConfig.source_access_key = savedAuthConfig.source_access_key;
+          testAuthConfig.source_secret_key = savedAuthConfig.source_secret_key;
+        }
+      } else {
+        console.log('[TEST WITH UPDATES] No source credentials available - will try default credential chain');
+      }
+    } else if (effectiveAuthMethod === 'key-based') {
+      // Key-based authentication
+      if (effectiveType === 'aws') {
+        testConfig.region = formData.region || savedConfig.region;
+        testConfig.bucket = formData.bucket || savedConfig.bucket;
+        testConfig.endpoint = formData.endpoint || savedConfig.endpoint;
+        testConfig.use_ssl = formData.use_ssl !== undefined ? formData.use_ssl : savedConfig.use_ssl;
+        testConfig.path_prefix = formData.path_prefix !== undefined ? formData.path_prefix : savedConfig.path_prefix;
+        
+        // Access keys: use form data if provided, else decrypt saved
+        if (formData.access_key_id && formData.secret_access_key) {
+          testConfig.access_key_id = formData.access_key_id;
+          testConfig.secret_access_key = formData.secret_access_key;
+        } else {
+          // Decrypt saved credentials
+          if (savedConfig.access_key) {
+            try {
+              testConfig.access_key_id = decrypt(savedConfig.access_key);
+            } catch (e) {
+              testConfig.access_key_id = savedConfig.access_key;
+            }
+          }
+          if (savedConfig.secret_key) {
+            try {
+              testConfig.secret_access_key = decrypt(savedConfig.secret_key);
+            } catch (e) {
+              testConfig.secret_access_key = savedConfig.secret_key;
+            }
+          }
+        }
+      } else if (effectiveType === 'gcp') {
+        testConfig.project_id = formData.gcp_project_id || savedConfig.project_id;
+        testConfig.gcp_bucket = formData.gcp_bucket || savedConfig.gcp_bucket;
+        testConfig.path_prefix = formData.path_prefix !== undefined ? formData.path_prefix : savedConfig.path_prefix;
+        
+        if (formData.service_account_json) {
+          testConfig.service_account_json = formData.service_account_json;
+        } else if (savedConfig.service_account_json) {
+          try {
+            testConfig.service_account_json = decrypt(savedConfig.service_account_json);
+          } catch (e) {
+            testConfig.service_account_json = savedConfig.service_account_json;
+          }
+        }
+      } else if (effectiveType === 'azure') {
+        testConfig.account_name = formData.account_name || savedConfig.account_name;
+        testConfig.container_name = formData.container_name || savedConfig.container_name;
+        testConfig.azure_endpoint = formData.azure_endpoint || savedConfig.azure_endpoint;
+        testConfig.path_prefix = formData.path_prefix !== undefined ? formData.path_prefix : savedConfig.path_prefix;
+        
+        if (formData.account_key) {
+          testConfig.account_key = formData.account_key;
+        } else if (savedConfig.account_key) {
+          try {
+            testConfig.account_key = decrypt(savedConfig.account_key);
+          } catch (e) {
+            testConfig.account_key = savedConfig.account_key;
+          }
+        }
+      }
+    }
+    
+    // Merge auth_config into testConfig
+    testConfig.auth_config = testAuthConfig;
+    
+    console.log('[TEST WITH UPDATES] Testing with config:', {
+      provider: testConfig.provider,
+      region: testConfig.region,
+      bucket: testConfig.bucket,
+      hasIamRole: !!testAuthConfig.iam_role_arn,
+      hasSourceCredentials: !!(testAuthConfig.source_access_key && testAuthConfig.source_secret_key)
+    });
     
     // Test the connection using connectionService
     const testResult = await connectionService.testConnection({
-      type: connection.type,
+      type: effectiveType,
       config: testConfig
     });
     
     res.json(testResult);
   } catch (error) {
-    console.error('[TEST SAVED CONNECTION] Error:', error);
+    console.error('[TEST WITH UPDATES] Error:', error);
     res.status(500).json({ 
       success: false, 
       message: `Connection test failed: ${error.message}` 
