@@ -155,6 +155,16 @@ class BulkProfilingService {
         // Handle both transform connections and vendor connections
         let connectionType = connection.type;
         config = connection.config;
+        
+        // Merge auth_config into config so IAM role authentication fields are available
+        // auth_config is stored separately in the database but contains iam_role_arn, source credentials, etc.
+        if (connection.auth_config) {
+          config = {
+            ...config,
+            auth_config: connection.auth_config,
+            authentication_method: connection.authentication_method
+          };
+        }
 
         // For vendor connections, extract the actual provider type from config
         if (connectionType === 'vendor') {

@@ -351,10 +351,15 @@ const Connections = () => {
         secret_key: '', // Don't prefill for security
         iam_role_arn: authConfig.iam_role_arn || authConfig.role_arn || '',
         external_id: authConfig.external_id || '',
+        source_access_key: '', // Don't prefill for security
+        source_secret_key: '', // Don't prefill for security
         path: connection.path || config?.path_prefix || '',
         // Store flags to show credential status in UI
         has_access_key: connection.has_access_key || !!config?.access_key || !!config?.access_key_id,
-        has_secret_key: connection.has_secret_key || !!config?.secret_key || !!config?.secret_access_key
+        has_secret_key: connection.has_secret_key || !!config?.secret_key || !!config?.secret_access_key,
+        // Source credential flags for IAM role authentication
+        has_source_access_key: !!authConfig.source_access_key,
+        has_source_secret_key: !!authConfig.source_secret_key
       };
     } else if (providerType === 'gcp') {
       newFormData = {

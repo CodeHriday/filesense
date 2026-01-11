@@ -507,6 +507,18 @@ class ConnectionService {
         break;
     }
     
+    // Decrypt auth_config fields for IAM role authentication (applies to all AWS-related types)
+    if (config.auth_config) {
+      decryptedConfig.auth_config = { ...config.auth_config };
+      
+      if (config.auth_config.source_access_key) {
+        decryptedConfig.auth_config.source_access_key = decrypt(config.auth_config.source_access_key);
+      }
+      if (config.auth_config.source_secret_key) {
+        decryptedConfig.auth_config.source_secret_key = decrypt(config.auth_config.source_secret_key);
+      }
+    }
+    
     return decryptedConfig;
   }
 
@@ -1046,6 +1058,20 @@ class ConnectionService {
           decryptedConfig.outlook_client_secret = decrypt(config.outlook_client_secret);
         }
         break;
+    }
+    
+    // Decrypt auth_config fields for IAM role authentication (applies to all AWS-related types)
+    if (config.auth_config) {
+      decryptedConfig.auth_config = { ...config.auth_config };
+      
+      if (isEncrypted(config.auth_config.source_access_key)) {
+        console.log('[DECRYPT] Decrypting auth_config.source_access_key');
+        decryptedConfig.auth_config.source_access_key = decrypt(config.auth_config.source_access_key);
+      }
+      if (isEncrypted(config.auth_config.source_secret_key)) {
+        console.log('[DECRYPT] Decrypting auth_config.source_secret_key');
+        decryptedConfig.auth_config.source_secret_key = decrypt(config.auth_config.source_secret_key);
+      }
     }
     
     return decryptedConfig;
