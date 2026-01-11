@@ -209,6 +209,8 @@ router.post('/', async (req, res) => {
       // AWS IAM Role fields
       iam_role_arn,
       external_id,
+      source_access_key,
+      source_secret_key,
       // GCP fields
       gcp_project_id,
       service_account_json,
@@ -327,6 +329,9 @@ router.post('/', async (req, res) => {
         config.path_prefix = path_prefix;
         auth_config.iam_role_arn = iam_role_arn;
         if (external_id) auth_config.external_id = external_id;
+        // Encrypt and store source credentials for cross-account AssumeRole
+        if (source_access_key) auth_config.source_access_key = connectionService.encrypt(source_access_key);
+        if (source_secret_key) auth_config.source_secret_key = connectionService.encrypt(source_secret_key);
         break;
       
       case 'gcp-sa-oidc':
@@ -479,6 +484,8 @@ router.put('/:id', async (req, res) => {
       // AWS IAM Role fields
       iam_role_arn,
       external_id,
+      source_access_key,
+      source_secret_key,
       // GCP fields
       gcp_project_id,
       service_account_json,
@@ -596,6 +603,9 @@ router.put('/:id', async (req, res) => {
         if (path_prefix !== undefined) config.path_prefix = path_prefix;
         if (iam_role_arn) auth_config.iam_role_arn = iam_role_arn;
         if (external_id) auth_config.external_id = external_id;
+        // Encrypt and store source credentials for cross-account AssumeRole
+        if (source_access_key) auth_config.source_access_key = connectionService.encrypt(source_access_key);
+        if (source_secret_key) auth_config.source_secret_key = connectionService.encrypt(source_secret_key);
         break;
       
       case 'gcp-sa-oidc':
@@ -1205,6 +1215,8 @@ router.post('/test', async (req, res) => {
       // AWS IAM Role fields (ephemeral auth)
       iam_role_arn,
       external_id,
+      source_access_key,
+      source_secret_key,
       // GCP fields
       gcp_project_id,
       service_account_json,
@@ -1284,6 +1296,9 @@ router.post('/test', async (req, res) => {
         config.path_prefix = path_prefix;
         auth_config.iam_role_arn = iam_role_arn;
         if (external_id) auth_config.external_id = external_id;
+        // No encryption for test - pass plain text source credentials
+        if (source_access_key) auth_config.source_access_key = source_access_key;
+        if (source_secret_key) auth_config.source_secret_key = source_secret_key;
         break;
       
       case 'gcp-sa-oidc':
@@ -1394,6 +1409,8 @@ router.post('/:id/browse', async (req, res) => {
           {
             role_arn: authConfig.iam_role_arn,
             external_id: authConfig.external_id,
+            source_access_key: authConfig.source_access_key,
+            source_secret_key: authConfig.source_secret_key,
             session_duration: 3600,
             session_name: 'DataObservatory-Browse'
           },

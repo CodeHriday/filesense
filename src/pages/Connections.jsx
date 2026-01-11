@@ -87,6 +87,13 @@ const Connections = () => {
         }
       } else if (formData.authentication_method === 'aws-iam-role') {
         if (!formData.iam_role_arn?.trim()) return false;
+        // Source credentials required for cross-account AssumeRole (unless editing with saved credentials)
+        if (!editMode || !formData.has_source_access_key) {
+          if (!formData.source_access_key?.trim()) return false;
+        }
+        if (!editMode || !formData.has_source_secret_key) {
+          if (!formData.source_secret_key?.trim()) return false;
+        }
       }
     } else if (providerType === 'gcp') {
       if (!formData.project_id?.trim()) return false;
@@ -198,6 +205,8 @@ const Connections = () => {
     secret_key: '',
     iam_role_arn: '',
     external_id: '',
+    source_access_key: '',
+    source_secret_key: '',
     project_id: '',
     client_email: '',
     private_key: '',
@@ -294,6 +303,8 @@ const Connections = () => {
       secret_key: '',
       iam_role_arn: '',
       external_id: '',
+      source_access_key: '',
+      source_secret_key: '',
       project_id: '',
       client_email: '',
       private_key: '',
@@ -485,7 +496,9 @@ const Connections = () => {
           ...formData, 
           [name]: value, 
           iam_role_arn: '', 
-          external_id: '' 
+          external_id: '',
+          source_access_key: '',
+          source_secret_key: ''
         });
       } else if (value === 'aws-iam-role') {
         // Switching to IAM role: clear access key fields
@@ -981,6 +994,58 @@ const Connections = () => {
                 />
                 <small className="form-text text-muted" style={compactStyles.helperText}>
                   Optional: External ID for cross-account role assumption
+                </small>
+              </div>
+              
+              <div className="form-group form-group-full" style={{ ...compactStyles.formGroup, marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid #e5e7eb' }}>
+                <div style={{ marginBottom: '0.5rem', fontSize: '12px', color: '#6b7280' }}>
+                  <strong>Source Credentials (required for cross-account AssumeRole)</strong>
+                  <p style={{ margin: '0.25rem 0 0' }}>
+                    To assume a role in another AWS account, provide credentials for an IAM user that has permission to call sts:AssumeRole.
+                  </p>
+                </div>
+              </div>
+              
+              <div className="form-group" style={compactStyles.formGroup}>
+                <label htmlFor="source_access_key" style={compactStyles.label}>Source Access Key ID <span style={{ color: '#dc2626' }}>*</span></label>
+                <input
+                  type="text"
+                  id="source_access_key"
+                  name="source_access_key"
+                  className="form-control"
+                  value={formData.source_access_key || ''}
+                  onChange={handleInputChange}
+                  required
+                  placeholder="AKIAIOSFODNN7EXAMPLE"
+                  style={compactStyles.input}
+                />
+                {editMode && formData.has_source_access_key && (
+                  <small className="form-text text-muted" style={compactStyles.helperText}>
+                    ✓ Source access key is saved. Leave blank to keep existing, or enter new value to update.
+                  </small>
+                )}
+              </div>
+              
+              <div className="form-group" style={compactStyles.formGroup}>
+                <label htmlFor="source_secret_key" style={compactStyles.label}>Source Secret Access Key <span style={{ color: '#dc2626' }}>*</span></label>
+                <input
+                  type="password"
+                  id="source_secret_key"
+                  name="source_secret_key"
+                  className="form-control"
+                  value={formData.source_secret_key || ''}
+                  onChange={handleInputChange}
+                  required={!editMode || !formData.has_source_secret_key}
+                  placeholder={editMode && formData.has_source_secret_key ? '(saved - leave blank to keep)' : ''}
+                  style={compactStyles.input}
+                />
+                {editMode && formData.has_source_secret_key && (
+                  <small className="form-text text-muted" style={compactStyles.helperText}>
+                    ✓ Source secret key is saved. Leave blank to keep existing, or enter new value to update.
+                  </small>
+                )}
+                <small className="form-text text-muted" style={compactStyles.helperText}>
+                  These credentials authenticate the STS AssumeRole call
                 </small>
               </div>
             </>

@@ -66,12 +66,17 @@ class ConnectionService {
    * Get credentials by assuming an IAM role via STS
    * Includes caching to avoid excessive AssumeRole calls
    * 
-   * @param {Object} authConfig - Auth config with role_arn, external_id, etc.
+   * For cross-account AssumeRole, source credentials are required:
+   * 1. Check for source_access_key/source_secret_key in auth config
+   * 2. Fall back to environment variables AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY
+   * 3. Fall back to default credential chain (EC2 instance profile, ECS task role, etc.)
+   * 
+   * @param {Object} authConfig - Auth config with role_arn, external_id, source credentials, etc.
    * @param {string} region - AWS region
    * @returns {Promise<AWS.Credentials>} - Assumed role credentials
    */
   async getAssumedRoleCredentials(authConfig, region = 'us-east-1') {
-    const { role_arn, external_id, session_duration = 3600, session_name } = authConfig;
+    const { role_arn, external_id, session_duration = 3600, session_name, source_access_key, source_secret_key } = authConfig;
     
     if (!role_arn) {
       throw new Error('role_arn is required for AssumeRole authentication');
@@ -84,7 +89,31 @@ class ConnectionService {
       return cached.credentials;
     }
     
-    const sts = new AWS.STS({ region });
+    // Build STS config with source credentials for AssumeRole
+    const stsConfig = { region };
+    
+    // Priority 1: Explicit source credentials in auth config (for cross-account)
+    if (source_access_key && source_secret_key) {
+      console.log('Using explicit source credentials for AssumeRole');
+      stsConfig.credentials = {
+        accessKeyId: this.safeDecrypt(source_access_key),
+        secretAccessKey: this.safeDecrypt(source_secret_key)
+      };
+    }
+    // Priority 2: Environment variables (platform-level credentials)
+    else if (process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY) {
+      console.log('Using environment variable credentials for AssumeRole');
+      stsConfig.credentials = {
+        accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
+      };
+    }
+    // Priority 3: Default credential chain (instance profile, ECS task role, etc.)
+    else {
+      console.log('Using default credential chain for AssumeRole (requires instance profile or configured credentials)');
+    }
+    
+    const sts = new AWS.STS(stsConfig);
     
     const params = {
       RoleArn: role_arn,
@@ -1056,6 +1085,8 @@ class ConnectionService {
             {
               role_arn: authConfig.iam_role_arn,
               external_id: authConfig.external_id,
+              source_access_key: authConfig.source_access_key,
+              source_secret_key: authConfig.source_secret_key,
               session_duration: 900,
               session_name: 'DataObservatory-Test'
             },
