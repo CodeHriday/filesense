@@ -738,10 +738,11 @@ const Connections = () => {
     // Otherwise use connection_type
     const providerType = _provider || connection_type;
     
-    // Common fields for all connection types
+    // Common fields for all connection types - compact layout
     const commonFields = (
       <div className="form-grid">
-        <div className="form-group form-group-full" style={compactStyles.formGroup}>
+        {/* Row 1: Name and Description */}
+        <div className="form-group" style={compactStyles.formGroup}>
           <label htmlFor="connection_name" style={compactStyles.label}>Connection Name <span style={{ color: '#dc2626' }}>*</span></label>
           <input
             type="text"
@@ -756,92 +757,89 @@ const Connections = () => {
         </div>
         
         <div className="form-group" style={compactStyles.formGroup}>
-          <label htmlFor="connection_type" style={compactStyles.label}>Connection Type <span style={{ color: '#dc2626' }}>*</span></label>
-          {editMode && formData.connection_type && formData.connection_type !== 'aws' ? (
-            <input
-              type="text"
-              id="connection_type_display"
-              className="form-control"
-              value={{
-                gcp: 'Google Cloud Storage',
-                azure: 'Azure Blob Storage',
-                snowflake: 'Snowflake',
-                databricks: 'Databricks',
-                sharepoint: 'SharePoint',
-                outlook: 'Outlook'
-              }[formData.connection_type] || formData.connection_type}
-              disabled
-              style={{ ...compactStyles.input, backgroundColor: '#f3f4f6', cursor: 'not-allowed' }}
-            />
-          ) : (
-            <select
-              id="connection_type"
-              name="connection_type"
-              className="form-control"
-              value={formData.connection_type}
-              onChange={handleConnectionTypeChange}
-              required
-              style={compactStyles.select}
-            >
-              <option value="aws">AWS S3</option>
-            </select>
-          )}
-        </div>
-        
-        {/* Connection direction field hidden - connections can be used as source or target in mappings */}
-        <input type="hidden" name="connection_direction" value={formData.connection_direction || 'source'} />
-        
-        <div className="form-group" style={compactStyles.formGroup}>
-          <label htmlFor="connection_user" style={compactStyles.label}>Connection User <span style={{ color: '#dc2626' }}>*</span></label>
-          <select
-            id="connection_user"
-            name="connection_user"
-            className="form-control"
-            value={formData.connection_user}
-            onChange={handleInputChange}
-            required
-            style={compactStyles.select}
-          >
-            <option value="Internal">Internal</option>
-            <option value="External">External</option>
-          </select>
-          <small className="form-text text-muted" style={compactStyles.helperText}>
-            Internal: Company-managed | External: Third-party/vendor
-          </small>
-        </div>
-        
-        <div className="form-group" style={compactStyles.formGroup}>
-          <label htmlFor="authentication_method" style={compactStyles.label}>Authentication Method <span style={{ color: '#dc2626' }}>*</span></label>
-          <select
-            id="authentication_method"
-            name="authentication_method"
-            className="form-control"
-            value={formData.authentication_method}
-            onChange={handleInputChange}
-            required
-            style={compactStyles.select}
-          >
-            <option value="key-based">Key-Based (Access Keys/Secrets)</option>
-            <option value="aws-iam-role">AWS IAM Role (Assume Role)</option>
-          </select>
-          <small className="form-text text-muted" style={compactStyles.helperText}>
-            Choose the authentication method for this connection
-          </small>
-        </div>
-        
-        <div className="form-group form-group-full" style={compactStyles.formGroup}>
           <label htmlFor="description" style={compactStyles.label}>Description</label>
-          <textarea
+          <input
+            type="text"
             id="description"
             name="description"
             className="form-control"
             value={formData.description}
             onChange={handleInputChange}
-            placeholder="Brief description of this connection"
-            rows="2"
-            style={compactStyles.textarea}
+            placeholder="Brief description"
+            style={compactStyles.input}
           />
         </div>
+        
+        {/* Row 2: Connection Type, Use, Authentication Method (3 columns) */}
+        <div className="form-group form-group-full" style={{ ...compactStyles.formGroup, display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}>
+          <div>
+            <label htmlFor="connection_type" style={compactStyles.label}>Type <span style={{ color: '#dc2626' }}>*</span></label>
+            {editMode && formData.connection_type && formData.connection_type !== 'aws' ? (
+              <input
+                type="text"
+                id="connection_type_display"
+                className="form-control"
+                value={{
+                  gcp: 'Google Cloud Storage',
+                  azure: 'Azure Blob Storage',
+                  snowflake: 'Snowflake',
+                  databricks: 'Databricks',
+                  sharepoint: 'SharePoint',
+                  outlook: 'Outlook'
+                }[formData.connection_type] || formData.connection_type}
+                disabled
+                style={{ ...compactStyles.input, backgroundColor: '#f3f4f6', cursor: 'not-allowed' }}
+              />
+            ) : (
+              <select
+                id="connection_type"
+                name="connection_type"
+                className="form-control"
+                value={formData.connection_type}
+                onChange={handleConnectionTypeChange}
+                required
+                style={compactStyles.select}
+              >
+                <option value="aws">AWS S3</option>
+              </select>
+            )}
+          </div>
+          
+          <div>
+            <label htmlFor="connection_user" style={compactStyles.label}>Use <span style={{ color: '#dc2626' }}>*</span></label>
+            <select
+              id="connection_user"
+              name="connection_user"
+              className="form-control"
+              value={formData.connection_user}
+              onChange={handleInputChange}
+              required
+              style={compactStyles.select}
+            >
+              <option value="Internal">Internal</option>
+              <option value="External">External</option>
+            </select>
+          </div>
+          
+          <div>
+            <label htmlFor="authentication_method" style={compactStyles.label}>Auth Method <span style={{ color: '#dc2626' }}>*</span></label>
+            <select
+              id="authentication_method"
+              name="authentication_method"
+              className="form-control"
+              value={formData.authentication_method}
+              onChange={handleInputChange}
+              required
+              style={compactStyles.select}
+            >
+              <option value="key-based">Key-Based</option>
+              <option value="aws-iam-role">IAM Role</option>
+            </select>
+          </div>
+        </div>
+        
+        {/* Hidden connection direction field */}
+        <input type="hidden" name="connection_direction" value={formData.connection_direction || 'source'} />
       </div>
     );
     
@@ -851,78 +849,79 @@ const Connections = () => {
     if (providerType === 'aws') {
       specificFields = (
         <div className="form-grid">
-          <div className="form-group" style={compactStyles.formGroup}>
-            <label htmlFor="region" style={compactStyles.label}>AWS Region <span style={{ color: '#dc2626' }}>*</span></label>
-            <input
-              type="text"
-              id="region"
-              name="region"
-              className="form-control"
-              value={formData.region}
-              onChange={handleInputChange}
-              required
-              style={compactStyles.input}
-            />
-          </div>
-          
-          <div className="form-group" style={compactStyles.formGroup}>
-            <label htmlFor="bucket_name" style={compactStyles.label}>S3 Bucket Name <span style={{ color: '#dc2626' }}>*</span></label>
-            <input
-              type="text"
-              id="bucket_name"
-              name="bucket_name"
-              className="form-control"
-              value={formData.bucket_name}
-              onChange={handleInputChange}
-              required
-              style={compactStyles.input}
-            />
-          </div>
-          
-          <div className="form-group form-group-full" style={compactStyles.formGroup}>
-            <label htmlFor="path" style={compactStyles.label}>Path</label>
-            <div style={{ display: 'flex', gap: '0.5rem' }}>
+          {/* Row 3: Region, Bucket Name, Path + Browse (3 columns) */}
+          <div className="form-group form-group-full" style={{ ...compactStyles.formGroup, display: 'grid', gridTemplateColumns: '1fr 1fr 1.5fr', gap: '1rem', alignItems: 'start' }}>
+            <div>
+              <label htmlFor="region" style={compactStyles.label}>AWS Region <span style={{ color: '#dc2626' }}>*</span></label>
               <input
                 type="text"
-                id="path"
-                name="path"
+                id="region"
+                name="region"
                 className="form-control"
-                value={formData.path}
+                value={formData.region}
                 onChange={handleInputChange}
-                placeholder="e.g., vendor-uploads/"
-                disabled={!canBrowse}
-                style={{ 
-                  ...compactStyles.input,
-                  flex: 1,
-                  backgroundColor: !canBrowse ? '#f3f4f6' : 'white',
-                  cursor: !canBrowse ? 'not-allowed' : 'text'
-                }}
+                required
+                placeholder="us-east-1"
+                style={compactStyles.input}
               />
-              <button
-                type="button"
-                onClick={handleBrowseClick}
-                disabled={!canBrowse}
-                className="btn btn-secondary"
-                style={{
-                  padding: '0.5rem 1rem',
-                  cursor: canBrowse ? 'pointer' : 'not-allowed',
-                  opacity: canBrowse ? 1 : 0.6
-                }}
-                title={!canBrowse ? 'Test connection or save to enable browsing' : 'Browse folders'}
-              >
-                <FiFolder style={{ marginRight: '0.25rem' }} /> Browse
-              </button>
             </div>
-            <small className="form-text text-muted" style={compactStyles.helperText}>
-              {!canBrowse 
-                ? 'Test connection or save to enable folder browsing'
-                : 'Folder path within the bucket where files will be uploaded. Click Browse to select from available folders.'
-              }
-            </small>
+            
+            <div>
+              <label htmlFor="bucket_name" style={compactStyles.label}>S3 Bucket <span style={{ color: '#dc2626' }}>*</span></label>
+              <input
+                type="text"
+                id="bucket_name"
+                name="bucket_name"
+                className="form-control"
+                value={formData.bucket_name}
+                onChange={handleInputChange}
+                required
+                placeholder="my-bucket"
+                style={compactStyles.input}
+              />
+            </div>
+            
+            <div>
+              <label htmlFor="path" style={compactStyles.label}>Path</label>
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <input
+                  type="text"
+                  id="path"
+                  name="path"
+                  className="form-control"
+                  value={formData.path}
+                  onChange={handleInputChange}
+                  placeholder="folder/"
+                  disabled={!canBrowse}
+                  style={{ 
+                    ...compactStyles.input,
+                    flex: 1,
+                    backgroundColor: !canBrowse ? '#f3f4f6' : 'white',
+                    cursor: !canBrowse ? 'not-allowed' : 'text'
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={handleBrowseClick}
+                  disabled={!canBrowse}
+                  className="btn btn-secondary"
+                  style={{
+                    padding: '0.4rem 0.75rem',
+                    cursor: canBrowse ? 'pointer' : 'not-allowed',
+                    opacity: canBrowse ? 1 : 0.6,
+                    fontSize: '12px'
+                  }}
+                  title={!canBrowse ? 'Test connection to enable browsing' : 'Browse folders'}
+                >
+                  <FiFolder style={{ marginRight: '0.25rem' }} /> Browse
+                </button>
+              </div>
+            </div>
           </div>
           
           {formData.authentication_method === 'key-based' && (
             <>
+              {/* Access Keys Row */}
               <div className="form-group" style={compactStyles.formGroup}>
                 <label htmlFor="access_key" style={compactStyles.label}>Access Key ID <span style={{ color: '#dc2626' }}>*</span></label>
                 <input
@@ -937,9 +936,7 @@ const Connections = () => {
                   style={compactStyles.input}
                 />
                 {editMode && formData.has_access_key && (
-                  <small className="form-text text-muted" style={compactStyles.helperText}>
-                    ✓ Access key is saved. Leave blank to keep existing, or enter new value to update.
-                  </small>
+                  <small className="form-text text-muted" style={compactStyles.helperText}>✓ Saved</small>
                 )}
               </div>
               
@@ -957,9 +954,7 @@ const Connections = () => {
                   style={compactStyles.input}
                 />
                 {editMode && formData.has_secret_key && (
-                  <small className="form-text text-muted" style={compactStyles.helperText}>
-                    ✓ Secret key is saved. Leave blank to keep existing, or enter new value to update.
-                  </small>
+                  <small className="form-text text-muted" style={compactStyles.helperText}>✓ Saved</small>
                 )}
               </div>
             </>
@@ -967,7 +962,8 @@ const Connections = () => {
           
           {formData.authentication_method === 'aws-iam-role' && (
             <>
-              <div className="form-group form-group-full" style={compactStyles.formGroup}>
+              {/* Row 4: ARN and External ID */}
+              <div className="form-group" style={compactStyles.formGroup}>
                 <label htmlFor="iam_role_arn" style={compactStyles.label}>IAM Role ARN <span style={{ color: '#dc2626' }}>*</span></label>
                 <input
                   type="text"
@@ -980,9 +976,6 @@ const Connections = () => {
                   placeholder="arn:aws:iam::123456789012:role/MyRole"
                   style={compactStyles.input}
                 />
-                <small className="form-text text-muted" style={compactStyles.helperText}>
-                  The ARN of the IAM role to assume for accessing the S3 bucket
-                </small>
               </div>
               
               <div className="form-group" style={compactStyles.formGroup}>
@@ -994,25 +987,14 @@ const Connections = () => {
                   className="form-control"
                   value={formData.external_id || ''}
                   onChange={handleInputChange}
-                  placeholder="Optional external ID for cross-account access"
+                  placeholder="Optional"
                   style={compactStyles.input}
                 />
-                <small className="form-text text-muted" style={compactStyles.helperText}>
-                  Optional: External ID for cross-account role assumption
-                </small>
               </div>
               
-              <div className="form-group form-group-full" style={{ ...compactStyles.formGroup, marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid #e5e7eb' }}>
-                <div style={{ marginBottom: '0.5rem', fontSize: '12px', color: '#6b7280' }}>
-                  <strong>Source Credentials (required for cross-account AssumeRole)</strong>
-                  <p style={{ margin: '0.25rem 0 0' }}>
-                    To assume a role in another AWS account, provide credentials for an IAM user that has permission to call sts:AssumeRole.
-                  </p>
-                </div>
-              </div>
-              
+              {/* Row 5: Source Access Keys */}
               <div className="form-group" style={compactStyles.formGroup}>
-                <label htmlFor="source_access_key" style={compactStyles.label}>Source Access Key ID <span style={{ color: '#dc2626' }}>*</span></label>
+                <label htmlFor="source_access_key" style={compactStyles.label}>Source Access Key <span style={{ color: '#dc2626' }}>*</span></label>
                 <input
                   type="text"
                   id="source_access_key"
@@ -1025,14 +1007,12 @@ const Connections = () => {
                   style={compactStyles.input}
                 />
                 {editMode && formData.has_source_access_key && (
-                  <small className="form-text text-muted" style={compactStyles.helperText}>
-                    ✓ Source access key is saved. Leave blank to keep existing, or enter new value to update.
-                  </small>
+                  <small className="form-text text-muted" style={compactStyles.helperText}>✓ Saved</small>
                 )}
               </div>
               
               <div className="form-group" style={compactStyles.formGroup}>
-                <label htmlFor="source_secret_key" style={compactStyles.label}>Source Secret Access Key <span style={{ color: '#dc2626' }}>*</span></label>
+                <label htmlFor="source_secret_key" style={compactStyles.label}>Source Secret Key <span style={{ color: '#dc2626' }}>*</span></label>
                 <input
                   type="password"
                   id="source_secret_key"
@@ -1045,13 +1025,8 @@ const Connections = () => {
                   style={compactStyles.input}
                 />
                 {editMode && formData.has_source_secret_key && (
-                  <small className="form-text text-muted" style={compactStyles.helperText}>
-                    ✓ Source secret key is saved. Leave blank to keep existing, or enter new value to update.
-                  </small>
+                  <small className="form-text text-muted" style={compactStyles.helperText}>✓ Saved</small>
                 )}
-                <small className="form-text text-muted" style={compactStyles.helperText}>
-                  These credentials authenticate the STS AssumeRole call
-                </small>
               </div>
             </>
           )}
