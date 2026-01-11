@@ -1195,9 +1195,10 @@ router.post('/:id/test', async (req, res) => {
     
     if (effectiveAuthMethod === 'aws-iam-role') {
       // IAM Role authentication - merge form data with saved data
+      // Support both 'bucket' and 'bucket_name' field naming conventions
       testConfig.region = formData.region || savedConfig.region;
-      testConfig.bucket = formData.bucket || savedConfig.bucket;
-      testConfig.path_prefix = formData.path_prefix !== undefined ? formData.path_prefix : savedConfig.path_prefix;
+      testConfig.bucket = formData.bucket || formData.bucket_name || savedConfig.bucket || savedConfig.bucket_name;
+      testConfig.path_prefix = formData.path_prefix !== undefined ? formData.path_prefix : (formData.path || savedConfig.path_prefix);
       
       // IAM Role ARN: use form data if provided, else saved
       testAuthConfig.iam_role_arn = formData.iam_role_arn || savedAuthConfig.iam_role_arn;
@@ -1228,15 +1229,18 @@ router.post('/:id/test', async (req, res) => {
       // Key-based authentication
       if (effectiveType === 'aws') {
         testConfig.region = formData.region || savedConfig.region;
-        testConfig.bucket = formData.bucket || savedConfig.bucket;
+        testConfig.bucket = formData.bucket || formData.bucket_name || savedConfig.bucket || savedConfig.bucket_name;
         testConfig.endpoint = formData.endpoint || savedConfig.endpoint;
         testConfig.use_ssl = formData.use_ssl !== undefined ? formData.use_ssl : savedConfig.use_ssl;
-        testConfig.path_prefix = formData.path_prefix !== undefined ? formData.path_prefix : savedConfig.path_prefix;
+        testConfig.path_prefix = formData.path_prefix !== undefined ? formData.path_prefix : (formData.path || savedConfig.path_prefix);
         
         // Access keys: use form data if provided, else decrypt saved
-        if (formData.access_key_id && formData.secret_access_key) {
-          testConfig.access_key_id = formData.access_key_id;
-          testConfig.secret_access_key = formData.secret_access_key;
+        // Support both 'access_key_id/secret_access_key' and 'access_key/secret_key' naming conventions
+        const formAccessKey = formData.access_key_id || formData.access_key;
+        const formSecretKey = formData.secret_access_key || formData.secret_key;
+        if (formAccessKey && formSecretKey) {
+          testConfig.access_key_id = formAccessKey;
+          testConfig.secret_access_key = formSecretKey;
         } else {
           // Decrypt saved credentials
           if (savedConfig.access_key) {
