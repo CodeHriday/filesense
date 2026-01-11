@@ -1,6 +1,7 @@
 /**
  * Cloud Storage File Listing Utility
  * Lists files from AWS S3, Google Cloud Storage, and Azure Blob Storage
+ * Supports IAM role-based authentication for AWS
  */
 
 const AWS = require('aws-sdk');
@@ -9,15 +10,57 @@ const { BlobServiceClient } = require('@azure/storage-blob');
 const { decryptCredentials } = require('./encryption');
 
 /**
- * List files from AWS S3
+ * Create S3 client with appropriate credentials
+ * Supports: static keys, IAM role (instance profile), and AssumeRole
+ * 
+ * NOTE: For connections from storage_connections table (encrypted credentials),
+ * use ConnectionService.createS3Client() instead. This function expects 
+ * already-decrypted config for backward compatibility with existing callers.
  */
-async function listS3Files(config) {
+async function createS3ClientForConfig(config, authMethod = 'key-based', authConfig = {}) {
+  const s3Config = {
+    region: config.region || 'us-east-1'
+  };
+  
+  if (authMethod === 'key-based') {
+    const accessKey = config.access_key || config.access_key_id;
+    const secretKey = config.secret_key || config.secret_access_key;
+    if (accessKey && secretKey) {
+      s3Config.accessKeyId = accessKey;
+      s3Config.secretAccessKey = secretKey;
+    }
+  } else if (authMethod === 'aws-iam-role') {
+    if (authConfig.role_arn) {
+      const sts = new AWS.STS({ region: s3Config.region });
+      const params = {
+        RoleArn: authConfig.role_arn,
+        RoleSessionName: authConfig.session_name || `DataObservatory-${Date.now()}`,
+        DurationSeconds: Math.min(authConfig.session_duration || 3600, 43200)
+      };
+      if (authConfig.external_id) {
+        params.ExternalId = authConfig.external_id;
+      }
+      const response = await sts.assumeRole(params).promise();
+      s3Config.credentials = new AWS.Credentials({
+        accessKeyId: response.Credentials.AccessKeyId,
+        secretAccessKey: response.Credentials.SecretAccessKey,
+        sessionToken: response.Credentials.SessionToken
+      });
+    }
+  }
+  
+  return new AWS.S3(s3Config);
+}
+
+/**
+ * List files from AWS S3
+ * @param {Object} config - S3 configuration
+ * @param {string} authMethod - Authentication method (key-based or aws-iam-role)
+ * @param {Object} authConfig - Additional auth config for IAM role
+ */
+async function listS3Files(config, authMethod = 'key-based', authConfig = {}) {
   try {
-    const s3 = new AWS.S3({
-      accessKeyId: config.access_key,
-      secretAccessKey: config.secret_key,
-      region: config.region
-    });
+    const s3 = await createS3ClientForConfig(config, authMethod, authConfig);
 
     const params = {
       Bucket: config.bucket_name,
@@ -249,14 +292,14 @@ async function listAndFilterFiles(pool, connectionId, pattern) {
 
 /**
  * Download file from AWS S3
+ * @param {Object} config - S3 configuration (expects decrypted credentials)
+ * @param {string} filename - File key to download
+ * @param {string} authMethod - Authentication method (key-based or aws-iam-role)
+ * @param {Object} authConfig - Additional auth config for IAM role
  */
-async function downloadS3File(config, filename) {
+async function downloadS3File(config, filename, authMethod = 'key-based', authConfig = {}) {
   try {
-    const s3 = new AWS.S3({
-      accessKeyId: config.access_key,
-      secretAccessKey: config.secret_key,
-      region: config.region
-    });
+    const s3 = await createS3ClientForConfig(config, authMethod, authConfig);
 
     const params = {
       Bucket: config.bucket_name,
@@ -315,14 +358,15 @@ async function downloadAzureFile(config, filename) {
 
 /**
  * Upload file to AWS S3
+ * @param {Object} config - S3 configuration (expects decrypted credentials)
+ * @param {string} filename - File key to upload
+ * @param {Buffer} buffer - File content
+ * @param {string} authMethod - Authentication method (key-based or aws-iam-role)
+ * @param {Object} authConfig - Additional auth config for IAM role
  */
-async function uploadS3File(config, filename, buffer) {
+async function uploadS3File(config, filename, buffer, authMethod = 'key-based', authConfig = {}) {
   try {
-    const s3 = new AWS.S3({
-      accessKeyId: config.access_key,
-      secretAccessKey: config.secret_key,
-      region: config.region
-    });
+    const s3 = await createS3ClientForConfig(config, authMethod, authConfig);
 
     const params = {
       Bucket: config.bucket_name,

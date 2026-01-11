@@ -511,17 +511,25 @@ const VendorConnectionModal = ({
           
           <div className="form-group">
             <label htmlFor="provider">Provider *</label>
-            <select
-              id="provider"
-              name="provider"
-              value={formData.provider}
-              onChange={handleInputChange}
-              required
-            >
-              <option value="aws">AWS S3</option>
-              <option value="gcp">Google Cloud Storage</option>
-              <option value="azure">Azure Blob Storage</option>
-            </select>
+            {connectionId && formData.provider && formData.provider !== 'aws' ? (
+              <input
+                type="text"
+                id="provider_display"
+                value={{ gcp: 'Google Cloud Storage', azure: 'Azure Blob Storage' }[formData.provider] || formData.provider}
+                disabled
+                style={{ backgroundColor: '#f3f4f6', cursor: 'not-allowed' }}
+              />
+            ) : (
+              <select
+                id="provider"
+                name="provider"
+                value={formData.provider}
+                onChange={handleInputChange}
+                required
+              >
+                <option value="aws">AWS S3</option>
+              </select>
+            )}
           </div>
           
           {renderProviderFields()}

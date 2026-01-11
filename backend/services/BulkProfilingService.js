@@ -155,6 +155,16 @@ class BulkProfilingService {
         // Handle both transform connections and vendor connections
         let connectionType = connection.type;
         config = connection.config;
+        
+        // Merge auth_config into config so IAM role authentication fields are available
+        // auth_config is stored separately in the database but contains iam_role_arn, source credentials, etc.
+        if (connection.auth_config) {
+          config = {
+            ...config,
+            auth_config: connection.auth_config,
+            authentication_method: connection.authentication_method
+          };
+        }
 
         // For vendor connections, extract the actual provider type from config
         if (connectionType === 'vendor') {
@@ -200,11 +210,48 @@ class BulkProfilingService {
       }
 
       // Configure AWS S3 - handle both transform and vendor connection formats
-      const s3 = new AWS.S3({
-        accessKeyId: config.access_key || config.access_key_id,
-        secretAccessKey: config.secret_key || config.secret_access_key,
-        region: config.region,
-      });
+      let s3;
+      
+      // Check for IAM role authentication - handle both nested auth_config and flat structure
+      const authConfig = config.auth_config || {};
+      // Check for iam_role_arn in both auth_config (saved connections) and flat config (raw credentials from form)
+      const iamRoleArn = authConfig.iam_role_arn || config.iam_role_arn;
+      const authMethod = config.authentication_method || (iamRoleArn ? 'aws-iam-role' : 'key-based');
+      
+      if (authMethod === 'aws-iam-role' && iamRoleArn) {
+        // Use IAM role with source credentials for AssumeRole
+        // Support both nested (saved) and flat (form) credential structures
+        const sourceAccessKey = authConfig.source_access_key || config.source_access_key;
+        const sourceSecretKey = authConfig.source_secret_key || config.source_secret_key;
+        const externalId = authConfig.external_id || config.external_id;
+        
+        try {
+          const credentials = await connectionService.getAssumedRoleCredentials(
+            {
+              role_arn: iamRoleArn,
+              external_id: externalId,
+              source_access_key: sourceAccessKey,
+              source_secret_key: sourceSecretKey,
+              session_duration: 3600,
+              session_name: 'DataObservatory-Browse'
+            },
+            config.region || 'us-east-1'
+          );
+          s3 = new AWS.S3({
+            region: config.region,
+            credentials,
+          });
+        } catch (roleError) {
+          throw new Error(`Failed to assume IAM role: ${roleError.message}`);
+        }
+      } else {
+        // Use static access keys
+        s3 = new AWS.S3({
+          accessKeyId: config.access_key || config.access_key_id,
+          secretAccessKey: config.secret_key || config.secret_access_key,
+          region: config.region,
+        });
+      }
 
       // List objects at this level only (non-recursive)
       const params = {

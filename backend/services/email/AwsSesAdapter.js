@@ -3,6 +3,7 @@
  * 
  * Implements email sending via Amazon Simple Email Service (SES).
  * Supports attachments, HTML content, and delivery tracking.
+ * Supports: static keys, IAM role (instance profile), and AssumeRole authentication.
  */
 
 const EmailProviderAdapter = require('./EmailProviderAdapter');
@@ -10,17 +11,96 @@ const AWS = require('aws-sdk');
 const crypto = require('crypto');
 const { systemLogger } = require('../../utils/logger');
 
+const assumedRoleCacheSes = new Map();
+const ASSUMED_ROLE_CACHE_TTL = 45 * 60 * 1000;
+
 class AwsSesAdapter extends EmailProviderAdapter {
-  constructor(config) {
+  constructor(config, authConfig = {}) {
     super(config);
     this.providerName = 'aws_ses';
+    this.authConfig = authConfig;
+    this.authMethod = config.authentication_method || 'key-based';
+    this.region = config.region || 'us-east-1';
+    this.ses = null;
+  }
+  
+  /**
+   * Initialize SES client with appropriate credentials
+   * Called lazily on first send to support async credential loading
+   */
+  async initializeSesClient() {
+    if (this.ses) {
+      return this.ses;
+    }
     
-    // Configure AWS SES
-    this.ses = new AWS.SES({
-      accessKeyId: config.access_key_id,
-      secretAccessKey: config.secret_access_key,
-      region: config.region || 'us-east-1'
-    });
+    const sesConfig = {
+      region: this.region
+    };
+    
+    if (this.authMethod === 'key-based') {
+      if (this.config.access_key_id && this.config.secret_access_key) {
+        sesConfig.accessKeyId = this.config.access_key_id;
+        sesConfig.secretAccessKey = this.config.secret_access_key;
+      }
+    } else if (this.authMethod === 'aws-iam-role') {
+      if (this.authConfig.role_arn) {
+        const credentials = await this.getAssumedRoleCredentials();
+        sesConfig.credentials = credentials;
+      }
+    }
+    
+    this.ses = new AWS.SES(sesConfig);
+    return this.ses;
+  }
+  
+  /**
+   * Get credentials by assuming an IAM role via STS
+   */
+  async getAssumedRoleCredentials() {
+    const { role_arn, external_id, session_duration = 3600, session_name } = this.authConfig;
+    
+    if (!role_arn) {
+      throw new Error('role_arn is required for AssumeRole authentication');
+    }
+    
+    const cacheKey = `ses:${role_arn}:${external_id || 'none'}`;
+    const cached = assumedRoleCacheSes.get(cacheKey);
+    
+    if (cached && cached.expiration > Date.now()) {
+      return cached.credentials;
+    }
+    
+    const sts = new AWS.STS({ region: this.region });
+    
+    const params = {
+      RoleArn: role_arn,
+      RoleSessionName: session_name || `DataObservatory-SES-${Date.now()}`,
+      DurationSeconds: Math.min(session_duration, 43200)
+    };
+    
+    if (external_id) {
+      params.ExternalId = external_id;
+    }
+    
+    try {
+      const response = await sts.assumeRole(params).promise();
+      const credentials = new AWS.Credentials({
+        accessKeyId: response.Credentials.AccessKeyId,
+        secretAccessKey: response.Credentials.SecretAccessKey,
+        sessionToken: response.Credentials.SessionToken
+      });
+      
+      assumedRoleCacheSes.set(cacheKey, {
+        credentials,
+        expiration: Date.now() + ASSUMED_ROLE_CACHE_TTL
+      });
+      
+      systemLogger?.info(`Successfully assumed role for SES: ${role_arn}`);
+      return credentials;
+    } catch (error) {
+      systemLogger?.error(`Failed to assume role for SES ${role_arn}:`, { error: error.message });
+      throw new Error(`AssumeRole failed for SES: ${error.message}`);
+    }
   }
 
   /**
@@ -28,6 +108,8 @@ class AwsSesAdapter extends EmailProviderAdapter {
    */
   async send(emailData) {
     try {
+      const ses = await this.initializeSesClient();
+      
       const params = {
         Source: emailData.from || this.config.from_email,
         Destination: {
@@ -71,7 +153,7 @@ class AwsSesAdapter extends EmailProviderAdapter {
         return await this.sendRawEmail(emailData);
       }
 
-      const result = await this.ses.sendEmail(params).promise();
+      const result = await ses.sendEmail(params).promise();
 
       systemLogger?.info('AWS SES email sent successfully', {
         messageId: result.MessageId,
@@ -163,7 +245,8 @@ class AwsSesAdapter extends EmailProviderAdapter {
         Destinations: Array.isArray(emailData.to) ? emailData.to : [emailData.to]
       };
 
-      const result = await this.ses.sendRawEmail(params).promise();
+      const ses = await this.initializeSesClient();
+      const result = await ses.sendRawEmail(params).promise();
 
       systemLogger?.info('AWS SES raw email sent successfully', {
         messageId: result.MessageId,
@@ -197,8 +280,9 @@ class AwsSesAdapter extends EmailProviderAdapter {
    */
   async testConnection() {
     try {
+      const ses = await this.initializeSesClient();
       // Get send quota to verify credentials
-      await this.ses.getSendQuota().promise();
+      await ses.getSendQuota().promise();
       return true;
     } catch (error) {
       systemLogger?.error('AWS SES connection test failed', {
