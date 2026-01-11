@@ -1020,8 +1020,8 @@ const Connections = () => {
                   className="form-control"
                   value={formData.source_access_key || ''}
                   onChange={handleInputChange}
-                  required
-                  placeholder="AKIAIOSFODNN7EXAMPLE"
+                  required={!editMode || !formData.has_source_access_key}
+                  placeholder={editMode && formData.has_source_access_key ? '(saved - leave blank to keep)' : 'AKIAIOSFODNN7EXAMPLE'}
                   style={compactStyles.input}
                 />
                 {editMode && formData.has_source_access_key && (
