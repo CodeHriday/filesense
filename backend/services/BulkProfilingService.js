@@ -202,19 +202,26 @@ class BulkProfilingService {
       // Configure AWS S3 - handle both transform and vendor connection formats
       let s3;
       
-      // Check for IAM role authentication
+      // Check for IAM role authentication - handle both nested auth_config and flat structure
       const authConfig = config.auth_config || {};
-      const authMethod = config.authentication_method || (authConfig.iam_role_arn ? 'aws-iam-role' : 'key-based');
+      // Check for iam_role_arn in both auth_config (saved connections) and flat config (raw credentials from form)
+      const iamRoleArn = authConfig.iam_role_arn || config.iam_role_arn;
+      const authMethod = config.authentication_method || (iamRoleArn ? 'aws-iam-role' : 'key-based');
       
-      if (authMethod === 'aws-iam-role' && authConfig.iam_role_arn) {
+      if (authMethod === 'aws-iam-role' && iamRoleArn) {
         // Use IAM role with source credentials for AssumeRole
+        // Support both nested (saved) and flat (form) credential structures
+        const sourceAccessKey = authConfig.source_access_key || config.source_access_key;
+        const sourceSecretKey = authConfig.source_secret_key || config.source_secret_key;
+        const externalId = authConfig.external_id || config.external_id;
+        
         try {
           const credentials = await connectionService.getAssumedRoleCredentials(
             {
-              role_arn: authConfig.iam_role_arn,
-              external_id: authConfig.external_id,
-              source_access_key: authConfig.source_access_key,
-              source_secret_key: authConfig.source_secret_key,
+              role_arn: iamRoleArn,
+              external_id: externalId,
+              source_access_key: sourceAccessKey,
+              source_secret_key: sourceSecretKey,
               session_duration: 3600,
               session_name: 'DataObservatory-Browse'
             },
