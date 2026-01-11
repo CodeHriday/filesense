@@ -330,8 +330,8 @@ router.post('/', async (req, res) => {
         auth_config.iam_role_arn = iam_role_arn;
         if (external_id) auth_config.external_id = external_id;
         // Encrypt and store source credentials for cross-account AssumeRole
-        if (source_access_key) auth_config.source_access_key = connectionService.encrypt(source_access_key);
-        if (source_secret_key) auth_config.source_secret_key = connectionService.encrypt(source_secret_key);
+        if (source_access_key) auth_config.source_access_key = encrypt(source_access_key);
+        if (source_secret_key) auth_config.source_secret_key = encrypt(source_secret_key);
         break;
       
       case 'gcp-sa-oidc':
@@ -604,8 +604,8 @@ router.put('/:id', async (req, res) => {
         if (iam_role_arn) auth_config.iam_role_arn = iam_role_arn;
         if (external_id) auth_config.external_id = external_id;
         // Encrypt and store source credentials for cross-account AssumeRole
-        if (source_access_key) auth_config.source_access_key = connectionService.encrypt(source_access_key);
-        if (source_secret_key) auth_config.source_secret_key = connectionService.encrypt(source_secret_key);
+        if (source_access_key) auth_config.source_access_key = encrypt(source_access_key);
+        if (source_secret_key) auth_config.source_secret_key = encrypt(source_secret_key);
         break;
       
       case 'gcp-sa-oidc':
