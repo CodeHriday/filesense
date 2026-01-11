@@ -543,9 +543,9 @@ router.put('/:id', async (req, res) => {
       }
     }
     
-    // Get existing connection
+    // Get existing connection including auth_config
     const existing = await db.query(
-      'SELECT config, authentication_method FROM storage_connections WHERE connection_id = $1',
+      'SELECT config, authentication_method, auth_config FROM storage_connections WHERE connection_id = $1',
       [id]
     );
     
@@ -557,6 +557,11 @@ router.put('/:id', async (req, res) => {
       ? JSON.parse(existing.rows[0].config) 
       : existing.rows[0].config;
     
+    // Get existing auth_config to preserve values when not provided
+    const existingAuthConfig = existing.rows[0].auth_config 
+      ? (typeof existing.rows[0].auth_config === 'string' ? JSON.parse(existing.rows[0].auth_config) : existing.rows[0].auth_config)
+      : {};
+    
     // Update config
     const config = { ...existingConfig };
     const provider = connection_type || existingConfig.provider || existingConfig.connection_type;
@@ -565,8 +570,8 @@ router.put('/:id', async (req, res) => {
     if (connection_name) config.connection_name = connection_name;
     if (connection_type) config.connection_type = connection_type;
     
-    // Build auth_config if authentication method is provided
-    const auth_config = {};
+    // Build auth_config starting from existing values to preserve saved credentials
+    const auth_config = { ...existingAuthConfig };
     const effectiveAuthMethod = authentication_method || existing.rows[0].authentication_method || 'key-based';
     
     switch (effectiveAuthMethod) {
