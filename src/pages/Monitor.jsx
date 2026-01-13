@@ -15,6 +15,7 @@ function Monitor() {
   const [error, setError] = useState(null);
   const [expandedRows, setExpandedRows] = useState(new Set());
   const [auditLogs, setAuditLogs] = useState({});
+  const [autoRefresh, setAutoRefresh] = useState(false);
   
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -51,6 +52,24 @@ function Monitor() {
       fetchLedgerData();
     }
   }, [currentPage, pageSize, activeTab]);
+  
+  useEffect(() => {
+    if (!autoRefresh) return;
+    
+    const interval = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        if (activeTab === 'file-audit') {
+          fetchAuditData();
+        } else if (activeTab === 'bulk-profiling') {
+          fetchBulkJobs();
+        } else if (activeTab === 'audit-ledger') {
+          fetchLedgerData();
+        }
+      }
+    }, 5000);
+    
+    return () => clearInterval(interval);
+  }, [autoRefresh, activeTab]);
   
   const fetchAuditData = async (filtersOverride = null) => {
     try {
@@ -384,6 +403,15 @@ function Monitor() {
           <span className="gps-results-info">
             {totalRecords} total records
           </span>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '10px', color: '#374151', cursor: 'pointer' }}>
+            <input
+              type="checkbox"
+              checked={autoRefresh}
+              onChange={(e) => setAutoRefresh(e.target.checked)}
+              style={{ width: '14px', height: '14px', accentColor: '#025043', cursor: 'pointer' }}
+            />
+            Auto-refresh (5s)
+          </label>
           <button 
             onClick={handleRefresh}
             className="monitor-btn-refresh"
