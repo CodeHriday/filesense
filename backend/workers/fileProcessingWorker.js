@@ -263,9 +263,10 @@ class FileProcessingWorker {
    * Process a single file upload job
    */
   async processJob(jobId, job) {
-    const { fileId, filePath, originalName, fileSize, fileType, userId, fileHash, projectId, subProjectId, qualityRuleIds, agreementId, isVendorFile, delimiter, headerConfig, fixedWidthSchema } = job.data;
-    // Extract archivePassword separately with let since we may need to reassign it from vault lookup
+    const { fileId, filePath, originalName, fileSize, fileType, userId, fileHash, projectId, subProjectId, qualityRuleIds, agreementId, isVendorFile, headerConfig, fixedWidthSchema } = job.data;
+    // Extract archivePassword and delimiter separately with let since we may need to reassign them
     let archivePassword = job.data.archivePassword;
+    let delimiter = job.data.delimiter;
     const startTime = Date.now();
     
     // Get retry information from job options (BullMQ)
