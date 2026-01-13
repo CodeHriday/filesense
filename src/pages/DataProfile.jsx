@@ -3336,6 +3336,9 @@ function DataProfile() {
                   <span><strong>Uploaded:</strong> {getTimeSince(file.created_at)}</span>
                   <span><strong>Encoding:</strong> {file.encoding || profile?.basic_info?.encoding || 'UTF-8'}</span>
                   <span><strong>Format:</strong> {file.file_type || 'Unknown'}</span>
+                  {file.metadata?.delimiter && (
+                    <span><strong>Delimiter:</strong> <code style={{ backgroundColor: '#f3f4f6', padding: '2px 6px', borderRadius: '4px', fontFamily: 'monospace' }}>{file.metadata.delimiter === '\t' ? '\\t (tab)' : file.metadata.delimiter}</code></span>
+                  )}
                   <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                     <strong>Virus Scan:</strong>
                     {file.metadata?.virus_scan_status === 'completed' ? (

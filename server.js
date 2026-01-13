@@ -7760,7 +7760,7 @@ app.post('/api/files/:fileId/delimiter', authenticateToken, async (req, res) => 
         const connectionService = require('./backend/services/ConnectionService');
         const connectionResult = await dbPool.query(
           `SELECT * FROM storage_connections 
-           WHERE (config->>'bucket' = $1 OR config->>'drop_location_bucket' = $1) 
+           WHERE (config->>'bucket' = $1 OR config->>'bucket_name' = $1 OR config->>'drop_location_bucket' = $1) 
            AND (is_deleted = false OR is_deleted IS NULL) 
            LIMIT 1`,
           [s3Bucket]
