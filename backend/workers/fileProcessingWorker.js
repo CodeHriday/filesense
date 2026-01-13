@@ -338,6 +338,13 @@ class FileProcessingWorker {
           skipped: scanResult.skipped || false,
           message: scanResult.skipped ? 'Scan skipped - virus definitions unavailable' : 'No threats detected'
         });
+        
+        // Store virus scan status in file metadata
+        const virusScanStatus = scanResult.skipped ? 'skipped' : 'completed';
+        await this.dbPool.query(
+          `UPDATE files SET metadata = COALESCE(metadata, '{}'::jsonb) || $1::jsonb WHERE file_id = $2`,
+          [JSON.stringify({ virus_scan_status: virusScanStatus, virus_scan_message: scanResult.skipped ? 'Scan skipped - ClamAV unavailable' : 'No threats detected' }), fileId]
+        );
       } catch (scanError) {
         if (scanError.message.includes('Virus detected')) {
           throw scanError; // Re-throw virus detection errors
@@ -347,6 +354,12 @@ class FileProcessingWorker {
           fileId,
           error: scanError.message
         });
+        
+        // Store virus scan failure status
+        await this.dbPool.query(
+          `UPDATE files SET metadata = COALESCE(metadata, '{}'::jsonb) || $1::jsonb WHERE file_id = $2`,
+          [JSON.stringify({ virus_scan_status: 'skipped', virus_scan_message: 'Scan skipped - ' + scanError.message }), fileId]
+        );
       }
       
       await this.queue.updateProgress(jobId, 15);

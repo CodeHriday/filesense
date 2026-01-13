@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import { useParams, Link } from 'react-router-dom';
-import { FiFileText, FiBarChart2, FiDownload, FiTable, FiCopy, FiEdit2, FiUser, FiClock, FiCheckCircle, FiAlertTriangle, FiXCircle, FiGitBranch, FiZap, FiPlay, FiRefreshCw, FiArrowLeft } from 'react-icons/fi';
+import { FiFileText, FiBarChart2, FiDownload, FiTable, FiCopy, FiEdit2, FiUser, FiClock, FiCheckCircle, FiAlertTriangle, FiXCircle, FiGitBranch, FiZap, FiPlay, FiRefreshCw, FiArrowLeft, FiX, FiShield } from 'react-icons/fi';
 import Card from '../components/Card';
 import LoadingSpinner from '../components/LoadingSpinner';
 import FilePreview from '../components/FilePreview';
@@ -250,71 +250,67 @@ function DelimiterConfigModal({ fileId, onClose, onSave, setErrorMessage }) {
   };
 
   return (
-    <div className="modal-overlay">
-      <div className="modal-content" style={{ maxWidth: '500px' }}>
-        <h2>Configure File Delimiter</h2>
-        <p style={{ marginBottom: '20px', color: '#64748b' }}>
-          Specify the delimiter used in this delimited file to parse columns correctly.
-        </p>
-        
-        <div className="form-group">
-          <label htmlFor="delimiter-select" style={{ fontWeight: 'bold', display: 'block', marginBottom: '0.5rem' }}>
-            Delimiter Type:
-          </label>
-          <select 
-            id="delimiter-select"
-            value={delimiterType}
-            onChange={(e) => {
-              setDelimiterType(e.target.value);
-              if (e.target.value !== 'custom') {
-                setCustomDelimiter('');
-              }
-            }}
-            className="form-control"
-            style={{ marginBottom: delimiterType === 'custom' ? '1rem' : '0' }}
-          >
-            <option value="comma">Comma (,)</option>
-            <option value="pipe">Pipe (|)</option>
-            <option value="tab">Tab (\t)</option>
-            <option value="semicolon">Semicolon (;)</option>
-            <option value="custom">Custom Delimiter...</option>
-          </select>
+    <div className="gps-modal-overlay">
+      <div className="gps-modal" style={{ maxWidth: '500px' }}>
+        <div className="gps-modal-header">
+          <h2 className="gps-modal-title">Configure File Delimiter</h2>
+          <button className="gps-modal-close" onClick={onClose} disabled={saving}>
+            <FiX />
+          </button>
+        </div>
+        <div className="gps-modal-body">
+          <div className="gps-form-group">
+            <label htmlFor="delimiter-select" className="gps-form-label">Delimiter Type</label>
+            <select 
+              id="delimiter-select"
+              className="gps-form-select"
+              value={delimiterType}
+              onChange={(e) => {
+                setDelimiterType(e.target.value);
+                if (e.target.value !== 'custom') {
+                  setCustomDelimiter('');
+                }
+              }}
+            >
+              <option value="comma">Comma (,)</option>
+              <option value="pipe">Pipe (|)</option>
+              <option value="tab">Tab (\t)</option>
+              <option value="semicolon">Semicolon (;)</option>
+              <option value="custom">Custom Delimiter...</option>
+            </select>
+          </div>
           
           {delimiterType === 'custom' && (
-            <div style={{ marginTop: '1rem' }}>
-              <label htmlFor="custom-delimiter-input" style={{ fontWeight: 'bold', display: 'block', marginBottom: '0.5rem' }}>
-                Enter Custom Delimiter:
-              </label>
+            <div className="gps-form-group">
+              <label htmlFor="custom-delimiter-input" className="gps-form-label">Enter Custom Delimiter</label>
               <input 
                 id="custom-delimiter-input"
                 type="text"
+                className="gps-form-input"
                 value={customDelimiter}
                 onChange={(e) => setCustomDelimiter(e.target.value)}
                 placeholder="e.g., ~^ or || or any multi-character string"
-                className="form-control"
                 style={{ fontFamily: 'monospace' }}
               />
-              <div style={{ fontSize: '0.75rem', color: '#666', marginTop: '0.5rem' }}>
-                Supports multi-character delimiters (e.g., '~^', '||', '::')
-              </div>
+              <span className="gps-form-hint">Supports multi-character delimiters (e.g., '~^', '||', '::')</span>
             </div>
           )}
         </div>
         
-        <div className="modal-footer">
+        <div className="gps-modal-footer">
           <button
-            className="btn btn-secondary"
+            className="gps-btn gps-btn--secondary"
             onClick={onClose}
             disabled={saving}
           >
             Cancel
           </button>
           <button
-            className="btn btn-primary"
+            className="gps-btn gps-btn--primary"
             onClick={handleSave}
             disabled={saving}
           >
-            {saving ? 'Saving...' : 'Save & Re-profile'}
+            {saving ? 'Saving...' : 'Save & Re-Profile'}
           </button>
         </div>
       </div>
@@ -3335,11 +3331,25 @@ function DataProfile() {
                 </div>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '10px', color: '#666', borderTop: '1px solid #e2e8f0', paddingTop: '12px' }}>
-                <div style={{ display: 'flex', gap: '20px' }}>
+                <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap' }}>
                   <span><strong>Size:</strong> {file.file_size ? formatBytes(file.file_size) : 'Unknown'}</span>
                   <span><strong>Uploaded:</strong> {getTimeSince(file.created_at)}</span>
                   <span><strong>Encoding:</strong> {file.encoding || profile?.basic_info?.encoding || 'UTF-8'}</span>
                   <span><strong>Format:</strong> {file.file_type || 'Unknown'}</span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <strong>Virus Scan:</strong>
+                    {file.metadata?.virus_scan_status === 'completed' ? (
+                      <span style={{ color: '#059669', display: 'flex', alignItems: 'center', gap: '2px' }}>
+                        <FiCheckCircle size={12} /> Completed
+                      </span>
+                    ) : file.metadata?.virus_scan_status === 'skipped' ? (
+                      <span style={{ color: '#d97706', display: 'flex', alignItems: 'center', gap: '2px' }} title={file.metadata?.virus_scan_message || 'Scan was skipped'}>
+                        <FiAlertTriangle size={12} /> Skipped
+                      </span>
+                    ) : (
+                      <span style={{ color: '#6b7280' }}>N/A</span>
+                    )}
+                  </span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <strong>Sensitivity:</strong>
