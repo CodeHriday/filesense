@@ -355,6 +355,14 @@
   text-decoration: none;
   display: flex;
   align-items: center;
+  gap: 8px;
+}
+
+.sidebar-logo-img {
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+  flex-shrink: 0;
 }
 
 .sidebar-logo h1 {
@@ -501,6 +509,7 @@
 
 /* Collapsed sidebar adjustments for new sections */
 .sidebar.collapsed .sidebar-logo h1,
+.sidebar.collapsed .sidebar-logo-img,
 .sidebar.collapsed .sidebar-username {
   display: none;
 }

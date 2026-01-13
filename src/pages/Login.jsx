@@ -219,6 +219,17 @@ const Login = () => {
       <div className="marketing-content">
         <div className="marketing-scroll-container">
           <div className="hero-section animate-on-scroll">
+            <div className="hero-logo-container">
+              <img 
+                src="/images/filesense-logo.png" 
+                alt="FileSense" 
+                className="hero-logo"
+                onError={(e) => {
+                  e.target.onerror = null;
+                  e.target.style.display = 'none';
+                }}
+              />
+            </div>
             <div className="hero-badge">FILESENSE</div>
             <h1 className="hero-title">
               End-to-end file data quality, governance, and observability — with minimal operational effort.
@@ -318,8 +329,8 @@ const Login = () => {
         <div className="login-card-glass">
           <div className="login-header">
             <img 
-              src="/images/blumetra-logo.png" 
-              alt="Blumetra" 
+              src="/images/filesense-logo.png" 
+              alt="FileSense" 
               className="login-logo" 
               onError={(e) => {
                 e.target.onerror = null;
