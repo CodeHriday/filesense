@@ -325,17 +325,17 @@ export const FileCatalog = ({ onFileSelect }) => {
       // Filter by file type
       const matchesType = selectedType === 'all' || file.file_type === selectedType;
       
-      // Filter by project
-      const matchesProject = selectedProject === 'all' || file.project_id === selectedProject;
+      // Filter by project (use String() to handle mixed number/string ID types from API)
+      const matchesProject = selectedProject === 'all' || String(file.project_id) === String(selectedProject);
       
-      // Filter by sub-project
+      // Filter by sub-project (use String() to handle mixed number/string ID types from API)
       let matchesSubProject;
       if (selectedSubProject === 'all') {
         matchesSubProject = true;
       } else if (selectedSubProject === 'none') {
         matchesSubProject = !file.sub_project_id;
       } else {
-        matchesSubProject = file.sub_project_id === selectedSubProject;
+        matchesSubProject = String(file.sub_project_id) === String(selectedSubProject);
       }
       
       return matchesSearch && matchesType && matchesProject && matchesSubProject;
