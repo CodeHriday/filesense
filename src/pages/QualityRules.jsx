@@ -232,7 +232,7 @@ function QualityRules() {
     
     switch (formData.rule_type) {
       case 'completeness':
-        if (!config.threshold || config.threshold < 0 || config.threshold > 100) {
+        if (config.threshold === undefined || config.threshold === null || config.threshold < 0 || config.threshold > 100) {
           errors.threshold = 'Threshold must be between 0 and 100';
         }
         if (!formData.column_name && !config.columns?.length) {
@@ -327,10 +327,14 @@ function QualityRules() {
   };
 
   const handleRuleTypeChange = (newType) => {
+    const defaultConfig = {};
+    if (newType === 'completeness') {
+      defaultConfig.threshold = 95;
+    }
     setFormData({
       ...formData,
       rule_type: newType,
-      rule_config: {}
+      rule_config: defaultConfig
     });
     setFormErrors({});
   };
