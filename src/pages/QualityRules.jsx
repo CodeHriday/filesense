@@ -1067,21 +1067,21 @@ function QualityRules() {
             </div>
             <form onSubmit={handleSubmitRule}>
               <div className="gps-modal-body" style={{ maxHeight: '60vh', overflowY: 'auto' }}>
+                <div className="gps-form-group">
+                  <label htmlFor="rule-name" className="gps-form-label">Rule Name *</label>
+                  <input
+                    id="rule-name"
+                    type="text"
+                    className="gps-form-input"
+                    value={formData.rule_name}
+                    onChange={(e) => setFormData({ ...formData, rule_name: e.target.value })}
+                    placeholder="e.g., Email Address Completeness"
+                    required
+                  />
+                  {formErrors.rule_name && <span className="gps-form-hint" style={{ color: '#e53e3e' }}>{formErrors.rule_name}</span>}
+                </div>
+                
                 <div className="gps-form-row">
-                  <div className="gps-form-group">
-                    <label htmlFor="rule-name" className="gps-form-label">Rule Name *</label>
-                    <input
-                      id="rule-name"
-                      type="text"
-                      className="gps-form-input"
-                      value={formData.rule_name}
-                      onChange={(e) => setFormData({ ...formData, rule_name: e.target.value })}
-                      placeholder="e.g., Email Address Completeness"
-                      required
-                    />
-                    {formErrors.rule_name && <span className="gps-form-hint" style={{ color: '#e53e3e' }}>{formErrors.rule_name}</span>}
-                  </div>
-                  
                   <div className="gps-form-group">
                     <label htmlFor="project-select" className="gps-form-label">Project (Optional)</label>
                     <select
@@ -1098,9 +1098,7 @@ function QualityRules() {
                       ))}
                     </select>
                   </div>
-                </div>
-                
-                {formData.project_id && (
+                  
                   <div className="gps-form-group">
                     <label htmlFor="subproject-select" className="gps-form-label">Sub-Project (Optional)</label>
                     <select
@@ -1108,16 +1106,23 @@ function QualityRules() {
                       className="gps-form-select"
                       value={formData.sub_project_id}
                       onChange={(e) => setFormData({ ...formData, sub_project_id: e.target.value })}
+                      disabled={!formData.project_id}
                     >
-                      <option value="">None (Parent Project Level)</option>
-                      {subProjects.map(subProject => (
-                        <option key={subProject.id} value={subProject.id}>
-                          {subProject.name}
-                        </option>
-                      ))}
+                      {formData.project_id ? (
+                        <>
+                          <option value="">None (Parent Project Level)</option>
+                          {subProjects.map(subProject => (
+                            <option key={subProject.id} value={subProject.id}>
+                              {subProject.name}
+                            </option>
+                          ))}
+                        </>
+                      ) : (
+                        <option value="">Select a project first</option>
+                      )}
                     </select>
                   </div>
-                )}
+                </div>
                 
                 <div className="gps-form-group">
                   <label htmlFor="rule-description" className="gps-form-label">Description</label>
@@ -1150,7 +1155,6 @@ function QualityRules() {
                       <option value="length_check">Length Check (Generic)</option>
                       <option value="range_check">Range Check (Generic)</option>
                     </select>
-                    <span className="gps-form-hint">{getRuleTypeDescription(formData.rule_type)}</span>
                   </div>
                   
                   <div className="gps-form-group">
