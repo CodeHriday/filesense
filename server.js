@@ -2710,12 +2710,13 @@ app.post('/api/files/upload', authenticateToken, invalidateCache('cache:*:*files
         
         // Create placeholder file record immediately to prevent 404 race condition during status polling
         try {
+          const placeholderMetadata = JSON.stringify({ file_path: file.path });
           await dbPool.query(`
-            INSERT INTO files (file_id, filename, file_type, file_size, project_id, processing_step, checksum, created_at)
-            VALUES ($1, $2, $3, $4, $5, 'queued', $6, NOW())
+            INSERT INTO files (file_id, filename, file_type, file_size, project_id, processing_step, checksum, metadata, created_at)
+            VALUES ($1, $2, $3, $4, $5, 'queued', $6, $7::jsonb, NOW())
             ON CONFLICT (file_id) DO NOTHING
-          `, [fileId, file.originalname, fileType, file.size, projectId, fileHash]);
-          logger.info('Placeholder file record created', { fileId, filename: file.originalname });
+          `, [fileId, file.originalname, fileType, file.size, projectId, fileHash, placeholderMetadata]);
+          logger.info('Placeholder file record created', { fileId, filename: file.originalname, filePath: file.path });
         } catch (placeholderError) {
           logger.warn('Failed to create placeholder file record - processing will continue', { 
             fileId, 
@@ -10593,6 +10594,50 @@ app.post('/api/files/:fileId/quality/check', authenticateToken, async (req, res)
   }
 });
 
+// Debug route to manually trigger orphan file recovery
+app.get('/api/debug/recover-orphans', async (req, res) => {
+  try {
+    // Check queue state first
+    const queueStats = {
+      hasQueue: !!fileWorker.queue,
+      hasOnJobWaiting: !!(fileWorker.queue && fileWorker.queue.onJobWaiting),
+      jobsMapSize: fileWorker.queue && fileWorker.queue.jobs ? fileWorker.queue.jobs.size : 'N/A',
+      queuesMapSize: fileWorker.queue && fileWorker.queue.queues ? fileWorker.queue.queues.size : 'N/A',
+      listenerCount: fileWorker.queue && fileWorker.queue.emitter ? 
+        fileWorker.queue.emitter.listenerCount('file-processing:waiting') : 'N/A'
+    };
+    
+    // Check orphaned files in DB
+    const orphanedFiles = await dbPool.query(`
+      SELECT file_id, filename, processing_step, created_at
+      FROM files 
+      WHERE processing_step = 'queued'
+        AND created_at < NOW() - INTERVAL '2 minutes'
+        AND created_at > NOW() - INTERVAL '24 hours'
+      LIMIT 5
+    `);
+    
+    const result = await fileWorker.recoverOrphanedJobs();
+    
+    // Check files again after recovery
+    const filesAfter = await dbPool.query(`
+      SELECT file_id, filename, processing_step, updated_at
+      FROM files 
+      WHERE file_id = ANY($1)
+    `, [orphanedFiles.rows.map(f => f.file_id)]);
+    
+    res.json({ 
+      success: true, 
+      message: 'Orphan recovery triggered',
+      queueStats,
+      orphanedFilesBefore: orphanedFiles.rows,
+      filesAfterRecovery: filesAfter.rows
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message, stack: error.stack });
+  }
+});
+
 // Debug route to check password hashing - REMOVE IN PRODUCTION
 app.get('/api/debug/hash-password/:password', async (req, res) => {
   try {
@@ -12899,6 +12944,16 @@ async function startServer() {
       logger.info('Materialized view refresh worker started');
     } catch (error) {
       logger.warn('Materialized view worker not started', { error: error.message });
+    }
+    
+    // Trigger orphan recovery for queued files after database is ready
+    try {
+      logger.info('Triggering orphan file recovery...');
+      fileWorker.recoverOrphanedJobs().catch(err => {
+        logger.error('Failed to recover orphaned jobs', { error: err.message });
+      });
+    } catch (error) {
+      logger.warn('Could not trigger orphan recovery', { error: error.message });
     }
     
     // Start the HTTP server - bind to 0.0.0.0 for Replit

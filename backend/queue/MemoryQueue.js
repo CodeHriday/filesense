@@ -68,6 +68,8 @@ class MemoryQueue extends QueueInterface {
 
     // Emit job waiting event
     setImmediate(() => {
+      const listenerCount = this.emitter.listenerCount(`${queueName}:waiting`);
+      console.log(`[QUEUE] Emitting waiting event for job ${jobId}, listeners: ${listenerCount}`);
       this.emitter.emit(`${queueName}:waiting`, jobId, job);
     });
 

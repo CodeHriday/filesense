@@ -244,9 +244,27 @@ class FileProcessingWorker {
     this.logger.info('🚀 File processing worker started');
 
     // Subscribe to new jobs
+    console.log('[FILE WORKER] Checking onJobWaiting availability:', !!this.queue.onJobWaiting);
     this.queue.onJobWaiting && this.queue.onJobWaiting('file-processing', async (jobId, job) => {
-      await this.processJob(jobId, job);
+      try {
+        console.log('[FILE WORKER] Job waiting callback triggered for:', jobId, 'fileId:', job.data?.fileId);
+        await this.processJob(jobId, job);
+      } catch (callbackError) {
+        console.error('[FILE WORKER] ERROR in callback:', callbackError.message, callbackError.stack);
+        // Try to mark file as failed in database
+        if (job.data?.fileId) {
+          try {
+            await this.dbPool.query(
+              'UPDATE files SET processing_step = $1, processing_error = $2, updated_at = NOW() WHERE file_id = $3',
+              ['failed', `Callback error: ${callbackError.message}`, job.data.fileId]
+            );
+          } catch (dbErr) {
+            console.error('[FILE WORKER] Failed to update file status:', dbErr.message);
+          }
+        }
+      }
     });
+    console.log('[FILE WORKER] onJobWaiting listener registered');
 
     // Log completion events
     this.queue.onJobCompleted('file-processing', (jobId, result) => {
@@ -257,6 +275,133 @@ class FileProcessingWorker {
     this.queue.onJobFailed('file-processing', (jobId, error) => {
       this.logger.error('File processing failed', { jobId, error: error.message });
     });
+
+    // Recover orphaned jobs after a short delay to allow queue setup
+    setTimeout(() => this.recoverOrphanedJobs(), 2000);
+  }
+
+  /**
+   * Recover orphaned jobs that are stuck in 'queued' state in the database
+   * This can happen when the server restarts while jobs were in the in-memory queue
+   */
+  async recoverOrphanedJobs() {
+    try {
+      console.log('[ORPHAN RECOVERY] Starting orphan recovery check...');
+      console.log('[ORPHAN RECOVERY] dbPool exists:', !!this.dbPool);
+      this.logger.info('Checking for orphaned queued files...');
+      
+      if (!this.dbPool) {
+        console.error('[ORPHAN RECOVERY] ERROR: dbPool is not available!');
+        return;
+      }
+      
+      // Write debug status to database for verification
+      await this.dbPool.query(
+        `INSERT INTO system_settings (setting_key, setting_value) 
+         VALUES ('orphan_recovery_last_run', $1)
+         ON CONFLICT (setting_key) DO UPDATE SET setting_value = $1`,
+        [new Date().toISOString()]
+      ).catch(e => console.log('[ORPHAN RECOVERY] Could not write debug status:', e.message));
+      
+      const result = await this.dbPool.query(`
+        SELECT f.file_id, f.filename, f.file_size, f.file_type, f.project_id, f.sub_project_id, 
+               f.vendor_agreement_id, f.is_vendor_file, f.metadata
+        FROM files f
+        WHERE f.processing_step = 'queued'
+          AND f.created_at < NOW() - INTERVAL '2 minutes'
+          AND f.created_at > NOW() - INTERVAL '24 hours'
+        ORDER BY f.created_at ASC
+        LIMIT 20
+      `);
+
+      console.log(`[ORPHAN RECOVERY] Query returned ${result.rows.length} orphaned files`);
+      
+      if (result.rows.length === 0) {
+        this.logger.info('No orphaned queued files found');
+        return;
+      }
+
+      console.log('[ORPHAN RECOVERY] Found orphaned files:', result.rows.map(r => r.file_id));
+      this.logger.info(`Found ${result.rows.length} orphaned queued files, re-queueing...`);
+
+      for (const file of result.rows) {
+        try {
+          const fs = require('fs');
+          const path = require('path');
+          
+          let filePath = file.metadata?.file_path;
+          
+          if (!filePath || !fs.existsSync(filePath)) {
+            const uploadsDir = 'uploads';
+            const files = fs.readdirSync(uploadsDir);
+            const filenamePattern = file.filename.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const matchingFile = files.find(f => f.endsWith(`-${file.filename}`) || f === file.filename);
+            
+            if (matchingFile) {
+              filePath = path.join(uploadsDir, matchingFile);
+              this.logger.info('Found matching file on disk', { 
+                fileId: file.file_id, 
+                filename: file.filename,
+                foundPath: filePath 
+              });
+            }
+          }
+          
+          if (!filePath || !fs.existsSync(filePath)) {
+            this.logger.warn('Orphaned file not found on disk, marking as failed', { 
+              fileId: file.file_id, 
+              filename: file.filename
+            });
+            await this.dbPool.query(
+              `UPDATE files SET processing_step = 'failed', processing_error = $1 WHERE file_id = $2`,
+              ['File not found on disk after server restart', file.file_id]
+            );
+            continue;
+          }
+
+          const jobData = {
+            fileId: file.file_id,
+            filePath,
+            originalName: file.filename,
+            fileSize: file.file_size,
+            fileType: file.file_type,
+            projectId: file.project_id,
+            subProjectId: file.sub_project_id,
+            agreementId: file.vendor_agreement_id,
+            isVendorFile: file.is_vendor_file,
+            delimiter: file.metadata?.delimiter,
+            headerConfig: file.metadata?.headerConfig,
+            fixedWidthSchema: file.metadata?.fixedWidthSchema,
+            archivePassword: file.metadata?.archivePassword
+          };
+
+          const jobId = await this.queue.addJob('file-processing', jobData);
+          this.logger.info('Re-queued orphaned file', { 
+            fileId: file.file_id, 
+            filename: file.filename,
+            newJobId: jobId 
+          });
+
+        } catch (requeueError) {
+          this.logger.error('Failed to re-queue orphaned file', {
+            fileId: file.file_id,
+            error: requeueError.message
+          });
+        }
+      }
+    } catch (error) {
+      console.error('[ORPHAN RECOVERY] ERROR:', error.message, error.stack);
+      this.logger.error('Failed to recover orphaned jobs', { error: error.message });
+    }
+  }
+
+  /**
+   * Extract file extension from filename
+   */
+  getExtensionFromFilename(filename) {
+    if (!filename) return '';
+    const match = filename.match(/\.[^.]+$/);
+    return match ? match[0] : '';
   }
 
   /**
@@ -556,6 +701,12 @@ class FileProcessingWorker {
             extractedCount: extractionResult.extractedCount,
             files: extractionResult.files.map(f => f.filename)
           });
+
+          // Update file processing_step to 'completed' for archive files
+          await this.dbPool.query(
+            'UPDATE files SET processing_step = $1, updated_at = NOW() WHERE file_id = $2',
+            ['completed', fileId]
+          );
 
           // Complete the job - extracted files will be queued separately
           await this.queue.completeJob(jobId, {
