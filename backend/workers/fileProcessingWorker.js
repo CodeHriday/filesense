@@ -702,10 +702,10 @@ class FileProcessingWorker {
             files: extractionResult.files.map(f => f.filename)
           });
 
-          // Update file processing_step to 'completed' for archive files
+          // Update file processing_step to 'complete' for archive files
           await this.dbPool.query(
             'UPDATE files SET processing_step = $1, updated_at = NOW() WHERE file_id = $2',
-            ['completed', fileId]
+            ['complete', fileId]
           );
 
           // Complete the job - extracted files will be queued separately
