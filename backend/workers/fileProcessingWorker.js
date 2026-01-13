@@ -308,7 +308,7 @@ class FileProcessingWorker {
                f.vendor_agreement_id, f.is_vendor_file, f.metadata
         FROM files f
         WHERE f.processing_step = 'queued'
-          AND f.created_at < NOW() - INTERVAL '2 minutes'
+          AND f.created_at < NOW() - INTERVAL '5 minutes'
           AND f.created_at > NOW() - INTERVAL '24 hours'
         ORDER BY f.created_at ASC
         LIMIT 20
