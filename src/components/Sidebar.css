@@ -361,8 +361,11 @@
 .sidebar-logo-img {
   width: 28px;
   height: 28px;
+  min-width: 28px;
+  min-height: 28px;
   object-fit: contain;
   flex-shrink: 0;
+  display: block;
 }
 
 .sidebar-logo h1 {
