@@ -731,6 +731,11 @@ class FileProcessingWorker {
 
               // Update the parent archive file with profiling metrics from the extracted file
               if (profileResult) {
+                // Flask API returns snake_case: row_count, column_count, schema
+                const rowCount = profileResult.row_count || 0;
+                const columnCount = profileResult.column_count || 0;
+                const schema = profileResult.schema || null;
+                
                 await this.dbPool.query(
                   `UPDATE files SET 
                     row_count = $1,
@@ -740,17 +745,17 @@ class FileProcessingWorker {
                     updated_at = NOW()
                   WHERE file_id = $4`,
                   [
-                    profileResult.rowCount || 0,
-                    profileResult.columnCount || 0,
-                    profileResult.schemaDefinition ? JSON.stringify(profileResult.schemaDefinition) : null,
+                    rowCount,
+                    columnCount,
+                    schema ? JSON.stringify(schema) : null,
                     fileId
                   ]
                 );
 
                 this.logger.info('Archive profiling metrics updated from extracted file', {
                   fileId,
-                  rowCount: profileResult.rowCount,
-                  columnCount: profileResult.columnCount
+                  rowCount,
+                  columnCount
                 });
               }
             } catch (profileError) {
