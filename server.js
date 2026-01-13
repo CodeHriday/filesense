@@ -7695,7 +7695,95 @@ app.post('/api/files/:fileId/delimiter', authenticateToken, async (req, res) => 
     
     const { filename, created_at, file_type, file_size, checksum, project_id, sub_project_id, vendor_agreement_id } = fileDetails;
     const createdAtString = created_at instanceof Date ? created_at.toISOString() : created_at;
-    const storagePath = path.join(process.env.FILE_STORAGE_PATH || './file_storage', createdAtString.substring(0, 10), filename);
+    
+    // Determine file path - check if file is in S3 (vendor file) or local storage
+    let storagePath;
+    const s3Bucket = metadata.s3_bucket;
+    const s3Key = metadata.s3_key;
+    
+    const fs = require('fs');
+    const { pipeline } = require('stream/promises');
+    const os = require('os');
+    
+    if (s3Bucket && s3Key) {
+      // File is in S3 - download to temp directory for re-profiling using streaming
+      logger.info('File is stored in S3, downloading for re-profiling', { fileId, s3Bucket, s3Key });
+      
+      const tempDir = path.join(os.tmpdir(), 'reprofile');
+      
+      // Ensure temp directory exists
+      if (!fs.existsSync(tempDir)) {
+        fs.mkdirSync(tempDir, { recursive: true });
+      }
+      
+      storagePath = path.join(tempDir, `${fileId}_${filename}`);
+      
+      try {
+        // Get connection for the S3 bucket
+        const connectionService = require('./backend/services/ConnectionService');
+        const connectionResult = await dbPool.query(
+          `SELECT * FROM storage_connections 
+           WHERE (config->>'bucket' = $1 OR config->>'drop_location_bucket' = $1) 
+           AND is_active = true 
+           LIMIT 1`,
+          [s3Bucket]
+        );
+        
+        if (connectionResult.rows.length === 0) {
+          logger.error('No active S3 connection found for bucket', { s3Bucket });
+          return res.status(500).json({ 
+            error: 'Cannot re-profile: No active S3 connection found for this file\'s storage location'
+          });
+        }
+        
+        const connection = connectionResult.rows[0];
+        const s3 = await connectionService.createS3Client(connection);
+        
+        // Stream download from S3 using pipeline for proper backpressure and cleanup
+        const s3Stream = s3.getObject({
+          Bucket: s3Bucket,
+          Key: s3Key
+        }).createReadStream();
+        
+        const writeStream = fs.createWriteStream(storagePath);
+        
+        await pipeline(s3Stream, writeStream);
+        
+        logger.info('File streamed from S3 for re-profiling', { fileId, storagePath });
+        
+      } catch (s3Error) {
+        // Clean up partial file on error
+        try {
+          if (fs.existsSync(storagePath)) {
+            fs.unlinkSync(storagePath);
+          }
+        } catch (cleanupError) {
+          logger.warn('Failed to cleanup partial temp file', { storagePath, error: cleanupError.message });
+        }
+        
+        logger.error('Failed to download file from S3 for re-profiling', { 
+          fileId, 
+          s3Bucket, 
+          s3Key, 
+          error: s3Error.message 
+        });
+        return res.status(500).json({ 
+          error: 'Failed to download file from storage for re-profiling',
+          details: s3Error.message 
+        });
+      }
+    } else {
+      // Local file - use original storage path
+      storagePath = path.join(process.env.FILE_STORAGE_PATH || './file_storage', createdAtString.substring(0, 10), filename);
+      
+      // Verify local file exists
+      if (!fs.existsSync(storagePath)) {
+        logger.error('Local file not found for re-profiling', { fileId, storagePath });
+        return res.status(500).json({ 
+          error: 'File not found for re-profiling. The file may have been removed from local storage.'
+        });
+      }
+    }
     
     // Clear existing profiling data
     await dbPool.query(
