@@ -965,6 +965,7 @@ function DataProfile() {
   const [isProcessing, setIsProcessing] = useState(false); // Track if file is still processing
   const pollingIntervalRef = React.useRef(null);
   const pollingStartTimeRef = React.useRef(null);
+  const pendingRulesRunRef = React.useRef(false); // Flag to run quality rules after S3 re-profiling completes
   
   const getAdaptivePollingDelay = () => {
     if (!pollingStartTimeRef.current) return 2000;
@@ -1338,11 +1339,79 @@ function DataProfile() {
     }
   };
   
-  const handleRunQualityRules = () => {
-    // Show the file upload modal for revalidation
-    setShowRevalidateModal(true);
-    setRevalidateFile(null);
-    setRevalidateProgress(0);
+  // Helper function to run quality rules against cached preview data
+  const runQualityRulesUsingPreview = async () => {
+    const token = localStorage.getItem('token');
+    const encodedFileId = encodeURIComponent(fileId);
+    
+    try {
+      setRulesRunning(true);
+      const response = await axios.post(`/api/files/${encodedFileId}/quality-rules/run`, {}, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      
+      // Success - response.data.success is true
+      const violationsFound = response.data.violations_found || 0;
+      setSuccessMessage(`Quality rules executed: ${violationsFound} violation(s) found`);
+      setTimeout(() => setSuccessMessage(null), 3000);
+      await fetchQualityViolations();
+      return { success: true, violationsFound };
+    } catch (err) {
+      console.error('Error running quality rules:', err);
+      throw err;
+    } finally {
+      setRulesRunning(false);
+    }
+  };
+  
+  const handleRunQualityRules = async () => {
+    const token = localStorage.getItem('token');
+    const encodedFileId = encodeURIComponent(fileId);
+    
+    // First try to run rules against cached preview data (no file upload needed)
+    try {
+      await runQualityRulesUsingPreview();
+    } catch (err) {
+      const errorMessage = err.response?.data?.message || err.response?.data?.error || '';
+      
+      // If no preview data available, check if file is in S3 and can be re-fetched
+      if (errorMessage.includes('No file data available') || errorMessage.includes('re-profile')) {
+        // Check if file is in S3 - if so, offer to fetch from S3
+        const hasS3Location = file.metadata?.s3_bucket && file.metadata?.s3_key;
+        
+        if (hasS3Location) {
+          // Trigger re-profiling from S3, then run rules after processing completes
+          try {
+            setSuccessMessage('Fetching file from S3 and re-profiling...');
+            pendingRulesRunRef.current = true; // Flag to run rules after re-profiling
+            
+            const retryResponse = await axios.post(`/api/files/${encodedFileId}/retry`, {}, {
+              headers: { 'Authorization': `Bearer ${token}` }
+            });
+            
+            if (retryResponse.data.success || retryResponse.data.jobId) {
+              setSuccessMessage('Re-profiling file... Quality rules will run automatically when complete.');
+              setIsProcessing(true);
+              setTimeout(() => setSuccessMessage(null), 5000);
+            }
+          } catch (retryErr) {
+            console.error('Failed to fetch from S3:', retryErr);
+            pendingRulesRunRef.current = false;
+            // Fall back to showing upload modal
+            setShowRevalidateModal(true);
+            setRevalidateFile(null);
+            setRevalidateProgress(0);
+          }
+        } else {
+          // No S3 location, show upload modal as fallback
+          setShowRevalidateModal(true);
+          setRevalidateFile(null);
+          setRevalidateProgress(0);
+        }
+      } else {
+        setErrorMessage(errorMessage || 'Failed to run quality rules');
+      }
+    }
   };
   
   const handleRevalidateFileSelect = (e) => {
@@ -1670,6 +1739,22 @@ function DataProfile() {
           console.log('File processing complete, stopping polling');
           setIsProcessing(false);
           pollingStartTimeRef.current = null;
+          
+          // If we have a pending rules run (after S3 re-profiling), execute it now
+          if (processingStep === 'complete' && pendingRulesRunRef.current) {
+            pendingRulesRunRef.current = false;
+            console.log('Re-profiling complete, now running quality rules...');
+            // Use setTimeout to ensure state updates have propagated
+            setTimeout(async () => {
+              try {
+                await runQualityRulesUsingPreview();
+              } catch (rulesErr) {
+                console.error('Failed to run quality rules after re-profiling:', rulesErr);
+                setErrorMessage('Re-profiling complete but failed to run quality rules. Please try "Run Rules" again.');
+              }
+            }, 500);
+          }
+          
           return; // Stop polling
         }
         
