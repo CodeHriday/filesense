@@ -239,19 +239,19 @@ export const APP_FEATURES = [
     showInSidebar: true
   },
   { 
-    id: 'project_management', 
-    name: 'Project Management', 
-    category: 'Administration',
-    icon: FiBriefcase,
-    route: '/project-management',
-    showInSidebar: true
-  },
-  { 
     id: 'access_groups', 
     name: 'Access Groups', 
     category: 'Administration',
     icon: FiUsers,
     route: '/group-management',
+    showInSidebar: true
+  },
+  { 
+    id: 'project_management', 
+    name: 'Project Management', 
+    category: 'Administration',
+    icon: FiBriefcase,
+    route: '/project-management',
     showInSidebar: true
   },
   { 
@@ -435,7 +435,7 @@ export const APP_FEATURES = [
     category: 'Jobs and Monitoring',
     icon: FiPlay,
     route: '/jobs',
-    showInSidebar: true
+    showInSidebar: false
   }
 ];
 
