@@ -30,9 +30,9 @@ const AuditTrail = () => {
     startDate: '',
     endDate: '',
     statusFilter: 'all',
-    datePreset: '',
-    limit: 1000
+    datePreset: ''
   });
+  const [initialLoadComplete, setInitialLoadComplete] = useState(false);
 
   const datePresets = [
     { label: 'Last Hour', value: 'last_hour' },
@@ -105,9 +105,42 @@ const AuditTrail = () => {
   };
 
   useEffect(() => {
-    fetchAuditLogs();
+    const initializeAuditTrail = async () => {
+      try {
+        // Fetch retention settings first to determine date range
+        const retentionResponse = await axios.get('/api/audit/retention-settings');
+        const settings = retentionResponse.data;
+        setRetentionSettings(settings);
+        
+        // Calculate startDate based on retention_days
+        const retentionDays = settings.retention_days || 30;
+        const startDate = formatLocalDateTime(new Date(Date.now() - retentionDays * 24 * 60 * 60 * 1000));
+        
+        // Set initial filters with retention-based date range
+        const initialFilters = {
+          userId: '',
+          entityType: '',
+          actionType: '',
+          startDate: startDate,
+          endDate: '',
+          statusFilter: 'all',
+          datePreset: `last_${retentionDays}d`
+        };
+        setFilters(initialFilters);
+        
+        // Now fetch audit logs with retention-based date range
+        await fetchAuditLogs(initialFilters);
+        setInitialLoadComplete(true);
+      } catch (error) {
+        console.error('Error initializing audit trail:', error);
+        // Fallback: fetch logs without date filter
+        await fetchAuditLogs();
+        setInitialLoadComplete(true);
+      }
+    };
+    
+    initializeAuditTrail();
     fetchStatistics();
-    fetchRetentionSettings();
     fetchSummary();
   }, []);
 
@@ -121,7 +154,7 @@ const AuditTrail = () => {
       if (activeFilters.actionType) params.append('actionType', activeFilters.actionType);
       if (activeFilters.startDate) params.append('startDate', activeFilters.startDate);
       if (activeFilters.endDate) params.append('endDate', activeFilters.endDate);
-      params.append('limit', activeFilters.limit || 1000);
+      // No limit - fetch all records within date range (controlled by retention settings)
 
       const response = await axios.get(`/api/audit/logs?${params.toString()}`);
       setAuditLogs(response.data);
@@ -251,15 +284,18 @@ const AuditTrail = () => {
   };
 
   const handleClearFilters = () => {
+    // Reset to retention-based date range
+    const retentionDays = retentionSettings.retention_days || 30;
+    const startDate = formatLocalDateTime(new Date(Date.now() - retentionDays * 24 * 60 * 60 * 1000));
+    
     const clearedFilters = {
       userId: '',
       entityType: '',
       actionType: '',
-      startDate: '',
+      startDate: startDate,
       endDate: '',
       statusFilter: 'all',
-      datePreset: '',
-      limit: 1000
+      datePreset: `last_${retentionDays}d`
     };
     setFilters(clearedFilters);
     setCurrentPage(1);

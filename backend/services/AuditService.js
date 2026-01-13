@@ -392,7 +392,7 @@ class AuditService {
     actionType = null,
     startDate = null,
     endDate = null,
-    limit = 100,
+    limit = null,
     offset = 0
   }) {
     try {
@@ -435,14 +435,24 @@ class AuditService {
         ? `WHERE ${conditions.join(' AND ')}` 
         : '';
 
-      values.push(limit, offset);
+      // Build pagination clause - only apply LIMIT/OFFSET if limit is explicitly provided
+      let paginationClause = '';
+      if (limit !== null && limit !== undefined) {
+        values.push(limit);
+        paginationClause = `LIMIT $${paramIndex++}`;
+        // Only apply OFFSET when LIMIT is also present
+        if (offset > 0) {
+          values.push(offset);
+          paginationClause += ` OFFSET $${paramIndex++}`;
+        }
+      }
 
       const result = await this.dbPool.query(`
         SELECT *
         FROM audit_log
         ${whereClause}
         ORDER BY timestamp DESC
-        LIMIT $${paramIndex++} OFFSET $${paramIndex++}
+        ${paginationClause}
       `, values);
 
       return result.rows;
