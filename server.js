@@ -134,6 +134,110 @@ const sanitizeError = (error, genericMessage = 'An error occurred') => {
   return error.message || genericMessage;
 };
 
+// Comprehensive date validation helper with detailed error messages
+const validateDateFormat = (dateString) => {
+  if (!dateString || typeof dateString !== 'string') {
+    return { valid: false, expectedFormat: 'YYYY-MM-DD', reason: 'Empty or invalid value' };
+  }
+  
+  const trimmedValue = dateString.trim();
+  
+  // Common date format patterns to check
+  const formats = [
+    { pattern: /^(\d{4})-(\d{2})-(\d{2})$/, name: 'YYYY-MM-DD', yearIdx: 1, monthIdx: 2, dayIdx: 3 },
+    { pattern: /^(\d{2})\/(\d{2})\/(\d{4})$/, name: 'MM/DD/YYYY', yearIdx: 3, monthIdx: 1, dayIdx: 2 },
+    { pattern: /^(\d{2})-(\d{2})-(\d{4})$/, name: 'MM-DD-YYYY', yearIdx: 3, monthIdx: 1, dayIdx: 2 },
+    { pattern: /^(\d{4})\/(\d{2})\/(\d{2})$/, name: 'YYYY/MM/DD', yearIdx: 1, monthIdx: 2, dayIdx: 3 },
+    { pattern: /^(\d{2})\.(\d{2})\.(\d{4})$/, name: 'DD.MM.YYYY', yearIdx: 3, monthIdx: 2, dayIdx: 1 },
+  ];
+  
+  let matchedFormat = null;
+  let year, month, day;
+  
+  for (const fmt of formats) {
+    const match = trimmedValue.match(fmt.pattern);
+    if (match) {
+      matchedFormat = fmt;
+      year = parseInt(match[fmt.yearIdx], 10);
+      month = parseInt(match[fmt.monthIdx], 10);
+      day = parseInt(match[fmt.dayIdx], 10);
+      break;
+    }
+  }
+  
+  // If no format matched, check if it looks like a date attempt
+  if (!matchedFormat) {
+    // Check for common malformed patterns
+    const hasSeparators = /[-\/\.]/.test(trimmedValue);
+    const hasDigits = /\d/.test(trimmedValue);
+    
+    if (hasSeparators && hasDigits) {
+      // Try to extract what they attempted
+      const parts = trimmedValue.split(/[-\/\.]/);
+      if (parts.length === 3) {
+        return { 
+          valid: false, 
+          expectedFormat: 'YYYY-MM-DD or MM/DD/YYYY',
+          reason: `Unrecognized format. Use formats like YYYY-MM-DD (2024-01-15) or MM/DD/YYYY (01/15/2024)`
+        };
+      }
+    }
+    
+    return { 
+      valid: false, 
+      expectedFormat: 'YYYY-MM-DD', 
+      reason: `Invalid date format. Expected YYYY-MM-DD (e.g., 2024-01-15)`
+    };
+  }
+  
+  // Validate extracted components
+  const errors = [];
+  
+  // Validate year (1900-2100 range)
+  if (year < 1900 || year > 2100) {
+    errors.push(`Year ${year} is invalid (expected 1900-2100)`);
+  }
+  
+  // Validate month (1-12)
+  if (month < 1 || month > 12) {
+    errors.push(`Month ${month} is invalid (expected 01-12)`);
+  }
+  
+  // Validate day based on month
+  if (month >= 1 && month <= 12) {
+    const daysInMonth = [0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+    // Check for leap year
+    const isLeapYear = (year % 4 === 0 && year % 100 !== 0) || (year % 400 === 0);
+    if (isLeapYear && month === 2) {
+      daysInMonth[2] = 29;
+    }
+    
+    const maxDays = daysInMonth[month] || 31;
+    if (day < 1 || day > maxDays) {
+      if (month === 2 && day === 29 && !isLeapYear) {
+        errors.push(`Day 29 is invalid for February in ${year} (not a leap year)`);
+      } else {
+        const monthNames = ['', 'January', 'February', 'March', 'April', 'May', 'June', 
+                           'July', 'August', 'September', 'October', 'November', 'December'];
+        errors.push(`Day ${day} is invalid for ${monthNames[month] || 'this month'} (expected 01-${String(maxDays).padStart(2, '0')})`);
+      }
+    }
+  } else if (day < 1 || day > 31) {
+    errors.push(`Day ${day} is invalid (expected 01-31)`);
+  }
+  
+  if (errors.length > 0) {
+    return { 
+      valid: false, 
+      expectedFormat: matchedFormat.name,
+      reason: errors.join('; '),
+      components: { year, month, day }
+    };
+  }
+  
+  return { valid: true, expectedFormat: matchedFormat.name, components: { year, month, day } };
+};
+
 // Permission-based access control helper functions
 // These replace hardcoded "Admin" role name checks with actual permission checks
 
@@ -6602,22 +6706,42 @@ app.post('/api/files/:fileId/quality-rules/run', authenticateToken, async (req, 
               
             case 'date_format':
               if (cellValue && typeof cellValue === 'string') {
-                const dateValue = new Date(cellValue);
-                if (isNaN(dateValue.getTime())) {
+                const dateValidation = validateDateFormat(cellValue);
+                if (!dateValidation.valid) {
                   isViolation = true;
-                  expectedValue = 'Valid date format';
-                  violationDetails = { reason: 'Invalid date format', value: cellValue };
+                  expectedValue = `Format: ${dateValidation.expectedFormat}`;
+                  violationDetails = { 
+                    reason: dateValidation.reason, 
+                    value: cellValue,
+                    expectedFormat: dateValidation.expectedFormat,
+                    components: dateValidation.components
+                  };
                 }
               }
               break;
               
             case 'timestamp_format':
               if (cellValue && typeof cellValue === 'string') {
-                const timestampValue = new Date(cellValue);
-                if (isNaN(timestampValue.getTime())) {
+                // First check the date portion using our comprehensive validator
+                const datePart = cellValue.split(/[T\s]/)[0];
+                const dateValidation = validateDateFormat(datePart);
+                
+                if (!dateValidation.valid) {
                   isViolation = true;
-                  expectedValue = 'Valid timestamp format';
-                  violationDetails = { reason: 'Invalid timestamp format', value: cellValue };
+                  expectedValue = 'Format: YYYY-MM-DDTHH:mm:ss or YYYY-MM-DD HH:mm:ss';
+                  violationDetails = { 
+                    reason: `Date portion invalid: ${dateValidation.reason}`, 
+                    value: cellValue,
+                    expectedFormat: 'YYYY-MM-DDTHH:mm:ss'
+                  };
+                } else {
+                  // Check if there's a valid time component
+                  const timestampValue = new Date(cellValue);
+                  if (isNaN(timestampValue.getTime())) {
+                    isViolation = true;
+                    expectedValue = 'Format: YYYY-MM-DDTHH:mm:ss';
+                    violationDetails = { reason: 'Invalid time portion. Expected HH:mm:ss format', value: cellValue };
+                  }
                 }
               }
               break;
@@ -7154,22 +7278,42 @@ app.post('/api/files/:fileId/quality-rules/revalidate', authenticateToken, uploa
               
             case 'date_format':
               if (cellValue && typeof cellValue === 'string') {
-                const dateValue = new Date(cellValue);
-                if (isNaN(dateValue.getTime())) {
+                const dateValidation = validateDateFormat(cellValue);
+                if (!dateValidation.valid) {
                   isViolation = true;
-                  expectedValue = 'Valid date format';
-                  violationDetails = { reason: 'Invalid date format', value: cellValue };
+                  expectedValue = `Format: ${dateValidation.expectedFormat}`;
+                  violationDetails = { 
+                    reason: dateValidation.reason, 
+                    value: cellValue,
+                    expectedFormat: dateValidation.expectedFormat,
+                    components: dateValidation.components
+                  };
                 }
               }
               break;
               
             case 'timestamp_format':
               if (cellValue && typeof cellValue === 'string') {
-                const timestampValue = new Date(cellValue);
-                if (isNaN(timestampValue.getTime())) {
+                // First check the date portion using our comprehensive validator
+                const datePart = cellValue.split(/[T\s]/)[0];
+                const dateValidation = validateDateFormat(datePart);
+                
+                if (!dateValidation.valid) {
                   isViolation = true;
-                  expectedValue = 'Valid timestamp format';
-                  violationDetails = { reason: 'Invalid timestamp format', value: cellValue };
+                  expectedValue = 'Format: YYYY-MM-DDTHH:mm:ss or YYYY-MM-DD HH:mm:ss';
+                  violationDetails = { 
+                    reason: `Date portion invalid: ${dateValidation.reason}`, 
+                    value: cellValue,
+                    expectedFormat: 'YYYY-MM-DDTHH:mm:ss'
+                  };
+                } else {
+                  // Check if there's a valid time component
+                  const timestampValue = new Date(cellValue);
+                  if (isNaN(timestampValue.getTime())) {
+                    isViolation = true;
+                    expectedValue = 'Format: YYYY-MM-DDTHH:mm:ss';
+                    violationDetails = { reason: 'Invalid time portion. Expected HH:mm:ss format', value: cellValue };
+                  }
                 }
               }
               break;

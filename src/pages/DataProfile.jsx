@@ -3127,7 +3127,22 @@ function DataProfile() {
                             </span>
                           </td>
                           <td><code style={{ fontSize: '9px', color: '#025043' }}>{violation.column_name || 'N/A'}</code></td>
-                          <td style={{ maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis', fontSize: '10px' }}>{violation.expected_value}</td>
+                          <td style={{ maxWidth: '180px', fontSize: '10px' }}>
+                            <div>
+                              <span style={{ fontWeight: '500' }}>{violation.expected_value}</span>
+                              {violation.violation_details?.reason && (
+                                <div style={{ 
+                                  fontSize: '9px', 
+                                  color: '#dc2626', 
+                                  marginTop: '2px',
+                                  whiteSpace: 'normal',
+                                  lineHeight: '1.3'
+                                }}>
+                                  {violation.violation_details.reason}
+                                </div>
+                              )}
+                            </div>
+                          </td>
                           <td style={{ maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis', fontSize: '10px' }}>{violation.actual_value}</td>
                           <td><span className="gps-badge gps-badge--secondary" style={{ fontSize: '9px' }}>{violation.rule_type}</span></td>
                         </tr>
