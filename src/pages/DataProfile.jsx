@@ -3565,13 +3565,12 @@ function DataProfile() {
               onClose={() => setShowDelimiterModal(false)}
               onSave={async () => {
                 setShowDelimiterModal(false);
-                setSuccessMessage('Delimiter saved and file re-profiled successfully!');
+                setSuccessMessage('Delimiter saved! Re-profiling file with new delimiter...');
+                setIsProcessing(true);
                 
-                setTimeout(async () => {
+                setTimeout(() => {
                   setSuccessMessage(null);
-                  await fetchFileDetails();
-                  await fetchProfileData();
-                }, 1500);
+                }, 3000);
               }}
               setErrorMessage={setErrorMessage}
             />
