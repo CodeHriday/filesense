@@ -209,13 +209,13 @@ async function profileFileBuffer(options) {
     // Step 6: Calculate quality score from file info
     const qualityScore = calculateQualityScore(fileInfo);
 
-    // Step 8: Save to files table with correlation_id, file_role, metadata, and governance fields
+    // Step 8: Save to files table with correlation_id, file_role, metadata, governance fields, and processing_step
     await pool.query(`
       INSERT INTO files (
         file_id, filename, file_type, file_size, row_count, column_count,
         quality_score, checksum, correlation_id, file_role, metadata, created_at, updated_at, project_id,
-        contains_pii, data_classification
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), NOW(), $12, $13, $14)
+        contains_pii, data_classification, processing_step
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), NOW(), $12, $13, $14, 'complete')
       ON CONFLICT (file_id) 
       DO UPDATE SET
         filename = EXCLUDED.filename,
@@ -230,6 +230,7 @@ async function profileFileBuffer(options) {
         metadata = EXCLUDED.metadata,
         contains_pii = EXCLUDED.contains_pii,
         data_classification = EXCLUDED.data_classification,
+        processing_step = 'complete',
         updated_at = NOW()
     `, [
       fileId,
