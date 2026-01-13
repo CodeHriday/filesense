@@ -223,7 +223,7 @@ function createGroupRoutes(dbPool) {
   router.post('/', async (req, res) => {
     const client = await dbPool.connect();
     try {
-      const { name, description, group_type, external_id, idp_sync_enabled, metadata, member_ids, role_ids } = req.body;
+      const { name, description, group_type, external_id, idp_sync_enabled, metadata, member_ids, role_ids, role_id, role_project_id } = req.body;
       const userId = req.user?.id;
 
       if (!name) {
@@ -260,8 +260,9 @@ function createGroupRoutes(dbPool) {
         `);
       }
 
-      // Add role assignments if provided
+      // Add role assignments if provided (support both array and single role formats)
       if (role_ids && Array.isArray(role_ids) && role_ids.length > 0) {
+        // Legacy: array of role IDs (global scope only)
         for (const roleId of role_ids) {
           await client.query(`
             INSERT INTO access_group_roles (group_id, role_id, project_id)
@@ -269,6 +270,13 @@ function createGroupRoutes(dbPool) {
             ON CONFLICT DO NOTHING
           `, [newGroup.id, parseInt(roleId, 10)]);
         }
+      } else if (role_id) {
+        // New: single role with optional project scope
+        await client.query(`
+          INSERT INTO access_group_roles (group_id, role_id, project_id)
+          VALUES ($1, $2, $3)
+          ON CONFLICT DO NOTHING
+        `, [newGroup.id, parseInt(role_id, 10), role_project_id ? parseInt(role_project_id, 10) : null]);
       }
 
       await client.query('COMMIT');
