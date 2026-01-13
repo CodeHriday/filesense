@@ -42,26 +42,18 @@ const ProcessedFileCatalog = () => {
       const audits = response.data.audits || [];
       setFiles(audits);
       
-      // Extract unique mappings, projects, and subprojects from all files for dropdowns
+      // Extract unique mappings and projects from all files for dropdowns
+      // (subprojects are fetched separately when a project is selected)
       const mappingsSet = new Set();
       const projectsMap = new Map();
-      const subProjectsMap = new Map();
       audits.forEach(f => {
         if (f.mapping_name) mappingsSet.add(f.mapping_name);
         if (f.project_id && f.project_name) {
           projectsMap.set(f.project_id, { id: f.project_id, name: f.project_name });
         }
-        if (f.sub_project_id && f.sub_project_name) {
-          subProjectsMap.set(f.sub_project_id, { 
-            id: f.sub_project_id, 
-            name: f.sub_project_name,
-            project_id: f.project_id 
-          });
-        }
       });
       setAllMappings(Array.from(mappingsSet).sort());
       setAllProjects(Array.from(projectsMap.values()).sort((a, b) => a.name.localeCompare(b.name)));
-      setAllSubProjects(Array.from(subProjectsMap.values()).sort((a, b) => a.name.localeCompare(b.name)));
       
       setError(null);
     } catch (err) {
@@ -88,22 +80,36 @@ const ProcessedFileCatalog = () => {
     };
   }, [fetchTransformationFiles]);
 
-  // Use allMappings and allProjects from dedicated API endpoint
-  // (more efficient than extracting from paginated file results)
-
-  // Filter subprojects based on selected project
-  const filteredSubProjects = useMemo(() => {
-    if (selectedProject === 'all') {
-      return allSubProjects;
-    }
-    // Compare as strings to handle both numeric and string IDs from API
-    return allSubProjects.filter(sp => String(sp.project_id) === String(selectedProject));
-  }, [allSubProjects, selectedProject]);
-
-  // Reset sub-project when project changes
+  // Fetch subprojects from API when a project is selected
   useEffect(() => {
+    const fetchSubProjects = async () => {
+      if (selectedProject === 'all') {
+        setAllSubProjects([]);
+        return;
+      }
+      
+      try {
+        const response = await axios.get(`/api/projects/${selectedProject}/sub-projects`);
+        if (response.data.success && response.data.subProjects) {
+          const subProjects = response.data.subProjects.map(sp => ({
+            id: sp.id,
+            name: sp.name,
+            project_id: selectedProject
+          }));
+          setAllSubProjects(subProjects);
+        }
+      } catch (err) {
+        console.error('Error fetching sub-projects:', err);
+        setAllSubProjects([]);
+      }
+    };
+    
+    fetchSubProjects();
     setSelectedSubProject('all');
   }, [selectedProject]);
+
+  // Use fetched subprojects directly (already filtered by project)
+  const filteredSubProjects = allSubProjects;
 
   // Helper function to check if date falls within selected range
   const isWithinDateRange = useCallback((dateStr, range) => {
