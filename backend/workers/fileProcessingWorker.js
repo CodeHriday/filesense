@@ -670,18 +670,23 @@ class FileProcessingWorker {
 
       let fileInfo;
       
-      // Use Flask API for archives and special formats (supports passwords, SAS, Avro, DAT)
-      if (this.isArchiveOrSpecialFormat(filePath)) {
-        this.logger.info('Using Flask profile API for archive/special format', { 
+      // Determine if we need to use Flask API
+      // Flask API is used for: archives, special formats, or when custom delimiter/headerConfig is provided
+      const needsFlaskAPI = this.isArchiveOrSpecialFormat(filePath) || !!delimiter || !!headerConfig || !!fixedWidthSchema;
+      
+      if (needsFlaskAPI) {
+        this.logger.info('Using Flask profile API', { 
           fileId, 
           fileExtension,
           hasPassword: !!archivePassword,
           hasDelimiter: !!delimiter,
-          hasFixedWidthSchema: !!fixedWidthSchema
+          hasHeaderConfig: !!headerConfig,
+          hasFixedWidthSchema: !!fixedWidthSchema,
+          reason: this.isArchiveOrSpecialFormat(filePath) ? 'archive_or_special' : 'custom_config'
         });
         fileInfo = await this.callFlaskProfileAPI(filePath, originalName, fileId, archivePassword, delimiter, headerConfig, fixedWidthSchema);
       } else {
-        // Use legacy process_file.py for standard formats
+        // Use legacy process_file.py for standard formats without custom config
         fileInfo = await this.callPythonProcessor(filePath, fileType);
       }
 
@@ -693,12 +698,12 @@ class FileProcessingWorker {
 
       await this.queue.updateProgress(jobId, 50);
 
-      // Skip legacy profiling/validation for archives & special formats (Flask API handles it)
+      // Skip legacy profiling/validation when Flask API was used (it handles everything)
       let profilingData = { columns: [] };
       let headerValidation = { success: true, status: 'healthy', health_score: 100, issues: [] };
       let duplicateStats = { total_rows: 0, unique_rows: 0, duplicate_count: 0, duplicate_percentage: 0.0 };
       
-      if (!this.isArchiveOrSpecialFormat(filePath)) {
+      if (!needsFlaskAPI) {
         // Legacy processing path for CSV/JSON/XLSX/Parquet/XML
         
         // Step 2: Generate detailed column profiling (min/max, frequency values)
