@@ -5963,58 +5963,94 @@ app.get('/api/files/:fileId/full',
     const deniedColumnNames = new Set(deniedColumns.map(c => c.column_name));
     
     // Build profile columns with access control
-    const columns = columnsResult.rows.map(col => {
-      const isMasked = maskedColumnNames.has(col.column_name);
-      const isDenied = deniedColumnNames.has(col.column_name);
-      
-      if (isMasked || isDenied) {
+    // If file_columns is empty, fall back to schema_definition (for archive files profiled via Flask API)
+    let columns = [];
+    
+    if (columnsResult.rows.length > 0) {
+      columns = columnsResult.rows.map(col => {
+        const isMasked = maskedColumnNames.has(col.column_name);
+        const isDenied = deniedColumnNames.has(col.column_name);
+        
+        if (isMasked || isDenied) {
+          return {
+            name: col.column_name,
+            type: normalizeDataType(col.column_type),
+            count: col.non_null_count,
+            unique: col.unique_count,
+            missing: col.null_count,
+            min: '[REDACTED]',
+            max: '[REDACTED]',
+            mean: null,
+            median: null,
+            stdDev: null,
+            histogram: null,
+            patterns: [],
+            most_frequent_value: '[REDACTED]',
+            least_frequent_value: '[REDACTED]',
+            most_frequent_count: null,
+            least_frequent_count: null,
+            _accessLevel: isMasked ? 'masked' : 'denied'
+          };
+        }
+        
         return {
           name: col.column_name,
           type: normalizeDataType(col.column_type),
           count: col.non_null_count,
           unique: col.unique_count,
           missing: col.null_count,
-          min: '[REDACTED]',
-          max: '[REDACTED]',
-          mean: null,
+          min: col.min_value,
+          max: col.max_value,
+          mean: col.mean_value,
+          median: col.median_value,
+          stdDev: col.std_dev,
+          histogram: (() => {
+            if (!col.histogram) return null;
+            if (typeof col.histogram === 'string') {
+              try { return JSON.parse(col.histogram); } catch { return null; }
+            }
+            return col.histogram;
+          })(),
+          patterns: col.patterns || [],
+          most_frequent_value: col.most_frequent_value,
+          least_frequent_value: col.least_frequent_value,
+          most_frequent_count: col.most_frequent_count,
+          least_frequent_count: col.least_frequent_count,
+          _accessLevel: 'full'
+        };
+      });
+    } else if (file.schema_definition) {
+      let schemaData = file.schema_definition;
+      if (typeof schemaData === 'string') {
+        try { schemaData = JSON.parse(schemaData); } catch { schemaData = []; }
+      }
+      if (Array.isArray(schemaData)) {
+        columns = schemaData.map(col => ({
+          name: col.name,
+          type: normalizeDataType(col.type || 'string'),
+          count: file.row_count - (col.null_count || 0),
+          unique: col.unique_count || null,
+          missing: col.null_count || 0,
+          min: col.min_value || col.min || null,
+          max: col.max_value || col.max || null,
+          mean: col.mean_value || col.mean || null,
           median: null,
           stdDev: null,
           histogram: null,
-          patterns: [],
-          most_frequent_value: '[REDACTED]',
-          least_frequent_value: '[REDACTED]',
-          most_frequent_count: null,
-          least_frequent_count: null,
-          _accessLevel: isMasked ? 'masked' : 'denied'
-        };
+          patterns: col.patterns || [],
+          most_frequent_value: col.most_frequent_value || null,
+          least_frequent_value: col.least_frequent_value || null,
+          most_frequent_count: col.most_frequent_count || null,
+          least_frequent_count: col.least_frequent_count || null,
+          min_length: col.min_length || null,
+          max_length: col.max_length || null,
+          avg_length: col.avg_length || null,
+          top_values: col.top_values || [],
+          _accessLevel: 'full',
+          _source: 'schema_definition'
+        }));
       }
-      
-      return {
-        name: col.column_name,
-        type: normalizeDataType(col.column_type),
-        count: col.non_null_count,
-        unique: col.unique_count,
-        missing: col.null_count,
-        min: col.min_value,
-        max: col.max_value,
-        mean: col.mean_value,
-        median: col.median_value,
-        stdDev: col.std_dev,
-        histogram: (() => {
-          if (!col.histogram) return null;
-          if (typeof col.histogram === 'string') {
-            try { return JSON.parse(col.histogram); } catch { return null; }
-          }
-          return col.histogram;
-        })(),
-        patterns: col.patterns || [],
-        most_frequent_value: col.most_frequent_value,
-        least_frequent_value: col.least_frequent_value,
-        most_frequent_count: col.most_frequent_count,
-        least_frequent_count: col.least_frequent_count,
-        _accessLevel: 'full'
-      };
-    });
+    }
     
     const profile = {
       fileId,

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FiEye, FiTrash2, FiAlertTriangle, FiGitBranch, FiLock } from 'react-icons/fi';
+import { FiEye, FiTrash2, FiAlertTriangle, FiGitBranch, FiLock, FiRefreshCw } from 'react-icons/fi';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQueryClient, useMutation } from '@tanstack/react-query';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -607,7 +607,17 @@ export const FileCatalog = ({ onFileSelect }) => {
           <h1 className="gps-page-title">File Catalog</h1>
           <p className="gps-page-subtitle">All uploaded files with quality metrics and metadata</p>
         </div>
-        <div className="gps-header-actions">
+        <div className="gps-header-actions" style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+          <button 
+            className="gps-btn gps-btn--secondary"
+            onClick={() => refetch()}
+            disabled={isLoading}
+            title="Refresh file catalog"
+            style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+          >
+            <FiRefreshCw className={isLoading ? 'spinning' : ''} />
+            Refresh
+          </button>
           <div className="gps-stat-card" style={{ padding: '8px 16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
             <span style={{ fontSize: '18px', fontWeight: 700, color: '#025043' }}>{displayedFilesCount.toLocaleString()}</span>
             <span style={{ fontSize: '10px', color: '#666' }}>{hasActiveFilters ? 'Filtered Files' : 'Total Files'}</span>

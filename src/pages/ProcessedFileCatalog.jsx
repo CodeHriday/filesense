@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiTrash2, FiSearch, FiGitBranch, FiBarChart2 } from 'react-icons/fi';
+import { FiTrash2, FiSearch, FiGitBranch, FiBarChart2, FiRefreshCw } from 'react-icons/fi';
 import axios from 'axios';
 import PageLayout from '../components/PageLayout';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -249,9 +249,21 @@ const ProcessedFileCatalog = () => {
       title="Processed File Catalog"
       subtitle="Files created by ETL transformations with profiling history"
       headerActions={
-        <div className="gps-stat-card" style={{ padding: '8px 16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ fontSize: '18px', fontWeight: 700, color: '#025043' }}>{filteredFiles.length.toLocaleString()}</span>
-          <span style={{ fontSize: '10px', color: '#666' }}>Total Files</span>
+        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+          <button 
+            className="gps-btn gps-btn--secondary"
+            onClick={() => fetchTransformationFiles()}
+            disabled={loading}
+            title="Refresh file catalog"
+            style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+          >
+            <FiRefreshCw className={loading ? 'spinning' : ''} />
+            Refresh
+          </button>
+          <div className="gps-stat-card" style={{ padding: '8px 16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '18px', fontWeight: 700, color: '#025043' }}>{filteredFiles.length.toLocaleString()}</span>
+            <span style={{ fontSize: '10px', color: '#666' }}>Total Files</span>
+          </div>
         </div>
       }
     >
