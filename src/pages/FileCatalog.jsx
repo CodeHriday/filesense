@@ -101,7 +101,6 @@ export const FileCatalog = ({ onFileSelect }) => {
   // Properly handle the file data format from the batch API
   // API returns { files: Array, totalCount: number, projects: Array, subProjects: Array }
   const files = initData?.files || [];
-  const globalTotalFilesCount = initData?.totalCount || files.length;
   
   // Get projects from batch endpoint (already filtered by user's access)
   const uniqueProjects = React.useMemo(() => {
@@ -376,9 +375,10 @@ export const FileCatalog = ({ onFileSelect }) => {
   const endIndex = startIndex + itemsPerPage;
   const paginatedFiles = filteredAndSortedFiles.slice(startIndex, endIndex);
   
-  // Display count: show filtered count when filters are active, otherwise show global total
+  // Display count: show filtered count when filters are active, otherwise show deduplicated total
+  // Using deduplicatedFiles.length ensures consistency between the header count and pagination
   const hasActiveFilters = selectedProject !== 'all' || selectedSubProject !== 'all' || selectedType !== 'all' || searchTerm !== '';
-  const displayedFilesCount = hasActiveFilters ? filteredAndSortedFiles.length : globalTotalFilesCount;
+  const displayedFilesCount = hasActiveFilters ? filteredAndSortedFiles.length : deduplicatedFiles.length;
 
   // Reset to page 1 when filters change
   React.useEffect(() => {
