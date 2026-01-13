@@ -731,10 +731,11 @@ class FileProcessingWorker {
 
               // Update the parent archive file with profiling metrics from the extracted file
               if (profileResult) {
-                // Flask API returns snake_case: row_count, column_count, schema
+                // Flask API returns snake_case: row_count, column_count, schema, preview_data
                 const rowCount = profileResult.row_count || 0;
                 const columnCount = profileResult.column_count || 0;
                 const schema = profileResult.schema || null;
+                const previewData = profileResult.preview_data || [];
                 
                 await this.dbPool.query(
                   `UPDATE files SET 
@@ -752,10 +753,22 @@ class FileProcessingWorker {
                   ]
                 );
 
+                // Save column info for the archive file
+                if (schema && schema.length > 0) {
+                  await this.saveColumnInfo(fileId, schema);
+                }
+
+                // Save preview data for the archive file
+                if (previewData && previewData.length > 0) {
+                  await this.savePreviewData(fileId, previewData);
+                }
+
                 this.logger.info('Archive profiling metrics updated from extracted file', {
                   fileId,
                   rowCount,
-                  columnCount
+                  columnCount,
+                  previewDataRows: previewData.length,
+                  schemaColumns: schema ? schema.length : 0
                 });
               }
             } catch (profileError) {
