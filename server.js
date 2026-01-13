@@ -7735,6 +7735,7 @@ app.post('/api/files/:fileId/delimiter', authenticateToken, async (req, res) => 
     );
     
     // Invalidate cache
+    const { invalidateFileCache, invalidateFileCatalogCache } = require('./backend/src/middleware/cache');
     await invalidateFileCache(fileId);
     await invalidateFileCatalogCache();
     
@@ -7826,6 +7827,7 @@ app.post('/api/files/:fileId/columns/:columnName/sensitivity-tag', authenticateT
     );
     
     // Invalidate file-specific cache and sensitivity cache
+    const { invalidateFileCache, invalidateCachePattern } = require('./backend/src/middleware/cache');
     await invalidateFileCache(fileId);
     await invalidateCachePattern('cache:*:*sensitivity*');
     
@@ -7851,8 +7853,9 @@ app.delete('/api/files/:fileId/columns/:columnName/sensitivity-tag', authenticat
     }
     
     // Invalidate file-specific cache and sensitivity cache
-    await invalidateFileCache(fileId);
-    await invalidateCachePattern('cache:*:*sensitivity*');
+    const { invalidateFileCache: invFileCache, invalidateCachePattern: invCachePattern } = require('./backend/src/middleware/cache');
+    await invFileCache(fileId);
+    await invCachePattern('cache:*:*sensitivity*');
     
     res.json({ message: 'Sensitivity tag deleted successfully', tag: result.rows[0] });
   } catch (err) {
