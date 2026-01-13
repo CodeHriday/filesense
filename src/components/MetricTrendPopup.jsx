@@ -129,24 +129,29 @@ const MetricTrendPopup = ({
   };
 
   const calculateTrend = () => {
-    if (trendData.length < 2) return { direction: 'neutral', change: 0, isPercentageMetric: false };
+    if (trendData.length < 2) return { direction: 'neutral', change: 0, isPercentageMetric: false, displayUnit: '%' };
     const first = trendData[0]?.value || 0;
     const last = trendData[trendData.length - 1]?.value || 0;
     const isPercentageMetric = ['dataHealth', 'vendorCompliance', 'jobSuccess', 'governanceCoverage'].includes(metricType);
     
     let change;
+    let displayUnit;
+    
     if (isPercentageMetric) {
-      // For percentage metrics, show absolute difference (percentage points)
+      // For percentage metrics, show absolute difference with % symbol
       change = (last - first).toFixed(1);
+      displayUnit = '%';
     } else {
-      // For count metrics, show relative percentage change
-      change = first !== 0 ? ((last - first) / first * 100).toFixed(1) : (last > 0 ? 100 : 0);
+      // For count metrics (Total Files, Critical Alerts), show absolute count change
+      change = Math.round(last - first);
+      displayUnit = '';
     }
     
     return {
       direction: last > first ? 'up' : last < first ? 'down' : 'neutral',
-      change: Math.abs(parseFloat(change)),
-      isPercentageMetric
+      change: Math.abs(typeof change === 'string' ? parseFloat(change) : change),
+      isPercentageMetric,
+      displayUnit
     };
   };
 
@@ -268,7 +273,7 @@ const MetricTrendPopup = ({
               <span className="stat-label">Change</span>
               <span className={`stat-value trend-${trend.direction}`}>
                 {trend.direction === 'up' ? '+' : trend.direction === 'down' ? '-' : ''}
-                {trend.change}{trend.isPercentageMetric ? 'pp' : '%'}
+                {trend.change}{trend.displayUnit}
               </span>
             </div>
           </div>
@@ -297,7 +302,7 @@ const MetricTrendPopup = ({
         <span className="popup-title">{metricLabel}</span>
         <span className={`popup-trend trend-${trend.direction}`}>
           {trend.direction === 'up' ? '↑' : trend.direction === 'down' ? '↓' : '→'}
-          {trend.change}{trend.isPercentageMetric ? 'pp' : '%'}
+          {trend.change}{trend.displayUnit}
         </span>
       </div>
       <div className="popup-chart">
