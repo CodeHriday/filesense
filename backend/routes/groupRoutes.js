@@ -6,6 +6,46 @@
 
 const express = require('express');
 const { systemLogger } = require('../utils/logger');
+const { cache } = require('../config/redis');
+
+/**
+ * Invalidate permission cache for a user when their group membership or group roles change
+ * @param {number} userId - User ID to invalidate cache for
+ */
+async function invalidateUserPermissionCache(userId) {
+  try {
+    const cacheKey = `permissions:user:${userId}`;
+    await cache.del(cacheKey);
+    systemLogger.info('Invalidated permission cache for user', { userId, cacheKey });
+  } catch (error) {
+    systemLogger.error('Error invalidating permission cache', { userId, error: error.message });
+  }
+}
+
+/**
+ * Invalidate permission cache for all members of a group
+ * @param {Object} dbPool - Database pool
+ * @param {number} groupId - Group ID
+ */
+async function invalidateGroupMembersPermissionCache(dbPool, groupId) {
+  try {
+    const membersResult = await dbPool.query(
+      'SELECT user_id FROM user_groups WHERE group_id = $1',
+      [groupId]
+    );
+    
+    for (const row of membersResult.rows) {
+      await invalidateUserPermissionCache(row.user_id);
+    }
+    
+    systemLogger.info('Invalidated permission cache for all group members', { 
+      groupId, 
+      memberCount: membersResult.rows.length 
+    });
+  } catch (error) {
+    systemLogger.error('Error invalidating group members permission cache', { groupId, error: error.message });
+  }
+}
 
 function createGroupRoutes(dbPool) {
   const router = express.Router();
@@ -371,6 +411,9 @@ function createGroupRoutes(dbPool) {
         RETURNING *
       `, [user_id, groupId]);
 
+      // Invalidate permission cache for the newly added user
+      await invalidateUserPermissionCache(user_id);
+      
       systemLogger.info('Group member added', {
         userId: req.user?.id,
         groupId,
@@ -398,6 +441,9 @@ function createGroupRoutes(dbPool) {
         return res.status(404).json({ error: 'Group member not found' });
       }
 
+      // Invalidate permission cache for the removed user
+      await invalidateUserPermissionCache(userId);
+      
       systemLogger.info('Group member removed', {
         userId: req.user?.id,
         groupId,
@@ -433,6 +479,9 @@ function createGroupRoutes(dbPool) {
         return res.status(409).json({ error: 'Role already assigned to group' });
       }
 
+      // Invalidate permission cache for all group members (they now have new permissions)
+      await invalidateGroupMembersPermissionCache(dbPool, groupId);
+      
       systemLogger.info('Role assigned to group', {
         userId: req.user?.id,
         groupId,
@@ -471,6 +520,9 @@ function createGroupRoutes(dbPool) {
         return res.status(404).json({ error: 'Role assignment not found' });
       }
 
+      // Invalidate permission cache for all group members (they've lost permissions)
+      await invalidateGroupMembersPermissionCache(dbPool, groupId);
+      
       systemLogger.info('Role removed from group', {
         userId: req.user?.id,
         groupId,
