@@ -267,7 +267,7 @@ class ArchiveExtractionService {
         success: true,
         extractedCount: processedFiles.length,
         files: processedFiles,
-        tempDir: archiveFileId ? null : tempDir  // Return temp dir for caller cleanup when no file ID
+        tempDir: tempDir  // Always return temp dir for caller cleanup after profiling
       };
 
     } catch (error) {
@@ -291,25 +291,15 @@ class ArchiveExtractionService {
         tempDir,
         tempDirExists: tempDir ? fs.existsSync(tempDir) : false,
         archiveFileId,
-        willCleanup: !!archiveFileId
+        willCleanup: false // Caller is now responsible for cleanup after profiling
       });
       
-      if (tempDir && fs.existsSync(tempDir)) {
-        if (archiveFileId) {
-          this.logger.info('Cleaning up temp directory (has archiveFileId)', { tempDir, archiveFileId });
-          await fs.promises.rm(tempDir, { recursive: true, force: true }).catch((err) => {
-            this.logger.error('Failed to cleanup temp directory', {
-              tempDir,
-              error: err.message
-            });
-          });
-        } else {
-          this.logger.info('SKIPPING temp directory cleanup - caller is responsible (archiveFileId is null)', {
-            tempDir,
-            filesInDir: await fs.promises.readdir(tempDir).catch(() => [])
-          });
-        }
-      }
+      // Don't cleanup temp directory here - let the caller cleanup after profiling the extracted files
+      // This allows the fileProcessingWorker to profile extracted files before cleanup
+      this.logger.info('SKIPPING temp directory cleanup - caller is responsible for cleanup after profiling', {
+        tempDir,
+        archiveFileId
+      });
     }
   }
 

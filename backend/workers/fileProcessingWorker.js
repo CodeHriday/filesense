@@ -702,11 +702,98 @@ class FileProcessingWorker {
             files: extractionResult.files.map(f => f.filename)
           });
 
-          // Update file processing_step to 'complete' for archive files
-          await this.dbPool.query(
-            'UPDATE files SET processing_step = $1, updated_at = NOW() WHERE file_id = $2',
-            ['complete', fileId]
+          // Find the primary data file (filter out macOS metadata files)
+          const primaryDataFile = extractionResult.files.find(f => 
+            f && f.fullPath && 
+            !f.relativePath?.startsWith('__MACOSX') && 
+            !f.fileName?.startsWith('._') &&
+            !f.relativePath?.includes('/._')
           );
+
+          if (primaryDataFile && primaryDataFile.fullPath) {
+            this.logger.info('Profiling primary extracted file', {
+              fileId,
+              primaryFile: primaryDataFile.fileName,
+              fullPath: primaryDataFile.fullPath
+            });
+
+            try {
+              // Profile the extracted data file using Flask API
+              const profileResult = await this.callFlaskProfileAPI(
+                primaryDataFile.fullPath,
+                primaryDataFile.fileName,
+                fileId,
+                null, // no password for extracted file
+                delimiter,
+                headerConfig,
+                fixedWidthSchema
+              );
+
+              // Update the parent archive file with profiling metrics from the extracted file
+              if (profileResult) {
+                await this.dbPool.query(
+                  `UPDATE files SET 
+                    row_count = $1,
+                    column_count = $2,
+                    schema_definition = $3,
+                    processing_step = 'complete',
+                    updated_at = NOW()
+                  WHERE file_id = $4`,
+                  [
+                    profileResult.rowCount || 0,
+                    profileResult.columnCount || 0,
+                    profileResult.schemaDefinition ? JSON.stringify(profileResult.schemaDefinition) : null,
+                    fileId
+                  ]
+                );
+
+                this.logger.info('Archive profiling metrics updated from extracted file', {
+                  fileId,
+                  rowCount: profileResult.rowCount,
+                  columnCount: profileResult.columnCount
+                });
+              }
+            } catch (profileError) {
+              this.logger.error('Failed to profile extracted file, archive will show no profile data', {
+                fileId,
+                primaryFile: primaryDataFile.fileName,
+                error: profileError.message
+              });
+              // Still mark as complete - extraction succeeded even if profiling failed
+              await this.dbPool.query(
+                'UPDATE files SET processing_step = $1, updated_at = NOW() WHERE file_id = $2',
+                ['complete', fileId]
+              );
+            }
+          } else {
+            this.logger.warn('No primary data file found in archive to profile', {
+              fileId,
+              extractedFiles: extractionResult.files.map(f => f?.relativePath)
+            });
+            // Update file processing_step to 'complete' for archive files
+            await this.dbPool.query(
+              'UPDATE files SET processing_step = $1, updated_at = NOW() WHERE file_id = $2',
+              ['complete', fileId]
+            );
+          }
+
+          // Cleanup temp directory after profiling
+          if (extractionResult.tempDir) {
+            try {
+              const fs = require('fs');
+              await fs.promises.rm(extractionResult.tempDir, { recursive: true, force: true });
+              this.logger.info('Cleaned up archive extraction temp directory', {
+                fileId,
+                tempDir: extractionResult.tempDir
+              });
+            } catch (cleanupError) {
+              this.logger.warn('Failed to cleanup temp directory', {
+                fileId,
+                tempDir: extractionResult.tempDir,
+                error: cleanupError.message
+              });
+            }
+          }
 
           // Complete the job - extracted files will be queued separately
           await this.queue.completeJob(jobId, {
