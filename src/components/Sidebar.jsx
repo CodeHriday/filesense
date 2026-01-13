@@ -238,6 +238,15 @@ function Sidebar() {
               <FiHome />
             </button>
             <Link to="/" className="sidebar-logo">
+              <img 
+                src="/images/filesense-logo.png" 
+                alt="FileSense" 
+                className="sidebar-logo-img"
+                onError={(e) => {
+                  e.target.onerror = null;
+                  e.target.style.display = 'none';
+                }}
+              />
               <h1>FileSense</h1>
             </Link>
             <NotificationBell />
