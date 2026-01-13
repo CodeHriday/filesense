@@ -31,7 +31,7 @@ const AuditTrail = () => {
     endDate: '',
     statusFilter: 'all',
     datePreset: '',
-    limit: 100
+    limit: 1000
   });
 
   const datePresets = [
@@ -121,7 +121,7 @@ const AuditTrail = () => {
       if (activeFilters.actionType) params.append('actionType', activeFilters.actionType);
       if (activeFilters.startDate) params.append('startDate', activeFilters.startDate);
       if (activeFilters.endDate) params.append('endDate', activeFilters.endDate);
-      params.append('limit', activeFilters.limit || 100);
+      params.append('limit', activeFilters.limit || 1000);
 
       const response = await axios.get(`/api/audit/logs?${params.toString()}`);
       setAuditLogs(response.data);
@@ -259,7 +259,7 @@ const AuditTrail = () => {
       endDate: '',
       statusFilter: 'all',
       datePreset: '',
-      limit: 100
+      limit: 1000
     };
     setFilters(clearedFilters);
     setCurrentPage(1);
