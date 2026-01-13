@@ -5125,18 +5125,36 @@ app.get('/api/audit/logs', authenticateToken, requireAdmin, async (req, res) => 
       actionType,
       startDate,
       endDate,
-      limit = 100,
+      limit,
       offset = 0
     } = req.query;
+
+    // If no startDate provided, default to retention period
+    let effectiveStartDate = startDate ? new Date(startDate) : null;
+    let effectiveLimit = limit ? parseInt(limit) : null;
+    
+    if (!startDate) {
+      // Fetch retention settings to apply as default date range
+      try {
+        const retentionResult = await dbPool.query(
+          'SELECT retention_days FROM audit_retention_settings LIMIT 1'
+        );
+        const retentionDays = retentionResult.rows[0]?.retention_days || 30;
+        effectiveStartDate = new Date(Date.now() - retentionDays * 24 * 60 * 60 * 1000);
+      } catch (retentionErr) {
+        // Fallback to 30 days if retention settings unavailable
+        effectiveStartDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+      }
+    }
 
     const logs = await auditService.getAuditLogs({
       userId,
       entityType,
       entityId,
       actionType,
-      startDate: startDate ? new Date(startDate) : null,
+      startDate: effectiveStartDate,
       endDate: endDate ? new Date(endDate) : null,
-      limit: parseInt(limit),
+      limit: effectiveLimit,
       offset: parseInt(offset)
     });
 
