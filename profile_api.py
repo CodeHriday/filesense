@@ -510,13 +510,26 @@ def load_csv(file_path, delimiter=None, header_config=None):
             df = pd.read_csv(file_path, sep=escaped_delimiter, engine='python')
             raw_headers = list(df.columns)
     else:
-        # Auto-detect delimiter
-        if header_param is None and column_names:
-            df = pd.read_csv(file_path, low_memory=False, header=None, names=column_names)
-            raw_headers = column_names
-        else:
-            df = pd.read_csv(file_path, low_memory=False)
-            raw_headers = list(df.columns)
+        # Auto-detect delimiter using sep=None with python engine
+        # This enables pandas to detect non-comma delimiters like pipe, tab, semicolon
+        logger.info(f"Auto-detecting delimiter for file: {file_path}")
+        try:
+            if header_param is None and column_names:
+                df = pd.read_csv(file_path, sep=None, engine='python', header=None, names=column_names)
+                raw_headers = column_names
+            else:
+                df = pd.read_csv(file_path, sep=None, engine='python')
+                raw_headers = list(df.columns)
+            logger.info(f"Auto-detected delimiter successfully, found {len(df.columns)} columns")
+        except Exception as auto_detect_error:
+            # Fallback to default comma delimiter if auto-detection fails
+            logger.warning(f"Auto-detection failed, falling back to comma delimiter: {str(auto_detect_error)}")
+            if header_param is None and column_names:
+                df = pd.read_csv(file_path, low_memory=False, header=None, names=column_names)
+                raw_headers = column_names
+            else:
+                df = pd.read_csv(file_path, low_memory=False)
+                raw_headers = list(df.columns)
     
     return df, raw_headers, {}
 
