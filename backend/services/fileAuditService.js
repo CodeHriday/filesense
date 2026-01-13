@@ -503,6 +503,8 @@ async function getAuditRecords(pool, filters = {}) {
           COALESCE(fad.mapping_name, tm.mapping_name) as mapping_name,
           p.name as project_name,
           f.project_id,
+          f.sub_project_id,
+          sp.name as sub_project_name,
           f.quality_score,
           f.column_count as number_of_columns,
           f.row_count,
@@ -532,6 +534,7 @@ async function getAuditRecords(pool, filters = {}) {
         FROM file_audit_details fad
         LEFT JOIN files f ON fad.file_id = f.file_id
         LEFT JOIN projects p ON f.project_id = p.id
+        LEFT JOIN projects sp ON f.sub_project_id = sp.id
         LEFT JOIN logical_file_groups lfg ON f.logical_file_id = lfg.logical_file_id
         LEFT JOIN file_schema_details fsd 
           ON fad.file_schema_id = fsd.file_schema_id
