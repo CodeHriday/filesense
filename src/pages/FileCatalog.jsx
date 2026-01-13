@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FiEye, FiTrash2, FiAlertTriangle, FiGitBranch, FiLock } from 'react-icons/fi';
+import { FiEye, FiTrash2, FiAlertTriangle, FiGitBranch, FiLock, FiRefreshCw } from 'react-icons/fi';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQueryClient, useMutation } from '@tanstack/react-query';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -101,7 +101,6 @@ export const FileCatalog = ({ onFileSelect }) => {
   // Properly handle the file data format from the batch API
   // API returns { files: Array, totalCount: number, projects: Array, subProjects: Array }
   const files = initData?.files || [];
-  const globalTotalFilesCount = initData?.totalCount || files.length;
   
   // Get projects from batch endpoint (already filtered by user's access)
   const uniqueProjects = React.useMemo(() => {
@@ -326,17 +325,17 @@ export const FileCatalog = ({ onFileSelect }) => {
       // Filter by file type
       const matchesType = selectedType === 'all' || file.file_type === selectedType;
       
-      // Filter by project
-      const matchesProject = selectedProject === 'all' || file.project_id === selectedProject;
+      // Filter by project (use String() to handle mixed number/string ID types from API)
+      const matchesProject = selectedProject === 'all' || String(file.project_id) === String(selectedProject);
       
-      // Filter by sub-project
+      // Filter by sub-project (use String() to handle mixed number/string ID types from API)
       let matchesSubProject;
       if (selectedSubProject === 'all') {
         matchesSubProject = true;
       } else if (selectedSubProject === 'none') {
         matchesSubProject = !file.sub_project_id;
       } else {
-        matchesSubProject = file.sub_project_id === selectedSubProject;
+        matchesSubProject = String(file.sub_project_id) === String(selectedSubProject);
       }
       
       return matchesSearch && matchesType && matchesProject && matchesSubProject;
@@ -376,9 +375,10 @@ export const FileCatalog = ({ onFileSelect }) => {
   const endIndex = startIndex + itemsPerPage;
   const paginatedFiles = filteredAndSortedFiles.slice(startIndex, endIndex);
   
-  // Display count: show filtered count when filters are active, otherwise show global total
+  // Display count: show filtered count when filters are active, otherwise show deduplicated total
+  // Using deduplicatedFiles.length ensures consistency between the header count and pagination
   const hasActiveFilters = selectedProject !== 'all' || selectedSubProject !== 'all' || selectedType !== 'all' || searchTerm !== '';
-  const displayedFilesCount = hasActiveFilters ? filteredAndSortedFiles.length : globalTotalFilesCount;
+  const displayedFilesCount = hasActiveFilters ? filteredAndSortedFiles.length : deduplicatedFiles.length;
 
   // Reset to page 1 when filters change
   React.useEffect(() => {
@@ -607,7 +607,17 @@ export const FileCatalog = ({ onFileSelect }) => {
           <h1 className="gps-page-title">File Catalog</h1>
           <p className="gps-page-subtitle">All uploaded files with quality metrics and metadata</p>
         </div>
-        <div className="gps-header-actions">
+        <div className="gps-header-actions" style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+          <button 
+            className="gps-btn gps-btn--secondary"
+            onClick={() => refetch()}
+            disabled={isLoading}
+            title="Refresh file catalog"
+            style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+          >
+            <FiRefreshCw className={isLoading ? 'spinning' : ''} />
+            Refresh
+          </button>
           <div className="gps-stat-card" style={{ padding: '8px 16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
             <span style={{ fontSize: '18px', fontWeight: 700, color: '#025043' }}>{displayedFilesCount.toLocaleString()}</span>
             <span style={{ fontSize: '10px', color: '#666' }}>{hasActiveFilters ? 'Filtered Files' : 'Total Files'}</span>

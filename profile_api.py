@@ -510,13 +510,26 @@ def load_csv(file_path, delimiter=None, header_config=None):
             df = pd.read_csv(file_path, sep=escaped_delimiter, engine='python')
             raw_headers = list(df.columns)
     else:
-        # Auto-detect delimiter
-        if header_param is None and column_names:
-            df = pd.read_csv(file_path, low_memory=False, header=None, names=column_names)
-            raw_headers = column_names
-        else:
-            df = pd.read_csv(file_path, low_memory=False)
-            raw_headers = list(df.columns)
+        # Auto-detect delimiter using sep=None with python engine
+        # This enables pandas to detect non-comma delimiters like pipe, tab, semicolon
+        logger.info(f"Auto-detecting delimiter for file: {file_path}")
+        try:
+            if header_param is None and column_names:
+                df = pd.read_csv(file_path, sep=None, engine='python', header=None, names=column_names)
+                raw_headers = column_names
+            else:
+                df = pd.read_csv(file_path, sep=None, engine='python')
+                raw_headers = list(df.columns)
+            logger.info(f"Auto-detected delimiter successfully, found {len(df.columns)} columns")
+        except Exception as auto_detect_error:
+            # Fallback to default comma delimiter if auto-detection fails
+            logger.warning(f"Auto-detection failed, falling back to comma delimiter: {str(auto_detect_error)}")
+            if header_param is None and column_names:
+                df = pd.read_csv(file_path, low_memory=False, header=None, names=column_names)
+                raw_headers = column_names
+            else:
+                df = pd.read_csv(file_path, low_memory=False)
+                raw_headers = list(df.columns)
     
     return df, raw_headers, {}
 
@@ -982,11 +995,15 @@ def load_archive(file_path, file_ext, password=None):
                             if not member_name or member_info.is_dir():
                                 continue
                             
-                            # Extract to temp directory
+                            # Extract to temp directory with chunked reads for memory efficiency
                             safe_path = os.path.join(temp_dir, member_name)
                             with archive.open(member_info, pwd=password.encode() if password else None) as source:
                                 with open(safe_path, 'wb') as target:
-                                    target.write(source.read())
+                                    while True:
+                                        chunk = source.read(65536)
+                                        if not chunk:
+                                            break
+                                        target.write(chunk)
                             
                             extracted_members.append({
                                 'name': member_name,

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import { useParams, Link } from 'react-router-dom';
-import { FiFileText, FiBarChart2, FiDownload, FiTable, FiCopy, FiEdit2, FiUser, FiClock, FiCheckCircle, FiAlertTriangle, FiXCircle, FiGitBranch, FiZap, FiPlay, FiRefreshCw, FiArrowLeft } from 'react-icons/fi';
+import { FiFileText, FiBarChart2, FiDownload, FiTable, FiCopy, FiEdit2, FiUser, FiClock, FiCheckCircle, FiAlertTriangle, FiXCircle, FiGitBranch, FiZap, FiPlay, FiRefreshCw, FiArrowLeft, FiX, FiShield } from 'react-icons/fi';
 import Card from '../components/Card';
 import LoadingSpinner from '../components/LoadingSpinner';
 import FilePreview from '../components/FilePreview';
@@ -250,71 +250,67 @@ function DelimiterConfigModal({ fileId, onClose, onSave, setErrorMessage }) {
   };
 
   return (
-    <div className="modal-overlay">
-      <div className="modal-content" style={{ maxWidth: '500px' }}>
-        <h2>Configure File Delimiter</h2>
-        <p style={{ marginBottom: '20px', color: '#64748b' }}>
-          Specify the delimiter used in this delimited file to parse columns correctly.
-        </p>
-        
-        <div className="form-group">
-          <label htmlFor="delimiter-select" style={{ fontWeight: 'bold', display: 'block', marginBottom: '0.5rem' }}>
-            Delimiter Type:
-          </label>
-          <select 
-            id="delimiter-select"
-            value={delimiterType}
-            onChange={(e) => {
-              setDelimiterType(e.target.value);
-              if (e.target.value !== 'custom') {
-                setCustomDelimiter('');
-              }
-            }}
-            className="form-control"
-            style={{ marginBottom: delimiterType === 'custom' ? '1rem' : '0' }}
-          >
-            <option value="comma">Comma (,)</option>
-            <option value="pipe">Pipe (|)</option>
-            <option value="tab">Tab (\t)</option>
-            <option value="semicolon">Semicolon (;)</option>
-            <option value="custom">Custom Delimiter...</option>
-          </select>
+    <div className="gps-modal-overlay">
+      <div className="gps-modal" style={{ maxWidth: '500px' }}>
+        <div className="gps-modal-header">
+          <h2 className="gps-modal-title">Configure File Delimiter</h2>
+          <button className="gps-modal-close" onClick={onClose} disabled={saving}>
+            <FiX />
+          </button>
+        </div>
+        <div className="gps-modal-body">
+          <div className="gps-form-group">
+            <label htmlFor="delimiter-select" className="gps-form-label">Delimiter Type</label>
+            <select 
+              id="delimiter-select"
+              className="gps-form-select"
+              value={delimiterType}
+              onChange={(e) => {
+                setDelimiterType(e.target.value);
+                if (e.target.value !== 'custom') {
+                  setCustomDelimiter('');
+                }
+              }}
+            >
+              <option value="comma">Comma (,)</option>
+              <option value="pipe">Pipe (|)</option>
+              <option value="tab">Tab (\t)</option>
+              <option value="semicolon">Semicolon (;)</option>
+              <option value="custom">Custom Delimiter...</option>
+            </select>
+          </div>
           
           {delimiterType === 'custom' && (
-            <div style={{ marginTop: '1rem' }}>
-              <label htmlFor="custom-delimiter-input" style={{ fontWeight: 'bold', display: 'block', marginBottom: '0.5rem' }}>
-                Enter Custom Delimiter:
-              </label>
+            <div className="gps-form-group">
+              <label htmlFor="custom-delimiter-input" className="gps-form-label">Enter Custom Delimiter</label>
               <input 
                 id="custom-delimiter-input"
                 type="text"
+                className="gps-form-input"
                 value={customDelimiter}
                 onChange={(e) => setCustomDelimiter(e.target.value)}
                 placeholder="e.g., ~^ or || or any multi-character string"
-                className="form-control"
                 style={{ fontFamily: 'monospace' }}
               />
-              <div style={{ fontSize: '0.75rem', color: '#666', marginTop: '0.5rem' }}>
-                Supports multi-character delimiters (e.g., '~^', '||', '::')
-              </div>
+              <span className="gps-form-hint">Supports multi-character delimiters (e.g., '~^', '||', '::')</span>
             </div>
           )}
         </div>
         
-        <div className="modal-footer">
+        <div className="gps-modal-footer">
           <button
-            className="btn btn-secondary"
+            className="gps-btn gps-btn--secondary"
             onClick={onClose}
             disabled={saving}
           >
             Cancel
           </button>
           <button
-            className="btn btn-primary"
+            className="gps-btn gps-btn--primary"
             onClick={handleSave}
             disabled={saving}
           >
-            {saving ? 'Saving...' : 'Save & Re-profile'}
+            {saving ? 'Saving...' : 'Save & Re-Profile'}
           </button>
         </div>
       </div>
@@ -736,19 +732,25 @@ function ColumnGovernanceTagModal({ fileId, columnName, currentTags, availableTa
     }
   };
 
+  const formatTagName = (name) => {
+    if (!name) return '';
+    return name.toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+  };
+
   return (
     <div className="modal-overlay">
-      <div className="modal-content">
-        <h2>Assign Tags to Column: {columnName}</h2>
+      <div className="modal-content tag-assignment-modal">
+        <h2 className="modal-title">Assign Tags to Column: <span className="column-name-highlight">{columnName}</span></h2>
         
         <div className="form-group">
-          <label htmlFor="governance-tags-selector">Select Governance Tags</label>
+          <label htmlFor="governance-tags-selector" className="form-label">Select Governance Tags</label>
+          <p className="form-hint">Click to select or deselect tags for this column</p>
           <div
-           id="governance-tags-selector"  
+            id="governance-tags-selector"  
             className="tags-selector"
             role="listbox"
             aria-multiselectable="true"
-            >
+          >
             {availableTags.length > 0 ? (
               availableTags.map(tag => {
                 const isSelected = selectedTags.some(t => t.tag_id === tag.tag_id);
@@ -756,10 +758,10 @@ function ColumnGovernanceTagModal({ fileId, columnName, currentTags, availableTa
                   <button
                     key={tag.tag_id}
                     className={`tag-chip ${isSelected ? 'selected' : ''}`}
-                    style={isSelected ? { backgroundColor: tag.color, color: 'white' } : {}}
+                    style={isSelected ? { backgroundColor: tag.color || '#025043', borderColor: tag.color || '#025043', color: 'white' } : {}}
                     onClick={() => handleToggle(tag.tag_id)}
                   >
-                    {tag.tag_name}
+                    {formatTagName(tag.tag_name)}
                   </button>
                 );
               })
@@ -770,10 +772,10 @@ function ColumnGovernanceTagModal({ fileId, columnName, currentTags, availableTa
         </div>
         
         <div className="modal-actions">
-          <button className="btn btn-secondary" onClick={onClose} disabled={saving}>
+          <button className="gps-btn gps-btn--secondary" onClick={onClose} disabled={saving}>
             Cancel
           </button>
-          <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
+          <button className="gps-btn gps-btn--primary" onClick={handleSave} disabled={saving}>
             {saving ? 'Saving...' : 'Save'}
           </button>
         </div>
@@ -820,13 +822,19 @@ function ColumnPolicyModal({ fileId, columnName, currentPolicies, availablePolic
     }
   };
 
+  const formatPolicyName = (name) => {
+    if (!name) return '';
+    return name.toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+  };
+
   return (
     <div className="modal-overlay">
-      <div className="modal-content">
-        <h2>Assign Policies to Column: {columnName}</h2>
+      <div className="modal-content tag-assignment-modal">
+        <h2 className="modal-title">Assign Policies to Column: <span className="column-name-highlight">{columnName}</span></h2>
         
         <div className="form-group">
-          <label htmlFor="policies-selector">Select Governance Policies</label>
+          <label htmlFor="policies-selector" className="form-label">Select Governance Policies</label>
+          <p className="form-hint">Click to select or deselect policies for this column</p>
           <div id="policies-selector" className="policies-selector" role="listbox" aria-multiselectable="true">
             {availablePolicies.length > 0 ? (
               availablePolicies.map(policy => {
@@ -837,7 +845,7 @@ function ColumnPolicyModal({ fileId, columnName, currentPolicies, availablePolic
                     className={`policy-chip ${isSelected ? 'selected' : ''}`}
                     onClick={() => handleToggle(policy.policy_id)}
                   >
-                    {policy.policy_name}
+                    {formatPolicyName(policy.policy_name)}
                   </button>
                 );
               })
@@ -848,10 +856,10 @@ function ColumnPolicyModal({ fileId, columnName, currentPolicies, availablePolic
         </div>
         
         <div className="modal-actions">
-          <button className="btn btn-secondary" onClick={onClose} disabled={saving}>
+          <button className="gps-btn gps-btn--secondary" onClick={onClose} disabled={saving}>
             Cancel
           </button>
-          <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
+          <button className="gps-btn gps-btn--primary" onClick={handleSave} disabled={saving}>
             {saving ? 'Saving...' : 'Save'}
           </button>
         </div>
@@ -916,6 +924,9 @@ function DataProfile() {
   
   // Delimiter configuration modal state
   const [showDelimiterModal, setShowDelimiterModal] = useState(false);
+  
+  // Success message state (for re-profiling feedback)
+  const [successMessage, setSuccessMessage] = useState(null);
 
   // Quality Rules state
   const [qualityViolations, setQualityViolations] = useState(null);
@@ -954,6 +965,7 @@ function DataProfile() {
   const [isProcessing, setIsProcessing] = useState(false); // Track if file is still processing
   const pollingIntervalRef = React.useRef(null);
   const pollingStartTimeRef = React.useRef(null);
+  const pendingRulesRunRef = React.useRef(false); // Flag to run quality rules after S3 re-profiling completes
   
   const getAdaptivePollingDelay = () => {
     if (!pollingStartTimeRef.current) return 2000;
@@ -1327,11 +1339,79 @@ function DataProfile() {
     }
   };
   
-  const handleRunQualityRules = () => {
-    // Show the file upload modal for revalidation
-    setShowRevalidateModal(true);
-    setRevalidateFile(null);
-    setRevalidateProgress(0);
+  // Helper function to run quality rules against cached preview data
+  const runQualityRulesUsingPreview = async () => {
+    const token = localStorage.getItem('token');
+    const encodedFileId = encodeURIComponent(fileId);
+    
+    try {
+      setRulesRunning(true);
+      const response = await axios.post(`/api/files/${encodedFileId}/quality-rules/run`, {}, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      
+      // Success - response.data.success is true
+      const violationsFound = response.data.violations_found || 0;
+      setSuccessMessage(`Quality rules executed: ${violationsFound} violation(s) found`);
+      setTimeout(() => setSuccessMessage(null), 3000);
+      await fetchQualityViolations();
+      return { success: true, violationsFound };
+    } catch (err) {
+      console.error('Error running quality rules:', err);
+      throw err;
+    } finally {
+      setRulesRunning(false);
+    }
+  };
+  
+  const handleRunQualityRules = async () => {
+    const token = localStorage.getItem('token');
+    const encodedFileId = encodeURIComponent(fileId);
+    
+    // First try to run rules against cached preview data (no file upload needed)
+    try {
+      await runQualityRulesUsingPreview();
+    } catch (err) {
+      const errorMessage = err.response?.data?.message || err.response?.data?.error || '';
+      
+      // If no preview data available, check if file is in S3 and can be re-fetched
+      if (errorMessage.includes('No file data available') || errorMessage.includes('re-profile')) {
+        // Check if file is in S3 - if so, offer to fetch from S3
+        const hasS3Location = file.metadata?.s3_bucket && file.metadata?.s3_key;
+        
+        if (hasS3Location) {
+          // Trigger re-profiling from S3, then run rules after processing completes
+          try {
+            setSuccessMessage('Fetching file from S3 and re-profiling...');
+            pendingRulesRunRef.current = true; // Flag to run rules after re-profiling
+            
+            const retryResponse = await axios.post(`/api/files/${encodedFileId}/retry`, {}, {
+              headers: { 'Authorization': `Bearer ${token}` }
+            });
+            
+            if (retryResponse.data.success || retryResponse.data.jobId) {
+              setSuccessMessage('Re-profiling file... Quality rules will run automatically when complete.');
+              setIsProcessing(true);
+              setTimeout(() => setSuccessMessage(null), 5000);
+            }
+          } catch (retryErr) {
+            console.error('Failed to fetch from S3:', retryErr);
+            pendingRulesRunRef.current = false;
+            // Fall back to showing upload modal
+            setShowRevalidateModal(true);
+            setRevalidateFile(null);
+            setRevalidateProgress(0);
+          }
+        } else {
+          // No S3 location, show upload modal as fallback
+          setShowRevalidateModal(true);
+          setRevalidateFile(null);
+          setRevalidateProgress(0);
+        }
+      } else {
+        setErrorMessage(errorMessage || 'Failed to run quality rules');
+      }
+    }
   };
   
   const handleRevalidateFileSelect = (e) => {
@@ -1659,6 +1739,22 @@ function DataProfile() {
           console.log('File processing complete, stopping polling');
           setIsProcessing(false);
           pollingStartTimeRef.current = null;
+          
+          // If we have a pending rules run (after S3 re-profiling), execute it now
+          if (processingStep === 'complete' && pendingRulesRunRef.current) {
+            pendingRulesRunRef.current = false;
+            console.log('Re-profiling complete, now running quality rules...');
+            // Use setTimeout to ensure state updates have propagated
+            setTimeout(async () => {
+              try {
+                await runQualityRulesUsingPreview();
+              } catch (rulesErr) {
+                console.error('Failed to run quality rules after re-profiling:', rulesErr);
+                setErrorMessage('Re-profiling complete but failed to run quality rules. Please try "Run Rules" again.');
+              }
+            }, 500);
+          }
+          
           return; // Stop polling
         }
         
@@ -3031,7 +3127,22 @@ function DataProfile() {
                             </span>
                           </td>
                           <td><code style={{ fontSize: '9px', color: '#025043' }}>{violation.column_name || 'N/A'}</code></td>
-                          <td style={{ maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis', fontSize: '10px' }}>{violation.expected_value}</td>
+                          <td style={{ maxWidth: '180px', fontSize: '10px' }}>
+                            <div>
+                              <span style={{ fontWeight: '500' }}>{violation.expected_value}</span>
+                              {violation.violation_details?.reason && (
+                                <div style={{ 
+                                  fontSize: '9px', 
+                                  color: '#dc2626', 
+                                  marginTop: '2px',
+                                  whiteSpace: 'normal',
+                                  lineHeight: '1.3'
+                                }}>
+                                  {violation.violation_details.reason}
+                                </div>
+                              )}
+                            </div>
+                          </td>
                           <td style={{ maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis', fontSize: '10px' }}>{violation.actual_value}</td>
                           <td><span className="gps-badge gps-badge--secondary" style={{ fontSize: '9px' }}>{violation.rule_type}</span></td>
                         </tr>
@@ -3323,11 +3434,28 @@ function DataProfile() {
                 </div>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '10px', color: '#666', borderTop: '1px solid #e2e8f0', paddingTop: '12px' }}>
-                <div style={{ display: 'flex', gap: '20px' }}>
+                <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap' }}>
                   <span><strong>Size:</strong> {file.file_size ? formatBytes(file.file_size) : 'Unknown'}</span>
                   <span><strong>Uploaded:</strong> {getTimeSince(file.created_at)}</span>
                   <span><strong>Encoding:</strong> {file.encoding || profile?.basic_info?.encoding || 'UTF-8'}</span>
                   <span><strong>Format:</strong> {file.file_type || 'Unknown'}</span>
+                  {file.metadata?.delimiter && (
+                    <span><strong>Delimiter:</strong> <code style={{ backgroundColor: '#f3f4f6', padding: '2px 6px', borderRadius: '4px', fontFamily: 'monospace' }}>{file.metadata.delimiter === '\t' ? '\\t (tab)' : file.metadata.delimiter}</code></span>
+                  )}
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <strong>Virus Scan:</strong>
+                    {file.metadata?.virus_scan_status === 'completed' ? (
+                      <span style={{ color: '#059669', display: 'flex', alignItems: 'center', gap: '2px' }}>
+                        <FiCheckCircle size={12} /> Completed
+                      </span>
+                    ) : file.metadata?.virus_scan_status === 'skipped' ? (
+                      <span style={{ color: '#d97706', display: 'flex', alignItems: 'center', gap: '2px' }} title={file.metadata?.virus_scan_message || 'Scan was skipped'}>
+                        <FiAlertTriangle size={12} /> Skipped
+                      </span>
+                    ) : (
+                      <span style={{ color: '#6b7280' }}>N/A</span>
+                    )}
+                  </span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <strong>Sensitivity:</strong>
@@ -3362,6 +3490,20 @@ function DataProfile() {
                   <h3 style={{ margin: '0 0 4px 0', fontSize: '14px', fontWeight: '600', color: '#1e40af' }}>Processing File...</h3>
                   <p style={{ margin: 0, fontSize: '12px', color: '#3b82f6' }}>
                     Your file is being analyzed. This page will automatically update when processing completes.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+          
+          {successMessage && (
+            <div className="info-banner" style={{ backgroundColor: '#d1fae5', borderColor: '#059669', marginBottom: '20px', border: '1px solid #059669', borderRadius: '8px', padding: '16px' }}>
+              <div className="error-banner-content" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <FiCheckCircle style={{ color: '#059669', fontSize: '24px' }} />
+                <div className="error-text-content">
+                  <h3 style={{ margin: '0 0 4px 0', fontSize: '14px', fontWeight: '600', color: '#065f46' }}>Success</h3>
+                  <p style={{ margin: 0, fontSize: '12px', color: '#059669' }}>
+                    {successMessage}
                   </p>
                 </div>
               </div>
@@ -3523,13 +3665,12 @@ function DataProfile() {
               onClose={() => setShowDelimiterModal(false)}
               onSave={async () => {
                 setShowDelimiterModal(false);
-                setSuccessMessage('Delimiter saved and file re-profiled successfully!');
+                setSuccessMessage('Delimiter saved! Re-profiling file with new delimiter...');
+                setIsProcessing(true);
                 
-                setTimeout(async () => {
+                setTimeout(() => {
                   setSuccessMessage(null);
-                  await fetchFileDetails();
-                  await fetchProfileData();
-                }, 1500);
+                }, 3000);
               }}
               setErrorMessage={setErrorMessage}
             />
@@ -3618,88 +3759,49 @@ function DataProfile() {
       {/* Revalidation Modal - File Upload for Quality Rules */}
       {showRevalidateModal && (
         <div className="modal-overlay" style={{ zIndex: 2000 }}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '500px' }}>
-            <div style={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              justifyContent: 'space-between',
-              padding: '16px 20px',
-              backgroundColor: '#ffffff',
-              borderBottom: '1px solid #e0e0e0'
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <FiPlay style={{ color: '#2e7d32', fontSize: '20px' }} />
-                <h2 style={{ margin: 0, fontSize: '16px', fontWeight: 600, color: '#333' }}>Run Quality Rules</h2>
+          <div className="modal-content run-quality-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="run-quality-modal-header">
+              <div className="run-quality-modal-title">
+                <FiPlay className="run-quality-icon" />
+                <h2>Run Quality Rules</h2>
               </div>
               <button 
                 onClick={() => !rulesRunning && setShowRevalidateModal(false)}
                 disabled={rulesRunning}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  cursor: rulesRunning ? 'not-allowed' : 'pointer',
-                  padding: '4px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: '#666',
-                  opacity: rulesRunning ? 0.5 : 1
-                }}
+                className="run-quality-close-btn"
+                style={{ opacity: rulesRunning ? 0.5 : 1 }}
               >
-                <FiXCircle style={{ fontSize: '18px' }} />
+                <FiXCircle />
               </button>
             </div>
             
-            <div style={{ padding: '20px' }}>
-              <p style={{ margin: '0 0 16px 0', color: '#555', fontSize: '14px', lineHeight: '1.5' }}>
+            <div className="run-quality-modal-body">
+              <p className="run-quality-description">
                 Upload a new version of the file to run quality rules validation. The existing rule configurations will be applied to the uploaded data.
               </p>
               
-              <div style={{ 
-                border: '2px dashed #ccc', 
-                borderRadius: '8px', 
-                padding: '24px', 
-                textAlign: 'center',
-                backgroundColor: revalidateFile ? '#f0f9f0' : '#fafafa',
-                transition: 'all 0.2s'
-              }}>
+              <div className={`run-quality-dropzone ${revalidateFile ? 'has-file' : ''}`}>
                 {revalidateFile ? (
-                  <div>
-                    <FiCheckCircle style={{ fontSize: '32px', color: '#2e7d32', marginBottom: '8px' }} />
-                    <p style={{ margin: '0 0 8px 0', fontWeight: 500, color: '#333' }}>{revalidateFile.name}</p>
-                    <p style={{ margin: 0, fontSize: '12px', color: '#666' }}>
+                  <div className="run-quality-file-selected">
+                    <FiCheckCircle className="run-quality-check-icon" />
+                    <p className="run-quality-filename">{revalidateFile.name}</p>
+                    <p className="run-quality-filesize">
                       {(revalidateFile.size / 1024).toFixed(1)} KB
                     </p>
                     {!rulesRunning && (
                       <button
                         onClick={() => setRevalidateFile(null)}
-                        style={{
-                          marginTop: '12px',
-                          padding: '4px 12px',
-                          fontSize: '12px',
-                          border: '1px solid #ccc',
-                          borderRadius: '4px',
-                          backgroundColor: '#fff',
-                          cursor: 'pointer'
-                        }}
+                        className="run-quality-change-btn"
                       >
                         Choose Different File
                       </button>
                     )}
                   </div>
                 ) : (
-                  <div>
-                    <FiFileText style={{ fontSize: '32px', color: '#999', marginBottom: '8px' }} />
-                    <p style={{ margin: '0 0 12px 0', color: '#666' }}>Select a CSV or JSON file</p>
-                    <label style={{
-                      display: 'inline-block',
-                      padding: '8px 16px',
-                      backgroundColor: '#2e7d32',
-                      color: '#fff',
-                      borderRadius: '4px',
-                      cursor: 'pointer',
-                      fontSize: '14px'
-                    }}>
+                  <div className="run-quality-upload-prompt">
+                    <FiFileText className="run-quality-file-icon" />
+                    <p className="run-quality-prompt-text">Select a CSV or JSON file</p>
+                    <label className="gps-btn gps-btn--primary run-quality-choose-btn">
                       Choose File
                       <input 
                         type="file" 
@@ -3713,66 +3815,34 @@ function DataProfile() {
               </div>
               
               {rulesRunning && (
-                <div style={{ marginTop: '16px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                    <span style={{ fontSize: '12px', color: '#666' }}>
-                      {revalidateProgress < 90 ? 'Uploading...' : 'Processing rules...'}
-                    </span>
-                    <span style={{ fontSize: '12px', color: '#666' }}>{revalidateProgress}%</span>
+                <div className="run-quality-progress">
+                  <div className="run-quality-progress-header">
+                    <span>{revalidateProgress < 90 ? 'Uploading...' : 'Processing rules...'}</span>
+                    <span>{revalidateProgress}%</span>
                   </div>
-                  <div style={{ 
-                    height: '6px', 
-                    backgroundColor: '#e0e0e0', 
-                    borderRadius: '3px',
-                    overflow: 'hidden'
-                  }}>
-                    <div style={{ 
-                      height: '100%', 
-                      width: `${revalidateProgress}%`, 
-                      backgroundColor: '#2e7d32',
-                      transition: 'width 0.3s'
-                    }} />
+                  <div className="run-quality-progress-bar">
+                    <div 
+                      className="run-quality-progress-fill" 
+                      style={{ width: `${revalidateProgress}%` }} 
+                    />
                   </div>
                 </div>
               )}
             </div>
             
-            <div style={{ 
-              display: 'flex',
-              justifyContent: 'flex-end', 
-              gap: '12px',
-              padding: '12px 20px',
-              borderTop: '1px solid #e0e0e0',
-              backgroundColor: '#fafafa'
-            }}>
+            <div className="run-quality-modal-footer">
               <button 
                 onClick={() => setShowRevalidateModal(false)}
                 disabled={rulesRunning}
-                style={{
-                  padding: '8px 16px',
-                  fontSize: '14px',
-                  border: '1px solid #ccc',
-                  borderRadius: '4px',
-                  backgroundColor: '#fff',
-                  cursor: rulesRunning ? 'not-allowed' : 'pointer',
-                  opacity: rulesRunning ? 0.5 : 1
-                }}
+                className="gps-btn gps-btn--secondary"
+                style={{ opacity: rulesRunning ? 0.5 : 1 }}
               >
                 Cancel
               </button>
               <button 
                 onClick={handleRevalidateSubmit}
                 disabled={!revalidateFile || rulesRunning}
-                style={{
-                  padding: '8px 24px',
-                  fontSize: '14px',
-                  fontWeight: 500,
-                  border: 'none',
-                  borderRadius: '4px',
-                  backgroundColor: (!revalidateFile || rulesRunning) ? '#ccc' : '#2e7d32',
-                  color: '#fff',
-                  cursor: (!revalidateFile || rulesRunning) ? 'not-allowed' : 'pointer'
-                }}
+                className="gps-btn gps-btn--primary"
               >
                 {rulesRunning ? 'Running...' : 'Run Rules'}
               </button>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiTrash2, FiSearch, FiGitBranch, FiBarChart2 } from 'react-icons/fi';
+import { FiTrash2, FiSearch, FiGitBranch, FiBarChart2, FiRefreshCw } from 'react-icons/fi';
 import axios from 'axios';
 import PageLayout from '../components/PageLayout';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -42,26 +42,18 @@ const ProcessedFileCatalog = () => {
       const audits = response.data.audits || [];
       setFiles(audits);
       
-      // Extract unique mappings, projects, and subprojects from all files for dropdowns
+      // Extract unique mappings and projects from all files for dropdowns
+      // (subprojects are fetched separately when a project is selected)
       const mappingsSet = new Set();
       const projectsMap = new Map();
-      const subProjectsMap = new Map();
       audits.forEach(f => {
         if (f.mapping_name) mappingsSet.add(f.mapping_name);
         if (f.project_id && f.project_name) {
           projectsMap.set(f.project_id, { id: f.project_id, name: f.project_name });
         }
-        if (f.sub_project_id && f.sub_project_name) {
-          subProjectsMap.set(f.sub_project_id, { 
-            id: f.sub_project_id, 
-            name: f.sub_project_name,
-            project_id: f.project_id 
-          });
-        }
       });
       setAllMappings(Array.from(mappingsSet).sort());
       setAllProjects(Array.from(projectsMap.values()).sort((a, b) => a.name.localeCompare(b.name)));
-      setAllSubProjects(Array.from(subProjectsMap.values()).sort((a, b) => a.name.localeCompare(b.name)));
       
       setError(null);
     } catch (err) {
@@ -88,21 +80,36 @@ const ProcessedFileCatalog = () => {
     };
   }, [fetchTransformationFiles]);
 
-  // Use allMappings and allProjects from dedicated API endpoint
-  // (more efficient than extracting from paginated file results)
-
-  // Filter subprojects based on selected project
-  const filteredSubProjects = useMemo(() => {
-    if (selectedProject === 'all') {
-      return allSubProjects;
-    }
-    return allSubProjects.filter(sp => sp.project_id === selectedProject);
-  }, [allSubProjects, selectedProject]);
-
-  // Reset sub-project when project changes
+  // Fetch subprojects from API when a project is selected
   useEffect(() => {
+    const fetchSubProjects = async () => {
+      if (selectedProject === 'all') {
+        setAllSubProjects([]);
+        return;
+      }
+      
+      try {
+        const response = await axios.get(`/api/projects/${selectedProject}/sub-projects`);
+        if (response.data.success && response.data.subProjects) {
+          const subProjects = response.data.subProjects.map(sp => ({
+            id: sp.id,
+            name: sp.name,
+            project_id: selectedProject
+          }));
+          setAllSubProjects(subProjects);
+        }
+      } catch (err) {
+        console.error('Error fetching sub-projects:', err);
+        setAllSubProjects([]);
+      }
+    };
+    
+    fetchSubProjects();
     setSelectedSubProject('all');
   }, [selectedProject]);
+
+  // Use fetched subprojects directly (already filtered by project)
+  const filteredSubProjects = allSubProjects;
 
   // Helper function to check if date falls within selected range
   const isWithinDateRange = useCallback((dateStr, range) => {
@@ -149,11 +156,13 @@ const ProcessedFileCatalog = () => {
     }
 
     if (selectedProject !== 'all') {
-      result = result.filter(f => f.project_id === selectedProject);
+      // Compare as strings to handle both numeric and string IDs from API
+      result = result.filter(f => String(f.project_id) === String(selectedProject));
     }
 
     if (selectedSubProject !== 'all') {
-      result = result.filter(f => f.sub_project_id === selectedSubProject);
+      // Compare as strings to handle both numeric and string IDs from API
+      result = result.filter(f => String(f.sub_project_id) === String(selectedSubProject));
     }
 
     if (selectedDateRange !== 'all') {
@@ -239,6 +248,24 @@ const ProcessedFileCatalog = () => {
     <PageLayout 
       title="Processed File Catalog"
       subtitle="Files created by ETL transformations with profiling history"
+      headerActions={
+        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+          <button 
+            className="gps-btn gps-btn--secondary"
+            onClick={() => fetchTransformationFiles()}
+            disabled={loading}
+            title="Refresh file catalog"
+            style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+          >
+            <FiRefreshCw className={loading ? 'spinning' : ''} />
+            Refresh
+          </button>
+          <div className="gps-stat-card" style={{ padding: '8px 16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '18px', fontWeight: 700, color: '#025043' }}>{filteredFiles.length.toLocaleString()}</span>
+            <span style={{ fontSize: '10px', color: '#666' }}>Total Files</span>
+          </div>
+        </div>
+      }
     >
       <div className="gps-card">
         <div className="gps-card-header">

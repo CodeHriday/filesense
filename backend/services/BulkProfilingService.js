@@ -1220,8 +1220,8 @@ print(json.dumps(result))
       INSERT INTO files (
         file_id, filename, file_type, file_size, 
         row_count, column_count, quality_score, metadata, checksum,
-        duplicate_records_count, duplicate_records_percentage, project_id
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+        duplicate_records_count, duplicate_records_percentage, project_id, processing_step
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'complete')
       ON CONFLICT (file_id) 
       DO UPDATE SET
         row_count = EXCLUDED.row_count,
@@ -1231,6 +1231,7 @@ print(json.dumps(result))
         checksum = EXCLUDED.checksum,
         duplicate_records_count = EXCLUDED.duplicate_records_count,
         duplicate_records_percentage = EXCLUDED.duplicate_records_percentage,
+        processing_step = 'complete',
         updated_at = CURRENT_TIMESTAMP
       RETURNING *
     `;

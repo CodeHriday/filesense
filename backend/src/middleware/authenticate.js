@@ -56,7 +56,15 @@ const authenticateToken = async (req, res, next) => {
       };
       
       // Add user permissions to request for permission checking
+      // This also populates user.effectiveRoles and user.groupInheritedRoles
       req.user.permissions = await getUserPermissions(user);
+      
+      // Propagate effective roles (direct + group-inherited) to req.user
+      // This ensures downstream middleware (requireRole, etc.) can check all user roles
+      if (user.effectiveRoles) {
+        req.user.roles = user.effectiveRoles;
+        req.user.groupInheritedRoles = user.groupInheritedRoles || [];
+      }
       
       // Map permissions to features for frontend UI
       req.user.features = mapPermissionsToFeatures(req.user.permissions);
@@ -147,16 +155,54 @@ const mapPermissionsToFeatures = (permissions) => {
 };
 
 /**
+ * Get roles inherited from access groups the user belongs to
+ * @param {number} userId - User ID
+ * @returns {Promise<Array>} Array of role names inherited from groups
+ */
+const getGroupInheritedRoles = async (userId) => {
+  try {
+    const groupRolesQuery = `
+      SELECT DISTINCT r.name as role_name, r.permissions as role_permissions
+      FROM user_groups ug
+      INNER JOIN access_group_roles agr ON ug.group_id = agr.group_id
+      INNER JOIN roles r ON agr.role_id = r.id
+      WHERE ug.user_id = $1
+    `;
+    
+    const result = await db.query(groupRolesQuery, [userId]);
+    return result.rows;
+  } catch (error) {
+    console.error('Error fetching group-inherited roles:', error);
+    return [];
+  }
+};
+
+/**
  * Get user permissions based on roles (with Redis caching)
+ * Includes both direct role assignments and roles inherited from access groups
  * @param {Object} user - User object with roles
  * @returns {Promise<Array>} Array of permission objects
  */
 const getUserPermissions = async (user) => {
-  // Create cache key based on user roles
-  const rolesKey = user.roles ? user.roles.sort().join(':') : 'no-roles';
-  const cacheKey = `permissions:roles:${rolesKey}`;
+  // Create cache key based on user ID (since we now include group-based roles)
+  const cacheKey = `permissions:user:${user.id}`;
   
-  // Try to get from cache first
+  // Always compute effective roles (direct + group-inherited) regardless of cache
+  // This ensures req.user.roles is always up-to-date
+  const directRoles = user.roles || [];
+  const groupInheritedRoles = await getGroupInheritedRoles(user.id);
+  const groupRoleNames = groupInheritedRoles.map(r => r.role_name);
+  
+  // Merge all role names (deduplicated)
+  const allRoleNames = [...new Set([...directRoles, ...groupRoleNames])];
+  
+  // Store effective roles on user object for downstream access
+  user.effectiveRoles = allRoleNames;
+  user.groupInheritedRoles = groupRoleNames;
+  
+  console.log(`User ${user.id} roles - Direct: [${directRoles.join(', ')}], Group-inherited: [${groupRoleNames.join(', ')}]`);
+  
+  // Try to get permissions from cache (but we've already computed roles above)
   try {
     const cachedPermissions = await cache.get(cacheKey);
     if (cachedPermissions) {
@@ -175,8 +221,8 @@ const getUserPermissions = async (user) => {
     'quality_checks:read'
   ];
   
-  // Add role-based permissions
-  if (user.roles && user.roles.length > 0) {
+  // Add role-based permissions from direct roles
+  if (allRoleNames.length > 0) {
     try {
       // First, get permissions from role_permissions junction table
       const permissionsQuery = `
@@ -187,7 +233,7 @@ const getUserPermissions = async (user) => {
         WHERE r.name = ANY($1)
       `;
       
-      const permissionsResult = await db.query(permissionsQuery, [user.roles]);
+      const permissionsResult = await db.query(permissionsQuery, [allRoleNames]);
       console.log('Permission query result rows:', permissionsResult.rows.length);
       
       // Add each permission object to the permissions array
@@ -208,7 +254,7 @@ const getUserPermissions = async (user) => {
         WHERE name = ANY($1)
       `;
       
-      const rolesResult = await db.query(rolesQuery, [user.roles]);
+      const rolesResult = await db.query(rolesQuery, [allRoleNames]);
       console.log('Roles query result rows:', rolesResult.rows.length);
       
       // Process each role

@@ -284,7 +284,8 @@ const SchedulerForm = () => {
                   id="project-select"
                   value={formData.project_id}
                   onChange={e => setFormData({ ...formData, project_id: e.target.value, sub_project_id: '', entity_id: '' })}
-                  className="gps-select"
+                  className="gps-filter-select"
+                  style={{ width: '100%' }}
                 >
                   <option value="">Select project...</option>
                   {projects.map(project => (
@@ -302,7 +303,8 @@ const SchedulerForm = () => {
                   id="subproject-select"
                   value={formData.sub_project_id}
                   onChange={e => setFormData({ ...formData, sub_project_id: e.target.value, entity_id: '' })}
-                  className="gps-select"
+                  className="gps-filter-select"
+                  style={{ width: '100%' }}
                   disabled={!formData.project_id || subProjects.length === 0}
                 >
                   <option value="">None (use main project)</option>
@@ -362,7 +364,8 @@ const SchedulerForm = () => {
                     setFormData({ ...formData, entity_id: value, project_id: projectId, sub_project_id: subProjectId });
                   }}
                   required
-                  className="gps-select"
+                  className="gps-filter-select"
+                  style={{ width: '100%' }}
                 >
                   <option value="">Select {formData.entity_type.replace('_', ' ')}...</option>
                   {getEntityOptions().map(option => (
@@ -453,7 +456,8 @@ const SchedulerForm = () => {
                     value={formData.interval_unit}
                     onChange={e => setFormData({ ...formData, interval_unit: e.target.value })}
                     required
-                    className="gps-select"
+                    className="gps-filter-select"
+                    style={{ width: '100%' }}
                   >
                     <option value="minute">Minute(s)</option>
                     <option value="hour">Hour(s)</option>

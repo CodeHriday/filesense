@@ -134,6 +134,110 @@ const sanitizeError = (error, genericMessage = 'An error occurred') => {
   return error.message || genericMessage;
 };
 
+// Comprehensive date validation helper with detailed error messages
+const validateDateFormat = (dateString) => {
+  if (!dateString || typeof dateString !== 'string') {
+    return { valid: false, expectedFormat: 'YYYY-MM-DD', reason: 'Empty or invalid value' };
+  }
+  
+  const trimmedValue = dateString.trim();
+  
+  // Common date format patterns to check
+  const formats = [
+    { pattern: /^(\d{4})-(\d{2})-(\d{2})$/, name: 'YYYY-MM-DD', yearIdx: 1, monthIdx: 2, dayIdx: 3 },
+    { pattern: /^(\d{2})\/(\d{2})\/(\d{4})$/, name: 'MM/DD/YYYY', yearIdx: 3, monthIdx: 1, dayIdx: 2 },
+    { pattern: /^(\d{2})-(\d{2})-(\d{4})$/, name: 'MM-DD-YYYY', yearIdx: 3, monthIdx: 1, dayIdx: 2 },
+    { pattern: /^(\d{4})\/(\d{2})\/(\d{2})$/, name: 'YYYY/MM/DD', yearIdx: 1, monthIdx: 2, dayIdx: 3 },
+    { pattern: /^(\d{2})\.(\d{2})\.(\d{4})$/, name: 'DD.MM.YYYY', yearIdx: 3, monthIdx: 2, dayIdx: 1 },
+  ];
+  
+  let matchedFormat = null;
+  let year, month, day;
+  
+  for (const fmt of formats) {
+    const match = trimmedValue.match(fmt.pattern);
+    if (match) {
+      matchedFormat = fmt;
+      year = parseInt(match[fmt.yearIdx], 10);
+      month = parseInt(match[fmt.monthIdx], 10);
+      day = parseInt(match[fmt.dayIdx], 10);
+      break;
+    }
+  }
+  
+  // If no format matched, check if it looks like a date attempt
+  if (!matchedFormat) {
+    // Check for common malformed patterns
+    const hasSeparators = /[-\/\.]/.test(trimmedValue);
+    const hasDigits = /\d/.test(trimmedValue);
+    
+    if (hasSeparators && hasDigits) {
+      // Try to extract what they attempted
+      const parts = trimmedValue.split(/[-\/\.]/);
+      if (parts.length === 3) {
+        return { 
+          valid: false, 
+          expectedFormat: 'YYYY-MM-DD or MM/DD/YYYY',
+          reason: `Unrecognized format. Use formats like YYYY-MM-DD (2024-01-15) or MM/DD/YYYY (01/15/2024)`
+        };
+      }
+    }
+    
+    return { 
+      valid: false, 
+      expectedFormat: 'YYYY-MM-DD', 
+      reason: `Invalid date format. Expected YYYY-MM-DD (e.g., 2024-01-15)`
+    };
+  }
+  
+  // Validate extracted components
+  const errors = [];
+  
+  // Validate year (1900-2100 range)
+  if (year < 1900 || year > 2100) {
+    errors.push(`Year ${year} is invalid (expected 1900-2100)`);
+  }
+  
+  // Validate month (1-12)
+  if (month < 1 || month > 12) {
+    errors.push(`Month ${month} is invalid (expected 01-12)`);
+  }
+  
+  // Validate day based on month
+  if (month >= 1 && month <= 12) {
+    const daysInMonth = [0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+    // Check for leap year
+    const isLeapYear = (year % 4 === 0 && year % 100 !== 0) || (year % 400 === 0);
+    if (isLeapYear && month === 2) {
+      daysInMonth[2] = 29;
+    }
+    
+    const maxDays = daysInMonth[month] || 31;
+    if (day < 1 || day > maxDays) {
+      if (month === 2 && day === 29 && !isLeapYear) {
+        errors.push(`Day 29 is invalid for February in ${year} (not a leap year)`);
+      } else {
+        const monthNames = ['', 'January', 'February', 'March', 'April', 'May', 'June', 
+                           'July', 'August', 'September', 'October', 'November', 'December'];
+        errors.push(`Day ${day} is invalid for ${monthNames[month] || 'this month'} (expected 01-${String(maxDays).padStart(2, '0')})`);
+      }
+    }
+  } else if (day < 1 || day > 31) {
+    errors.push(`Day ${day} is invalid (expected 01-31)`);
+  }
+  
+  if (errors.length > 0) {
+    return { 
+      valid: false, 
+      expectedFormat: matchedFormat.name,
+      reason: errors.join('; '),
+      components: { year, month, day }
+    };
+  }
+  
+  return { valid: true, expectedFormat: matchedFormat.name, components: { year, month, day } };
+};
+
 // Permission-based access control helper functions
 // These replace hardcoded "Admin" role name checks with actual permission checks
 
@@ -2710,12 +2814,13 @@ app.post('/api/files/upload', authenticateToken, invalidateCache('cache:*:*files
         
         // Create placeholder file record immediately to prevent 404 race condition during status polling
         try {
+          const placeholderMetadata = JSON.stringify({ file_path: file.path });
           await dbPool.query(`
-            INSERT INTO files (file_id, filename, file_type, file_size, project_id, processing_step, checksum, created_at)
-            VALUES ($1, $2, $3, $4, $5, 'queued', $6, NOW())
+            INSERT INTO files (file_id, filename, file_type, file_size, project_id, processing_step, checksum, metadata, created_at)
+            VALUES ($1, $2, $3, $4, $5, 'queued', $6, $7::jsonb, NOW())
             ON CONFLICT (file_id) DO NOTHING
-          `, [fileId, file.originalname, fileType, file.size, projectId, fileHash]);
-          logger.info('Placeholder file record created', { fileId, filename: file.originalname });
+          `, [fileId, file.originalname, fileType, file.size, projectId, fileHash, placeholderMetadata]);
+          logger.info('Placeholder file record created', { fileId, filename: file.originalname, filePath: file.path });
         } catch (placeholderError) {
           logger.warn('Failed to create placeholder file record - processing will continue', { 
             fileId, 
@@ -5962,58 +6067,94 @@ app.get('/api/files/:fileId/full',
     const deniedColumnNames = new Set(deniedColumns.map(c => c.column_name));
     
     // Build profile columns with access control
-    const columns = columnsResult.rows.map(col => {
-      const isMasked = maskedColumnNames.has(col.column_name);
-      const isDenied = deniedColumnNames.has(col.column_name);
-      
-      if (isMasked || isDenied) {
+    // If file_columns is empty, fall back to schema_definition (for archive files profiled via Flask API)
+    let columns = [];
+    
+    if (columnsResult.rows.length > 0) {
+      columns = columnsResult.rows.map(col => {
+        const isMasked = maskedColumnNames.has(col.column_name);
+        const isDenied = deniedColumnNames.has(col.column_name);
+        
+        if (isMasked || isDenied) {
+          return {
+            name: col.column_name,
+            type: normalizeDataType(col.column_type),
+            count: col.non_null_count,
+            unique: col.unique_count,
+            missing: col.null_count,
+            min: '[REDACTED]',
+            max: '[REDACTED]',
+            mean: null,
+            median: null,
+            stdDev: null,
+            histogram: null,
+            patterns: [],
+            most_frequent_value: '[REDACTED]',
+            least_frequent_value: '[REDACTED]',
+            most_frequent_count: null,
+            least_frequent_count: null,
+            _accessLevel: isMasked ? 'masked' : 'denied'
+          };
+        }
+        
         return {
           name: col.column_name,
           type: normalizeDataType(col.column_type),
           count: col.non_null_count,
           unique: col.unique_count,
           missing: col.null_count,
-          min: '[REDACTED]',
-          max: '[REDACTED]',
-          mean: null,
+          min: col.min_value,
+          max: col.max_value,
+          mean: col.mean_value,
+          median: col.median_value,
+          stdDev: col.std_dev,
+          histogram: (() => {
+            if (!col.histogram) return null;
+            if (typeof col.histogram === 'string') {
+              try { return JSON.parse(col.histogram); } catch { return null; }
+            }
+            return col.histogram;
+          })(),
+          patterns: col.patterns || [],
+          most_frequent_value: col.most_frequent_value,
+          least_frequent_value: col.least_frequent_value,
+          most_frequent_count: col.most_frequent_count,
+          least_frequent_count: col.least_frequent_count,
+          _accessLevel: 'full'
+        };
+      });
+    } else if (file.schema_definition) {
+      let schemaData = file.schema_definition;
+      if (typeof schemaData === 'string') {
+        try { schemaData = JSON.parse(schemaData); } catch { schemaData = []; }
+      }
+      if (Array.isArray(schemaData)) {
+        columns = schemaData.map(col => ({
+          name: col.name,
+          type: normalizeDataType(col.type || 'string'),
+          count: file.row_count - (col.null_count || 0),
+          unique: col.unique_count || null,
+          missing: col.null_count || 0,
+          min: col.min_value || col.min || null,
+          max: col.max_value || col.max || null,
+          mean: col.mean_value || col.mean || null,
           median: null,
           stdDev: null,
           histogram: null,
-          patterns: [],
-          most_frequent_value: '[REDACTED]',
-          least_frequent_value: '[REDACTED]',
-          most_frequent_count: null,
-          least_frequent_count: null,
-          _accessLevel: isMasked ? 'masked' : 'denied'
-        };
+          patterns: col.patterns || [],
+          most_frequent_value: col.most_frequent_value || null,
+          least_frequent_value: col.least_frequent_value || null,
+          most_frequent_count: col.most_frequent_count || null,
+          least_frequent_count: col.least_frequent_count || null,
+          min_length: col.min_length || null,
+          max_length: col.max_length || null,
+          avg_length: col.avg_length || null,
+          top_values: col.top_values || [],
+          _accessLevel: 'full',
+          _source: 'schema_definition'
+        }));
       }
-      
-      return {
-        name: col.column_name,
-        type: normalizeDataType(col.column_type),
-        count: col.non_null_count,
-        unique: col.unique_count,
-        missing: col.null_count,
-        min: col.min_value,
-        max: col.max_value,
-        mean: col.mean_value,
-        median: col.median_value,
-        stdDev: col.std_dev,
-        histogram: (() => {
-          if (!col.histogram) return null;
-          if (typeof col.histogram === 'string') {
-            try { return JSON.parse(col.histogram); } catch { return null; }
-          }
-          return col.histogram;
-        })(),
-        patterns: col.patterns || [],
-        most_frequent_value: col.most_frequent_value,
-        least_frequent_value: col.least_frequent_value,
-        most_frequent_count: col.most_frequent_count,
-        least_frequent_count: col.least_frequent_count,
-        _accessLevel: 'full'
-      };
-    });
+    }
     
     const profile = {
       fileId,
@@ -6565,22 +6706,42 @@ app.post('/api/files/:fileId/quality-rules/run', authenticateToken, async (req, 
               
             case 'date_format':
               if (cellValue && typeof cellValue === 'string') {
-                const dateValue = new Date(cellValue);
-                if (isNaN(dateValue.getTime())) {
+                const dateValidation = validateDateFormat(cellValue);
+                if (!dateValidation.valid) {
                   isViolation = true;
-                  expectedValue = 'Valid date format';
-                  violationDetails = { reason: 'Invalid date format', value: cellValue };
+                  expectedValue = `Format: ${dateValidation.expectedFormat}`;
+                  violationDetails = { 
+                    reason: dateValidation.reason, 
+                    value: cellValue,
+                    expectedFormat: dateValidation.expectedFormat,
+                    components: dateValidation.components
+                  };
                 }
               }
               break;
               
             case 'timestamp_format':
               if (cellValue && typeof cellValue === 'string') {
-                const timestampValue = new Date(cellValue);
-                if (isNaN(timestampValue.getTime())) {
+                // First check the date portion using our comprehensive validator
+                const datePart = cellValue.split(/[T\s]/)[0];
+                const dateValidation = validateDateFormat(datePart);
+                
+                if (!dateValidation.valid) {
                   isViolation = true;
-                  expectedValue = 'Valid timestamp format';
-                  violationDetails = { reason: 'Invalid timestamp format', value: cellValue };
+                  expectedValue = 'Format: YYYY-MM-DDTHH:mm:ss or YYYY-MM-DD HH:mm:ss';
+                  violationDetails = { 
+                    reason: `Date portion invalid: ${dateValidation.reason}`, 
+                    value: cellValue,
+                    expectedFormat: 'YYYY-MM-DDTHH:mm:ss'
+                  };
+                } else {
+                  // Check if there's a valid time component
+                  const timestampValue = new Date(cellValue);
+                  if (isNaN(timestampValue.getTime())) {
+                    isViolation = true;
+                    expectedValue = 'Format: YYYY-MM-DDTHH:mm:ss';
+                    violationDetails = { reason: 'Invalid time portion. Expected HH:mm:ss format', value: cellValue };
+                  }
                 }
               }
               break;
@@ -7117,22 +7278,42 @@ app.post('/api/files/:fileId/quality-rules/revalidate', authenticateToken, uploa
               
             case 'date_format':
               if (cellValue && typeof cellValue === 'string') {
-                const dateValue = new Date(cellValue);
-                if (isNaN(dateValue.getTime())) {
+                const dateValidation = validateDateFormat(cellValue);
+                if (!dateValidation.valid) {
                   isViolation = true;
-                  expectedValue = 'Valid date format';
-                  violationDetails = { reason: 'Invalid date format', value: cellValue };
+                  expectedValue = `Format: ${dateValidation.expectedFormat}`;
+                  violationDetails = { 
+                    reason: dateValidation.reason, 
+                    value: cellValue,
+                    expectedFormat: dateValidation.expectedFormat,
+                    components: dateValidation.components
+                  };
                 }
               }
               break;
               
             case 'timestamp_format':
               if (cellValue && typeof cellValue === 'string') {
-                const timestampValue = new Date(cellValue);
-                if (isNaN(timestampValue.getTime())) {
+                // First check the date portion using our comprehensive validator
+                const datePart = cellValue.split(/[T\s]/)[0];
+                const dateValidation = validateDateFormat(datePart);
+                
+                if (!dateValidation.valid) {
                   isViolation = true;
-                  expectedValue = 'Valid timestamp format';
-                  violationDetails = { reason: 'Invalid timestamp format', value: cellValue };
+                  expectedValue = 'Format: YYYY-MM-DDTHH:mm:ss or YYYY-MM-DD HH:mm:ss';
+                  violationDetails = { 
+                    reason: `Date portion invalid: ${dateValidation.reason}`, 
+                    value: cellValue,
+                    expectedFormat: 'YYYY-MM-DDTHH:mm:ss'
+                  };
+                } else {
+                  // Check if there's a valid time component
+                  const timestampValue = new Date(cellValue);
+                  if (isNaN(timestampValue.getTime())) {
+                    isViolation = true;
+                    expectedValue = 'Format: YYYY-MM-DDTHH:mm:ss';
+                    violationDetails = { reason: 'Invalid time portion. Expected HH:mm:ss format', value: cellValue };
+                  }
                 }
               }
               break;
@@ -7695,7 +7876,95 @@ app.post('/api/files/:fileId/delimiter', authenticateToken, async (req, res) => 
     
     const { filename, created_at, file_type, file_size, checksum, project_id, sub_project_id, vendor_agreement_id } = fileDetails;
     const createdAtString = created_at instanceof Date ? created_at.toISOString() : created_at;
-    const storagePath = path.join(process.env.FILE_STORAGE_PATH || './file_storage', createdAtString.substring(0, 10), filename);
+    
+    // Determine file path - check if file is in S3 (vendor file) or local storage
+    let storagePath;
+    const s3Bucket = metadata.s3_bucket;
+    const s3Key = metadata.s3_key;
+    
+    const fs = require('fs');
+    const { pipeline } = require('stream/promises');
+    const os = require('os');
+    
+    if (s3Bucket && s3Key) {
+      // File is in S3 - download to temp directory for re-profiling using streaming
+      logger.info('File is stored in S3, downloading for re-profiling', { fileId, s3Bucket, s3Key });
+      
+      const tempDir = path.join(os.tmpdir(), 'reprofile');
+      
+      // Ensure temp directory exists
+      if (!fs.existsSync(tempDir)) {
+        fs.mkdirSync(tempDir, { recursive: true });
+      }
+      
+      storagePath = path.join(tempDir, `${fileId}_${filename}`);
+      
+      try {
+        // Get connection for the S3 bucket
+        const connectionService = require('./backend/services/ConnectionService');
+        const connectionResult = await dbPool.query(
+          `SELECT * FROM storage_connections 
+           WHERE (config->>'bucket' = $1 OR config->>'bucket_name' = $1 OR config->>'drop_location_bucket' = $1) 
+           AND (is_deleted = false OR is_deleted IS NULL) 
+           LIMIT 1`,
+          [s3Bucket]
+        );
+        
+        if (connectionResult.rows.length === 0) {
+          logger.error('No active S3 connection found for bucket', { s3Bucket });
+          return res.status(500).json({ 
+            error: 'Cannot re-profile: No active S3 connection found for this file\'s storage location'
+          });
+        }
+        
+        const connection = connectionResult.rows[0];
+        const s3 = await connectionService.createS3Client(connection);
+        
+        // Stream download from S3 using pipeline for proper backpressure and cleanup
+        const s3Stream = s3.getObject({
+          Bucket: s3Bucket,
+          Key: s3Key
+        }).createReadStream();
+        
+        const writeStream = fs.createWriteStream(storagePath);
+        
+        await pipeline(s3Stream, writeStream);
+        
+        logger.info('File streamed from S3 for re-profiling', { fileId, storagePath });
+        
+      } catch (s3Error) {
+        // Clean up partial file on error
+        try {
+          if (fs.existsSync(storagePath)) {
+            fs.unlinkSync(storagePath);
+          }
+        } catch (cleanupError) {
+          logger.warn('Failed to cleanup partial temp file', { storagePath, error: cleanupError.message });
+        }
+        
+        logger.error('Failed to download file from S3 for re-profiling', { 
+          fileId, 
+          s3Bucket, 
+          s3Key, 
+          error: s3Error.message 
+        });
+        return res.status(500).json({ 
+          error: 'Failed to download file from storage for re-profiling',
+          details: s3Error.message 
+        });
+      }
+    } else {
+      // Local file - use original storage path
+      storagePath = path.join(process.env.FILE_STORAGE_PATH || './file_storage', createdAtString.substring(0, 10), filename);
+      
+      // Verify local file exists
+      if (!fs.existsSync(storagePath)) {
+        logger.error('Local file not found for re-profiling', { fileId, storagePath });
+        return res.status(500).json({ 
+          error: 'File not found for re-profiling. The file may have been removed from local storage.'
+        });
+      }
+    }
     
     // Clear existing profiling data
     await dbPool.query(
@@ -7735,6 +8004,7 @@ app.post('/api/files/:fileId/delimiter', authenticateToken, async (req, res) => 
     );
     
     // Invalidate cache
+    const { invalidateFileCache, invalidateFileCatalogCache } = require('./backend/src/middleware/cache');
     await invalidateFileCache(fileId);
     await invalidateFileCatalogCache();
     
@@ -7826,6 +8096,7 @@ app.post('/api/files/:fileId/columns/:columnName/sensitivity-tag', authenticateT
     );
     
     // Invalidate file-specific cache and sensitivity cache
+    const { invalidateFileCache, invalidateCachePattern } = require('./backend/src/middleware/cache');
     await invalidateFileCache(fileId);
     await invalidateCachePattern('cache:*:*sensitivity*');
     
@@ -7851,8 +8122,9 @@ app.delete('/api/files/:fileId/columns/:columnName/sensitivity-tag', authenticat
     }
     
     // Invalidate file-specific cache and sensitivity cache
-    await invalidateFileCache(fileId);
-    await invalidateCachePattern('cache:*:*sensitivity*');
+    const { invalidateFileCache: invFileCache, invalidateCachePattern: invCachePattern } = require('./backend/src/middleware/cache');
+    await invFileCache(fileId);
+    await invCachePattern('cache:*:*sensitivity*');
     
     res.json({ message: 'Sensitivity tag deleted successfully', tag: result.rows[0] });
   } catch (err) {
@@ -10502,6 +10774,50 @@ app.post('/api/files/:fileId/quality/check', authenticateToken, async (req, res)
   }
 });
 
+// Debug route to manually trigger orphan file recovery
+app.get('/api/debug/recover-orphans', async (req, res) => {
+  try {
+    // Check queue state first
+    const queueStats = {
+      hasQueue: !!fileWorker.queue,
+      hasOnJobWaiting: !!(fileWorker.queue && fileWorker.queue.onJobWaiting),
+      jobsMapSize: fileWorker.queue && fileWorker.queue.jobs ? fileWorker.queue.jobs.size : 'N/A',
+      queuesMapSize: fileWorker.queue && fileWorker.queue.queues ? fileWorker.queue.queues.size : 'N/A',
+      listenerCount: fileWorker.queue && fileWorker.queue.emitter ? 
+        fileWorker.queue.emitter.listenerCount('file-processing:waiting') : 'N/A'
+    };
+    
+    // Check orphaned files in DB
+    const orphanedFiles = await dbPool.query(`
+      SELECT file_id, filename, processing_step, created_at
+      FROM files 
+      WHERE processing_step = 'queued'
+        AND created_at < NOW() - INTERVAL '2 minutes'
+        AND created_at > NOW() - INTERVAL '24 hours'
+      LIMIT 5
+    `);
+    
+    const result = await fileWorker.recoverOrphanedJobs();
+    
+    // Check files again after recovery
+    const filesAfter = await dbPool.query(`
+      SELECT file_id, filename, processing_step, updated_at
+      FROM files 
+      WHERE file_id = ANY($1)
+    `, [orphanedFiles.rows.map(f => f.file_id)]);
+    
+    res.json({ 
+      success: true, 
+      message: 'Orphan recovery triggered',
+      queueStats,
+      orphanedFilesBefore: orphanedFiles.rows,
+      filesAfterRecovery: filesAfter.rows
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message, stack: error.stack });
+  }
+});
+
 // Debug route to check password hashing - REMOVE IN PRODUCTION
 app.get('/api/debug/hash-password/:password', async (req, res) => {
   try {
@@ -12808,6 +13124,16 @@ async function startServer() {
       logger.info('Materialized view refresh worker started');
     } catch (error) {
       logger.warn('Materialized view worker not started', { error: error.message });
+    }
+    
+    // Trigger orphan recovery for queued files after database is ready
+    try {
+      logger.info('Triggering orphan file recovery...');
+      fileWorker.recoverOrphanedJobs().catch(err => {
+        logger.error('Failed to recover orphaned jobs', { error: err.message });
+      });
+    } catch (error) {
+      logger.warn('Could not trigger orphan recovery', { error: error.message });
     }
     
     // Start the HTTP server - bind to 0.0.0.0 for Replit

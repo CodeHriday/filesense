@@ -1115,40 +1115,107 @@
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
+/* Tag Assignment Modal - Professional Styling */
+.tag-assignment-modal {
+  max-width: 560px;
+}
+
+.tag-assignment-modal .modal-title {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 18px;
+  font-weight: 600;
+  color: #1f2937;
+  margin: 0 0 20px 0;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.tag-assignment-modal .column-name-highlight {
+  color: #025043;
+  font-weight: 700;
+}
+
+.tag-assignment-modal .form-label {
+  display: block;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 4px;
+}
+
+.tag-assignment-modal .form-hint {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 12px;
+  color: #6b7280;
+  margin: 0 0 12px 0;
+}
+
 .tags-selector,
 .policies-selector {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-2);
+  gap: 10px;
+  padding: 16px;
+  background-color: #f9fafb;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  max-height: 320px;
+  overflow-y: auto;
 }
 
 .tag-chip,
 .policy-chip {
-  padding: var(--space-2) var(--space-3);
-  border-radius: var(--radius-full);
-  font-size: var(--text-xs);
-  font-weight: var(--font-semibold);
-  border: 2px solid var(--border-medium);
+  padding: 8px 14px;
+  border-radius: 6px;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  border: 1px solid #d1d5db;
   background-color: white;
+  color: #374151;
   cursor: pointer;
-  transition: all var(--transition-base);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  transition: all 0.15s ease;
+  text-transform: none;
+  letter-spacing: normal;
 }
 
 .tag-chip:hover,
 .policy-chip:hover {
-  border-color: var(--color-primary);
-  background-color: var(--color-gray-50);
+  border-color: #025043;
+  background-color: #f0fdf9;
+  color: #025043;
 }
 
 .tag-chip.selected {
   border-color: transparent;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+}
+
+.tag-chip.selected:hover {
+  opacity: 0.9;
+}
+
+.tag-assignment-modal .modal-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid #e5e7eb;
 }
 
 .policy-chip.selected {
-  border-color: var(--color-primary);
-  background-color: var(--color-primary);
+  border-color: #025043;
+  background-color: #025043;
+  color: white;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+}
+
+.policy-chip.selected:hover {
+  opacity: 0.9;
+  border-color: #025043;
+  background-color: #025043;
   color: white;
 }
 
@@ -1156,6 +1223,189 @@
   color: var(--text-tertiary);
   font-style: italic;
   font-size: var(--text-sm);
+}
+
+/* Run Quality Rules Modal - Professional Styling */
+.run-quality-modal {
+  max-width: 480px;
+  padding: 0;
+}
+
+.run-quality-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.run-quality-modal-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.run-quality-modal-title h2 {
+  margin: 0;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.run-quality-icon {
+  color: #025043;
+  font-size: 20px;
+}
+
+.run-quality-close-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #6b7280;
+  transition: color 0.15s ease;
+}
+
+.run-quality-close-btn:hover {
+  color: #374151;
+}
+
+.run-quality-close-btn:disabled {
+  cursor: not-allowed;
+}
+
+.run-quality-modal-body {
+  padding: 20px;
+}
+
+.run-quality-description {
+  margin: 0 0 16px 0;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 13px;
+  color: #6b7280;
+  line-height: 1.5;
+}
+
+.run-quality-dropzone {
+  border: 2px dashed #d1d5db;
+  border-radius: 8px;
+  padding: 32px 24px;
+  text-align: center;
+  background-color: #f9fafb;
+  transition: all 0.2s ease;
+}
+
+.run-quality-dropzone.has-file {
+  background-color: #f0fdf9;
+  border-color: #025043;
+  border-style: solid;
+}
+
+.run-quality-file-selected {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.run-quality-check-icon {
+  font-size: 32px;
+  color: #025043;
+  margin-bottom: 8px;
+}
+
+.run-quality-filename {
+  margin: 0 0 4px 0;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  color: #1f2937;
+}
+
+.run-quality-filesize {
+  margin: 0;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.run-quality-change-btn {
+  margin-top: 12px;
+  padding: 6px 14px;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  background-color: #fff;
+  color: #374151;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.run-quality-change-btn:hover {
+  border-color: #025043;
+  color: #025043;
+}
+
+.run-quality-upload-prompt {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.run-quality-file-icon {
+  font-size: 32px;
+  color: #9ca3af;
+  margin-bottom: 8px;
+}
+
+.run-quality-prompt-text {
+  margin: 0 0 16px 0;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 13px;
+  color: #6b7280;
+}
+
+.run-quality-choose-btn {
+  cursor: pointer;
+}
+
+.run-quality-progress {
+  margin-top: 16px;
+}
+
+.run-quality-progress-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 6px;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.run-quality-progress-bar {
+  height: 6px;
+  background-color: #e5e7eb;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.run-quality-progress-fill {
+  height: 100%;
+  background-color: #025043;
+  transition: width 0.3s ease;
+}
+
+.run-quality-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 16px 20px;
+  border-top: 1px solid #e5e7eb;
+  background-color: #f9fafb;
 }
 
 /* Header Validation Styles */

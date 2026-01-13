@@ -44,8 +44,8 @@ async function profileETLOutputFile(pool, fileData) {
     await client.query(`
       INSERT INTO files (
         file_id, filename, file_type, file_size, row_count, column_count,
-        quality_score, checksum, created_at, updated_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())
+        quality_score, checksum, created_at, updated_at, processing_step
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW(), 'complete')
       ON CONFLICT (file_id) 
       DO UPDATE SET
         filename = EXCLUDED.filename,
@@ -54,6 +54,7 @@ async function profileETLOutputFile(pool, fileData) {
         row_count = EXCLUDED.row_count,
         column_count = EXCLUDED.column_count,
         checksum = EXCLUDED.checksum,
+        processing_step = 'complete',
         updated_at = NOW()
     `, [
       fileId,
@@ -254,8 +255,8 @@ async function profileETLFile(pool, fileData) {
     await client.query(`
       INSERT INTO files (
         file_id, filename, file_type, file_size, row_count, column_count,
-        quality_score, checksum, created_at, updated_at, project_id
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW(), $9)
+        quality_score, checksum, created_at, updated_at, project_id, processing_step
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW(), $9, 'complete')
       ON CONFLICT (file_id) 
       DO UPDATE SET
         filename = EXCLUDED.filename,
@@ -264,6 +265,7 @@ async function profileETLFile(pool, fileData) {
         row_count = EXCLUDED.row_count,
         column_count = EXCLUDED.column_count,
         checksum = EXCLUDED.checksum,
+        processing_step = 'complete',
         updated_at = NOW()
     `, [
       fileId,

@@ -3,7 +3,7 @@ const { systemLogger } = require('../utils/logger');
 const { executeTransformationJob } = require('./jobExecutionEngine');
 const { executeMappingGroup } = require('./mappingGroupExecutionEngine');
 const { executeNStepWorkflow } = require('./nStepWorkflowExecutionEngine');
-const VisualWorkflowExecutor = require('./visualWorkflowExecutor');
+const { VisualWorkflowExecutor } = require('./visualWorkflowExecutor');
 const parser = require('cron-parser');
 const alertAggregationWorker = require('./AlertAggregationWorker');
 

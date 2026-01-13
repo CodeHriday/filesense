@@ -257,12 +257,13 @@ def stream_parquet_file(file_path: str, chunk_size: int = 10000) -> Iterator[pd.
 
 
 def stream_csv_file(file_path: str, chunk_size: int = 10000, 
-                     delimiter: str = ',', encoding: Optional[str] = None) -> Iterator[pd.DataFrame]:
+                     delimiter: Optional[str] = None, encoding: Optional[str] = None) -> Iterator[pd.DataFrame]:
     """
     Stream CSV file with enhanced features.
     
     Features:
     - Automatic encoding detection
+    - Automatic delimiter detection (pipe, tab, semicolon, comma)
     - Compression support (.csv.gz)
     - Dynamic chunk sizing based on file size
     - Memory efficient streaming
@@ -272,7 +273,7 @@ def stream_csv_file(file_path: str, chunk_size: int = 10000,
     Args:
         file_path: Path to CSV file (can be .csv or .csv.gz)
         chunk_size: Number of rows per chunk
-        delimiter: CSV delimiter (default: ',')
+        delimiter: CSV delimiter (auto-detected if None)
         encoding: File encoding (auto-detected if None)
         
     Yields:
@@ -283,10 +284,17 @@ def stream_csv_file(file_path: str, chunk_size: int = 10000,
         if encoding is None:
             encoding = detect_encoding(file_path)
         
+        # Auto-detect delimiter if not specified
+        if delimiter is None:
+            delimiter = detect_delimiter(file_path)
+            file_logger.info(f"Auto-detected delimiter: {repr(delimiter)}", extra={
+                "file_path": file_path
+            })
+        
         # Determine if file is compressed
         compression = 'gzip' if file_path.lower().endswith('.gz') else None
         
-        file_logger.info(f"Streaming CSV file with encoding: {encoding}", extra={
+        file_logger.info(f"Streaming CSV file with encoding: {encoding}, delimiter: {repr(delimiter)}", extra={
             "file_path": file_path,
             "chunk_size": chunk_size,
             "compression": compression

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiEye, FiTrash2, FiCheckCircle, FiAlertTriangle, FiGitBranch, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
+import { FiEye, FiTrash2, FiCheckCircle, FiAlertTriangle, FiGitBranch, FiChevronLeft, FiChevronRight, FiRefreshCw } from 'react-icons/fi';
 import axios from 'axios';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { useAuth } from '../context/AuthContext';
@@ -349,6 +349,22 @@ function VendorFileQuality() {
         <div className="gps-page-header-left">
           <h1 className="gps-page-title">Vendor File Catalog</h1>
           <p className="gps-page-subtitle">View and analyze your uploaded vendor files with full profiling details</p>
+        </div>
+        <div className="gps-header-actions" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <button 
+            className="gps-btn gps-btn--secondary"
+            onClick={() => fetchVendorFiles()}
+            disabled={loading}
+            title="Refresh file catalog"
+            style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+          >
+            <FiRefreshCw className={loading ? 'spinning' : ''} />
+            Refresh
+          </button>
+          <div className="gps-stat-card" style={{ padding: '8px 16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '18px', fontWeight: 700, color: '#025043' }}>{filteredFiles.length.toLocaleString()}</span>
+            <span style={{ fontSize: '10px', color: '#666' }}>Total Files</span>
+          </div>
         </div>
         {canDelete && selectedFiles.size > 0 && (
           <div className="gps-page-header-right">

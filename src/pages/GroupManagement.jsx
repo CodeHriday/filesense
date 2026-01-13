@@ -25,7 +25,8 @@ function GroupManagement() {
     group_type: 'MANUAL',
     idp_sync_enabled: false,
     member_ids: [],
-    role_ids: []
+    role_id: null,
+    role_project_id: null
   });
 
   const [memberFormData, setMemberFormData] = useState({
@@ -118,11 +119,20 @@ function GroupManagement() {
     e.preventDefault();
     try {
       const token = localStorage.getItem('token');
-      await axios.post(`${API_BASE_URL}/groups`, formData, {
+      const payload = {
+        name: formData.name,
+        description: formData.description,
+        group_type: formData.group_type,
+        idp_sync_enabled: formData.idp_sync_enabled,
+        member_ids: formData.member_ids,
+        role_id: formData.role_id ? parseInt(formData.role_id) : null,
+        role_project_id: formData.role_project_id ? parseInt(formData.role_project_id) : null
+      };
+      await axios.post(`${API_BASE_URL}/groups`, payload, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setShowCreateModal(false);
-      setFormData({ name: '', description: '', group_type: 'MANUAL', idp_sync_enabled: false, member_ids: [], role_ids: [] });
+      setFormData({ name: '', description: '', group_type: 'MANUAL', idp_sync_enabled: false, member_ids: [], role_id: null, role_project_id: null });
       fetchGroups();
     } catch (err) {
       setError('Failed to create group');
@@ -425,49 +435,60 @@ function GroupManagement() {
                     Enable IdP Sync
                   </label>
                 </div>
-                <div className="gps-form-row">
-                  <div className="gps-form-group">
-                    <label htmlFor="create-add-members" className="gps-form-label">Add Members</label>
-                      <select
-                        id="create-add-members"
-                        multiple
-                        className="gps-form-select"
-                        value={formData.member_ids}
-                        onChange={(e) => {
-                          const selected = Array.from(e.target.selectedOptions, option => parseInt(option.value));
-                          setFormData({ ...formData, member_ids: selected });
-                        }}
-                        style={{ minHeight: '120px' }}
-                      >
-                      {availableUsers.map(user => (
-                        <option key={user.id} value={user.id}>
-                          {user.full_name || user.username} ({user.email})
-                        </option>
-                      ))}
-                    </select>
-                    <small className="gps-form-hint">Hold Ctrl/Cmd to select multiple users</small>
-                  </div>
-                  <div className="gps-form-group">
-                    <label htmlFor="create-assign-roles" className="gps-form-label">Assign Roles</label>
+                <div className="gps-form-group">
+                  <label htmlFor="create-add-members" className="gps-form-label">Add Members</label>
+                  <select
+                    id="create-add-members"
+                    multiple
+                    className="gps-form-select"
+                    value={formData.member_ids}
+                    onChange={(e) => {
+                      const selected = Array.from(e.target.selectedOptions, option => parseInt(option.value));
+                      setFormData({ ...formData, member_ids: selected });
+                    }}
+                    style={{ minHeight: '120px' }}
+                  >
+                    {availableUsers.map(user => (
+                      <option key={user.id} value={user.id}>
+                        {user.full_name || user.username} ({user.email})
+                      </option>
+                    ))}
+                  </select>
+                  <small className="gps-form-hint">Hold Ctrl/Cmd to select multiple users</small>
+                </div>
+                <div className="gps-form-group">
+                  <label htmlFor="create-assign-role" className="gps-form-label">Assign Role</label>
+                  <div className="gps-form-row" style={{ gap: '8px' }}>
                     <select
-                      id="create-assign-roles"
-                      multiple
-                      className="gps-form-select"
-                      value={formData.role_ids}
-                      onChange={(e) => {
-                        const selected = Array.from(e.target.selectedOptions, option => parseInt(option.value));
-                        setFormData({ ...formData, role_ids: selected });
-                      }}
-                      style={{ minHeight: '120px' }}
+                      id="create-assign-role"
+                      className="gps-filter-select"
+                      value={formData.role_id || ''}
+                      onChange={(e) => setFormData({ ...formData, role_id: e.target.value || null })}
+                      style={{ flex: 1 }}
                     >
+                      <option value="">Select Role (optional)</option>
                       {availableRoles.map(role => (
                         <option key={role.id} value={role.id}>
                           {role.name}
                         </option>
                       ))}
                     </select>
-                    <small className="gps-form-hint">Hold Ctrl/Cmd to select multiple roles</small>
+                    <select
+                      id="create-assign-project"
+                      className="gps-filter-select"
+                      value={formData.role_project_id || ''}
+                      onChange={(e) => setFormData({ ...formData, role_project_id: e.target.value || null })}
+                      style={{ flex: 1 }}
+                    >
+                      <option value="">All Projects (Global)</option>
+                      {availableProjects.map(project => (
+                        <option key={project.id} value={project.id}>
+                          {project.name}
+                        </option>
+                      ))}
+                    </select>
                   </div>
+                  <small className="gps-form-hint">Optional: Assign a role to all group members. Select a project to scope the role.</small>
                 </div>
               </form>
             </div>
@@ -517,6 +538,20 @@ function GroupManagement() {
                     />
                   </div>
                   <div className="gps-form-group">
+                    <label htmlFor="edit-group-type" className="gps-form-label">Group Type</label>
+                    <select
+                      id="edit-group-type"
+                      className="gps-form-select"
+                      value={formData.group_type}
+                      onChange={(e) => setFormData({ ...formData, group_type: e.target.value })}
+                    >
+                      <option value="MANUAL">Manual</option>
+                      <option value="STANDARD">Standard</option>
+                      <option value="DYNAMIC">Dynamic</option>
+                    </select>
+                    <small className="gps-form-hint">Manual: add members manually. Standard: predefined rules. Dynamic: auto-membership based on attributes.</small>
+                  </div>
+                  <div className="gps-form-group">
                     <label className="gps-checkbox-label">
                       <input
                         type="checkbox"
@@ -525,11 +560,90 @@ function GroupManagement() {
                       />
                       Enable IdP Sync
                     </label>
+                    <small className="gps-form-hint">Sync group membership with external identity provider (Okta)</small>
                   </div>
                   <div style={{ marginTop: '1rem' }}>
                     <button type="submit" className="gps-btn gps-btn--primary">Update Details</button>
                   </div>
                 </form>
+
+              <hr className="gps-divider" />
+
+              <div className="gps-section">
+                <h3 className="gps-section-header">Roles</h3>
+                <form onSubmit={handleAssignRole} className="gps-inline-form">
+                  <div className="gps-form-row">
+                    <select
+                      className="gps-form-select"
+                      value={roleFormData.role_id}
+                      onChange={(e) => setRoleFormData({ ...roleFormData, role_id: e.target.value })}
+                      required
+                      style={{ flex: 1 }}
+                    >
+                      <option value="">Select Role</option>
+                      {availableRoles.map((role) => (
+                        <option key={role.id} value={role.id}>
+                          {role.name}
+                        </option>
+                      ))}
+                    </select>
+                    <select
+                      className="gps-form-select"
+                      value={roleFormData.project_id || ''}
+                      onChange={(e) => setRoleFormData({ ...roleFormData, project_id: e.target.value || null })}
+                      style={{ flex: 1 }}
+                    >
+                      <option value="">All Projects (Global)</option>
+                      {availableProjects.map((project) => (
+                        <option key={project.id} value={project.id}>
+                          {project.name}
+                        </option>
+                      ))}
+                    </select>
+                    <button type="submit" className="gps-btn gps-btn--primary gps-btn--sm">Assign Role</button>
+                  </div>
+                </form>
+                <small className="gps-form-hint" style={{ marginBottom: '0.5rem', display: 'block' }}>
+                  Roles assigned here are inherited by all group members. Select a project to scope the role, or leave as "All Projects" for global access.
+                </small>
+
+                <div className="gps-scrollable-list">
+                  <table className="gps-table gps-table--compact">
+                    <thead>
+                      <tr>
+                        <th>Role</th>
+                        <th>Scope</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {selectedGroup.roles?.map((role, idx) => (
+                        <tr key={`${role.role_id}-${role.project_id || 'global'}-${idx}`}>
+                          <td>{role.role_name}</td>
+                          <td>
+                            {role.project_name ? (
+                              <span className="gps-badge gps-badge--info">{role.project_name}</span>
+                            ) : (
+                              <span className="gps-badge gps-badge--secondary">Global</span>
+                            )}
+                          </td>
+                          <td>
+                            <button
+                              className="gps-btn gps-btn--danger gps-btn--sm"
+                              onClick={() => handleRemoveRole(role.role_id, role.project_id)}
+                            >
+                              Remove
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                      {(!selectedGroup.roles || selectedGroup.roles.length === 0) && (
+                        <tr><td colSpan="3" className="gps-empty-message">No roles assigned yet</td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
 
               <hr className="gps-divider" />
 

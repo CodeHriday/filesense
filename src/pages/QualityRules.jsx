@@ -47,6 +47,7 @@ function QualityRules() {
   });
 
   const [formErrors, setFormErrors] = useState({});
+  const [modalError, setModalError] = useState('');
   const [confirmModal, setConfirmModal] = useState({ isOpen: false, action: null, message: '', title: '' });
 
   useEffect(() => {
@@ -164,9 +165,10 @@ function QualityRules() {
       project_id: '',
       sub_project_id: '',
       enabled: true,
-      rule_config: {}
+      rule_config: { threshold: 95 }
     });
     setFormErrors({});
+    setModalError('');
     setSubProjects([]);
     setShowRuleForm(true);
   };
@@ -192,6 +194,7 @@ function QualityRules() {
       rule_config: ruleConfig
     });
     setFormErrors({});
+    setModalError('');
     
     if (rule.project_id) {
       await fetchSubProjects(rule.project_id);
@@ -232,7 +235,7 @@ function QualityRules() {
     
     switch (formData.rule_type) {
       case 'completeness':
-        if (!config.threshold || config.threshold < 0 || config.threshold > 100) {
+        if (config.threshold === undefined || config.threshold === null || config.threshold < 0 || config.threshold > 100) {
           errors.threshold = 'Threshold must be between 0 and 100';
         }
         if (!formData.column_name && !config.columns?.length) {
@@ -322,15 +325,19 @@ function QualityRules() {
       await fetchData();
     } catch (err) {
       console.error('Error saving quality rule:', err);
-      setError(err.response?.data?.error || 'Failed to save quality rule. Please try again.');
+      setModalError(err.response?.data?.error || 'Failed to save quality rule. Please try again.');
     }
   };
 
   const handleRuleTypeChange = (newType) => {
+    const defaultConfig = {};
+    if (newType === 'completeness') {
+      defaultConfig.threshold = 95;
+    }
     setFormData({
       ...formData,
       rule_type: newType,
-      rule_config: {}
+      rule_config: defaultConfig
     });
     setFormErrors({});
   };
@@ -852,103 +859,83 @@ function QualityRules() {
         </div>
       </div>
 
-      <div className="gps-card" style={{ padding: '16px', marginBottom: '16px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', minWidth: '180px' }}>
-            <label style={{ fontSize: '10px', fontWeight: 500, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Project</label>
-            <select
-              className="gps-select"
-              value={filterProjectId}
-              onChange={(e) => {
-                setFilterProjectId(e.target.value);
-                setCurrentPage(1);
-              }}
-              style={{ width: '100%' }}
-            >
-              <option value="">All Projects</option>
-              {projects.filter(p => !p.parent_id).map(project => (
-                <option key={project.id} value={project.id}>
-                  {project.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', minWidth: '180px' }}>
-            <label style={{ fontSize: '10px', fontWeight: 500, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Subproject</label>
-            <select
-              className="gps-select"
-              value={filterSubProjectId}
-              onChange={(e) => {
-                setFilterSubProjectId(e.target.value);
-                setCurrentPage(1);
-              }}
-              disabled={!filterProjectId}
-              style={{ width: '100%', opacity: filterProjectId ? 1 : 0.6 }}
-            >
-              <option value="">All Subprojects</option>
-              {filterSubProjects.map(subProject => (
-                <option key={subProject.id} value={subProject.id}>
-                  {subProject.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', minWidth: '150px' }}>
-            <label style={{ fontSize: '10px', fontWeight: 500, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Rule Type</label>
-            <select
-              className="gps-select"
-              value={filterRuleType}
-              onChange={(e) => {
-                setFilterRuleType(e.target.value);
-                setCurrentPage(1);
-              }}
-              style={{ width: '100%' }}
-            >
-              <option value="">All Types</option>
-              <option value="completeness">Completeness</option>
-              <option value="validity">Validity</option>
-              <option value="consistency">Consistency</option>
-              <option value="uniqueness">Uniqueness</option>
-              <option value="freshness">Freshness</option>
-              <option value="validity_check">Validity Check</option>
-              <option value="length_check">Length Check</option>
-              <option value="range_check">Range Check</option>
-            </select>
-          </div>
-          
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', minWidth: '130px' }}>
-            <label style={{ fontSize: '10px', fontWeight: 500, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Status</label>
-            <select
-              className="gps-select"
-              value={filterEnabled}
-              onChange={(e) => {
-                setFilterEnabled(e.target.value);
-                setCurrentPage(1);
-              }}
-              style={{ width: '100%' }}
-            >
-              <option value="">All Status</option>
-              <option value="true">Enabled Only</option>
-              <option value="false">Disabled Only</option>
-            </select>
-          </div>
+      <div className="gps-filters" style={{ marginBottom: '16px' }}>
+        <select
+          className="gps-filter-select"
+          value={filterProjectId}
+          onChange={(e) => {
+            setFilterProjectId(e.target.value);
+            setCurrentPage(1);
+          }}
+        >
+          <option value="">All Projects</option>
+          {projects.filter(p => !p.parent_id).map(project => (
+            <option key={project.id} value={project.id}>
+              {project.name}
+            </option>
+          ))}
+        </select>
+        
+        <select
+          className="gps-filter-select"
+          value={filterSubProjectId}
+          onChange={(e) => {
+            setFilterSubProjectId(e.target.value);
+            setCurrentPage(1);
+          }}
+          disabled={!filterProjectId}
+          style={{ opacity: filterProjectId ? 1 : 0.6 }}
+        >
+          <option value="">All Subprojects</option>
+          {filterSubProjects.map(subProject => (
+            <option key={subProject.id} value={subProject.id}>
+              {subProject.name}
+            </option>
+          ))}
+        </select>
+        
+        <select
+          className="gps-filter-select"
+          value={filterRuleType}
+          onChange={(e) => {
+            setFilterRuleType(e.target.value);
+            setCurrentPage(1);
+          }}
+        >
+          <option value="">All Types</option>
+          <option value="completeness">Completeness</option>
+          <option value="validity">Validity</option>
+          <option value="consistency">Consistency</option>
+          <option value="uniqueness">Uniqueness</option>
+          <option value="freshness">Freshness</option>
+          <option value="validity_check">Validity Check</option>
+          <option value="length_check">Length Check</option>
+          <option value="range_check">Range Check</option>
+        </select>
+        
+        <select
+          className="gps-filter-select"
+          value={filterEnabled}
+          onChange={(e) => {
+            setFilterEnabled(e.target.value);
+            setCurrentPage(1);
+          }}
+        >
+          <option value="">All Status</option>
+          <option value="true">Enabled Only</option>
+          <option value="false">Disabled Only</option>
+        </select>
 
-          {hasActiveFilters && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginLeft: 'auto' }}>
-              <label style={{ fontSize: '10px', fontWeight: 500, color: 'transparent', textTransform: 'uppercase', letterSpacing: '0.5px' }}>&nbsp;</label>
-              <button 
-                type="button"
-                className="gps-btn gps-btn--secondary" 
-                onClick={handleClearFilters}
-                style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
-              >
-                <FiRefreshCw size={14} /> Clear Filters
-              </button>
-            </div>
-          )}
-        </div>
+        {hasActiveFilters && (
+          <button 
+            type="button"
+            className="gps-btn gps-btn--secondary" 
+            onClick={handleClearFilters}
+            style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+          >
+            <FiRefreshCw size={14} /> Clear Filters
+          </button>
+        )}
       </div>
 
       {loading ? (
@@ -1083,21 +1070,27 @@ function QualityRules() {
             </div>
             <form onSubmit={handleSubmitRule}>
               <div className="gps-modal-body" style={{ maxHeight: '60vh', overflowY: 'auto' }}>
-                <div className="gps-form-row">
-                  <div className="gps-form-group">
-                    <label htmlFor="rule-name" className="gps-form-label">Rule Name *</label>
-                    <input
-                      id="rule-name"
-                      type="text"
-                      className="gps-form-input"
-                      value={formData.rule_name}
-                      onChange={(e) => setFormData({ ...formData, rule_name: e.target.value })}
-                      placeholder="e.g., Email Address Completeness"
-                      required
-                    />
-                    {formErrors.rule_name && <span className="gps-form-hint" style={{ color: '#e53e3e' }}>{formErrors.rule_name}</span>}
+                {modalError && (
+                  <div className="gps-alert gps-alert--error" style={{ marginBottom: '16px', padding: '12px', backgroundColor: '#fef2f2', border: '1px solid #fecaca', borderRadius: '6px', color: '#dc2626', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <FiAlertTriangle />
+                    <span>{modalError}</span>
                   </div>
-                  
+                )}
+                <div className="gps-form-group">
+                  <label htmlFor="rule-name" className="gps-form-label">Rule Name *</label>
+                  <input
+                    id="rule-name"
+                    type="text"
+                    className="gps-form-input"
+                    value={formData.rule_name}
+                    onChange={(e) => setFormData({ ...formData, rule_name: e.target.value })}
+                    placeholder="e.g., Email Address Completeness"
+                    required
+                  />
+                  {formErrors.rule_name && <span className="gps-form-hint" style={{ color: '#e53e3e' }}>{formErrors.rule_name}</span>}
+                </div>
+                
+                <div className="gps-form-row">
                   <div className="gps-form-group">
                     <label htmlFor="project-select" className="gps-form-label">Project (Optional)</label>
                     <select
@@ -1114,9 +1107,7 @@ function QualityRules() {
                       ))}
                     </select>
                   </div>
-                </div>
-                
-                {formData.project_id && (
+                  
                   <div className="gps-form-group">
                     <label htmlFor="subproject-select" className="gps-form-label">Sub-Project (Optional)</label>
                     <select
@@ -1124,16 +1115,23 @@ function QualityRules() {
                       className="gps-form-select"
                       value={formData.sub_project_id}
                       onChange={(e) => setFormData({ ...formData, sub_project_id: e.target.value })}
+                      disabled={!formData.project_id}
                     >
-                      <option value="">None (Parent Project Level)</option>
-                      {subProjects.map(subProject => (
-                        <option key={subProject.id} value={subProject.id}>
-                          {subProject.name}
-                        </option>
-                      ))}
+                      {formData.project_id ? (
+                        <>
+                          <option value="">None (Parent Project Level)</option>
+                          {subProjects.map(subProject => (
+                            <option key={subProject.id} value={subProject.id}>
+                              {subProject.name}
+                            </option>
+                          ))}
+                        </>
+                      ) : (
+                        <option value="">Select a project first</option>
+                      )}
                     </select>
                   </div>
-                )}
+                </div>
                 
                 <div className="gps-form-group">
                   <label htmlFor="rule-description" className="gps-form-label">Description</label>
@@ -1166,7 +1164,6 @@ function QualityRules() {
                       <option value="length_check">Length Check (Generic)</option>
                       <option value="range_check">Range Check (Generic)</option>
                     </select>
-                    <span className="gps-form-hint">{getRuleTypeDescription(formData.rule_type)}</span>
                   </div>
                   
                   <div className="gps-form-group">
