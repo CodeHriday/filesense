@@ -96,7 +96,8 @@ const ProcessedFileCatalog = () => {
     if (selectedProject === 'all') {
       return allSubProjects;
     }
-    return allSubProjects.filter(sp => sp.project_id === selectedProject);
+    // Compare as strings to handle both numeric and string IDs from API
+    return allSubProjects.filter(sp => String(sp.project_id) === String(selectedProject));
   }, [allSubProjects, selectedProject]);
 
   // Reset sub-project when project changes
@@ -149,11 +150,13 @@ const ProcessedFileCatalog = () => {
     }
 
     if (selectedProject !== 'all') {
-      result = result.filter(f => f.project_id === selectedProject);
+      // Compare as strings to handle both numeric and string IDs from API
+      result = result.filter(f => String(f.project_id) === String(selectedProject));
     }
 
     if (selectedSubProject !== 'all') {
-      result = result.filter(f => f.sub_project_id === selectedSubProject);
+      // Compare as strings to handle both numeric and string IDs from API
+      result = result.filter(f => String(f.sub_project_id) === String(selectedSubProject));
     }
 
     if (selectedDateRange !== 'all') {
