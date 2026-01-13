@@ -481,7 +481,7 @@ async function getAuditRecords(pool, filters = {}) {
       LEFT JOIN transformation_jobs tj 
         ON fad.transformation_job_id = tj.id
       LEFT JOIN transformation_mappings tm 
-        ON tj.mapping_id = CAST(tm.id AS VARCHAR)
+        ON tj.mapping_id = tm.mapping_id
       ${whereClause}
     `;
     const countResult = await pool.query(countQuery, params.slice(0, paramIndex - 1));
@@ -503,8 +503,8 @@ async function getAuditRecords(pool, filters = {}) {
           COALESCE(fad.mapping_name, tm.mapping_name) as mapping_name,
           p.name as project_name,
           f.project_id,
-          f.sub_project_id,
-          sp.name as sub_project_name,
+          COALESCE(f.sub_project_id, tm.sub_project_id) as sub_project_id,
+          COALESCE(sp.name, tm_sp.name) as sub_project_name,
           f.quality_score,
           f.column_count as number_of_columns,
           f.row_count,
@@ -543,7 +543,8 @@ async function getAuditRecords(pool, filters = {}) {
         LEFT JOIN schedules s 
           ON tj.schedule_id = s.id
         LEFT JOIN transformation_mappings tm 
-          ON tj.mapping_id = CAST(tm.id AS VARCHAR)
+          ON tj.mapping_id = tm.mapping_id
+        LEFT JOIN projects tm_sp ON tm.sub_project_id = tm_sp.id
         LEFT JOIN mapping_group_executions mge 
           ON tj.mapping_group_execution_id = mge.id
         LEFT JOIN mapping_groups mg 
