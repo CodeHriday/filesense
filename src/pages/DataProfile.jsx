@@ -736,19 +736,25 @@ function ColumnGovernanceTagModal({ fileId, columnName, currentTags, availableTa
     }
   };
 
+  const formatTagName = (name) => {
+    if (!name) return '';
+    return name.toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+  };
+
   return (
     <div className="modal-overlay">
-      <div className="modal-content">
-        <h2>Assign Tags to Column: {columnName}</h2>
+      <div className="modal-content tag-assignment-modal">
+        <h2 className="modal-title">Assign Tags to Column: <span className="column-name-highlight">{columnName}</span></h2>
         
         <div className="form-group">
-          <label htmlFor="governance-tags-selector">Select Governance Tags</label>
+          <label htmlFor="governance-tags-selector" className="form-label">Select Governance Tags</label>
+          <p className="form-hint">Click to select or deselect tags for this column</p>
           <div
-           id="governance-tags-selector"  
+            id="governance-tags-selector"  
             className="tags-selector"
             role="listbox"
             aria-multiselectable="true"
-            >
+          >
             {availableTags.length > 0 ? (
               availableTags.map(tag => {
                 const isSelected = selectedTags.some(t => t.tag_id === tag.tag_id);
@@ -756,10 +762,10 @@ function ColumnGovernanceTagModal({ fileId, columnName, currentTags, availableTa
                   <button
                     key={tag.tag_id}
                     className={`tag-chip ${isSelected ? 'selected' : ''}`}
-                    style={isSelected ? { backgroundColor: tag.color, color: 'white' } : {}}
+                    style={isSelected ? { backgroundColor: tag.color || '#025043', borderColor: tag.color || '#025043', color: 'white' } : {}}
                     onClick={() => handleToggle(tag.tag_id)}
                   >
-                    {tag.tag_name}
+                    {formatTagName(tag.tag_name)}
                   </button>
                 );
               })
@@ -770,10 +776,10 @@ function ColumnGovernanceTagModal({ fileId, columnName, currentTags, availableTa
         </div>
         
         <div className="modal-actions">
-          <button className="btn btn-secondary" onClick={onClose} disabled={saving}>
+          <button className="gps-btn gps-btn--secondary" onClick={onClose} disabled={saving}>
             Cancel
           </button>
-          <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
+          <button className="gps-btn gps-btn--primary" onClick={handleSave} disabled={saving}>
             {saving ? 'Saving...' : 'Save'}
           </button>
         </div>

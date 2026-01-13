@@ -1115,35 +1115,94 @@
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
+/* Tag Assignment Modal - Professional Styling */
+.tag-assignment-modal {
+  max-width: 560px;
+}
+
+.tag-assignment-modal .modal-title {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 18px;
+  font-weight: 600;
+  color: #1f2937;
+  margin: 0 0 20px 0;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.tag-assignment-modal .column-name-highlight {
+  color: #025043;
+  font-weight: 700;
+}
+
+.tag-assignment-modal .form-label {
+  display: block;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 4px;
+}
+
+.tag-assignment-modal .form-hint {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 12px;
+  color: #6b7280;
+  margin: 0 0 12px 0;
+}
+
 .tags-selector,
 .policies-selector {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-2);
+  gap: 10px;
+  padding: 16px;
+  background-color: #f9fafb;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  max-height: 320px;
+  overflow-y: auto;
 }
 
 .tag-chip,
 .policy-chip {
-  padding: var(--space-2) var(--space-3);
-  border-radius: var(--radius-full);
-  font-size: var(--text-xs);
-  font-weight: var(--font-semibold);
-  border: 2px solid var(--border-medium);
+  padding: 8px 14px;
+  border-radius: 6px;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  border: 1px solid #d1d5db;
   background-color: white;
+  color: #374151;
   cursor: pointer;
-  transition: all var(--transition-base);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  transition: all 0.15s ease;
+  text-transform: none;
+  letter-spacing: normal;
 }
 
 .tag-chip:hover,
 .policy-chip:hover {
-  border-color: var(--color-primary);
-  background-color: var(--color-gray-50);
+  border-color: #025043;
+  background-color: #f0fdf9;
+  color: #025043;
 }
 
 .tag-chip.selected {
   border-color: transparent;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+}
+
+.tag-chip.selected:hover {
+  opacity: 0.9;
+}
+
+.tag-assignment-modal .modal-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid #e5e7eb;
 }
 
 .policy-chip.selected {
