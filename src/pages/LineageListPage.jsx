@@ -5,6 +5,7 @@ import { FaProjectDiagram } from 'react-icons/fa';
 import PageLayout from '../components/PageLayout';
 import LoadingSpinner from '../components/LoadingSpinner';
 import Pagination from '../components/Pagination';
+import ConfirmationModal from '../components/ConfirmationModal';
 import { useToast } from '../context/ToastContext';
 import {
   fetchSavedLineageGraphs,
@@ -295,36 +296,17 @@ const LineageListPage = () => {
         )}
       </div>
 
-      {deleteModalOpen && (
-        <div className="gps-modal-overlay" onClick={cancelDelete}>
-          <div className="gps-modal gps-modal-sm" onClick={(e) => e.stopPropagation()}>
-            <div className="gps-modal-header">
-              <h3>Delete Lineage Graph</h3>
-              <button className="gps-modal-close" onClick={cancelDelete}>&times;</button>
-            </div>
-            <div className="gps-modal-body">
-              <p>Are you sure you want to delete <strong>"{graphToDelete?.name}"</strong>?</p>
-              <p className="gps-text-muted">This action cannot be undone.</p>
-            </div>
-            <div className="gps-modal-footer">
-              <button 
-                className="gps-btn gps-btn-secondary" 
-                onClick={cancelDelete}
-                disabled={deleting}
-              >
-                Cancel
-              </button>
-              <button 
-                className="gps-btn gps-btn-danger" 
-                onClick={confirmDelete}
-                disabled={deleting}
-              >
-                {deleting ? 'Deleting...' : 'Delete'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmationModal
+        isOpen={deleteModalOpen}
+        onClose={cancelDelete}
+        onConfirm={confirmDelete}
+        title="Delete Lineage Graph"
+        message={`Are you sure you want to delete "${graphToDelete?.name}"?`}
+        subMessage="This action cannot be undone."
+        confirmText={deleting ? 'Deleting...' : 'Delete'}
+        cancelText="Cancel"
+        variant="danger"
+      />
     </PageLayout>
   );
 };
