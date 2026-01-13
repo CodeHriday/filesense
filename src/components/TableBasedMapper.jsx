@@ -68,16 +68,46 @@ const TRANSFORMATION_OPTIONS = [
 ];
 
 // Full transformation options for variable builder (includes complex operations)
+// Note: Options are organized by group to ensure contiguous grouping in the UI
 const VARIABLE_BUILDER_OPTIONS = [
-  ...TRANSFORMATION_OPTIONS.filter(t => t.value !== 'assign-variable'),
+  // Basic
+  { value: 'none', label: 'None (Direct Copy)', group: 'Basic', params: [] },
+  // Null Handling
+  { value: 'null-to-value', label: 'Replace Null', group: 'Null Handling', params: [{ name: 'value', type: 'text', placeholder: 'Replacement value' }] },
+  { value: 'coalesce', label: 'Coalesce', group: 'Null Handling', params: [{ name: 'column2', type: 'text', placeholder: 'Fallback column' }] },
+  // String (all string functions together)
+  { value: 'UPPER', label: 'UPPERCASE', group: 'String', params: [] },
+  { value: 'LOWER', label: 'lowercase', group: 'String', params: [] },
+  { value: 'TRIM', label: 'Trim Whitespace', group: 'String', params: [] },
+  { value: 'SUBSTRING', label: 'Substring', group: 'String', params: [
+    { name: 'start', type: 'number', placeholder: 'Start position' },
+    { name: 'length', type: 'number', placeholder: 'Length' }
+  ]},
+  { value: 'REPLACE', label: 'Find & Replace', group: 'String', params: [
+    { name: 'find', type: 'text', placeholder: 'Find text' },
+    { name: 'replace', type: 'text', placeholder: 'Replace with' }
+  ]},
   { value: 'concat', label: 'Concatenate', group: 'String', params: [
     { name: 'separator', type: 'text', placeholder: 'Separator (optional)' },
     { name: 'column2', type: 'text', placeholder: 'Additional column (optional)' }
   ]},
+  // Numeric (all numeric functions together)
+  { value: 'ROUND', label: 'Round', group: 'Numeric', params: [{ name: 'decimals', type: 'number', placeholder: 'Decimal places' }] },
+  { value: 'FLOOR', label: 'Floor', group: 'Numeric', params: [] },
+  { value: 'CEIL', label: 'Ceiling', group: 'Numeric', params: [] },
   { value: 'add', label: 'Add', group: 'Numeric', params: [{ name: 'value', type: 'number', placeholder: 'Value to add' }] },
   { value: 'subtract', label: 'Subtract', group: 'Numeric', params: [{ name: 'value', type: 'number', placeholder: 'Value to subtract' }] },
   { value: 'multiply', label: 'Multiply', group: 'Numeric', params: [{ name: 'value', type: 'number', placeholder: 'Multiplier' }] },
   { value: 'divide', label: 'Divide', group: 'Numeric', params: [{ name: 'value', type: 'number', placeholder: 'Divisor' }] },
+  // Date/Time
+  { value: 'date-format', label: 'Format Date', group: 'Date/Time', params: [{ name: 'format', type: 'text', placeholder: 'e.g., YYYY-MM-DD' }] },
+  { value: 'current-date', label: 'Current Date', group: 'Date/Time', params: [], noColumnInput: true, autoDataType: 'date' },
+  { value: 'current-timestamp', label: 'Current Timestamp', group: 'Date/Time', params: [], noColumnInput: true, autoDataType: 'timestamp' },
+  // Type Cast
+  { value: 'cast-string', label: 'To String', group: 'Type Cast', params: [] },
+  { value: 'cast-integer', label: 'To Integer', group: 'Type Cast', params: [] },
+  { value: 'cast-float', label: 'To Float', group: 'Type Cast', params: [] },
+  // Logical
   { 
     value: 'and', 
     label: 'AND (&)', 
