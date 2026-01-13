@@ -826,13 +826,19 @@ function ColumnPolicyModal({ fileId, columnName, currentPolicies, availablePolic
     }
   };
 
+  const formatPolicyName = (name) => {
+    if (!name) return '';
+    return name.toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+  };
+
   return (
     <div className="modal-overlay">
-      <div className="modal-content">
-        <h2>Assign Policies to Column: {columnName}</h2>
+      <div className="modal-content tag-assignment-modal">
+        <h2 className="modal-title">Assign Policies to Column: <span className="column-name-highlight">{columnName}</span></h2>
         
         <div className="form-group">
-          <label htmlFor="policies-selector">Select Governance Policies</label>
+          <label htmlFor="policies-selector" className="form-label">Select Governance Policies</label>
+          <p className="form-hint">Click to select or deselect policies for this column</p>
           <div id="policies-selector" className="policies-selector" role="listbox" aria-multiselectable="true">
             {availablePolicies.length > 0 ? (
               availablePolicies.map(policy => {
@@ -843,7 +849,7 @@ function ColumnPolicyModal({ fileId, columnName, currentPolicies, availablePolic
                     className={`policy-chip ${isSelected ? 'selected' : ''}`}
                     onClick={() => handleToggle(policy.policy_id)}
                   >
-                    {policy.policy_name}
+                    {formatPolicyName(policy.policy_name)}
                   </button>
                 );
               })
@@ -854,10 +860,10 @@ function ColumnPolicyModal({ fileId, columnName, currentPolicies, availablePolic
         </div>
         
         <div className="modal-actions">
-          <button className="btn btn-secondary" onClick={onClose} disabled={saving}>
+          <button className="gps-btn gps-btn--secondary" onClick={onClose} disabled={saving}>
             Cancel
           </button>
-          <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
+          <button className="gps-btn gps-btn--primary" onClick={handleSave} disabled={saving}>
             {saving ? 'Saving...' : 'Save'}
           </button>
         </div>
@@ -3624,88 +3630,49 @@ function DataProfile() {
       {/* Revalidation Modal - File Upload for Quality Rules */}
       {showRevalidateModal && (
         <div className="modal-overlay" style={{ zIndex: 2000 }}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '500px' }}>
-            <div style={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              justifyContent: 'space-between',
-              padding: '16px 20px',
-              backgroundColor: '#ffffff',
-              borderBottom: '1px solid #e0e0e0'
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <FiPlay style={{ color: '#2e7d32', fontSize: '20px' }} />
-                <h2 style={{ margin: 0, fontSize: '16px', fontWeight: 600, color: '#333' }}>Run Quality Rules</h2>
+          <div className="modal-content run-quality-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="run-quality-modal-header">
+              <div className="run-quality-modal-title">
+                <FiPlay className="run-quality-icon" />
+                <h2>Run Quality Rules</h2>
               </div>
               <button 
                 onClick={() => !rulesRunning && setShowRevalidateModal(false)}
                 disabled={rulesRunning}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  cursor: rulesRunning ? 'not-allowed' : 'pointer',
-                  padding: '4px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: '#666',
-                  opacity: rulesRunning ? 0.5 : 1
-                }}
+                className="run-quality-close-btn"
+                style={{ opacity: rulesRunning ? 0.5 : 1 }}
               >
-                <FiXCircle style={{ fontSize: '18px' }} />
+                <FiXCircle />
               </button>
             </div>
             
-            <div style={{ padding: '20px' }}>
-              <p style={{ margin: '0 0 16px 0', color: '#555', fontSize: '14px', lineHeight: '1.5' }}>
+            <div className="run-quality-modal-body">
+              <p className="run-quality-description">
                 Upload a new version of the file to run quality rules validation. The existing rule configurations will be applied to the uploaded data.
               </p>
               
-              <div style={{ 
-                border: '2px dashed #ccc', 
-                borderRadius: '8px', 
-                padding: '24px', 
-                textAlign: 'center',
-                backgroundColor: revalidateFile ? '#f0f9f0' : '#fafafa',
-                transition: 'all 0.2s'
-              }}>
+              <div className={`run-quality-dropzone ${revalidateFile ? 'has-file' : ''}`}>
                 {revalidateFile ? (
-                  <div>
-                    <FiCheckCircle style={{ fontSize: '32px', color: '#2e7d32', marginBottom: '8px' }} />
-                    <p style={{ margin: '0 0 8px 0', fontWeight: 500, color: '#333' }}>{revalidateFile.name}</p>
-                    <p style={{ margin: 0, fontSize: '12px', color: '#666' }}>
+                  <div className="run-quality-file-selected">
+                    <FiCheckCircle className="run-quality-check-icon" />
+                    <p className="run-quality-filename">{revalidateFile.name}</p>
+                    <p className="run-quality-filesize">
                       {(revalidateFile.size / 1024).toFixed(1)} KB
                     </p>
                     {!rulesRunning && (
                       <button
                         onClick={() => setRevalidateFile(null)}
-                        style={{
-                          marginTop: '12px',
-                          padding: '4px 12px',
-                          fontSize: '12px',
-                          border: '1px solid #ccc',
-                          borderRadius: '4px',
-                          backgroundColor: '#fff',
-                          cursor: 'pointer'
-                        }}
+                        className="run-quality-change-btn"
                       >
                         Choose Different File
                       </button>
                     )}
                   </div>
                 ) : (
-                  <div>
-                    <FiFileText style={{ fontSize: '32px', color: '#999', marginBottom: '8px' }} />
-                    <p style={{ margin: '0 0 12px 0', color: '#666' }}>Select a CSV or JSON file</p>
-                    <label style={{
-                      display: 'inline-block',
-                      padding: '8px 16px',
-                      backgroundColor: '#2e7d32',
-                      color: '#fff',
-                      borderRadius: '4px',
-                      cursor: 'pointer',
-                      fontSize: '14px'
-                    }}>
+                  <div className="run-quality-upload-prompt">
+                    <FiFileText className="run-quality-file-icon" />
+                    <p className="run-quality-prompt-text">Select a CSV or JSON file</p>
+                    <label className="gps-btn gps-btn--primary run-quality-choose-btn">
                       Choose File
                       <input 
                         type="file" 
@@ -3719,66 +3686,34 @@ function DataProfile() {
               </div>
               
               {rulesRunning && (
-                <div style={{ marginTop: '16px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                    <span style={{ fontSize: '12px', color: '#666' }}>
-                      {revalidateProgress < 90 ? 'Uploading...' : 'Processing rules...'}
-                    </span>
-                    <span style={{ fontSize: '12px', color: '#666' }}>{revalidateProgress}%</span>
+                <div className="run-quality-progress">
+                  <div className="run-quality-progress-header">
+                    <span>{revalidateProgress < 90 ? 'Uploading...' : 'Processing rules...'}</span>
+                    <span>{revalidateProgress}%</span>
                   </div>
-                  <div style={{ 
-                    height: '6px', 
-                    backgroundColor: '#e0e0e0', 
-                    borderRadius: '3px',
-                    overflow: 'hidden'
-                  }}>
-                    <div style={{ 
-                      height: '100%', 
-                      width: `${revalidateProgress}%`, 
-                      backgroundColor: '#2e7d32',
-                      transition: 'width 0.3s'
-                    }} />
+                  <div className="run-quality-progress-bar">
+                    <div 
+                      className="run-quality-progress-fill" 
+                      style={{ width: `${revalidateProgress}%` }} 
+                    />
                   </div>
                 </div>
               )}
             </div>
             
-            <div style={{ 
-              display: 'flex',
-              justifyContent: 'flex-end', 
-              gap: '12px',
-              padding: '12px 20px',
-              borderTop: '1px solid #e0e0e0',
-              backgroundColor: '#fafafa'
-            }}>
+            <div className="run-quality-modal-footer">
               <button 
                 onClick={() => setShowRevalidateModal(false)}
                 disabled={rulesRunning}
-                style={{
-                  padding: '8px 16px',
-                  fontSize: '14px',
-                  border: '1px solid #ccc',
-                  borderRadius: '4px',
-                  backgroundColor: '#fff',
-                  cursor: rulesRunning ? 'not-allowed' : 'pointer',
-                  opacity: rulesRunning ? 0.5 : 1
-                }}
+                className="gps-btn gps-btn--secondary"
+                style={{ opacity: rulesRunning ? 0.5 : 1 }}
               >
                 Cancel
               </button>
               <button 
                 onClick={handleRevalidateSubmit}
                 disabled={!revalidateFile || rulesRunning}
-                style={{
-                  padding: '8px 24px',
-                  fontSize: '14px',
-                  fontWeight: 500,
-                  border: 'none',
-                  borderRadius: '4px',
-                  backgroundColor: (!revalidateFile || rulesRunning) ? '#ccc' : '#2e7d32',
-                  color: '#fff',
-                  cursor: (!revalidateFile || rulesRunning) ? 'not-allowed' : 'pointer'
-                }}
+                className="gps-btn gps-btn--primary"
               >
                 {rulesRunning ? 'Running...' : 'Run Rules'}
               </button>
