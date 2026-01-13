@@ -995,11 +995,15 @@ def load_archive(file_path, file_ext, password=None):
                             if not member_name or member_info.is_dir():
                                 continue
                             
-                            # Extract to temp directory
+                            # Extract to temp directory with chunked reads for memory efficiency
                             safe_path = os.path.join(temp_dir, member_name)
                             with archive.open(member_info, pwd=password.encode() if password else None) as source:
                                 with open(safe_path, 'wb') as target:
-                                    target.write(source.read())
+                                    while True:
+                                        chunk = source.read(65536)
+                                        if not chunk:
+                                            break
+                                        target.write(chunk)
                             
                             extracted_members.append({
                                 'name': member_name,

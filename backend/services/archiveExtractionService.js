@@ -172,13 +172,15 @@ class ArchiveExtractionService {
           throw new Error(`Unsupported archive type: ${archiveInfo.archiveType}`);
       }
 
-      const processedFiles = [];
+      const CONCURRENCY_LIMIT = 5;
       
-      for (let i = 0; i < extractedFiles.length; i++) {
-        const extractedFile = extractedFiles[i];
-        
+      const processFile = async (extractedFile, index) => {
         try {
-          const scanResult = await this.virusScanService.scanFile(extractedFile.fullPath);
+          const [scanResult, checksum, fileStats] = await Promise.all([
+            this.virusScanService.scanFile(extractedFile.fullPath),
+            this.calculateChecksum(extractedFile.fullPath),
+            fs.promises.stat(extractedFile.fullPath)
+          ]);
           
           if (scanResult.isInfected) {
             this.logger.warn('Virus detected in extracted file', {
@@ -186,9 +188,8 @@ class ArchiveExtractionService {
               fileName: extractedFile.relativePath,
               viruses: scanResult.viruses
             });
-            
             await fs.promises.unlink(extractedFile.fullPath).catch(() => {});
-            continue;
+            return null;
           }
           
           if (scanResult.skipped) {
@@ -199,9 +200,6 @@ class ArchiveExtractionService {
             });
           }
 
-          const checksum = await this.calculateChecksum(extractedFile.fullPath);
-          const fileStats = await fs.promises.stat(extractedFile.fullPath);
-
           let fileId = null;
           
           if (archiveFileId) {
@@ -211,7 +209,7 @@ class ArchiveExtractionService {
               extractedFile.fullPath,
               checksum,
               fileStats.size,
-              i,
+              index,
               userId
             );
             fileId = fileRecord.id;
@@ -228,13 +226,13 @@ class ArchiveExtractionService {
             });
           }
 
-          processedFiles.push({
+          return {
             ...extractedFile,
             fileId,
             checksum,
             size: fileStats.size,
             virusScanPassed: true
-          });
+          };
 
         } catch (error) {
           this.logger.error('Error processing extracted file', {
@@ -242,9 +240,18 @@ class ArchiveExtractionService {
             fileName: extractedFile.relativePath,
             error: error.message
           });
-          
           await fs.promises.unlink(extractedFile.fullPath).catch(() => {});
+          return null;
         }
+      };
+
+      const processedFiles = [];
+      for (let i = 0; i < extractedFiles.length; i += CONCURRENCY_LIMIT) {
+        const batch = extractedFiles.slice(i, i + CONCURRENCY_LIMIT);
+        const batchResults = await Promise.all(
+          batch.map((file, batchIdx) => processFile(file, i + batchIdx))
+        );
+        processedFiles.push(...batchResults.filter(Boolean));
       }
 
       if (extractionRecord) {
