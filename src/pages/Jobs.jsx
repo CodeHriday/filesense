@@ -23,6 +23,7 @@ const Jobs = () => {
   const [itemsPerPage, setItemsPerPage] = useState(20);
   const [searchTerm, setSearchTerm] = useState('');
   const [lastRefreshed, setLastRefreshed] = useState(null);
+  const [autoRefresh, setAutoRefresh] = useState(false);
   const isFetching = useRef(false);
 
   useEffect(() => {
@@ -30,11 +31,13 @@ const Jobs = () => {
   }, []);
   
   useEffect(() => {
+    const refreshInterval = autoRefresh ? 5000 : 60000;
+    
     const interval = setInterval(() => {
       if (document.visibilityState === 'visible') {
         fetchJobs();
       }
-    }, 60000);
+    }, refreshInterval);
     
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
@@ -48,7 +51,7 @@ const Jobs = () => {
       clearInterval(interval);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, []);
+  }, [autoRefresh]);
 
   const fetchJobs = async (isManualRefresh = false) => {
     if (isFetching.current) return;
@@ -330,6 +333,15 @@ const Jobs = () => {
               Last refreshed: {lastRefreshed.toLocaleTimeString()}
             </span>
           )}
+          <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '10px', color: '#374151', cursor: 'pointer' }}>
+            <input
+              type="checkbox"
+              checked={autoRefresh}
+              onChange={(e) => setAutoRefresh(e.target.checked)}
+              style={{ width: '14px', height: '14px', accentColor: '#025043', cursor: 'pointer' }}
+            />
+            Auto-refresh (5s)
+          </label>
           <button 
             className="gps-btn gps-btn--secondary"
             onClick={handleRefresh}
