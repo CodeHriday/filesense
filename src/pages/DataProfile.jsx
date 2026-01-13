@@ -924,6 +924,9 @@ function DataProfile() {
   
   // Delimiter configuration modal state
   const [showDelimiterModal, setShowDelimiterModal] = useState(false);
+  
+  // Success message state (for re-profiling feedback)
+  const [successMessage, setSuccessMessage] = useState(null);
 
   // Quality Rules state
   const [qualityViolations, setQualityViolations] = useState(null);
@@ -3387,6 +3390,20 @@ function DataProfile() {
                   <h3 style={{ margin: '0 0 4px 0', fontSize: '14px', fontWeight: '600', color: '#1e40af' }}>Processing File...</h3>
                   <p style={{ margin: 0, fontSize: '12px', color: '#3b82f6' }}>
                     Your file is being analyzed. This page will automatically update when processing completes.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+          
+          {successMessage && (
+            <div className="info-banner" style={{ backgroundColor: '#d1fae5', borderColor: '#059669', marginBottom: '20px', border: '1px solid #059669', borderRadius: '8px', padding: '16px' }}>
+              <div className="error-banner-content" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <FiCheckCircle style={{ color: '#059669', fontSize: '24px' }} />
+                <div className="error-text-content">
+                  <h3 style={{ margin: '0 0 4px 0', fontSize: '14px', fontWeight: '600', color: '#065f46' }}>Success</h3>
+                  <p style={{ margin: 0, fontSize: '12px', color: '#059669' }}>
+                    {successMessage}
                   </p>
                 </div>
               </div>
