@@ -47,6 +47,7 @@ function QualityRules() {
   });
 
   const [formErrors, setFormErrors] = useState({});
+  const [modalError, setModalError] = useState('');
   const [confirmModal, setConfirmModal] = useState({ isOpen: false, action: null, message: '', title: '' });
 
   useEffect(() => {
@@ -164,9 +165,10 @@ function QualityRules() {
       project_id: '',
       sub_project_id: '',
       enabled: true,
-      rule_config: {}
+      rule_config: { threshold: 95 }
     });
     setFormErrors({});
+    setModalError('');
     setSubProjects([]);
     setShowRuleForm(true);
   };
@@ -192,6 +194,7 @@ function QualityRules() {
       rule_config: ruleConfig
     });
     setFormErrors({});
+    setModalError('');
     
     if (rule.project_id) {
       await fetchSubProjects(rule.project_id);
@@ -322,7 +325,7 @@ function QualityRules() {
       await fetchData();
     } catch (err) {
       console.error('Error saving quality rule:', err);
-      setError(err.response?.data?.error || 'Failed to save quality rule. Please try again.');
+      setModalError(err.response?.data?.error || 'Failed to save quality rule. Please try again.');
     }
   };
 
@@ -1067,6 +1070,12 @@ function QualityRules() {
             </div>
             <form onSubmit={handleSubmitRule}>
               <div className="gps-modal-body" style={{ maxHeight: '60vh', overflowY: 'auto' }}>
+                {modalError && (
+                  <div className="gps-alert gps-alert--error" style={{ marginBottom: '16px', padding: '12px', backgroundColor: '#fef2f2', border: '1px solid #fecaca', borderRadius: '6px', color: '#dc2626', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <FiAlertTriangle />
+                    <span>{modalError}</span>
+                  </div>
+                )}
                 <div className="gps-form-group">
                   <label htmlFor="rule-name" className="gps-form-label">Rule Name *</label>
                   <input
