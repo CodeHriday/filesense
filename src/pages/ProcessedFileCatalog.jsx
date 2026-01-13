@@ -239,6 +239,12 @@ const ProcessedFileCatalog = () => {
     <PageLayout 
       title="Processed File Catalog"
       subtitle="Files created by ETL transformations with profiling history"
+      headerActions={
+        <div className="gps-stat-card" style={{ padding: '8px 16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span style={{ fontSize: '18px', fontWeight: 700, color: '#025043' }}>{filteredFiles.length.toLocaleString()}</span>
+          <span style={{ fontSize: '10px', color: '#666' }}>Total Files</span>
+        </div>
+      }
     >
       <div className="gps-card">
         <div className="gps-card-header">

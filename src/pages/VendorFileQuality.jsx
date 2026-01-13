@@ -350,6 +350,12 @@ function VendorFileQuality() {
           <h1 className="gps-page-title">Vendor File Catalog</h1>
           <p className="gps-page-subtitle">View and analyze your uploaded vendor files with full profiling details</p>
         </div>
+        <div className="gps-header-actions" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div className="gps-stat-card" style={{ padding: '8px 16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '18px', fontWeight: 700, color: '#025043' }}>{filteredFiles.length.toLocaleString()}</span>
+            <span style={{ fontSize: '10px', color: '#666' }}>Total Files</span>
+          </div>
+        </div>
         {canDelete && selectedFiles.size > 0 && (
           <div className="gps-page-header-right">
             <button
