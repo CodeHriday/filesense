@@ -37,7 +37,6 @@ jobs:
             pwd
 
             # Pull latest code and rebuild
-            git checkout prod
             git pull origin prod
             npm install
             npm run build
