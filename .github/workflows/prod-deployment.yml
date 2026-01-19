@@ -1,0 +1,51 @@
+name: Deploy to Filesense EC2
+
+on:
+  push:
+    branches:
+      - prod
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v2
+
+      - name: Set up SSH
+        uses: webfactory/ssh-agent@v0.5.3
+        with:
+          ssh-private-key: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
+
+      - name: Deploy to EC2
+        run: |
+          ssh -o StrictHostKeyChecking=no ubuntu@${{ secrets.EC2_HOST }} << 'EOF'
+            set -e  # Exit immediately if any command fails
+
+            # Source NVM and Node.js
+            export NVM_DIR="$HOME/.nvm"
+            [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+            [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
+
+            # Confirm environment
+            node -v
+            which pm2
+
+            # Navigate to project
+            cd ${{ secrets.EC2_PROJECT_PATH }}
+            pwd
+
+            # Pull latest code and rebuild
+            git checkout prod
+            git pull origin prod
+            npm install
+            npm run build
+            source venv/bin/activate
+            pip install -r requirements.txt
+
+            # Restart PM2 processes (adjust path if necessary)
+            pm2 restart all
+
+            echo "Deployment completed into PROD environment"
+          EOF
