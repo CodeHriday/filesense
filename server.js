@@ -9840,6 +9840,18 @@ app.get('/api/secrets', async (req, res) => {
   }
   });
 
+// Database URL endpoint for profile_api.py
+app.get('/api/db_url', async (req, res) => {
+  try {
+    const secrets = await getAllSecretData();
+    res.json({
+      DATABASE_URL: `postgres://${secrets.username}:${secrets.password}@${secrets.host}:${secrets.port}/${secrets.dbname}`,
+    });
+  } catch (err) {
+    console.error('Error fetching secrets:', err);
+    res.status(500).json({ error: 'Failed to fetch secrets' });
+  }
+});
 // Refresh token endpoint
 app.post('/api/auth/refresh', async (req, res) => {
   try {

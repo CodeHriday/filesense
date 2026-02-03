@@ -26,6 +26,7 @@ import fastavro
 import struct
 import io
 import re
+import requests
 from pathlib import Path
 
 # Import existing profiling modules
@@ -167,12 +168,45 @@ def normalize_pandas_dtype(dtype_str):
     # Return the original if no mapping found
     return dtype_str
 
+# Global variable to store the database URL
+_database_url = None
+
+def fetch_database_url():
+    """Fetch DATABASE_URL from Node.js backend"""
+    global _database_url
+    
+    if _database_url:
+        return _database_url
+    
+    try:
+        API_BASE_URL = "http://localhost:3000"
+        response = requests.get(f"{API_BASE_URL}/api/db_url")
+        if not response.ok:
+            raise Exception('Failed to load database URL from backend')
+        
+        secrets = response.json()
+        _database_url = secrets.get('DATABASE_URL')
+        
+        if not _database_url:
+            raise Exception('DATABASE_URL not found in backend response')
+        print("DatabaseUrl", _database_url)
+        logger.info("Successfully fetched DATABASE_URL from backend")
+        return _database_url
+        
+    except Exception as e:
+        logger.error(f"Failed to fetch DATABASE_URL from backend: {str(e)}")
+        # Fallback to environment variable
+        _database_url = os.environ.get('DATABASE_URL')
+        if _database_url:
+            logger.info("Using DATABASE_URL from environment as fallback")
+        return _database_url
+
 # Database connection
 def get_db_connection():
     """Get PostgreSQL database connection"""
-    database_url = os.environ.get('DATABASE_URL')
+    database_url = fetch_database_url()
     if not database_url:
-        logger.warning("DATABASE_URL not set, anomaly detection disabled")
+        logger.warning("DATABASE_URL not available from backend or environment, anomaly detection disabled")
         return None
     try:
         conn = psycopg2.connect(database_url)
@@ -2141,7 +2175,32 @@ def update_setting(setting_key):
         logger.error(f"Error updating setting: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
+# Initialize database connection at startup
+def initialize_app():
+    """Initialize the Flask app with database connection"""
+    logger.info("Initializing profile API...")
+    
+    # Fetch DATABASE_URL from backend at startup
+    database_url = fetch_database_url()
+    
+    if database_url:
+        logger.info("Database URL successfully loaded from backend")
+        # Test the connection
+        try:
+            conn = get_db_connection()
+            if conn:
+                conn.close()
+                logger.info("Database connection test successful")
+            else:
+                logger.warning("Database connection test failed")
+        except Exception as e:
+            logger.error(f"Database connection test error: {str(e)}")
+    else:
+        logger.warning("No DATABASE_URL available - some features may not work")
 
 if __name__ == '__main__':
+    # Initialize the app
+    initialize_app()
+    
     port = int(os.environ.get('PROFILE_API_PORT', 8000))
     app.run(host='0.0.0.0', port=port, debug=False)
