@@ -1,0 +1,55 @@
+name: AI PR Review
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: AI Code Review
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const diff = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number,
+              mediaType: { format: "diff" }
+            });
+
+            const response = await fetch("https://api.openai.com/v1/chat/completions", {
+              method: "POST",
+              headers: {
+                "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
+                "Content-Type": "application/json"
+              },
+              body: JSON.stringify({
+                model: "gpt-4o-mini",
+                messages: [
+                  {
+                    role: "system",
+                    content: "You are a senior code reviewer. Give concise feedback."
+                  },
+                  {
+                    role: "user",
+                    content: diff.data
+                  }
+                ]
+              })
+            });
+
+            const data = await response.json();
+
+            await github.rest.issues.createComment({
+              ...context.repo,
+              issue_number: context.issue.number,
+              body: data.choices[0].message.content
+            });
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
