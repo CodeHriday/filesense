@@ -180,7 +180,9 @@ def fetch_database_url():
     
     try:
         API_BASE_URL = "http://localhost:5001"
+        print(f"{API_BASE_URL}/api/db_url","--------")
         response = requests.get(f"{API_BASE_URL}/api/db_url")
+        print(API_BASE_URL,"-----API_BASE_URL-----")
         if not response.ok:
             raise Exception('Failed to load database URL from backend')
         
