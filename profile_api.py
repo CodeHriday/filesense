@@ -53,7 +53,7 @@ app = Flask(__name__)  # NOSONAR S5122 - API service with CORS protection, CSRF 
 # Secure CORS configuration - match main server settings
 # Use HTTPS for security, HTTP only allowed for local development via environment variable
 allowed_origins = os.environ.get('ALLOWED_ORIGINS', 
-    'https://localhost:5000,https://localhost:3000,https://*.replit.dev,https://*.replit.app').split(',')
+    'https://localhost:5000,https://localhost:3000,https://localhost:5001,https://*.replit.dev,https://*.replit.app').split(',')
 
 CORS(app, 
     origins=allowed_origins,
