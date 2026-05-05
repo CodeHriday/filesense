@@ -179,11 +179,8 @@ def fetch_database_url():
         return _database_url
     
     try:
-        API_BASE_URL = "http://localhost:5000"
-        print(f"{API_BASE_URL}/api/db_url","--------")
-        logger.info(f"{API_BASE_URL}/api/db_url","--------")
+        API_BASE_URL = "http://localhost:5001"
         response = requests.get(f"{API_BASE_URL}/api/db_url")
-        print(API_BASE_URL,"-----API_BASE_URL-----")
         if not response.ok:
             raise Exception('Failed to load database URL from backend')
         
@@ -192,7 +189,6 @@ def fetch_database_url():
         
         if not _database_url:
             raise Exception('DATABASE_URL not found in backend response')
-        print("DatabaseUrl", _database_url)
         logger.info("Successfully fetched DATABASE_URL from backend")
         return _database_url
         
