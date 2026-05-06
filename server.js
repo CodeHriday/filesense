@@ -1113,8 +1113,9 @@ app.get('/api/test-di', (req, res) => {
 // Get all datasets from RDM
 app.get('/api/rdm/datasets', authenticateToken, async (req, res) => {
   try {
-    const rdmBaseUrl = process.env.RDM_BASE_URL;
-    const rdmApiKey = process.env.RDM_API_KEY;
+    const secrets = await getAllSecretData();
+    const rdmBaseUrl = secrets.RDM_BASE_URL || process.env.RDM_BASE_URL;
+    const rdmApiKey = secrets.RDM_API_KEY || process.env.RDM_API_KEY;
     
     if (!rdmBaseUrl || !rdmApiKey) {
       return res.status(500).json({ 
@@ -1148,8 +1149,9 @@ app.get('/api/rdm/datasets', authenticateToken, async (req, res) => {
 app.get('/api/rdm/datasets/:datasetId/schema', authenticateToken, async (req, res) => {
   try {
     const { datasetId } = req.params;
-    const rdmBaseUrl = process.env.RDM_BASE_URL;
-    const rdmApiKey = process.env.RDM_API_KEY;
+    const secrets = await getAllSecretData();
+    const rdmBaseUrl = secrets.RDM_BASE_URL || process.env.RDM_BASE_URL;
+    const rdmApiKey = secrets.RDM_API_KEY || process.env.RDM_API_KEY;
     
     if (!rdmBaseUrl || !rdmApiKey) {
       return res.status(500).json({ 
@@ -1183,8 +1185,9 @@ app.get('/api/rdm/datasets/:datasetId/schema', authenticateToken, async (req, re
 // Get all crosswalks from RDM
 app.get('/api/rdm/crosswalks', authenticateToken, async (req, res) => {
   try {
-    const rdmBaseUrl = process.env.RDM_BASE_URL;
-    const rdmApiKey = process.env.RDM_API_KEY;
+    const secrets = await getAllSecretData();
+    const rdmBaseUrl = secrets.RDM_BASE_URL || process.env.RDM_BASE_URL;
+    const rdmApiKey = secrets.RDM_API_KEY || process.env.RDM_API_KEY;
     
     if (!rdmBaseUrl || !rdmApiKey) {
       return res.status(500).json({ 
@@ -1218,8 +1221,9 @@ app.get('/api/rdm/crosswalks', authenticateToken, async (req, res) => {
 app.get('/api/rdm/crosswalks/:crosswalkId/schema', authenticateToken, async (req, res) => {
   try {
     const { crosswalkId } = req.params;
-    const rdmBaseUrl = process.env.RDM_BASE_URL;
-    const rdmApiKey = process.env.RDM_API_KEY;
+    const secrets = await getAllSecretData();
+    const rdmBaseUrl = secrets.RDM_BASE_URL || process.env.RDM_BASE_URL;
+    const rdmApiKey = secrets.RDM_API_KEY || process.env.RDM_API_KEY;
     
     if (!rdmBaseUrl || !rdmApiKey) {
       return res.status(500).json({ 

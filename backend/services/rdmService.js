@@ -1,21 +1,49 @@
 const axios = require('axios');
 const { systemLogger } = require('../utils/logger');
 const NodeCache = require('node-cache');
+const { getAllSecretData } = require('../config/config-secrets');
+
 
 const rdmCache = new NodeCache({ stdTTL: 300, checkperiod: 60 });
 
-const RDM_API_KEY = process.env.RDM_API_KEY;
-const RDM_BASE_URL = process.env.RDM_BASE_URL;
-
-if (!RDM_API_KEY || !RDM_BASE_URL) {
-  systemLogger.warn('RDM credentials not configured. RDM integration will not be available.');
-}
-
 class RDMService {
   constructor() {
-    this.baseURL = RDM_BASE_URL;
-    this.apiKey = RDM_API_KEY;
+    this.baseURL = process.env.RDM_BASE_URL;
+    this.apiKey = process.env.RDM_API_KEY;
     this.isConfigured = !!(this.baseURL && this.apiKey);
+
+    this.initialize();
+  }
+
+  async initialize() {
+    try {
+      const secrets = await getAllSecretData();
+
+      this.baseURL =
+        secrets.RDM_BASE_URL || process.env.RDM_BASE_URL;
+
+      this.apiKey =
+        secrets.RDM_API_KEY || process.env.RDM_API_KEY;
+
+      this.isConfigured = !!(this.baseURL && this.apiKey);
+
+      if (!this.isConfigured) {
+        systemLogger.warn(
+          'RDM credentials not configured. RDM integration will not be available.'
+        );
+      }
+
+      this.initialized = true;
+
+      systemLogger.info('RDM service initialized successfully');
+    } catch (error) {
+      systemLogger.error('Failed to initialize RDM service', error);
+
+      this.baseURL = process.env.RDM_BASE_URL;
+      this.apiKey = process.env.RDM_API_KEY;
+
+      this.isConfigured = !!(this.baseURL && this.apiKey);
+    }
   }
 
   async makeRequest(endpoint, method = 'GET', data = null) {
