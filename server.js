@@ -544,7 +544,7 @@ app.use((req, res, next) => {
 // Rate limiting configuration to prevent brute force and DoS attacks
 const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Limit each IP to 100 requests per windowMs
+  max: 500, // Limit each IP to 100 requests per windowMs
   message: 'Too many requests from this IP, please try again later',
   standardHeaders: true, // Return rate limit info in `RateLimit-*` headers
   legacyHeaders: false, // Disable the `X-RateLimit-*` headers
