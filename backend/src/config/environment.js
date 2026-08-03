@@ -17,7 +17,7 @@ const APP_CONFIG = {
     process.env.CORS_ORIGINS.split(',') : 
     ['http://localhost:5000', 'https://localhost:5000'],
   RATE_LIMIT_WINDOW_MS: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000', 10), // 15 minutes
-  RATE_LIMIT_MAX: parseInt(process.env.RATE_LIMIT_MAX || '100', 10) // 100 requests per window
+  RATE_LIMIT_MAX: parseInt(process.env.RATE_LIMIT_MAX || '500', 10) // 100 requests per window
 };
 
 // Database configuration
