@@ -409,7 +409,8 @@ router.get('/init-data', async (req, res) => {
         const connResult = await dbQuery(`
           SELECT sc.connection_id, sc.name, sc.type as connection_type, 
                  sc.type as storage_type, sc.config, sc.path,
-                 sc.status, sc.created_at, sc.connection_user, sc.connection_direction
+                 sc.status, sc.created_at, sc.connection_user, sc.connection_direction,
+                 sc.project_id
           FROM storage_connections sc
           WHERE sc.status = 'active' AND sc.is_deleted = false
           ORDER BY sc.name
@@ -421,12 +422,14 @@ router.get('/init-data', async (req, res) => {
       
       try {
         const vendorsResult = await dbQuery(`
-          SELECT id, vendor_name, vendor_code, status, vendor_type, vendor_onboarding_date,
-                 contact_name, contact_email, contact_phone,
-                 backup_contact_name, backup_contact_email, backup_contact_phone
-          FROM vendors
-          WHERE status = 'active'
-          ORDER BY vendor_name
+          SELECT v.id, v.vendor_name, v.vendor_code, v.status, v.vendor_type, v.vendor_onboarding_date,
+                 v.contact_name, v.contact_email, v.contact_phone,
+                 v.backup_contact_name, v.backup_contact_email, v.backup_contact_phone,
+                 v.project_id, p.name as project_name
+          FROM vendors v
+          LEFT JOIN projects p ON v.project_id = p.id
+          WHERE v.status = 'active'
+          ORDER BY v.vendor_name
         `);
         vendors = vendorsResult.rows;
       } catch (err) {
@@ -441,11 +444,13 @@ router.get('/init-data', async (req, res) => {
         const userVendorId = vendorResult.rows[0].id;
         try {
           const vendorsResult = await dbQuery(`
-            SELECT id, vendor_name, vendor_code, status, vendor_type, vendor_onboarding_date,
-                   contact_name, contact_email, contact_phone,
-                   backup_contact_name, backup_contact_email, backup_contact_phone
-            FROM vendors
-            WHERE id = $1 AND status = 'active'
+            SELECT v.id, v.vendor_name, v.vendor_code, v.status, v.vendor_type, v.vendor_onboarding_date,
+                   v.contact_name, v.contact_email, v.contact_phone,
+                   v.backup_contact_name, v.backup_contact_email, v.backup_contact_phone,
+                   v.project_id, p.name as project_name
+            FROM vendors v
+            LEFT JOIN projects p ON v.project_id = p.id
+            WHERE v.id = $1 AND v.status = 'active'
           `, [userVendorId]);
           vendors = vendorsResult.rows;
         } catch (err) {
@@ -459,7 +464,8 @@ router.get('/init-data', async (req, res) => {
       // Return field names that frontend expects: connection_id, name, config (as JSON)
       const allConnResult = await dbQuery(`
         SELECT connection_id, name, type as connection_type, created_at, 
-               connection_user, connection_direction, status, config, path
+               connection_user, connection_direction, status, config, path,
+               project_id
         FROM storage_connections
         WHERE is_deleted = false
         ORDER BY name

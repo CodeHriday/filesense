@@ -291,13 +291,25 @@ const VendorAgreements = () => {
     }
   }, [formData.project_id]);
   
-  // Filter vendor connections - show only external connections
+  // Filter vendor connections - show only external connections, scoped to selected vendor's project
   useEffect(() => {
-    const filtered = vendorConnections.filter(conn => 
-      conn.connection_user === 'External'
-    );
-    setFilteredConnections(filtered);
-  }, [vendorConnections]);
+    const externalConns = vendorConnections.filter(conn => conn.connection_user === 'External');
+
+    if (formData.vendor_id && Array.isArray(vendors) && vendors.length > 0) {
+      const selectedVendor = vendors.find(v => String(v.id) === String(formData.vendor_id));
+      if (selectedVendor && selectedVendor.project_id) {
+        const vendorConns = externalConns.filter(
+          conn => String(conn.project_id) === String(selectedVendor.project_id)
+        );
+        // Fall back to all external connections if none match the vendor's project
+        setFilteredConnections(vendorConns.length > 0 ? vendorConns : externalConns);
+      } else {
+        setFilteredConnections(externalConns);
+      }
+    } else {
+      setFilteredConnections(externalConns);
+    }
+  }, [vendorConnections, formData.vendor_id, vendors]);
   
   // Auto-populate drop_location_path from selected vendor connection
   useEffect(() => {
@@ -379,7 +391,28 @@ const VendorAgreements = () => {
       }));
     }
   }, [formData.vendor_id, formData.project_id, formData.project_name, vendors]);
-  
+
+  // Auto-populate vendor_connection_id from selected vendor's project connection
+  useEffect(() => {
+    // Only auto-populate when creating (not editing an existing agreement)
+    if (!formData.id && formData.vendor_id && Array.isArray(vendors) && vendors.length > 0) {
+      const selectedVendor = vendors.find(v => String(v.id) === String(formData.vendor_id));
+      if (selectedVendor && selectedVendor.project_id) {
+        const vendorProjectConns = vendorConnections.filter(
+          conn => conn.connection_user === 'External' &&
+                  String(conn.project_id) === String(selectedVendor.project_id)
+        );
+        // Auto-select if exactly one connection matches this vendor's project
+        if (vendorProjectConns.length === 1) {
+          const autoConnId = vendorProjectConns[0].connection_id;
+          if (formData.vendor_connection_id !== autoConnId) {
+            setFormData(prev => ({ ...prev, vendor_connection_id: autoConnId }));
+          }
+        }
+      }
+    }
+  }, [formData.vendor_id, formData.id, vendors, vendorConnections]);
+
   // Auto-populate vendor_code, vendor_type, vendor_onboarding_date, and contact information from selected vendor
   useEffect(() => {
     if (formData.vendor_id && vendors.length > 0) {
