@@ -37,9 +37,6 @@ author = "agent"
 agentRequireRestartOnSave = false
 
 [[workflows.workflow.tasks]]
-task = "packager.installForAll"
-
-[[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "npx vite --host 0.0.0.0 --port 5000"
 waitForPort = 5000
