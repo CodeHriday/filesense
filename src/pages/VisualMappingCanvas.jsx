@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import ReactFlow, {
   MiniMap,
   Controls,
@@ -38,6 +38,7 @@ import RdmLookupModal from '../components/VisualMappingModals/RdmLookupModal';
 import TargetRulesModal from '../components/VisualMappingModals/TargetRulesModal';
 import JoinModal from '../components/VisualMappingModals/JoinModal';
 import { useVisualMappingExecution } from '../hooks/useVisualMappingExecution';
+import LineageBackButton from '../components/LineageBackButton';
 import { getNodeStatusClass, getNodeStatusBadge, formatRowCount } from '../components/VisualMappingNodes/nodeUtils';
 
 // Custom node components for different mapping node types
@@ -342,6 +343,7 @@ const formatRunDate = (dateStr) => {
 const VisualMappingCanvasContent = () => {
   const navigate = useNavigate();
   const { mappingId } = useParams();
+  const location = useLocation();
   const isEditMode = !!mappingId;
   const containerRef = useRef(null);
   
@@ -1479,6 +1481,7 @@ const VisualMappingCanvasContent = () => {
             {isEditMode ? 'Edit Visual Mapping' : 'New Visual Mapping'}
           </h2>
           {mappingName && <span className="visual-mapping-name-display">: {mappingName}</span>}
+          {location.state?.fromLineage && <LineageBackButton />}
         </div>
         <div className="visual-mapping-toolbar-right">
           <button onClick={() => {

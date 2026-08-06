@@ -14,6 +14,13 @@ const Transform = () => {
   const { id } = useParams();
 
   if (id) {
+    // Visual mapping IDs follow the "vm-{numeric_id}-{timestamp}" pattern.
+    // Navigate to the modern visual mapping designer; fall back to the legacy
+    // MappingWizard only for traditional (non-vm) mapping IDs.
+    const vmMatch = id.match(/^vm-(\d+)-/);
+    if (vmMatch) {
+      return <Navigate to={`/visual-mappings/${vmMatch[1]}`} replace />;
+    }
     return <Navigate to={`/mappings/edit/${encodeURIComponent(id)}`} replace />;
   }
 

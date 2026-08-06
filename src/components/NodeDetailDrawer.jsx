@@ -56,8 +56,16 @@ const NodeDetailDrawer = ({ node, open, onClose }) => {
         return `/profile/${encodeURIComponent(fileId)}`;
       }
       case 'transformation': {
-        // rawId = "mapping-{mappingId}" — strip prefix to get the string mappingId
+        // rawId = "mapping-{mappingId}" — strip prefix to get the string mappingId.
+        // Visual mapping IDs follow the pattern "vm-{numeric_id}-{timestamp}" created
+        // by the workflow executor. Extract the numeric visual_mappings.id and navigate
+        // directly to the visual mapping designer. Fall back to the generic list for
+        // any non-vm mapping IDs (traditional transformation_mappings).
         const mappingId = rawId.replace(/^mapping-/, '');
+        const vmMatch = mappingId.match(/^vm-(\d+)-/);
+        if (vmMatch) {
+          return `/visual-mappings/${vmMatch[1]}`;
+        }
         return `/transformations/${encodeURIComponent(mappingId)}`;
       }
       case 'job': {
