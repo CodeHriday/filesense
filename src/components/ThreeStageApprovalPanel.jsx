@@ -43,27 +43,24 @@ const ThreeStageApprovalPanel = ({ agreement, currentUser, onUpdate, onError, on
     currentUser.email === agreement.primary_contact_email ||
     currentUser.email === agreement.secondary_contact_email;
 
-  // Check if user is file owner (Vendor Manager)
-  const isFileOwner = agreement.file_owner_user_id === currentUser.id;
+  // Check if user is the designated manager contact for this agreement (matches backend check)
+  const isManagerContact = currentUser.email && agreement.manager_contact &&
+    currentUser.email.toLowerCase() === agreement.manager_contact.toLowerCase();
 
   // Check if user is governance manager
   const isGovernanceManager = agreement.governance_manager_user_id === currentUser.id;
 
-  // Check if user has admin-level access (uses permission-based check for backward compatibility)
-  const hasAdminPermissions = currentUser.permissions?.some(p => 
-    typeof p === 'string' 
-      ? ['users:write', 'roles:write', 'project_management:write'].includes(p)
-      : ['users:write', 'roles:write', 'project_management:write'].includes(p?.name)
-  );
-  const isAdmin = hasAdminPermissions || (Array.isArray(currentUser.roles) 
+  // Admin check: only users with the literal 'Admin' role are considered admins.
+  // Do NOT use broad permission checks like users:write — vendor managers also hold those.
+  const isAdmin = Array.isArray(currentUser.roles)
     ? currentUser.roles.some(r => r.toLowerCase() === 'admin')
-    : currentUser.role?.toLowerCase() === 'admin');
+    : currentUser.role?.toLowerCase() === 'admin';
 
   // Determine what actions this user can take
   const canVendorAccept = (isVendorUserForAgreement || isAdmin) && currentStage === 'vendor' && !agreement.is_locked && agreement.approval_status !== 'vendor_rejected';
-  const canManagerHandleVendorRejection = (isFileOwner || isAdmin) && agreement.approval_status === 'vendor_rejected' && !agreement.is_locked;
-  const canManagerHandleGovernanceRejection = (isFileOwner || isAdmin) && agreement.approval_status === 'governance_rejected' && !agreement.is_locked;
-  const canManagerApprove = (isFileOwner || isAdmin) && currentStage === 'manager' && !agreement.is_locked;
+  const canManagerHandleVendorRejection = (isManagerContact || isAdmin) && agreement.approval_status === 'vendor_rejected' && !agreement.is_locked;
+  const canManagerHandleGovernanceRejection = (isManagerContact || isAdmin) && agreement.approval_status === 'governance_rejected' && !agreement.is_locked;
+  const canManagerApprove = (isManagerContact || isAdmin) && currentStage === 'manager' && !agreement.is_locked;
   const canGovernanceApprove = (isGovernanceManager || isAdmin) && currentStage === 'governance' && !agreement.is_locked;
 
   const canTakeAction = canVendorAccept || canManagerHandleVendorRejection || canManagerHandleGovernanceRejection || canManagerApprove || canGovernanceApprove;
