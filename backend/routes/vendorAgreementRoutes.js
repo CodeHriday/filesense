@@ -838,9 +838,10 @@ router.post('/:id/manager-action', checkAgreementAccess, approvalDocUpload.array
     const agreementId = parseInt(req.params.id);
     const { action, comments } = req.body;
     
-    // Check if user is owner (manager) or admin
-    if (!req.isOwner && !req.isAdmin && !req.hasApprovePermission) {
-      return res.status(403).json({ error: 'Only vendor manager can approve/reject at this stage' });
+    // Check if user is the designated manager contact or an admin
+    const isManagerContact = req.user.email === req.agreement.manager_contact;
+    if (!req.isAdmin && !isManagerContact) {
+      return res.status(403).json({ error: 'Only the designated vendor manager can approve/reject at this stage' });
     }
     
     // Process uploaded documents
@@ -861,7 +862,7 @@ router.post('/:id/manager-action', checkAgreementAccess, approvalDocUpload.array
       documents,
       req.ip,
       req.get('User-Agent'),
-      req.isAdmin || req.hasApprovePermission || false
+      req.isAdmin || false
     );
     
     res.json(result);
@@ -881,9 +882,10 @@ router.post('/:id/manager-handle-rejection', checkAgreementAccess, approvalDocUp
     const agreementId = parseInt(req.params.id);
     const { action, comments } = req.body;
     
-    // Check if user is owner (manager) or admin
-    if (!req.isOwner && !req.isAdmin && !req.hasApprovePermission) {
-      return res.status(403).json({ error: 'Only vendor manager can handle vendor rejection' });
+    // Check if user is the designated manager contact or an admin
+    const isManagerContact = req.user.email === req.agreement.manager_contact;
+    if (!req.isAdmin && !isManagerContact) {
+      return res.status(403).json({ error: 'Only the designated vendor manager can handle vendor rejection' });
     }
     
     // Process uploaded documents
@@ -904,7 +906,7 @@ router.post('/:id/manager-handle-rejection', checkAgreementAccess, approvalDocUp
       documents,
       req.ip,
       req.get('User-Agent'),
-      req.isAdmin || req.hasApprovePermission || false
+      req.isAdmin || false
     );
     
     res.json(result);
@@ -924,9 +926,10 @@ router.post('/:id/manager-handle-governance-rejection', checkAgreementAccess, ap
     const agreementId = parseInt(req.params.id);
     const { action, comments } = req.body;
     
-    // Check if user is owner (manager) or admin
-    if (!req.isOwner && !req.isAdmin && !req.hasApprovePermission) {
-      return res.status(403).json({ error: 'Only vendor manager can handle governance rejection' });
+    // Check if user is the designated manager contact or an admin
+    const isManagerContact = req.user.email === req.agreement.manager_contact;
+    if (!req.isAdmin && !isManagerContact) {
+      return res.status(403).json({ error: 'Only the designated vendor manager can handle governance rejection' });
     }
     
     // Process uploaded documents
@@ -967,9 +970,10 @@ router.post('/:id/governance-action', checkAgreementAccess, approvalDocUpload.ar
     
     const agreement = req.agreement;
     
-    // Check if user is governance manager or admin
-    if (!req.isAdmin && !req.hasApprovePermission && agreement.governance_manager_user_id !== req.user.id) {
-      return res.status(403).json({ error: 'Only governance manager can approve/reject at this stage' });
+    // Check if user is the designated governance manager or an admin
+    const isGovernanceManager = agreement.governance_manager_user_id === req.user.id;
+    if (!req.isAdmin && !isGovernanceManager) {
+      return res.status(403).json({ error: 'Only the designated governance manager can approve/reject at this stage' });
     }
     
     // Process uploaded documents
@@ -990,7 +994,7 @@ router.post('/:id/governance-action', checkAgreementAccess, approvalDocUpload.ar
       documents,
       req.ip,
       req.get('User-Agent'),
-      req.isAdmin || req.hasApprovePermission || false
+      req.isAdmin || false
     );
     
     res.json(result);
