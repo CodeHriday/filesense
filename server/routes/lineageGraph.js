@@ -113,7 +113,26 @@ router.get('/node/:nodeId', authenticateToken, async (req, res) => {
         error: 'Missing required parameter: nodeType'
       });
     }
-    
+
+    // Enforce project-level authorization when a projectId is supplied.
+    // Admins (userHasAllProjectAccess) may access any project; other users may
+    // only request details for projects they are members of.
+    if (projectId) {
+      const { getUserProjects } = require('../../backend/middleware/requireProjectAccess');
+      const { userHasAllProjectAccess } = require('../../backend/utils/permissionHelpers');
+      const isAdmin = userHasAllProjectAccess(req.user);
+      if (!isAdmin) {
+        const userProjects = await getUserProjects(req.user.id);
+        const allowedIds = new Set(userProjects.map(p => p.id));
+        if (!allowedIds.has(parseInt(projectId))) {
+          return res.status(403).json({
+            success: false,
+            error: 'Access denied: you do not have access to this project'
+          });
+        }
+      }
+    }
+
     const details = await getNodeDetails(
       nodeId, 
       nodeType, 

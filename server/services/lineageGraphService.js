@@ -524,6 +524,9 @@ async function traverseFromMapping(mappingId, projectId, nodes, edges, visited, 
             file_id: resolvedFileId,
             mappingId: mapping.mapping_id,
             mappingName: mapping.mapping_name,
+            // projectId is spread into node.data by the frontend so the drawer
+            // can pass it to the node-details API and scope queries correctly.
+            projectId: mapping.project_id || projectId || null,
             containsPii: false,
             dataClassification: null,
             piiColumns: []
@@ -1165,27 +1168,15 @@ async function getNodeDetails(nodeId, nodeType, projectId) {
         // Target files are synthetic nodes created from mapping configuration
         // Extract file name from nodeId (format: target-file-{filename})
         const targetFileName = nodeId.replace('target-file-', '');
-        
-        // Try to find a real file with this name first
-        const targetFileResult = await pool.query(`
-          SELECT 
-            f.*,
-            tm.mapping_name,
-            tm.target_file_format
-          FROM files f
-          LEFT JOIN transformation_mappings tm ON f.filename LIKE '%' || tm.target_file_name || '%'
-          WHERE f.filename LIKE '%' || $1 || '%'
-          ORDER BY f.created_at DESC
-          LIMIT 1
-        `, [targetFileName]);
-        
-        if (targetFileResult.rows.length > 0) {
-          return targetFileResult.rows[0];
-        }
-        
-        // Return synthetic data from the mapping configuration
+
+        // Step 1: fetch the mapping record first so we have its project_id and
+        // mapping_id — both needed to scope every subsequent DB query to the
+        // correct project and prevent cross-project data leakage when multiple
+        // projects share the same mapping_name or target_file_name.
         const mappingForTargetResult = await pool.query(`
-          SELECT 
+          SELECT
+            id,
+            project_id,
             target_file_name,
             target_file_format,
             mapping_name,
@@ -1193,12 +1184,67 @@ async function getNodeDetails(nodeId, nodeType, projectId) {
             field_mappings
           FROM transformation_mappings
           WHERE target_file_name = $1
+            AND ($2::integer IS NULL OR project_id = $2)
+          ORDER BY id DESC
           LIMIT 1
-        `, [targetFileName]);
-        
-        if (mappingForTargetResult.rows.length > 0) {
-          const mapping = mappingForTargetResult.rows[0];
-          
+        `, [targetFileName, projectId]);
+
+        const mappingRow = mappingForTargetResult.rows[0] || null;
+
+        if (mappingRow) {
+          const mapping = mappingRow;
+
+          // Step 2: search the Processed File Catalog (file_audit_details) to find
+          // the actual output file produced by this mapping. The output filename
+          // often differs from target_file_name (e.g. it carries a path prefix or
+          // a different base name assigned at execution time). Matching by exact
+          // mapping_id through the job chain is the safest link; mapping_name within
+          // the same project is a secondary fallback for cases where the job record
+          // is absent from file_audit_details.
+          //
+          // Both branches are hard-scoped to f.project_id = mapping.project_id to
+          // prevent cross-project data exposure even when mapping names collide.
+          if (mapping.mapping_name && mapping.project_id) {
+            try {
+              const auditFileResult = await pool.query(`
+                SELECT f.*
+                FROM file_audit_details fad
+                JOIN files f ON fad.file_id = f.file_id
+                LEFT JOIN transformation_jobs tj
+                  ON fad.transformation_job_id = tj.id
+                WHERE fad.file_role = 'target'
+                  AND f.file_id IS NOT NULL
+                  AND f.project_id = $3
+                  AND (
+                    -- Primary: exact mapping identity through the job chain
+                    tj.mapping_id = $1
+                    OR
+                    -- Secondary: mapping_name match within the same project only
+                    fad.mapping_name = $2
+                  )
+                ORDER BY fad.id DESC
+                LIMIT 1
+              `, [mapping.mapping_id, mapping.mapping_name, mapping.project_id]);
+
+              if (auditFileResult.rows.length > 0) {
+                // Real output file found — return it so the drawer can build a
+                // working /profile/{file_id} redirect. Merge mapping identifiers
+                // so the drawer can still display mapping_name / mapping_id.
+                return {
+                  ...auditFileResult.rows[0],
+                  mapping_name: mapping.mapping_name,
+                  mapping_id: mapping.mapping_id,
+                };
+              }
+            } catch (auditLookupErr) {
+              // Non-fatal: fall through to synthetic response below
+              systemLogger.warn('targetFile audit lookup failed, using synthetic fallback', {
+                mappingName: mapping.mapping_name,
+                error: auditLookupErr.message,
+              });
+            }
+          }
+
           // Parse field_mappings to extract target columns
           let columns = [];
           if (mapping.field_mappings) {
