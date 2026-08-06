@@ -66,10 +66,10 @@ const NodeDetailDrawer = ({ node, open, onClose }) => {
         return `/jobs/${jobId}`;
       }
       case 'workflow': {
-        // Lineage workflow nodes come from the visual_workflows table, not n_step_workflows.
-        // Navigate to /workflow-manager with the ID so the matching row can be highlighted.
+        // Lineage workflow nodes come from the visual_workflows table.
+        // Navigate directly to the workflow canvas editor with the ID.
         const workflowId = rawId.replace(/^workflow-/, '');
-        return `/workflow-manager?workflow=${workflowId}`;
+        return `/workflow-builder?id=${workflowId}`;
       }
       default:
         return null;
