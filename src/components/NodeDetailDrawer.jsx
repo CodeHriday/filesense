@@ -34,7 +34,7 @@ const NodeDetailDrawer = ({ node, open, onClose }) => {
    *   targetTable,
    *   grouped
    */
-  const getNavigationPath = (n) => {
+  const getNavigationPath = (n, det) => {
     const type = n?.data?.type;
     const rawId = String(n?.id ?? '');
     switch (type) {
@@ -50,10 +50,12 @@ const NodeDetailDrawer = ({ node, open, onClose }) => {
         return `/profile/${encodeURIComponent(fileId)}`;
       }
       case 'targetFile': {
-        // file_id is populated by the lineage service when the output file exists
-        // in the files table. Return null (hides redirect button) when it is absent
-        // so unexecuted mappings don't land on a broken profile page.
-        const fileId = n.data.file_id;
+        // Prefer file_id from node metadata (populated by lineage service for new graphs).
+        // Fall back to file_id resolved by the node detail API so cached graphs with
+        // older nodes still get a working redirect once the drawer loads details.
+        // Return null (hides redirect button) when neither source has a valid file_id,
+        // which is the case for mappings that have never been executed.
+        const fileId = n.data.file_id || (det && !det.is_synthetic ? det.file_id : null);
         if (!fileId) return null;
         return `/profile/${encodeURIComponent(fileId)}`;
       }
@@ -629,11 +631,11 @@ const NodeDetailDrawer = ({ node, open, onClose }) => {
             </div>
           </div>
           <div className="drawer-header-actions">
-            {getNavigationPath(node) && (
+            {getNavigationPath(node, details) && (
               <button
                 className="drawer-navigate"
                 title="Open in full view"
-                onClick={() => { navigate(getNavigationPath(node), { state: { fromLineage: location.pathname } }); onClose(); }}
+                onClick={() => { navigate(getNavigationPath(node, details), { state: { fromLineage: location.pathname } }); onClose(); }}
               >
                 <FaExternalLinkAlt />
               </button>
