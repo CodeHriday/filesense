@@ -2650,21 +2650,26 @@ class VendorAgreementService {
         paramCounter++;
       }
       
-      // Apply role-based filtering for vendor users
-      // Only admin role or vendor_agreements:approve permission bypass contact filtering
-      // Regular vendor users with just vendor_agreements:read must be filtered by contact emails OR project membership
-      if (!isAdmin && !hasApprovePermission && userId) {
+      // Apply role-based filtering for non-admin users
+      // Only true admin access (userHasAdminAccess) bypasses contact filtering
+      // Users with vendor_agreements:approve permission (e.g. Vendor Manager, Vendor Approver)
+      // still get filtered — they only see agreements where they are designated as a contact
+      if (!isAdmin && userId) {
         if (userEmail) {
           // Allow access if user is:
-          // 1. File owner
-          // 2. Vendor user
-          // 3. Primary or secondary contact
-          // 4. Member of the vendor's project (direct or via access group)
+          // 1. File owner (by user ID)
+          // 2. Vendor user (by user ID)
+          // 3. Primary or secondary contact (by email)
+          // 4. Manager contact (by email)
+          // 5. Governance manager (by user ID)
+          // 6. Member of the vendor's project (direct or via access group)
           whereClauses.push(`(
             va.file_owner_user_id = $${paramCounter} 
             OR v.vendor_user_id = $${paramCounter}
+            OR va.governance_manager_user_id = $${paramCounter}
             OR va.primary_contact_email = $${paramCounter + 1}
             OR va.secondary_contact_email = $${paramCounter + 1}
+            OR va.manager_contact = $${paramCounter + 1}
             OR EXISTS (
               SELECT 1 FROM project_members pm 
               WHERE pm.project_id = v.project_id AND pm.user_id = $${paramCounter}
@@ -2678,10 +2683,11 @@ class VendorAgreementService {
           queryParams.push(userId, userEmail);
           paramCounter += 2;
         } else {
-          // Fallback if email not provided - check file owner, vendor user, and project membership
+          // Fallback if email not provided - check file owner, vendor user, governance manager, and project membership
           whereClauses.push(`(
             va.file_owner_user_id = $${paramCounter} 
             OR v.vendor_user_id = $${paramCounter}
+            OR va.governance_manager_user_id = $${paramCounter}
             OR EXISTS (
               SELECT 1 FROM project_members pm 
               WHERE pm.project_id = v.project_id AND pm.user_id = $${paramCounter}
