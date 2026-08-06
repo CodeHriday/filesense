@@ -147,6 +147,7 @@ const VendorAgreements = () => {
   
   const { currentUser, hasRole, hasPermission } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   
   // Check for admin-level access (uses permission-based check for backward compatibility)
@@ -172,7 +173,7 @@ const VendorAgreements = () => {
       const agreement = agreements.find(a => a.id === agreementId);
       if (agreement) {
         openDetailModal(agreement);
-        setSearchParams({});
+        setSearchParams({}, { state: location.state });
       } else if (agreements.length > 0) {
         // Agreement not on current page, fetch it directly
         axios.get(`/api/vendor-agreements/${agreementId}`)
@@ -180,16 +181,16 @@ const VendorAgreements = () => {
             const agreementData = response.data.agreement || response.data;
             if (agreementData && agreementData.id) {
               openDetailModal(agreementData);
-              setSearchParams({});
+              setSearchParams({}, { state: location.state });
             } else {
               setError('Could not load the requested agreement');
-              setSearchParams({});
+              setSearchParams({}, { state: location.state });
             }
           })
           .catch(error => {
             console.error('Error loading agreement from notification:', error);
             setError('Could not load the requested agreement');
-            setSearchParams({});
+            setSearchParams({}, { state: location.state });
           });
       }
     }
