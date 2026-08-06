@@ -4,6 +4,7 @@ import axios from 'axios';
 import { API_BASE_URL } from '../config';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { formatDate, formatTimestampWithMicroseconds } from '../utils/formatters';
+import LineageBackButton from '../components/LineageBackButton';
 import '../styles/global-page-styles.css';
 
 const Jobs = () => {
@@ -325,6 +326,7 @@ const Jobs = () => {
           <p className="gps-page-subtitle">Monitor and manage ETL transformation job executions</p>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <LineageBackButton />
           {lastRefreshed && (
             <span style={{ fontSize: '10px', color: '#6b7280' }}>
               Last refreshed: {lastRefreshed.toLocaleTimeString()}

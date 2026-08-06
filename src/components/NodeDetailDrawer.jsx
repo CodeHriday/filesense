@@ -2,11 +2,12 @@ import React, { useState, useEffect } from 'react';
 import './NodeDetailDrawer.css';
 import PropTypes from 'prop-types';
 import { FaTimes, FaExternalLinkAlt, FaFileContract, FaFile, FaCog, FaCalculator, FaTable, FaPlayCircle, FaExclamationTriangle, FaShieldAlt, FaLock, FaArrowRight, FaColumns, FaChevronDown, FaChevronRight, FaTag } from 'react-icons/fa';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { fetchNodeDetails } from '../services/lineageGraphService';
 
 const NodeDetailDrawer = ({ node, open, onClose }) => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [details, setDetails] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -615,7 +616,7 @@ const NodeDetailDrawer = ({ node, open, onClose }) => {
               <button
                 className="drawer-navigate"
                 title="Open in full view"
-                onClick={() => { navigate(getNavigationPath(node)); onClose(); }}
+                onClick={() => { navigate(getNavigationPath(node), { state: { fromLineage: location.pathname } }); onClose(); }}
               >
                 <FaExternalLinkAlt />
               </button>

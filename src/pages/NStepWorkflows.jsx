@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { FiPlus, FiTrash2, FiPlay, FiChevronLeft, FiChevronRight, FiSave, FiX, FiEye, FiEdit, FiArrowLeft, FiCalendar, FiSearch, FiChevronDown, FiAlertCircle } from 'react-icons/fi';
 import axios from 'axios';
 import PageHeader from '../components/PageHeader';
+import LineageBackButton from '../components/LineageBackButton';
 import LoadingSpinner from '../components/LoadingSpinner';
 import Pagination from '../components/Pagination';
 import { PageTransition } from '../components/MicroAnimations';
@@ -637,6 +638,7 @@ const NStepWorkflows = () => {
           title="Workflows"
           subtitle="Build N-step workflows with sequential execution"
           hideHomeButton={true}
+          actions={<LineageBackButton />}
         />
 
         {mode === 'list' && (

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { FiDatabase, FiArrowRight, FiPlay, FiSave, FiSettings } from 'react-icons/fi';
+import LineageBackButton from '../LineageBackButton';
 import ConnectionSelector from './ConnectionSelector';
 import FileSelector from './FileSelector';
 import ColumnMapper from './ColumnMapper';
@@ -114,6 +115,7 @@ const TransformBuilder = () => {
           <p>Create visual data transformations with drag-and-drop column mapping</p>
         </div>
         <div className="transform-actions">
+          <LineageBackButton />
           <button className="btn btn-secondary">
             <FiSave /> Save Draft
           </button>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { FiEye, FiEdit2, FiTrash2, FiSearch, FiSlash } from 'react-icons/fi';
 import LoadingSpinner from '../components/LoadingSpinner';
 import Pagination from '../components/Pagination';
@@ -16,6 +16,7 @@ import { useAuth } from '../context/AuthContext';
 import { isVendorUser } from '../utils/userHelpers';
 import { formatChangeSummary } from '../utils/formatters';
 import axios from 'axios';
+import LineageBackButton from '../components/LineageBackButton';
 import '../styles/global-page-styles.css';
 import '../styles/VendorAgreements.css';
 
@@ -1628,6 +1629,7 @@ const VendorAgreements = () => {
               <p className="gps-page-subtitle">Manage vendor file delivery agreements and contracts</p>
             </div>
             <div className="gps-header-actions">
+              <LineageBackButton />
               <div className="gps-search-wrapper">
                 <FiSearch className="gps-search-icon" />
                 <input

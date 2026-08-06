@@ -12,6 +12,7 @@ import { getFileDetails, getFileProfile, getFileFullData } from '../api/fileServ
 import { getFileQualityRules, assignFileQualityRules } from '../api/qualityRulesService';
 import { formatBytes, formatDate, getTimeSince, formatNumber, formatDecimal } from '../utils/formatters';
 import { useAuth } from '../context/AuthContext';
+import LineageBackButton from '../components/LineageBackButton';
 import '../styles/global-page-styles.css';
 import './DataProfile.css';
 import axios from 'axios';
@@ -3411,6 +3412,7 @@ function DataProfile() {
                   <Link to="/file-catalog" className="gps-btn gps-btn--secondary" style={{ padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <FiArrowLeft size={14} /> Back
                   </Link>
+                  <LineageBackButton />
                   <h1 className="gps-page-title" style={{ margin: 0, fontSize: '16px' }}>{file.filename}</h1>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '16px', fontSize: '10px', color: '#666' }}>
