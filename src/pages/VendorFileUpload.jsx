@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { FiUpload, FiCheckCircle, FiLoader, FiChevronDown, FiChevronRight, FiFile, FiDatabase, FiAlertCircle } from 'react-icons/fi';
 import FileDropzone from '../components/FileDropzone';
 import S3FolderBrowser from '../components/S3FolderBrowser';
@@ -57,6 +57,7 @@ function VendorFileUpload() {
   const [uploadingFiles, setUploadingFiles] = useState([]);
   const [schemaWarnings, setSchemaWarnings] = useState([]);
 
+  const navigate = useNavigate();
   const { hasWritePermission } = useAuth();
   const { addToast } = useToast();
 
@@ -225,10 +226,10 @@ function VendorFileUpload() {
           detail: { fileId: fileDetails.fileId, fileName: fileDetails.fileName }
         }));
         
-        // Hide notification after 8 seconds, but keep progress bar visible
+        // Redirect to the uploaded file's profile page after a short delay
         setTimeout(() => {
-          setShowSuccessNotification(false);
-        }, 8000);
+          navigate(`/profile/${encodeURIComponent(fileDetails.fileId)}?t=${Date.now()}`);
+        }, 1500);
         
       } else if (virusScan && virusScan.scanned && !virusScan.clean) {
         // File failed virus scan (this shouldn't happen as server rejects infected files)
@@ -247,9 +248,10 @@ function VendorFileUpload() {
           detail: { fileId: fileDetails.fileId, fileName: fileDetails.fileName }
         }));
         
+        // Redirect to the uploaded file's profile page after a short delay
         setTimeout(() => {
-          setShowSuccessNotification(false);
-        }, 8000);
+          navigate(`/profile/${encodeURIComponent(fileDetails.fileId)}?t=${Date.now()}`);
+        }, 1500);
       }
       
     } catch (error) {
