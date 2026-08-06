@@ -108,7 +108,9 @@ router.get('/', async (req, res) => {
  * GET /api/n-step-workflows/:id
  * Get a specific workflow with all steps and assets
  */
-router.get('/:id', async (req, res) => {
+router.get('/:id', async (req, res, next) => {
+  // Guard: skip to named routes (e.g. /init-data, /runs) when the segment is not a numeric id
+  if (!/^\d+$/.test(req.params.id)) return next();
   try {
     const { id } = req.params;
     const { getUserProjects } = require('../middleware/requireProjectAccess');

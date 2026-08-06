@@ -66,9 +66,9 @@ const NodeDetailDrawer = ({ node, open, onClose }) => {
         return `/jobs/${jobId}`;
       }
       case 'workflow': {
-        // rawId = "workflow-{workflowId}" — strip prefix to get the numeric workflow ID
-        const workflowId = rawId.replace(/^workflow-/, '');
-        return `/workflows/${workflowId}`;
+        // Lineage workflow nodes come from the visual_workflows table, not n_step_workflows.
+        // The correct landing page for visual workflows is /workflow-manager.
+        return `/workflow-manager`;
       }
       default:
         return null;
