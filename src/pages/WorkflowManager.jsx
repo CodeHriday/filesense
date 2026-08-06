@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import { FiPlusCircle, FiPower, FiEdit2, FiTrash2, FiPlay } from 'react-icons/fi';
 import { parseCronExpression } from '../utils/cronParser';
@@ -14,6 +14,7 @@ import './WorkflowManager.css';
 
 const WorkflowManager = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { showSuccess, showError } = useNotification();
   
   const { data: workflowsData, isLoading: workflowsLoading, error: workflowsError } = useVisualWorkflows();
@@ -36,6 +37,25 @@ const WorkflowManager = () => {
 
   const [deleteModal, setDeleteModal] = useState({ show: false, workflowId: null, isBulk: false });
   const [selectedWorkflows, setSelectedWorkflows] = useState(new Set());
+  const [lineageWorkflowId, setLineageWorkflowId] = useState(null);
+  const highlightRowRef = useRef(null);
+
+  // When arriving from the lineage graph, find and highlight the linked workflow
+  useEffect(() => {
+    const param = searchParams.get('workflow');
+    if (!param || workflows.length === 0) return;
+    const id = parseInt(param, 10);
+    if (!isNaN(id) && workflows.some(w => w.id === id)) {
+      setLineageWorkflowId(id);
+    }
+  }, [workflows, searchParams]);
+
+  // Scroll the highlighted row into view once it's rendered
+  useEffect(() => {
+    if (lineageWorkflowId && highlightRowRef.current) {
+      highlightRowRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [lineageWorkflowId]);
 
   const [selectedProject, setSelectedProject] = useState('all');
   const [selectedSubProject, setSelectedSubProject] = useState('all');
@@ -300,8 +320,13 @@ const WorkflowManager = () => {
                   const schedule = getWorkflowSchedule(workflow.id);
                   const isEnabled = schedule?.enabled || false;
 
+                  const isFromLineage = workflow.id === lineageWorkflowId;
                   return (
-                    <tr key={workflow.id}>
+                    <tr
+                      key={workflow.id}
+                      ref={isFromLineage ? highlightRowRef : null}
+                      className={isFromLineage ? 'workflow-row--from-lineage' : undefined}
+                    >
                       <td className="workflow-name">
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                           <input
