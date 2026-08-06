@@ -136,13 +136,16 @@ const ThreeStageApprovalPanel = ({ agreement, currentUser, onUpdate, onError, on
       return <FaClock className="stage-icon pending" />;
     } else if (stage === 'manager') {
       if (agreement.approval_status === 'manager_rejected') return <FaTimesCircle className="stage-icon rejected" />;
-      if (agreement.manager_approved_at) return <FaCheckCircle className="stage-icon approved" />;
+      // Only show approved checkmark when approval_status confirms this stage is genuinely done
+      // in the current cycle (guards against stale timestamps from a previous approval cycle).
+      if (agreement.manager_approved_at && ['manager_approved', 'governance_approved', 'governance_rejected'].includes(agreement.approval_status)) return <FaCheckCircle className="stage-icon approved" />;
       if (currentStage === 'manager') return <FaClock className="stage-icon pending-active" />;
       if (!agreement.vendor_approved_at) return <FaClock className="stage-icon disabled" />;
       return <FaClock className="stage-icon pending" />;
     } else if (stage === 'governance') {
       if (agreement.approval_status === 'governance_rejected') return <FaTimesCircle className="stage-icon rejected" />;
-      if (agreement.governance_approved_at) return <FaCheckCircle className="stage-icon approved" />;
+      // Only show approved checkmark when approval_status confirms governance is genuinely done.
+      if (agreement.governance_approved_at && agreement.approval_status === 'governance_approved') return <FaCheckCircle className="stage-icon approved" />;
       if (currentStage === 'governance') return <FaClock className="stage-icon pending-active" />;
       if (!agreement.manager_approved_at) return <FaClock className="stage-icon disabled" />;
       return <FaClock className="stage-icon pending" />;
@@ -156,12 +159,14 @@ const ThreeStageApprovalPanel = ({ agreement, currentUser, onUpdate, onError, on
       return 'Pending Vendor Acceptance';
     } else if (stage === 'manager') {
       if (agreement.approval_status === 'manager_rejected') return 'Rejected';
-      if (agreement.manager_approved_at) return `Approved ${new Date(agreement.manager_approved_at).toLocaleDateString()}`;
+      // Guard against stale timestamps from a previous approval cycle
+      if (agreement.manager_approved_at && ['manager_approved', 'governance_approved', 'governance_rejected'].includes(agreement.approval_status)) return `Approved ${new Date(agreement.manager_approved_at).toLocaleDateString()}`;
       if (!agreement.vendor_approved_at) return 'Awaiting Vendor';
       return 'Pending Manager Approval';
     } else if (stage === 'governance') {
       if (agreement.approval_status === 'governance_rejected') return 'Rejected';
-      if (agreement.governance_approved_at) return `Approved ${new Date(agreement.governance_approved_at).toLocaleDateString()}`;
+      // Guard against stale timestamps from a previous approval cycle
+      if (agreement.governance_approved_at && agreement.approval_status === 'governance_approved') return `Approved ${new Date(agreement.governance_approved_at).toLocaleDateString()}`;
       if (!agreement.manager_approved_at) return 'Awaiting Manager';
       return 'Pending Governance Approval';
     }

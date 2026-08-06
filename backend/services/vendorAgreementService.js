@@ -34,12 +34,15 @@ class VendorAgreementService {
    */
   async enrichAgreementWithTimestamps(agreement) {
     try {
+      // Filter by current agreement version so stale approval records from previous
+      // approval cycles (e.g. before an admin re-edit) do not bleed into the UI.
       const result = await pool.query(
         `SELECT approval_stage, action, approval_timestamp 
          FROM vendor_agreement_approvals 
-         WHERE agreement_id = $1 
+         WHERE agreement_id = $1
+           AND agreement_version = $2
          ORDER BY approval_timestamp DESC`,
-        [agreement.id]
+        [agreement.id, agreement.version]
       );
       
       // Add timestamp fields based on approvals
