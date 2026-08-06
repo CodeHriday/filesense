@@ -74,6 +74,32 @@
   letter-spacing: 0.3px;
 }
 
+.drawer-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.drawer-navigate {
+  background: none;
+  border: none;
+  font-size: 14px;
+  color: #6B7280;
+  cursor: pointer;
+  padding: 4px 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.drawer-navigate:hover {
+  background: #EEF2FF;
+  color: #4F46E5;
+}
+
 .drawer-close {
   background: none;
   border: none;

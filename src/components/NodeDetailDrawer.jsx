@@ -1,14 +1,72 @@
 import React, { useState, useEffect } from 'react';
 import './NodeDetailDrawer.css';
 import PropTypes from 'prop-types';
-import { FaTimes, FaFileContract, FaFile, FaCog, FaCalculator, FaTable, FaPlayCircle, FaExclamationTriangle, FaShieldAlt, FaLock, FaArrowRight, FaColumns, FaChevronDown, FaChevronRight, FaTag } from 'react-icons/fa';
+import { FaTimes, FaExternalLinkAlt, FaFileContract, FaFile, FaCog, FaCalculator, FaTable, FaPlayCircle, FaExclamationTriangle, FaShieldAlt, FaLock, FaArrowRight, FaColumns, FaChevronDown, FaChevronRight, FaTag } from 'react-icons/fa';
+import { useNavigate } from 'react-router-dom';
 import { fetchNodeDetails } from '../services/lineageGraphService';
 
 const NodeDetailDrawer = ({ node, open, onClose }) => {
+  const navigate = useNavigate();
   const [details, setDetails] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [columnsExpanded, setColumnsExpanded] = useState(false);
+
+  /**
+   * Returns the React Router destination path for a node, or null if the node
+   * type has no dedicated detail/list page.
+   *
+   * Node IDs from the backend are prefixed strings (e.g. "vendor-48",
+   * "file-12874", "workflow-6", "target-file-kmart_cust_dim_prcsd_file_out").
+   * Strip the prefix to get the raw entity ID where needed.
+   *
+   *   vendorContract  — "vendor-{agreementId}" → /vendor-agreements?view={agreementId}
+   *                     VendorAgreements reads ?view= to open the record in view mode.
+   *   sourceFile      — "file-{numericId}" → profile URL uses the string file_id from
+   *                     metadata (node.data.file_id); falls back to the stripped numeric id.
+   *   targetFile      — "target-file-{fileIdentifier}" → strip prefix; the remainder is
+   *                     the string file identifier used by the profile page.
+   *   transformation  — no /:id route exists; navigate to the list page.
+   *   job             — "job-{jobId}" or similar → strip prefix, use /jobs/:jobId.
+   *   workflow        — no /:id route exists; navigate to the list page.
+   *   derivedColumn,  — no dedicated page; button is hidden for these types.
+   *   targetTable,
+   *   grouped
+   */
+  const getNavigationPath = (n) => {
+    const type = n?.data?.type;
+    const rawId = String(n?.id ?? '');
+    switch (type) {
+      case 'vendorContract': {
+        // rawId = "vendor-{agreementId}"
+        const agreementId = rawId.replace(/^vendor-/, '');
+        return `/vendor-agreements?view=${agreementId}`;
+      }
+      case 'sourceFile': {
+        // rawId = "file-{numericId}". node.data.file_id holds the string identifier
+        // used by the file profile page when the backend includes it in metadata.
+        const fileId = n.data.file_id || rawId.replace(/^file-/, '');
+        return `/profile/${encodeURIComponent(fileId)}`;
+      }
+      case 'targetFile': {
+        // rawId = "target-file-{fileIdentifier}" — the suffix after "target-file-" is
+        // the actual file identifier used by the profile page.
+        const fileId = n.data.file_id || rawId.replace(/^target-file-/, '');
+        return `/profile/${encodeURIComponent(fileId)}`;
+      }
+      case 'transformation':
+        return '/transformations';
+      case 'job': {
+        // rawId = "job-{jobId}" or a plain numeric string
+        const jobId = rawId.replace(/^job-/, '');
+        return `/jobs/${jobId}`;
+      }
+      case 'workflow':
+        return '/workflows';
+      default:
+        return null;
+    }
+  };
   
   useEffect(() => {
     if (open && node) {
@@ -552,9 +610,20 @@ const NodeDetailDrawer = ({ node, open, onClose }) => {
               <div className="drawer-title-sub">{formatNodeType(node.data.type)}</div>
             </div>
           </div>
-          <button className="drawer-close" onClick={onClose}>
-            <FaTimes />
-          </button>
+          <div className="drawer-header-actions">
+            {getNavigationPath(node) && (
+              <button
+                className="drawer-navigate"
+                title="Open in full view"
+                onClick={() => { navigate(getNavigationPath(node)); onClose(); }}
+              >
+                <FaExternalLinkAlt />
+              </button>
+            )}
+            <button className="drawer-close" onClick={onClose}>
+              <FaTimes />
+            </button>
+          </div>
         </div>
         
         {renderContent()}
