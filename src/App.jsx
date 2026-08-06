@@ -102,7 +102,7 @@ const APIDocumentation = lazy(() => import('./pages/APIDocumentation'));
 const FailedJobs = lazy(() => import('./pages/FailedJobs'));
 // WorkflowCanvasStandalone - ARCHIVED (not in use)
 // WorkflowTest - ARCHIVED (development only)
-// WorkflowBuilder - ARCHIVED (already in archived folder)
+const WorkflowBuilder = lazy(() => import('./pages/archived/WorkflowBuilder'));
 const WorkflowManager = lazy(() => import('./pages/WorkflowManager'));
 const VisualMappingCanvas = lazy(() => import('./pages/VisualMappingCanvas'));
 const VisualMappingManager = lazy(() => import('./pages/VisualMappingManager'));
@@ -404,7 +404,7 @@ function AppContent({ showOnboarding, setShowOnboarding }) {
                 <Route path="/mapping-groups/:groupId/edit" element={<ProtectedRoute><MappingGroupForm /></ProtectedRoute>} />
                 <Route path="/workflows" element={<ProtectedRoute><NStepWorkflows /></ProtectedRoute>} />
                 <Route path="/workflows/:id" element={<ProtectedRoute><NStepWorkflows /></ProtectedRoute>} />
-                {/* ARCHIVED: <Route path="/workflow-builder" element={<ProtectedRoute><WorkflowBuilder /></ProtectedRoute>} /> */}
+                <Route path="/workflow-builder" element={<ProtectedRoute><WorkflowBuilder /></ProtectedRoute>} />
                 <Route path="/workflow-manager" element={<ProtectedRoute><WorkflowManager /></ProtectedRoute>} />
                 <Route path="/visual-mappings/new" element={<ProtectedRoute><VisualMappingCanvas /></ProtectedRoute>} />
                 <Route path="/visual-mappings/:mappingId" element={<ProtectedRoute><VisualMappingCanvas /></ProtectedRoute>} />
