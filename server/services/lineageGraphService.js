@@ -438,63 +438,59 @@ async function traverseFromMapping(mappingId, projectId, nodes, edges, visited, 
     });
   }
   
-  // Find jobs that executed this mapping
-  const jobsResult = await pool.query(`
-    SELECT 
-      tj.id,
-      tj.job_id,
-      tj.status,
-      tj.start_time,
-      tj.end_time,
-      tj.duration_ms,
-      tj.rows_read,
-      tj.rows_written,
-      tj.rows_failed,
-      tj.error_message
-    FROM transformation_jobs tj
-    WHERE tj.mapping_id = $1
-    ORDER BY tj.start_time DESC
-    LIMIT 10
-  `, [mappingId]);
-  
-  // Traverse most recent successful job
-  const successfulJob = jobsResult.rows.find(j => j.status === 'completed');
-  if (successfulJob) {
-    await traverseFromJob(successfulJob.job_id, projectId, nodes, edges, visited, depth - 1, filters);
-    
-    // Add edge from mapping to job
-    edges.push({
-      id: `${nodeId}-to-job-${successfulJob.job_id}`,
-      source: nodeId,
-      target: `job-${successfulJob.job_id}`,
-      relationship: 'EXECUTED_BY',
-      label: 'executed by'
-    });
-  } else {
-    // No job execution - create target node from mapping configuration
-    // Check for target_file_name first (for file outputs), then target_table_name (for table outputs)
-    const targetFileName = mapping.target_file_name;
-    const targetFileFormat = mapping.target_file_format;
-    const targetTableName = mapping.target_table_name;
-    
-    if (targetFileName) {
-      const targetNodeId = `target-file-${targetFileName}`;
-      
-      if (!visited.has(targetNodeId)) {
-        visited.add(targetNodeId);
-        
-        // Look up whether this output file exists in the files table so the
-        // frontend can navigate to its profile page with a valid file_id.
-        // Scope to the mapping's project and file_role = 'target' to avoid
-        // cross-project collisions when identical output names are used.
-        // Try the format-qualified name first (e.g. "report.csv"), then bare.
-        let resolvedFileId = null;
+  // Fetch the most recent successful job's stats to enrich the target node.
+  // Job instance nodes are intentionally NOT added to the graph — the lineage
+  // graph shows logical data flow (Source → Mapping → Target), not execution
+  // history. Job stats are surfaced as metadata on the target node instead.
+  let lastJobStats = null;
+  try {
+    const lastJobResult = await pool.query(`
+      SELECT
+        tj.end_time,
+        tj.rows_written,
+        tj.rows_read,
+        f.contains_pii,
+        f.data_classification,
+        f.file_id AS target_file_id
+      FROM transformation_jobs tj
+      LEFT JOIN file_audit_details fad
+        ON fad.transformation_job_id = tj.id AND fad.file_role = 'target'
+      LEFT JOIN files f ON fad.file_id = f.file_id
+      WHERE tj.mapping_id = $1
+        AND tj.status = 'completed'
+      ORDER BY tj.end_time DESC
+      LIMIT 1
+    `, [mappingId]);
+    if (lastJobResult.rows.length > 0) {
+      lastJobStats = lastJobResult.rows[0];
+    }
+  } catch (err) {
+    // Non-fatal: job stats are optional enrichment only
+  }
+
+  // Always derive the target node from mapping configuration so the graph
+  // shows the logical output regardless of whether any job has run.
+  const targetFileName = mapping.target_file_name;
+  const targetFileFormat = mapping.target_file_format;
+  const targetTableName = mapping.target_table_name;
+
+  if (targetFileName) {
+    const targetNodeId = `target-file-${targetFileName}`;
+
+    if (!visited.has(targetNodeId)) {
+      visited.add(targetNodeId);
+
+      // Look up whether this output file exists in the files table so the
+      // frontend can navigate to its profile page with a valid file_id.
+      // Prefer the file_id found through the job audit chain; fall back to a
+      // filename match scoped to the mapping's project.
+      let resolvedFileId = lastJobStats?.target_file_id || null;
+      if (!resolvedFileId) {
         try {
           const resolvedProjectId = mapping.project_id || projectId;
           const nameWithFormat = targetFileFormat
             ? `${targetFileName}.${targetFileFormat}`
             : null;
-
           const existingFileResult = await pool.query(`
             SELECT file_id FROM files
             WHERE file_role = 'target'
@@ -506,72 +502,75 @@ async function traverseFromMapping(mappingId, projectId, nodes, edges, visited, 
             ORDER BY created_at DESC
             LIMIT 1
           `, [resolvedProjectId, nameWithFormat, targetFileName]);
-
           if (existingFileResult.rows.length > 0) {
             resolvedFileId = existingFileResult.rows[0].file_id;
           }
         } catch (err) {
-          // Non-fatal: if the lookup fails, leave file_id null and hide the redirect button
+          // Non-fatal
         }
-        
-        nodes.push({
-          id: targetNodeId,
-          type: 'targetFile',
-          label: `${targetFileName}${targetFileFormat ? '.' + targetFileFormat : ''}`,
-          metadata: {
-            fileName: targetFileName,
-            fileFormat: targetFileFormat,
-            file_id: resolvedFileId,
-            mappingId: mapping.mapping_id,
-            mappingName: mapping.mapping_name,
-            // projectId is spread into node.data by the frontend so the drawer
-            // can pass it to the node-details API and scope queries correctly.
-            projectId: mapping.project_id || projectId || null,
-            containsPii: false,
-            dataClassification: null,
-            piiColumns: []
-          }
-        });
       }
-      
-      // Add edge from mapping to target file
-      edges.push({
-        id: `${nodeId}-to-${targetNodeId}`,
-        source: nodeId,
-        target: targetNodeId,
-        relationship: 'OUTPUTS_TO',
-        label: 'outputs to'
-      });
-    } else if (targetTableName) {
-      const targetNodeId = `table-${targetTableName}`;
-      
-      if (!visited.has(targetNodeId)) {
-        visited.add(targetNodeId);
-        
-        nodes.push({
-          id: targetNodeId,
-          type: 'targetTable',
-          label: targetTableName,
-          metadata: {
-            tableName: targetTableName,
-            mappingId: mapping.mapping_id,
-            mappingName: mapping.mapping_name,
-            containsPii: false,
-            dataClassification: null,
-            piiColumns: []
-          }
-        });
-      }
-      
-      // Add edge from mapping to target table
-      edges.push({
-        id: `${nodeId}-to-${targetNodeId}`,
-        source: nodeId,
-        target: targetNodeId,
-        relationship: 'OUTPUTS_TO',
-        label: 'outputs to'
+
+      nodes.push({
+        id: targetNodeId,
+        type: 'targetFile',
+        label: `${targetFileName}${targetFileFormat ? '.' + targetFileFormat : ''}`,
+        metadata: {
+          fileName: targetFileName,
+          fileFormat: targetFileFormat,
+          file_id: resolvedFileId,
+          mappingId: mapping.mapping_id,
+          mappingName: mapping.mapping_name,
+          projectId: mapping.project_id || projectId || null,
+          // Runtime stats from the most recent successful job run
+          lastRun: lastJobStats?.end_time || null,
+          rowsWritten: lastJobStats?.rows_written || null,
+          rowsRead: lastJobStats?.rows_read || null,
+          containsPii: lastJobStats?.contains_pii || false,
+          dataClassification: lastJobStats?.data_classification || null,
+          piiColumns: []
+        }
       });
     }
+
+    edges.push({
+      id: `${nodeId}-to-${targetNodeId}`,
+      source: nodeId,
+      target: targetNodeId,
+      relationship: 'OUTPUTS_TO',
+      label: 'outputs to'
+    });
+  } else if (targetTableName) {
+    const targetNodeId = `table-${targetTableName}`;
+
+    if (!visited.has(targetNodeId)) {
+      visited.add(targetNodeId);
+
+      nodes.push({
+        id: targetNodeId,
+        type: 'targetTable',
+        label: targetTableName,
+        metadata: {
+          tableName: targetTableName,
+          mappingId: mapping.mapping_id,
+          mappingName: mapping.mapping_name,
+          // Runtime stats from the most recent successful job run
+          lastRun: lastJobStats?.end_time || null,
+          rowsWritten: lastJobStats?.rows_written || null,
+          rowsRead: lastJobStats?.rows_read || null,
+          containsPii: lastJobStats?.contains_pii || false,
+          dataClassification: lastJobStats?.data_classification || null,
+          piiColumns: []
+        }
+      });
+    }
+
+    edges.push({
+      id: `${nodeId}-to-${targetNodeId}`,
+      source: nodeId,
+      target: targetNodeId,
+      relationship: 'OUTPUTS_TO',
+      label: 'outputs to'
+    });
   }
 }
 
