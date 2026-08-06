@@ -50,9 +50,11 @@ const NodeDetailDrawer = ({ node, open, onClose }) => {
         return `/profile/${encodeURIComponent(fileId)}`;
       }
       case 'targetFile': {
-        // rawId = "target-file-{fileIdentifier}" — the suffix after "target-file-" is
-        // the actual file identifier used by the profile page.
-        const fileId = n.data.file_id || rawId.replace(/^target-file-/, '');
+        // file_id is populated by the lineage service when the output file exists
+        // in the files table. Return null (hides redirect button) when it is absent
+        // so unexecuted mappings don't land on a broken profile page.
+        const fileId = n.data.file_id;
+        if (!fileId) return null;
         return `/profile/${encodeURIComponent(fileId)}`;
       }
       case 'transformation': {

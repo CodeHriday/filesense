@@ -483,6 +483,37 @@ async function traverseFromMapping(mappingId, projectId, nodes, edges, visited, 
       if (!visited.has(targetNodeId)) {
         visited.add(targetNodeId);
         
+        // Look up whether this output file exists in the files table so the
+        // frontend can navigate to its profile page with a valid file_id.
+        // Scope to the mapping's project and file_role = 'target' to avoid
+        // cross-project collisions when identical output names are used.
+        // Try the format-qualified name first (e.g. "report.csv"), then bare.
+        let resolvedFileId = null;
+        try {
+          const resolvedProjectId = mapping.project_id || projectId;
+          const nameWithFormat = targetFileFormat
+            ? `${targetFileName}.${targetFileFormat}`
+            : null;
+
+          const existingFileResult = await pool.query(`
+            SELECT file_id FROM files
+            WHERE file_role = 'target'
+              AND ($1::integer IS NULL OR project_id = $1)
+              AND (
+                ($2 IS NOT NULL AND filename = $2)
+                OR filename = $3
+              )
+            ORDER BY created_at DESC
+            LIMIT 1
+          `, [resolvedProjectId, nameWithFormat, targetFileName]);
+
+          if (existingFileResult.rows.length > 0) {
+            resolvedFileId = existingFileResult.rows[0].file_id;
+          }
+        } catch (err) {
+          // Non-fatal: if the lookup fails, leave file_id null and hide the redirect button
+        }
+        
         nodes.push({
           id: targetNodeId,
           type: 'targetFile',
@@ -490,6 +521,7 @@ async function traverseFromMapping(mappingId, projectId, nodes, edges, visited, 
           metadata: {
             fileName: targetFileName,
             fileFormat: targetFileFormat,
+            file_id: resolvedFileId,
             mappingId: mapping.mapping_id,
             mappingName: mapping.mapping_name,
             containsPii: false,
