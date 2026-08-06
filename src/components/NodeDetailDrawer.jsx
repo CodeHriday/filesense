@@ -55,15 +55,21 @@ const NodeDetailDrawer = ({ node, open, onClose }) => {
         const fileId = n.data.file_id || rawId.replace(/^target-file-/, '');
         return `/profile/${encodeURIComponent(fileId)}`;
       }
-      case 'transformation':
-        return '/transformations';
+      case 'transformation': {
+        // rawId = "mapping-{mappingId}" — strip prefix to get the string mappingId
+        const mappingId = rawId.replace(/^mapping-/, '');
+        return `/transformations/${encodeURIComponent(mappingId)}`;
+      }
       case 'job': {
         // rawId = "job-{jobId}" or a plain numeric string
         const jobId = rawId.replace(/^job-/, '');
         return `/jobs/${jobId}`;
       }
-      case 'workflow':
-        return '/workflows';
+      case 'workflow': {
+        // rawId = "workflow-{workflowId}" — strip prefix to get the numeric workflow ID
+        const workflowId = rawId.replace(/^workflow-/, '');
+        return `/workflows/${workflowId}`;
+      }
       default:
         return null;
     }

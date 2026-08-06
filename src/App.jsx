@@ -354,6 +354,7 @@ function AppContent({ showOnboarding, setShowOnboarding }) {
                 <Route path="/mappings/create" element={<ProtectedRoute><MappingWizard /></ProtectedRoute>} />
                 <Route path="/mappings/edit/:mappingId" element={<ProtectedRoute><MappingWizard /></ProtectedRoute>} />
                 <Route path="/transformations" element={<ProtectedRoute><Transform /></ProtectedRoute>} />
+                <Route path="/transformations/:id" element={<ProtectedRoute><Transform /></ProtectedRoute>} />
                 <Route path="/transform" element={<ProtectedRoute><Transform /></ProtectedRoute>} />
                 <Route path="/lineage" element={<ProtectedRoute><FileLineage /></ProtectedRoute>} />
                 <Route path="/visual-lineage" element={<ProtectedRoute><LineageListPage /></ProtectedRoute>} />
@@ -402,6 +403,7 @@ function AppContent({ showOnboarding, setShowOnboarding }) {
                 <Route path="/mapping-groups/create" element={<ProtectedRoute><MappingGroupForm /></ProtectedRoute>} />
                 <Route path="/mapping-groups/:groupId/edit" element={<ProtectedRoute><MappingGroupForm /></ProtectedRoute>} />
                 <Route path="/workflows" element={<ProtectedRoute><NStepWorkflows /></ProtectedRoute>} />
+                <Route path="/workflows/:id" element={<ProtectedRoute><NStepWorkflows /></ProtectedRoute>} />
                 {/* ARCHIVED: <Route path="/workflow-builder" element={<ProtectedRoute><WorkflowBuilder /></ProtectedRoute>} /> */}
                 <Route path="/workflow-manager" element={<ProtectedRoute><WorkflowManager /></ProtectedRoute>} />
                 <Route path="/visual-mappings/new" element={<ProtectedRoute><VisualMappingCanvas /></ProtectedRoute>} />

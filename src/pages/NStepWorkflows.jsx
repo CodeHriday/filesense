@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { useNavigate, useLocation, useParams } from 'react-router-dom';
 import { FiPlus, FiTrash2, FiPlay, FiChevronLeft, FiChevronRight, FiSave, FiX, FiEye, FiEdit, FiArrowLeft, FiCalendar, FiSearch, FiChevronDown, FiAlertCircle } from 'react-icons/fi';
 import axios from 'axios';
 import PageHeader from '../components/PageHeader';
@@ -14,6 +14,8 @@ import '../styles/NStepWorkflows.css';
 
 const NStepWorkflows = () => {
   const navigate = useNavigate();
+  const { id: urlWorkflowId } = useParams();
+  const deepLinkHandled = useRef(false);
   const { canDelete } = useDeletePermission('workflows');
   const [workflows, setWorkflows] = useState([]);
   const [selectedWorkflow, setSelectedWorkflow] = useState(null);
@@ -69,6 +71,17 @@ const NStepWorkflows = () => {
   useEffect(() => {
     fetchData();
   }, []);
+
+  // When navigated here via /workflows/:id (e.g. from a lineage panel redirect),
+  // auto-open that workflow in view mode once the list has finished loading.
+  useEffect(() => {
+    if (!urlWorkflowId || loading || deepLinkHandled.current) return;
+    const numericId = parseInt(urlWorkflowId, 10);
+    if (!isNaN(numericId)) {
+      deepLinkHandled.current = true;
+      handleViewWorkflow(numericId);
+    }
+  }, [urlWorkflowId, loading]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (selectedWorkflow) {
