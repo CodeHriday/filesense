@@ -2642,6 +2642,7 @@ const VendorAgreements = () => {
               maxWidth="900px"
             >
               <div className="detail-modal-wrapper">
+                <LineageBackButton />
                 <div className="detail-tabs">
                   <button
                     className={activeTab === 'details' ? 'active' : ''}

@@ -226,7 +226,13 @@ function getResourceLookupConfig(req, resourceType) {
 
   const configs = {
     file: () => {
-      if (p.fileId) return { query: 'SELECT project_id FROM files WHERE file_id = $1', params: [p.fileId] };
+      if (p.fileId) {
+        // Numeric-looking fileId is the integer row `id`; a non-numeric value is the UUID `file_id`
+        if (/^\d+$/.test(p.fileId)) {
+          return { query: 'SELECT project_id FROM files WHERE id = $1', params: [parseInt(p.fileId, 10)] };
+        }
+        return { query: 'SELECT project_id FROM files WHERE file_id = $1', params: [p.fileId] };
+      }
       if (p.id) return { query: 'SELECT project_id FROM files WHERE id = $1', params: [p.id] };
       return null;
     },

@@ -5988,7 +5988,23 @@ app.get('/api/files/:fileId/full',
   try {
     const { fileId } = req.params;
     const { normalizeDataType } = require('./backend/utils/schemaExtractor');
-    
+
+    // Resolve the canonical UUID file_id from either a numeric row id or a UUID.
+    // Lineage graph nodes use the numeric `files.id`; direct catalog links use the UUID.
+    let resolvedFileId;
+    if (/^\d+$/.test(fileId)) {
+      const resolveResult = await dbPool.query(
+        'SELECT file_id FROM files WHERE id = $1',
+        [parseInt(fileId, 10)]
+      );
+      if (!resolveResult.rows.length) {
+        return res.status(404).json({ error: 'File not found' });
+      }
+      resolvedFileId = resolveResult.rows[0].file_id;
+    } else {
+      resolvedFileId = fileId;
+    }
+
     // Fetch all data in parallel
     const [
       fileResult,
@@ -6001,16 +6017,16 @@ app.get('/api/files/:fileId/full',
       governanceTagsResult,
       governancePoliciesResult
     ] = await Promise.all([
-      dbPool.query('SELECT * FROM files WHERE file_id = $1', [fileId]),
-      dbPool.query('SELECT * FROM file_columns WHERE file_id = $1 ORDER BY column_index ASC', [fileId]),
-      dbPool.query('SELECT * FROM file_ownership WHERE file_id = $1', [fileId]),
+      dbPool.query('SELECT * FROM files WHERE file_id = $1', [resolvedFileId]),
+      dbPool.query('SELECT * FROM file_columns WHERE file_id = $1 ORDER BY column_index ASC', [resolvedFileId]),
+      dbPool.query('SELECT * FROM file_ownership WHERE file_id = $1', [resolvedFileId]),
       dbPool.query(
         `SELECT fta.*, gt.tag_name, gt.description, gt.color, gt.badge_style
          FROM file_tag_assignments fta
          JOIN governance_tags gt ON fta.tag_id = gt.tag_id
          WHERE fta.file_id = $1
          ORDER BY fta.assigned_at DESC`,
-        [fileId]
+        [resolvedFileId]
       ),
       dbPool.query(
         `SELECT fpa.*, gp.policy_name, gp.description, gp.rules
@@ -6018,7 +6034,7 @@ app.get('/api/files/:fileId/full',
          JOIN governance_policies gp ON fpa.policy_id = gp.policy_id
          WHERE fpa.file_id = $1
          ORDER BY fpa.assigned_at DESC`,
-        [fileId]
+        [resolvedFileId]
       ),
       dbPool.query(
         `SELECT cgta.column_name, cgta.tag_id, gt.tag_name, gt.description, gt.color, gt.badge_style, cgta.assigned_at
@@ -6026,7 +6042,7 @@ app.get('/api/files/:fileId/full',
          JOIN governance_tags gt ON cgta.tag_id = gt.tag_id
          WHERE cgta.file_id = $1
          ORDER BY cgta.column_name, cgta.assigned_at DESC`,
-        [fileId]
+        [resolvedFileId]
       ),
       dbPool.query(
         `SELECT cpa.column_name, cpa.policy_id, gp.policy_name, gp.description, gp.rules, cpa.assigned_at
@@ -6034,7 +6050,7 @@ app.get('/api/files/:fileId/full',
          JOIN governance_policies gp ON cpa.policy_id = gp.policy_id
          WHERE cpa.file_id = $1
          ORDER BY cpa.column_name, cpa.assigned_at DESC`,
-        [fileId]
+        [resolvedFileId]
       ),
       dbPool.query('SELECT * FROM governance_tags ORDER BY created_at DESC'),
       dbPool.query('SELECT * FROM governance_policies ORDER BY created_at DESC')
