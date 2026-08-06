@@ -16,6 +16,7 @@ import 'reactflow/dist/style.css';
 import './WorkflowBuilder.css';
 import axios from 'axios';
 import { FaSave, FaPlay, FaClock, FaPlus, FaTrash, FaSearch, FaTimes, FaTerminal, FaChevronUp, FaChevronDown } from 'react-icons/fa';
+import LineageBackButton from '../../components/LineageBackButton';
 
 // Start node - decorative circle with output only
 const StartNode = ({ data }) => {
@@ -930,6 +931,7 @@ const WorkflowBuilderContent = () => {
         <div className="workflow-builder-header-left">
           <h1>Visual Workflow Builder{workflowId && workflowName ? ` - Editing: ${workflowName}` : ''}</h1>
           <p>Drag ETL mapping jobs onto the canvas and connect them to create workflows</p>
+          <LineageBackButton />
         </div>
         <div className="workflow-builder-header-actions">
           <button 
