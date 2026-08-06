@@ -38,7 +38,10 @@ export const fetchNodeDetails = async (nodeId, nodeType, projectId = null) => {
     const params = { nodeType };
     if (projectId) params.projectId = projectId;
     
-    const response = await axios.get(`${API_URL}/node/${encodeURIComponent(nodeId)}`, { params });
+    // Pass nodeId as a query param so slashes in node IDs (e.g. target table
+    // names like "dp-de-target/file.csv") never fragment the URL path.
+    params.nodeId = encodeURIComponent(nodeId);
+    const response = await axios.get(`${API_URL}/node-detail`, { params });
     return response.data;
   } catch (error) {
     console.error('Error fetching node details:', error);

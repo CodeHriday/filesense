@@ -102,12 +102,59 @@ router.get('/graph', authenticateToken, async (req, res) => {
  *   - nodeType: vendorContract|sourceFile|transformation|job|derivedColumn|targetTable
  *   - projectId: Project ID for authorization (optional)
  */
-router.get('/node/*', authenticateToken, async (req, res) => {
+/**
+ * GET /api/lineage-graph/node-detail
+ * Same as /node/:nodeId but accepts nodeId as a query parameter so that node
+ * IDs containing slashes (e.g. "table-dp-de-target/rdm_ds_cwlk_ds.csv") are
+ * never embedded in the URL path and cannot fragment Express routing.
+ */
+router.get('/node-detail', authenticateToken, async (req, res) => {
   try {
-    // Use a wildcard route so node IDs that contain slashes (e.g.
-    // "table-dp-de-target/rdm_ds_cwlk_ds.csv") are captured correctly.
-    // Express wildcard captures do not auto-decode, so we decode manually.
-    const nodeId = decodeURIComponent(req.params[0]);
+    const rawNodeId = req.query.nodeId;
+    if (!rawNodeId) {
+      return res.status(400).json({ success: false, error: 'Missing required parameter: nodeId' });
+    }
+    const nodeId = decodeURIComponent(rawNodeId);
+    const { nodeType, projectId } = req.query;
+
+    if (!nodeType) {
+      return res.status(400).json({ success: false, error: 'Missing required parameter: nodeType' });
+    }
+
+    if (projectId) {
+      const { getUserProjects } = require('../../backend/middleware/requireProjectAccess');
+      const { userHasAllProjectAccess } = require('../../backend/utils/permissionHelpers');
+      const isAdmin = userHasAllProjectAccess(req.user);
+      if (!isAdmin) {
+        const userProjects = await getUserProjects(req.user.id);
+        const allowedIds = new Set(userProjects.map(p => p.id));
+        if (!allowedIds.has(parseInt(projectId))) {
+          return res.status(403).json({ success: false, error: 'Access denied: you do not have access to this project' });
+        }
+      }
+    }
+
+    const details = await getNodeDetails(nodeId, nodeType, projectId ? parseInt(projectId) : null);
+    if (!details) {
+      return res.status(404).json({ success: false, error: 'Node not found' });
+    }
+    res.json({ success: true, node: { id: nodeId, type: nodeType, details } });
+  } catch (error) {
+    systemLogger.error('Error fetching node details', { error: error.message });
+    res.status(500).json({ success: false, error: 'Failed to fetch node details', details: error.message });
+  }
+});
+
+/**
+ * GET /api/lineage-graph/node/:nodeId
+ * Get detailed metadata for a specific node.
+ * Query params:
+ *   - nodeType: vendorContract|sourceFile|transformation|job|derivedColumn|targetTable
+ *   - projectId: Project ID for authorization (optional)
+ */
+router.get('/node/:nodeId', authenticateToken, async (req, res) => {
+  try {
+    const nodeId = req.params.nodeId;
     const { nodeType, projectId } = req.query;
     
     if (!nodeType) {
