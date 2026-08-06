@@ -38,7 +38,7 @@ export const fetchNodeDetails = async (nodeId, nodeType, projectId = null) => {
     const params = { nodeType };
     if (projectId) params.projectId = projectId;
     
-    const response = await axios.get(`${API_URL}/node/${nodeId}`, { params });
+    const response = await axios.get(`${API_URL}/node/${encodeURIComponent(nodeId)}`, { params });
     return response.data;
   } catch (error) {
     console.error('Error fetching node details:', error);

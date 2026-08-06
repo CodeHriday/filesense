@@ -102,9 +102,12 @@ router.get('/graph', authenticateToken, async (req, res) => {
  *   - nodeType: vendorContract|sourceFile|transformation|job|derivedColumn|targetTable
  *   - projectId: Project ID for authorization (optional)
  */
-router.get('/node/:nodeId', authenticateToken, async (req, res) => {
+router.get('/node/*', authenticateToken, async (req, res) => {
   try {
-    const { nodeId } = req.params;
+    // Use a wildcard route so node IDs that contain slashes (e.g.
+    // "table-dp-de-target/rdm_ds_cwlk_ds.csv") are captured correctly.
+    // Express wildcard captures do not auto-decode, so we decode manually.
+    const nodeId = decodeURIComponent(req.params[0]);
     const { nodeType, projectId } = req.query;
     
     if (!nodeType) {
