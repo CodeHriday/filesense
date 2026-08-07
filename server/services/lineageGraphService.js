@@ -436,6 +436,35 @@ async function traverseFromFile(fileId, projectId, nodes, edges, visited, depth,
                             || targetRulesNode?.config?.fileFormat
                             || 'csv';
 
+      // Fetch execution stats from the most recent completed VM execution.
+      // visual_mapping_executions.rows_processed is the primary row count;
+      // transformation_jobs (joined via transformation_job_id) carries the
+      // separate rows_read / rows_written breakdown when available.
+      let vmExecStats = null;
+      try {
+        const vmExecResult = await pool.query(`
+          SELECT
+            vme.completed_at,
+            vme.rows_processed,
+            tj.rows_read,
+            tj.rows_written
+          FROM visual_mapping_executions vme
+          LEFT JOIN transformation_jobs tj
+            ON tj.job_id = vme.transformation_job_id
+          WHERE vme.mapping_id = $1
+            AND vme.status = 'completed'
+          ORDER BY vme.completed_at DESC
+          LIMIT 1
+        `, [vmDef.vm_id]);
+        if (vmExecResult.rows.length > 0) {
+          vmExecStats = vmExecResult.rows[0];
+        }
+      } catch (_vmExecErr) { /* non-fatal — stats are optional enrichment */ }
+
+      const vmRowsRead    = vmExecStats?.rows_read    ?? null;
+      const vmRowsWritten = vmExecStats?.rows_written ?? vmExecStats?.rows_processed ?? null;
+      const vmLastRun     = vmExecStats?.completed_at ?? vmDef.last_executed_at ?? null;
+
       // Add transformation node
       nodes.push({
         id: vmNodeId,
@@ -452,8 +481,10 @@ async function traverseFromFile(fileId, projectId, nodes, edges, visited, depth,
           projectId: vmDef.project_id,
           fieldMappingsCount: 0,
           derivedColumnsCount: 0,
-          lastExecutedAt: vmDef.last_executed_at,
+          lastExecutedAt: vmLastRun,
           executionCount: vmDef.execution_count,
+          rowsRead: vmRowsRead,
+          rowsWritten: vmRowsWritten,
           isVisualMapping: true,
           visualMappingId: vmDef.vm_id,
           visualMappingName: vmDef.vm_name
@@ -505,9 +536,9 @@ async function traverseFromFile(fileId, projectId, nodes, edges, visited, depth,
               mappingId: vmMappingId,
               mappingName: `[VM] ${vmDef.vm_name}`,
               projectId: vmDef.project_id,
-              lastRun: vmDef.last_executed_at,
-              rowsWritten: null,
-              rowsRead: null,
+              lastRun: vmLastRun,
+              rowsWritten: vmRowsWritten,
+              rowsRead: vmRowsRead,
               containsPii: false,
               dataClassification: null,
               piiColumns: []
@@ -1309,8 +1340,58 @@ async function getNodeDetails(nodeId, nodeType, projectId) {
         
         return fileData;
         
-      case 'transformation':
+      case 'transformation': {
         const mappingId = nodeId.replace('mapping-', '');
+
+        // VM synthetic mappings have IDs like 'vm-{vmId}-synthetic'.
+        // They have no transformation_mappings row; query visual_mapping_defs
+        // and visual_mapping_executions directly for stats.
+        if (mappingId.startsWith('vm-')) {
+          const vmIdStr = mappingId.split('-')[1];
+          const vmId = Number(vmIdStr);
+          if (!isNaN(vmId)) {
+            const vmDetailResult = await pool.query(`
+              SELECT
+                vmd.id            AS vm_id,
+                vmd.name          AS vm_name,
+                vmd.project_id,
+                vmd.last_executed_at,
+                vmd.execution_count,
+                vme.completed_at,
+                vme.rows_processed,
+                tj.rows_read,
+                tj.rows_written
+              FROM visual_mapping_defs vmd
+              LEFT JOIN LATERAL (
+                SELECT completed_at, rows_processed, transformation_job_id
+                FROM visual_mapping_executions
+                WHERE mapping_id = vmd.id AND status = 'completed'
+                ORDER BY completed_at DESC
+                LIMIT 1
+              ) vme ON true
+              LEFT JOIN transformation_jobs tj
+                ON tj.job_id = vme.transformation_job_id
+              WHERE vmd.id = $1
+                AND ($2::integer IS NULL OR vmd.project_id = $2)
+            `, [vmId, projectId]);
+
+            if (vmDetailResult.rows.length === 0) return null;
+            const vm = vmDetailResult.rows[0];
+            return {
+              id: vm.vm_id,
+              mapping_id: mappingId,
+              mapping_name: `[VM] ${vm.vm_name}`,
+              is_visual_mapping: true,
+              project_id: vm.project_id,
+              execution_count: vm.execution_count,
+              last_executed_at: vm.completed_at || vm.last_executed_at,
+              rows_read: vm.rows_read ?? null,
+              rows_written: vm.rows_written ?? vm.rows_processed ?? null,
+              status: 'active'
+            };
+          }
+        }
+
         const mappingResult = await pool.query(`
           SELECT 
             tm.*,
@@ -1322,6 +1403,7 @@ async function getNodeDetails(nodeId, nodeType, projectId) {
           GROUP BY tm.id
         `, [mappingId]);
         return mappingResult.rows[0] || null;
+      }
         
       case 'job':
         const jobId = nodeId.replace('job-', '');
@@ -1452,6 +1534,70 @@ async function getNodeDetails(nodeId, nodeType, projectId) {
             columns: columns
           };
         }
+
+        // VM fallback: the transformation_mappings row was deleted after
+        // execution, so look up the VM definition by matching the '[VM] <name>'
+        // pattern recorded in file_audit_details to find the visual_mapping_def,
+        // then pull the most recent completed execution for stats.
+        try {
+          const vmForTargetResult = await pool.query(`
+            SELECT DISTINCT
+              vmd.id            AS vm_id,
+              vmd.name          AS vm_name,
+              vmd.project_id,
+              vmd.last_executed_at,
+              vmd.execution_count
+            FROM file_audit_details fad
+            JOIN visual_mapping_defs vmd
+              ON vmd.name = REPLACE(fad.mapping_name, '[VM] ', '')
+             AND vmd.is_active = true
+            WHERE fad.file_role = 'target'
+              AND fad.mapping_name LIKE '[VM] %'
+              AND (fad.file_name = $1 OR fad.file_name LIKE $2)
+              AND ($3::integer IS NULL OR vmd.project_id = $3)
+            LIMIT 1
+          `, [targetFileName, `%/${targetFileName}`, projectId]);
+
+          if (vmForTargetResult.rows.length > 0) {
+            const vm = vmForTargetResult.rows[0];
+
+            // Fetch execution stats
+            const vmExecForTargetResult = await pool.query(`
+              SELECT
+                vme.completed_at,
+                vme.rows_processed,
+                tj.rows_read,
+                tj.rows_written
+              FROM visual_mapping_executions vme
+              LEFT JOIN transformation_jobs tj
+                ON tj.job_id = vme.transformation_job_id
+              WHERE vme.mapping_id = $1
+                AND vme.status = 'completed'
+              ORDER BY vme.completed_at DESC
+              LIMIT 1
+            `, [vm.vm_id]);
+
+            const exec = vmExecForTargetResult.rows[0] || null;
+            return {
+              filename: targetFileName,
+              mapping_name: `[VM] ${vm.vm_name}`,
+              mapping_id: `vm-${vm.vm_id}-synthetic`,
+              is_visual_mapping: true,
+              is_synthetic: true,
+              project_id: vm.project_id,
+              last_run: exec?.completed_at || vm.last_executed_at,
+              rows_written: exec?.rows_written ?? exec?.rows_processed ?? null,
+              rows_read: exec?.rows_read ?? null,
+              description: 'Output file produced by a visual mapping job'
+            };
+          }
+        } catch (vmTargetErr) {
+          systemLogger.warn('VM fallback for targetFile details failed', {
+            targetFileName,
+            error: vmTargetErr.message
+          });
+        }
+
         return null;
         
       case 'targetTable':
