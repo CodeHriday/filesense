@@ -127,6 +127,14 @@ class RDMService {
   async getDatasets() {
     try {
       const response = await this.makeRequest('/api/external/datasets');
+      systemLogger.info('RDM getDatasets raw response', {
+        type: typeof response,
+        isArray: Array.isArray(response),
+        keys: response && typeof response === 'object' ? Object.keys(response) : 'n/a',
+        dataType: response?.data ? typeof response.data : 'undefined',
+        dataIsArray: Array.isArray(response?.data),
+        sample: JSON.stringify(response)?.substring(0, 500)
+      });
       return response.data || [];
     } catch (error) {
       systemLogger.error('Failed to fetch RDM datasets', { error: error.message });
