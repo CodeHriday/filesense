@@ -84,12 +84,4 @@ ConfirmationModal.propTypes = {
   showCancel: PropTypes.bool,
 };
 
-// Optional: Define default props (good practice)
-ConfirmationModal.defaultProps = {
-  title: 'Confirm Action',
-  confirmText: 'Confirm',
-  cancelText: 'Cancel',
-  variant: 'danger',
-  showCancel: true,
-};
 export default ConfirmationModal;
