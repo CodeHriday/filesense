@@ -1,0 +1,1 @@
+- [Api-server restart required after backend changes](api-server-restart.md) — Node.js api-server must be manually restarted after any backend code merge; 304 responses mask the missing data and look like caching when the real cause is stale server process.
