@@ -1126,7 +1126,7 @@ app.get('/api/rdm/datasets', authenticateToken, async (req, res) => {
     
     const response = await axios.get(`${rdmBaseUrl}/api/external/datasets`, {
       headers: {
-        'Authorization': `Bearer ${rdmApiKey}`,
+        'x-api-key': rdmApiKey,
         'Content-Type': 'application/json'
       }
     });
@@ -1162,7 +1162,7 @@ app.get('/api/rdm/datasets/:datasetId/schema', authenticateToken, async (req, re
     
     const response = await axios.get(`${rdmBaseUrl}/api/external/datasets/${datasetId}/schema`, {
       headers: {
-        'Authorization': `Bearer ${rdmApiKey}`,
+        'x-api-key': rdmApiKey,
         'Content-Type': 'application/json'
       }
     });
@@ -1198,7 +1198,7 @@ app.get('/api/rdm/crosswalks', authenticateToken, async (req, res) => {
     
     const response = await axios.get(`${rdmBaseUrl}/api/external/crosswalks`, {
       headers: {
-        'Authorization': `Bearer ${rdmApiKey}`,
+        'x-api-key': rdmApiKey,
         'Content-Type': 'application/json'
       }
     });
@@ -1234,7 +1234,7 @@ app.get('/api/rdm/crosswalks/:crosswalkId/schema', authenticateToken, async (req
     
     const response = await axios.get(`${rdmBaseUrl}/api/external/crosswalks/${crosswalkId}/schema`, {
       headers: {
-        'Authorization': `Bearer ${rdmApiKey}`,
+        'x-api-key': rdmApiKey,
         'Content-Type': 'application/json'
       }
     });

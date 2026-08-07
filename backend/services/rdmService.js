@@ -66,7 +66,7 @@ class RDMService {
         method,
         url: `${this.baseURL}${endpoint}`,
         headers: {
-          'Authorization': `Bearer ${this.apiKey}`,
+          'x-api-key': this.apiKey,
           'Content-Type': 'application/json'
         }
       };

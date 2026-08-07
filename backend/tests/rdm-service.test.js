@@ -102,8 +102,8 @@ describe('rdmService', () => {
 
       expect(axios).toHaveBeenCalledTimes(1);
       const { headers } = axios.mock.calls[0][0];
-      expect(headers['Authorization']).toBe('Bearer test-api-key-123');
-      expect(headers['x-api-key']).toBeUndefined();
+      expect(headers['x-api-key']).toBe('test-api-key-123');
+      expect(headers['Authorization']).toBeUndefined();
     });
 
     test('throws descriptive error when API returns a non-object body', async () => {
