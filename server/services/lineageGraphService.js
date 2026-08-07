@@ -360,6 +360,181 @@ async function traverseFromFile(fileId, projectId, nodes, edges, visited, depth,
       label: 'transformed by'
     });
   }
+
+  // VM fallback: visual mapping jobs delete their transformation_mappings row
+  // immediately after execution, so the query above finds nothing for them.
+  // file_audit_details is written permanently during execution with
+  // mapping_name = '[VM] <mapping_name>' and file_role = 'source', giving us
+  // a durable link from source file → visual_mapping_defs.
+  try {
+    const vmAuditResult = await pool.query(`
+      SELECT DISTINCT
+        vmd.id              AS vm_id,
+        vmd.name            AS vm_name,
+        vmd.graph_data,
+        vmd.project_id,
+        vmd.last_executed_at,
+        vmd.execution_count
+      FROM file_audit_details fad
+      JOIN visual_mapping_defs vmd
+        ON vmd.name = REPLACE(fad.mapping_name, '[VM] ', '')
+       AND vmd.is_active = true
+      WHERE fad.file_role = 'source'
+        AND fad.mapping_name LIKE '[VM] %'
+        AND (
+          fad.file_name = $1
+          OR fad.file_name LIKE $2
+        )
+        AND ($3::integer IS NULL OR vmd.project_id = $3)
+      ORDER BY vmd.id
+    `, [basename, `%/${basename}`, projectId]);
+
+    systemLogger.info('VM fallback: visual mapping audit lookup', {
+      filename: basename,
+      vmCount: vmAuditResult.rows.length,
+      vmNames: vmAuditResult.rows.map(r => r.vm_name)
+    });
+
+    for (const vmDef of vmAuditResult.rows) {
+      // Stable mapping_id: 'vm-{id}-synthetic'
+      // The 'vm-' prefix lets findWorkflowsForMappings extract vm_id via split('-')[1]
+      // and match against visual workflow nodes; '-synthetic' satisfies the
+      // startsWith('vm-{id}-') pattern check used when linking workflow edges.
+      const vmMappingId = `vm-${vmDef.vm_id}-synthetic`;
+      const vmNodeId = `mapping-${vmMappingId}`;
+
+      if (visited.has(vmNodeId)) {
+        // Mapping node already in graph (e.g. another source file at same depth).
+        // Still wire the edge from this file if it is not already there.
+        const dupeEdgeId = `${nodeId}-to-${vmNodeId}`;
+        if (!edges.some(e => e.id === dupeEdgeId)) {
+          edges.push({
+            id: dupeEdgeId,
+            source: nodeId,
+            target: vmNodeId,
+            relationship: 'TRANSFORMED_BY',
+            label: 'transformed by'
+          });
+        }
+        continue;
+      }
+      visited.add(vmNodeId);
+
+      // Parse graph_data to extract source pattern and target file info.
+      // Config lives at node.data.config (confirmed in visualMappingCompiler.js).
+      const graphNodes = vmDef.graph_data?.nodes || [];
+      const sourceConfigNode = graphNodes.find(n => n.type === 'sourceConfig');
+      const targetRulesNode  = graphNodes.find(n => n.type === 'targetRules');
+
+      const sourcePattern  = sourceConfigNode?.data?.config?.filePattern
+                          || sourceConfigNode?.config?.filePattern
+                          || '*';
+      const targetFileName = targetRulesNode?.data?.config?.fileName
+                          || targetRulesNode?.config?.fileName
+                          || null;
+      const targetFileFormat = targetRulesNode?.data?.config?.fileFormat
+                            || targetRulesNode?.config?.fileFormat
+                            || 'csv';
+
+      // Add transformation node
+      nodes.push({
+        id: vmNodeId,
+        type: 'transformation',
+        label: `[VM] ${vmDef.vm_name}`,
+        metadata: {
+          id: null,                        // no transformation_mappings row
+          mappingId: vmMappingId,
+          mappingName: `[VM] ${vmDef.vm_name}`,
+          description: null,
+          sourcePattern: sourcePattern,
+          targetTable: null,
+          status: 'active',
+          projectId: vmDef.project_id,
+          fieldMappingsCount: 0,
+          derivedColumnsCount: 0,
+          lastExecutedAt: vmDef.last_executed_at,
+          executionCount: vmDef.execution_count,
+          isVisualMapping: true,
+          visualMappingId: vmDef.vm_id,
+          visualMappingName: vmDef.vm_name
+        }
+      });
+
+      // Edge: source file → transformation
+      edges.push({
+        id: `${nodeId}-to-${vmNodeId}`,
+        source: nodeId,
+        target: vmNodeId,
+        relationship: 'TRANSFORMED_BY',
+        label: 'transformed by'
+      });
+
+      // Add target file node when we know the filename from targetRules config
+      if (targetFileName) {
+        const targetNodeId = `target-file-${targetFileName}`;
+
+        if (!visited.has(targetNodeId)) {
+          visited.add(targetNodeId);
+
+          // Attempt to resolve a real file_id so the drawer can navigate to
+          // the target file's profile page.
+          let resolvedFileId = null;
+          try {
+            const nameWithFormat = `${targetFileName}.${targetFileFormat}`;
+            const existingFileResult = await pool.query(`
+              SELECT file_id FROM files
+              WHERE file_role = 'target'
+                AND ($1::integer IS NULL OR project_id = $1)
+                AND (filename = $2 OR filename = $3)
+              ORDER BY created_at DESC
+              LIMIT 1
+            `, [vmDef.project_id, nameWithFormat, targetFileName]);
+            if (existingFileResult.rows.length > 0) {
+              resolvedFileId = existingFileResult.rows[0].file_id;
+            }
+          } catch (_) { /* non-fatal */ }
+
+          nodes.push({
+            id: targetNodeId,
+            type: 'targetFile',
+            label: `${targetFileName}.${targetFileFormat}`,
+            metadata: {
+              fileName: targetFileName,
+              fileFormat: targetFileFormat,
+              file_id: resolvedFileId,
+              mappingId: vmMappingId,
+              mappingName: `[VM] ${vmDef.vm_name}`,
+              projectId: vmDef.project_id,
+              lastRun: vmDef.last_executed_at,
+              rowsWritten: null,
+              rowsRead: null,
+              containsPii: false,
+              dataClassification: null,
+              piiColumns: []
+            }
+          });
+        }
+
+        // Edge: transformation → target file (guard against duplicates)
+        const targetEdgeId = `${vmNodeId}-to-${targetNodeId}`;
+        if (!edges.some(e => e.id === targetEdgeId)) {
+          edges.push({
+            id: targetEdgeId,
+            source: vmNodeId,
+            target: targetNodeId,
+            relationship: 'OUTPUTS_TO',
+            label: 'outputs to'
+          });
+        }
+      }
+    }
+  } catch (vmFallbackErr) {
+    // Non-fatal: a VM fallback failure must not break the rest of the graph
+    systemLogger.warn('VM fallback query failed, skipping visual mapping discovery', {
+      filename: basename,
+      error: vmFallbackErr.message
+    });
+  }
 }
 
 /**
