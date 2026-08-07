@@ -42,6 +42,10 @@ function GroupManagement() {
   const [availableUsers, setAvailableUsers] = useState([]);
   const [availableRoles, setAvailableRoles] = useState([]);
   const [availableProjects, setAvailableProjects] = useState([]);
+
+  // Member list filter checkboxes (create modal only)
+  const [showInternal, setShowInternal] = useState(true);
+  const [showExternal, setShowExternal] = useState(false);
   const [confirmModal, setConfirmModal] = useState({ isOpen: false, action: null, message: '', title: '' });
 
   // Debounce search term (2.5 seconds)
@@ -436,7 +440,25 @@ function GroupManagement() {
                   </label>
                 </div>
                 <div className="gps-form-group">
-                  <label htmlFor="create-add-members" className="gps-form-label">Add Members</label>
+                  <label className="gps-form-label">Add Members</label>
+                  <div style={{ display: 'flex', gap: '16px', marginBottom: '6px' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '14px', cursor: 'pointer' }}>
+                      <input
+                        type="checkbox"
+                        checked={showInternal}
+                        onChange={e => setShowInternal(e.target.checked)}
+                      />
+                      Internal Users
+                    </label>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '14px', cursor: 'pointer' }}>
+                      <input
+                        type="checkbox"
+                        checked={showExternal}
+                        onChange={e => setShowExternal(e.target.checked)}
+                      />
+                      External Users
+                    </label>
+                  </div>
                   <select
                     id="create-add-members"
                     multiple
@@ -448,11 +470,19 @@ function GroupManagement() {
                     }}
                     style={{ minHeight: '120px' }}
                   >
-                    {availableUsers.map(user => (
-                      <option key={user.id} value={user.id}>
-                        {user.full_name || user.username} ({user.email})
-                      </option>
-                    ))}
+                    {availableUsers
+                      .filter(user => {
+                        const isInternal = user.internal_user === true;
+                        return (showInternal && isInternal) || (showExternal && !isInternal);
+                      })
+                      .map(user => (
+                        <option key={user.id} value={user.id}>
+                          {user.full_name || user.username} ({user.email})
+                        </option>
+                      ))}
+                    {!showInternal && !showExternal && (
+                      <option disabled value="">No user types selected</option>
+                    )}
                   </select>
                   <small className="gps-form-hint">Hold Ctrl/Cmd to select multiple users</small>
                 </div>

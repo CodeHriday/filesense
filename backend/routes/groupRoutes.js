@@ -138,7 +138,7 @@ function createGroupRoutes(dbPool) {
       
       const [groupsResult, usersResult, rolesResult, projectsResult] = await Promise.all([
         dbPool.query(groupsQuery, groupsParams),
-        dbPool.query('SELECT id, username, email, full_name FROM users ORDER BY username LIMIT 1000'),
+        dbPool.query('SELECT id, username, email, full_name, internal_user, user_type FROM users ORDER BY username LIMIT 1000'),
         dbPool.query('SELECT id, name, description FROM roles ORDER BY name'),
         dbPool.query('SELECT id, name FROM projects WHERE parent_id IS NULL ORDER BY name')
       ]);
