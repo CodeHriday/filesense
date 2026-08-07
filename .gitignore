@@ -9,4 +9,4 @@ logs/
 uploads/
 .gitignore
 .vscode/
-
+dbt*
