@@ -460,10 +460,14 @@ router.get('/init-data', async (req, res) => {
           `, [userVendorId]);
           vendors = vendorsResult.rows;
 
-          // Fetch External connections scoped to this vendor's project so the
-          // frontend can auto-populate the "Vendor File Drop Connection" dropdown.
+          // Fetch connections available to this vendor:
+          // - External connections scoped to the vendor's project, PLUS
+          // - The project's configured drop-location connection (regardless of
+          //   connection_user, since it may be 'Internal' if created via the
+          //   general Connections page).
           const vendorProjectId = vendors.length > 0 ? vendors[0].project_id : null;
-          if (vendorProjectId) {
+          const dropLocationConnId = vendors.length > 0 ? vendors[0].drop_location_connection_id : null;
+          if (vendorProjectId || dropLocationConnId) {
             try {
               const connResult = await dbQuery(`
                 SELECT sc.connection_id, sc.name, sc.type as connection_type,
@@ -473,10 +477,12 @@ router.get('/init-data', async (req, res) => {
                 FROM storage_connections sc
                 WHERE sc.status = 'active'
                   AND sc.is_deleted = false
-                  AND sc.connection_user = 'External'
-                  AND sc.project_id = $1
+                  AND (
+                    (sc.connection_user = 'External' AND sc.project_id = $1)
+                    OR ($2::varchar IS NOT NULL AND sc.connection_id = $2)
+                  )
                 ORDER BY sc.name
-              `, [vendorProjectId]);
+              `, [vendorProjectId, dropLocationConnId || null]);
               vendorConnections = connResult.rows;
             } catch (err) {
               systemLogger.warn('Could not fetch vendor project connections', { error: err.message });

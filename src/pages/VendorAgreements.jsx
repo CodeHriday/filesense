@@ -293,24 +293,46 @@ const VendorAgreements = () => {
     }
   }, [formData.project_id]);
   
-  // Filter vendor connections - show only external connections, scoped to selected vendor's project
+  // Filter vendor connections for the dropdown.
+  // Base list: External connections, optionally scoped to the vendor's project.
+  // Always include the vendor's project drop-location connection (if set) even when
+  // its connection_user is 'Internal' — it is the authoritative connection for that
+  // vendor regardless of how it was classified at creation time.
   useEffect(() => {
     const externalConns = vendorConnections.filter(conn => conn.connection_user === 'External');
 
+    let baseList = externalConns;
+
     if (formData.vendor_id && Array.isArray(vendors) && vendors.length > 0) {
       const selectedVendor = vendors.find(v => String(v.id) === String(formData.vendor_id));
+
       if (selectedVendor && selectedVendor.project_id) {
         const vendorConns = externalConns.filter(
           conn => String(conn.project_id) === String(selectedVendor.project_id)
         );
         // Fall back to all external connections if none match the vendor's project
-        setFilteredConnections(vendorConns.length > 0 ? vendorConns : externalConns);
-      } else {
-        setFilteredConnections(externalConns);
+        baseList = vendorConns.length > 0 ? vendorConns : externalConns;
       }
-    } else {
-      setFilteredConnections(externalConns);
+
+      // Always ensure the vendor's project drop-location connection is in the list,
+      // even if it was created with connection_user = 'Internal'.
+      const projectConnId = selectedVendor?.drop_location_connection_id;
+      if (projectConnId) {
+        const alreadyIncluded = baseList.some(
+          c => String(c.connection_id) === String(projectConnId)
+        );
+        if (!alreadyIncluded) {
+          const projectConn = vendorConnections.find(
+            c => String(c.connection_id) === String(projectConnId)
+          );
+          if (projectConn) {
+            baseList = [projectConn, ...baseList];
+          }
+        }
+      }
     }
+
+    setFilteredConnections(baseList);
   }, [vendorConnections, formData.vendor_id, vendors]);
   
   // Auto-populate drop_location_path from selected vendor connection.
