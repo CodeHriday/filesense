@@ -339,7 +339,12 @@ const VendorAgreements = () => {
   // Priority 1: use drop_location_bucket / drop_location_prefix from the vendor's project
   //             (the authoritative values set in Edit Project → File Drop Location).
   // Priority 2: fall back to parsing the selected connection's config JSON.
+  // When editing an existing agreement (formData.id is set) skip auto-population so the
+  // saved path is preserved and not silently overwritten by project-level defaults.
   useEffect(() => {
+    // Only auto-populate when creating (not editing an existing agreement)
+    if (formData.id) return;
+
     // Priority 1: project-level bucket/prefix
     if (formData.vendor_id && vendors.length > 0) {
       const selectedVendor = vendors.find(v => String(v.id) === String(formData.vendor_id));
@@ -395,7 +400,7 @@ const VendorAgreements = () => {
         drop_location_path: ''
       }));
     }
-  }, [formData.vendor_id, formData.vendor_connection_id, formData.drop_location_path, vendors, filteredConnections]);
+  }, [formData.id, formData.vendor_id, formData.vendor_connection_id, formData.drop_location_path, vendors, filteredConnections]);
   
   // Auto-populate project fields from selected vendor
   useEffect(() => {
@@ -733,6 +738,7 @@ const VendorAgreements = () => {
     let formattedEndDate = formatDateTimeLocal(agreement.contract_end_date);
     
     setFormData({
+      id: agreement.id,
       vendor_id: agreement.vendor_id || '',
       vendor_code: agreement.vendor_code || '',
       file_name: agreement.file_name || '',
