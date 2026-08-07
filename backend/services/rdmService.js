@@ -83,6 +83,18 @@ class RDMService {
 
       const response = await axios(config);
 
+      // Temporary: log raw response structure for every RDM call
+      systemLogger.info('RDM raw response', {
+        endpoint,
+        status: response.status,
+        bodyType: typeof response.data,
+        bodyIsArray: Array.isArray(response.data),
+        bodyKeys: response.data && typeof response.data === 'object' && !Array.isArray(response.data)
+          ? Object.keys(response.data)
+          : 'n/a',
+        sample: JSON.stringify(response.data)?.substring(0, 600)
+      });
+
       // Debug logging for schema endpoint
       if (endpoint.includes('/schema')) {
         systemLogger.info('RDM API schema response', {

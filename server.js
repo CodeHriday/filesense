@@ -1130,7 +1130,17 @@ app.get('/api/rdm/datasets', authenticateToken, async (req, res) => {
         'Content-Type': 'application/json'
       }
     });
-    
+
+    logger.info('RDM /api/external/datasets raw response', {
+      status: response.status,
+      bodyType: typeof response.data,
+      bodyIsArray: Array.isArray(response.data),
+      bodyKeys: response.data && typeof response.data === 'object' && !Array.isArray(response.data)
+        ? Object.keys(response.data)
+        : 'n/a',
+      sample: JSON.stringify(response.data)?.substring(0, 600)
+    });
+
     res.json(response.data);
   } catch (error) {
     logger.error('Error fetching datasets from RDM', { 
