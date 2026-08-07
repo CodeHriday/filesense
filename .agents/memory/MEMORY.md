@@ -1,1 +1,2 @@
 - [Api-server restart required after backend changes](api-server-restart.md) — Node.js api-server must be manually restarted after any backend code merge; 304 responses mask the missing data and look like caching when the real cause is stale server process.
+- [GroupedNode must cover all lineage node types](groupednode-node-types.md) — PropTypes.oneOf mismatch in GroupedNode fires alongside a React "Invalid hook call" warning, which can escalate to an unhandlederror crash; always add new node types to GroupedNode's propTypes, getTypeColor, and getTypeName.
