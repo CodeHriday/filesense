@@ -453,6 +453,29 @@ router.get('/init-data', async (req, res) => {
             WHERE v.id = $1 AND v.status = 'active'
           `, [userVendorId]);
           vendors = vendorsResult.rows;
+
+          // Fetch External connections scoped to this vendor's project so the
+          // frontend can auto-populate the "Vendor File Drop Connection" dropdown.
+          const vendorProjectId = vendors.length > 0 ? vendors[0].project_id : null;
+          if (vendorProjectId) {
+            try {
+              const connResult = await dbQuery(`
+                SELECT sc.connection_id, sc.name, sc.type as connection_type,
+                       sc.type as storage_type, sc.config, sc.path,
+                       sc.status, sc.created_at, sc.connection_user, sc.connection_direction,
+                       sc.project_id
+                FROM storage_connections sc
+                WHERE sc.status = 'active'
+                  AND sc.is_deleted = false
+                  AND sc.connection_user = 'External'
+                  AND sc.project_id = $1
+                ORDER BY sc.name
+              `, [vendorProjectId]);
+              vendorConnections = connResult.rows;
+            } catch (err) {
+              systemLogger.warn('Could not fetch vendor project connections', { error: err.message });
+            }
+          }
         } catch (err) {
           systemLogger.warn('Could not fetch user vendor', { error: err.message });
         }
