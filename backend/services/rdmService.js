@@ -66,7 +66,7 @@ class RDMService {
         method,
         url: `${this.baseURL}${endpoint}`,
         headers: {
-          'x-api-key': this.apiKey,
+          'Authorization': `Bearer ${this.apiKey}`,
           'Content-Type': 'application/json'
         }
       };
@@ -83,16 +83,15 @@ class RDMService {
 
       const response = await axios(config);
 
-      // Debug logging for schema endpoint
-      if (endpoint.includes('/schema')) {
-        systemLogger.info('RDM API schema response', {
-          endpoint,
-          status: response.status,
-          dataType: typeof response.data,
-          dataKeys: response.data ? Object.keys(response.data) : 'null',
-          dataLength: Array.isArray(response.data) ? response.data.length : 'not-array',
-          data: response.data
-        });
+      // Guard against non-JSON responses (e.g. HTML from a misconfigured RDM_BASE_URL).
+      // Axios parses JSON automatically; a non-object body means the API returned something
+      // unexpected — fail loudly instead of silently treating it as empty data.
+      const contentType = response.headers?.['content-type'] || '';
+      if (typeof response.data !== 'object' || response.data === null) {
+        throw new Error(
+          `RDM API returned a non-JSON response (content-type: ${contentType}) — ` +
+          `check RDM_BASE_URL configuration. Endpoint: ${endpoint}`
+        );
       }
 
       if (method === 'GET') {
@@ -145,25 +144,15 @@ class RDMService {
   }
 
   async getDatasetData(datasetId, options = {}) {
-    try {
-      const { limit, offset, filters } = options;
-      let endpoint = `/api/external/datasets/${datasetId}/data`;
-      
-      const params = new URLSearchParams();
-      if (limit) params.append('limit', limit);
-      if (offset) params.append('offset', offset);
-      if (filters) params.append('filters', JSON.stringify(filters));
-      
-      if (params.toString()) {
-        endpoint += `?${params.toString()}`;
-      }
-      
-      const response = await this.makeRequest(endpoint);
-      return response.data || [];
-    } catch (error) {
-      systemLogger.error('Failed to fetch RDM dataset data', { datasetId, error: error.message });
-      throw error;
-    }
+    // The external RDM API does not expose a row-data endpoint for datasets
+    // (only /api/external/datasets and /api/external/datasets/:id/schema exist).
+    // Dataset joins therefore cannot be fulfilled by this API implementation.
+    // Use a crosswalk lookup instead — crosswalk data IS available via the list endpoint.
+    const msg =
+      `The RDM API does not provide a row-data endpoint for dataset ${datasetId}. ` +
+      `Use a Crosswalk Lookup node instead of a Dataset Join to translate values with this RDM system.`;
+    systemLogger.warn('RDM dataset row data unavailable', { datasetId, reason: msg });
+    throw new Error(msg);
   }
 
   async getDatasetSchema(datasetId) {
@@ -198,19 +187,31 @@ class RDMService {
 
   async getCrosswalkData(crosswalkId, options = {}) {
     try {
-      const { limit, offset } = options;
-      let endpoint = `/api/external/crosswalks/${crosswalkId}/data`;
-      
-      const params = new URLSearchParams();
-      if (limit) params.append('limit', limit);
-      if (offset) params.append('offset', offset);
-      
-      if (params.toString()) {
-        endpoint += `?${params.toString()}`;
+      // The external RDM API does not have a per-crosswalk /data endpoint.
+      // All crosswalk mapping rows are embedded in the list response under
+      // crosswalk.mappingData.mappings[].{sourceValue, targetValue}.
+      // We fetch the full list (cached for 300 s) and extract by ID.
+      const response = await this.makeRequest('/api/external/crosswalks');
+      const crosswalks = response.data || [];
+      const crosswalk = crosswalks.find(c => String(c.id) === String(crosswalkId));
+
+      if (!crosswalk) {
+        systemLogger.warn('RDM crosswalk not found in list', { crosswalkId });
+        return [];
       }
-      
-      const response = await this.makeRequest(endpoint);
-      return response.data || [];
+
+      const mappings = crosswalk.mappingData?.mappings || [];
+
+      // Normalize API field names (sourceValue/targetValue) to the names expected by
+      // rdmContextLoader (source_code/target_code) and rdmLookupProcessor
+      // (target_code || target_value || to).  Keep raw names alongside for compatibility.
+      return mappings.map(m => ({
+        source_code:  m.sourceValue,
+        target_code:  m.targetValue,
+        sourceValue:  m.sourceValue,
+        targetValue:  m.targetValue,
+        status:       m.status
+      }));
     } catch (error) {
       systemLogger.error('Failed to fetch RDM crosswalk data', { crosswalkId, error: error.message });
       throw error;

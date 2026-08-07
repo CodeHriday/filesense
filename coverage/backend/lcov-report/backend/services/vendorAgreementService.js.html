@@ -32,7 +32,7 @@
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>0/884</span>
+                <span class='fraction'>0/883</span>
             </div>
         
             
@@ -3244,7 +3244,16 @@
 <a name='L3179'></a><a href='#L3179'>3179</a>
 <a name='L3180'></a><a href='#L3180'>3180</a>
 <a name='L3181'></a><a href='#L3181'>3181</a>
-<a name='L3182'></a><a href='#L3182'>3182</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<a name='L3182'></a><a href='#L3182'>3182</a>
+<a name='L3183'></a><a href='#L3183'>3183</a>
+<a name='L3184'></a><a href='#L3184'>3184</a>
+<a name='L3185'></a><a href='#L3185'>3185</a>
+<a name='L3186'></a><a href='#L3186'>3186</a>
+<a name='L3187'></a><a href='#L3187'>3187</a>
+<a name='L3188'></a><a href='#L3188'>3188</a>
+<a name='L3189'></a><a href='#L3189'>3189</a>
+<a name='L3190'></a><a href='#L3190'>3190</a>
+<a name='L3191'></a><a href='#L3191'>3191</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -3280,6 +3289,8 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -3289,6 +3300,7 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
@@ -5894,6 +5906,7 @@
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -5906,6 +5919,8 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -5921,11 +5936,14 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -6461,12 +6479,15 @@ class VendorAgreementService {
    */
 <span class="fstat-no" title="function not covered" >  as</span>ync enrichAgreementWithTimestamps(agreement) {
 <span class="cstat-no" title="statement not covered" >    try {</span>
+      // Filter by current agreement version so stale approval records from previous
+      // approval cycles (e.g. before an admin re-edit) do not bleed into the UI.
       const result = <span class="cstat-no" title="statement not covered" >await pool.query(</span>
         `SELECT approval_stage, action, approval_timestamp 
          FROM vendor_agreement_approvals 
-         WHERE agreement_id = $1 
+         WHERE agreement_id = $1
+           AND agreement_version = $2
          ORDER BY approval_timestamp DESC`,
-        [agreement.id]
+        [agreement.id, agreement.version]
       );
       
       // Add timestamp fields based on approvals
@@ -9077,21 +9098,26 @@ class VendorAgreementService {
 <span class="cstat-no" title="statement not covered" >        paramCounter++;</span>
       }
       
-      // Apply role-based filtering for vendor users
-      // Only admin role or vendor_agreements:approve permission bypass contact filtering
-      // Regular vendor users with just vendor_agreements:read must be filtered by contact emails OR project membership
-<span class="cstat-no" title="statement not covered" >      if (!isAdmin &amp;&amp; !hasApprovePermission &amp;&amp; userId) {</span>
+      // Apply role-based filtering for non-admin users
+      // Only true admin access (userHasAdminAccess) bypasses contact filtering
+      // Users with vendor_agreements:approve permission (e.g. Vendor Manager, Vendor Approver)
+      // still get filtered — they only see agreements where they are designated as a contact
+<span class="cstat-no" title="statement not covered" >      if (!isAdmin &amp;&amp; userId) {</span>
 <span class="cstat-no" title="statement not covered" >        if (userEmail) {</span>
           // Allow access if user is:
-          // 1. File owner
-          // 2. Vendor user
-          // 3. Primary or secondary contact
-          // 4. Member of the vendor's project (direct or via access group)
+          // 1. File owner (by user ID)
+          // 2. Vendor user (by user ID)
+          // 3. Primary or secondary contact (by email)
+          // 4. Manager contact (by email)
+          // 5. Governance manager (by user ID)
+          // 6. Member of the vendor's project (direct or via access group)
 <span class="cstat-no" title="statement not covered" >          whereClauses.push(`(</span>
             va.file_owner_user_id = $${paramCounter} 
             OR v.vendor_user_id = $${paramCounter}
+            OR va.governance_manager_user_id = $${paramCounter}
             OR va.primary_contact_email = $${paramCounter + 1}
             OR va.secondary_contact_email = $${paramCounter + 1}
+            OR va.manager_contact = $${paramCounter + 1}
             OR EXISTS (
               SELECT 1 FROM project_members pm 
               WHERE pm.project_id = v.project_id AND pm.user_id = $${paramCounter}
@@ -9105,10 +9131,11 @@ class VendorAgreementService {
 <span class="cstat-no" title="statement not covered" >          queryParams.push(userId, userEmail);</span>
 <span class="cstat-no" title="statement not covered" >          paramCounter += 2;</span>
         } else {
-          // Fallback if email not provided - check file owner, vendor user, and project membership
+          // Fallback if email not provided - check file owner, vendor user, governance manager, and project membership
 <span class="cstat-no" title="statement not covered" >          whereClauses.push(`(</span>
             va.file_owner_user_id = $${paramCounter} 
             OR v.vendor_user_id = $${paramCounter}
+            OR va.governance_manager_user_id = $${paramCounter}
             OR EXISTS (
               SELECT 1 FROM project_members pm 
               WHERE pm.project_id = v.project_id AND pm.user_id = $${paramCounter}
@@ -9613,7 +9640,7 @@ class VendorAgreementService {
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-01-10T05:45:28.087Z
+                at 2026-08-07T10:25:37.074Z
             </div>
         <script src="../../prettify.js"></script>
         <script>

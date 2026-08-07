@@ -23,30 +23,30 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">16% </span>
+                <span class="strong">0% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>16/100</span>
+                <span class='fraction'>0/100</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">5.47% </span>
+                <span class="strong">0% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>4/73</span>
+                <span class='fraction'>0/73</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">7.14% </span>
+                <span class="strong">0% </span>
                 <span class="quiet">Functions</span>
-                <span class='fraction'>1/14</span>
+                <span class='fraction'>0/14</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">16.32% </span>
+                <span class="strong">0% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>16/98</span>
+                <span class='fraction'>0/98</span>
             </div>
         
             
@@ -483,26 +483,26 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">3x</span>
-<span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">3x</span>
-<span class="cline-any cline-yes">3x</span>
-<span class="cline-any cline-yes">3x</span>
-<span class="cline-any cline-yes">3x</span>
-<span class="cline-any cline-yes">3x</span>
-<span class="cline-any cline-yes">3x</span>
-<span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -872,7 +872,7 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">/**
  * Outlook/Office 365 OAuth2 Email Adapter
  * 
@@ -888,26 +888,26 @@
  * This design keeps the adapter stateless and allows the service layer to control persistence.
  */
 &nbsp;
-const EmailProviderAdapter = require('./EmailProviderAdapter');
-const nodemailer = require('nodemailer');
-const axios = require('axios');
-const { systemLogger } = require('../../utils/logger');
-const { createCredentialsSummary } = require('../../utils/credentialSanitizer');
+const EmailProviderAdapter = <span class="cstat-no" title="statement not covered" >require('./EmailProviderAdapter');</span>
+const nodemailer = <span class="cstat-no" title="statement not covered" >require('nodemailer');</span>
+const axios = <span class="cstat-no" title="statement not covered" >require('axios');</span>
+const { systemLogger } = <span class="cstat-no" title="statement not covered" >require('../../utils/logger');</span>
+const { createCredentialsSummary } = <span class="cstat-no" title="statement not covered" >require('../../utils/credentialSanitizer');</span>
 &nbsp;
 class OutlookOAuth2Adapter extends EmailProviderAdapter {
-  constructor(config) {
-    super(config);
-    this.providerName = 'outlook_oauth2';
+<span class="fstat-no" title="function not covered" >  co</span>nstructor(config) {
+<span class="cstat-no" title="statement not covered" >    super(config);</span>
+<span class="cstat-no" title="statement not covered" >    this.providerName = 'outlook_oauth2';</span>
     
-    this.clientId = config.client_id;
-    this.clientSecret = config.client_secret;
-    this.refreshToken = config.refresh_token;
-    this.accessToken = config.access_token;
-    this.fromEmail = config.from_email;
-    this.tenantId = config.tenant_id || 'common';
-    this.expiresAt = config.expires_at ? new Date(config.expires_at) : null;
+<span class="cstat-no" title="statement not covered" >    this.clientId = config.client_id;</span>
+<span class="cstat-no" title="statement not covered" >    this.clientSecret = config.client_secret;</span>
+<span class="cstat-no" title="statement not covered" >    this.refreshToken = config.refresh_token;</span>
+<span class="cstat-no" title="statement not covered" >    this.accessToken = config.access_token;</span>
+<span class="cstat-no" title="statement not covered" >    this.fromEmail = config.from_email;</span>
+<span class="cstat-no" title="statement not covered" >    this.tenantId = config.tenant_id || 'common';</span>
+<span class="cstat-no" title="statement not covered" >    this.expiresAt = config.expires_at ? new Date(config.expires_at) : null;</span>
     
-    this.tokenEndpoint = `https://login.microsoftonline.com/${this.tenantId}/oauth2/v2.0/token`;
+<span class="cstat-no" title="statement not covered" >    this.tokenEndpoint = `https://login.microsoftonline.com/${this.tenantId}/oauth2/v2.0/token`;</span>
   }
 &nbsp;
   /**
@@ -1277,7 +1277,7 @@ class OutlookOAuth2Adapter extends EmailProviderAdapter {
   }
 }
 &nbsp;
-module.exports = OutlookOAuth2Adapter;
+<span class="cstat-no" title="statement not covered" >module.exports = OutlookOAuth2Adapter;</span>
 &nbsp;</pre></td></tr></table></pre>
 
                 <div class='push'></div><!-- for sticky footer -->
@@ -1285,7 +1285,7 @@ module.exports = OutlookOAuth2Adapter;
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-01-10T05:45:28.087Z
+                at 2026-08-07T10:25:37.074Z
             </div>
         <script src="../../../prettify.js"></script>
         <script>

@@ -124,10 +124,19 @@ async function loadRDMContext(fieldMappings = [], variables = [], rdmDatasetConf
           keyField
         });
       } catch (error) {
-        systemLogger.error(`Failed to load RDM dataset ${datasetId}`, {
+        // Mark the dataset as explicitly unavailable so the lookup processor can
+        // surface a durable job-level error rather than silently dropping rows.
+        systemLogger.warn(`RDM dataset ${datasetId} could not be loaded`, {
+          datasetId,
           error: error.message
         });
-        throw new Error(`Failed to load required RDM dataset ${datasetId}: ${error.message}`);
+        context.rdm.datasets[datasetId] = {
+          available: false,
+          error: error.message,
+          data: [],
+          map: new Map(),
+          keyField: null
+        };
       }
     }
     

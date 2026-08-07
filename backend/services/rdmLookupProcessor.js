@@ -19,8 +19,23 @@ function applyRDMDatasetJoin(transformedRows, datasetConfig, rdmContext) {
   // Get preloaded dataset from RDM context
   const datasetData = rdmContext.rdm?.datasets?.[dataset_id];
 
-  if (!datasetData || !datasetData.map) {
+  if (!datasetData) {
     systemLogger.warn(`RDM dataset ${dataset_id} not found in context, skipping dataset join`);
+    return transformedRows;
+  }
+
+  // If the dataset was explicitly marked unavailable (e.g. the RDM API has no row-data
+  // endpoint for this dataset), throw so the job engine logs a durable, user-visible error
+  // rather than silently dropping rows or producing un-enriched output.
+  if (datasetData.available === false) {
+    throw new Error(
+      `RDM dataset join for dataset ${dataset_id} cannot proceed: ${datasetData.error || 'dataset row data is unavailable'}. ` +
+      `Use a Crosswalk Lookup node instead of a Dataset Join to translate values with this RDM system.`
+    );
+  }
+
+  if (!datasetData.map) {
+    systemLogger.warn(`RDM dataset ${dataset_id} has no lookup map, skipping dataset join`);
     return transformedRows;
   }
 
