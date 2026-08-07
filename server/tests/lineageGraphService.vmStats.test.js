@@ -105,11 +105,173 @@ const EXEC_ROW = {
 const VM_AUDIT_RESULT = { rows: [VM_DEF_ROW] };
 
 // ─── Service under test (loaded after mocks are set up) ───────────────────────
-const { buildLineageGraph } = require('../services/lineageGraphService');
+const { buildLineageGraph, getNodeDetails } = require('../services/lineageGraphService');
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Additional fixtures
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * VM def where config.fileName already includes the extension.
+ * This is the scenario that previously produced 'output_target.csv.csv'.
+ */
+const VM_DEF_WITH_EXT_IN_FILENAME = {
+  ...VM_DEF_ROW,
+  graph_data: {
+    nodes: [
+      {
+        type: 'sourceConfig',
+        data: { config: { filePattern: '*.csv' } }
+      },
+      {
+        type: 'targetRules',
+        data: {
+          config: {
+            fileName: 'output_target.csv', // ← extension already present
+            fileFormat: 'csv',
+            orderedColumns: ['patient_id', 'site_code', 'enrollment_date']
+          }
+        }
+      }
+    ]
+  }
+};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Test suites
 // ─────────────────────────────────────────────────────────────────────────────
+
+describe('buildLineageGraph — target node label when config.fileName already includes extension', () => {
+  beforeEach(() => {
+    mockQuery.mockImplementation(
+      mockQueryRouter([
+        ['FROM files f', { rows: [FILE_ROW] }],
+        ['FROM column_governance_tag_assignments', { rows: [] }],
+        ['FROM transformation_mappings tm', { rows: [] }],
+        ['FROM file_audit_details fad', { rows: [VM_DEF_WITH_EXT_IN_FILENAME] }],
+        ['FROM visual_mapping_executions vme', { rows: [EXEC_ROW] }],
+        ["file_role = 'target'", { rows: [] }],
+        ['FROM visual_workflows', { rows: [] }],
+        ['FROM quality_rule_violations', { rows: [] }]
+      ])
+    );
+  });
+
+  test('target node label has a single .csv extension, not double', async () => {
+    const graph = await buildLineageGraph({
+      rootType: 'file',
+      rootId: FILE_ID_DB,
+      projectId: PROJECT_ID,
+      depth: 3,
+      includeIncidents: false
+    });
+
+    const targetNode = graph.nodes.find(n => n.type === 'targetFile');
+    expect(targetNode).toBeDefined();
+    expect(targetNode.label).toBe('output_target.csv');
+    expect(targetNode.label).not.toContain('.csv.csv');
+  });
+
+  test('target node id does not include a double extension', async () => {
+    const graph = await buildLineageGraph({
+      rootType: 'file',
+      rootId: FILE_ID_DB,
+      projectId: PROJECT_ID,
+      depth: 3,
+      includeIncidents: false
+    });
+
+    const targetNode = graph.nodes.find(n => n.type === 'targetFile');
+    expect(targetNode).toBeDefined();
+    expect(targetNode.id).not.toContain('.csv.csv');
+  });
+});
+
+describe('getNodeDetails — VM targetFile returns columns from orderedColumns', () => {
+  /**
+   * Seed the mock so getNodeDetails can find the VM def via graph_data JSONB.
+   * The JSONB EXISTS subquery is matched by the 'visual_mapping_defs vmd' fragment;
+   * the scalar ordered_columns subquery is matched by 'orderedColumns'.
+   * Both are handled by the same mock route since pool.query sees the full SQL.
+   */
+  const VM_DETAIL_ROW = {
+    vm_id: 7,
+    vm_name: 'Daily Source Transform',
+    project_id: PROJECT_ID,
+    last_executed_at: '2026-07-20T10:00:00Z',
+    execution_count: 3,
+    // pg returns JSONB arrays as JS arrays automatically
+    ordered_columns: ['patient_id', 'site_code', 'enrollment_date']
+  };
+
+  beforeEach(() => {
+    mockQuery.mockImplementation(
+      mockQueryRouter([
+        // getNodeDetails targetFile VM JSONB lookup
+        ['visual_mapping_defs vmd', { rows: [VM_DETAIL_ROW] }],
+        // execution stats sub-query
+        ['visual_mapping_executions vme', { rows: [EXEC_ROW] }]
+      ])
+    );
+  });
+
+  test('returns a non-empty columns array with correct names', async () => {
+    const details = await getNodeDetails(
+      'target-file-output_target.csv',
+      'targetFile',
+      PROJECT_ID
+    );
+
+    expect(details).not.toBeNull();
+    expect(Array.isArray(details.columns)).toBe(true);
+    expect(details.columns).toHaveLength(3);
+    expect(details.columns[0].column_name).toBe('patient_id');
+    expect(details.columns[1].column_name).toBe('site_code');
+    expect(details.columns[2].column_name).toBe('enrollment_date');
+  });
+
+  test('each column has the expected shape', async () => {
+    const details = await getNodeDetails(
+      'target-file-output_target.csv',
+      'targetFile',
+      PROJECT_ID
+    );
+
+    for (const col of details.columns) {
+      expect(typeof col.column_name).toBe('string');
+      expect(typeof col.column_type).toBe('string');
+      expect(typeof col.column_index).toBe('number');
+      expect(Array.isArray(col.governance_tags)).toBe(true);
+    }
+  });
+
+  test('returns is_visual_mapping and is_synthetic flags', async () => {
+    const details = await getNodeDetails(
+      'target-file-output_target.csv',
+      'targetFile',
+      PROJECT_ID
+    );
+
+    expect(details.is_visual_mapping).toBe(true);
+    expect(details.is_synthetic).toBe(true);
+  });
+
+  test('returns null (no 404) when no VM def matches the filename', async () => {
+    mockQuery.mockImplementation(
+      mockQueryRouter([
+        ['visual_mapping_defs vmd', { rows: [] }]
+      ])
+    );
+
+    const details = await getNodeDetails(
+      'target-file-unknown-file.csv',
+      'targetFile',
+      PROJECT_ID
+    );
+
+    expect(details).toBeNull();
+  });
+});
 
 describe('buildLineageGraph — VM mapping stats via file traversal', () => {
   // Common routes that apply to all tests in this suite.

@@ -507,11 +507,19 @@ async function traverseFromFile(fileId, projectId, nodes, edges, visited, depth,
         if (!visited.has(targetNodeId)) {
           visited.add(targetNodeId);
 
+          // Derive a single canonical display name — extension appended exactly
+          // once regardless of whether config.fileName already includes it.
+          const targetLabel = targetFileName.endsWith(`.${targetFileFormat}`)
+            ? targetFileName
+            : `${targetFileName}.${targetFileFormat}`;
+          // Base name without extension used as a secondary lookup term so the
+          // files table is matched whether it stores 'file.csv' or 'file'.
+          const targetBaseName = targetLabel.slice(0, targetLabel.lastIndexOf('.')) || targetLabel;
+
           // Attempt to resolve a real file_id so the drawer can navigate to
           // the target file's profile page.
           let resolvedFileId = null;
           try {
-            const nameWithFormat = `${targetFileName}.${targetFileFormat}`;
             const existingFileResult = await pool.query(`
               SELECT file_id FROM files
               WHERE file_role = 'target'
@@ -519,7 +527,7 @@ async function traverseFromFile(fileId, projectId, nodes, edges, visited, depth,
                 AND (filename = $2 OR filename = $3)
               ORDER BY created_at DESC
               LIMIT 1
-            `, [vmDef.project_id, nameWithFormat, targetFileName]);
+            `, [vmDef.project_id, targetLabel, targetBaseName]);
             if (existingFileResult.rows.length > 0) {
               resolvedFileId = existingFileResult.rows[0].file_id;
             }
@@ -528,7 +536,7 @@ async function traverseFromFile(fileId, projectId, nodes, edges, visited, depth,
           nodes.push({
             id: targetNodeId,
             type: 'targetFile',
-            label: `${targetFileName}.${targetFileFormat}`,
+            label: targetLabel,
             metadata: {
               fileName: targetFileName,
               fileFormat: targetFileFormat,
@@ -1066,9 +1074,16 @@ async function traverseFromVmJobExecution(vmExecId, projectId, nodes, edges, vis
       if (!visited.has(targetNodeId)) {
         visited.add(targetNodeId);
 
+        // Derive a single canonical display name — extension appended exactly
+        // once regardless of whether config.fileName already includes it.
+        const targetLabel = targetFileName.endsWith(`.${targetFileFormat}`)
+          ? targetFileName
+          : `${targetFileName}.${targetFileFormat}`;
+        // Base name without extension used as a secondary lookup term.
+        const targetBaseName = targetLabel.slice(0, targetLabel.lastIndexOf('.')) || targetLabel;
+
         let resolvedFileId = null;
         try {
-          const nameWithFormat = `${targetFileName}.${targetFileFormat}`;
           const existingFileResult = await pool.query(`
             SELECT file_id FROM files
             WHERE file_role = 'target'
@@ -1076,7 +1091,7 @@ async function traverseFromVmJobExecution(vmExecId, projectId, nodes, edges, vis
               AND (filename = $2 OR filename = $3)
             ORDER BY created_at DESC
             LIMIT 1
-          `, [vmExec.project_id, nameWithFormat, targetFileName]);
+          `, [vmExec.project_id, targetLabel, targetBaseName]);
           if (existingFileResult.rows.length > 0) {
             resolvedFileId = existingFileResult.rows[0].file_id;
           }
@@ -1085,7 +1100,7 @@ async function traverseFromVmJobExecution(vmExecId, projectId, nodes, edges, vis
         nodes.push({
           id: targetNodeId,
           type: 'targetFile',
-          label: `${targetFileName}.${targetFileFormat}`,
+          label: targetLabel,
           metadata: {
             fileName: targetFileName,
             fileFormat: targetFileFormat,
@@ -1764,7 +1779,20 @@ async function getNodeDetails(nodeId, nodeType, projectId) {
               vmd.name          AS vm_name,
               vmd.project_id,
               vmd.last_executed_at,
-              vmd.execution_count
+              vmd.execution_count,
+              -- Extract orderedColumns from the targetRules node so the drawer
+              -- can render the Columns section without a separate query.
+              -- orderedColumns is a JSON array of column name strings saved by
+              -- TargetRulesModal: config.orderedColumns = columns.map(c => c.name)
+              (
+                SELECT COALESCE(
+                  n->'data'->'config'->'orderedColumns',
+                  n->'config'->'orderedColumns'
+                )
+                FROM jsonb_array_elements(vmd.graph_data->'nodes') AS n
+                WHERE n->>'type' = 'targetRules'
+                LIMIT 1
+              ) AS ordered_columns
             FROM visual_mapping_defs vmd
             WHERE vmd.is_active = true
               AND ($2::integer IS NULL OR vmd.project_id = $2)
@@ -1812,6 +1840,24 @@ async function getNodeDetails(nodeId, nodeType, projectId) {
               LIMIT 1
             `, [vm.vm_id]);
 
+            // Build columns array from orderedColumns config.
+            // orderedColumns is a JSON array of column name strings; column types
+            // are not stored in graph_data, so we default to 'string'.
+            // Governance/PII tags require resolving the actual output file_id and
+            // are deferred — governance_tags is returned as an empty array.
+            let columns = [];
+            try {
+              const rawCols = vm.ordered_columns;
+              if (Array.isArray(rawCols) && rawCols.length > 0) {
+                columns = rawCols.map((name, idx) => ({
+                  column_name: typeof name === 'string' ? name : String(name),
+                  column_type: 'string',
+                  column_index: idx,
+                  governance_tags: []
+                }));
+              }
+            } catch (_colErr) { /* non-fatal — columns are informational */ }
+
             const exec = vmExecForTargetResult.rows[0] || null;
             return {
               filename: targetFileName,
@@ -1823,7 +1869,8 @@ async function getNodeDetails(nodeId, nodeType, projectId) {
               last_run: exec?.completed_at || vm.last_executed_at,
               rows_written: exec?.rows_written ?? exec?.rows_processed ?? null,
               rows_read: exec?.rows_read ?? null,
-              description: 'Output file produced by a visual mapping job'
+              description: 'Output file produced by a visual mapping job',
+              columns
             };
           }
         } catch (vmTargetErr) {
