@@ -83,18 +83,6 @@ class RDMService {
 
       const response = await axios(config);
 
-      // Temporary: log raw response structure for every RDM call
-      systemLogger.info('RDM raw response', {
-        endpoint,
-        status: response.status,
-        bodyType: typeof response.data,
-        bodyIsArray: Array.isArray(response.data),
-        bodyKeys: response.data && typeof response.data === 'object' && !Array.isArray(response.data)
-          ? Object.keys(response.data)
-          : 'n/a',
-        sample: JSON.stringify(response.data)?.substring(0, 600)
-      });
-
       // Debug logging for schema endpoint
       if (endpoint.includes('/schema')) {
         systemLogger.info('RDM API schema response', {
@@ -139,14 +127,6 @@ class RDMService {
   async getDatasets() {
     try {
       const response = await this.makeRequest('/api/external/datasets');
-      systemLogger.info('RDM getDatasets raw response', {
-        type: typeof response,
-        isArray: Array.isArray(response),
-        keys: response && typeof response === 'object' ? Object.keys(response) : 'n/a',
-        dataType: response?.data ? typeof response.data : 'undefined',
-        dataIsArray: Array.isArray(response?.data),
-        sample: JSON.stringify(response)?.substring(0, 500)
-      });
       return response.data || [];
     } catch (error) {
       systemLogger.error('Failed to fetch RDM datasets', { error: error.message });
