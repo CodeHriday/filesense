@@ -205,15 +205,21 @@ function applyRDMCrosswalkLookup(transformedRows, crosswalkConfig, rdmContext) {
     if (crosswalkEntry !== undefined) {
       // Mapping found — extract target value(s) from crosswalk entry.
       if (useColumnMappings) {
-        // column_mappings-driven extraction: each entry maps a crosswalk field
-        // (sourceColumn) to an output row field (targetColumn).  This works
-        // regardless of crosswalk field naming conventions.
+        // column_mappings.sourceColumn is the UI display name from the crosswalk
+        // schema endpoint — it is NOT a data field key in the actual crosswalk
+        // entry.  rdmService.getCrosswalkData() normalizes all rows to:
+        //   { source_code, target_code, sourceValue, targetValue, status }
+        // so we always use the same heuristic for value extraction and use
+        // column_mappings only to decide the output column name in the row.
+        const crosswalkValue =
+          crosswalkEntry.target_code  ||
+          crosswalkEntry.target_value ||
+          crosswalkEntry.to           ||
+          crosswalkEntry.targetValue  ||
+          null;
         for (const m of column_mappings) {
-          const srcField = m.sourceColumn || m.source;
           const outField = m.targetColumn || m.target || target_column;
-          if (outField) {
-            mappedRow[outField] = srcField ? (crosswalkEntry[srcField] ?? null) : null;
-          }
+          if (outField) mappedRow[outField] = crosswalkValue;
         }
       } else {
         // Legacy fallback: single target_column with hardcoded field name heuristic.

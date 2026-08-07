@@ -30,9 +30,9 @@
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">52.99% </span>
+                <span class="strong">53.44% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>62/117</span>
+                <span class='fraction'>62/116</span>
             </div>
         
             
@@ -44,9 +44,9 @@
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">66.15% </span>
+                <span class="strong">66.66% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>86/130</span>
+                <span class='fraction'>86/129</span>
             </div>
         
             
@@ -411,7 +411,13 @@
 <a name='L346'></a><a href='#L346'>346</a>
 <a name='L347'></a><a href='#L347'>347</a>
 <a name='L348'></a><a href='#L348'>348</a>
-<a name='L349'></a><a href='#L349'>349</a></td><td class="line-coverage quiet"><span class="cline-any cline-yes">1x</span>
+<a name='L349'></a><a href='#L349'>349</a>
+<a name='L350'></a><a href='#L350'>350</a>
+<a name='L351'></a><a href='#L351'>351</a>
+<a name='L352'></a><a href='#L352'>352</a>
+<a name='L353'></a><a href='#L353'>353</a>
+<a name='L354'></a><a href='#L354'>354</a>
+<a name='L355'></a><a href='#L355'>355</a></td><td class="line-coverage quiet"><span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -621,12 +627,18 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -966,15 +978,21 @@ function applyRDMCrosswalkLookup(transformedRows, crosswalkConfig, rdmContext) {
     if (crosswalkEntry !== undefined) {
       // Mapping found — extract target value(s) from crosswalk entry.
       <span class="missing-if-branch" title="if path not taken" >I</span>if (useColumnMappings) {
-        // column_mappings-driven extraction: each entry maps a crosswalk field
-        // (sourceColumn) to an output row field (targetColumn).  This works
-        // regardless of crosswalk field naming conventions.
+        // column_mappings.sourceColumn is the UI display name from the crosswalk
+        // schema endpoint — it is NOT a data field key in the actual crosswalk
+        // entry.  rdmService.getCrosswalkData() normalizes all rows to:
+        //   { source_code, target_code, sourceValue, targetValue, status }
+        // so we always use the same heuristic for value extraction and use
+        // column_mappings only to decide the output column name in the row.
+        const crosswalkValue =
+<span class="cstat-no" title="statement not covered" >          crosswalkEntry.target_code  ||</span>
+          crosswalkEntry.target_value ||
+          crosswalkEntry.to           ||
+          crosswalkEntry.targetValue  ||
+          null;
 <span class="cstat-no" title="statement not covered" >        for (const m of column_mappings) {</span>
-          const srcField = <span class="cstat-no" title="statement not covered" >m.sourceColumn || m.source;</span>
           const outField = <span class="cstat-no" title="statement not covered" >m.targetColumn || m.target || target_column;</span>
-<span class="cstat-no" title="statement not covered" >          if (outField) {</span>
-<span class="cstat-no" title="statement not covered" >            mappedRow[outField] = srcField ? (crosswalkEntry[srcField] ?? null) : null;</span>
-          }
+<span class="cstat-no" title="statement not covered" >          if (outField) <span class="cstat-no" title="statement not covered" >mappedRow[outField] = crosswalkValue;</span></span>
         }
       } else {
         // Legacy fallback: single target_column with hardcoded field name heuristic.
@@ -1114,7 +1132,7 @@ module.exports = {
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-08-07T15:08:15.518Z
+                at 2026-08-07T15:23:16.303Z
             </div>
         <script src="../../prettify.js"></script>
         <script>

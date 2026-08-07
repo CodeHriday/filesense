@@ -373,6 +373,30 @@ class VisualMappingCompiler {
             nodeSchemas[nodeId] = datasetOutput;
             break;
             
+          case 'rdmLookup': {
+            // RDM Lookup (crosswalk) adds the crosswalk output columns to the
+            // schema so downstream expression and target nodes can see them.
+            // Without this, 'rdmLookup' fell through to 'default' which only
+            // passed the upstream schema, hiding crosswalk output fields.
+            const rdmLookupUpstream = this.getUpstreamSchema(nodeId, edges, nodeSchemas);
+            const rdmLookupOutput = [...rdmLookupUpstream];
+
+            const rdmColumnMappings = config.columnMappings || [];
+            rdmColumnMappings.forEach(m => {
+              const colName = m.targetColumn || m.target;
+              if (colName && !rdmLookupOutput.find(f => f.name === colName)) {
+                rdmLookupOutput.push({
+                  name: colName,
+                  type: 'string',
+                  source: 'rdm_crosswalk'
+                });
+              }
+            });
+
+            nodeSchemas[nodeId] = rdmLookupOutput;
+            break;
+          }
+
           case 'rdmCrosswalk':
             // RDM Crosswalk transforms values but doesn't change schema structure
             const crosswalkUpstream = this.getUpstreamSchema(nodeId, edges, nodeSchemas);
