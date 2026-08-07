@@ -394,27 +394,36 @@ const VendorAgreements = () => {
     }
   }, [formData.vendor_id, formData.project_id, formData.project_name, vendors]);
 
-  // Auto-populate vendor_connection_id from the filtered connection list for the selected vendor.
-  // Uses filteredConnections (already project-scoped with fallback to all External connections)
-  // so this stays in sync with exactly what the dropdown shows.
+  // Auto-populate vendor_connection_id when a vendor is selected while creating a contract.
+  // Priority 1: use drop_location_connection_id from the vendor's project (the connection
+  //             configured in Edit Project → File Drop Location — the authoritative source).
+  // Priority 2: fall back to filteredConnections when exactly one option exists (handles
+  //             vendors whose project has no drop-location connection configured yet).
   useEffect(() => {
     // Only auto-populate when creating (not editing an existing agreement)
     if (!formData.id && formData.vendor_id) {
-      if (filteredConnections.length === 1) {
-        // Exactly one option — auto-select it
+      const selectedVendor = vendors.find(v => String(v.id) === String(formData.vendor_id));
+      const projectConnId = selectedVendor?.drop_location_connection_id || null;
+
+      if (projectConnId) {
+        // Use the connection set on the vendor's project directly
+        if (formData.vendor_connection_id !== projectConnId) {
+          setFormData(prev => ({ ...prev, vendor_connection_id: projectConnId }));
+        }
+      } else if (filteredConnections.length === 1) {
+        // Fallback: exactly one connection in the scoped list — auto-select it
         const autoConnId = filteredConnections[0].connection_id;
         if (formData.vendor_connection_id !== autoConnId) {
           setFormData(prev => ({ ...prev, vendor_connection_id: autoConnId }));
         }
       } else {
-        // Zero or multiple options — clear any stale selection so the user
-        // must choose, and a previous vendor's connection doesn't carry over
+        // No deterministic choice — clear any stale selection from a previous vendor
         if (formData.vendor_connection_id !== '') {
           setFormData(prev => ({ ...prev, vendor_connection_id: '' }));
         }
       }
     }
-  }, [formData.vendor_id, formData.id, filteredConnections]);
+  }, [formData.vendor_id, formData.id, vendors, filteredConnections]);
 
   // Auto-populate vendor_code, vendor_type, vendor_onboarding_date, and contact information from selected vendor
   useEffect(() => {
