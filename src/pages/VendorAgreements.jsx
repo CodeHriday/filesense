@@ -313,8 +313,26 @@ const VendorAgreements = () => {
     }
   }, [vendorConnections, formData.vendor_id, vendors]);
   
-  // Auto-populate drop_location_path from selected vendor connection
+  // Auto-populate drop_location_path from selected vendor connection.
+  // Priority 1: use drop_location_bucket / drop_location_prefix from the vendor's project
+  //             (the authoritative values set in Edit Project → File Drop Location).
+  // Priority 2: fall back to parsing the selected connection's config JSON.
   useEffect(() => {
+    // Priority 1: project-level bucket/prefix
+    if (formData.vendor_id && vendors.length > 0) {
+      const selectedVendor = vendors.find(v => String(v.id) === String(formData.vendor_id));
+      const projectBucket = selectedVendor?.drop_location_bucket || '';
+      if (projectBucket) {
+        const projectPrefix = selectedVendor?.drop_location_prefix || '';
+        const projectPath = projectPrefix ? `${projectBucket}/${projectPrefix}` : projectBucket;
+        if (formData.drop_location_path !== projectPath) {
+          setFormData(prev => ({ ...prev, drop_location_path: projectPath }));
+        }
+        return; // Project-level path takes priority — skip connection-config derivation
+      }
+    }
+
+    // Priority 2: derive path from the selected connection's config
     if (formData.vendor_connection_id && filteredConnections.length > 0) {
       const selectedConnection = filteredConnections.find(
         conn => String(conn.connection_id) === String(formData.vendor_connection_id)
@@ -355,7 +373,7 @@ const VendorAgreements = () => {
         drop_location_path: ''
       }));
     }
-  }, [formData.vendor_connection_id, formData.drop_location_path, filteredConnections]);
+  }, [formData.vendor_id, formData.vendor_connection_id, formData.drop_location_path, vendors, filteredConnections]);
   
   // Auto-populate project fields from selected vendor
   useEffect(() => {

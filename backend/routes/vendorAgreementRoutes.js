@@ -426,7 +426,9 @@ router.get('/init-data', async (req, res) => {
                  v.contact_name, v.contact_email, v.contact_phone,
                  v.backup_contact_name, v.backup_contact_email, v.backup_contact_phone,
                  v.project_id, p.name as project_name,
-                 p.drop_location_connection_id
+                 p.drop_location_connection_id,
+                 p.drop_location_bucket,
+                 p.drop_location_prefix
           FROM vendors v
           LEFT JOIN projects p ON v.project_id = p.id
           WHERE v.status = 'active'
@@ -449,7 +451,9 @@ router.get('/init-data', async (req, res) => {
                    v.contact_name, v.contact_email, v.contact_phone,
                    v.backup_contact_name, v.backup_contact_email, v.backup_contact_phone,
                    v.project_id, p.name as project_name,
-                   p.drop_location_connection_id
+                   p.drop_location_connection_id,
+                   p.drop_location_bucket,
+                   p.drop_location_prefix
             FROM vendors v
             LEFT JOIN projects p ON v.project_id = p.id
             WHERE v.id = $1 AND v.status = 'active'
