@@ -103,7 +103,7 @@ SortableSchemaRow.propTypes = {
   onToggleSelect: PropTypes.func.isRequired
 };
 
-const SortableOutputRow = ({ column, index, selectedRows, onToggleSelect }) => {
+const SortableOutputRow = ({ column, index, selectedRows, onToggleSelect, onTogglePii }) => {
   const {
     attributes,
     listeners,
@@ -120,6 +120,8 @@ const SortableOutputRow = ({ column, index, selectedRows, onToggleSelect }) => {
     opacity: isDragging ? 0.8 : 1
   };
 
+  const isPii = column.pii || false;
+
   return (
     <tr ref={setNodeRef} style={style}>
       <td style={{ padding: '4px' }}>
@@ -135,6 +137,15 @@ const SortableOutputRow = ({ column, index, selectedRows, onToggleSelect }) => {
       <td style={{ padding: '4px', fontSize: '9px', color: '#6b7280' }}>{index + 1}</td>
       <td style={{ padding: '4px', fontFamily: 'monospace', fontSize: '10px' }}>{column.name}</td>
       <td style={{ padding: '4px', fontSize: '9px', color: '#6b7280' }}>{formatTypeWithPrecision(column.type, column.precision, column.scale)}</td>
+      <td style={{ padding: '4px', textAlign: 'center' }}>
+        <input
+          type="checkbox"
+          checked={isPii}
+          onChange={() => onTogglePii(column.id)}
+          title={isPii ? 'Mark as non-PII' : 'Mark as PII'}
+          style={{ cursor: 'pointer', accentColor: '#dc2626' }}
+        />
+      </td>
     </tr>
   );
 };
@@ -143,7 +154,8 @@ SortableOutputRow.propTypes = {
   column: PropTypes.object.isRequired,
   index: PropTypes.number.isRequired,
   selectedRows: PropTypes.instanceOf(Set).isRequired,
-  onToggleSelect: PropTypes.func.isRequired
+  onToggleSelect: PropTypes.func.isRequired,
+  onTogglePii: PropTypes.func.isRequired
 };
 
 
@@ -207,10 +219,17 @@ const TargetRulesModal = ({ isOpen, onClose, onSave, initialConfig = {}, project
         const savedNameSet = new Set(savedOrderNames);
         
         if (savedOrderNames.length > 0) {
-          // Saved config is authoritative - only include columns that were explicitly saved
+          // Saved config is authoritative - only include columns that were explicitly saved.
+          // Restore per-column PII state from saved piiColumns (array of column names).
+          const savedPiiSet = new Set(initialConfig.piiColumns || []);
           const orderedFromSaved = savedOrderNames
             .filter(name => schemaMap.has(name))
-            .map(name => ({ ...schemaMap.get(name), id: generateUniqueId('col'), isNew: false }));
+            .map(name => ({
+              ...schemaMap.get(name),
+              id: generateUniqueId('col'),
+              isNew: false,
+              pii: savedPiiSet.has(name)
+            }));
           setOrderedColumns(orderedFromSaved);
           
           // New columns go to available pool - NOT auto-appended, marked as new
@@ -406,11 +425,15 @@ const TargetRulesModal = ({ isOpen, onClose, onSave, initialConfig = {}, project
     if (selectedAvailableRows.size === 0) return;
     const toAdd = availableColumns.filter(c => selectedAvailableRows.has(c.id));
     const remaining = availableColumns.filter(c => !selectedAvailableRows.has(c.id));
-    // When adding to output, clear the isNew flag - column has been processed
+    // When adding to output, clear the isNew flag - column has been processed.
+    // Normalise the PII flag: upstream schema uses contains_pii; the output panel uses pii.
+    // Use own-property semantics so an explicit pii:false (user unchecked) is preserved and
+    // does NOT fall back to contains_pii — only a truly absent pii property falls back.
     const newOrdered = [...orderedColumns, ...toAdd.map(col => ({
       ...col,
       id: generateUniqueId('col'),
-      isNew: false
+      isNew: false,
+      pii: Object.prototype.hasOwnProperty.call(col, 'pii') ? col.pii : (col.contains_pii || false)
     }))];
     setOrderedColumns(newOrdered);
     setAvailableColumns(remaining);
@@ -433,11 +456,15 @@ const TargetRulesModal = ({ isOpen, onClose, onSave, initialConfig = {}, project
   };
 
   const handleAddAll = () => {
-    // When adding to output, clear the isNew flag - all columns processed
+    // When adding to output, clear the isNew flag - all columns processed.
+    // Normalise PII flag from upstream schema (contains_pii → pii).
+    // Use own-property semantics so an explicit pii:false is preserved and
+    // does NOT fall back to contains_pii — only absent pii falls back.
     const newOrdered = [...orderedColumns, ...availableColumns.map(col => ({
       ...col,
       id: generateUniqueId('col'),
-      isNew: false
+      isNew: false,
+      pii: Object.prototype.hasOwnProperty.call(col, 'pii') ? col.pii : (col.contains_pii || false)
     }))];
     setOrderedColumns(newOrdered);
     setAvailableColumns([]);
@@ -454,6 +481,12 @@ const TargetRulesModal = ({ isOpen, onClose, onSave, initialConfig = {}, project
     setOrderedColumns([]);
     setAvailableColumns(newAvailable);
     setSelectedRows(new Set());
+  };
+
+  const handleTogglePii = (columnId) => {
+    setOrderedColumns(prev =>
+      prev.map(col => col.id === columnId ? { ...col, pii: !col.pii } : col)
+    );
   };
 
   const handleRefreshFromUpstream = () => {
@@ -510,7 +543,8 @@ const TargetRulesModal = ({ isOpen, onClose, onSave, initialConfig = {}, project
       anomalyDetection,
       targetFileOwnerId,
       targetFileOwnerName: selectedOwner?.full_name || selectedOwner?.username || '',
-      orderedColumns: orderedColumns.map(col => col.name)
+      orderedColumns: orderedColumns.map(col => col.name),
+      piiColumns: orderedColumns.filter(col => col.pii).map(col => col.name)
     };
     try {
       onSave(config);
@@ -849,6 +883,7 @@ const TargetRulesModal = ({ isOpen, onClose, onSave, initialConfig = {}, project
                                   <th style={{ width: '30px', padding: '4px' }}>#</th>
                                   <th style={{ padding: '4px' }}>Column Name</th>
                                   <th style={{ padding: '4px' }}>Type</th>
+                                  <th style={{ padding: '4px', textAlign: 'center' }}>PII</th>
                                 </tr>
                               </thead>
                               <SortableContext items={orderedColumns.map(c => c.id)} strategy={verticalListSortingStrategy}>
@@ -860,6 +895,7 @@ const TargetRulesModal = ({ isOpen, onClose, onSave, initialConfig = {}, project
                                       index={idx}
                                       selectedRows={selectedRows}
                                       onToggleSelect={toggleRowSelect}
+                                      onTogglePii={handleTogglePii}
                                     />
                                   ))}
                                 </tbody>
@@ -876,8 +912,8 @@ const TargetRulesModal = ({ isOpen, onClose, onSave, initialConfig = {}, project
                   </div>
                   
                   <div className="vm-schema-note" style={{ marginTop: '12px' }}>
-                    <strong>Note:</strong> Only columns in the Output panel will be written to the target file. 
-                    Column properties (data type, PII, DQ rules) are set in upstream Expression nodes.
+                    <strong>Note:</strong> Only columns in the Output panel will be written to the target file.
+                    Use the <strong>PII</strong> checkbox to mark columns containing personal information. Data type and DQ rules are set in upstream Expression nodes.
                   </div>
                 </>
               ) : (
