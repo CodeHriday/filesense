@@ -442,7 +442,7 @@ function GroupManagement() {
                 <div className="gps-form-group">
                   <label className="gps-form-label">Add Members</label>
                   <div style={{ display: 'flex', gap: '16px', marginBottom: '6px' }}>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '14px', cursor: 'pointer' }}>
+                    <label className="gps-checkbox-label">
                       <input
                         type="checkbox"
                         checked={showInternal}
@@ -450,7 +450,7 @@ function GroupManagement() {
                       />
                       Internal Users
                     </label>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '14px', cursor: 'pointer' }}>
+                    <label className="gps-checkbox-label">
                       <input
                         type="checkbox"
                         checked={showExternal}
@@ -472,7 +472,7 @@ function GroupManagement() {
                   >
                     {availableUsers
                       .filter(user => {
-                        const isInternal = user.internal_user === true;
+                        const isInternal = user.internal_user !== false;
                         return (showInternal && isInternal) || (showExternal && !isInternal);
                       })
                       .map(user => (
