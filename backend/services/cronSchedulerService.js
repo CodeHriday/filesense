@@ -3,7 +3,8 @@ const { systemLogger } = require('../utils/logger');
 const { executeTransformationJob } = require('./jobExecutionEngine');
 const { executeMappingGroup } = require('./mappingGroupExecutionEngine');
 const { executeNStepWorkflow } = require('./nStepWorkflowExecutionEngine');
-const { VisualWorkflowExecutor } = require('./visualWorkflowExecutor');
+// NOTE: VisualWorkflowExecutor is loaded lazily inside processDueSchedules() to avoid
+// loading it before the DI container and database pool are initialized (same pattern as BulkProfilingService).
 const parser = require('cron-parser');
 const alertAggregationWorker = require('./AlertAggregationWorker');
 
@@ -358,8 +359,11 @@ async function deleteSchedule(scheduleId) {
  */
 async function processDueSchedules() {
   try {
-    // Load BulkProfilingService here to avoid circular dependency
+    // Load BulkProfilingService here to avoid loading before DI container is initialized
     const bulkProfilingService = require('./BulkProfilingService');
+    // Load VisualWorkflowExecutor here (not at top level) to avoid loading before the
+    // DI container and database pool are initialized — same reason as BulkProfilingService.
+    const { VisualWorkflowExecutor } = require('./visualWorkflowExecutor');
     
     const now = new Date();
     
