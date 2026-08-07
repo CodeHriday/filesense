@@ -1747,27 +1747,51 @@ async function getNodeDetails(nodeId, nodeType, projectId) {
         }
 
         // VM fallback: the transformation_mappings row was deleted after
-        // execution, so look up the VM definition by matching the '[VM] <name>'
-        // pattern recorded in file_audit_details to find the visual_mapping_def,
-        // then pull the most recent completed execution for stats.
+        // execution, so find the VM definition by inspecting graph_data directly.
+        // file_audit_details does not reliably carry target-role VM records, so
+        // we query visual_mapping_defs.graph_data (JSONB) instead.
+        //
+        // Three filename variants are checked so this works regardless of whether
+        // config.fileName is stored with or without a file extension:
+        //   1. Exact match  (config.fileName === targetFileName)
+        //   2. Base + format match  (config.fileName + '.' + config.fileFormat === targetFileName)
+        //   3. Stripped match  (config.fileName === targetFileName without extension)
         try {
+          const baseNameOnly = targetFileName.replace(/\.[^.]+$/, '');
           const vmForTargetResult = await pool.query(`
-            SELECT DISTINCT
+            SELECT
               vmd.id            AS vm_id,
               vmd.name          AS vm_name,
               vmd.project_id,
               vmd.last_executed_at,
               vmd.execution_count
-            FROM file_audit_details fad
-            JOIN visual_mapping_defs vmd
-              ON vmd.name = REPLACE(fad.mapping_name, '[VM] ', '')
-             AND vmd.is_active = true
-            WHERE fad.file_role = 'target'
-              AND fad.mapping_name LIKE '[VM] %'
-              AND (fad.file_name = $1 OR fad.file_name LIKE $2)
-              AND ($3::integer IS NULL OR vmd.project_id = $3)
+            FROM visual_mapping_defs vmd
+            WHERE vmd.is_active = true
+              AND ($2::integer IS NULL OR vmd.project_id = $2)
+              AND EXISTS (
+                SELECT 1
+                FROM jsonb_array_elements(vmd.graph_data->'nodes') AS n
+                WHERE n->>'type' = 'targetRules'
+                  AND (
+                    -- 1. Exact filename match
+                    COALESCE(n->'data'->'config'->>'fileName',
+                             n->'config'->>'fileName') = $1
+                    OR
+                    -- 2. Base name + format match (config stores name without extension)
+                    COALESCE(n->'data'->'config'->>'fileName',
+                             n->'config'->>'fileName')
+                      || '.'
+                      || COALESCE(n->'data'->'config'->>'fileFormat',
+                                  n->'config'->>'fileFormat', '')
+                      = $1
+                    OR
+                    -- 3. Extension-stripped match (config stores name with extension)
+                    COALESCE(n->'data'->'config'->>'fileName',
+                             n->'config'->>'fileName') = $3
+                  )
+              )
             LIMIT 1
-          `, [targetFileName, `%/${targetFileName}`, projectId]);
+          `, [targetFileName, projectId, baseNameOnly]);
 
           if (vmForTargetResult.rows.length > 0) {
             const vm = vmForTargetResult.rows[0];
