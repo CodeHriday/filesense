@@ -528,3 +528,273 @@ describe('buildLineageGraph — VM mapping stats via file traversal', () => {
     });
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// getNodeDetails — VM transformation: field_mappings from expression nodes
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('getNodeDetails — VM transformation node returns field_mappings from expression nodes', () => {
+  const VM_ID = 13;
+  const nodeId = `mapping-vm-${VM_ID}-synthetic`;
+
+  /** VM def row returned by the combined visual_mapping_defs + LATERAL JOIN query. */
+  const VM_TRANSFORM_ROW = {
+    vm_id:            VM_ID,
+    vm_name:          'gmap_vendor1_fileload',
+    project_id:       PROJECT_ID,
+    last_executed_at: '2026-08-07T10:00:00Z',
+    execution_count:  10,
+    completed_at:     '2026-08-07T10:00:00Z',
+    rows_processed:   4,
+    rows_read:        4,
+    rows_written:     4,
+    graph_data: {
+      nodes: [
+        {
+          type: 'sourceConfig',
+          data: { config: { filePattern: '*.csv' } }
+        },
+        {
+          type: 'targetRules',
+          data: { config: { fileName: 'enrollment-tgt', fileFormat: 'csv' } }
+        },
+        {
+          type: 'expression',
+          data: {
+            config: {
+              // Modal stores container as camelCase 'fieldMappings'; entries use
+              // snake_case keys; operation stored as 'transformation' (not transformation_type).
+              fieldMappings: [
+                {
+                  source_field: 'Country_code',
+                  target_field: 'Country',
+                  transformation: 'none',
+                  transformation_params: {},
+                  data_type: 'STRING',
+                  include: true
+                },
+                {
+                  source_field: 'Value',
+                  target_field: 'Country_name',
+                  transformation: 'none',
+                  transformation_params: {},
+                  data_type: 'STRING',
+                  include: true
+                },
+                {
+                  source_field: 'Patient_ID',
+                  target_field: 'Patient_ID',
+                  transformation: 'UPPER',
+                  transformation_params: {},
+                  data_type: 'STRING',
+                  include: true
+                },
+                // Excluded entry — must be skipped
+                {
+                  source_field: 'internal_col',
+                  target_field: 'internal_col',
+                  transformation: 'none',
+                  transformation_params: {},
+                  data_type: 'STRING',
+                  include: false
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  };
+
+  beforeEach(() => {
+    mockQuery.mockImplementation(
+      mockQueryRouter([
+        // The transformation detail query is a single SQL with LATERAL JOIN;
+        // it matches 'FROM visual_mapping_defs vmd'.
+        ['FROM visual_mapping_defs vmd', { rows: [VM_TRANSFORM_ROW] }]
+      ])
+    );
+  });
+
+  test('returns a field_mappings array with only included entries', async () => {
+    const details = await getNodeDetails(nodeId, 'transformation', PROJECT_ID);
+    expect(details).not.toBeNull();
+    expect(Array.isArray(details.field_mappings)).toBe(true);
+    // 3 included entries (the include:false one is skipped)
+    expect(details.field_mappings).toHaveLength(3);
+  });
+
+  test('direct mappings (transformation: "none") become transformation_type "direct"', async () => {
+    const details = await getNodeDetails(nodeId, 'transformation', PROJECT_ID);
+    const directMappings = details.field_mappings.filter(
+      fm => fm.transformation_type === 'direct'
+    );
+    expect(directMappings).toHaveLength(2);
+
+    const countryMapping = directMappings.find(fm => fm.source_field === 'Country_code');
+    expect(countryMapping).toBeDefined();
+    expect(countryMapping.target_field).toBe('Country');
+
+    const valueMapping = directMappings.find(fm => fm.source_field === 'Value');
+    expect(valueMapping).toBeDefined();
+    expect(valueMapping.target_field).toBe('Country_name');
+  });
+
+  test('derived mappings carry the real transformation_type and source_fields array', async () => {
+    const details = await getNodeDetails(nodeId, 'transformation', PROJECT_ID);
+    const derivedMappings = details.field_mappings.filter(
+      fm => fm.transformation_type !== 'direct' && fm.transformation_type !== 'rename'
+    );
+    expect(derivedMappings).toHaveLength(1);
+
+    const upperMapping = derivedMappings[0];
+    expect(upperMapping.transformation_type).toBe('UPPER');
+    expect(upperMapping.source_field).toBe('Patient_ID');
+    expect(upperMapping.target_field).toBe('Patient_ID');
+    expect(Array.isArray(upperMapping.source_fields)).toBe(true);
+    expect(upperMapping.source_fields).toContain('Patient_ID');
+    expect(typeof upperMapping.expression).toBe('string');
+    expect(upperMapping.expression).toContain('UPPER');
+  });
+
+  test('returns is_visual_mapping flag and active status', async () => {
+    const details = await getNodeDetails(nodeId, 'transformation', PROJECT_ID);
+    expect(details.is_visual_mapping).toBe(true);
+    expect(details.status).toBe('active');
+  });
+
+  test('returns empty field_mappings when graph_data has no expression nodes', async () => {
+    const vmNoExpression = {
+      ...VM_TRANSFORM_ROW,
+      graph_data: {
+        nodes: [
+          { type: 'sourceConfig', data: { config: { filePattern: '*.csv' } } },
+          { type: 'targetRules',  data: { config: { fileName: 'out', fileFormat: 'csv' } } }
+        ]
+      }
+    };
+    mockQuery.mockImplementation(
+      mockQueryRouter([['FROM visual_mapping_defs vmd', { rows: [vmNoExpression] }]])
+    );
+
+    const details = await getNodeDetails(nodeId, 'transformation', PROJECT_ID);
+    expect(details).not.toBeNull();
+    expect(details.field_mappings).toEqual([]);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// getNodeDetails — VM targetFile: governance tags from column_governance_tag_assignments
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('getNodeDetails — VM targetFile enriches columns with governance tags', () => {
+  const TARGET_FILENAME = 'genmab-vend1-enrollment-tgt.csv';
+  const FILE_STRING_ID  = 'output-file-storage-uuid-xyz';
+
+  /** Row returned by the VM JSONB lookup (targetFile path, no graph_data needed here). */
+  const VM_TARGET_ROW = {
+    vm_id:            13,
+    vm_name:          'gmap_vendor1_fileload',
+    project_id:       PROJECT_ID,
+    last_executed_at: '2026-08-07T10:00:00Z',
+    execution_count:  10,
+    // orderedColumns is serialised by pg as a JS array from JSONB
+    ordered_columns: ['Country_name', 'Patient_ID', 'Country_code', 'Gender']
+  };
+
+  /** Only Patient_ID is PII in this scenario. */
+  const PII_TAG_ROWS = [
+    { column_name: 'Patient_ID', governance_tags: ['tag_pii'] }
+  ];
+
+  const FILE_LOOKUP_ROW = { file_id: FILE_STRING_ID };
+
+  beforeEach(() => {
+    mockQuery.mockImplementation(
+      mockQueryRouter([
+        // 1. VM JSONB lookup — matches the EXISTS subquery SQL fragment
+        ['visual_mapping_defs vmd', { rows: [VM_TARGET_ROW] }],
+        // 2. Execution stats
+        ['visual_mapping_executions vme', { rows: [EXEC_ROW] }],
+        // 3. File record lookup (new governance tag enrichment step)
+        ['FROM files f', { rows: [FILE_LOOKUP_ROW] }],
+        // 4. Tag assignments per column
+        ['column_governance_tag_assignments', { rows: PII_TAG_ROWS }]
+      ])
+    );
+  });
+
+  test('Patient_ID column has tag_pii in governance_tags', async () => {
+    const details = await getNodeDetails(
+      `target-file-${TARGET_FILENAME}`,
+      'targetFile',
+      PROJECT_ID
+    );
+
+    expect(details).not.toBeNull();
+    const patientCol = details.columns.find(c => c.column_name === 'Patient_ID');
+    expect(patientCol).toBeDefined();
+    expect(patientCol.governance_tags).toContain('tag_pii');
+  });
+
+  test('columns without tag assignments have empty governance_tags array', async () => {
+    const details = await getNodeDetails(
+      `target-file-${TARGET_FILENAME}`,
+      'targetFile',
+      PROJECT_ID
+    );
+
+    const countryCol = details.columns.find(c => c.column_name === 'Country_name');
+    expect(countryCol).toBeDefined();
+    expect(countryCol.governance_tags).toEqual([]);
+  });
+
+  test('all ordered columns are still present after tag enrichment', async () => {
+    const details = await getNodeDetails(
+      `target-file-${TARGET_FILENAME}`,
+      'targetFile',
+      PROJECT_ID
+    );
+
+    expect(details.columns).toHaveLength(4);
+    const names = details.columns.map(c => c.column_name);
+    expect(names).toContain('Country_name');
+    expect(names).toContain('Patient_ID');
+    expect(names).toContain('Country_code');
+    expect(names).toContain('Gender');
+  });
+
+  test('governance_tags defaults to empty array when no matching file record exists', async () => {
+    // File lookup returns nothing — enrichment is skipped gracefully.
+    mockQuery.mockImplementation(
+      mockQueryRouter([
+        ['visual_mapping_defs vmd', { rows: [VM_TARGET_ROW] }],
+        ['visual_mapping_executions vme', { rows: [EXEC_ROW] }],
+        ['FROM files f', { rows: [] }],
+        ['column_governance_tag_assignments', { rows: PII_TAG_ROWS }]
+      ])
+    );
+
+    const details = await getNodeDetails(
+      `target-file-${TARGET_FILENAME}`,
+      'targetFile',
+      PROJECT_ID
+    );
+
+    for (const col of details.columns) {
+      expect(Array.isArray(col.governance_tags)).toBe(true);
+      expect(col.governance_tags).toEqual([]);
+    }
+  });
+
+  test('is_visual_mapping and is_synthetic flags remain set after enrichment', async () => {
+    const details = await getNodeDetails(
+      `target-file-${TARGET_FILENAME}`,
+      'targetFile',
+      PROJECT_ID
+    );
+
+    expect(details.is_visual_mapping).toBe(true);
+    expect(details.is_synthetic).toBe(true);
+  });
+});

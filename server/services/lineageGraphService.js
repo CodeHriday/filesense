@@ -1583,6 +1583,7 @@ async function getNodeDetails(nodeId, nodeType, projectId) {
                 vmd.project_id,
                 vmd.last_executed_at,
                 vmd.execution_count,
+                vmd.graph_data,
                 vme.completed_at,
                 vme.rows_processed,
                 tj.rows_read,
@@ -1603,6 +1604,63 @@ async function getNodeDetails(nodeId, nodeType, projectId) {
 
             if (vmDetailResult.rows.length === 0) return null;
             const vm = vmDetailResult.rows[0];
+
+            // Extract field mappings from expression nodes in graph_data so
+            // the drawer can display source → target column pairs.
+            //
+            // Expression node config stores entries under 'fieldMappings' (camelCase
+            // container) with snake_case entry keys. The transformation operation is
+            // stored as 'transformation' (e.g. 'none', 'UPPER', 'LOWER', 'TRIM', etc.).
+            // The drawer distinguishes regular (direct/rename) from derived (everything
+            // else), so 'none' is normalised to 'direct'.
+            let vmFieldMappings = [];
+            try {
+              const graphNodes = vm.graph_data?.nodes || [];
+              for (const gNode of graphNodes) {
+                if (gNode.type === 'expression') {
+                  const config = gNode.data?.config || gNode.config || {};
+                  // The modal saves entries under camelCase 'fieldMappings'; fall
+                  // back to snake_case 'field_mappings' for forward-compatibility.
+                  const fms = config.fieldMappings || config.field_mappings || [];
+                  if (Array.isArray(fms)) {
+                    for (const fm of fms) {
+                      if (fm.include === false) continue; // excluded by user
+
+                      const sourceField = fm.source_field || fm.sourceField || '';
+                      const targetField = fm.target_field || fm.targetField || '';
+                      // 'transformation' is the modal's operation key; fall back to
+                      // transformation_type / transformationType for compatibility.
+                      const rawOp = fm.transformation || fm.transformation_type || fm.transformationType || 'none';
+                      const transformationType = rawOp === 'none' ? 'direct' : rawOp;
+
+                      const entry = {
+                        source_field: sourceField,
+                        target_field: targetField,
+                        transformation_type: transformationType,
+                        data_type: fm.data_type || fm.dataType || 'string'
+                      };
+
+                      // Derived (non-direct) mappings: populate source_fields and
+                      // expression so the drawer can render them in the Derived
+                      // Columns section with meaningful context.
+                      if (transformationType !== 'direct' && transformationType !== 'rename') {
+                        entry.source_fields = sourceField ? [sourceField] : [];
+                        const params = fm.transformation_params || {};
+                        const paramValues = Object.entries(params)
+                          .filter(([, v]) => v !== null && v !== undefined && v !== '')
+                          .map(([, v]) => v);
+                        entry.expression = paramValues.length > 0
+                          ? `${transformationType}(${sourceField}, ${paramValues.join(', ')})`
+                          : `${transformationType}(${sourceField})`;
+                      }
+
+                      vmFieldMappings.push(entry);
+                    }
+                  }
+                }
+              }
+            } catch (_fmErr) { /* non-fatal — field mappings are informational */ }
+
             return {
               id: vm.vm_id,
               mapping_id: mappingId,
@@ -1613,7 +1671,8 @@ async function getNodeDetails(nodeId, nodeType, projectId) {
               last_executed_at: vm.completed_at || vm.last_executed_at,
               rows_read: vm.rows_read ?? null,
               rows_written: vm.rows_written ?? vm.rows_processed ?? null,
-              status: 'active'
+              status: 'active',
+              field_mappings: vmFieldMappings
             };
           }
         }
@@ -1843,8 +1902,6 @@ async function getNodeDetails(nodeId, nodeType, projectId) {
             // Build columns array from orderedColumns config.
             // orderedColumns is a JSON array of column name strings; column types
             // are not stored in graph_data, so we default to 'string'.
-            // Governance/PII tags require resolving the actual output file_id and
-            // are deferred — governance_tags is returned as an empty array.
             let columns = [];
             try {
               const rawCols = vm.ordered_columns;
@@ -1857,6 +1914,49 @@ async function getNodeDetails(nodeId, nodeType, projectId) {
                 }));
               }
             } catch (_colErr) { /* non-fatal — columns are informational */ }
+
+            // Enrich columns with real governance tags written by the VM execution.
+            // Look up the output file in the files table by filename + project, then
+            // join column_governance_tag_assignments to get tags per column name.
+            if (columns.length > 0) {
+              try {
+                // The target filename may be stored with or without a path prefix.
+                const fileRecordResult = await pool.query(`
+                  SELECT f.file_id
+                  FROM files f
+                  WHERE ($1::integer IS NULL OR f.project_id = $1)
+                    AND (f.filename = $2 OR f.filename LIKE '%/' || $2)
+                  ORDER BY f.created_at DESC
+                  LIMIT 1
+                `, [vm.project_id, targetFileName]);
+
+                if (fileRecordResult.rows.length > 0) {
+                  const fileStringId = fileRecordResult.rows[0].file_id;
+                  const tagsResult = await pool.query(`
+                    SELECT cta.column_name,
+                           array_agg(DISTINCT cta.tag_id) AS governance_tags
+                    FROM column_governance_tag_assignments cta
+                    WHERE cta.file_id = $1
+                    GROUP BY cta.column_name
+                  `, [fileStringId]);
+
+                  if (tagsResult.rows.length > 0) {
+                    const tagsByColumn = new Map(
+                      tagsResult.rows.map(r => [r.column_name, r.governance_tags])
+                    );
+                    columns = columns.map(col => ({
+                      ...col,
+                      governance_tags: tagsByColumn.get(col.column_name) || []
+                    }));
+                  }
+                }
+              } catch (_tagErr) {
+                systemLogger.warn('VM target file governance tag lookup failed', {
+                  targetFileName,
+                  error: _tagErr.message
+                });
+              }
+            }
 
             const exec = vmExecForTargetResult.rows[0] || null;
             return {
