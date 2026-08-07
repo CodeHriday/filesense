@@ -63,12 +63,6 @@ AnnouncementRegion.propTypes = {
   clearDelay: PropTypes.number
 };
 
-AnnouncementRegion.defaultProps = {
-  message: '',
-  politeness: 'polite',
-  clearDelay: 5000
-};
-
 /**
  * Announcement context for providing a way to make announcements throughout the app
  */

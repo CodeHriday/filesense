@@ -24,6 +24,8 @@ const GroupedNode = ({ data }) => {
         return '#0D9488';
       case 'workflow':
         return '#7C3AED';
+      case 'derivedColumn':
+        return '#8B5CF6';
       default:
         return '#6B7280';
     }
@@ -45,6 +47,8 @@ const GroupedNode = ({ data }) => {
         return 'Target Files';
       case 'workflow':
         return 'Workflows';
+      case 'derivedColumn':
+        return 'Derived Columns';
       default:
         return 'Nodes';
     }
@@ -95,7 +99,8 @@ GroupedNode.propTypes = {
       'vendorContract',
       'targetTable',
       'targetFile',
-      'workflow'
+      'workflow',
+      'derivedColumn'
     ]).isRequired,
 
     count: PropTypes.number.isRequired,
