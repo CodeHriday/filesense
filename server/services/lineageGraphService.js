@@ -801,7 +801,13 @@ async function traverseFromJob(jobId, projectId, nodes, edges, visited, depth, f
     WHERE tj.job_id = $1
   `, [jobId]);
   
-  if (jobResult.rows.length === 0) return;
+  if (jobResult.rows.length === 0) {
+    // Not in transformation_jobs — check if this is a visual mapping execution ID.
+    // Visual mapping executions are stored in visual_mapping_executions, not
+    // transformation_jobs, so the standard lookup above finds nothing for them.
+    await traverseFromVmJobExecution(jobId, projectId, nodes, edges, visited, depth, filters, nodeId);
+    return;
+  }
   
   const job = jobResult.rows[0];
   
@@ -907,6 +913,211 @@ async function traverseFromJob(jobId, projectId, nodes, edges, visited, depth, f
       target: targetNodeId,
       relationship: 'OUTPUT_TO',
       label: 'outputs to'
+    });
+  }
+}
+
+/**
+ * Fallback handler for traverseFromJob when the jobId is a visual_mapping_executions.id
+ * rather than a transformation_jobs.job_id.
+ *
+ * Visual mapping executions delete their transformation_mappings row after execution, so
+ * they cannot be looked up via transformation_jobs.  Instead we query
+ * visual_mapping_executions joined to visual_mapping_defs to reconstruct the same
+ * transformation node shape produced by the file-traversal VM fallback, with execution
+ * stats (rowsRead / rowsWritten / lastRun) populated from the execution record.
+ *
+ * @param {string|number} vmExecId - visual_mapping_executions.id
+ * @param {number}        projectId
+ * @param {Array}         nodes
+ * @param {Array}         edges
+ * @param {Set}           visited
+ * @param {number}        depth
+ * @param {Object}        filters
+ * @param {string}        jobNodeId - the `job-{vmExecId}` node id already reserved by the caller
+ */
+async function traverseFromVmJobExecution(vmExecId, projectId, nodes, edges, visited, depth, filters, jobNodeId) {
+  try {
+    const vmExecResult = await pool.query(`
+      SELECT
+        vme.id            AS exec_id,
+        vme.mapping_id    AS vm_id,
+        vme.status,
+        vme.completed_at,
+        vme.rows_processed,
+        vme.transformation_job_id,
+        vmd.name          AS vm_name,
+        vmd.graph_data,
+        vmd.project_id,
+        vmd.last_executed_at,
+        vmd.execution_count,
+        tj.rows_read,
+        tj.rows_written
+      FROM visual_mapping_executions vme
+      JOIN visual_mapping_defs vmd ON vmd.id = vme.mapping_id
+      LEFT JOIN transformation_jobs tj ON tj.job_id = vme.transformation_job_id
+      WHERE vme.id = $1
+        AND ($2::integer IS NULL OR vmd.project_id = $2)
+    `, [vmExecId, projectId]);
+
+    if (vmExecResult.rows.length === 0) {
+      systemLogger.info('traverseFromJob: no transformation_job or VM execution found', { jobId: vmExecId });
+      return;
+    }
+
+    const vmExec = vmExecResult.rows[0];
+
+    const vmRowsRead    = vmExec.rows_read    ?? null;
+    const vmRowsWritten = vmExec.rows_written ?? vmExec.rows_processed ?? null;
+    const vmLastRun     = vmExec.completed_at ?? vmExec.last_executed_at ?? null;
+
+    // Build a stable mapping_id and node id consistent with the file-traversal VM path
+    // so deduplication and findWorkflowsForMappings work correctly for mixed graphs.
+    const vmMappingId = `vm-${vmExec.vm_id}-synthetic`;
+    const vmNodeId    = `mapping-${vmMappingId}`;
+
+    systemLogger.info('traverseFromJob: found VM execution', {
+      execId: vmExec.exec_id,
+      vmId: vmExec.vm_id,
+      vmName: vmExec.vm_name,
+      vmRowsRead,
+      vmRowsWritten,
+      vmLastRun
+    });
+
+    // Parse graph_data for source pattern and target file info
+    const graphNodes      = vmExec.graph_data?.nodes || [];
+    const sourceConfigNode = graphNodes.find(n => n.type === 'sourceConfig');
+    const targetRulesNode  = graphNodes.find(n => n.type === 'targetRules');
+
+    const sourcePattern  = sourceConfigNode?.data?.config?.filePattern
+                        || sourceConfigNode?.config?.filePattern
+                        || '*';
+    const targetFileName = targetRulesNode?.data?.config?.fileName
+                        || targetRulesNode?.config?.fileName
+                        || null;
+    const targetFileFormat = targetRulesNode?.data?.config?.fileFormat
+                          || targetRulesNode?.config?.fileFormat
+                          || 'csv';
+
+    if (!visited.has(vmNodeId)) {
+      visited.add(vmNodeId);
+
+      nodes.push({
+        id: vmNodeId,
+        type: 'transformation',
+        label: `[VM] ${vmExec.vm_name}`,
+        metadata: {
+          id: null,                          // no transformation_mappings row
+          mappingId: vmMappingId,
+          mappingName: `[VM] ${vmExec.vm_name}`,
+          description: null,
+          sourcePattern,
+          targetTable: null,
+          status: 'active',
+          projectId: vmExec.project_id,
+          fieldMappingsCount: 0,
+          derivedColumnsCount: 0,
+          lastExecutedAt: vmLastRun,
+          executionCount: vmExec.execution_count,
+          rowsRead: vmRowsRead,
+          rowsWritten: vmRowsWritten,
+          isVisualMapping: true,
+          visualMappingId: vmExec.vm_id,
+          visualMappingName: vmExec.vm_name
+        }
+      });
+    }
+
+    // Edge: the reserved job node → transformation node (makes the execution root visible)
+    // The jobNodeId (`job-{vmExecId}`) was already added to visited by traverseFromJob;
+    // we re-use it as a proxy execution node pointing at the transformation node.
+    nodes.push({
+      id: jobNodeId,
+      type: 'job',
+      label: `VM Execution ${vmExec.exec_id}`,
+      metadata: {
+        id: vmExec.exec_id,
+        jobId: vmExec.exec_id,
+        mappingId: vmMappingId,
+        mappingName: `[VM] ${vmExec.vm_name}`,
+        status: vmExec.status,
+        startTime: null,
+        endTime: vmExec.completed_at,
+        rowsRead: vmRowsRead,
+        rowsWritten: vmRowsWritten,
+        isVisualMappingExecution: true,
+        visualMappingId: vmExec.vm_id
+      }
+    });
+
+    edges.push({
+      id: `${jobNodeId}-to-${vmNodeId}`,
+      source: jobNodeId,
+      target: vmNodeId,
+      relationship: 'EXECUTED_BY',
+      label: 'executed by'
+    });
+
+    // Add target file node when we know it from the VM definition
+    if (targetFileName) {
+      const targetNodeId = `target-file-${targetFileName}`;
+
+      if (!visited.has(targetNodeId)) {
+        visited.add(targetNodeId);
+
+        let resolvedFileId = null;
+        try {
+          const nameWithFormat = `${targetFileName}.${targetFileFormat}`;
+          const existingFileResult = await pool.query(`
+            SELECT file_id FROM files
+            WHERE file_role = 'target'
+              AND ($1::integer IS NULL OR project_id = $1)
+              AND (filename = $2 OR filename = $3)
+            ORDER BY created_at DESC
+            LIMIT 1
+          `, [vmExec.project_id, nameWithFormat, targetFileName]);
+          if (existingFileResult.rows.length > 0) {
+            resolvedFileId = existingFileResult.rows[0].file_id;
+          }
+        } catch (_) { /* non-fatal */ }
+
+        nodes.push({
+          id: targetNodeId,
+          type: 'targetFile',
+          label: `${targetFileName}.${targetFileFormat}`,
+          metadata: {
+            fileName: targetFileName,
+            fileFormat: targetFileFormat,
+            file_id: resolvedFileId,
+            mappingId: vmMappingId,
+            mappingName: `[VM] ${vmExec.vm_name}`,
+            projectId: vmExec.project_id,
+            lastRun: vmLastRun,
+            rowsWritten: vmRowsWritten,
+            rowsRead: vmRowsRead,
+            containsPii: false,
+            dataClassification: null,
+            piiColumns: []
+          }
+        });
+      }
+
+      const targetEdgeId = `${vmNodeId}-to-${targetNodeId}`;
+      if (!edges.some(e => e.id === targetEdgeId)) {
+        edges.push({
+          id: targetEdgeId,
+          source: vmNodeId,
+          target: targetNodeId,
+          relationship: 'OUTPUTS_TO',
+          label: 'outputs to'
+        });
+      }
+    }
+  } catch (vmJobErr) {
+    systemLogger.warn('traverseFromJob: VM execution fallback failed', {
+      vmExecId,
+      error: vmJobErr.message
     });
   }
 }
