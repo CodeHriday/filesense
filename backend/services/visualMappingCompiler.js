@@ -610,22 +610,35 @@ class VisualMappingCompiler {
               // Extract source/target columns from visual mapping format
               let sourceColumn = config.sourceColumn;
               let targetColumn = config.targetColumn || config.outputColumn;
-              
+              const columnMappings = config.columnMappings || [];
+
+              // The modal saves column_mappings but not a top-level targetColumn.
+              // Fall back to the first column mapping so target_column is never
+              // undefined in the processor (undefined keys coerce to the string
+              // "undefined", creating a spurious column in the output).
+              if (!targetColumn && columnMappings.length > 0) {
+                const first = columnMappings[0];
+                targetColumn = first.targetColumn || first.target || first.name;
+              }
+
               // Build rdmCrosswalkConfig from node config
               // Initialize array if not exists (supports multiple crosswalk lookups)
               if (!result.rdmCrosswalkConfigs) {
                 result.rdmCrosswalkConfigs = [];
               }
-              
+
               result.rdmCrosswalkConfigs.push({
                 crosswalk_id: config.crosswalkId,
                 crosswalk_name: config.crosswalkName,
                 source_column: sourceColumn,
                 target_column: targetColumn,
                 no_match_behavior: config.noMatchBehavior || 'keep_source',
-                default_value: config.defaultValue || null
+                default_value: config.defaultValue || null,
+                // Pass column_mappings through so the processor can use field-level
+                // mappings for value extraction instead of hardcoded field name heuristics.
+                column_mappings: columnMappings
               });
-              
+
               // For backward compatibility, also set rdmCrosswalkConfig to first one
               if (!result.rdmCrosswalkConfig) {
                 result.rdmCrosswalkConfig = result.rdmCrosswalkConfigs[0];

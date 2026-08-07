@@ -332,12 +332,24 @@ const RdmLookupModal = ({ isOpen, onClose, onSave, initialConfig = {}, cumulativ
         outputSchemaLength: combinedSchema.length
       });
       
+      // Derive a top-level targetColumn from the first column mapping so the
+      // compiler and processor have it without needing to inspect columnMappings.
+      // This prevents target_column being undefined in the processor, which would
+      // otherwise produce a spurious "undefined" column in the output file.
+      const firstMapping = (crosswalkConfig.column_mappings || [])[0];
+      const derivedTargetColumn =
+        crosswalkConfig.targetColumn ||
+        firstMapping?.targetColumn ||
+        firstMapping?.target ||
+        '';
+
       config = {
         ...config,
         crosswalkId: crosswalkConfig.crosswalkId,
         crosswalkName: selectedCrosswalk?.name || '',
         sourceColumn: crosswalkConfig.source_column || '',
         crosswalkSourceField: crosswalkConfig.crosswalk_source_field || '',
+        targetColumn: derivedTargetColumn,
         noMatchBehavior: crosswalkConfig.no_match_behavior || 'keep_source',
         defaultValue: crosswalkConfig.default_value || '',
         columnMappings: crosswalkConfig.column_mappings || [],
