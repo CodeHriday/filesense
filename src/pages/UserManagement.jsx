@@ -13,6 +13,24 @@ import { getAllUsers, getRoles, createUser, updateUser, deleteUser } from '../ap
 import axios from 'axios';
 import '../styles/UserManagement.css';
 
+// Safely extract a displayable string from an Axios error response.
+// The backend sometimes returns { error: { message, code, timestamp, details } }
+// (structured object) rather than a plain string, which crashes React if
+// rendered directly as a child.
+function extractApiErrorMessage(error, fallback = 'An error occurred') {
+  const data = error?.response?.data;
+  if (!data) return error?.message || fallback;
+  // Prefer top-level message string
+  if (data.message && typeof data.message === 'string') return data.message;
+  // Prefer top-level error string
+  if (data.error && typeof data.error === 'string') return data.error;
+  // Nested error object (e.g. { error: { message, code, ... } })
+  if (data.error?.message && typeof data.error.message === 'string') return data.error.message;
+  // Any other nested message
+  if (data.message?.message && typeof data.message.message === 'string') return data.message.message;
+  return error?.message || fallback;
+}
+
 const UserManagement = () => {
   const [users, setUsers] = useState([]);
   const [roles, setRoles] = useState([]);
@@ -191,7 +209,7 @@ const UserManagement = () => {
       setActionNotes('');
     } catch (error) {
       console.error('Error approving reset:', error);
-      setError(error.response?.data?.error || 'Failed to approve password reset');
+      setError(extractApiErrorMessage(error, 'Failed to approve password reset'));
       setResetConfirmModalOpen(false);
     }
   };
@@ -208,7 +226,7 @@ const UserManagement = () => {
       setActionNotes('');
     } catch (error) {
       console.error('Error denying reset:', error);
-      setError(error.response?.data?.error || 'Failed to deny password reset');
+      setError(extractApiErrorMessage(error, 'Failed to deny password reset'));
       setResetConfirmModalOpen(false);
     }
   };
@@ -221,7 +239,7 @@ const UserManagement = () => {
       fetchData();
     } catch (error) {
       console.error('Error unlocking user:', error);
-      setError(error.response?.data?.error || 'Failed to unlock user account');
+      setError(extractApiErrorMessage(error, 'Failed to unlock user account'));
     }
   };
   
@@ -575,19 +593,7 @@ const UserManagement = () => {
     } catch (error) {
       console.error('Error deleting user:', error);
       
-      // Extract error message properly
-      let errorMessage = 'Failed to delete user';
-      if (error.response?.data) {
-        if (error.response.data.message) {
-          errorMessage = error.response.data.message;
-        } else if (error.response.data.error) {
-          errorMessage = error.response.data.error;
-        }
-      } else if (error.message) {
-        errorMessage = error.message;
-      }
-      
-      setError(errorMessage);
+      setError(extractApiErrorMessage(error, 'Failed to delete user'));
       closeDeleteModal();
     }
   };
@@ -706,18 +712,7 @@ const UserManagement = () => {
     } catch (error) {
       console.error('Error deleting users:', error);
       
-      let errorMessage = 'Failed to delete users';
-      if (error.response?.data) {
-        if (error.response.data.message) {
-          errorMessage = error.response.data.message;
-        } else if (error.response.data.error) {
-          errorMessage = error.response.data.error;
-        }
-      } else if (error.message) {
-        errorMessage = error.message;
-      }
-      
-      setError(errorMessage);
+      setError(extractApiErrorMessage(error, 'Failed to delete users'));
       closeBulkDeleteModal();
     }
   };
@@ -786,7 +781,7 @@ const UserManagement = () => {
           
           {error && (
             <div className="gps-alert gps-alert--error" role="alert">
-              {error}
+              {typeof error === 'string' ? error : (error?.message || 'An error occurred')}
             </div>
           )}
       
