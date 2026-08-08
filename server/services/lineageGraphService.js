@@ -360,6 +360,220 @@ async function traverseFromFile(fileId, projectId, nodes, edges, visited, depth,
       label: 'transformed by'
     });
   }
+
+  // VM fallback: visual mapping jobs delete their transformation_mappings row
+  // immediately after execution, so the query above finds nothing for them.
+  // file_audit_details is written permanently during execution with
+  // mapping_name = '[VM] <mapping_name>' and file_role = 'source', giving us
+  // a durable link from source file → visual_mapping_defs.
+  try {
+    const vmAuditResult = await pool.query(`
+      SELECT DISTINCT
+        vmd.id              AS vm_id,
+        vmd.name            AS vm_name,
+        vmd.graph_data,
+        vmd.project_id,
+        vmd.last_executed_at,
+        vmd.execution_count
+      FROM file_audit_details fad
+      JOIN visual_mapping_defs vmd
+        ON vmd.name = REPLACE(fad.mapping_name, '[VM] ', '')
+       AND vmd.is_active = true
+      WHERE fad.file_role = 'source'
+        AND fad.mapping_name LIKE '[VM] %'
+        AND (
+          fad.file_name = $1
+          OR fad.file_name LIKE $2
+        )
+        AND ($3::integer IS NULL OR vmd.project_id = $3)
+      ORDER BY vmd.id
+    `, [basename, `%/${basename}`, projectId]);
+
+    systemLogger.info('VM fallback: visual mapping audit lookup', {
+      filename: basename,
+      vmCount: vmAuditResult.rows.length,
+      vmNames: vmAuditResult.rows.map(r => r.vm_name)
+    });
+
+    for (const vmDef of vmAuditResult.rows) {
+      // Stable mapping_id: 'vm-{id}-synthetic'
+      // The 'vm-' prefix lets findWorkflowsForMappings extract vm_id via split('-')[1]
+      // and match against visual workflow nodes; '-synthetic' satisfies the
+      // startsWith('vm-{id}-') pattern check used when linking workflow edges.
+      const vmMappingId = `vm-${vmDef.vm_id}-synthetic`;
+      const vmNodeId = `mapping-${vmMappingId}`;
+
+      if (visited.has(vmNodeId)) {
+        // Mapping node already in graph (e.g. another source file at same depth).
+        // Still wire the edge from this file if it is not already there.
+        const dupeEdgeId = `${nodeId}-to-${vmNodeId}`;
+        if (!edges.some(e => e.id === dupeEdgeId)) {
+          edges.push({
+            id: dupeEdgeId,
+            source: nodeId,
+            target: vmNodeId,
+            relationship: 'TRANSFORMED_BY',
+            label: 'transformed by'
+          });
+        }
+        continue;
+      }
+      visited.add(vmNodeId);
+
+      // Parse graph_data to extract source pattern and target file info.
+      // Config lives at node.data.config (confirmed in visualMappingCompiler.js).
+      const graphNodes = vmDef.graph_data?.nodes || [];
+      const sourceConfigNode = graphNodes.find(n => n.type === 'sourceConfig');
+      const targetRulesNode  = graphNodes.find(n => n.type === 'targetRules');
+
+      const sourcePattern  = sourceConfigNode?.data?.config?.filePattern
+                          || sourceConfigNode?.config?.filePattern
+                          || '*';
+      const targetFileName = targetRulesNode?.data?.config?.fileName
+                          || targetRulesNode?.config?.fileName
+                          || null;
+      const targetFileFormat = targetRulesNode?.data?.config?.fileFormat
+                            || targetRulesNode?.config?.fileFormat
+                            || 'csv';
+
+      // Fetch execution stats from the most recent completed VM execution.
+      // visual_mapping_executions.rows_processed is the primary row count;
+      // transformation_jobs (joined via transformation_job_id) carries the
+      // separate rows_read / rows_written breakdown when available.
+      let vmExecStats = null;
+      try {
+        const vmExecResult = await pool.query(`
+          SELECT
+            vme.completed_at,
+            vme.rows_processed,
+            tj.rows_read,
+            tj.rows_written
+          FROM visual_mapping_executions vme
+          LEFT JOIN transformation_jobs tj
+            ON tj.job_id = vme.transformation_job_id
+          WHERE vme.mapping_id = $1
+            AND vme.status = 'completed'
+          ORDER BY vme.completed_at DESC
+          LIMIT 1
+        `, [vmDef.vm_id]);
+        if (vmExecResult.rows.length > 0) {
+          vmExecStats = vmExecResult.rows[0];
+        }
+      } catch (_vmExecErr) { /* non-fatal — stats are optional enrichment */ }
+
+      const vmRowsRead    = vmExecStats?.rows_read    ?? null;
+      const vmRowsWritten = vmExecStats?.rows_written ?? vmExecStats?.rows_processed ?? null;
+      const vmLastRun     = vmExecStats?.completed_at ?? vmDef.last_executed_at ?? null;
+
+      // Add transformation node
+      nodes.push({
+        id: vmNodeId,
+        type: 'transformation',
+        label: `[VM] ${vmDef.vm_name}`,
+        metadata: {
+          id: null,                        // no transformation_mappings row
+          mappingId: vmMappingId,
+          mappingName: `[VM] ${vmDef.vm_name}`,
+          description: null,
+          sourcePattern: sourcePattern,
+          targetTable: null,
+          status: 'active',
+          projectId: vmDef.project_id,
+          fieldMappingsCount: 0,
+          derivedColumnsCount: 0,
+          lastExecutedAt: vmLastRun,
+          executionCount: vmDef.execution_count,
+          rowsRead: vmRowsRead,
+          rowsWritten: vmRowsWritten,
+          isVisualMapping: true,
+          visualMappingId: vmDef.vm_id,
+          visualMappingName: vmDef.vm_name
+        }
+      });
+
+      // Edge: source file → transformation
+      edges.push({
+        id: `${nodeId}-to-${vmNodeId}`,
+        source: nodeId,
+        target: vmNodeId,
+        relationship: 'TRANSFORMED_BY',
+        label: 'transformed by'
+      });
+
+      // Add target file node when we know the filename from targetRules config
+      if (targetFileName) {
+        const targetNodeId = `target-file-${targetFileName}`;
+
+        if (!visited.has(targetNodeId)) {
+          visited.add(targetNodeId);
+
+          // Derive a single canonical display name — extension appended exactly
+          // once regardless of whether config.fileName already includes it.
+          const targetLabel = targetFileName.endsWith(`.${targetFileFormat}`)
+            ? targetFileName
+            : `${targetFileName}.${targetFileFormat}`;
+          // Base name without extension used as a secondary lookup term so the
+          // files table is matched whether it stores 'file.csv' or 'file'.
+          const targetBaseName = targetLabel.slice(0, targetLabel.lastIndexOf('.')) || targetLabel;
+
+          // Attempt to resolve a real file_id so the drawer can navigate to
+          // the target file's profile page.
+          let resolvedFileId = null;
+          try {
+            const existingFileResult = await pool.query(`
+              SELECT file_id FROM files
+              WHERE file_role = 'target'
+                AND ($1::integer IS NULL OR project_id = $1)
+                AND (filename = $2 OR filename = $3)
+              ORDER BY created_at DESC
+              LIMIT 1
+            `, [vmDef.project_id, targetLabel, targetBaseName]);
+            if (existingFileResult.rows.length > 0) {
+              resolvedFileId = existingFileResult.rows[0].file_id;
+            }
+          } catch (_) { /* non-fatal */ }
+
+          nodes.push({
+            id: targetNodeId,
+            type: 'targetFile',
+            label: targetLabel,
+            metadata: {
+              fileName: targetFileName,
+              fileFormat: targetFileFormat,
+              file_id: resolvedFileId,
+              mappingId: vmMappingId,
+              mappingName: `[VM] ${vmDef.vm_name}`,
+              projectId: vmDef.project_id,
+              lastRun: vmLastRun,
+              rowsWritten: vmRowsWritten,
+              rowsRead: vmRowsRead,
+              containsPii: false,
+              dataClassification: null,
+              piiColumns: []
+            }
+          });
+        }
+
+        // Edge: transformation → target file (guard against duplicates)
+        const targetEdgeId = `${vmNodeId}-to-${targetNodeId}`;
+        if (!edges.some(e => e.id === targetEdgeId)) {
+          edges.push({
+            id: targetEdgeId,
+            source: vmNodeId,
+            target: targetNodeId,
+            relationship: 'OUTPUTS_TO',
+            label: 'outputs to'
+          });
+        }
+      }
+    }
+  } catch (vmFallbackErr) {
+    // Non-fatal: a VM fallback failure must not break the rest of the graph
+    systemLogger.warn('VM fallback query failed, skipping visual mapping discovery', {
+      filename: basename,
+      error: vmFallbackErr.message
+    });
+  }
 }
 
 /**
@@ -595,7 +809,13 @@ async function traverseFromJob(jobId, projectId, nodes, edges, visited, depth, f
     WHERE tj.job_id = $1
   `, [jobId]);
   
-  if (jobResult.rows.length === 0) return;
+  if (jobResult.rows.length === 0) {
+    // Not in transformation_jobs — check if this is a visual mapping execution ID.
+    // Visual mapping executions are stored in visual_mapping_executions, not
+    // transformation_jobs, so the standard lookup above finds nothing for them.
+    await traverseFromVmJobExecution(jobId, projectId, nodes, edges, visited, depth, filters, nodeId);
+    return;
+  }
   
   const job = jobResult.rows[0];
   
@@ -701,6 +921,218 @@ async function traverseFromJob(jobId, projectId, nodes, edges, visited, depth, f
       target: targetNodeId,
       relationship: 'OUTPUT_TO',
       label: 'outputs to'
+    });
+  }
+}
+
+/**
+ * Fallback handler for traverseFromJob when the jobId is a visual_mapping_executions.id
+ * rather than a transformation_jobs.job_id.
+ *
+ * Visual mapping executions delete their transformation_mappings row after execution, so
+ * they cannot be looked up via transformation_jobs.  Instead we query
+ * visual_mapping_executions joined to visual_mapping_defs to reconstruct the same
+ * transformation node shape produced by the file-traversal VM fallback, with execution
+ * stats (rowsRead / rowsWritten / lastRun) populated from the execution record.
+ *
+ * @param {string|number} vmExecId - visual_mapping_executions.id
+ * @param {number}        projectId
+ * @param {Array}         nodes
+ * @param {Array}         edges
+ * @param {Set}           visited
+ * @param {number}        depth
+ * @param {Object}        filters
+ * @param {string}        jobNodeId - the `job-{vmExecId}` node id already reserved by the caller
+ */
+async function traverseFromVmJobExecution(vmExecId, projectId, nodes, edges, visited, depth, filters, jobNodeId) {
+  try {
+    const vmExecResult = await pool.query(`
+      SELECT
+        vme.id            AS exec_id,
+        vme.mapping_id    AS vm_id,
+        vme.status,
+        vme.completed_at,
+        vme.rows_processed,
+        vme.transformation_job_id,
+        vmd.name          AS vm_name,
+        vmd.graph_data,
+        vmd.project_id,
+        vmd.last_executed_at,
+        vmd.execution_count,
+        tj.rows_read,
+        tj.rows_written
+      FROM visual_mapping_executions vme
+      JOIN visual_mapping_defs vmd ON vmd.id = vme.mapping_id
+      LEFT JOIN transformation_jobs tj ON tj.job_id = vme.transformation_job_id
+      WHERE vme.id = $1
+        AND ($2::integer IS NULL OR vmd.project_id = $2)
+    `, [vmExecId, projectId]);
+
+    if (vmExecResult.rows.length === 0) {
+      systemLogger.info('traverseFromJob: no transformation_job or VM execution found', { jobId: vmExecId });
+      return;
+    }
+
+    const vmExec = vmExecResult.rows[0];
+
+    const vmRowsRead    = vmExec.rows_read    ?? null;
+    const vmRowsWritten = vmExec.rows_written ?? vmExec.rows_processed ?? null;
+    const vmLastRun     = vmExec.completed_at ?? vmExec.last_executed_at ?? null;
+
+    // Build a stable mapping_id and node id consistent with the file-traversal VM path
+    // so deduplication and findWorkflowsForMappings work correctly for mixed graphs.
+    const vmMappingId = `vm-${vmExec.vm_id}-synthetic`;
+    const vmNodeId    = `mapping-${vmMappingId}`;
+
+    systemLogger.info('traverseFromJob: found VM execution', {
+      execId: vmExec.exec_id,
+      vmId: vmExec.vm_id,
+      vmName: vmExec.vm_name,
+      vmRowsRead,
+      vmRowsWritten,
+      vmLastRun
+    });
+
+    // Parse graph_data for source pattern and target file info
+    const graphNodes      = vmExec.graph_data?.nodes || [];
+    const sourceConfigNode = graphNodes.find(n => n.type === 'sourceConfig');
+    const targetRulesNode  = graphNodes.find(n => n.type === 'targetRules');
+
+    const sourcePattern  = sourceConfigNode?.data?.config?.filePattern
+                        || sourceConfigNode?.config?.filePattern
+                        || '*';
+    const targetFileName = targetRulesNode?.data?.config?.fileName
+                        || targetRulesNode?.config?.fileName
+                        || null;
+    const targetFileFormat = targetRulesNode?.data?.config?.fileFormat
+                          || targetRulesNode?.config?.fileFormat
+                          || 'csv';
+
+    if (!visited.has(vmNodeId)) {
+      visited.add(vmNodeId);
+
+      nodes.push({
+        id: vmNodeId,
+        type: 'transformation',
+        label: `[VM] ${vmExec.vm_name}`,
+        metadata: {
+          id: null,                          // no transformation_mappings row
+          mappingId: vmMappingId,
+          mappingName: `[VM] ${vmExec.vm_name}`,
+          description: null,
+          sourcePattern,
+          targetTable: null,
+          status: 'active',
+          projectId: vmExec.project_id,
+          fieldMappingsCount: 0,
+          derivedColumnsCount: 0,
+          lastExecutedAt: vmLastRun,
+          executionCount: vmExec.execution_count,
+          rowsRead: vmRowsRead,
+          rowsWritten: vmRowsWritten,
+          isVisualMapping: true,
+          visualMappingId: vmExec.vm_id,
+          visualMappingName: vmExec.vm_name
+        }
+      });
+    }
+
+    // Edge: the reserved job node → transformation node (makes the execution root visible)
+    // The jobNodeId (`job-{vmExecId}`) was already added to visited by traverseFromJob;
+    // we re-use it as a proxy execution node pointing at the transformation node.
+    nodes.push({
+      id: jobNodeId,
+      type: 'job',
+      label: `VM Execution ${vmExec.exec_id}`,
+      metadata: {
+        id: vmExec.exec_id,
+        jobId: vmExec.exec_id,
+        mappingId: vmMappingId,
+        mappingName: `[VM] ${vmExec.vm_name}`,
+        status: vmExec.status,
+        startTime: null,
+        endTime: vmExec.completed_at,
+        rowsRead: vmRowsRead,
+        rowsWritten: vmRowsWritten,
+        isVisualMappingExecution: true,
+        visualMappingId: vmExec.vm_id
+      }
+    });
+
+    edges.push({
+      id: `${jobNodeId}-to-${vmNodeId}`,
+      source: jobNodeId,
+      target: vmNodeId,
+      relationship: 'EXECUTED_BY',
+      label: 'executed by'
+    });
+
+    // Add target file node when we know it from the VM definition
+    if (targetFileName) {
+      const targetNodeId = `target-file-${targetFileName}`;
+
+      if (!visited.has(targetNodeId)) {
+        visited.add(targetNodeId);
+
+        // Derive a single canonical display name — extension appended exactly
+        // once regardless of whether config.fileName already includes it.
+        const targetLabel = targetFileName.endsWith(`.${targetFileFormat}`)
+          ? targetFileName
+          : `${targetFileName}.${targetFileFormat}`;
+        // Base name without extension used as a secondary lookup term.
+        const targetBaseName = targetLabel.slice(0, targetLabel.lastIndexOf('.')) || targetLabel;
+
+        let resolvedFileId = null;
+        try {
+          const existingFileResult = await pool.query(`
+            SELECT file_id FROM files
+            WHERE file_role = 'target'
+              AND ($1::integer IS NULL OR project_id = $1)
+              AND (filename = $2 OR filename = $3)
+            ORDER BY created_at DESC
+            LIMIT 1
+          `, [vmExec.project_id, targetLabel, targetBaseName]);
+          if (existingFileResult.rows.length > 0) {
+            resolvedFileId = existingFileResult.rows[0].file_id;
+          }
+        } catch (_) { /* non-fatal */ }
+
+        nodes.push({
+          id: targetNodeId,
+          type: 'targetFile',
+          label: targetLabel,
+          metadata: {
+            fileName: targetFileName,
+            fileFormat: targetFileFormat,
+            file_id: resolvedFileId,
+            mappingId: vmMappingId,
+            mappingName: `[VM] ${vmExec.vm_name}`,
+            projectId: vmExec.project_id,
+            lastRun: vmLastRun,
+            rowsWritten: vmRowsWritten,
+            rowsRead: vmRowsRead,
+            containsPii: false,
+            dataClassification: null,
+            piiColumns: []
+          }
+        });
+      }
+
+      const targetEdgeId = `${vmNodeId}-to-${targetNodeId}`;
+      if (!edges.some(e => e.id === targetEdgeId)) {
+        edges.push({
+          id: targetEdgeId,
+          source: vmNodeId,
+          target: targetNodeId,
+          relationship: 'OUTPUTS_TO',
+          label: 'outputs to'
+        });
+      }
+    }
+  } catch (vmJobErr) {
+    systemLogger.warn('traverseFromJob: VM execution fallback failed', {
+      vmExecId,
+      error: vmJobErr.message
     });
   }
 }
@@ -1134,8 +1566,228 @@ async function getNodeDetails(nodeId, nodeType, projectId) {
         
         return fileData;
         
-      case 'transformation':
+      case 'transformation': {
         const mappingId = nodeId.replace('mapping-', '');
+
+        // VM synthetic mappings have IDs like 'vm-{vmId}-synthetic'.
+        // They have no transformation_mappings row; query visual_mapping_defs
+        // and visual_mapping_executions directly for stats.
+        if (mappingId.startsWith('vm-')) {
+          const vmIdStr = mappingId.split('-')[1];
+          const vmId = Number(vmIdStr);
+          if (!isNaN(vmId)) {
+            const vmDetailResult = await pool.query(`
+              SELECT
+                vmd.id            AS vm_id,
+                vmd.name          AS vm_name,
+                vmd.project_id,
+                vmd.last_executed_at,
+                vmd.execution_count,
+                vmd.graph_data,
+                vme.completed_at,
+                vme.rows_processed,
+                tj.rows_read,
+                tj.rows_written
+              FROM visual_mapping_defs vmd
+              LEFT JOIN LATERAL (
+                SELECT completed_at, rows_processed, transformation_job_id
+                FROM visual_mapping_executions
+                WHERE mapping_id = vmd.id AND status = 'completed'
+                ORDER BY completed_at DESC
+                LIMIT 1
+              ) vme ON true
+              LEFT JOIN transformation_jobs tj
+                ON tj.job_id = vme.transformation_job_id
+              WHERE vmd.id = $1
+                AND ($2::integer IS NULL OR vmd.project_id = $2)
+            `, [vmId, projectId]);
+
+            if (vmDetailResult.rows.length === 0) return null;
+            const vm = vmDetailResult.rows[0];
+
+            // Extract field mappings from expression nodes in graph_data so
+            // the drawer can display source → target column pairs.
+            //
+            // Expression node config stores entries under 'fieldMappings' (camelCase
+            // container) with snake_case entry keys. The transformation operation is
+            // stored as 'transformation' (e.g. 'none', 'UPPER', 'LOWER', 'TRIM', etc.).
+            // The drawer distinguishes regular (direct/rename) from derived (everything
+            // else), so 'none' is normalised to 'direct'.
+            let vmFieldMappings = [];
+            try {
+              const graphNodes = vm.graph_data?.nodes || [];
+
+              // Build a Set of PII column names from the targetRules node so it can
+              // serve as a fallback when individual fieldMappings lack fm.pii (e.g.
+              // mappings saved before ExpressionModal persisted the pii flag per row).
+              // This mirrors what the targetFile SQL query extracts as pii_columns.
+              const targetRulesPiiSet = new Set();
+              for (const gNode of graphNodes) {
+                if (gNode.type === 'targetRules') {
+                  const tConfig = gNode.data?.config || gNode.config || {};
+                  const pioCols = tConfig.piiColumns || [];
+                  if (Array.isArray(pioCols)) {
+                    for (const col of pioCols) { targetRulesPiiSet.add(String(col)); }
+                  }
+                  break; // only one targetRules node expected
+                }
+              }
+
+              for (const gNode of graphNodes) {
+                if (gNode.type === 'expression') {
+                  const config = gNode.data?.config || gNode.config || {};
+                  // The modal saves entries under camelCase 'fieldMappings'; fall
+                  // back to snake_case 'field_mappings' for forward-compatibility.
+                  const fms = config.fieldMappings || config.field_mappings || [];
+                  if (Array.isArray(fms)) {
+                    for (const fm of fms) {
+                      if (fm.include === false) continue; // excluded by user
+
+                      const sourceField = fm.source_field || fm.sourceField || '';
+                      const targetField = fm.target_field || fm.targetField || '';
+                      // 'transformation' is the modal's operation key; fall back to
+                      // transformation_type / transformationType for compatibility.
+                      const rawOp = fm.transformation || fm.transformation_type || fm.transformationType || 'none';
+                      const transformationType = rawOp === 'none' ? 'direct' : rawOp;
+
+                      const entry = {
+                        source_field: sourceField,
+                        target_field: targetField,
+                        transformation_type: transformationType,
+                        data_type: fm.data_type || fm.dataType || 'string',
+                        // target_is_pii: prefer fm.pii saved by ExpressionModal per row;
+                        // fall back to targetRulesPiiSet (config.piiColumns from the
+                        // targetRules node) for mappings where fm.pii was never written
+                        // (e.g. saved before ExpressionModal persisted the flag per row).
+                        target_is_pii: fm.pii === true || targetRulesPiiSet.has(targetField)
+                      };
+
+                      // Derived (non-direct) mappings: populate source_fields and
+                      // expression so the drawer can render them in the Derived
+                      // Columns section with meaningful context.
+                      if (transformationType !== 'direct' && transformationType !== 'rename') {
+                        entry.source_fields = sourceField ? [sourceField] : [];
+                        const params = fm.transformation_params || {};
+                        const paramValues = Object.entries(params)
+                          .filter(([, v]) => v !== null && v !== undefined && v !== '')
+                          .map(([, v]) => v);
+                        entry.expression = paramValues.length > 0
+                          ? `${transformationType}(${sourceField}, ${paramValues.join(', ')})`
+                          : `${transformationType}(${sourceField})`;
+                      }
+
+                      vmFieldMappings.push(entry);
+                    }
+                  }
+                }
+              }
+            } catch (_fmErr) { /* non-fatal — field mappings are informational */ }
+
+            // Enrich field_mappings with per-field PII status so the drawer can
+            // show a PII badge next to sensitive source and target column names.
+            //
+            // SOURCE PII — resolved from the actual source file(s) that fed this
+            //   mapping, found via file_audit_details. Using execution provenance
+            //   avoids false positives from coincidentally shared column names.
+            //   Left false when source provenance cannot be determined.
+            // TARGET PII — resolved from the output file's governance tag assignments.
+            // The two sets are built independently from their respective files.
+            if (vmFieldMappings.length > 0) {
+              try {
+                const gNodes = vm.graph_data?.nodes || [];
+                const tRulesNode = gNodes.find(n => n.type === 'targetRules');
+                const tFileName = tRulesNode?.data?.config?.fileName
+                               || tRulesNode?.config?.fileName
+                               || null;
+
+                // 1. Target PII: from the output file's column_governance_tag_assignments.
+                //    Extension-tolerant lookup — config stores base name, files table
+                //    may store the full filename with extension.
+                let targetPiiSet = new Set();
+                if (tFileName) {
+                  const fileRecordResult = await pool.query(`
+                    SELECT f.file_id
+                    FROM files f
+                    WHERE ($1::integer IS NULL OR f.project_id = $1)
+                      AND (
+                        f.filename = $2
+                        OR f.filename LIKE '%/' || $2
+                        OR f.filename LIKE $2 || '.%'
+                        OR f.filename LIKE '%/' || $2 || '.%'
+                      )
+                    ORDER BY f.created_at DESC
+                    LIMIT 1
+                  `, [vm.project_id, tFileName]);
+
+                  if (fileRecordResult.rows.length > 0) {
+                    const tFileId = fileRecordResult.rows[0].file_id;
+                    const tPiiResult = await pool.query(`
+                      SELECT DISTINCT cta.column_name
+                      FROM column_governance_tag_assignments cta
+                      WHERE cta.file_id = $1 AND cta.tag_id = 'tag_pii'
+                    `, [tFileId]);
+                    targetPiiSet = new Set(tPiiResult.rows.map(r => r.column_name));
+                  }
+                }
+
+                // 2. Source PII: from the actual source file(s) recorded in
+                //    file_audit_details for this VM mapping's executions.
+                //    Join on the canonical file_id (fad.file_id = f.file_id) so
+                //    same-named files in different uploads cannot bleed across;
+                //    project-scope the join via files for authorisation.
+                let sourcePiiSet = new Set();
+                try {
+                  const auditSourceResult = await pool.query(`
+                    SELECT DISTINCT fad.file_id
+                    FROM file_audit_details fad
+                    JOIN files f ON f.file_id = fad.file_id
+                    WHERE fad.mapping_name = $1
+                      AND fad.file_role = 'source'
+                      AND ($2::integer IS NULL OR f.project_id = $2)
+                    LIMIT 10
+                  `, [`[VM] ${vm.vm_name}`, vm.project_id]);
+
+                  if (auditSourceResult.rows.length > 0) {
+                    const srcFileIds = auditSourceResult.rows.map(r => r.file_id);
+                    const sPiiResult = await pool.query(`
+                      SELECT DISTINCT cta.column_name
+                      FROM column_governance_tag_assignments cta
+                      WHERE cta.file_id = ANY($1) AND cta.tag_id = 'tag_pii'
+                    `, [srcFileIds]);
+                    sourcePiiSet = new Set(sPiiResult.rows.map(r => r.column_name));
+                  }
+                } catch (_srcPiiErr) { /* non-fatal — source provenance is informational */ }
+
+                // 3. Annotate only when at least one set has data.
+                //    source_is_pii stays false when source provenance is unresolved.
+                if (targetPiiSet.size > 0 || sourcePiiSet.size > 0) {
+                  vmFieldMappings = vmFieldMappings.map(fm => ({
+                    ...fm,
+                    // Preserve graph_data-derived flags (fm.pii / source_is_pii already
+                    // set earlier); OR with DB-derived sets so neither source wins alone.
+                    source_is_pii: fm.source_is_pii || sourcePiiSet.has(fm.source_field),
+                    target_is_pii: fm.target_is_pii || targetPiiSet.has(fm.target_field)
+                  }));
+                }
+              } catch (_piiErr) { /* non-fatal — PII status is informational */ }
+            }
+
+            return {
+              id: vm.vm_id,
+              mapping_id: mappingId,
+              mapping_name: `[VM] ${vm.vm_name}`,
+              is_visual_mapping: true,
+              project_id: vm.project_id,
+              execution_count: vm.execution_count,
+              last_executed_at: vm.completed_at || vm.last_executed_at,
+              rows_read: vm.rows_read ?? null,
+              rows_written: vm.rows_written ?? vm.rows_processed ?? null,
+              status: 'active',
+              field_mappings: vmFieldMappings
+            };
+          }
+        }
+
         const mappingResult = await pool.query(`
           SELECT 
             tm.*,
@@ -1147,6 +1799,7 @@ async function getNodeDetails(nodeId, nodeType, projectId) {
           GROUP BY tm.id
         `, [mappingId]);
         return mappingResult.rows[0] || null;
+      }
         
       case 'job':
         const jobId = nodeId.replace('job-', '');
@@ -1229,8 +1882,45 @@ async function getNodeDetails(nodeId, nodeType, projectId) {
                 // Real output file found — return it so the drawer can build a
                 // working /profile/{file_id} redirect. Merge mapping identifiers
                 // so the drawer can still display mapping_name / mapping_id.
+                const realFileRow = auditFileResult.rows[0];
+                const resolvedFileId = realFileRow.file_id;
+
+                // Query PII columns and full column metadata for the real file,
+                // exactly as the sourceFile case does (lines ~1532–1565).
+                const [piiColsResult, columnsResult] = await Promise.all([
+                  pool.query(`
+                    SELECT DISTINCT cta.column_name
+                    FROM column_governance_tag_assignments cta
+                    WHERE cta.file_id = $1 AND cta.tag_id = 'tag_pii'
+                    ORDER BY cta.column_name
+                  `, [resolvedFileId]),
+                  pool.query(`
+                    SELECT
+                      fc.column_name,
+                      fc.column_type,
+                      fc.column_index,
+                      fc.null_count,
+                      fc.unique_count,
+                      fc.min_value,
+                      fc.max_value,
+                      fc.most_frequent_value,
+                      fc.top_values,
+                      COALESCE(
+                        (SELECT array_agg(DISTINCT cta.tag_id)
+                         FROM column_governance_tag_assignments cta
+                         WHERE cta.file_id = $1 AND cta.column_name = fc.column_name),
+                        ARRAY[]::text[]
+                      ) AS governance_tags
+                    FROM file_columns fc
+                    WHERE fc.file_id = $1
+                    ORDER BY fc.column_index
+                  `, [resolvedFileId])
+                ]);
+
                 return {
-                  ...auditFileResult.rows[0],
+                  ...realFileRow,
+                  pii_columns: piiColsResult.rows.map(r => r.column_name),
+                  columns: columnsResult.rows,
                   mapping_name: mapping.mapping_name,
                   mapping_id: mapping.mapping_id,
                 };
@@ -1277,6 +1967,195 @@ async function getNodeDetails(nodeId, nodeType, projectId) {
             columns: columns
           };
         }
+
+        // VM fallback: the transformation_mappings row was deleted after
+        // execution, so find the VM definition by inspecting graph_data directly.
+        // file_audit_details does not reliably carry target-role VM records, so
+        // we query visual_mapping_defs.graph_data (JSONB) instead.
+        //
+        // Three filename variants are checked so this works regardless of whether
+        // config.fileName is stored with or without a file extension:
+        //   1. Exact match  (config.fileName === targetFileName)
+        //   2. Base + format match  (config.fileName + '.' + config.fileFormat === targetFileName)
+        //   3. Stripped match  (config.fileName === targetFileName without extension)
+        try {
+          const baseNameOnly = targetFileName.replace(/\.[^.]+$/, '');
+          const vmForTargetResult = await pool.query(`
+            SELECT
+              vmd.id            AS vm_id,
+              vmd.name          AS vm_name,
+              vmd.project_id,
+              vmd.last_executed_at,
+              vmd.execution_count,
+              -- Extract orderedColumns from the targetRules node so the drawer
+              -- can render the Columns section without a separate query.
+              -- orderedColumns is a JSON array of column name strings saved by
+              -- TargetRulesModal: config.orderedColumns = columns.map(c => c.name)
+              (
+                SELECT COALESCE(
+                  n->'data'->'config'->'orderedColumns',
+                  n->'config'->'orderedColumns'
+                )
+                FROM jsonb_array_elements(vmd.graph_data->'nodes') AS n
+                WHERE n->>'type' = 'targetRules'
+                LIMIT 1
+              ) AS ordered_columns,
+              -- Extract piiColumns — the authoritative PII list saved by TargetRulesModal.
+              -- config.piiColumns = orderedColumns.filter(c => c.pii).map(c => c.name)
+              -- This is the primary source for PII badges; column_governance_tag_assignments
+              -- is only a supplemental fallback for profiled files.
+              (
+                SELECT COALESCE(
+                  n->'data'->'config'->'piiColumns',
+                  n->'config'->'piiColumns'
+                )
+                FROM jsonb_array_elements(vmd.graph_data->'nodes') AS n
+                WHERE n->>'type' = 'targetRules'
+                LIMIT 1
+              ) AS pii_columns
+            FROM visual_mapping_defs vmd
+            WHERE vmd.is_active = true
+              AND ($2::integer IS NULL OR vmd.project_id = $2)
+              AND EXISTS (
+                SELECT 1
+                FROM jsonb_array_elements(vmd.graph_data->'nodes') AS n
+                WHERE n->>'type' = 'targetRules'
+                  AND (
+                    -- 1. Exact filename match
+                    COALESCE(n->'data'->'config'->>'fileName',
+                             n->'config'->>'fileName') = $1
+                    OR
+                    -- 2. Base name + format match (config stores name without extension)
+                    COALESCE(n->'data'->'config'->>'fileName',
+                             n->'config'->>'fileName')
+                      || '.'
+                      || COALESCE(n->'data'->'config'->>'fileFormat',
+                                  n->'config'->>'fileFormat', '')
+                      = $1
+                    OR
+                    -- 3. Extension-stripped match (config stores name with extension)
+                    COALESCE(n->'data'->'config'->>'fileName',
+                             n->'config'->>'fileName') = $3
+                  )
+              )
+            LIMIT 1
+          `, [targetFileName, projectId, baseNameOnly]);
+
+          if (vmForTargetResult.rows.length > 0) {
+            const vm = vmForTargetResult.rows[0];
+
+            // Fetch execution stats
+            const vmExecForTargetResult = await pool.query(`
+              SELECT
+                vme.completed_at,
+                vme.rows_processed,
+                tj.rows_read,
+                tj.rows_written
+              FROM visual_mapping_executions vme
+              LEFT JOIN transformation_jobs tj
+                ON tj.job_id = vme.transformation_job_id
+              WHERE vme.mapping_id = $1
+                AND vme.status = 'completed'
+              ORDER BY vme.completed_at DESC
+              LIMIT 1
+            `, [vm.vm_id]);
+
+            // Build columns array from orderedColumns config.
+            // orderedColumns is a JSON array of column name strings; column types
+            // are not stored in graph_data, so we default to 'string'.
+            // piiColumns is a JSON array of PII column name strings saved by
+            // TargetRulesModal — the authoritative PII source for VM target files.
+            let columns = [];
+            try {
+              const rawCols = vm.ordered_columns;
+              const rawPii  = vm.pii_columns;
+              // Build a Set of PII column names from graph_data for O(1) lookup.
+              const piiSet = new Set(
+                Array.isArray(rawPii) ? rawPii.map(n => String(n)) : []
+              );
+              if (Array.isArray(rawCols) && rawCols.length > 0) {
+                columns = rawCols.map((name, idx) => {
+                  const colName = typeof name === 'string' ? name : String(name);
+                  return {
+                    column_name: colName,
+                    column_type: 'string',
+                    column_index: idx,
+                    // Seed governance_tags from graph_data piiColumns so PII badges
+                    // appear immediately without needing file profiling data.
+                    governance_tags: piiSet.has(colName) ? ['tag_pii'] : []
+                  };
+                });
+              }
+            } catch (_colErr) { /* non-fatal — columns are informational */ }
+
+            // Enrich columns with real governance tags written by the VM execution.
+            // Look up the output file in the files table by filename + project, then
+            // join column_governance_tag_assignments to get tags per column name.
+            if (columns.length > 0) {
+              try {
+                // The target filename may be stored with or without a path prefix.
+                const fileRecordResult = await pool.query(`
+                  SELECT f.file_id
+                  FROM files f
+                  WHERE ($1::integer IS NULL OR f.project_id = $1)
+                    AND (f.filename = $2 OR f.filename LIKE '%/' || $2)
+                  ORDER BY f.created_at DESC
+                  LIMIT 1
+                `, [vm.project_id, targetFileName]);
+
+                if (fileRecordResult.rows.length > 0) {
+                  const fileStringId = fileRecordResult.rows[0].file_id;
+                  const tagsResult = await pool.query(`
+                    SELECT cta.column_name,
+                           array_agg(DISTINCT cta.tag_id) AS governance_tags
+                    FROM column_governance_tag_assignments cta
+                    WHERE cta.file_id = $1
+                    GROUP BY cta.column_name
+                  `, [fileStringId]);
+
+                  if (tagsResult.rows.length > 0) {
+                    const tagsByColumn = new Map(
+                      tagsResult.rows.map(r => [r.column_name, r.governance_tags])
+                    );
+                    columns = columns.map(col => {
+                      const dbTags = tagsByColumn.get(col.column_name) || [];
+                      // Merge DB tags with graph_data-seeded tags (e.g. tag_pii from
+                      // piiColumns). Use a Set so neither source overwrites the other.
+                      const merged = [...new Set([...col.governance_tags, ...dbTags])];
+                      return { ...col, governance_tags: merged };
+                    });
+                  }
+                }
+              } catch (_tagErr) {
+                systemLogger.warn('VM target file governance tag lookup failed', {
+                  targetFileName,
+                  error: _tagErr.message
+                });
+              }
+            }
+
+            const exec = vmExecForTargetResult.rows[0] || null;
+            return {
+              filename: targetFileName,
+              mapping_name: `[VM] ${vm.vm_name}`,
+              mapping_id: `vm-${vm.vm_id}-synthetic`,
+              is_visual_mapping: true,
+              is_synthetic: true,
+              project_id: vm.project_id,
+              last_run: exec?.completed_at || vm.last_executed_at,
+              rows_written: exec?.rows_written ?? exec?.rows_processed ?? null,
+              rows_read: exec?.rows_read ?? null,
+              description: 'Output file produced by a visual mapping job',
+              columns
+            };
+          }
+        } catch (vmTargetErr) {
+          systemLogger.warn('VM fallback for targetFile details failed', {
+            targetFileName,
+            error: vmTargetErr.message
+          });
+        }
+
         return null;
         
       case 'targetTable':

@@ -38,6 +38,7 @@ import JobNode from '../components/lineageNodes/JobNode';
 import GroupedNode from '../components/lineageNodes/GroupedNode';
 import WorkflowNode from '../components/lineageNodes/WorkflowNode';
 import { FaUndo } from 'react-icons/fa';
+import ErrorBoundary from '../components/ErrorBoundary';
 
 const nodeTypes = {
   vendorContract: VendorContractNode,
@@ -801,6 +802,7 @@ const LineagePageContent = () => {
       )}
       
       {/* React Flow Canvas */}
+      <ErrorBoundary componentName="LineageGraph">
       <div className="lineage-canvas" ref={containerRef}>
         <ReactFlow
           nodes={nodes}
@@ -825,7 +827,9 @@ const LineagePageContent = () => {
                 transformation: '#F59E0B',
                 derivedColumn: '#8B5CF6',
                 targetTable: '#025043',
-                job: '#10B981'
+                targetFile: '#0D9488',
+                job: '#10B981',
+                workflow: '#7C3AED'
               };
               return colors[node.type] || '#6B7280';
             }}
@@ -901,6 +905,7 @@ const LineagePageContent = () => {
           </Panel>
         </ReactFlow>
       </div>
+      </ErrorBoundary>
       
       {/* Node Detail Drawer */}
       <NodeDetailDrawer

@@ -22,6 +22,9 @@ async function getEntityProjectId(entity_type, entity_id) {
       // table = 'transformation_mappings';
       query = 'SELECT project_id FROM transformation_mappings WHERE mapping_id = $1';
       break;
+    case 'visual_mapping':
+      query = 'SELECT project_id FROM visual_mapping_defs WHERE id = $1';
+      break;
     case 'mapping_group':
       // table = 'mapping_groups';
       query = 'SELECT project_id FROM mapping_groups WHERE id = $1';
@@ -153,10 +156,10 @@ router.post('/', async (req, res) => {
       });
     }
     
-    if (!['mapping', 'mapping_group', 'workflow'].includes(entity_type)) {
+    if (!['mapping', 'visual_mapping', 'mapping_group', 'workflow'].includes(entity_type)) {
       return res.status(400).json({
         success: false,
-        error: 'entity_type must be "mapping", "mapping_group", or "workflow"'
+        error: 'entity_type must be "mapping", "visual_mapping", "mapping_group", or "workflow"'
       });
     }
     
@@ -260,12 +263,14 @@ router.get('/', async (req, res) => {
              s.updated_at,
              CASE 
                WHEN s.entity_type = 'mapping' THEN tm.mapping_name
+               WHEN s.entity_type = 'visual_mapping' THEN vmd.name
                WHEN s.entity_type = 'mapping_group' THEN mg.name
                WHEN s.entity_type = 'workflow' THEN COALESCE(nw.name, vw.name)
              END as entity_name,
              p.name as project_name
       FROM schedules s
       LEFT JOIN transformation_mappings tm ON s.entity_type = 'mapping' AND s.entity_id = tm.mapping_id
+      LEFT JOIN visual_mapping_defs vmd ON s.entity_type = 'visual_mapping' AND s.entity_id = CAST(vmd.id AS TEXT)
       LEFT JOIN mapping_groups mg ON s.entity_type = 'mapping_group' AND s.entity_id = CAST(mg.id AS TEXT)
       LEFT JOIN n_step_workflows nw ON s.entity_type = 'workflow' AND s.entity_id = CAST(nw.id AS TEXT)
       LEFT JOIN visual_workflows vw ON s.entity_type = 'workflow' AND s.entity_id = CAST(vw.id AS TEXT)
@@ -318,14 +323,17 @@ router.get('/active', async (req, res) => {
     let query = `
       SELECT s.*, 
              CASE 
-               WHEN s.entity_type = 'mapping' THEN tm.name
+               WHEN s.entity_type = 'mapping' THEN tm.mapping_name
+               WHEN s.entity_type = 'visual_mapping' THEN vmd.name
                WHEN s.entity_type = 'mapping_group' THEN mg.name
-               WHEN s.entity_type = 'workflow' THEN bp.name
+               WHEN s.entity_type = 'workflow' THEN COALESCE(nw.name, vw.name)
              END as entity_name
       FROM schedules s
-      LEFT JOIN transformation_mappings tm ON s.entity_type = 'mapping' AND s.entity_id = CAST(tm.id AS TEXT)
+      LEFT JOIN transformation_mappings tm ON s.entity_type = 'mapping' AND s.entity_id = tm.mapping_id
+      LEFT JOIN visual_mapping_defs vmd ON s.entity_type = 'visual_mapping' AND s.entity_id = CAST(vmd.id AS TEXT)
       LEFT JOIN mapping_groups mg ON s.entity_type = 'mapping_group' AND s.entity_id = CAST(mg.id AS TEXT)
-      LEFT JOIN business_processes bp ON s.entity_type = 'workflow' AND s.entity_id = CAST(bp.id AS TEXT)
+      LEFT JOIN n_step_workflows nw ON s.entity_type = 'workflow' AND s.entity_id = CAST(nw.id AS TEXT)
+      LEFT JOIN visual_workflows vw ON s.entity_type = 'workflow' AND s.entity_id = CAST(vw.id AS TEXT)
       WHERE s.is_active = true
     `;
     
@@ -386,9 +394,16 @@ router.get('/init-data', async (req, res) => {
     const params = (!isAdmin && projectIds.length > 0) ? [projectIds] : [];
     
     let mappingsQuery = `
-      SELECT mapping_id, mapping_name, project_id, sub_project_id, created_at
+      SELECT mapping_id, mapping_name, project_id, sub_project_id, created_at,
+             false AS is_visual_mapping
       FROM transformation_mappings
       WHERE 1=1
+    `;
+    let vmMappingsQuery = `
+      SELECT id AS mapping_id, name AS mapping_name, project_id, sub_project_id, created_at,
+             true AS is_visual_mapping
+      FROM visual_mapping_defs
+      WHERE is_active = true
     `;
     let groupsQuery = `
       SELECT id, name, description, project_id, sub_project_id, created_at
@@ -412,30 +427,40 @@ router.get('/init-data', async (req, res) => {
     `;
     
     if (!isAdmin && projectIds.length > 0) {
-      mappingsQuery += ` AND project_id = ANY($1)`;
-      groupsQuery += ` AND project_id = ANY($1)`;
-      nStepQuery += ` AND project_id = ANY($1)`;
-      visualQuery += ` AND project_id = ANY($1)`;
-      projectsQuery += ` AND id = ANY($1)`;
+      mappingsQuery   += ` AND project_id = ANY($1)`;
+      vmMappingsQuery += ` AND project_id = ANY($1)`;
+      groupsQuery     += ` AND project_id = ANY($1)`;
+      nStepQuery      += ` AND project_id = ANY($1)`;
+      visualQuery     += ` AND project_id = ANY($1)`;
+      projectsQuery   += ` AND id = ANY($1)`;
     }
     
-    mappingsQuery += ` ORDER BY mapping_name`;
-    groupsQuery += ` ORDER BY name`;
-    nStepQuery += ` ORDER BY name`;
-    visualQuery += ` ORDER BY name`;
-    projectsQuery += ` ORDER BY name`;
+    mappingsQuery   += ` ORDER BY mapping_name`;
+    vmMappingsQuery += ` ORDER BY name`;
+    groupsQuery     += ` ORDER BY name`;
+    nStepQuery      += ` ORDER BY name`;
+    visualQuery     += ` ORDER BY name`;
+    projectsQuery   += ` ORDER BY name`;
     
-    const [mappingsResult, groupsResult, nStepResult, visualResult, projectsResult] = await Promise.all([
+    const [mappingsResult, vmMappingsResult, groupsResult, nStepResult, visualResult, projectsResult] = await Promise.all([
       pool.query(mappingsQuery, params),
+      pool.query(vmMappingsQuery, params),
       pool.query(groupsQuery, params),
       pool.query(nStepQuery, params),
       pool.query(visualQuery, params),
       pool.query(projectsQuery, params)
     ]);
     
+    // Merge traditional and VM mappings into one list; VM entries carry is_visual_mapping:true
+    // so the frontend can send the correct entity_type ('visual_mapping') on submit.
+    const allTransformations = [
+      ...mappingsResult.rows,
+      ...vmMappingsResult.rows
+    ];
+
     res.json({
       success: true,
-      transformations: mappingsResult.rows,
+      transformations: allTransformations,
       mappingGroups: groupsResult.rows,
       nStepWorkflows: nStepResult.rows,
       visualWorkflows: visualResult.rows,
@@ -456,7 +481,7 @@ router.get('/:entityType/:entityId', async (req, res) => {
   try {
     const { entityType, entityId } = req.params;
     
-    if (!['mapping', 'mapping_group', 'workflow'].includes(entityType)) {
+    if (!['mapping', 'visual_mapping', 'mapping_group', 'workflow'].includes(entityType)) {
       return res.status(400).json({
         success: false,
         error: 'Invalid entity type'
@@ -507,11 +532,13 @@ router.get('/:id', async (req, res) => {
              s.updated_at,
              CASE 
                WHEN s.entity_type = 'mapping' THEN tm.mapping_name
+               WHEN s.entity_type = 'visual_mapping' THEN vmd.name
                WHEN s.entity_type = 'mapping_group' THEN mg.name
                WHEN s.entity_type = 'workflow' THEN COALESCE(nw.name, vw.name)
              END as entity_name
       FROM schedules s
       LEFT JOIN transformation_mappings tm ON s.entity_type = 'mapping' AND s.entity_id = tm.mapping_id
+      LEFT JOIN visual_mapping_defs vmd ON s.entity_type = 'visual_mapping' AND s.entity_id = CAST(vmd.id AS TEXT)
       LEFT JOIN mapping_groups mg ON s.entity_type = 'mapping_group' AND s.entity_id = CAST(mg.id AS TEXT)
       LEFT JOIN n_step_workflows nw ON s.entity_type = 'workflow' AND s.entity_id = CAST(nw.id AS TEXT)
       LEFT JOIN visual_workflows vw ON s.entity_type = 'workflow' AND s.entity_id = CAST(vw.id AS TEXT)

@@ -139,8 +139,30 @@ function applyRDMCrosswalkLookup(transformedRows, crosswalkConfig, rdmContext) {
     source_column, 
     target_column, 
     no_match_behavior = 'keep_source',
-    default_value = null
+    default_value = null,
+    column_mappings = []   // field-level mappings: [{ sourceColumn, targetColumn }]
   } = crosswalkConfig;
+
+  // When column_mappings is provided use field-level extraction so any crosswalk
+  // field naming convention works.  Fall back to the legacy single-column path
+  // (hardcoded target_code / target_value / to) for backward compatibility.
+  const useColumnMappings = Array.isArray(column_mappings) && column_mappings.length > 0;
+
+  // Write no-match value to all relevant output columns.
+  const writeNoMatch = (mappedRow, fallbackValue) => {
+    const noMatchValue =
+      no_match_behavior === 'set_null'    ? null :
+      no_match_behavior === 'set_default' ? default_value :
+      fallbackValue; // keep_source
+    if (useColumnMappings) {
+      for (const m of column_mappings) {
+        const outField = m.targetColumn || m.target;
+        if (outField) mappedRow[outField] = noMatchValue;
+      }
+    } else if (target_column) {
+      mappedRow[target_column] = noMatchValue;
+    }
+  };
 
   // Get preloaded crosswalk from RDM context
   const crosswalkData = rdmContext.rdm?.crosswalks?.[crosswalk_id];
@@ -155,7 +177,9 @@ function applyRDMCrosswalkLookup(transformedRows, crosswalkConfig, rdmContext) {
     sourceColumn: source_column,
     targetColumn: target_column,
     noMatchBehavior: no_match_behavior,
-    rowCount: transformedRows.length
+    rowCount: transformedRows.length,
+    usingColumnMappings: useColumnMappings,
+    columnMappingsCount: column_mappings.length
   });
 
   const mappedRows = [];
@@ -167,14 +191,8 @@ function applyRDMCrosswalkLookup(transformedRows, crosswalkConfig, rdmContext) {
     const mappedRow = { ...row };
 
     if (sourceValue === null || sourceValue === undefined) {
-      // Handle null source values
-      if (no_match_behavior === 'set_null') {
-        mappedRow[target_column] = null;
-      } else if (no_match_behavior === 'set_default') {
-        mappedRow[target_column] = default_value;
-      } else {
-        mappedRow[target_column] = sourceValue; // keep_source
-      }
+      // Handle null source values — apply no_match_behavior to all output columns
+      writeNoMatch(mappedRow, sourceValue);
       unmappedCount++;
       mappedRows.push(mappedRow);
       continue;
@@ -185,19 +203,36 @@ function applyRDMCrosswalkLookup(transformedRows, crosswalkConfig, rdmContext) {
     const crosswalkEntry = crosswalkData.map.get(lookupKey);
 
     if (crosswalkEntry !== undefined) {
-      // Mapping found - extract target value from crosswalk entry
-      const targetValue = crosswalkEntry.target_code || crosswalkEntry.target_value || crosswalkEntry.to || null;
-      mappedRow[target_column] = targetValue;
+      // Mapping found — extract target value(s) from crosswalk entry.
+      if (useColumnMappings) {
+        // column_mappings.sourceColumn is the UI display name from the crosswalk
+        // schema endpoint — it is NOT a data field key in the actual crosswalk
+        // entry.  rdmService.getCrosswalkData() normalizes all rows to:
+        //   { source_code, target_code, sourceValue, targetValue, status }
+        // so we always use the same heuristic for value extraction and use
+        // column_mappings only to decide the output column name in the row.
+        const crosswalkValue =
+          crosswalkEntry.target_code  ||
+          crosswalkEntry.target_value ||
+          crosswalkEntry.to           ||
+          crosswalkEntry.targetValue  ||
+          null;
+        for (const m of column_mappings) {
+          const outField = m.targetColumn || m.target || target_column;
+          if (outField) mappedRow[outField] = crosswalkValue;
+        }
+      } else {
+        // Legacy fallback: single target_column with hardcoded field name heuristic.
+        // Guards target_column so we never write to mappedRow['undefined'].
+        if (target_column) {
+          const targetValue = crosswalkEntry.target_code || crosswalkEntry.target_value || crosswalkEntry.to || null;
+          mappedRow[target_column] = targetValue;
+        }
+      }
       mappedCount++;
     } else {
-      // No mapping found - apply no_match_behavior
-      if (no_match_behavior === 'set_null') {
-        mappedRow[target_column] = null;
-      } else if (no_match_behavior === 'set_default') {
-        mappedRow[target_column] = default_value;
-      } else {
-        mappedRow[target_column] = sourceValue; // keep_source (default)
-      }
+      // No mapping found - apply no_match_behavior to all output columns
+      writeNoMatch(mappedRow, sourceValue);
       unmappedCount++;
     }
 

@@ -3,7 +3,7 @@ import { Handle, Position } from 'reactflow';
 import { FaFile, FaShieldAlt, FaLock } from 'react-icons/fa';
 import PropTypes from 'prop-types';
 
-const SourceFileNode = ({ data }) => {
+const SourceFileNode = ({ data = {} }) => {
   const formatFileSize = (bytes) => {
     if (!bytes) return '';
     const kb = bytes / 1024;
@@ -99,23 +99,6 @@ SourceFileNode.propTypes = {
     containsPii: PropTypes.bool,
     dataClassification: PropTypes.string,
   }).isRequired,
-};
-
-SourceFileNode.defaultProps = {
-  data: {
-    targetPosition: Position.Left,
-    sourcePosition: Position.Right,
-    label: '',
-    fileType: '',
-    fileSize: 0,
-    rowCount: 0,
-    piiColumns: [],
-    versionCount: 1,
-    hasIncidents: false,
-    incidents: { totalViolations: 0 },
-    containsPii: false,
-    dataClassification: '',
-  },
 };
 
 export default SourceFileNode;

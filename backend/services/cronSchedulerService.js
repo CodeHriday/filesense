@@ -3,7 +3,8 @@ const { systemLogger } = require('../utils/logger');
 const { executeTransformationJob } = require('./jobExecutionEngine');
 const { executeMappingGroup } = require('./mappingGroupExecutionEngine');
 const { executeNStepWorkflow } = require('./nStepWorkflowExecutionEngine');
-const { VisualWorkflowExecutor } = require('./visualWorkflowExecutor');
+// NOTE: VisualWorkflowExecutor is loaded lazily inside processDueSchedules() to avoid
+// loading it before the DI container and database pool are initialized (same pattern as BulkProfilingService).
 const parser = require('cron-parser');
 const alertAggregationWorker = require('./AlertAggregationWorker');
 
@@ -358,8 +359,11 @@ async function deleteSchedule(scheduleId) {
  */
 async function processDueSchedules() {
   try {
-    // Load BulkProfilingService here to avoid circular dependency
+    // Load BulkProfilingService here to avoid loading before DI container is initialized
     const bulkProfilingService = require('./BulkProfilingService');
+    // Load VisualWorkflowExecutor here (not at top level) to avoid loading before the
+    // DI container and database pool are initialized — same reason as BulkProfilingService.
+    const { VisualWorkflowExecutor } = require('./visualWorkflowExecutor');
     
     const now = new Date();
     
@@ -394,8 +398,11 @@ async function processDueSchedules() {
         let executionResult;
         
         if (schedule.entity_type === 'mapping') {
+          // mapping_id is varchar — pass as string, not integer.
+          // executeTransformationJob signature: (pool, mappingId, userId, options)
           executionResult = await executeTransformationJob(
-            parseInt(schedule.entity_id),
+            pool,
+            schedule.entity_id,
             userId,
             { scheduleId: schedule.id }
           );
@@ -428,6 +435,12 @@ async function processDueSchedules() {
               { scheduleId: schedule.id }
             );
           }
+        } else if (schedule.entity_type === 'visual_mapping') {
+          // Execute a visual mapping definition directly (visual_mapping_defs).
+          // VisualWorkflowExecutor.executeMapping() handles both visual_mapping_defs
+          // and transformation_mappings via the same code path.
+          const vmExecutor = new VisualWorkflowExecutor(null, userId);
+          executionResult = await vmExecutor.executeMapping(parseInt(schedule.entity_id));
         } else if (schedule.entity_type === 'bulk_profiling_job') {
           // Start the bulk profiling job
           executionResult = await bulkProfilingService.startJob(

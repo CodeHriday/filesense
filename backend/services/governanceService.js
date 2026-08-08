@@ -187,6 +187,49 @@ async function persistGovernanceMetadata(pool, options) {
       });
     }
 
+    // Step 4: Sync column_governance_tag_assignments for this file.
+    // This is the table that lineageGraphService reads to show PII badges in the drawer.
+    // Always delete ALL existing tag assignments for this file first (clean slate) so
+    // that columns removed or de-PII'd in a subsequent VM run don't linger as ghost badges.
+    await client.query(`
+      DELETE FROM column_governance_tag_assignments
+      WHERE file_id = $1
+    `, [fileId]);
+
+    if (piiColumns && piiColumns.length > 0) {
+      const normalizedForGovernance = normalizePiiColumns(piiColumns, profiledSchema);
+
+      if (normalizedForGovernance.length > 0) {
+        // Resolve (or create) the PII governance tag row — same approach as fileProcessingWorker.
+        const piiTagResult = await client.query(`
+          INSERT INTO governance_tags (tag_id, tag_name, description, color, badge_style)
+          VALUES ('tag_pii', 'PII', 'Personally Identifiable Information', '#EF4444', 'destructive')
+          ON CONFLICT (tag_name) DO UPDATE SET description = EXCLUDED.description
+          RETURNING tag_id
+        `);
+        const piiTagId = piiTagResult.rows[0].tag_id;
+
+        for (const columnName of normalizedForGovernance) {
+          await client.query(`
+            INSERT INTO column_governance_tag_assignments (file_id, column_name, tag_id)
+            VALUES ($1, $2, $3)
+            ON CONFLICT (file_id, column_name, tag_id) DO NOTHING
+          `, [fileId, columnName, piiTagId]);
+        }
+
+        systemLogger.info('Synced column_governance_tag_assignments for PII columns', {
+          fileId,
+          piiTagId,
+          columnCount: normalizedForGovernance.length,
+          columns: normalizedForGovernance
+        });
+      }
+    } else {
+      systemLogger.info('Cleared column_governance_tag_assignments (no current PII columns)', {
+        fileId
+      });
+    }
+
     // Commit transaction
     await client.query('COMMIT');
 

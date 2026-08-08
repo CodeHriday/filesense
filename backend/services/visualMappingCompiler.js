@@ -373,6 +373,30 @@ class VisualMappingCompiler {
             nodeSchemas[nodeId] = datasetOutput;
             break;
             
+          case 'rdmLookup': {
+            // RDM Lookup (crosswalk) adds the crosswalk output columns to the
+            // schema so downstream expression and target nodes can see them.
+            // Without this, 'rdmLookup' fell through to 'default' which only
+            // passed the upstream schema, hiding crosswalk output fields.
+            const rdmLookupUpstream = this.getUpstreamSchema(nodeId, edges, nodeSchemas);
+            const rdmLookupOutput = [...rdmLookupUpstream];
+
+            const rdmColumnMappings = config.columnMappings || [];
+            rdmColumnMappings.forEach(m => {
+              const colName = m.targetColumn || m.target;
+              if (colName && !rdmLookupOutput.find(f => f.name === colName)) {
+                rdmLookupOutput.push({
+                  name: colName,
+                  type: 'string',
+                  source: 'rdm_crosswalk'
+                });
+              }
+            });
+
+            nodeSchemas[nodeId] = rdmLookupOutput;
+            break;
+          }
+
           case 'rdmCrosswalk':
             // RDM Crosswalk transforms values but doesn't change schema structure
             const crosswalkUpstream = this.getUpstreamSchema(nodeId, edges, nodeSchemas);
@@ -610,22 +634,35 @@ class VisualMappingCompiler {
               // Extract source/target columns from visual mapping format
               let sourceColumn = config.sourceColumn;
               let targetColumn = config.targetColumn || config.outputColumn;
-              
+              const columnMappings = config.columnMappings || [];
+
+              // The modal saves column_mappings but not a top-level targetColumn.
+              // Fall back to the first column mapping so target_column is never
+              // undefined in the processor (undefined keys coerce to the string
+              // "undefined", creating a spurious column in the output).
+              if (!targetColumn && columnMappings.length > 0) {
+                const first = columnMappings[0];
+                targetColumn = first.targetColumn || first.target || first.name;
+              }
+
               // Build rdmCrosswalkConfig from node config
               // Initialize array if not exists (supports multiple crosswalk lookups)
               if (!result.rdmCrosswalkConfigs) {
                 result.rdmCrosswalkConfigs = [];
               }
-              
+
               result.rdmCrosswalkConfigs.push({
                 crosswalk_id: config.crosswalkId,
                 crosswalk_name: config.crosswalkName,
                 source_column: sourceColumn,
                 target_column: targetColumn,
                 no_match_behavior: config.noMatchBehavior || 'keep_source',
-                default_value: config.defaultValue || null
+                default_value: config.defaultValue || null,
+                // Pass column_mappings through so the processor can use field-level
+                // mappings for value extraction instead of hardcoded field name heuristics.
+                column_mappings: columnMappings
               });
-              
+
               // For backward compatibility, also set rdmCrosswalkConfig to first one
               if (!result.rdmCrosswalkConfig) {
                 result.rdmCrosswalkConfig = result.rdmCrosswalkConfigs[0];

@@ -666,3 +666,18 @@
   background: #EDE9FE;
   color: #7C3AED;
 }
+
+/* PII badge inside column-mapping rows — sits inline next to the field name */
+.column-mapping-field-cell {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.column-mapping-pii-badge {
+  font-size: 8px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}

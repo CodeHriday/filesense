@@ -7,7 +7,7 @@ module.exports = {
   displayName: 'backend',
   testEnvironment: 'node',
   
-  roots: ['<rootDir>/backend'],
+  roots: ['<rootDir>/backend', '<rootDir>/server'],
   
   testMatch: [
     '**/tests/**/*.test.js',

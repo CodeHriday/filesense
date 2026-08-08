@@ -3187,6 +3187,16 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
       fixedWidthSchema && 
       fixedWidthSchema.hasHeader === false;
     
+    // When a crosswalk lookup is present, field_mappings (expressions) must run AFTER
+    // crosswalk enrichment — otherwise the expression sees undefined for crosswalk-added
+    // columns.  Mirror the hasJoin pattern: withhold field_mappings from the parser and
+    // re-apply them in Step 3.2.5, after Step 3.2 (RDM enrichment) has run.
+    const hasCrosswalkEnrichment = !!(
+      mapping.rdm_lookup_enabled &&
+      (mapping.rdm_crosswalk_config ||
+        (Array.isArray(mapping.rdm_crosswalk_configs) && mapping.rdm_crosswalk_configs.length > 0))
+    );
+
     if (isFixedWidth && fixedWidthSchema.headerDefinition) {
       // Parse fixed-width file using schema from vendor agreement
       await logJobExecution(pool, jobId, 'info', `Parsing fixed-width file using vendor agreement schema`, {
@@ -3201,13 +3211,15 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
         { hasHeader: fixedWidthSchema.hasHeader }
       );
       
-      // For multi-source joins, delay field mapping application until after join enrichment
+      // For multi-source joins or crosswalk enrichment, delay field mapping application
+      // until after enrichment so expressions can reference enriched columns.
       const hasJoin = joinLookupTables && joinSpecs && joinSpecs.length > 0;
+      const delayMappings = hasJoin || hasCrosswalkEnrichment;
       
       // Convert field mappings and variables to expected format (same as other parsers)
-      // Use empty mappings for joins - they'll be applied after enrichment
-      const convertedMappings = hasJoin ? [] : convertFieldMappings(mapping.field_mappings);
-      const convertedVariables = hasJoin ? [] : convertVariables(mapping.variables);
+      // Use empty mappings when delaying - they'll be applied after enrichment
+      const convertedMappings = delayMappings ? [] : convertFieldMappings(mapping.field_mappings);
+      const convertedVariables = delayMappings ? [] : convertVariables(mapping.variables);
       
       // Transform the parsed rows using the same pipeline as CSV/JSON
       const transformedFixedRows = [];
@@ -3252,66 +3264,72 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
       });
       
       // Pass column names to CSV parser
-      // For multi-source joins, delay field mapping application until after join enrichment
+      // Delay field mappings when a join or crosswalk is present
       const hasJoin = joinLookupTables && joinSpecs && joinSpecs.length > 0;
+      const delayMappings = hasJoin || hasCrosswalkEnrichment;
       const columnNames = fixedWidthSchema.headerDefinition.map(col => col.name);
       parseResult = await parseAndTransformCSV(
         fileBuffer, 
-        hasJoin ? [] : mapping.field_mappings,
-        hasJoin ? [] : mapping.variables,
+        delayMappings ? [] : mapping.field_mappings,
+        delayMappings ? [] : mapping.variables,
         jobId, 
         pool,
         rdmContext,
         { headers: columnNames, skipFirstRow: false }
       );
     } else if (fileExtension === 'csv') {
-      // For multi-source joins, delay field mapping application until after join enrichment
-      // This allows expressions to reference columns from secondary sources
+      // Delay field mappings when a join or crosswalk is present so expressions can
+      // reference enriched columns (crosswalk output, secondary source columns).
       const hasJoin = joinLookupTables && joinSpecs && joinSpecs.length > 0;
+      const delayMappings = hasJoin || hasCrosswalkEnrichment;
       parseResult = await parseAndTransformCSV(
         fileBuffer, 
-        hasJoin ? [] : mapping.field_mappings,  // Empty mappings if join - apply after enrichment
-        hasJoin ? [] : mapping.variables,       // Empty variables if join - apply after enrichment
+        delayMappings ? [] : mapping.field_mappings,
+        delayMappings ? [] : mapping.variables,
         jobId, 
         pool,
         rdmContext
       );
     } else if (fileExtension === 'json') {
       const hasJoin = joinLookupTables && joinSpecs && joinSpecs.length > 0;
+      const delayMappings = hasJoin || hasCrosswalkEnrichment;
       parseResult = await parseAndTransformJSON(
         fileBuffer, 
-        hasJoin ? [] : mapping.field_mappings,
-        hasJoin ? [] : mapping.variables,
+        delayMappings ? [] : mapping.field_mappings,
+        delayMappings ? [] : mapping.variables,
         jobId, 
         pool,
         rdmContext
       );
     } else if (fileExtension === 'xlsx' || fileExtension === 'xls') {
       const hasJoin = joinLookupTables && joinSpecs && joinSpecs.length > 0;
+      const delayMappings = hasJoin || hasCrosswalkEnrichment;
       parseResult = await parseAndTransformXLSX(
         fileBuffer, 
-        hasJoin ? [] : mapping.field_mappings,
-        hasJoin ? [] : mapping.variables,
+        delayMappings ? [] : mapping.field_mappings,
+        delayMappings ? [] : mapping.variables,
         jobId, 
         pool,
         rdmContext
       );
     } else if (fileExtension === 'parquet') {
       const hasJoin = joinLookupTables && joinSpecs && joinSpecs.length > 0;
+      const delayMappings = hasJoin || hasCrosswalkEnrichment;
       parseResult = await parseAndTransformParquet(
         fileBuffer, 
-        hasJoin ? [] : mapping.field_mappings,
-        hasJoin ? [] : mapping.variables,
+        delayMappings ? [] : mapping.field_mappings,
+        delayMappings ? [] : mapping.variables,
         jobId, 
         pool,
         rdmContext
       );
     } else if (fileExtension === 'xml') {
       const hasJoin = joinLookupTables && joinSpecs && joinSpecs.length > 0;
+      const delayMappings = hasJoin || hasCrosswalkEnrichment;
       parseResult = await parseAndTransformXML(
         fileBuffer, 
-        hasJoin ? [] : mapping.field_mappings,
-        hasJoin ? [] : mapping.variables,
+        delayMappings ? [] : mapping.field_mappings,
+        delayMappings ? [] : mapping.variables,
         jobId, 
         pool,
         rdmContext
@@ -3487,6 +3505,58 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
       }
     }
     
+    // Step 3.2.5: When crosswalk enrichment was present, field_mappings were withheld from
+    // the parser so the expressions could not run against undefined crosswalk columns.
+    // Now that Step 3.2 has written crosswalk output into every row, re-apply the field
+    // mappings so expressions (e.g. renaming the crosswalk staging column to the final
+    // output column name) see the fully-enriched row.
+    if (hasCrosswalkEnrichment && mapping.field_mappings && mapping.field_mappings.length > 0) {
+      await logJobExecution(pool, jobId, 'info', `Applying post-crosswalk field mappings so expressions can read crosswalk output`, {
+        inputRows: transformedRows.length,
+        fieldMappingCount: mapping.field_mappings.length
+      });
+
+      try {
+        const { transformRow } = require('./transformationEngine');
+        const convertedMappings = convertFieldMappings(mapping.field_mappings);
+        const convertedVariables = convertVariables(mapping.variables || []);
+
+        // Debug: log first enriched row keys before re-applying expressions
+        if (transformedRows.length > 0) {
+          systemLogger.info('Post-crosswalk transformation debug - enriched row before transform', {
+            enrichedRowKeys: Object.keys(transformedRows[0])
+          });
+        }
+
+        const postCrosswalkRows = [];
+        for (const row of transformedRows) {
+          try {
+            const transformedRow = transformRow(row, convertedMappings, convertedVariables, rdmContext);
+            if (transformedRow && Object.keys(transformedRow).length > 0) {
+              postCrosswalkRows.push(transformedRow);
+            }
+          } catch (transformError) {
+            systemLogger.warn('Post-crosswalk transformation error on row', {
+              error: transformError.message
+            });
+            postCrosswalkRows.push(row); // Keep enriched row on error
+          }
+        }
+
+        transformedRows.length = 0;
+        transformedRows.push(...postCrosswalkRows);
+
+        await logJobExecution(pool, jobId, 'info', `Post-crosswalk field mapping complete`, {
+          outputRows: transformedRows.length
+        });
+      } catch (stepError) {
+        await logJobExecution(pool, jobId, 'error', `Post-crosswalk field mapping failed: ${stepError.message}`, {
+          error: stepError.stack
+        });
+        throw new Error(`Post-crosswalk field mapping failed: ${stepError.message}`);
+      }
+    }
+
     // Step 3.3: Run quality validation on transformed data (if quality rules are defined)
     try {
       const qualityRulesResult = await pool.query(`
