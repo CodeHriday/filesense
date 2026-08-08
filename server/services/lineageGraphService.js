@@ -1771,8 +1771,45 @@ async function getNodeDetails(nodeId, nodeType, projectId) {
                 // Real output file found — return it so the drawer can build a
                 // working /profile/{file_id} redirect. Merge mapping identifiers
                 // so the drawer can still display mapping_name / mapping_id.
+                const realFileRow = auditFileResult.rows[0];
+                const resolvedFileId = realFileRow.file_id;
+
+                // Query PII columns and full column metadata for the real file,
+                // exactly as the sourceFile case does (lines ~1532–1565).
+                const [piiColsResult, columnsResult] = await Promise.all([
+                  pool.query(`
+                    SELECT DISTINCT cta.column_name
+                    FROM column_governance_tag_assignments cta
+                    WHERE cta.file_id = $1 AND cta.tag_id = 'tag_pii'
+                    ORDER BY cta.column_name
+                  `, [resolvedFileId]),
+                  pool.query(`
+                    SELECT
+                      fc.column_name,
+                      fc.column_type,
+                      fc.column_index,
+                      fc.null_count,
+                      fc.unique_count,
+                      fc.min_value,
+                      fc.max_value,
+                      fc.most_frequent_value,
+                      fc.top_values,
+                      COALESCE(
+                        (SELECT array_agg(DISTINCT cta.tag_id)
+                         FROM column_governance_tag_assignments cta
+                         WHERE cta.file_id = $1 AND cta.column_name = fc.column_name),
+                        ARRAY[]::text[]
+                      ) AS governance_tags
+                    FROM file_columns fc
+                    WHERE fc.file_id = $1
+                    ORDER BY fc.column_index
+                  `, [resolvedFileId])
+                ]);
+
                 return {
-                  ...auditFileResult.rows[0],
+                  ...realFileRow,
+                  pii_columns: piiColsResult.rows.map(r => r.column_name),
+                  columns: columnsResult.rows,
                   mapping_name: mapping.mapping_name,
                   mapping_id: mapping.mapping_id,
                 };
