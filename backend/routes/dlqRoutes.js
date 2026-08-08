@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const DLQService = require('../services/dlqService');
-const { pool } = require('../config/database');
+const pool = require('../db');
 const { systemLogger } = require('../utils/logger');
 
 const dlqService = new DLQService(pool, systemLogger);

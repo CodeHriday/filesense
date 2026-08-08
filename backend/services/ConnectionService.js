@@ -1,4 +1,5 @@
-const { pool, query: dbQuery, getClient } = require('../config/database');
+const pool = require('../db');
+const { query: dbQuery, getClient } = require('../config/database');
 const AWS = require('aws-sdk');
 const { Storage } = require('@google-cloud/storage');
 const { BlobServiceClient } = require('@azure/storage-blob');

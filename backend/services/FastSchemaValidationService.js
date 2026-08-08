@@ -5,7 +5,8 @@
  */
 
 const { systemLogger } = require('../utils/logger');
-const { pool, query: dbQuery } = require('../config/database');
+const pool = require('../db');
+const { query: dbQuery } = require('../config/database');
 const AWS = require('aws-sdk');
 const xlsx = require('xlsx');
 const fs = require('fs');

@@ -5,7 +5,8 @@
 
 const express = require('express');
 const router = express.Router();
-const { pool, query: dbQuery } = require('../config/database');
+const pool = require('../db');
+const { query: dbQuery } = require('../config/database');
 const { systemLogger } = require('../utils/logger');
 const { encrypt, decrypt } = require('../utils/encryption');
 const { v4: uuidv4 } = require('uuid');

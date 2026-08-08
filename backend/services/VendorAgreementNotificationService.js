@@ -11,7 +11,8 @@
  * - Additional stakeholder group members (additional_stakeholder_group_ids -> user_groups -> users)
  */
 
-const { pool, query } = require('../config/database');
+const pool = require('../db');
+const { query } = require('../config/database');
 const EmailProviderFactory = require('./email/EmailProviderFactory');
 const connectionService = require('./ConnectionService');
 const EmailComposer = require('./EmailComposer');

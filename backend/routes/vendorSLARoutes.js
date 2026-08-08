@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
-const { pool, query: dbQuery } = require('../config/database');
+const pool = require('../db');
+const { query: dbQuery } = require('../config/database');
 const slaMonitorService = require('../services/slaMonitorService');
 const slaCalculationService = require('../services/slaCalculationService');
 const { systemLogger } = require('../utils/logger');

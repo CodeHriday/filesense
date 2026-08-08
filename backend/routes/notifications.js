@@ -5,7 +5,8 @@
 
 const express = require('express');
 const router = express.Router();
-const { pool, query } = require('../config/database');
+const pool = require('../db');
+const { query } = require('../config/database');
 const { systemLogger } = require('../utils/logger');
 const { authenticateToken } = require('../src/middleware/authenticate');
 
