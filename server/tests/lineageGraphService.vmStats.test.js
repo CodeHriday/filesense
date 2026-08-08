@@ -1382,3 +1382,186 @@ describe('getNodeDetails — VM transformation: DB enrichment merges with fm.pii
     expect(!!ssnMapping.target_is_pii).toBe(false);
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// getNodeDetails — VM transformation: targetRules piiColumns fallback
+//
+// Covers the real-world case where fieldMappings were saved before ExpressionModal
+// persisted the fm.pii flag per row (so fm.pii is null/absent for every entry),
+// but the targetRules node carries config.piiColumns with the user's intent.
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('getNodeDetails — VM transformation: targetRules piiColumns used as fallback when fm.pii is absent', () => {
+  const VM_ID_FALLBACK = 40;
+  const nodeIdFallback = `mapping-vm-${VM_ID_FALLBACK}-synthetic`;
+
+  /**
+   * Simulates a mapping saved before ExpressionModal wrote fm.pii per row:
+   * - All fieldMappings have pii: null (never written).
+   * - targetRules.config.piiColumns carries Patient_ID as the authoritative PII list.
+   */
+  const VM_FALLBACK_ROW = {
+    vm_id:            VM_ID_FALLBACK,
+    vm_name:          'fallback_pii_test',
+    project_id:       PROJECT_ID,
+    last_executed_at: '2026-08-08T10:00:00Z',
+    execution_count:  1,
+    completed_at:     '2026-08-08T10:00:00Z',
+    rows_processed:   4,
+    rows_read:        4,
+    rows_written:     4,
+    graph_data: {
+      nodes: [
+        { type: 'sourceConfig', data: { config: { filePattern: '*.csv' } } },
+        {
+          type: 'targetRules',
+          data: {
+            config: {
+              fileName: 'enrollment-out',
+              fileFormat: 'csv',
+              // User marked Patient_ID as PII in the Output Schema panel
+              piiColumns: ['Patient_ID']
+            }
+          }
+        },
+        {
+          type: 'expression',
+          data: {
+            config: {
+              fieldMappings: [
+                // fm.pii is null — saved before per-row pii flag existed
+                {
+                  source_field: 'src_patient',
+                  target_field: 'Patient_ID',
+                  transformation: 'none',
+                  data_type: 'STRING',
+                  include: true,
+                  pii: null
+                },
+                {
+                  source_field: 'Country_code',
+                  target_field: 'Country',
+                  transformation: 'none',
+                  data_type: 'STRING',
+                  include: true,
+                  pii: null
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  };
+
+  beforeEach(() => {
+    mockQuery.mockImplementation(
+      mockQueryRouter([
+        ['FROM visual_mapping_defs vmd', { rows: [VM_FALLBACK_ROW] }]
+      ])
+    );
+  });
+
+  test('Patient_ID mapping gets target_is_pii:true from targetRules piiColumns when fm.pii is null', async () => {
+    const details = await getNodeDetails(nodeIdFallback, 'transformation', PROJECT_ID);
+    expect(details).not.toBeNull();
+
+    const patientMapping = details.field_mappings.find(
+      fm => fm.target_field === 'Patient_ID'
+    );
+    expect(patientMapping).toBeDefined();
+    expect(patientMapping.target_is_pii).toBe(true);
+  });
+
+  test('Country mapping stays target_is_pii:false when not in targetRules piiColumns', async () => {
+    const details = await getNodeDetails(nodeIdFallback, 'transformation', PROJECT_ID);
+
+    const countryMapping = details.field_mappings.find(
+      fm => fm.target_field === 'Country'
+    );
+    expect(countryMapping).toBeDefined();
+    expect(countryMapping.target_is_pii).toBe(false);
+  });
+
+  test('fm.pii:true and field in piiColumns together still produce target_is_pii:true (no doubling)', async () => {
+    // Simulate a row where BOTH signals agree — result must be a plain true, not an error
+    const rowBothTrue = {
+      ...VM_FALLBACK_ROW,
+      graph_data: {
+        nodes: [
+          { type: 'sourceConfig', data: { config: { filePattern: '*.csv' } } },
+          {
+            type: 'targetRules',
+            data: { config: { fileName: 'out', fileFormat: 'csv', piiColumns: ['Patient_ID'] } }
+          },
+          {
+            type: 'expression',
+            data: {
+              config: {
+                fieldMappings: [
+                  {
+                    source_field: 'src_patient',
+                    target_field: 'Patient_ID',
+                    transformation: 'none',
+                    data_type: 'STRING',
+                    include: true,
+                    pii: true   // ← explicit fm.pii also set
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+    };
+    mockQuery.mockImplementation(
+      mockQueryRouter([['FROM visual_mapping_defs vmd', { rows: [rowBothTrue] }]])
+    );
+
+    const details = await getNodeDetails(nodeIdFallback, 'transformation', PROJECT_ID);
+    const mapping = details.field_mappings.find(fm => fm.target_field === 'Patient_ID');
+    expect(mapping).toBeDefined();
+    expect(mapping.target_is_pii).toBe(true);
+  });
+
+  test('targetRules node with no piiColumns key does not mark any mapping PII', async () => {
+    const rowNoPiiKey = {
+      ...VM_FALLBACK_ROW,
+      graph_data: {
+        nodes: [
+          { type: 'sourceConfig', data: { config: { filePattern: '*.csv' } } },
+          {
+            type: 'targetRules',
+            // piiColumns key entirely absent
+            data: { config: { fileName: 'out', fileFormat: 'csv' } }
+          },
+          {
+            type: 'expression',
+            data: {
+              config: {
+                fieldMappings: [
+                  {
+                    source_field: 'src_patient',
+                    target_field: 'Patient_ID',
+                    transformation: 'none',
+                    data_type: 'STRING',
+                    include: true,
+                    pii: null
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+    };
+    mockQuery.mockImplementation(
+      mockQueryRouter([['FROM visual_mapping_defs vmd', { rows: [rowNoPiiKey] }]])
+    );
+
+    const details = await getNodeDetails(nodeIdFallback, 'transformation', PROJECT_ID);
+    const mapping = details.field_mappings.find(fm => fm.target_field === 'Patient_ID');
+    expect(mapping).toBeDefined();
+    expect(mapping.target_is_pii).toBe(false);
+  });
+});

@@ -1616,6 +1616,23 @@ async function getNodeDetails(nodeId, nodeType, projectId) {
             let vmFieldMappings = [];
             try {
               const graphNodes = vm.graph_data?.nodes || [];
+
+              // Build a Set of PII column names from the targetRules node so it can
+              // serve as a fallback when individual fieldMappings lack fm.pii (e.g.
+              // mappings saved before ExpressionModal persisted the pii flag per row).
+              // This mirrors what the targetFile SQL query extracts as pii_columns.
+              const targetRulesPiiSet = new Set();
+              for (const gNode of graphNodes) {
+                if (gNode.type === 'targetRules') {
+                  const tConfig = gNode.data?.config || gNode.config || {};
+                  const pioCols = tConfig.piiColumns || [];
+                  if (Array.isArray(pioCols)) {
+                    for (const col of pioCols) { targetRulesPiiSet.add(String(col)); }
+                  }
+                  break; // only one targetRules node expected
+                }
+              }
+
               for (const gNode of graphNodes) {
                 if (gNode.type === 'expression') {
                   const config = gNode.data?.config || gNode.config || {};
@@ -1638,11 +1655,11 @@ async function getNodeDetails(nodeId, nodeType, projectId) {
                         target_field: targetField,
                         transformation_type: transformationType,
                         data_type: fm.data_type || fm.dataType || 'string',
-                        // fm.pii is the authoritative PII flag saved by ExpressionModal
-                        // for the TARGET field. Read it directly from graph_data rather
-                        // than relying on column_governance_tag_assignments, which is
-                        // only populated for profiled files (not VM-generated outputs).
-                        target_is_pii: fm.pii === true
+                        // target_is_pii: prefer fm.pii saved by ExpressionModal per row;
+                        // fall back to targetRulesPiiSet (config.piiColumns from the
+                        // targetRules node) for mappings where fm.pii was never written
+                        // (e.g. saved before ExpressionModal persisted the flag per row).
+                        target_is_pii: fm.pii === true || targetRulesPiiSet.has(targetField)
                       };
 
                       // Derived (non-direct) mappings: populate source_fields and
