@@ -398,8 +398,11 @@ async function processDueSchedules() {
         let executionResult;
         
         if (schedule.entity_type === 'mapping') {
+          // mapping_id is varchar — pass as string, not integer.
+          // executeTransformationJob signature: (pool, mappingId, userId, options)
           executionResult = await executeTransformationJob(
-            parseInt(schedule.entity_id),
+            pool,
+            schedule.entity_id,
             userId,
             { scheduleId: schedule.id }
           );
@@ -432,6 +435,12 @@ async function processDueSchedules() {
               { scheduleId: schedule.id }
             );
           }
+        } else if (schedule.entity_type === 'visual_mapping') {
+          // Execute a visual mapping definition directly (visual_mapping_defs).
+          // VisualWorkflowExecutor.executeMapping() handles both visual_mapping_defs
+          // and transformation_mappings via the same code path.
+          const vmExecutor = new VisualWorkflowExecutor(null, userId);
+          executionResult = await vmExecutor.executeMapping(parseInt(schedule.entity_id));
         } else if (schedule.entity_type === 'bulk_profiling_job') {
           // Start the bulk profiling job
           executionResult = await bulkProfilingService.startJob(

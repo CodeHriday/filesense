@@ -130,7 +130,7 @@ const SchedulerForm = () => {
       
       // If project_id is missing, derive it from the entity using the provided entityData
       if (!projectId && response.data.entity_id && response.data.entity_type && entityData) {
-        if (response.data.entity_type === 'mapping') {
+        if (response.data.entity_type === 'mapping' || response.data.entity_type === 'visual_mapping') {
           const mapping = entityData.mappings.find(t => String(t.mapping_id) === String(response.data.entity_id));
           projectId = mapping?.project_id || '';
           subProjectId = mapping?.sub_project_id || '';
@@ -214,7 +214,10 @@ const SchedulerForm = () => {
     
     switch (formData.entity_type) {
       case 'mapping':
-        // Filter by project and subproject, then deduplicate by mapping_name
+      case 'visual_mapping':
+        // Filter by project and subproject, then deduplicate by mapping_name.
+        // Both traditional (mapping) and VM (visual_mapping) entries live in
+        // the same transformations array; entity_type is resolved per-item on select.
         const seen = new Set();
         return transformations
           .filter(t => {
@@ -227,7 +230,7 @@ const SchedulerForm = () => {
             seen.add(t.mapping_name);
             return true;
           })
-          .map(t => ({ id: t.mapping_id, name: t.mapping_name }));
+          .map(t => ({ id: t.mapping_id, name: t.mapping_name, is_visual_mapping: t.is_visual_mapping }));
       case 'workflow':
         // Filter by project and subproject, then deduplicate by name
         const seenWorkflows = new Set();
@@ -326,7 +329,7 @@ const SchedulerForm = () => {
                 <div className="gps-segmented">
                   <button
                     type="button"
-                    className={`gps-segmented__btn ${formData.entity_type === 'mapping' ? 'gps-segmented__btn--active' : ''}`}
+                    className={`gps-segmented__btn ${(formData.entity_type === 'mapping' || formData.entity_type === 'visual_mapping') ? 'gps-segmented__btn--active' : ''}`}
                     onClick={() => setFormData({ ...formData, entity_type: 'mapping', entity_id: '' })}
                   >
                     <FiLayers style={{ marginRight: '6px' }} />Transformation
@@ -350,18 +353,22 @@ const SchedulerForm = () => {
                     const value = e.target.value;
                     let projectId = '';
                     let subProjectId = '';
+                    let resolvedEntityType = formData.entity_type;
                     if (value) {
-                      if (formData.entity_type === 'mapping') {
+                      if (formData.entity_type === 'mapping' || formData.entity_type === 'visual_mapping') {
                         const mapping = transformations.find(t => String(t.mapping_id) === String(value));
                         projectId = mapping?.project_id || '';
                         subProjectId = mapping?.sub_project_id || '';
+                        // Resolve the correct entity_type per selected item so the backend
+                        // receives 'visual_mapping' for VM defs and 'mapping' for traditional ones.
+                        resolvedEntityType = mapping?.is_visual_mapping ? 'visual_mapping' : 'mapping';
                       } else if (formData.entity_type === 'workflow') {
                         const workflow = workflows.find(w => String(w.id) === String(value));
                         projectId = workflow?.project_id || '';
                         subProjectId = workflow?.sub_project_id || '';
                       }
                     }
-                    setFormData({ ...formData, entity_id: value, project_id: projectId, sub_project_id: subProjectId });
+                    setFormData({ ...formData, entity_type: resolvedEntityType, entity_id: value, project_id: projectId, sub_project_id: subProjectId });
                   }}
                   required
                   className="gps-filter-select"
