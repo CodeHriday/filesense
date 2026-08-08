@@ -995,3 +995,390 @@ describe('getNodeDetails — VM targetFile enriches columns with governance tags
     expect(details.is_synthetic).toBe(true);
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// getNodeDetails — VM targetFile: PII tags read directly from graph_data piiColumns
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('getNodeDetails — VM targetFile reads PII from graph_data piiColumns (no profiling needed)', () => {
+  /**
+   * Simulates the TargetRulesModal save format:
+   *   config.orderedColumns = columns.map(c => c.name)        ← name strings only
+   *   config.piiColumns     = columns.filter(c=>c.pii).map(c=>c.name)  ← PII names
+   *
+   * The SQL now extracts both as `ordered_columns` and `pii_columns` in the same
+   * query; pg returns JSONB arrays as JS arrays automatically.
+   */
+  const VM_TARGET_PII_ROW = {
+    vm_id:            20,
+    vm_name:          'enrollment_transform',
+    project_id:       PROJECT_ID,
+    last_executed_at: '2026-08-08T09:00:00Z',
+    execution_count:  5,
+    ordered_columns:  ['Country_name', 'Patient_ID', 'Country_code', 'Gender'],
+    pii_columns:      ['Patient_ID']   // ← the authoritative PII list from graph_data
+  };
+
+  beforeEach(() => {
+    mockQuery.mockImplementation(
+      mockQueryRouter([
+        ['visual_mapping_defs vmd', { rows: [VM_TARGET_PII_ROW] }],
+        ['visual_mapping_executions vme', { rows: [EXEC_ROW] }]
+        // Deliberately no 'FROM files f' or 'column_governance_tag_assignments' route —
+        // the fix must NOT require profiling data; graph_data is the primary source.
+      ])
+    );
+  });
+
+  test('Patient_ID column has tag_pii from graph_data without any DB profiling rows', async () => {
+    const details = await getNodeDetails(
+      'target-file-enrollment_transform.csv',
+      'targetFile',
+      PROJECT_ID
+    );
+
+    expect(details).not.toBeNull();
+    const patientCol = details.columns.find(c => c.column_name === 'Patient_ID');
+    expect(patientCol).toBeDefined();
+    expect(patientCol.governance_tags).toContain('tag_pii');
+  });
+
+  test('columns not in piiColumns have empty governance_tags', async () => {
+    const details = await getNodeDetails(
+      'target-file-enrollment_transform.csv',
+      'targetFile',
+      PROJECT_ID
+    );
+
+    const countryCol = details.columns.find(c => c.column_name === 'Country_name');
+    expect(countryCol).toBeDefined();
+    expect(countryCol.governance_tags).toEqual([]);
+
+    const genderCol = details.columns.find(c => c.column_name === 'Gender');
+    expect(genderCol).toBeDefined();
+    expect(genderCol.governance_tags).toEqual([]);
+  });
+
+  test('all ordered columns are present after PII application', async () => {
+    const details = await getNodeDetails(
+      'target-file-enrollment_transform.csv',
+      'targetFile',
+      PROJECT_ID
+    );
+
+    expect(details.columns).toHaveLength(4);
+    const names = details.columns.map(c => c.column_name);
+    expect(names).toEqual(['Country_name', 'Patient_ID', 'Country_code', 'Gender']);
+  });
+
+  test('gracefully handles missing piiColumns (no PII tags applied)', async () => {
+    const rowNoPii = { ...VM_TARGET_PII_ROW, pii_columns: null };
+    mockQuery.mockImplementation(
+      mockQueryRouter([
+        ['visual_mapping_defs vmd', { rows: [rowNoPii] }],
+        ['visual_mapping_executions vme', { rows: [EXEC_ROW] }]
+      ])
+    );
+
+    const details = await getNodeDetails(
+      'target-file-enrollment_transform.csv',
+      'targetFile',
+      PROJECT_ID
+    );
+
+    expect(details).not.toBeNull();
+    for (const col of details.columns) {
+      expect(col.governance_tags).toEqual([]);
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// getNodeDetails — VM transformation: target_is_pii read from fm.pii in graph_data
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('getNodeDetails — VM transformation reads target_is_pii from fm.pii in fieldMappings', () => {
+  const VM_ID = 21;
+  const nodeId = `mapping-vm-${VM_ID}-synthetic`;
+
+  /**
+   * Simulates the ExpressionModal save format:
+   *   fieldMappings[n].pii = piiColumns.includes(targetField)
+   * Patient_ID is the PII target; Country is not.
+   */
+  const VM_TRANSFORM_PII_FM_ROW = {
+    vm_id:            VM_ID,
+    vm_name:          'pii_fm_test_mapping',
+    project_id:       PROJECT_ID,
+    last_executed_at: '2026-08-08T09:00:00Z',
+    execution_count:  2,
+    completed_at:     '2026-08-08T09:00:00Z',
+    rows_processed:   3,
+    rows_read:        3,
+    rows_written:     3,
+    graph_data: {
+      nodes: [
+        {
+          type: 'sourceConfig',
+          data: { config: { filePattern: '*.csv' } }
+        },
+        {
+          type: 'targetRules',
+          data: { config: { fileName: 'out', fileFormat: 'csv' } }
+        },
+        {
+          type: 'expression',
+          data: {
+            config: {
+              fieldMappings: [
+                // Patient_ID is PII — fm.pii: true saved by ExpressionModal
+                {
+                  source_field: 'src_patient',
+                  target_field: 'Patient_ID',
+                  transformation: 'none',
+                  data_type: 'STRING',
+                  include: true,
+                  pii: true      // ← ExpressionModal sets this
+                },
+                // Country is not PII
+                {
+                  source_field: 'Country_code',
+                  target_field: 'Country',
+                  transformation: 'none',
+                  data_type: 'STRING',
+                  include: true,
+                  pii: false
+                },
+                // No pii property at all — should default to false
+                {
+                  source_field: 'Site',
+                  target_field: 'Site',
+                  transformation: 'none',
+                  data_type: 'STRING',
+                  include: true
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  };
+
+  beforeEach(() => {
+    // Deliberately no files / audit / column_governance_tag routes —
+    // target_is_pii must resolve from graph_data alone.
+    mockQuery.mockImplementation(
+      mockQueryRouter([
+        ['FROM visual_mapping_defs vmd', { rows: [VM_TRANSFORM_PII_FM_ROW] }]
+      ])
+    );
+  });
+
+  test('mapping with pii:true has target_is_pii true', async () => {
+    const details = await getNodeDetails(nodeId, 'transformation', PROJECT_ID);
+    expect(details).not.toBeNull();
+
+    const patientMapping = details.field_mappings.find(
+      fm => fm.target_field === 'Patient_ID'
+    );
+    expect(patientMapping).toBeDefined();
+    expect(patientMapping.target_is_pii).toBe(true);
+  });
+
+  test('mapping with pii:false has target_is_pii false', async () => {
+    const details = await getNodeDetails(nodeId, 'transformation', PROJECT_ID);
+
+    const countryMapping = details.field_mappings.find(
+      fm => fm.target_field === 'Country'
+    );
+    expect(countryMapping).toBeDefined();
+    expect(countryMapping.target_is_pii).toBe(false);
+  });
+
+  test('mapping with no pii property has target_is_pii false', async () => {
+    const details = await getNodeDetails(nodeId, 'transformation', PROJECT_ID);
+
+    const siteMapping = details.field_mappings.find(
+      fm => fm.target_field === 'Site'
+    );
+    expect(siteMapping).toBeDefined();
+    expect(siteMapping.target_is_pii).toBe(false);
+  });
+
+  test('all three mappings are present and count is correct', async () => {
+    const details = await getNodeDetails(nodeId, 'transformation', PROJECT_ID);
+    expect(details.field_mappings).toHaveLength(3);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Merge-semantics regression tests
+//
+// These tests verify that the supplemental DB enrichment paths (task #108)
+// MERGE with, rather than OVERWRITE, the graph_data-derived PII flags set
+// by task #111.  They exercise the exact overwrite paths the code reviewer
+// flagged.
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('getNodeDetails — VM targetFile: DB enrichment merges with graph_data piiColumns', () => {
+  /**
+   * Scenario: Patient_ID is in graph_data piiColumns (so it starts with
+   * governance_tags: ['tag_pii']), but the matching output file in the DB
+   * has ONLY a 'tag_sensitive' tag for Patient_ID — no tag_pii row.
+   * After merging, the column should have BOTH tags, not just tag_sensitive.
+   */
+  const VM_ROW_WITH_PII = {
+    vm_id:           30,
+    vm_name:         'merge_test_mapping',
+    project_id:      PROJECT_ID,
+    last_executed_at:'2026-08-08T10:00:00Z',
+    execution_count: 1,
+    ordered_columns: ['Patient_ID', 'Country_code'],
+    pii_columns:     ['Patient_ID']   // graph_data says Patient_ID is PII
+  };
+
+  const FILE_ID_FOR_OUTPUT = 'output-file-merge-test-uuid';
+
+  beforeEach(() => {
+    mockQuery.mockImplementation(
+      mockQueryRouter([
+        ['visual_mapping_defs vmd',         { rows: [VM_ROW_WITH_PII] }],
+        ['visual_mapping_executions vme',   { rows: [EXEC_ROW] }],
+        // DB enrichment: output file found, but its tags table has only tag_sensitive
+        // for Patient_ID — no tag_pii entry (as if profiling ran but didn't detect PII).
+        ['FROM files f',                    { rows: [{ file_id: FILE_ID_FOR_OUTPUT }] }],
+        ['column_governance_tag_assignments', {
+          rows: [
+            { column_name: 'Patient_ID', governance_tags: ['tag_sensitive'] }
+          ]
+        }]
+      ])
+    );
+  });
+
+  test('Patient_ID retains tag_pii from graph_data even when DB omits it', async () => {
+    const details = await getNodeDetails(
+      'target-file-merge_test_mapping.csv',
+      'targetFile',
+      PROJECT_ID
+    );
+
+    expect(details).not.toBeNull();
+    const patientCol = details.columns.find(c => c.column_name === 'Patient_ID');
+    expect(patientCol).toBeDefined();
+    // graph_data-seeded tag_pii must survive the DB merge
+    expect(patientCol.governance_tags).toContain('tag_pii');
+    // DB-sourced tag_sensitive must also be present
+    expect(patientCol.governance_tags).toContain('tag_sensitive');
+  });
+
+  test('Country_code has no tags (neither graph_data nor DB tagged it PII)', async () => {
+    const details = await getNodeDetails(
+      'target-file-merge_test_mapping.csv',
+      'targetFile',
+      PROJECT_ID
+    );
+
+    const countryCol = details.columns.find(c => c.column_name === 'Country_code');
+    expect(countryCol).toBeDefined();
+    expect(countryCol.governance_tags).toEqual([]);
+  });
+});
+
+describe('getNodeDetails — VM transformation: DB enrichment merges with fm.pii target_is_pii', () => {
+  /**
+   * Scenario: fm.pii:true sets target_is_pii:true on Patient_ID mapping.
+   * Then the DB enrichment fires (source audit finds a source file with SSN
+   * as PII). targetPiiSet from the output file lookup does NOT include
+   * Patient_ID (the output file was never profiled). After merging, the
+   * Patient_ID mapping must still have target_is_pii:true (from graph_data)
+   * and the SSN mapping must have source_is_pii:true (from DB).
+   */
+  const VM_ID_MERGE = 31;
+  const nodeIdMerge = `mapping-vm-${VM_ID_MERGE}-synthetic`;
+  const SOURCE_FILE_ID_MERGE = 'source-file-merge-uuid';
+
+  const VM_TRANSFORM_MERGE_ROW = {
+    vm_id:           VM_ID_MERGE,
+    vm_name:         'merge_transform_test',
+    project_id:      PROJECT_ID,
+    last_executed_at:'2026-08-08T10:00:00Z',
+    execution_count: 2,
+    completed_at:    '2026-08-08T10:00:00Z',
+    rows_processed:  5,
+    rows_read:       5,
+    rows_written:    5,
+    graph_data: {
+      nodes: [
+        { type: 'sourceConfig', data: { config: { filePattern: '*.csv' } } },
+        { type: 'targetRules',  data: { config: { fileName: 'merge-out', fileFormat: 'csv' } } },
+        {
+          type: 'expression',
+          data: {
+            config: {
+              fieldMappings: [
+                // Patient_ID is PII per fm.pii; must survive DB enrichment
+                {
+                  source_field: 'src_patient',
+                  target_field: 'Patient_ID',
+                  transformation: 'none',
+                  data_type: 'STRING',
+                  include: true,
+                  pii: true
+                },
+                // SSN is PII in the source file (DB), not flagged in graph_data
+                {
+                  source_field: 'SSN',
+                  target_field: 'patient_ssn',
+                  transformation: 'none',
+                  data_type: 'STRING',
+                  include: true,
+                  pii: false
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  };
+
+  beforeEach(() => {
+    mockQuery.mockImplementation(
+      mockQueryRouter([
+        ['FROM visual_mapping_defs vmd', { rows: [VM_TRANSFORM_MERGE_ROW] }],
+        // Source audit: SSN is PII in the source file
+        ['file_audit_details fad',       { rows: [{ file_id: SOURCE_FILE_ID_MERGE }] }],
+        // Output file: NOT in the files table (never profiled) — targetPiiSet stays empty
+        ['FROM files f',                 { rows: [] }],
+        // Source PII tags: SSN is PII
+        [/file_id = ANY/,                { rows: [{ column_name: 'SSN' }] }],
+        ['column_governance_tag_assignments', { rows: [] }]
+      ])
+    );
+  });
+
+  test('Patient_ID mapping keeps target_is_pii:true from fm.pii even though targetPiiSet is empty', async () => {
+    const details = await getNodeDetails(nodeIdMerge, 'transformation', PROJECT_ID);
+    expect(details).not.toBeNull();
+
+    const patientMapping = details.field_mappings.find(
+      fm => fm.target_field === 'Patient_ID'
+    );
+    expect(patientMapping).toBeDefined();
+    expect(patientMapping.target_is_pii).toBe(true);
+  });
+
+  test('SSN mapping gets source_is_pii:true from DB audit even though fm.pii is false', async () => {
+    const details = await getNodeDetails(nodeIdMerge, 'transformation', PROJECT_ID);
+
+    const ssnMapping = details.field_mappings.find(
+      fm => fm.source_field === 'SSN'
+    );
+    expect(ssnMapping).toBeDefined();
+    expect(ssnMapping.source_is_pii).toBe(true);
+    // target (patient_ssn) is not PII in either source
+    expect(!!ssnMapping.target_is_pii).toBe(false);
+  });
+});

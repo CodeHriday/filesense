@@ -1637,7 +1637,12 @@ async function getNodeDetails(nodeId, nodeType, projectId) {
                         source_field: sourceField,
                         target_field: targetField,
                         transformation_type: transformationType,
-                        data_type: fm.data_type || fm.dataType || 'string'
+                        data_type: fm.data_type || fm.dataType || 'string',
+                        // fm.pii is the authoritative PII flag saved by ExpressionModal
+                        // for the TARGET field. Read it directly from graph_data rather
+                        // than relying on column_governance_tag_assignments, which is
+                        // only populated for profiled files (not VM-generated outputs).
+                        target_is_pii: fm.pii === true
                       };
 
                       // Derived (non-direct) mappings: populate source_fields and
@@ -1741,8 +1746,10 @@ async function getNodeDetails(nodeId, nodeType, projectId) {
                 if (targetPiiSet.size > 0 || sourcePiiSet.size > 0) {
                   vmFieldMappings = vmFieldMappings.map(fm => ({
                     ...fm,
-                    source_is_pii: sourcePiiSet.has(fm.source_field),
-                    target_is_pii: targetPiiSet.has(fm.target_field)
+                    // Preserve graph_data-derived flags (fm.pii / source_is_pii already
+                    // set earlier); OR with DB-derived sets so neither source wins alone.
+                    source_is_pii: fm.source_is_pii || sourcePiiSet.has(fm.source_field),
+                    target_is_pii: fm.target_is_pii || targetPiiSet.has(fm.target_field)
                   }));
                 }
               } catch (_piiErr) { /* non-fatal — PII status is informational */ }
@@ -1975,7 +1982,20 @@ async function getNodeDetails(nodeId, nodeType, projectId) {
                 FROM jsonb_array_elements(vmd.graph_data->'nodes') AS n
                 WHERE n->>'type' = 'targetRules'
                 LIMIT 1
-              ) AS ordered_columns
+              ) AS ordered_columns,
+              -- Extract piiColumns — the authoritative PII list saved by TargetRulesModal.
+              -- config.piiColumns = orderedColumns.filter(c => c.pii).map(c => c.name)
+              -- This is the primary source for PII badges; column_governance_tag_assignments
+              -- is only a supplemental fallback for profiled files.
+              (
+                SELECT COALESCE(
+                  n->'data'->'config'->'piiColumns',
+                  n->'config'->'piiColumns'
+                )
+                FROM jsonb_array_elements(vmd.graph_data->'nodes') AS n
+                WHERE n->>'type' = 'targetRules'
+                LIMIT 1
+              ) AS pii_columns
             FROM visual_mapping_defs vmd
             WHERE vmd.is_active = true
               AND ($2::integer IS NULL OR vmd.project_id = $2)
@@ -2026,16 +2046,28 @@ async function getNodeDetails(nodeId, nodeType, projectId) {
             // Build columns array from orderedColumns config.
             // orderedColumns is a JSON array of column name strings; column types
             // are not stored in graph_data, so we default to 'string'.
+            // piiColumns is a JSON array of PII column name strings saved by
+            // TargetRulesModal — the authoritative PII source for VM target files.
             let columns = [];
             try {
               const rawCols = vm.ordered_columns;
+              const rawPii  = vm.pii_columns;
+              // Build a Set of PII column names from graph_data for O(1) lookup.
+              const piiSet = new Set(
+                Array.isArray(rawPii) ? rawPii.map(n => String(n)) : []
+              );
               if (Array.isArray(rawCols) && rawCols.length > 0) {
-                columns = rawCols.map((name, idx) => ({
-                  column_name: typeof name === 'string' ? name : String(name),
-                  column_type: 'string',
-                  column_index: idx,
-                  governance_tags: []
-                }));
+                columns = rawCols.map((name, idx) => {
+                  const colName = typeof name === 'string' ? name : String(name);
+                  return {
+                    column_name: colName,
+                    column_type: 'string',
+                    column_index: idx,
+                    // Seed governance_tags from graph_data piiColumns so PII badges
+                    // appear immediately without needing file profiling data.
+                    governance_tags: piiSet.has(colName) ? ['tag_pii'] : []
+                  };
+                });
               }
             } catch (_colErr) { /* non-fatal — columns are informational */ }
 
@@ -2068,10 +2100,13 @@ async function getNodeDetails(nodeId, nodeType, projectId) {
                     const tagsByColumn = new Map(
                       tagsResult.rows.map(r => [r.column_name, r.governance_tags])
                     );
-                    columns = columns.map(col => ({
-                      ...col,
-                      governance_tags: tagsByColumn.get(col.column_name) || []
-                    }));
+                    columns = columns.map(col => {
+                      const dbTags = tagsByColumn.get(col.column_name) || [];
+                      // Merge DB tags with graph_data-seeded tags (e.g. tag_pii from
+                      // piiColumns). Use a Set so neither source overwrites the other.
+                      const merged = [...new Set([...col.governance_tags, ...dbTags])];
+                      return { ...col, governance_tags: merged };
+                    });
                   }
                 }
               } catch (_tagErr) {
