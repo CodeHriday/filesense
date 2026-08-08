@@ -1661,6 +1661,93 @@ async function getNodeDetails(nodeId, nodeType, projectId) {
               }
             } catch (_fmErr) { /* non-fatal — field mappings are informational */ }
 
+            // Enrich field_mappings with per-field PII status so the drawer can
+            // show a PII badge next to sensitive source and target column names.
+            //
+            // SOURCE PII — resolved from the actual source file(s) that fed this
+            //   mapping, found via file_audit_details. Using execution provenance
+            //   avoids false positives from coincidentally shared column names.
+            //   Left false when source provenance cannot be determined.
+            // TARGET PII — resolved from the output file's governance tag assignments.
+            // The two sets are built independently from their respective files.
+            if (vmFieldMappings.length > 0) {
+              try {
+                const gNodes = vm.graph_data?.nodes || [];
+                const tRulesNode = gNodes.find(n => n.type === 'targetRules');
+                const tFileName = tRulesNode?.data?.config?.fileName
+                               || tRulesNode?.config?.fileName
+                               || null;
+
+                // 1. Target PII: from the output file's column_governance_tag_assignments.
+                //    Extension-tolerant lookup — config stores base name, files table
+                //    may store the full filename with extension.
+                let targetPiiSet = new Set();
+                if (tFileName) {
+                  const fileRecordResult = await pool.query(`
+                    SELECT f.file_id
+                    FROM files f
+                    WHERE ($1::integer IS NULL OR f.project_id = $1)
+                      AND (
+                        f.filename = $2
+                        OR f.filename LIKE '%/' || $2
+                        OR f.filename LIKE $2 || '.%'
+                        OR f.filename LIKE '%/' || $2 || '.%'
+                      )
+                    ORDER BY f.created_at DESC
+                    LIMIT 1
+                  `, [vm.project_id, tFileName]);
+
+                  if (fileRecordResult.rows.length > 0) {
+                    const tFileId = fileRecordResult.rows[0].file_id;
+                    const tPiiResult = await pool.query(`
+                      SELECT DISTINCT cta.column_name
+                      FROM column_governance_tag_assignments cta
+                      WHERE cta.file_id = $1 AND cta.tag_id = 'tag_pii'
+                    `, [tFileId]);
+                    targetPiiSet = new Set(tPiiResult.rows.map(r => r.column_name));
+                  }
+                }
+
+                // 2. Source PII: from the actual source file(s) recorded in
+                //    file_audit_details for this VM mapping's executions.
+                //    Join on the canonical file_id (fad.file_id = f.file_id) so
+                //    same-named files in different uploads cannot bleed across;
+                //    project-scope the join via files for authorisation.
+                let sourcePiiSet = new Set();
+                try {
+                  const auditSourceResult = await pool.query(`
+                    SELECT DISTINCT fad.file_id
+                    FROM file_audit_details fad
+                    JOIN files f ON f.file_id = fad.file_id
+                    WHERE fad.mapping_name = $1
+                      AND fad.file_role = 'source'
+                      AND ($2::integer IS NULL OR f.project_id = $2)
+                    LIMIT 10
+                  `, [`[VM] ${vm.vm_name}`, vm.project_id]);
+
+                  if (auditSourceResult.rows.length > 0) {
+                    const srcFileIds = auditSourceResult.rows.map(r => r.file_id);
+                    const sPiiResult = await pool.query(`
+                      SELECT DISTINCT cta.column_name
+                      FROM column_governance_tag_assignments cta
+                      WHERE cta.file_id = ANY($1) AND cta.tag_id = 'tag_pii'
+                    `, [srcFileIds]);
+                    sourcePiiSet = new Set(sPiiResult.rows.map(r => r.column_name));
+                  }
+                } catch (_srcPiiErr) { /* non-fatal — source provenance is informational */ }
+
+                // 3. Annotate only when at least one set has data.
+                //    source_is_pii stays false when source provenance is unresolved.
+                if (targetPiiSet.size > 0 || sourcePiiSet.size > 0) {
+                  vmFieldMappings = vmFieldMappings.map(fm => ({
+                    ...fm,
+                    source_is_pii: sourcePiiSet.has(fm.source_field),
+                    target_is_pii: targetPiiSet.has(fm.target_field)
+                  }));
+                }
+              } catch (_piiErr) { /* non-fatal — PII status is informational */ }
+            }
+
             return {
               id: vm.vm_id,
               mapping_id: mappingId,

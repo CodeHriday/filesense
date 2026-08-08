@@ -684,6 +684,203 @@ describe('getNodeDetails — VM transformation node returns field_mappings from 
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
+// getNodeDetails — VM transformation: field_mappings enriched with PII status
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('getNodeDetails — VM transformation field_mappings carry source_is_pii / target_is_pii', () => {
+  const VM_ID = 13;
+  const nodeId = `mapping-vm-${VM_ID}-synthetic`;
+  const TARGET_FILE_ID = 'enrollment-tgt-storage-uuid';
+  const SOURCE_FILE_ID = 'source-vendor-file-storage-uuid';
+
+  /**
+   * VM def with two mappings that use DIFFERENT column names for source and target:
+   *   SSN (PII in source)          → patient_ssn (not PII in output)
+   *   Country_code (not PII)       → Patient_ID  (PII in output)
+   *
+   * This decouples source and target PII so tests can independently verify
+   * that source_is_pii comes from the source file and target_is_pii from the
+   * output file — not both from the same set.
+   */
+  const VM_TRANSFORM_PII_ROW = {
+    vm_id:            VM_ID,
+    vm_name:          'gmap_vendor1_fileload',
+    project_id:       PROJECT_ID,
+    last_executed_at: '2026-08-07T10:00:00Z',
+    execution_count:  10,
+    completed_at:     '2026-08-07T10:00:00Z',
+    rows_processed:   4,
+    rows_read:        4,
+    rows_written:     4,
+    graph_data: {
+      nodes: [
+        {
+          type: 'sourceConfig',
+          data: { config: { filePattern: '*.csv' } }
+        },
+        {
+          type: 'targetRules',
+          data: { config: { fileName: 'enrollment-tgt', fileFormat: 'csv' } }
+        },
+        {
+          type: 'expression',
+          data: {
+            config: {
+              fieldMappings: [
+                // Only PII in SOURCE (SSN); not tagged in output
+                {
+                  source_field: 'SSN',
+                  target_field: 'patient_ssn',
+                  transformation: 'none',
+                  transformation_params: {},
+                  data_type: 'STRING',
+                  include: true
+                },
+                // Only PII in TARGET (Patient_ID); not PII under that name in source
+                {
+                  source_field: 'Country_code',
+                  target_field: 'Patient_ID',
+                  transformation: 'none',
+                  transformation_params: {},
+                  data_type: 'STRING',
+                  include: true
+                },
+                // No PII on either side
+                {
+                  source_field: 'Site_code',
+                  target_field: 'Site_code',
+                  transformation: 'none',
+                  transformation_params: {},
+                  data_type: 'STRING',
+                  include: true
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  };
+
+  /** Output file has Patient_ID as PII; patient_ssn is NOT tagged. */
+  const TARGET_PII_ROWS = [{ column_name: 'Patient_ID' }];
+  /** Source file has SSN as PII; Country_code is NOT tagged. */
+  const SOURCE_PII_ROWS = [{ column_name: 'SSN' }];
+
+  const TARGET_FILE_LOOKUP_ROW  = { file_id: TARGET_FILE_ID };
+  const SOURCE_AUDIT_ROW        = { file_id: SOURCE_FILE_ID };
+
+  /**
+   * Route order matters for the mock router (first match wins):
+   * 1. VM details query       — 'FROM visual_mapping_defs vmd'
+   * 2. Source audit query     — 'file_audit_details fad'  (more specific; canonical join)
+   *    The source audit now joins on f.file_id = fad.file_id (not filename) so that
+   *    same-named files in different uploads cannot bleed PII across file boundaries.
+   * 3. Output file lookup     — 'FROM files f'
+   * 4. Source PII query       — /file_id = ANY/           (must precede #5)
+   * 5. Target PII query       — 'column_governance_tag_assignments'
+   */
+  const buildRoutes = ({
+    targetFileRows = [TARGET_FILE_LOOKUP_ROW],
+    auditRows      = [SOURCE_AUDIT_ROW],
+    sourcePiiRows  = SOURCE_PII_ROWS,
+    targetPiiRows  = TARGET_PII_ROWS
+  } = {}) => [
+    ['FROM visual_mapping_defs vmd',    { rows: [VM_TRANSFORM_PII_ROW] }],
+    // Source audit uses canonical join: fad.file_id = f.file_id (not filename matching)
+    ['file_audit_details fad',          { rows: auditRows }],
+    ['FROM files f',                    { rows: targetFileRows }],
+    [/file_id = ANY/,                   { rows: sourcePiiRows }],
+    ['column_governance_tag_assignments', { rows: targetPiiRows }]
+  ];
+
+  describe('when both source and target files are known with different PII columns', () => {
+    beforeEach(() => {
+      mockQuery.mockImplementation(mockQueryRouter(buildRoutes()));
+    });
+
+    test('SSN→patient_ssn: only source_is_pii is true', async () => {
+      const details = await getNodeDetails(nodeId, 'transformation', PROJECT_ID);
+      expect(details).not.toBeNull();
+
+      const ssnMapping = details.field_mappings.find(fm => fm.source_field === 'SSN');
+      expect(ssnMapping).toBeDefined();
+      expect(ssnMapping.source_is_pii).toBe(true);    // SSN is PII in source file
+      expect(ssnMapping.target_is_pii).toBe(false);   // patient_ssn is not tagged in output
+    });
+
+    test('Country_code→Patient_ID: only target_is_pii is true', async () => {
+      const details = await getNodeDetails(nodeId, 'transformation', PROJECT_ID);
+
+      const countryMapping = details.field_mappings.find(fm => fm.source_field === 'Country_code');
+      expect(countryMapping).toBeDefined();
+      expect(countryMapping.source_is_pii).toBe(false);  // Country_code not PII in source
+      expect(countryMapping.target_is_pii).toBe(true);   // Patient_ID is PII in output
+    });
+
+    test('Site_code→Site_code: neither flag is true', async () => {
+      const details = await getNodeDetails(nodeId, 'transformation', PROJECT_ID);
+
+      const siteMapping = details.field_mappings.find(fm => fm.source_field === 'Site_code');
+      expect(siteMapping).toBeDefined();
+      expect(!!siteMapping.source_is_pii).toBe(false);
+      expect(!!siteMapping.target_is_pii).toBe(false);
+    });
+
+    test('all field_mappings entries are present after PII enrichment', async () => {
+      const details = await getNodeDetails(nodeId, 'transformation', PROJECT_ID);
+      expect(details.field_mappings).toHaveLength(3);
+    });
+  });
+
+  describe('when source provenance cannot be resolved (no audit records)', () => {
+    beforeEach(() => {
+      mockQuery.mockImplementation(
+        mockQueryRouter(buildRoutes({ auditRows: [], sourcePiiRows: [] }))
+      );
+    });
+
+    test('source_is_pii stays false for all mappings; target_is_pii still works', async () => {
+      const details = await getNodeDetails(nodeId, 'transformation', PROJECT_ID);
+      expect(details).not.toBeNull();
+
+      for (const fm of details.field_mappings) {
+        expect(!!fm.source_is_pii).toBe(false);   // not inferred from output
+      }
+      // Target PII should still work independently
+      const patientTargetMapping = details.field_mappings.find(
+        fm => fm.target_field === 'Patient_ID'
+      );
+      expect(patientTargetMapping?.target_is_pii).toBe(true);
+    });
+  });
+
+  describe('when neither output file nor source audit records exist', () => {
+    beforeEach(() => {
+      mockQuery.mockImplementation(
+        mockQueryRouter(buildRoutes({
+          targetFileRows: [],
+          auditRows:      [],
+          sourcePiiRows:  [],
+          targetPiiRows:  []
+        }))
+      );
+    });
+
+    test('field_mappings are returned without any PII flags (graceful degradation)', async () => {
+      const details = await getNodeDetails(nodeId, 'transformation', PROJECT_ID);
+      expect(details).not.toBeNull();
+      expect(details.field_mappings).toHaveLength(3);
+
+      for (const fm of details.field_mappings) {
+        expect(!!fm.source_is_pii).toBe(false);
+        expect(!!fm.target_is_pii).toBe(false);
+      }
+    });
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 // getNodeDetails — VM targetFile: governance tags from column_governance_tag_assignments
 // ─────────────────────────────────────────────────────────────────────────────
 

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<coverage generated="1786119182494" clover="3.2.0">
-  <project timestamp="1786119182495" name="All files">
-    <metrics statements="31437" coveredstatements="0" conditionals="20878" coveredconditionals="0" methods="3273" coveredmethods="0" elements="55588" coveredelements="0" complexity="0" loc="31437" ncloc="31437" packages="21" files="224" classes="224"/>
+<coverage generated="1786158996514" clover="3.2.0">
+  <project timestamp="1786158996514" name="All files">
+    <metrics statements="31447" coveredstatements="0" conditionals="20884" coveredconditionals="0" methods="3273" coveredmethods="0" elements="55604" coveredelements="0" complexity="0" loc="31447" ncloc="31447" packages="21" files="224" classes="224"/>
     <package name="backend">
       <metrics statements="19" coveredstatements="0" conditionals="0" coveredconditionals="0" methods="3" coveredmethods="0"/>
       <file name="db.js" path="/home/runner/workspace/backend/db.js">
@@ -11763,7 +11763,7 @@
       </file>
     </package>
     <package name="backend.services">
-      <metrics statements="14870" coveredstatements="0" conditionals="10524" coveredconditionals="0" methods="1553" coveredmethods="0"/>
+      <metrics statements="14880" coveredstatements="0" conditionals="10530" coveredconditionals="0" methods="1553" coveredmethods="0"/>
       <file name="AIService.js" path="/home/runner/workspace/backend/services/AIService.js">
         <metrics statements="432" coveredstatements="0" conditionals="346" coveredconditionals="0" methods="58" coveredmethods="0"/>
         <line num="9" count="0" type="stmt"/>
@@ -19403,7 +19403,7 @@
         <line num="484" count="0" type="stmt"/>
       </file>
       <file name="governanceService.js" path="/home/runner/workspace/backend/services/governanceService.js">
-        <metrics statements="69" coveredstatements="0" conditionals="38" coveredconditionals="0" methods="3" coveredmethods="0"/>
+        <metrics statements="79" coveredstatements="0" conditionals="44" coveredconditionals="0" methods="3" coveredmethods="0"/>
         <line num="1" count="0" type="stmt"/>
         <line num="37" count="0" type="stmt"/>
         <line num="39" count="0" type="stmt"/>
@@ -19448,31 +19448,41 @@
         <line num="171" count="0" type="stmt"/>
         <line num="180" count="0" type="stmt"/>
         <line num="185" count="0" type="stmt"/>
-        <line num="191" count="0" type="stmt"/>
-        <line num="193" count="0" type="stmt"/>
-        <line num="206" count="0" type="stmt"/>
-        <line num="208" count="0" type="stmt"/>
-        <line num="214" count="0" type="stmt"/>
+        <line num="194" count="0" type="stmt"/>
+        <line num="199" count="0" type="cond" truecount="0" falsecount="4"/>
+        <line num="200" count="0" type="stmt"/>
+        <line num="202" count="0" type="cond" truecount="0" falsecount="2"/>
+        <line num="204" count="0" type="stmt"/>
+        <line num="210" count="0" type="stmt"/>
+        <line num="212" count="0" type="stmt"/>
+        <line num="213" count="0" type="stmt"/>
         <line num="220" count="0" type="stmt"/>
-        <line num="237" count="0" type="cond" truecount="0" falsecount="4"/>
-        <line num="238" count="0" type="stmt"/>
-        <line num="241" count="0" type="stmt"/>
-        <line num="242" count="0" type="stmt"/>
-        <line num="244" count="0" type="stmt"/>
-        <line num="245" count="0" type="stmt"/>
-        <line num="248" count="0" type="cond" truecount="0" falsecount="2"/>
-        <line num="250" count="0" type="stmt"/>
-        <line num="251" count="0" type="cond" truecount="0" falsecount="4"/>
-        <line num="253" count="0" type="cond" truecount="0" falsecount="2"/>
-        <line num="256" count="0" type="cond" truecount="0" falsecount="2"/>
-        <line num="258" count="0" type="cond" truecount="0" falsecount="2"/>
-        <line num="259" count="0" type="stmt"/>
-        <line num="260" count="0" type="cond" truecount="0" falsecount="2"/>
-        <line num="261" count="0" type="stmt"/>
-        <line num="265" count="0" type="stmt"/>
-        <line num="269" count="0" type="stmt"/>
-        <line num="273" count="0" type="stmt"/>
-        <line num="276" count="0" type="stmt"/>
+        <line num="228" count="0" type="stmt"/>
+        <line num="234" count="0" type="stmt"/>
+        <line num="236" count="0" type="stmt"/>
+        <line num="249" count="0" type="stmt"/>
+        <line num="251" count="0" type="stmt"/>
+        <line num="257" count="0" type="stmt"/>
+        <line num="263" count="0" type="stmt"/>
+        <line num="280" count="0" type="cond" truecount="0" falsecount="4"/>
+        <line num="281" count="0" type="stmt"/>
+        <line num="284" count="0" type="stmt"/>
+        <line num="285" count="0" type="stmt"/>
+        <line num="287" count="0" type="stmt"/>
+        <line num="288" count="0" type="stmt"/>
+        <line num="291" count="0" type="cond" truecount="0" falsecount="2"/>
+        <line num="293" count="0" type="stmt"/>
+        <line num="294" count="0" type="cond" truecount="0" falsecount="4"/>
+        <line num="296" count="0" type="cond" truecount="0" falsecount="2"/>
+        <line num="299" count="0" type="cond" truecount="0" falsecount="2"/>
+        <line num="301" count="0" type="cond" truecount="0" falsecount="2"/>
+        <line num="302" count="0" type="stmt"/>
+        <line num="303" count="0" type="cond" truecount="0" falsecount="2"/>
+        <line num="304" count="0" type="stmt"/>
+        <line num="308" count="0" type="stmt"/>
+        <line num="312" count="0" type="stmt"/>
+        <line num="316" count="0" type="stmt"/>
+        <line num="319" count="0" type="stmt"/>
       </file>
       <file name="jobExecutionEngine.js" path="/home/runner/workspace/backend/services/jobExecutionEngine.js">
         <metrics statements="1829" coveredstatements="0" conditionals="1513" coveredconditionals="0" methods="156" coveredmethods="0"/>

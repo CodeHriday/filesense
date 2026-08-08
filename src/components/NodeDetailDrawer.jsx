@@ -242,14 +242,24 @@ const NodeDetailDrawer = ({ node, open, onClose }) => {
               </div>
               {regularMappings.map((mapping, index) => (
                 <div className="column-mapping-row" key={`mapping-${mapping.source_field || mapping.sourceField || index}`}>
-                  <span className="column-mapping-source">
-                    {mapping.source_field || mapping.sourceField || '-'}
+                  <span className="column-mapping-source column-mapping-field-cell">
+                    <span className="column-mapping-field-name">{mapping.source_field || mapping.sourceField || '-'}</span>
+                    {mapping.source_is_pii && (
+                      <span className="drawer-column-tag drawer-column-tag-pii column-mapping-pii-badge">
+                        <FaTag size={7} />PII
+                      </span>
+                    )}
                   </span>
                   <span className="column-mapping-arrow">
                     <FaArrowRight size={12} style={{ color: '#6B7280' }} />
                   </span>
-                  <span className="column-mapping-target">
-                    {mapping.target_field || mapping.targetField || '-'}
+                  <span className="column-mapping-target column-mapping-field-cell">
+                    <span className="column-mapping-field-name">{mapping.target_field || mapping.targetField || '-'}</span>
+                    {mapping.target_is_pii && (
+                      <span className="drawer-column-tag drawer-column-tag-pii column-mapping-pii-badge">
+                        <FaTag size={7} />PII
+                      </span>
+                    )}
                   </span>
                   <span className="column-mapping-transform">
                     {mapping.transformation_type === 'rename' ? 'Rename' : 

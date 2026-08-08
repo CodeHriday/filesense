@@ -1,0 +1,1 @@
+import{j as o}from"./vendor-ui-Bc7Vbh5h.js";import"./vendor-react-CxX1lkEQ.js";import{P as r}from"./index-BOM5PANd.js";const p=({children:s,className:e=""})=>o.jsx("div",{className:`card ${e}`,children:s});p.propTypes={children:r.node.isRequired,className:r.string};export{p as C};
