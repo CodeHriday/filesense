@@ -1,1 +1,12 @@
+clamav-db/*.cvd
+.clamav/
+.auth_token
+node_modules/
+.env
+dist/
 utils/logs/
+logs/
+uploads/
+.gitignore
+.vscode/
+dbt*
