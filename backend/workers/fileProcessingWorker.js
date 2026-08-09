@@ -2511,9 +2511,9 @@ print(json.dumps(result))
         vafs.priority
       FROM vendor_agreements va
       LEFT JOIN vendor_agreement_file_schemas vafs ON va.id = vafs.vendor_agreement_id AND vafs.is_active = true
-      WHERE va.id = $1 AND va.project_id = $2
+      WHERE va.id = $1
       ORDER BY vafs.priority ASC NULLS LAST
-    `, [agreementId, projectId]);
+    `, [agreementId]);
     
     this.logger.info('Fetched agreement schemas', {
       fileId,
@@ -2794,13 +2794,12 @@ print(json.dumps(result))
       FROM vendor_agreement_file_schemas vafs
       INNER JOIN vendor_agreements va ON vafs.vendor_agreement_id = va.id
       WHERE va.vendor_connection_id = $1
-        AND va.project_id = $2
         AND va.approval_status = 'governance_approved'
         AND va.is_locked = true
         AND va.status = 'active'
         AND vafs.is_active = true
       ORDER BY vafs.priority ASC NULLS LAST
-    `, [connectionId, projectId]);
+    `, [connectionId]);
     
     this.logger.info('Fetched vendor agreement file schemas', {
       fileId,
