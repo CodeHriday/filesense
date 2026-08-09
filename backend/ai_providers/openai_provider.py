@@ -103,7 +103,8 @@ Focus on actionable rules based on the actual data quality issues detected in th
             ],
             response_format={"type": "json_object"},
             temperature=0.3,
-            max_tokens=4000
+            max_tokens=2000,  # Reduced from 4000 — DQ suggestions are compact JSON; 2000 tokens is ample
+            timeout=60.0,     # Hard 60-second server-side limit — returns an error before the 90s frontend abort fires
         )
         
         content = response.choices[0].message.content

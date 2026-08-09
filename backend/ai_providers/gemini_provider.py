@@ -76,9 +76,10 @@ class GeminiProvider(AIProvider):
             prompt,
             generation_config={
                 "temperature": 0.3,
-                "max_output_tokens": 4000,
+                "max_output_tokens": 2000,  # Reduced from 4000 — DQ suggestions are compact JSON
                 "response_mime_type": "application/json"
-            }
+            },
+            request_options={"timeout": 60}  # 60-second hard limit — returns error before 90s frontend abort
         )
         
         content = response.text

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useLocation } from 'react-router-dom';
 import { FiFileText, FiBarChart2, FiDownload, FiTable, FiCopy, FiEdit2, FiUser, FiClock, FiCheckCircle, FiAlertTriangle, FiXCircle, FiGitBranch, FiZap, FiPlay, FiRefreshCw, FiArrowLeft, FiX, FiShield } from 'react-icons/fi';
 import Card from '../components/Card';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -872,6 +872,9 @@ function ColumnPolicyModal({ fileId, columnName, currentPolicies, availablePolic
 function DataProfile() {
   const { fileId: encodedFileId } = useParams();
   const fileId = decodeURIComponent(encodedFileId || '');
+  const location = useLocation();
+  const backTo = location.state?.fromVendorUpload ? '/vendor-file-quality' : '/file-catalog';
+  const backLabel = location.state?.fromVendorUpload ? 'Vendor File Catalog' : 'File Catalog';
   const { currentUser, hasPermission, hasRole } = useAuth();
   
   // Check if user is a Vendor User - they should not see DQ Suggestions, Quality Rules, and Schema Builder tabs
@@ -3393,8 +3396,8 @@ function DataProfile() {
         <div className="gps-empty-state">
           <p>{error}</p>
           <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', marginTop: '16px' }}>
-            <Link to="/file-catalog" className="gps-btn gps-btn--secondary">
-              <FiFileText style={{ marginRight: '6px' }} /> Go to File Catalog
+            <Link to={backTo} className="gps-btn gps-btn--secondary">
+              <FiFileText style={{ marginRight: '6px' }} /> Go to {backLabel}
             </Link>
             <button className="gps-btn gps-btn--primary" onClick={() => window.location.reload()}>
               Retry
@@ -3407,7 +3410,7 @@ function DataProfile() {
             <div className="gps-card-body" style={{ padding: '16px 20px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <Link to="/file-catalog" className="gps-btn gps-btn--secondary" style={{ padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Link to={backTo} className="gps-btn gps-btn--secondary" style={{ padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <FiArrowLeft size={14} /> Back
                   </Link>
                   <LineageBackButton />

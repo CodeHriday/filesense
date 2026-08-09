@@ -18,7 +18,7 @@ const AIDQSuggestionsTab = ({ fileId, filename, columns = [], projectId = null }
   const [createdRules, setCreatedRules] = useState(new Set());
   const [toggleUpdating, setToggleUpdating] = useState(false);
   const [providers, setProviders] = useState([]);
-  const [currentProvider, setCurrentProvider] = useState('auto');
+  const [currentProvider, setCurrentProvider] = useState('rule-based');
   const [providerInfo, setProviderInfo] = useState(null);
   const [showProviderSelect, setShowProviderSelect] = useState(false);
   const [providerUpdating, setProviderUpdating] = useState(false);
@@ -69,7 +69,7 @@ const AIDQSuggestionsTab = ({ fileId, filename, columns = [], projectId = null }
       if (response.ok) {
         const data = await response.json();
         setProviders(data.providers || []);
-        setCurrentProvider(data.current_provider || 'auto');
+        setCurrentProvider(data.current_provider || 'rule-based');
       }
     } catch (err) {
       console.error('Error fetching providers:', err);

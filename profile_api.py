@@ -1958,7 +1958,7 @@ def generate_dq_suggestions():
                 cursor.close()
                 
                 ai_enabled = settings.get('ai_dq_suggestions_enabled', 'true').lower() == 'true'
-                configured_provider = settings.get('ai_provider', 'auto')
+                configured_provider = settings.get('ai_provider', 'rule-based')
                 
                 if not ai_enabled:
                     return jsonify({
@@ -1971,7 +1971,7 @@ def generate_dq_suggestions():
         
         from backend.ai_providers import AIProviderFactory
         
-        provider_name = requested_provider or configured_provider or os.environ.get('AI_PROVIDER', 'auto')
+        provider_name = requested_provider or configured_provider or os.environ.get('AI_PROVIDER', 'rule-based')
         provider = AIProviderFactory.get_provider(provider_name)
         provider_info = provider.get_provider_info()
         
@@ -2017,7 +2017,7 @@ def list_ai_providers():
         providers = AIProviderFactory.list_providers()
         
         conn = get_db_connection()
-        current_provider = os.environ.get('AI_PROVIDER', 'auto')
+        current_provider = os.environ.get('AI_PROVIDER', 'rule-based')
         ai_enabled = True
         
         if conn:
@@ -2133,7 +2133,7 @@ def get_setting(setting_key):
                 # Return sensible defaults for known settings instead of 404
                 defaults = {
                     'ai_dq_suggestions_enabled': 'true',
-                    'ai_provider': 'auto',
+                    'ai_provider': 'rule-based',
                 }
                 if setting_key in defaults:
                     return jsonify({
@@ -2201,7 +2201,7 @@ def initialize_settings():
     defaults = [
         ('ai_dq_suggestions_enabled', 'true',
          'Enable AI-powered DQ suggestions feature'),
-        ('ai_provider', 'auto',
+        ('ai_provider', 'rule-based',
          'AI provider for DQ suggestions (openai, bedrock, azure, gemini, rule-based, auto)'),
     ]
     try:

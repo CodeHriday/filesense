@@ -228,7 +228,7 @@ function VendorFileUpload() {
         
         // Redirect to the uploaded file's profile page after a short delay
         setTimeout(() => {
-          navigate(`/profile/${encodeURIComponent(fileDetails.fileId)}?t=${Date.now()}`);
+          navigate(`/profile/${encodeURIComponent(fileDetails.fileId)}?t=${Date.now()}`, { state: { fromVendorUpload: true } });
         }, 1500);
         
       } else if (virusScan && virusScan.scanned && !virusScan.clean) {
@@ -250,7 +250,7 @@ function VendorFileUpload() {
         
         // Redirect to the uploaded file's profile page after a short delay
         setTimeout(() => {
-          navigate(`/profile/${encodeURIComponent(fileDetails.fileId)}?t=${Date.now()}`);
+          navigate(`/profile/${encodeURIComponent(fileDetails.fileId)}?t=${Date.now()}`, { state: { fromVendorUpload: true } });
         }, 1500);
       }
       

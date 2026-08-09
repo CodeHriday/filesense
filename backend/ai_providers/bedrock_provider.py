@@ -78,7 +78,7 @@ class BedrockProvider(AIProvider):
     def _invoke_claude(self, prompt: str) -> str:
         body = json.dumps({
             "anthropic_version": "bedrock-2023-05-31",
-            "max_tokens": 4000,
+            "max_tokens": 2000,
             "temperature": 0.3,
             "messages": [
                 {
@@ -108,7 +108,7 @@ Validation types: null_check, isna_check (NA/N/A/NaN values), duplicate_check, s
         body = json.dumps({
             "inputText": prompt,
             "textGenerationConfig": {
-                "maxTokenCount": 4000,
+                "maxTokenCount": 2000,
                 "temperature": 0.3
             }
         })
