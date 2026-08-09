@@ -13076,7 +13076,22 @@ if (process.env.NODE_ENV === 'production') {
   const distPath = path.join(__dirname, 'dist');
   
   console.log('📦 Production mode: Serving static files from', distPath);
-  
+
+  // Proxy /profile-api/* → Flask profile_api.py on port 8000 (mirrors Vite's dev proxy)
+  const { createProxyMiddleware } = require('http-proxy-middleware');
+  const profileApiPort = process.env.PROFILE_API_PORT || 8000;
+  app.use('/profile-api', createProxyMiddleware({
+    target: `http://localhost:${profileApiPort}`,
+    changeOrigin: true,
+    pathRewrite: { '^/profile-api': '' },
+    on: {
+      error: (err, req, res) => {
+        logger.error('profile-api proxy error', { error: err.message, path: req.url });
+        if (!res.headersSent) res.status(502).json({ error: 'Profile API unavailable' });
+      }
+    }
+  }));
+
   // Serve static files
   app.use(express.static(distPath));
   
