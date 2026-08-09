@@ -1650,9 +1650,8 @@ function DataProfile() {
           const policiesMap = {};
           
           columns.forEach(column => {
-            const normalizedName = column.name?.toLowerCase();
-            tagsMap[column.name] = fullData.columnGovernance.tags?.[normalizedName] || [];
-            policiesMap[column.name] = fullData.columnGovernance.policies?.[normalizedName] || [];
+            tagsMap[column.name] = fullData.columnGovernance.tags?.[column.name] || [];
+            policiesMap[column.name] = fullData.columnGovernance.policies?.[column.name] || [];
           });
           
           setAllColumnGovernanceTags(tagsMap);
@@ -1716,9 +1715,8 @@ function DataProfile() {
           const policiesMap = {};
           
           columns.forEach(column => {
-            const normalizedName = column.name?.toLowerCase();
-            tagsMap[column.name] = fullData.columnGovernance.tags?.[normalizedName] || [];
-            policiesMap[column.name] = fullData.columnGovernance.policies?.[normalizedName] || [];
+            tagsMap[column.name] = fullData.columnGovernance.tags?.[column.name] || [];
+            policiesMap[column.name] = fullData.columnGovernance.policies?.[column.name] || [];
           });
           
           setAllColumnGovernanceTags(tagsMap);
