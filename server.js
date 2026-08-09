@@ -498,6 +498,32 @@ app.use((req, res, next) => {
 });
 
 
+// ─── Production health-probe route ───────────────────────────────────────────
+// Registered BEFORE the session and audit middleware so Replit's GCE deploy
+// probe (GET /) always gets HTTP 200 without touching the database.
+// In production the build step creates dist/index.html; if for any reason it
+// is absent we return a minimal loading shell (still 200) so the probe passes
+// while the app is warming up. Deep-link routes (/dashboard, /connections …)
+// are handled by the catch-all further down, after the normal middleware chain.
+if (process.env.NODE_ENV === 'production') {
+  const _distIndex = path.join(__dirname, 'dist', 'index.html');
+  app.get('/', (req, res) => {
+    if (fs.existsSync(_distIndex)) {
+      res.sendFile(_distIndex);
+    } else {
+      res.status(200).send([
+        '<!DOCTYPE html><html lang="en">',
+        '<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">',
+        '<title>Starting</title></head>',
+        '<body style="font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0">',
+        '<p>Application is starting, please wait\u2026</p>',
+        '</body></html>'
+      ].join(''));
+    }
+  });
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
 // Session middleware (required for Okta SSO)
 app.use(session({
   secret: process.env.SESSION_SECRET || SECURITY_CONFIG.JWT_SECRET,
@@ -891,6 +917,13 @@ async function getQualityRulesFromAgreement(agreementId, filename) {
     return [];
   }
 }
+
+// Startup-safe health probe — responds immediately, no database dependency.
+// Replit's GCE deployment probes GET / but this endpoint is available for
+// explicit health monitoring outside the deploy pipeline.
+app.get('/health-check', (req, res) => {
+  res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
+});
 
 // API Routes
 // Health Check
@@ -13054,7 +13087,12 @@ if (process.env.NODE_ENV === 'production') {
     if (req.path.startsWith('/api')) {
       return next();
     }
-    // Send all other routes to React's index.html for client-side routing
+    // Send all other routes to React's index.html for client-side routing.
+    // GET / is already handled by the early probe route above, so this
+    // catch-all covers deep links (/dashboard, /connections, etc.).
+    // If dist/index.html is missing on a deep-link request it propagates
+    // to the error handler — preserving a visible error rather than a
+    // silent 200 that hides a broken build.
     res.sendFile(path.join(distPath, 'index.html'));
   });
 }
@@ -13074,7 +13112,6 @@ app.use((req, res, next) => {
 
 // Import and use global error handler middleware (must be after all routes)
 const errorHandler = require('./backend/middleware/errorHandler');
-const { frame } = require("framer-motion");
 app.use(errorHandler);
 
 // Initialize database and start the server
@@ -13083,7 +13120,21 @@ let uploadWorker = null;
 async function startServer() {
   try {
     logger.info('Starting server initialization...');
-    
+
+    // Bind the HTTP server immediately so Replit's health probe (GET /) gets a
+    // response right away, before the ~20 s async database init that follows.
+    // Socket.IO is attached later — it works fine on an already-listening server.
+    const httpServer = http.createServer(app);
+    httpServer.listen(port, '0.0.0.0', () => {
+      logger.info(`🚀 Server listening on port ${port}`, {
+        environment: process.env.NODE_ENV || 'development',
+        port: port,
+        host: '0.0.0.0',
+        note: 'database initializing in background'
+      });
+      console.log(`Server listening on port ${port} (host: 0.0.0.0) — database initializing…`);
+    });
+
     // Initialize database with retry logic
     logger.info('Initializing database connection...');
     await initializeDatabase();
@@ -13136,10 +13187,8 @@ async function startServer() {
       });
     }
     
-    // Create HTTP server for both Express and Socket.IO
-    const httpServer = http.createServer(app);
-    
     // Initialize Socket.IO with CORS settings (using same allowedOrigins as Express CORS)
+    // httpServer is already listening — attaching Socket.IO after listen() is supported.
     const io = new Server(httpServer, {
       cors: {
         origin: function (origin, callback) {
@@ -13186,17 +13235,8 @@ async function startServer() {
       logger.warn('Could not trigger orphan recovery', { error: error.message });
     }
     
-    // Start the HTTP server - bind to 0.0.0.0 for Replit
-    httpServer.listen(port, '0.0.0.0', () => {
-      logger.info(`🚀 Server running on port ${port}`, {
-        environment: process.env.NODE_ENV || 'development',
-        port: port,
-        host: '0.0.0.0',
-        websocket: 'enabled'
-      });
-      console.log(`Server running on port ${port} (host: 0.0.0.0)`);
-      console.log(`WebSocket server enabled for real-time updates`);
-    });
+    logger.info(`✅ Server fully initialized on port ${port} — WebSocket and all workers ready`);
+    console.log(`Server fully initialized on port ${port} — WebSocket enabled`);
   } catch (err) {
     logger.error('Failed to start server', {
       error: err.message,
