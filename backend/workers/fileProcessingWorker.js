@@ -2504,6 +2504,7 @@ print(json.dumps(result))
         vafs.id as schema_id,
         vafs.file_name_pattern,
         vafs.schema,
+        vafs.column_metadata,
         vafs.contains_pii,
         vafs.data_classification,
         vafs.quality_rule_ids,
@@ -2601,25 +2602,43 @@ print(json.dumps(result))
       schemaColumns: Array.isArray(schemaObj) ? schemaObj.map(c => c.name || c.column_name) : []
     });
     
+    // Parse column_metadata (stored by FileSchemaManager as { colName: { contains_pii, pii_type, ... } })
+    const columnMetadata = (() => {
+      if (!matchedSchema.column_metadata) return {};
+      if (typeof matchedSchema.column_metadata === 'string') {
+        try { return JSON.parse(matchedSchema.column_metadata); } catch { return {}; }
+      }
+      return matchedSchema.column_metadata;
+    })();
+
     // Extract PII columns
     let piiColumnNames = [];
     if (Array.isArray(schemaObj) && schemaObj.length > 0) {
-      // Find PII columns (those with is_pii: true)
+      // Find PII columns via legacy is_pii/pii flags in the schema JSON
       const piiColumns = schemaObj.filter(col => col.is_pii === true || col.pii === true);
-      
+      const legacyPiiNames = new Set(piiColumns.map(col => col.name || col.column_name));
+
+      // Also find PII columns via column_metadata.contains_pii (set by FileSchemaManager UI)
+      const metadataPiiNames = new Set(
+        Object.entries(columnMetadata)
+          .filter(([, meta]) => meta && meta.contains_pii === true)
+          .map(([colName]) => colName)
+      );
+
+      // Union both sources so legacy schemas and UI-configured schemas both work
+      const allPiiNames = new Set([...legacyPiiNames, ...metadataPiiNames]);
+      piiColumnNames = [...allPiiNames].filter(Boolean);
+
       this.logger.info('PII columns detected in schema', {
         fileId,
-        piiColumnCount: piiColumns.length,
-        piiColumns: piiColumns.map(c => ({
-          name: c.name || c.column_name,
-          is_pii: c.is_pii,
-          pii: c.pii
-        })),
+        legacyPiiCount: legacyPiiNames.size,
+        metadataPiiCount: metadataPiiNames.size,
+        totalPiiCount: piiColumnNames.length,
+        piiColumns: piiColumnNames,
         totalSchemaColumns: schemaObj.length
       });
       
-      // Extract column names for governance persistence
-      piiColumnNames = piiColumns.map(col => col.name || col.column_name);
+      // (piiColumnNames already set above)
       
       // CRITICAL FIX: Create column_governance_tag_assignments for PII columns
       // This was accidentally removed during file processing worker refactor
@@ -2765,6 +2784,7 @@ print(json.dumps(result))
         vafs.id as schema_id,
         vafs.file_name_pattern,
         vafs.schema,
+        vafs.column_metadata,
         vafs.contains_pii,
         vafs.data_classification,
         vafs.quality_rule_ids,
@@ -2844,15 +2864,38 @@ print(json.dumps(result))
     const schemaObj = typeof matchedSchema.schema === 'string' 
       ? JSON.parse(matchedSchema.schema) 
       : matchedSchema.schema;
+
+    // Parse column_metadata (stored by FileSchemaManager as { colName: { contains_pii, pii_type, ... } })
+    const columnMetadata = (() => {
+      if (!matchedSchema.column_metadata) return {};
+      if (typeof matchedSchema.column_metadata === 'string') {
+        try { return JSON.parse(matchedSchema.column_metadata); } catch { return {}; }
+      }
+      return matchedSchema.column_metadata;
+    })();
     
     let piiColumnNames = [];
     if (Array.isArray(schemaObj) && schemaObj.length > 0) {
+      // Find PII columns via legacy is_pii/pii flags in the schema JSON
       const piiColumns = schemaObj.filter(col => col.is_pii === true || col.pii === true);
-      piiColumnNames = piiColumns.map(col => col.name || col.column_name);
+      const legacyPiiNames = new Set(piiColumns.map(col => col.name || col.column_name));
+
+      // Also find PII columns via column_metadata.contains_pii (set by FileSchemaManager UI)
+      const metadataPiiNames = new Set(
+        Object.entries(columnMetadata)
+          .filter(([, meta]) => meta && meta.contains_pii === true)
+          .map(([colName]) => colName)
+      );
+
+      // Union both sources so legacy schemas and UI-configured schemas both work
+      const allPiiNames = new Set([...legacyPiiNames, ...metadataPiiNames]);
+      piiColumnNames = [...allPiiNames].filter(Boolean);
       
       this.logger.info('PII columns detected in vendor file schema', {
         fileId,
-        piiColumnCount: piiColumns.length,
+        legacyPiiCount: legacyPiiNames.size,
+        metadataPiiCount: metadataPiiNames.size,
+        totalPiiCount: piiColumnNames.length,
         piiColumns: piiColumnNames
       });
     }
