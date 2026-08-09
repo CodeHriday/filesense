@@ -556,12 +556,19 @@ app.use((req, res, next) => {
   });
   
   // Set timeout for response (35 seconds - slightly longer than request timeout)
+  // If no data has been sent after 35 s, send a 408 and tear down the socket so the
+  // browser's fetch() rejects instead of hanging indefinitely.
   res.setTimeout(35000, () => {
     logger.warn('Response timeout', { 
       method: req.method, 
       path: req.path,
       ip: req.ip 
     });
+    if (!res.headersSent) {
+      res.status(408).json({ error: 'Request timeout' });
+    }
+    // Destroy the socket so any in-flight proxy connection is also torn down
+    req.socket.destroy();
   });
   
   next();
@@ -13078,11 +13085,19 @@ if (process.env.NODE_ENV === 'production') {
   console.log('📦 Production mode: Serving static files from', distPath);
 
   // Proxy /profile-api/* → Flask profile_api.py on port 8000 (mirrors Vite's dev proxy)
+  // Disable the generic 30/35-second timeouts for proxy routes — AI calls can take 60-90 s.
+  // The proxy's own proxyTimeout (2 minutes) will kill stalled Flask requests instead.
   const { createProxyMiddleware } = require('http-proxy-middleware');
   const profileApiPort = process.env.PROFILE_API_PORT || 8000;
+  app.use('/profile-api', (req, _res, next) => {
+    req.setTimeout(0);
+    _res.setTimeout(0);
+    next();
+  });
   app.use('/profile-api', createProxyMiddleware({
     target: `http://localhost:${profileApiPort}`,
     changeOrigin: true,
+    proxyTimeout: 120000, // 2 minutes — covers OpenAI generation calls
     pathRewrite: { '^/profile-api': '' },
     on: {
       error: (err, req, res) => {

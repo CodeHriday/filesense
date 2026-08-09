@@ -2083,8 +2083,21 @@ def set_ai_provider():
             
             logger.info(f"AI provider updated to: {provider_name}")
             
-            provider = AIProviderFactory.get_provider(provider_name)
-            provider_info = provider.get_provider_info()
+            # Return static provider info without initialising the full provider object.
+            # Full initialisation (AIProviderFactory.get_provider) may probe external APIs
+            # and take 30+ seconds, causing a Node.js response timeout.
+            _STATIC_PROVIDER_INFO = {
+                'auto':       {'name': 'auto',       'display_name': 'Auto-detect',   'privacy_level': 'varies', 'requires_external_call': False, 'available': True},
+                'openai':     {'name': 'openai',     'display_name': 'OpenAI',        'privacy_level': 'cloud',  'requires_external_call': True,  'available': True},
+                'bedrock':    {'name': 'bedrock',    'display_name': 'AWS Bedrock',   'privacy_level': 'cloud',  'requires_external_call': True,  'available': True},
+                'azure':      {'name': 'azure',      'display_name': 'Azure OpenAI',  'privacy_level': 'cloud',  'requires_external_call': True,  'available': True},
+                'gemini':     {'name': 'gemini',     'display_name': 'Google Gemini', 'privacy_level': 'cloud',  'requires_external_call': True,  'available': True},
+                'rule-based': {'name': 'rule-based', 'display_name': 'Rule-Based',    'privacy_level': 'local',  'requires_external_call': False, 'available': True},
+            }
+            provider_info = _STATIC_PROVIDER_INFO.get(
+                provider_name,
+                {'name': provider_name, 'display_name': provider_name, 'privacy_level': 'unknown', 'available': True}
+            )
             
             return jsonify({
                 'success': True,

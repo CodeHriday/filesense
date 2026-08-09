@@ -77,12 +77,15 @@ const AIDQSuggestionsTab = ({ fileId, filename, columns = [], projectId = null }
   };
 
   const updateProvider = async (providerName) => {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10-second hard limit
     try {
       setProviderUpdating(true);
       const response = await fetch('/profile-api/api/ai-providers/current', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ provider: providerName })
+        body: JSON.stringify({ provider: providerName }),
+        signal: controller.signal
       });
       
       if (response.ok) {
@@ -98,8 +101,11 @@ const AIDQSuggestionsTab = ({ fileId, filename, columns = [], projectId = null }
         }
       }
     } catch (err) {
-      console.error('Error updating provider:', err);
+      if (err.name !== 'AbortError') {
+        console.error('Error updating provider:', err);
+      }
     } finally {
+      clearTimeout(timeoutId);
       setProviderUpdating(false);
       setShowProviderSelect(false);
     }
@@ -137,21 +143,27 @@ const AIDQSuggestionsTab = ({ fileId, filename, columns = [], projectId = null }
   };
 
   const toggleFeature = async () => {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10-second hard limit
     try {
       setToggleUpdating(true);
       const newValue = !featureEnabled;
       const response = await fetch('/profile-api/api/settings/ai_dq_suggestions_enabled', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ value: newValue.toString() })
+        body: JSON.stringify({ value: newValue.toString() }),
+        signal: controller.signal
       });
       
       if (response.ok) {
         setFeatureEnabled(newValue);
       }
     } catch (err) {
-      console.error('Error toggling feature:', err);
+      if (err.name !== 'AbortError') {
+        console.error('Error toggling feature:', err);
+      }
     } finally {
+      clearTimeout(timeoutId);
       setToggleUpdating(false);
     }
   };
@@ -161,6 +173,11 @@ const AIDQSuggestionsTab = ({ fileId, filename, columns = [], projectId = null }
       setError('No column data available for analysis');
       return;
     }
+
+    const controller = new AbortController();
+    // 90-second client-side limit — OpenAI typically replies in 20-60 s; beyond that
+    // the browser fetch would hang forever without an abort signal.
+    const timeoutId = setTimeout(() => controller.abort(), 90000);
 
     try {
       setLoading(true);
@@ -183,7 +200,8 @@ const AIDQSuggestionsTab = ({ fileId, filename, columns = [], projectId = null }
           fileId,
           filename,
           columns: columnData
-        })
+        }),
+        signal: controller.signal
       });
 
       const data = await response.json();
@@ -216,9 +234,14 @@ const AIDQSuggestionsTab = ({ fileId, filename, columns = [], projectId = null }
         createdRules: []
       });
     } catch (err) {
-      console.error('Error generating suggestions:', err);
-      setError('Failed to generate suggestions. Please try again.');
+      if (err.name === 'AbortError') {
+        setError('Analysis is taking too long — please try again.');
+      } else {
+        console.error('Error generating suggestions:', err);
+        setError('Failed to generate suggestions. Please try again.');
+      }
     } finally {
+      clearTimeout(timeoutId);
       setLoading(false);
     }
   };
