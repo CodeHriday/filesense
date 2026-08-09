@@ -3737,7 +3737,12 @@ function DataProfile() {
               <AIDQSuggestionsTab 
                 fileId={fileId}
                 filename={file?.filename}
-                columns={profile?.columns || []}
+                columns={(profile?.columns || []).map(col => ({
+                  ...col,
+                  patterns: (col.patterns || []).map(p =>
+                    typeof p === 'string' ? p : (p.pattern ?? String(p))
+                  )
+                }))}
                 projectId={file?.project_id}
               />
             )}

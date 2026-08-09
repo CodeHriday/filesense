@@ -2117,6 +2117,17 @@ def get_setting(setting_key):
             cursor.close()
             
             if not result:
+                # Return sensible defaults for known settings instead of 404
+                defaults = {
+                    'ai_dq_suggestions_enabled': 'true',
+                    'ai_provider': 'auto',
+                }
+                if setting_key in defaults:
+                    return jsonify({
+                        'key': setting_key,
+                        'value': defaults[setting_key],
+                        'description': None
+                    }), 200
                 return jsonify({'error': 'Setting not found'}), 404
             
             return jsonify({
@@ -2147,20 +2158,18 @@ def update_setting(setting_key):
         try:
             cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
             cursor.execute("""
-                UPDATE app_settings 
-                SET setting_value = %s, updated_at = NOW()
-                WHERE setting_key = %s
+                INSERT INTO app_settings (setting_key, setting_value, updated_at)
+                VALUES (%s, %s, NOW())
+                ON CONFLICT (setting_key)
+                DO UPDATE SET setting_value = EXCLUDED.setting_value, updated_at = NOW()
                 RETURNING setting_key, setting_value, description
-            """, (str(data['value']), setting_key))
+            """, (setting_key, str(data['value'])))
             
             result = cursor.fetchone()
             conn.commit()
             cursor.close()
             
-            if not result:
-                return jsonify({'error': 'Setting not found'}), 404
-            
-            logger.info(f"Setting updated: {setting_key} = {data['value']}")
+            logger.info(f"Setting upserted: {setting_key} = {data['value']}")
             
             return jsonify({
                 'key': result['setting_key'],
@@ -2173,6 +2182,36 @@ def update_setting(setting_key):
     except Exception as e:
         logger.error(f"Error updating setting: {str(e)}")
         return jsonify({'error': str(e)}), 500
+
+def initialize_settings():
+    """Seed default app_settings rows so they always exist on first boot."""
+    defaults = [
+        ('ai_dq_suggestions_enabled', 'true',
+         'Enable AI-powered DQ suggestions feature'),
+        ('ai_provider', 'auto',
+         'AI provider for DQ suggestions (openai, bedrock, azure, gemini, rule-based, auto)'),
+    ]
+    try:
+        conn = get_db_connection()
+        if not conn:
+            logger.warning("initialize_settings: database unavailable, skipping seed")
+            return
+        try:
+            cursor = conn.cursor()
+            for key, value, description in defaults:
+                cursor.execute("""
+                    INSERT INTO app_settings (setting_key, setting_value, description, updated_at)
+                    VALUES (%s, %s, %s, NOW())
+                    ON CONFLICT (setting_key) DO NOTHING
+                """, (key, value, description))
+            conn.commit()
+            cursor.close()
+            logger.info("Default app_settings rows ensured")
+        finally:
+            conn.close()
+    except Exception as e:
+        logger.error(f"initialize_settings error: {str(e)}")
+
 
 # Initialize database connection at startup
 def initialize_app():
@@ -2196,6 +2235,9 @@ def initialize_app():
             logger.error(f"Database connection test error: {str(e)}")
     else:
         logger.warning("No DATABASE_URL available - some features may not work")
+
+    # Seed default settings rows (INSERT … ON CONFLICT DO NOTHING)
+    initialize_settings()
 
 if __name__ == '__main__':
     # Initialize the app

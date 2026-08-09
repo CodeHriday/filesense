@@ -6,7 +6,7 @@ import PropTypes from 'prop-types';
 
 const STORAGE_KEY_PREFIX = 'ai_dq_suggestions_';
 
-const AIDQSuggestionsTab = ({ fileId, filename, columns, projectId }) => {
+const AIDQSuggestionsTab = ({ fileId, filename, columns = [], projectId = null }) => {
   const [suggestions, setSuggestions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -616,11 +616,6 @@ AIDQSuggestionsTab.propTypes = {
     PropTypes.string,
     PropTypes.number
   ])
-};
-
-AIDQSuggestionsTab.defaultProps = {
-  columns: [],
-  projectId: null
 };
 
 export default AIDQSuggestionsTab;
