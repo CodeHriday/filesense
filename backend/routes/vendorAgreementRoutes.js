@@ -283,9 +283,11 @@ router.get('/', async (req, res) => {
       }
     }
     
-    // Only users with approve permission can see ALL agreements (bypassing contact filtering)
-    // Regular vendor users with just read permission still get filtered by their contact emails
+    // Users with approve or read permission are internal staff with explicit access grants —
+    // they bypass contact-relationship filtering and see all active agreements.
+    // External/vendor-role users without these permissions are filtered to their own agreements.
     const hasApprovePermission = hasPermission(req.user, 'vendor_agreements:approve');
+    const hasReadPermission = hasPermission(req.user, 'vendor_agreements:read');
     
     // DEBUG: Log permission check for troubleshooting
     systemLogger.info('Vendor agreements permission check', {
@@ -293,6 +295,7 @@ router.get('/', async (req, res) => {
       userId: req.user.id,
       roles: req.user.roles,
       hasApprovePermission,
+      hasReadPermission,
       permissionsCount: req.user.permissions?.length || 0,
       permissions: req.user.permissions?.map(p => typeof p === 'string' ? p : (p.name || `${p.resource}:${p.action}`))
     });
@@ -307,7 +310,8 @@ router.get('/', async (req, res) => {
       userId: req.user.id,
       userRoles: req.user.roles,
       userEmail: req.user.email,
-      hasApprovePermission
+      hasApprovePermission,
+      hasReadPermission
     });
     
     // Include hasApprovePermission flag in response so frontend can filter agreements for mapping wizard

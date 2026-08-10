@@ -2610,7 +2610,8 @@ class VendorAgreementService {
         userId,
         userRoles = [],
         userEmail = null,
-        hasApprovePermission = false
+        hasApprovePermission = false,
+        hasReadPermission = false
       } = options;
       
       const offset = (page - 1) * pageSize;
@@ -2653,11 +2654,12 @@ class VendorAgreementService {
         paramCounter++;
       }
       
-      // Apply role-based filtering for non-admin users
-      // Only true admin access (userHasAdminAccess) bypasses contact filtering
-      // Users with vendor_agreements:approve permission (e.g. Vendor Manager, Vendor Approver)
-      // still get filtered — they only see agreements where they are designated as a contact
-      if (!isAdmin && userId) {
+      // Apply role-based filtering for non-admin users.
+      // Users with vendor_agreements:approve or vendor_agreements:read permission are internal
+      // staff who have been explicitly granted access — they bypass contact filtering and see
+      // all non-archived agreements. Only external/vendor-role users are filtered to agreements
+      // where they hold a designated relationship (file owner, contact, project member, etc.).
+      if (!isAdmin && !hasApprovePermission && !hasReadPermission && userId) {
         if (userEmail) {
           // Allow access if user is:
           // 1. File owner (by user ID)
@@ -2666,6 +2668,8 @@ class VendorAgreementService {
           // 4. Manager contact (by email)
           // 5. Governance manager (by user ID)
           // 6. Member of the vendor's project (direct or via access group)
+          // 7. Listed as an additional stakeholder (by user ID in JSONB column)
+          // 8. Member of an additional stakeholder group (via access_group_members)
           whereClauses.push(`(
             va.file_owner_user_id = $${paramCounter} 
             OR v.vendor_user_id = $${paramCounter}
@@ -2682,11 +2686,18 @@ class VendorAgreementService {
               JOIN project_access_groups pag ON agm.group_id = pag.group_id
               WHERE pag.project_id = v.project_id AND agm.user_id = $${paramCounter}
             )
+            OR va.additional_stakeholder_user_ids @> jsonb_build_array($${paramCounter})
+            OR EXISTS (
+              SELECT 1 FROM access_group_members agm2
+              WHERE agm2.user_id = $${paramCounter}
+              AND va.additional_stakeholder_group_ids @> jsonb_build_array(agm2.group_id)
+            )
           )`);
           queryParams.push(userId, userEmail);
           paramCounter += 2;
         } else {
-          // Fallback if email not provided - check file owner, vendor user, governance manager, and project membership
+          // Fallback if email not provided - check file owner, vendor user, governance manager,
+          // project membership, and additional stakeholder assignments
           whereClauses.push(`(
             va.file_owner_user_id = $${paramCounter} 
             OR v.vendor_user_id = $${paramCounter}
@@ -2699,6 +2710,12 @@ class VendorAgreementService {
               SELECT 1 FROM access_group_members agm
               JOIN project_access_groups pag ON agm.group_id = pag.group_id
               WHERE pag.project_id = v.project_id AND agm.user_id = $${paramCounter}
+            )
+            OR va.additional_stakeholder_user_ids @> jsonb_build_array($${paramCounter})
+            OR EXISTS (
+              SELECT 1 FROM access_group_members agm2
+              WHERE agm2.user_id = $${paramCounter}
+              AND va.additional_stakeholder_group_ids @> jsonb_build_array(agm2.group_id)
             )
           )`);
           queryParams.push(userId);

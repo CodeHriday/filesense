@@ -208,6 +208,8 @@ const ROLE_PERMISSIONS = {
     'connection:create', 'connection:read', 'connection:update', 'connection:delete',
     // File management
     'file:create', 'file:read', 'file:update', 'file:delete',
+    // Vendor contract read access (needed for visual mapping source configuration)
+    'vendor_agreements:read',
     // Can apply existing tags (not create new ones)
     'tag:read', 'tag:assign',
     'policy:read', 'policy:assign',

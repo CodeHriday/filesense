@@ -348,7 +348,7 @@ const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
   
   const fetchVendorAgreements = async () => {
     try {
-      const response = await axios.get('/api/vendor-agreements?status=active');
+      const response = await axios.get('/api/vendor-agreements?status=active&pageSize=1000');
       const agreements = Array.isArray(response.data) ? response.data : (response.data.agreements || []);
       setVendorAgreements(agreements);
     } catch (error) {
