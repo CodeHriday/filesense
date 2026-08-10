@@ -9901,12 +9901,26 @@ app.get('/api/secrets', async (req, res) => {
   });
 
 // Database URL endpoint for profile_api.py
+// Returns the already-resolved DATABASE_URL from process.env (set by initializeSecrets()
+// which correctly handles both full-URL and individual-field AWS secret formats).
+// Do NOT reconstruct the URL from getAllSecretData() fields — the AWS secret stores a
+// complete database_url field, so secrets.port etc. are undefined.
 app.get('/api/db_url', async (req, res) => {
   try {
-    const secrets = await getAllSecretData();
-    res.json({
-      DATABASE_URL: `postgres://${secrets.username}:${secrets.password}@${secrets.host}:${secrets.port}/${secrets.dbname}`,
-    });
+    const dbUrl = process.env.DATABASE_URL;
+    if (!dbUrl) {
+      // Fallback: try to build from AWS secret fields if DATABASE_URL wasn't seeded
+      const secrets = await getAllSecretData();
+      const built = secrets.database_url || secrets.DATABASE_URL ||
+        (secrets.username && secrets.host && secrets.dbname
+          ? `postgres://${secrets.username}:${encodeURIComponent(secrets.password || '')}@${secrets.host}:${secrets.port || 5432}/${secrets.dbname}`
+          : null);
+      if (!built) {
+        return res.status(500).json({ error: 'DATABASE_URL not available' });
+      }
+      return res.json({ DATABASE_URL: built });
+    }
+    res.json({ DATABASE_URL: dbUrl });
   } catch (err) {
     console.error('Error fetching secrets:', err);
     res.status(500).json({ error: 'Failed to fetch secrets' });
@@ -13100,6 +13114,16 @@ if (process.env.NODE_ENV === 'production') {
     proxyTimeout: 120000, // 2 minutes — covers OpenAI generation calls
     pathRewrite: { '^/profile-api': '' },
     on: {
+      proxyReq: (proxyReq, req) => {
+        // Express bodyParser.json() consumes the body stream before the proxy sees it.
+        // Re-attach the already-parsed body so Flask receives it correctly.
+        if (req.body && ['POST', 'PUT', 'PATCH'].includes(req.method)) {
+          const bodyData = JSON.stringify(req.body);
+          proxyReq.setHeader('Content-Type', 'application/json');
+          proxyReq.setHeader('Content-Length', Buffer.byteLength(bodyData));
+          proxyReq.write(bodyData);
+        }
+      },
       error: (err, req, res) => {
         logger.error('profile-api proxy error', { error: err.message, path: req.url });
         if (!res.headersSent) res.status(502).json({ error: 'Profile API unavailable' });
