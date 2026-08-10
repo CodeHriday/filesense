@@ -179,7 +179,7 @@ def fetch_database_url():
         return _database_url
     
     try:
-        API_BASE_URL = "http://localhost:5001"
+        API_BASE_URL = "http://localhost:5000"
         response = requests.get(f"{API_BASE_URL}/api/db_url")
         if not response.ok:
             raise Exception('Failed to load database URL from backend')
@@ -2215,7 +2215,8 @@ def initialize_settings():
                 cursor.execute("""
                     INSERT INTO app_settings (setting_key, setting_value, description, updated_at)
                     VALUES (%s, %s, %s, NOW())
-                    ON CONFLICT (setting_key) DO NOTHING
+                    ON CONFLICT (setting_key) DO UPDATE
+                    SET setting_value = EXCLUDED.setting_value, updated_at = NOW()
                 """, (key, value, description))
             conn.commit()
             cursor.close()

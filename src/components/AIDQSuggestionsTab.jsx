@@ -187,9 +187,13 @@ const AIDQSuggestionsTab = ({ fileId, filename, columns = [], projectId = null }
         name: col.name,
         type: col.type,
         completeness: col.completeness || (100 - (col.nullPercentage || 0)),
-        uniqueCount: col.uniqueCount || col.distinct_count,
+        uniqueCount: col.uniqueCount || col.distinct_count || col.unique_count,
+        totalCount: col.totalCount || col.total_count || 0,
+        sampleValues: col.sampleValues || col.sample_values || [],
+        minLength: col.minLength ?? col.min_length ?? null,
+        maxLength: col.maxLength ?? col.max_length ?? null,
         patterns: col.patterns || [],
-        semanticType: col.semanticType,
+        semanticType: col.semanticType || col.semantic_type,
         hasNulls: col.nullPercentage > 0 || col.null_count > 0
       }));
 
