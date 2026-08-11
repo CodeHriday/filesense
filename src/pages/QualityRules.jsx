@@ -284,6 +284,31 @@ function QualityRules() {
           errors.timestamp_column = 'Timestamp column is required';
         }
         break;
+
+      case 'record_count': {
+        const op = config.operator || 'exactly';
+        if (!config.operator) {
+          errors.operator = 'Operator is required';
+        }
+        if (op === 'between') {
+          if (config.min_count === undefined || config.min_count === null || config.min_count < 0) {
+            errors.count_range = 'Minimum count must be 0 or greater';
+          } else if (config.max_count === undefined || config.max_count === null || config.max_count < 0) {
+            errors.count_range = 'Maximum count must be 0 or greater';
+          } else if (config.max_count < config.min_count) {
+            errors.count_range = 'Maximum count must be greater than or equal to minimum count';
+          }
+        } else {
+          if (config.expected_count === undefined || config.expected_count === null || config.expected_count < 0) {
+            errors.expected_count = 'Expected count must be 0 or greater';
+          }
+        }
+        if (config.tolerance_percent !== undefined && config.tolerance_percent !== null &&
+            (config.tolerance_percent < 0 || config.tolerance_percent > 100)) {
+          errors.tolerance_percent = 'Tolerance must be between 0 and 100';
+        }
+        break;
+      }
     }
     
     setFormErrors(errors);
@@ -359,6 +384,7 @@ function QualityRules() {
       consistency: 'Check that related data fields are logically consistent',
       uniqueness: 'Verify that values are unique (no duplicates)',
       freshness: 'Monitor data age and detect stale information',
+      record_count: 'Flag files whose row count falls outside an expected range',
       validity_check: 'General validity validation with pattern or datatype checks',
       length_check: 'Validate string length within min/max bounds',
       range_check: 'Validate numeric values within min/max bounds'
@@ -813,6 +839,87 @@ function QualityRules() {
           </div>
         );
         
+      case 'record_count':
+        return (
+          <div className="gps-section" style={{ marginTop: '16px', padding: '16px', backgroundColor: '#f9fafb', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+            <div className="gps-form-group">
+              <label htmlFor="record-count-operator" className="gps-form-label">Operator</label>
+              <span className="gps-form-hint" style={{ marginTop: 0, marginBottom: '8px' }}>How the actual row count should compare to the expected count</span>
+              <select
+                id="record-count-operator"
+                className="gps-form-select"
+                value={config.operator || 'exactly'}
+                onChange={(e) => updateRuleConfig('operator', e.target.value)}
+              >
+                <option value="exactly">Exactly</option>
+                <option value="at_least">At Least</option>
+                <option value="at_most">At Most</option>
+                <option value="between">Between</option>
+              </select>
+              {formErrors.operator && <span className="gps-form-hint" style={{ color: '#e53e3e' }}>{formErrors.operator}</span>}
+            </div>
+
+            {(config.operator || 'exactly') !== 'between' ? (
+              <div className="gps-form-group">
+                <label htmlFor="record-count-expected" className="gps-form-label">Expected Record Count</label>
+                <input
+                  id="record-count-expected"
+                  type="number"
+                  className="gps-form-input"
+                  min="0"
+                  value={config.expected_count !== undefined ? config.expected_count : ''}
+                  onChange={(e) => updateRuleConfig('expected_count', e.target.value !== '' ? parseInt(e.target.value, 10) : undefined)}
+                  placeholder="e.g., 1000"
+                />
+                {formErrors.expected_count && <span className="gps-form-hint" style={{ color: '#e53e3e' }}>{formErrors.expected_count}</span>}
+              </div>
+            ) : (
+              <div className="gps-form-row">
+                <div className="gps-form-group">
+                  <label htmlFor="record-count-min" className="gps-form-label">Minimum Count</label>
+                  <input
+                    id="record-count-min"
+                    type="number"
+                    className="gps-form-input"
+                    min="0"
+                    value={config.min_count !== undefined ? config.min_count : ''}
+                    onChange={(e) => updateRuleConfig('min_count', e.target.value !== '' ? parseInt(e.target.value, 10) : undefined)}
+                    placeholder="e.g., 900"
+                  />
+                </div>
+                <div className="gps-form-group">
+                  <label htmlFor="record-count-max" className="gps-form-label">Maximum Count</label>
+                  <input
+                    id="record-count-max"
+                    type="number"
+                    className="gps-form-input"
+                    min="0"
+                    value={config.max_count !== undefined ? config.max_count : ''}
+                    onChange={(e) => updateRuleConfig('max_count', e.target.value !== '' ? parseInt(e.target.value, 10) : undefined)}
+                    placeholder="e.g., 1100"
+                  />
+                </div>
+                {formErrors.count_range && <span className="gps-form-hint" style={{ color: '#e53e3e', gridColumn: '1 / -1' }}>{formErrors.count_range}</span>}
+              </div>
+            )}
+
+            <div className="gps-form-group" style={{ marginBottom: 0 }}>
+              <label htmlFor="record-count-tolerance" className="gps-form-label">Tolerance (%) — Optional</label>
+              <span className="gps-form-hint" style={{ marginTop: 0, marginBottom: '8px' }}>Allow the count to vary by this percentage before flagging a violation</span>
+              <input
+                id="record-count-tolerance"
+                type="number"
+                className="gps-form-input"
+                min="0"
+                max="100"
+                value={config.tolerance_percent !== undefined ? config.tolerance_percent : ''}
+                onChange={(e) => updateRuleConfig('tolerance_percent', e.target.value !== '' ? parseFloat(e.target.value) : undefined)}
+                placeholder="e.g., 5 (for ±5%)"
+              />
+            </div>
+          </div>
+        );
+
       default:
         return null;
     }
@@ -908,6 +1015,7 @@ function QualityRules() {
           <option value="consistency">Consistency</option>
           <option value="uniqueness">Uniqueness</option>
           <option value="freshness">Freshness</option>
+          <option value="record_count">Record Count</option>
           <option value="validity_check">Validity Check</option>
           <option value="length_check">Length Check</option>
           <option value="range_check">Range Check</option>
@@ -1160,6 +1268,7 @@ function QualityRules() {
                       <option value="consistency">Consistency</option>
                       <option value="uniqueness">Uniqueness</option>
                       <option value="freshness">Freshness</option>
+                      <option value="record_count">Record Count</option>
                       <option value="validity_check">Validity Check (Generic)</option>
                       <option value="length_check">Length Check (Generic)</option>
                       <option value="range_check">Range Check (Generic)</option>

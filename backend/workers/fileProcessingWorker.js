@@ -1272,7 +1272,13 @@ class FileProcessingWorker {
             // Use preview data for validation (up to 100 rows)
             const dataToValidate = fileInfo.preview_data || [];
             
-            if (dataToValidate.length > 0) {
+            // record_count rules are file-level and need actual_row_count but not row data,
+            // so allow validation even when preview is empty if the row count is known.
+            const hasRecordCountRules = rulesResult.rows.some(r => r.rule_type === 'record_count');
+            const canValidate = dataToValidate.length > 0 ||
+              (hasRecordCountRules && fileInfo.row_count !== undefined && fileInfo.row_count !== null);
+            
+            if (canValidate) {
               // Initialize quality validation engine
               const validationEngine = new QualityValidationEngine(this.dbPool);
               
@@ -1283,7 +1289,8 @@ class FileProcessingWorker {
                 {
                   file_id: fileId,
                   file_name: originalName,
-                  upload_date: new Date()
+                  upload_date: new Date(),
+                  actual_row_count: fileInfo.row_count
                 }
               );
               

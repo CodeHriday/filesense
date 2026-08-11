@@ -6629,10 +6629,11 @@ app.post('/api/files/:fileId/quality-rules/run', authenticateToken, async (req, 
     const userId = req.user?.id || req.user?.userId;
     
     // Get file info
-    const fileResult = await dbPool.query('SELECT file_id, filename FROM files WHERE file_id = $1', [fileId]);
+    const fileResult = await dbPool.query('SELECT file_id, filename, row_count FROM files WHERE file_id = $1', [fileId]);
     if (fileResult.rows.length === 0) {
       return res.status(404).json({ error: 'File not found' });
     }
+    const fileRowCount = fileResult.rows[0].row_count;
     
     // Get assigned quality rules with target columns
     const rulesResult = await dbPool.query(`
@@ -6661,7 +6662,10 @@ app.post('/api/files/:fileId/quality-rules/run', authenticateToken, async (req, 
       ORDER BY row_number
     `, [fileId]);
     
-    if (previewResult.rows.length === 0) {
+    // When there is no preview data, column-level rules cannot run, but record_count rules
+    // can still be evaluated using the stored row_count from the files table.
+    const hasRecordCountRulesAssigned = rulesResult.rows.some(r => r.rule_type === 'record_count');
+    if (previewResult.rows.length === 0 && !hasRecordCountRulesAssigned) {
       return res.status(400).json({ 
         error: 'No file data available',
         message: 'Please re-profile the file to run quality checks'
@@ -6713,8 +6717,9 @@ app.post('/api/files/:fileId/quality-rules/run', authenticateToken, async (req, 
     for (const rule of rulesResult.rows) {
       const targetColumns = rule.target_columns || [];
       
-      // If no specific columns assigned, skip this rule
-      if (targetColumns.length === 0) {
+      // If no specific columns assigned, skip column-level rules
+      // (record_count is file-level and has no target columns — do not skip it)
+      if (targetColumns.length === 0 && rule.rule_type !== 'record_count') {
         continue;
       }
       
@@ -6955,6 +6960,82 @@ app.post('/api/files/:fileId/quality-rules/run', authenticateToken, async (req, 
           }
         }
       }
+
+      // Handle record_count check — file-level, no per-row or per-column iteration needed
+      if (rule.rule_type === 'record_count') {
+        const rcConfig = rule.rule_config || {};
+        const operator = rcConfig.operator || 'exactly';
+        const expectedCount = rcConfig.expected_count;
+        const minCount = rcConfig.min_count;
+        const maxCount = rcConfig.max_count;
+        const tolerancePercent = rcConfig.tolerance_percent || 0;
+
+        // Use the actual stored row_count from the files table; fall back to preview row count
+        const actualCount = fileRowCount !== null && fileRowCount !== undefined
+          ? fileRowCount
+          : rows.length;
+
+        let isViolation = false;
+        let expectedValue = '';
+        const actualValue = `${actualCount} records`;
+
+        switch (operator) {
+          case 'exactly': {
+            const tolerance = tolerancePercent > 0 ? Math.ceil(expectedCount * tolerancePercent / 100) : 0;
+            isViolation = Math.abs(actualCount - expectedCount) > tolerance;
+            expectedValue = tolerancePercent > 0
+              ? `Exactly ${expectedCount} records (±${tolerancePercent}%)`
+              : `Exactly ${expectedCount} records`;
+            break;
+          }
+          case 'at_least': {
+            const threshold = tolerancePercent > 0
+              ? Math.floor(expectedCount * (1 - tolerancePercent / 100))
+              : expectedCount;
+            isViolation = actualCount < threshold;
+            expectedValue = tolerancePercent > 0
+              ? `At least ${expectedCount} records (−${tolerancePercent}% tolerance)`
+              : `At least ${expectedCount} records`;
+            break;
+          }
+          case 'at_most': {
+            const threshold = tolerancePercent > 0
+              ? Math.ceil(expectedCount * (1 + tolerancePercent / 100))
+              : expectedCount;
+            isViolation = actualCount > threshold;
+            expectedValue = tolerancePercent > 0
+              ? `At most ${expectedCount} records (+${tolerancePercent}% tolerance)`
+              : `At most ${expectedCount} records`;
+            break;
+          }
+          case 'between': {
+            isViolation = actualCount < minCount || actualCount > maxCount;
+            expectedValue = `Between ${minCount} and ${maxCount} records`;
+            break;
+          }
+        }
+
+        if (isViolation) {
+          violations.push({
+            rule_id: rule.id,
+            file_id: fileId,
+            row_number: null,
+            column_name: null,
+            expected_value: expectedValue,
+            actual_value: actualValue,
+            violation_details: {
+              rule_type: 'record_count',
+              operator,
+              expected_count: expectedCount,
+              min_count: minCount,
+              max_count: maxCount,
+              actual_count: actualCount,
+              tolerance_percent: tolerancePercent
+            },
+            severity: rule.severity || 'warning'
+          });
+        }
+      }
       
       // Handle uniqueness check
       if (rule.rule_type === 'uniqueness' && targetColumns.length > 0) {
@@ -7107,6 +7188,10 @@ app.post('/api/files/:fileId/quality-rules/revalidate', authenticateToken, uploa
     
     const fileExtension = path.extname(uploadedFile.originalname).toLowerCase();
     
+    // totalRowCount tracks the actual number of rows in the file (no cap) for record_count rules.
+    // parsedRows is capped at 10,000 for column-level validation to limit memory.
+    let totalRowCount = 0;
+
     if (fileExtension === '.csv') {
       // Parse CSV using csv-parser for proper handling of quoted values, commas, and escapes
       const csvParser = require('csv-parser');
@@ -7119,6 +7204,7 @@ app.post('/api/files/:fileId/quality-rules/revalidate', authenticateToken, uploa
             columnNames = headers.map(h => h.trim());
           })
           .on('data', (data) => {
+            totalRowCount++;
             if (results.length < 10000) {
               results.push(data);
             }
@@ -7155,6 +7241,8 @@ app.post('/api/files/:fileId/quality-rules/revalidate', authenticateToken, uploa
       const jsonData = JSON.parse(fileContent);
       const dataArray = Array.isArray(jsonData) ? jsonData : [jsonData];
       
+      totalRowCount = dataArray.length; // full count, no cap
+      
       if (dataArray.length > 0 && typeof dataArray[0] === 'object') {
         columnNames = Object.keys(dataArray[0]);
       }
@@ -7173,13 +7261,6 @@ app.post('/api/files/:fileId/quality-rules/revalidate', authenticateToken, uploa
     
     // Clean up uploaded file after parsing
     try { fs.unlinkSync(uploadedFile.path); } catch (e) {}
-    
-    if (parsedRows.length === 0) {
-      return res.status(400).json({
-        error: 'Empty file',
-        message: 'The uploaded file contains no data rows'
-      });
-    }
     
     // Update file_preview_data with new content using transaction
     const client = await dbPool.connect();
@@ -7208,14 +7289,14 @@ app.post('/api/files/:fileId/quality-rules/revalidate', authenticateToken, uploa
         `, params);
       }
       
-      // Update file metadata
+      // Update file metadata — use totalRowCount (full count, not preview-capped)
       await client.query(`
         UPDATE files 
         SET row_count = $1, 
             column_count = $2,
             updated_at = NOW()
         WHERE file_id = $3
-      `, [parsedRows.length, columnNames.length, fileId]);
+      `, [totalRowCount, columnNames.length, fileId]);
       
       await client.query('COMMIT');
     } catch (txErr) {
@@ -7239,9 +7320,19 @@ app.post('/api/files/:fileId/quality-rules/revalidate', authenticateToken, uploa
       return res.json({
         success: true,
         message: 'File uploaded but no quality rules assigned',
-        rows_processed: parsedRows.length,
+        rows_processed: totalRowCount,
         rules_executed: 0,
         violations_found: 0
+      });
+    }
+
+    // Defer the empty-file check to here (after rules are known) so record_count rules
+    // can still run on empty uploads — they only need totalRowCount, not row data.
+    const revalidateHasRecordCountRules = rulesResult.rows.some(r => r.rule_type === 'record_count');
+    if (parsedRows.length === 0 && !revalidateHasRecordCountRules) {
+      return res.status(400).json({
+        error: 'Empty file',
+        message: 'The uploaded file contains no data rows'
       });
     }
     
@@ -7289,7 +7380,8 @@ app.post('/api/files/:fileId/quality-rules/revalidate', authenticateToken, uploa
     for (const rule of rulesResult.rows) {
       const targetColumns = rule.target_columns || [];
       
-      if (targetColumns.length === 0) continue;
+      // record_count is file-level — allow it through even with no target columns
+      if (targetColumns.length === 0 && rule.rule_type !== 'record_count') continue;
       
       for (const columnName of targetColumns) {
         // Resolve the target column name to the actual header name
@@ -7555,6 +7647,78 @@ app.post('/api/files/:fileId/quality-rules/revalidate', authenticateToken, uploa
           }
         }
       }
+
+      // Handle record_count check — file-level, evaluated against totalRowCount (full count, not preview cap)
+      if (rule.rule_type === 'record_count') {
+        const rcConfig = rule.rule_config || {};
+        const operator = rcConfig.operator || 'exactly';
+        const expectedCount = rcConfig.expected_count;
+        const minCount = rcConfig.min_count;
+        const maxCount = rcConfig.max_count;
+        const tolerancePercent = rcConfig.tolerance_percent || 0;
+        const actualCount = totalRowCount;
+
+        let isViolation = false;
+        let expectedValue = '';
+        const actualValue = `${actualCount} records`;
+
+        switch (operator) {
+          case 'exactly': {
+            const tolerance = tolerancePercent > 0 ? Math.ceil(expectedCount * tolerancePercent / 100) : 0;
+            isViolation = Math.abs(actualCount - expectedCount) > tolerance;
+            expectedValue = tolerancePercent > 0
+              ? `Exactly ${expectedCount} records (±${tolerancePercent}%)`
+              : `Exactly ${expectedCount} records`;
+            break;
+          }
+          case 'at_least': {
+            const threshold = tolerancePercent > 0
+              ? Math.floor(expectedCount * (1 - tolerancePercent / 100))
+              : expectedCount;
+            isViolation = actualCount < threshold;
+            expectedValue = tolerancePercent > 0
+              ? `At least ${expectedCount} records (−${tolerancePercent}% tolerance)`
+              : `At least ${expectedCount} records`;
+            break;
+          }
+          case 'at_most': {
+            const threshold = tolerancePercent > 0
+              ? Math.ceil(expectedCount * (1 + tolerancePercent / 100))
+              : expectedCount;
+            isViolation = actualCount > threshold;
+            expectedValue = tolerancePercent > 0
+              ? `At most ${expectedCount} records (+${tolerancePercent}% tolerance)`
+              : `At most ${expectedCount} records`;
+            break;
+          }
+          case 'between': {
+            isViolation = actualCount < minCount || actualCount > maxCount;
+            expectedValue = `Between ${minCount} and ${maxCount} records`;
+            break;
+          }
+        }
+
+        if (isViolation) {
+          violations.push({
+            rule_id: rule.id,
+            file_id: fileId,
+            row_number: null,
+            column_name: null,
+            expected_value: expectedValue,
+            actual_value: actualValue,
+            violation_details: {
+              rule_type: 'record_count',
+              operator,
+              expected_count: expectedCount,
+              min_count: minCount,
+              max_count: maxCount,
+              actual_count: actualCount,
+              tolerance_percent: tolerancePercent
+            },
+            severity: rule.severity || 'warning'
+          });
+        }
+      }
     }
     
     // Save violations to database
@@ -7608,7 +7772,7 @@ app.post('/api/files/:fileId/quality-rules/revalidate', authenticateToken, uploa
     res.json({
       success: true,
       message: 'File uploaded and quality rules executed successfully',
-      rows_processed: parsedRows.length,
+      rows_processed: totalRowCount,
       rules_executed: rulesResult.rows.length,
       violations_found: violations.length,
       violations_by_rule: rulesResult.rows.map(rule => ({

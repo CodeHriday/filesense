@@ -3567,7 +3567,11 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
         ORDER BY qr.id
       `, [mapping.mapping_id]);
       
-      if (qualityRulesResult.rows.length > 0 && transformedRows.length > 0) {
+      const hasRecordCountRules = qualityRulesResult.rows.some(r => r.rule_type === 'record_count');
+      const shouldRunValidation = qualityRulesResult.rows.length > 0 &&
+        (transformedRows.length > 0 || hasRecordCountRules);
+
+      if (shouldRunValidation) {
         await logJobExecution(pool, jobId, 'info', `Running quality validation with ${qualityRulesResult.rows.length} rules`, {
           rule_count: qualityRulesResult.rows.length,
           row_count: transformedRows.length
@@ -3581,7 +3585,8 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
           file_id: file.file_id || null,
           file_name: file.filename,
           mapping_id: mapping.mapping_id,
-          upload_date: new Date()
+          upload_date: new Date(),
+          actual_row_count: transformedRows.length
         };
         
         const validationResult = await qualityEngine.validateData(
@@ -3631,8 +3636,8 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
             });
           }
         }
-      } else if (qualityRulesResult.rows.length > 0 && transformedRows.length === 0) {
-        await logJobExecution(pool, jobId, 'info', `Skipping quality validation - no data to validate`);
+      } else if (qualityRulesResult.rows.length > 0) {
+        await logJobExecution(pool, jobId, 'info', `Skipping quality validation - no data to validate and no record_count rules`);
       }
     } catch (qualityValidationError) {
       await logJobExecution(pool, jobId, 'error', `Quality validation failed: ${qualityValidationError.message}`, {

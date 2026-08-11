@@ -83,7 +83,33 @@ class QualityValidationEngine {
       };
 
       if (!data || data.length === 0) {
-        systemLogger.warn('No data provided for validation', metadata);
+        // If actual_row_count is explicitly set, record_count rules can still be evaluated
+        // (e.g. a VM job that produced 0 output rows). Other rules need row data and are skipped.
+        const recordCountRules = rules.filter(r => r.enabled !== false && r.rule_type === 'record_count');
+        if (recordCountRules.length === 0 || metadata.actual_row_count === undefined) {
+          systemLogger.warn('No data provided for validation', metadata);
+          return { violations, errors, summary };
+        }
+        // Fall through with empty data — only record_count rules will produce results
+        for (const rule of recordCountRules) {
+          try {
+            const ruleViolations = await this.executeRule(rule, [], metadata);
+            violations.push(...ruleViolations);
+            ruleViolations.forEach(violation => {
+              summary.violations_found++;
+              if (violation.severity === 'critical') summary.critical_count++;
+              else if (violation.severity === 'error') summary.error_count++;
+              else if (violation.severity === 'warning') summary.warning_count++;
+            });
+          } catch (error) {
+            systemLogger.error('Error executing record_count quality rule on empty data', {
+              rule_id: rule.id,
+              rule_name: rule.rule_name,
+              error: error.message
+            });
+            errors.push({ rule_id: rule.id, rule_name: rule.rule_name, error_message: error.message });
+          }
+        }
         return { violations, errors, summary };
       }
 
@@ -154,6 +180,8 @@ class QualityValidationEngine {
         return this.validateUniqueness(rule, data, metadata);
       case 'freshness':
         return this.validateFreshness(rule, data, metadata);
+      case 'record_count':
+        return this.validateRecordCount(rule, data, metadata);
       // Generic rule types for contract/profiling modules
       case 'validity_check':
         return this.validateValidityCheck(rule, data, metadata);
@@ -401,6 +429,99 @@ class QualityValidationEngine {
       default:
         return { valid: true, message: '' };
     }
+  }
+
+  /**
+   * Validate record count - check that the file's row count meets expectations
+   * rule_config: {
+   *   operator: 'at_least' | 'exactly' | 'at_most' | 'between',
+   *   expected_count: number (used by at_least / exactly / at_most),
+   *   min_count: number (used by between),
+   *   max_count: number (used by between),
+   *   tolerance_percent: number (optional, 0-100)
+   * }
+   */
+  async validateRecordCount(rule, data, metadata) {
+    const violations = [];
+    const config = rule.rule_config;
+    const operator = config.operator || 'exactly';
+    const expectedCount = config.expected_count;
+    const minCount = config.min_count;
+    const maxCount = config.max_count;
+    const tolerancePercent = config.tolerance_percent || 0;
+
+    // Prefer the actual row count from metadata (full file) over the preview slice length
+    const actualCount = metadata.actual_row_count !== undefined
+      ? metadata.actual_row_count
+      : data.length;
+
+    let isViolation = false;
+    let expectedValue = '';
+    const actualValue = `${actualCount} records`;
+
+    switch (operator) {
+      case 'exactly': {
+        const tolerance = tolerancePercent > 0
+          ? Math.ceil(expectedCount * tolerancePercent / 100)
+          : 0;
+        isViolation = Math.abs(actualCount - expectedCount) > tolerance;
+        expectedValue = tolerancePercent > 0
+          ? `Exactly ${expectedCount} records (±${tolerancePercent}%)`
+          : `Exactly ${expectedCount} records`;
+        break;
+      }
+      case 'at_least': {
+        const threshold = tolerancePercent > 0
+          ? Math.floor(expectedCount * (1 - tolerancePercent / 100))
+          : expectedCount;
+        isViolation = actualCount < threshold;
+        expectedValue = tolerancePercent > 0
+          ? `At least ${expectedCount} records (−${tolerancePercent}% tolerance)`
+          : `At least ${expectedCount} records`;
+        break;
+      }
+      case 'at_most': {
+        const threshold = tolerancePercent > 0
+          ? Math.ceil(expectedCount * (1 + tolerancePercent / 100))
+          : expectedCount;
+        isViolation = actualCount > threshold;
+        expectedValue = tolerancePercent > 0
+          ? `At most ${expectedCount} records (+${tolerancePercent}% tolerance)`
+          : `At most ${expectedCount} records`;
+        break;
+      }
+      case 'between': {
+        isViolation = actualCount < minCount || actualCount > maxCount;
+        expectedValue = `Between ${minCount} and ${maxCount} records`;
+        break;
+      }
+      default:
+        systemLogger.warn('Unknown record_count operator', { rule_id: rule.id, operator });
+        return violations;
+    }
+
+    if (isViolation) {
+      violations.push({
+        rule_id: rule.id,
+        file_id: metadata.file_id || null,
+        job_id: metadata.job_id || null,
+        column_name: null,
+        expected_value: expectedValue,
+        actual_value: actualValue,
+        violation_details: {
+          rule_type: 'record_count',
+          operator,
+          expected_count: expectedCount,
+          min_count: minCount,
+          max_count: maxCount,
+          actual_count: actualCount,
+          tolerance_percent: tolerancePercent
+        },
+        severity: rule.severity
+      });
+    }
+
+    return violations;
   }
 
   /**
