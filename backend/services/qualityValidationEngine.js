@@ -443,7 +443,7 @@ class QualityValidationEngine {
    */
   async validateRecordCount(rule, data, metadata) {
     const violations = [];
-    const config = rule.rule_config;
+    const config = typeof rule.rule_config === 'string' ? JSON.parse(rule.rule_config) : rule.rule_config;
     const operator = config.operator || 'exactly';
     const expectedCount = config.expected_count;
     const minCount = config.min_count;

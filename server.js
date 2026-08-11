@@ -6963,7 +6963,7 @@ app.post('/api/files/:fileId/quality-rules/run', authenticateToken, async (req, 
 
       // Handle record_count check — file-level, no per-row or per-column iteration needed
       if (rule.rule_type === 'record_count') {
-        const rcConfig = rule.rule_config || {};
+        const rcConfig = (typeof rule.rule_config === 'string' ? JSON.parse(rule.rule_config) : rule.rule_config) || {};
         const operator = rcConfig.operator || 'exactly';
         const expectedCount = rcConfig.expected_count;
         const minCount = rcConfig.min_count;
@@ -7650,7 +7650,7 @@ app.post('/api/files/:fileId/quality-rules/revalidate', authenticateToken, uploa
 
       // Handle record_count check — file-level, evaluated against totalRowCount (full count, not preview cap)
       if (rule.rule_type === 'record_count') {
-        const rcConfig = rule.rule_config || {};
+        const rcConfig = (typeof rule.rule_config === 'string' ? JSON.parse(rule.rule_config) : rule.rule_config) || {};
         const operator = rcConfig.operator || 'exactly';
         const expectedCount = rcConfig.expected_count;
         const minCount = rcConfig.min_count;
