@@ -5602,7 +5602,7 @@ const createGetUserProjectsFunction = require('./backend/migrations/createGetUse
 (async () => {
   try {
     await migrationTracker.runOnce('createSharedConnectionsTable', () => migrateConnectionsSchema());
-    await migrationTracker.runOnce('migrateTransformConnections', () => migrateTransformConnections());
+    await migrationTracker.runOnce('migrateTransformConnections', () => migrateTransformConnections(dbPool));
     await migrationTracker.runOnce('addPerformanceIndexes', () => addPerformanceIndexes(dbPool));
     await migrationTracker.runOnce('addProfilingColumns', () => addProfilingColumns(dbPool));
     await migrationTracker.runOnce('expandNumericColumns', () => expandNumericColumns(dbPool));

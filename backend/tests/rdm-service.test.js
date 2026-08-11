@@ -5,7 +5,7 @@
  * - Bearer authentication header (not x-api-key)
  * - Non-JSON response guard
  * - getCrosswalkData: extraction from embedded list response + field normalization
- * - getDatasetData: throws with a clear message (no /data endpoint on this API)
+ * - getDatasetData: fetches dataset rows via /api/external/datasets/:id and returns a flat array
  * - applyRDMDatasetJoin: throws durably when dataset marked available:false
  * - applyRDMCrosswalkLookup: translates values via normalized source_code/target_code
  * - applyRDMLookups: propagates dataset-unavailable error to job engine
@@ -203,20 +203,51 @@ describe('rdmService', () => {
 
   // ── getDatasetData ──────────────────────────────────────────────────────────
 
+  const SAMPLE_DATASET_8 = {
+    id: 8,
+    name: 'genmab_country_list',
+    data: {
+      UK:    { id: 'UK',    Code: 'UK',    Value: 'United Kingdom' },
+      USA:   { id: 'USA',   Code: 'USA',   Value: 'United States'  },
+      INDIA: { id: 'INDIA', Code: 'INDIA', Value: 'India'          }
+    },
+    primaryKeyField: 'Code',
+    schema: [
+      { name: 'Code',  dataType: 'string', isPrimaryKey: true  },
+      { name: 'Value', dataType: 'string', isPrimaryKey: false }
+    ]
+  };
+
   describe('getDatasetData', () => {
-    test('throws immediately (no network call) with API-limitation message', async () => {
-      await expect(service.getDatasetData(8)).rejects.toThrow(
-        /does not provide a row-data endpoint/
+    test('returns a flat array of row objects extracted from dataset.data', async () => {
+      axios.mockResolvedValueOnce(jsonResponse({ success: true, data: SAMPLE_DATASET_8 }));
+      const rows = await service.getDatasetData(8);
+      expect(rows).toHaveLength(3);
+      expect(rows).toEqual(expect.arrayContaining([
+        expect.objectContaining({ Code: 'UK',    Value: 'United Kingdom' }),
+        expect.objectContaining({ Code: 'USA',   Value: 'United States'  }),
+        expect.objectContaining({ Code: 'INDIA', Value: 'India'          })
+      ]));
+    });
+
+    test('calls the /api/external/datasets/:id endpoint', async () => {
+      axios.mockResolvedValueOnce(jsonResponse({ success: true, data: SAMPLE_DATASET_8 }));
+      await service.getDatasetData(8);
+      expect(axios).toHaveBeenCalledWith(
+        expect.objectContaining({ url: expect.stringContaining('/api/external/datasets/8') })
       );
-      expect(axios).not.toHaveBeenCalled();
     });
 
-    test('error message names the crosswalk alternative', async () => {
-      await expect(service.getDatasetData(8)).rejects.toThrow(/Crosswalk Lookup/);
+    test('returns empty array when dataset has no rows', async () => {
+      const emptyDataset = { ...SAMPLE_DATASET_8, data: {} };
+      axios.mockResolvedValueOnce(jsonResponse({ success: true, data: emptyDataset }));
+      const rows = await service.getDatasetData(8);
+      expect(rows).toEqual([]);
     });
 
-    test('error includes the requested dataset ID', async () => {
-      await expect(service.getDatasetData(42)).rejects.toThrow(/42/);
+    test('throws when dataset is not found', async () => {
+      axios.mockResolvedValueOnce(jsonResponse({ success: true, data: null }));
+      await expect(service.getDatasetData(8)).rejects.toThrow(/dataset 8 not found/);
     });
   });
 });

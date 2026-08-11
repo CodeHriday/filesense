@@ -4,9 +4,10 @@
  * with connections from the Transform application.
  */
 
-const { pool } = require('../config/database');
+const db = require('../config/database');
 
-async function migrateTransformConnections() {
+async function migrateTransformConnections(dbPool) {
+  const pool = dbPool || db.pool;
   const client = await pool.connect();
   try {
     console.log('Starting migration of Transform connections...');

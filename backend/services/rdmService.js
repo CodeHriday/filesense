@@ -144,15 +144,30 @@ class RDMService {
   }
 
   async getDatasetData(datasetId, options = {}) {
-    // The external RDM API does not expose a row-data endpoint for datasets
-    // (only /api/external/datasets and /api/external/datasets/:id/schema exist).
-    // Dataset joins therefore cannot be fulfilled by this API implementation.
-    // Use a crosswalk lookup instead — crosswalk data IS available via the list endpoint.
-    const msg =
-      `The RDM API does not provide a row-data endpoint for dataset ${datasetId}. ` +
-      `Use a Crosswalk Lookup node instead of a Dataset Join to translate values with this RDM system.`;
-    systemLogger.warn('RDM dataset row data unavailable', { datasetId, reason: msg });
-    throw new Error(msg);
+    try {
+      // The /api/external/datasets/:id endpoint returns the full dataset including
+      // all rows embedded in response.data.data (an object keyed by primary key).
+      // Convert to a flat array so callers get consistent list semantics.
+      const dataset = await this.getDataset(datasetId);
+
+      if (!dataset) {
+        throw new Error(`RDM dataset ${datasetId} not found`);
+      }
+
+      const rawRows = dataset.data || {};
+      const rows = Object.values(rawRows);
+
+      systemLogger.info('RDM dataset data fetched', {
+        datasetId,
+        datasetName: dataset.name,
+        rowCount: rows.length
+      });
+
+      return rows;
+    } catch (error) {
+      systemLogger.error('Failed to fetch RDM dataset data', { datasetId, error: error.message });
+      throw error;
+    }
   }
 
   async getDatasetSchema(datasetId) {
