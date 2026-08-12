@@ -1476,6 +1476,10 @@ function DataProfile() {
     }
   };
 
+  // File-level rules operate on the whole file, not individual columns.
+  // Adding more file-level types here is a one-line change.
+  const FILE_LEVEL_RULE_TYPES = ['record_count'];
+
   const handleRuleToggle = (ruleId) => {
     // Toggle rule selection
     setSelectedRuleIds(prev => {
@@ -1488,8 +1492,12 @@ function DataProfile() {
         setExpandedRuleId(null);
         return prev.filter(id => id !== ruleId);
       } else {
-        // When selecting a rule, expand it to show column selection
-        setExpandedRuleId(ruleId);
+        // When selecting a file-level rule, don't expand the column picker —
+        // file-level rules have no meaningful column target.
+        const ruleType = fileAvailableRules.find(r => r.id === ruleId)?.rule_type;
+        if (!FILE_LEVEL_RULE_TYPES.includes(ruleType)) {
+          setExpandedRuleId(ruleId);
+        }
         return [...prev, ruleId];
       }
     });
@@ -2578,8 +2586,9 @@ function DataProfile() {
                   })}
                 </div>
                 
-                {/* Column selection panel for expanded rule */}
-                {expandedRuleId && selectedRuleIds.includes(expandedRuleId) && (
+                {/* Column selection panel for expanded rule — hidden for file-level rules */}
+                {expandedRuleId && selectedRuleIds.includes(expandedRuleId) &&
+                  !FILE_LEVEL_RULE_TYPES.includes(fileAvailableRules.find(r => r.id === expandedRuleId)?.rule_type) && (
                   <div style={{ 
                     marginTop: '16px',
                     padding: '16px',
@@ -2909,11 +2918,12 @@ function DataProfile() {
       );
     }
 
-    // Check if rules have been executed - a rule with status === null hasn't been run yet
-    const rulesHaveBeenRun = applied_rules.some(rule => rule.status !== null);
+    // "All Passed" only when every applied rule has status === 'passed'.
+    // A mix of passed + Not Run must NOT claim all rules passed — some were never evaluated.
+    const allRulesPassed = applied_rules.length > 0 && applied_rules.every(rule => rule.status === 'passed');
     
-    // Only show "All Quality Rules Passed" if rules have been run AND no violations exist
-    if (violations.length === 0 && rulesHaveBeenRun) {
+    // Only show "All Quality Rules Passed" if every rule has been run and passed
+    if (violations.length === 0 && allRulesPassed) {
       return (
         <div className="quality-rules-tab">
           {renderRuleAssignmentSection()}
@@ -2929,7 +2939,8 @@ function DataProfile() {
       );
     }
     
-    // Rules assigned but not run yet - show pending state
+    // Rules assigned but not all run yet - show pending state
+    const rulesHaveBeenRun = applied_rules.some(rule => rule.status !== null);
     if (violations.length === 0 && !rulesHaveBeenRun) {
       return (
         <div className="quality-rules-tab">

@@ -5597,6 +5597,7 @@ const { addProjectToVisualWorkflows } = require('./backend/migrations/addProject
 const { createAllowedEmailDomains } = require('./backend/migrations/createAllowedEmailDomains');
 const { up: addDQValidationColumns } = require('./backend/migrations/addDQValidationColumns');
 const createGetUserProjectsFunction = require('./backend/migrations/createGetUserProjectsFunction');
+const { up: addLastRunAtToFileQualityRules } = require('./backend/migrations/addLastRunAtToFileQualityRules');
 
 // Run schema migrations asynchronously with tracking to prevent re-running
 (async () => {
@@ -5648,6 +5649,7 @@ const createGetUserProjectsFunction = require('./backend/migrations/createGetUse
     await migrationTracker.runOnce('createAllowedEmailDomains', () => createAllowedEmailDomains(dbPool));
     await migrationTracker.runOnce('addDQValidationColumns', () => addDQValidationColumns(dbPool));
     await migrationTracker.runOnce('createGetUserProjectsFunction', () => createGetUserProjectsFunction(dbPool));
+    await migrationTracker.runOnce('addLastRunAtToFileQualityRules', () => addLastRunAtToFileQualityRules(dbPool));
     
     console.log('🎉 All migrations completed successfully');
   } catch (err) {
@@ -6550,7 +6552,8 @@ app.get('/api/files/:fileId/quality-violations', async (req, res) => {
     // Each file-rule pair should have one row, select target_columns directly with COALESCE
     const appliedRulesResult = await dbPool.query(`
       SELECT qr.id, qr.rule_name, qr.rule_type, qr.severity, qr.enabled, 
-             COALESCE(fqr.target_columns, ARRAY[]::text[]) as target_columns
+             COALESCE(fqr.target_columns, ARRAY[]::text[]) as target_columns,
+             fqr.last_run_at
       FROM file_quality_rules fqr
       JOIN quality_rules qr ON fqr.quality_rule_id = qr.id
       WHERE fqr.file_id = $1
@@ -6594,17 +6597,27 @@ app.get('/api/files/:fileId/quality-violations', async (req, res) => {
       ruleViolationCounts[v.rule_id] = (ruleViolationCounts[v.rule_id] || 0) + 1;
     });
     
-    // Add status field to each applied rule
+    // Add status field to each applied rule.
+    // Status logic:
+    //   - violations exist (regardless of last_run_at) → 'failed'  (covers pre-migration rows
+    //     that have violations but NULL last_run_at after the column was added)
+    //   - last_run_at IS NULL and no violations → null  (never executed, "Not Run")
+    //   - last_run_at set and no violations → 'passed'
     const appliedRulesWithStatus = appliedRules.map(rule => {
       const violationCount = ruleViolationCounts[rule.id] || 0;
+      let status;
       if (violationCount > 0) {
+        status = 'failed';
         summary.rules_failed++;
+      } else if (!rule.last_run_at) {
+        status = null; // Never executed — frontend shows "Not Run"
       } else {
+        status = 'passed';
         summary.rules_passed++;
       }
       return {
         ...rule,
-        status: violationCount > 0 ? 'failed' : 'passed',
+        status,
         violation_count: violationCount
       };
     });
@@ -6713,6 +6726,11 @@ app.post('/api/files/:fileId/quality-rules/run', authenticateToken, async (req, 
       return null; // Column not found
     };
     
+    // Track which rule IDs were actually evaluated (not skipped due to missing targets).
+    // Only these will have last_run_at stamped — rules that had no resolvable target
+    // columns remain "Not Run" rather than being falsely promoted to Passed.
+    const evaluatedRuleIds = new Set();
+
     // Execute each rule against its target columns (collect violations first)
     for (const rule of rulesResult.rows) {
       const targetColumns = rule.target_columns || [];
@@ -6722,7 +6740,7 @@ app.post('/api/files/:fileId/quality-rules/run', authenticateToken, async (req, 
       if (targetColumns.length === 0 && rule.rule_type !== 'record_count') {
         continue;
       }
-      
+
       for (const columnName of targetColumns) {
         // Resolve the target column name to the actual header name
         const actualColumnName = resolveColumnName(columnName);
@@ -6738,7 +6756,7 @@ app.post('/api/files/:fileId/quality-rules/run', authenticateToken, async (req, 
           });
           continue;
         }
-        
+
         for (const row of rows) {
           const rowData = row.row_data;
           const cellValue = rowData[actualColumnName];
@@ -6746,6 +6764,18 @@ app.post('/api/files/:fileId/quality-rules/run', authenticateToken, async (req, 
           let isViolation = false;
           let expectedValue = null;
           let violationDetails = {};
+
+          // Only stamp rule types that this switch actually handles.
+          // Rule types not listed here (e.g. engine-only types) have no case and
+          // must remain "Not Run" — stamping them here would produce a false Passed.
+          const COLUMN_SWITCH_TYPES = new Set([
+            'null_check', 'column_completeness', 'email_validity', 'phone_validity',
+            'date_format', 'timestamp_format', 'isna_check', 'numeric_only_string',
+            'special_character_presence'
+          ]);
+          if (COLUMN_SWITCH_TYPES.has(rule.rule_type)) {
+            evaluatedRuleIds.add(rule.id);
+          }
           
           // Check based on rule type
           switch (rule.rule_type) {
@@ -6924,6 +6954,8 @@ app.post('/api/files/:fileId/quality-rules/run', authenticateToken, async (req, 
       if (rule.rule_type === 'duplicate_check' && targetColumns.length > 0) {
         // Resolve all target columns to actual header names
         const resolvedColumns = targetColumns.map(col => resolveColumnName(col)).filter(Boolean);
+        // Mark as evaluated only when at least one target column resolved
+        if (resolvedColumns.length > 0) evaluatedRuleIds.add(rule.id);
         
         // Check each column independently for duplicates
         for (const columnName of resolvedColumns) {
@@ -6961,8 +6993,9 @@ app.post('/api/files/:fileId/quality-rules/run', authenticateToken, async (req, 
         }
       }
 
-      // Handle record_count check — file-level, no per-row or per-column iteration needed
+      // Handle record_count check — file-level, always evaluated when reached
       if (rule.rule_type === 'record_count') {
+        evaluatedRuleIds.add(rule.id);
         const rcConfig = (typeof rule.rule_config === 'string' ? JSON.parse(rule.rule_config) : rule.rule_config) || {};
         const operator = rcConfig.operator || 'exactly';
         const expectedCount = rcConfig.expected_count;
@@ -7044,6 +7077,7 @@ app.post('/api/files/:fileId/quality-rules/run', authenticateToken, async (req, 
         const resolvedColumns = targetColumns.map(col => resolveColumnName(col)).filter(Boolean);
         
         if (resolvedColumns.length > 0) {
+          evaluatedRuleIds.add(rule.id);
           for (const row of rows) {
             const keyParts = resolvedColumns.map(col => row.row_data[col] ?? '');
             const compositeKey = keyParts.join('||');
@@ -7101,6 +7135,17 @@ app.post('/api/files/:fileId/quality-rules/run', authenticateToken, async (req, 
         }
       }
       
+      // Stamp last_run_at only for rules that were actually evaluated.
+      const evaluatedIds = [...evaluatedRuleIds];
+      if (evaluatedIds.length > 0) {
+        await client.query(
+          `UPDATE file_quality_rules
+           SET last_run_at = NOW()
+           WHERE file_id = $1 AND quality_rule_id = ANY($2)`,
+          [fileId, evaluatedIds]
+        );
+      }
+
       await client.query('COMMIT');
     } catch (txErr) {
       await client.query('ROLLBACK');
@@ -7376,13 +7421,16 @@ app.post('/api/files/:fileId/quality-rules/revalidate', authenticateToken, uploa
     
     const violations = [];
     
+    // Track which rule IDs were actually evaluated (not skipped).
+    const revalidatedEvaluatedRuleIds = new Set();
+
     // Execute each rule against its target columns
     for (const rule of rulesResult.rows) {
       const targetColumns = rule.target_columns || [];
       
       // record_count is file-level — allow it through even with no target columns
       if (targetColumns.length === 0 && rule.rule_type !== 'record_count') continue;
-      
+
       for (const columnName of targetColumns) {
         // Resolve the target column name to the actual header name
         const actualColumnName = resolveColumnName(columnName);
@@ -7398,7 +7446,7 @@ app.post('/api/files/:fileId/quality-rules/revalidate', authenticateToken, uploa
           });
           continue;
         }
-        
+
         for (const row of parsedRows) {
           const rowData = row.row_data;
           // Use the resolved actual column name for lookup
@@ -7407,6 +7455,16 @@ app.post('/api/files/:fileId/quality-rules/revalidate', authenticateToken, uploa
           let isViolation = false;
           let expectedValue = null;
           let violationDetails = {};
+
+          // Only stamp rule types that this switch actually handles.
+          const REVALIDATE_COLUMN_SWITCH_TYPES = new Set([
+            'null_check', 'column_completeness', 'email_validity', 'phone_validity',
+            'date_format', 'timestamp_format', 'isna_check', 'numeric_only_string',
+            'special_character_presence'
+          ]);
+          if (REVALIDATE_COLUMN_SWITCH_TYPES.has(rule.rule_type)) {
+            revalidatedEvaluatedRuleIds.add(rule.id);
+          }
           
           switch (rule.rule_type) {
             case 'null_check':
@@ -7579,6 +7637,7 @@ app.post('/api/files/:fileId/quality-rules/revalidate', authenticateToken, uploa
       if (rule.rule_type === 'duplicate_check' && targetColumns.length > 0) {
         // Resolve all target columns to actual header names
         const resolvedColumns = targetColumns.map(col => resolveColumnName(col)).filter(Boolean);
+        if (resolvedColumns.length > 0) revalidatedEvaluatedRuleIds.add(rule.id);
         
         // Check each column independently for duplicates
         for (const columnName of resolvedColumns) {
@@ -7623,6 +7682,7 @@ app.post('/api/files/:fileId/quality-rules/revalidate', authenticateToken, uploa
         const resolvedColumns = targetColumns.map(col => resolveColumnName(col)).filter(Boolean);
         
         if (resolvedColumns.length > 0) {
+          revalidatedEvaluatedRuleIds.add(rule.id);
           for (const row of parsedRows) {
             const keyParts = resolvedColumns.map(col => row.row_data[col] ?? '');
             const compositeKey = keyParts.join('||');
@@ -7648,8 +7708,9 @@ app.post('/api/files/:fileId/quality-rules/revalidate', authenticateToken, uploa
         }
       }
 
-      // Handle record_count check — file-level, evaluated against totalRowCount (full count, not preview cap)
+      // Handle record_count check — file-level, always evaluated when reached
       if (rule.rule_type === 'record_count') {
+        revalidatedEvaluatedRuleIds.add(rule.id);
         const rcConfig = (typeof rule.rule_config === 'string' ? JSON.parse(rule.rule_config) : rule.rule_config) || {};
         const operator = rcConfig.operator || 'exactly';
         const expectedCount = rcConfig.expected_count;
@@ -7752,6 +7813,17 @@ app.post('/api/files/:fileId/quality-rules/revalidate', authenticateToken, uploa
         }
       }
       
+      // Stamp last_run_at only for rules that were actually evaluated.
+      const revalidatedEvaluatedIds = [...revalidatedEvaluatedRuleIds];
+      if (revalidatedEvaluatedIds.length > 0) {
+        await violationClient.query(
+          `UPDATE file_quality_rules
+           SET last_run_at = NOW()
+           WHERE file_id = $1 AND quality_rule_id = ANY($2)`,
+          [fileId, revalidatedEvaluatedIds]
+        );
+      }
+
       await violationClient.query('COMMIT');
     } catch (txErr) {
       await violationClient.query('ROLLBACK');

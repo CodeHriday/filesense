@@ -1301,6 +1301,36 @@ class FileProcessingWorker {
                 errors: validationResult.errors.length,
                 summary: validationResult.summary
               });
+
+              // Stamp last_run_at only for rules that successfully executed.
+              // validationResult.errors contains entries for rules the engine could not run.
+              // When data is empty, the engine only runs record_count rules — other rules are
+              // silently skipped (not errored) and must NOT be stamped as "Not Run".
+              try {
+                const erroredRuleIds = new Set(validationResult.errors.map(e => e.rule_id));
+                // When no row data was available, the engine only executed record_count rules.
+                // Other rule types were silently skipped (not in errors) so must stay "Not Run".
+                const workerEvaluatedRuleIds = dataToValidate.length === 0
+                  ? rulesResult.rows
+                      .filter(r => r.rule_type === 'record_count' && !erroredRuleIds.has(r.id))
+                      .map(r => r.id)
+                  : rulesResult.rows
+                      .filter(r => !erroredRuleIds.has(r.id))
+                      .map(r => r.id);
+                if (workerEvaluatedRuleIds.length > 0) {
+                  await this.dbPool.query(
+                    `UPDATE file_quality_rules
+                     SET last_run_at = NOW()
+                     WHERE file_id = $1 AND quality_rule_id = ANY($2)`,
+                    [fileId, workerEvaluatedRuleIds]
+                  );
+                }
+              } catch (stampErr) {
+                this.logger.warn('Failed to stamp last_run_at after quality validation', {
+                  fileId,
+                  error: stampErr.message
+                });
+              }
               
               // Persist violations to database
               if (validationResult.violations.length > 0) {
