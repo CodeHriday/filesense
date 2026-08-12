@@ -525,4 +525,169 @@ async function executeRuleInline(rule, data, metadata) {
   return violations;
 }
 
-module.exports = { enforceSchemaRules, validateSchemaRulesInline, SUPPORTED_RULE_TYPES };
+/**
+ * Enforce schema-defined quality rules during a VM job execution.
+ *
+ * Unlike enforceSchemaRules (which wires file_quality_rules associations for upload flow),
+ * this variant:
+ *  - Skips the file_quality_rules insertion step (no persistent file association)
+ *  - Sets job_id in violation metadata so violations are queryable by job after the fact
+ *  - Returns a per-rule summary structured for execution-log formatting
+ *
+ * @param {Object}  pool          - pg Pool
+ * @param {string}  jobId         - Transformation job ID (stored on violations)
+ * @param {string|null} fileId    - Source file ID (may be null; stored for reference)
+ * @param {Array}   schemaColumns - Schema column array (each may have quality_rules:[...])
+ * @param {Array}   rows          - Sample rows to validate (up to ~100)
+ * @param {number}  rowCount      - Total file row count
+ * @returns {Promise<Object>} { executed, ruleResults, totalPassed, totalFailed, violationCount, errors }
+ */
+async function enforceSchemaRulesForJob(pool, jobId, fileId, schemaColumns, rows, rowCount) {
+  if (!schemaColumns || !Array.isArray(schemaColumns) || schemaColumns.length === 0) {
+    return { executed: false, reason: 'No schema columns provided' };
+  }
+
+  const columnsWithRules = schemaColumns.filter(
+    col => col.quality_rules && Array.isArray(col.quality_rules) && col.quality_rules.length > 0
+  );
+  if (columnsWithRules.length === 0) {
+    return { executed: false, reason: 'No schema quality_rules defined on any column' };
+  }
+  if (!rows || rows.length === 0) {
+    systemLogger.warn('[schemaRuleEnforcer] No rows available for job DQ enforcement', { jobId });
+    return { executed: false, reason: 'No rows available for validation' };
+  }
+
+  systemLogger.info('[schemaRuleEnforcer] Enforcing schema quality rules for job', {
+    jobId,
+    columnCount: columnsWithRules.length,
+    totalRules: columnsWithRules.reduce((n, col) => n + col.quality_rules.length, 0),
+    sampleRows: rows.length
+  });
+
+  const createdRules = [];
+  const ruleErrors  = [];
+
+  for (const col of columnsWithRules) {
+    const columnName = col.name || col.column_name;
+    if (!columnName) continue;
+
+    for (const uiRuleType of col.quality_rules) {
+      const normalized = (uiRuleType || '').toLowerCase().trim();
+      if (!RULE_TYPE_MAP[normalized]) {
+        systemLogger.warn('[schemaRuleEnforcer] Unknown rule type in job DQ — skipping', {
+          jobId, columnName, uiRuleType
+        });
+        continue;
+      }
+
+      try {
+        const rule = await findOrCreateSchemaRule(pool, normalized, columnName, 'warning');
+        if (!rule) {
+          ruleErrors.push({ columnName, uiRuleType, error: 'rule row not created' });
+          continue;
+        }
+        createdRules.push({ ...rule, _uiRuleType: normalized });
+      } catch (err) {
+        systemLogger.error('[schemaRuleEnforcer] Failed to find/create schema rule for job', {
+          jobId, columnName, uiRuleType, error: err.message
+        });
+        ruleErrors.push({ columnName, uiRuleType, error: err.message });
+      }
+    }
+  }
+
+  if (createdRules.length === 0) {
+    systemLogger.warn('[schemaRuleEnforcer] No rules could be resolved for job DQ', { jobId, ruleErrors });
+    return { executed: false, reason: 'No rules could be resolved', errors: ruleErrors };
+  }
+
+  const engine   = new QualityValidationEngine(pool);
+  const metadata = {
+    job_id:           jobId,
+    file_id:          fileId || null,
+    file_name:        fileId || jobId,
+    upload_date:      new Date(),
+    actual_row_count: rowCount
+  };
+
+  let validationResult;
+  try {
+    validationResult = await engine.validateData(createdRules, rows, metadata);
+  } catch (validationErr) {
+    systemLogger.error('[schemaRuleEnforcer] validateData threw during job DQ', {
+      jobId, error: validationErr.message
+    });
+    return { executed: false, reason: validationErr.message, errors: ruleErrors };
+  }
+
+  systemLogger.info('[schemaRuleEnforcer] Job DQ validation completed', {
+    jobId,
+    rulesRun:   createdRules.length,
+    violations: validationResult.violations.length,
+    errors:     validationResult.errors.length
+  });
+
+  // Persist violations with job_id reference (non-fatal)
+  if (validationResult.violations.length > 0) {
+    // Attach job_id to each violation so persistViolations stores it
+    const violationsWithJob = validationResult.violations.map(v => ({
+      ...v,
+      job_id: jobId,
+      file_id: fileId || v.file_id || null
+    }));
+    try {
+      await engine.persistViolations(violationsWithJob, rows, 'job_execution');
+    } catch (persistErr) {
+      if (persistErr.code === 'QUALITY_ABORT') {
+        // Non-blocking — log but do not rethrow; job should continue
+        systemLogger.warn('[schemaRuleEnforcer] QUALITY_ABORT from job DQ persistViolations — continuing', {
+          jobId, error: persistErr.message
+        });
+      } else {
+        systemLogger.error('[schemaRuleEnforcer] Failed to persist job DQ violations', {
+          jobId, error: persistErr.message
+        });
+      }
+    }
+  }
+
+  // Build per-rule summary for execution log formatting
+  // Group violations by rule_id → column+type combination
+  const violationsByRuleId = new Map();
+  for (const v of validationResult.violations) {
+    const key = v.rule_id;
+    if (!violationsByRuleId.has(key)) violationsByRuleId.set(key, []);
+    violationsByRuleId.get(key).push(v);
+  }
+
+  const ruleResults = createdRules.map(rule => {
+    const ruleViolations = violationsByRuleId.get(rule.id) || [];
+    const passed = ruleViolations.length === 0;
+    const firstViolation = ruleViolations[0];
+    return {
+      columnName:     rule.column_name,
+      uiRuleType:     rule._uiRuleType,
+      engineRuleType: rule.rule_type,
+      passed,
+      violationCount: ruleViolations.length,
+      // Representative expected/actual for the first violation (for log message)
+      expectedValue:  firstViolation?.expected_value || null,
+      actualValue:    firstViolation?.actual_value   || null
+    };
+  });
+
+  const totalPassed = ruleResults.filter(r => r.passed).length;
+  const totalFailed = ruleResults.filter(r => !r.passed).length;
+
+  return {
+    executed:       true,
+    ruleResults,
+    totalPassed,
+    totalFailed,
+    violationCount: validationResult.violations.length,
+    errors:         ruleErrors
+  };
+}
+
+module.exports = { enforceSchemaRules, enforceSchemaRulesForJob, validateSchemaRulesInline, SUPPORTED_RULE_TYPES };

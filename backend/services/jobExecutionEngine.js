@@ -16,6 +16,7 @@ const { captureFileAudit, captureFileSchema } = require('./fileAuditService');
 const { profileETLOutputFile, profileETLFile } = require('./etlProfilingService');
 const { profileFileBuffer, downloadAndProfileFile } = require('./transformationProfilingService');
 const { persistGovernanceMetadata } = require('./governanceService');
+const { enforceSchemaRulesForJob } = require('./schemaRuleEnforcer');
 const { loadRDMContext } = require('./rdmContextLoader');
 const alertAggregationWorker = require('./AlertAggregationWorker');
 const visualMappingWS = require('./visualMappingWebSocket');
@@ -2639,7 +2640,9 @@ async function fetchGovernanceForMapping(pool, mapping, sourceFilename, projectI
       containsPii: matchedSchema.contains_pii || false,
       dataClassification: matchedSchema.data_classification || null,
       piiColumns: piiColumns,
-      fileTags: fileTags
+      fileTags: fileTags,
+      // Parsed schema columns — used by DQ enforcement step for all file types
+      schemaColumns: Array.isArray(schemaObj) && schemaObj.length > 0 ? schemaObj : null
     };
     
   } catch (error) {
@@ -3359,7 +3362,73 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
       rows_transformed: transformedRows.length,
       rows_failed: rowsFailed
     });
-    
+
+    // Step 3.1.0: Enforce contract schema DQ rules (if vendor agreement schema has quality_rules)
+    // Uses governance.schemaColumns — already pattern-matched to this file — so this fires for
+    // every file type (CSV, JSON, XLSX, XML, Parquet, fixed-width) when a contract schema exists.
+    // Runs against source/parsed rows to validate incoming data, not the transformed output.
+    if (mapping.vendor_agreement_id && governance && governance.schemaColumns) {
+      try {
+        const schemaColumns = governance.schemaColumns;
+        const hasQualityRules = schemaColumns.some(
+          col => col.quality_rules && Array.isArray(col.quality_rules) && col.quality_rules.length > 0
+        );
+
+        if (hasQualityRules) {
+          // Use source rows captured during parsing (available for all parser types) or
+          // fall back to transformed rows when source rows are not separately retained.
+          const sampleRows = (parseResult.sourceRows && parseResult.sourceRows.length > 0)
+            ? parseResult.sourceRows.slice(0, 100)
+            : transformedRows.slice(0, 100);
+
+          const dqResult = await enforceSchemaRulesForJob(
+            pool,
+            jobId,
+            file.file_id || null,
+            schemaColumns,
+            sampleRows,
+            rowsRead
+          );
+
+          if (dqResult.executed) {
+            const headerLevel = dqResult.totalFailed > 0 ? 'warning' : 'info';
+            await logJobExecution(pool, jobId, headerLevel,
+              `DQ checks: ${dqResult.totalPassed} passed, ${dqResult.totalFailed} failed (${dqResult.violationCount} violation(s) on ${sampleRows.length} sample rows)`
+            );
+
+            for (const r of dqResult.ruleResults) {
+              if (r.passed) {
+                await logJobExecution(pool, jobId, 'info',
+                  `DQ PASSED — column: ${r.columnName}, rule: ${r.uiRuleType}`
+                );
+              } else {
+                await logJobExecution(pool, jobId, 'warning',
+                  `DQ FAILED — column: ${r.columnName}, rule: ${r.uiRuleType}, ` +
+                  `${r.violationCount} violation(s)` +
+                  (r.expectedValue ? ` (expected: ${r.expectedValue}, got: ${r.actualValue})` : '')
+                );
+              }
+            }
+          } else {
+            systemLogger.info('[jobExecutionEngine] Contract DQ step skipped', {
+              jobId,
+              reason: dqResult.reason
+            });
+          }
+        }
+      } catch (dqErr) {
+        // DQ enforcement is non-fatal — log a warning and continue job execution
+        await logJobExecution(pool, jobId, 'warning',
+          `Contract DQ enforcement encountered an error and was skipped: ${dqErr.message}`
+        );
+        systemLogger.error('[jobExecutionEngine] Contract DQ enforcement error', {
+          jobId,
+          error: dqErr.message,
+          stack: dqErr.stack
+        });
+      }
+    }
+
     // Step 3.1.5: Apply multi-source join enrichment if configured
     if (joinLookupTables && joinSpecs && joinSpecs.length > 0) {
       await logJobExecution(pool, jobId, 'info', `Applying multi-source join enrichment`, {
