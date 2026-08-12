@@ -525,10 +525,11 @@ class VendorAgreementTemplateService {
         }
 
         // Validate that headerless files have schema defined (for non-archive types)
-        // Schema can be either a parsed JSON array or a schema reference token
+        // Schema can be a parsed JSON array, a { columns, file_quality_rules } object, or a schema reference token
         const hasValidSchema = fileConfig.schema && (
-          Array.isArray(fileConfig.schema) || 
-          (fileConfig.schema._schemaRef === true)
+          Array.isArray(fileConfig.schema) ||
+          (fileConfig.schema._schemaRef === true) ||
+          (fileConfig.schema.columns && Array.isArray(fileConfig.schema.columns))
         );
         if (!hasHeader && !hasValidSchema && !this.ARCHIVE_FILE_TYPES.includes(fileType)) {
           rowErrors.push(`Schema: Required when Has Header is FALSE. Provide field definitions with name, type, and width, or use {external} token.`);
@@ -545,8 +546,11 @@ class VendorAgreementTemplateService {
           const basePattern = fileConfig.file_name_pattern || '';
           
           // Don't use schema reference tokens as header_definition - only use actual parsed schema arrays
+          // Accept both plain array and { columns, file_quality_rules } object formats
           const isSchemaRef = fileConfig.schema && fileConfig.schema._schemaRef === true;
-          const schemaArray = Array.isArray(fileConfig.schema) ? fileConfig.schema : null;
+          const schemaArray = Array.isArray(fileConfig.schema)
+            ? fileConfig.schema
+            : (fileConfig.schema && Array.isArray(fileConfig.schema.columns) ? fileConfig.schema.columns : null);
           
           const fullConfig = {
             file_name_pattern_base: basePattern,
@@ -717,15 +721,22 @@ class VendorAgreementTemplateService {
           
           try {
             const parsed = JSON.parse(strValue);
-            // Validate it's an array with proper structure
-            if (!Array.isArray(parsed)) {
+            // Accept both formats:
+            //   Legacy: a plain array of column definitions
+            //   New:    { columns: [...], file_quality_rules: [...] }
+            let columns;
+            if (Array.isArray(parsed)) {
+              columns = parsed;
+            } else if (parsed && Array.isArray(parsed.columns)) {
+              columns = parsed.columns;
+            } else {
               return {
                 valid: false,
-                error: 'Schema must be a JSON array'
+                error: 'Schema must be a JSON array or an object with a columns array'
               };
             }
             // Check each item has required fields (support both old and new format)
-            for (const col of parsed) {
+            for (const col of columns) {
               // New format: name + type
               const hasNewFormat = col.name && col.type;
               // Old format (backwards compatibility): column_name + data_type
@@ -763,7 +774,7 @@ class VendorAgreementTemplateService {
           } catch (e) {
             return {
               valid: false,
-              error: 'Must be valid JSON array format'
+              error: 'Must be valid JSON array or object with columns array'
             };
           }
         }
