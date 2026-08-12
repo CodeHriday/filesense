@@ -18,6 +18,7 @@ const axios = require('axios');
 const { captureFileAudit, captureFileSchema } = require('../services/fileAuditService');
 const { saveSchemaSnapshot } = require('../services/schemaService');
 const QualityValidationEngine = require('../services/qualityValidationEngine');
+const { enforceSchemaRules } = require('../services/schemaRuleEnforcer');
 const { persistGovernanceMetadata } = require('../services/governanceService');
 const { invalidateFileCache, invalidateFileCatalogCache } = require('../src/middleware/cache');
 const PasswordVaultService = require('../services/passwordVaultService');
@@ -1143,7 +1144,7 @@ class FileProcessingWorker {
       // Step 5.7: Apply vendor agreement governance metadata if contract validation mode
       if (agreementId && fileInfo.schema && fileInfo.schema.length > 0) {
         try {
-          await this.applyAgreementGovernance(fileId, agreementId, fileInfo.schema, originalName, projectId);
+          await this.applyAgreementGovernance(fileId, agreementId, fileInfo.schema, originalName, projectId, fileInfo.preview_data, fileInfo.row_count);
         } catch (govError) {
           this.logger.warn('Failed to apply vendor agreement governance', { 
             fileId, 
@@ -2500,7 +2501,7 @@ print(json.dumps(result))
    * @param {string} filename - Original filename
    * @param {number} projectId - Project ID
    */
-  async applyAgreementGovernance(fileId, agreementId, schema, filename, projectId) {
+  async applyAgreementGovernance(fileId, agreementId, schema, filename, projectId, previewData = [], rowCount = 0) {
     this.logger.info('Applying vendor agreement governance', { fileId, agreementId, filename });
     
     // Fetch vendor agreement with file schemas (including quality_rule_ids for file-level tags)
@@ -2745,6 +2746,33 @@ print(json.dumps(result))
         fileId,
         error: result.error
       });
+    }
+
+    // Enforce schema-defined per-column quality rules if the schema defines any
+    if (Array.isArray(schemaObj) && schemaObj.length > 0 && previewData && previewData.length > 0) {
+      try {
+        const schemaEnforcementResult = await enforceSchemaRules(
+          this.dbPool,
+          fileId,
+          schemaObj,
+          previewData,
+          rowCount,
+          { fileName: filename }
+        );
+        this.logger.info('Schema rule enforcement completed', {
+          fileId,
+          ...schemaEnforcementResult
+        });
+      } catch (enforcementErr) {
+        // QUALITY_ABORT is intentional — re-throw
+        if (enforcementErr.code === 'QUALITY_ABORT') throw enforcementErr;
+        this.logger.error('Schema rule enforcement failed (non-fatal)', {
+          fileId,
+          error: enforcementErr.message,
+          stack: enforcementErr.stack
+        });
+        // Don't fail the job — schema DQ enforcement is supplementary
+      }
     }
   }
 

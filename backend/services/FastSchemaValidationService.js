@@ -21,6 +21,7 @@ const { XMLParser } = require('fast-xml-parser');
 const axios = require('axios');
 const ArchiveDetectionService = require('./archiveDetectionService');
 const PasswordVaultService = require('./passwordVaultService');
+const { validateSchemaRulesInline } = require('./schemaRuleEnforcer');
 
 // Archive file extensions
 const ARCHIVE_EXTENSIONS = ['.zip', '.7z', '.tar', '.tar.gz', '.tar.bz2', '.tgz', '.tbz2'];
@@ -567,9 +568,12 @@ class FastSchemaValidationService {
                   p => p.file_name_pattern === validationResult.matchedPattern
                 );
                 
+                // Shared sample data for both legacy DQ rules and schema column rules
+                let sampleData = null;
+
                 if (matchedPatternObj?.qualityRules?.length > 0) {
                   // Extract sample data for DQ validation
-                  const sampleData = await this.extractSampleData(
+                  sampleData = await this.extractSampleData(
                     s3,
                     connectionCredentials.bucket,
                     filePath,
@@ -577,13 +581,59 @@ class FastSchemaValidationService {
                     100, // Limit to 100 rows for performance
                     isExtracted
                   );
-                  
+
                   if (sampleData && sampleData.length > 0) {
                     dqResult = await this.executeDQValidation(
                       sampleData,
                       matchedPatternObj.qualityRules,
                       { filePath, fileType: fileMetadata.fileType }
                     );
+                  }
+                }
+
+                // Also run schema-defined per-column quality rules inline (no DB persistence at this stage)
+                const schemaColumns = (() => {
+                  try {
+                    const raw = matchedPatternObj?.schema;
+                    if (!raw) return [];
+                    return Array.isArray(raw) ? raw : (typeof raw === 'string' ? JSON.parse(raw) : []);
+                  } catch (e) { return []; }
+                })();
+                const hasSchemaColumnRules = schemaColumns.some(
+                  c => c.quality_rules && Array.isArray(c.quality_rules) && c.quality_rules.length > 0
+                );
+                if (hasSchemaColumnRules) {
+                  let schemaRuleSampleData = sampleData;
+                  if (!schemaRuleSampleData || schemaRuleSampleData.length === 0) {
+                    try {
+                      schemaRuleSampleData = await this.extractSampleData(
+                        s3,
+                        connectionCredentials.bucket,
+                        filePath,
+                        fileMetadata.fileType,
+                        100,
+                        isExtracted
+                      );
+                    } catch (_) { schemaRuleSampleData = []; }
+                  }
+                  if (schemaRuleSampleData && schemaRuleSampleData.length > 0) {
+                    try {
+                      const schemaRuleResult = await validateSchemaRulesInline(
+                        schemaColumns,
+                        schemaRuleSampleData,
+                        { filePath, fileType: fileMetadata.fileType }
+                      );
+                      result.schemaRuleValidation = schemaRuleResult;
+                      systemLogger.info('Schema column rule validation completed', {
+                        filePath,
+                        rulesValidated: schemaRuleResult.rulesValidated,
+                        violationCount: schemaRuleResult.violationCount
+                      });
+                    } catch (schemaRuleErr) {
+                      systemLogger.warn('Schema column rule validation failed', {
+                        filePath, error: schemaRuleErr.message
+                      });
+                    }
                   }
                 }
               } catch (dqError) {

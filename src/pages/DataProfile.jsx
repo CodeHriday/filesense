@@ -2808,9 +2808,24 @@ function DataProfile() {
                           </td>
                         ) : null}
                         <td>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <span style={{ fontWeight: '500', fontSize: '10px' }}>{rule.rule_name}</span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                            <span style={{ fontWeight: '500', fontSize: '10px' }}>
+                              {rule.rule_name && rule.rule_name.startsWith('__schema_default__')
+                                ? rule.rule_name.replace('__schema_default__', '')
+                                : rule.rule_name}
+                            </span>
                             <span className="gps-badge gps-badge--secondary" style={{ fontSize: '8px' }}>{rule.rule_type}</span>
+                            {rule.rule_name && rule.rule_name.startsWith('__schema_default__') && (
+                              <span style={{
+                                fontSize: '8px',
+                                backgroundColor: '#ede9fe',
+                                color: '#5b21b6',
+                                padding: '2px 6px',
+                                borderRadius: '4px',
+                                fontWeight: 600,
+                                letterSpacing: '0.02em'
+                              }}>Contract</span>
+                            )}
                           </div>
                         </td>
                         <td>
