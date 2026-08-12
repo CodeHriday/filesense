@@ -1243,6 +1243,12 @@ function DataProfile() {
         FILE_LEVEL_RULE_TYPES.includes(rule.rule_type)
       );
       setAvailableFileLevelRules(fileLevelRules);
+
+      // Pre-populate file-level DQ selections from already-assigned rules
+      const assignedFileLevelIds = (data.assigned || [])
+        .filter(rule => FILE_LEVEL_RULE_TYPES.includes(rule.rule_type))
+        .map(rule => rule.id);
+      setFileLevelDQSelections(assignedFileLevelIds);
       
       // Load saved column assignments from the assigned rules
       // Create separate deep copies for current and saved state to avoid reference sharing
@@ -1655,9 +1661,17 @@ function DataProfile() {
         fetchFileQualityRulesData();
       }
     }
-    // Fetch generic rules when schema-builder tab is active
-    if (activeTab === 'schema-builder' && availableGenericRules.length === 0) {
-      fetchGenericQualityRules();
+    // Fetch rules when schema-builder tab is active.
+    // fetchFileQualityRulesData already populates availableGenericRules AND
+    // availableFileLevelRules, so prefer it to avoid concurrent competing writes.
+    // Only fall back to fetchGenericQualityRules when the file-level data was
+    // already fetched (via the Quality Rules tab) but generic rules are absent.
+    if (activeTab === 'schema-builder') {
+      if (fileAvailableRules.length === 0) {
+        fetchFileQualityRulesData();
+      } else if (availableGenericRules.length === 0) {
+        fetchGenericQualityRules();
+      }
     }
   }, [activeTab]);
 
