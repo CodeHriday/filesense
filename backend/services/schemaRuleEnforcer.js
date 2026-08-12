@@ -53,7 +53,10 @@ const RULE_TYPE_MAP = {
 
   // validity_check — no useful default without user config; expose as-is so
   // existing schemas that already carry explicit config still work
-  validity_check: { engineType: 'validity_check', config: {} }
+  validity_check: { engineType: 'validity_check', config: {} },
+
+  // file-level rule — enforced against the whole file (no column scope)
+  record_count: { engineType: 'record_count', config: {} }
 };
 
 /** Rule types that users can assign through the FileSchemaManager UI. */
@@ -78,18 +81,43 @@ function resolveRuleType(uiRuleType) {
  *   column_name = <columnName>
  *   project_id  = NULL                               (global system rule)
  *
- * @param {Object} db
- * @param {string} uiRuleType   - The rule name from the schema column (e.g. 'null_check')
- * @param {string} columnName
- * @param {string} severity
+ * @param {Object}      db
+ * @param {string}      uiRuleType    - The rule name from the schema column (e.g. 'null_check')
+ * @param {string}      columnName
+ * @param {string}      severity
+ * @param {Object|null} configOverride - When provided, overrides the RULE_TYPE_MAP default config.
+ *                                       Used by file-level rules (e.g. record_count) that carry
+ *                                       user-supplied parameters (expected_count, operator) from
+ *                                       the generated schema JSON.
  * @returns {Promise<Object|null>}
  */
-async function findOrCreateSchemaRule(db, uiRuleType, columnName, severity = 'warning') {
-  const ruleName   = `__schema_default__${uiRuleType}`;
+async function findOrCreateSchemaRule(db, uiRuleType, columnName, severity = 'warning', configOverride = null) {
   const resolution = resolveRuleType(uiRuleType);
   if (!resolution) return null;
 
-  const { engineType, config } = resolution;
+  const { engineType, config: defaultConfig } = resolution;
+  const config = (configOverride && Object.keys(configOverride).length > 0) ? configOverride : defaultConfig;
+
+  // For config-specific rules (e.g. record_count whose thresholds vary per schema),
+  // build a canonical fingerprint from ALL enforcement-relevant config fields so that
+  // different schemas produce distinct, isolated DB rows.  Covers:
+  //   • operator (exactly / at_least / at_most / between / …)
+  //   • expected_count (at_least / at_most / exactly)
+  //   • min_count + max_count (between)
+  //   • tolerance_percent (optional non-zero)
+  // Every distinct combination gets its own row; same combination safely reuses one row
+  // because the config is identical by construction.
+  let ruleName = `__schema_default__${uiRuleType}`;
+  if (uiRuleType === 'record_count') {
+    const op    = (config.operator || 'exactly').toLowerCase().replace(/[^a-z0-9]/g, '_');
+    const parts = [op];
+    if (config.expected_count != null) parts.push(`ec${Number(config.expected_count)}`);
+    if (config.min_count      != null) parts.push(`mn${Number(config.min_count)}`);
+    if (config.max_count      != null) parts.push(`mx${Number(config.max_count)}`);
+    const tol = Number(config.tolerance_percent || 0);
+    if (tol > 0)                       parts.push(`tol${tol}`);
+    ruleName = `__schema_default__record_count__${parts.join('_')}`;
+  }
 
   // 1. Look for an existing system rule for this UI type + column
   const existing = await db.query(
@@ -135,6 +163,49 @@ async function findOrCreateSchemaRule(db, uiRuleType, columnName, severity = 'wa
 }
 
 /**
+ * File-level rule types — enforced against the whole file rather than a specific column.
+ */
+const FILE_LEVEL_RULE_TYPES = new Set(['record_count']);
+
+/**
+ * Normalise the schema argument accepted by enforceSchemaRules / enforceSchemaRulesForJob.
+ *
+ * Supports two shapes:
+ *  - Legacy: bare column array   → { columns: <array>, fileQualityRules: [] }
+ *  - New:    { columns, file_quality_rules? } → { columns: <array>, fileQualityRules: [...] }
+ *
+ * @param {Array|Object} schema
+ * @returns {{ columns: Array, fileQualityRules: string[] }}
+ */
+function normaliseSchema(schema) {
+  /**
+   * Normalise a `file_quality_rules` entry to a { rule_type, config } object.
+   * Accepts either a bare string ("record_count") or an object
+   * ({ rule_type, config? }) produced by the updated Schema Builder.
+   */
+  function normaliseFileLevelEntry(r) {
+    if (typeof r === 'string') return { rule_type: r, config: {} };
+    if (r && typeof r === 'object' && r.rule_type) {
+      return { rule_type: r.rule_type, config: r.config || {} };
+    }
+    return null;
+  }
+
+  if (Array.isArray(schema)) {
+    return { columns: schema, fileQualityRules: [] };
+  }
+  if (schema && typeof schema === 'object' && Array.isArray(schema.columns)) {
+    return {
+      columns: schema.columns,
+      fileQualityRules: Array.isArray(schema.file_quality_rules)
+        ? schema.file_quality_rules.map(normaliseFileLevelEntry).filter(Boolean)
+        : []
+    };
+  }
+  return { columns: [], fileQualityRules: [] };
+}
+
+/**
  * Enforce schema-defined quality rules for an uploaded file.
  *
  * For each column in schemaColumns that carries a quality_rules array:
@@ -144,43 +215,55 @@ async function findOrCreateSchemaRule(db, uiRuleType, columnName, severity = 'wa
  *  4. Runs all collected rules through QualityValidationEngine
  *  5. Persists violations to quality_rule_violations
  *
+ * Also handles top-level file_quality_rules (e.g. record_count) from the new schema shape.
+ *
  * Non-fatal — caller should catch QUALITY_ABORT specifically and let
  * everything else be logged without failing the upload.
  *
- * @param {Object}  db            - pg Pool or Client
- * @param {string}  fileId
- * @param {Array}   schemaColumns - Schema column array (each may have quality_rules:[...])
- * @param {Array}   previewData   - Sample rows (up to 100)
- * @param {number}  rowCount      - Total file row count
- * @param {Object}  [options]
- * @param {string}  [options.fileName]
+ * @param {Object}       db            - pg Pool or Client
+ * @param {string}       fileId
+ * @param {Array|Object} schemaColumns - Schema column array OR new {columns, file_quality_rules} object
+ * @param {Array}        previewData   - Sample rows (up to 100)
+ * @param {number}       rowCount      - Total file row count
+ * @param {Object}       [options]
+ * @param {string}       [options.fileName]
  * @returns {Promise<Object>}
  */
 async function enforceSchemaRules(db, fileId, schemaColumns, previewData, rowCount, options = {}) {
-  if (!schemaColumns || !Array.isArray(schemaColumns) || schemaColumns.length === 0) {
-    return { executed: false, reason: 'No schema columns provided' };
-  }
+  // Normalise: accept both legacy bare array and new {columns, file_quality_rules} object
+  const { columns: normColumns, fileQualityRules } = normaliseSchema(schemaColumns);
 
-  const columnsWithRules = schemaColumns.filter(
+  const columnsWithRules = normColumns.filter(
     col => col.quality_rules && Array.isArray(col.quality_rules) && col.quality_rules.length > 0
   );
-  if (columnsWithRules.length === 0) {
-    return { executed: false, reason: 'No schema quality_rules defined on any column' };
+  const hasFileLevelRules = fileQualityRules.length > 0;
+
+  if (columnsWithRules.length === 0 && !hasFileLevelRules) {
+    return { executed: false, reason: 'No schema quality_rules defined' };
   }
   if (!previewData || previewData.length === 0) {
-    systemLogger.warn('[schemaRuleEnforcer] No preview data available for enforcement', { fileId });
-    return { executed: false, reason: 'No preview data available' };
+    // File-level rules (e.g. record_count) evaluate against the total row count stored in
+    // metadata.actual_row_count — they do not need any preview rows. Allow the flow to
+    // continue when ONLY file-level rules are present; abort only when column rules also
+    // need row data but none is available.
+    if (columnsWithRules.length > 0 || !hasFileLevelRules) {
+      systemLogger.warn('[schemaRuleEnforcer] No preview data available for enforcement', { fileId });
+      return { executed: false, reason: 'No preview data available' };
+    }
+    previewData = []; // proceed with empty array for file-level-only evaluation
   }
 
   systemLogger.info('[schemaRuleEnforcer] Enforcing schema quality rules', {
     fileId,
     columnCount: columnsWithRules.length,
+    fileLevelRuleCount: fileQualityRules.length,
     totalRules: columnsWithRules.reduce((n, col) => n + col.quality_rules.length, 0)
   });
 
   const createdRules = [];
   const ruleErrors  = [];
 
+  // --- Per-column rules ---
   for (const col of columnsWithRules) {
     const columnName = col.name || col.column_name;
     if (!columnName) continue;
@@ -214,6 +297,37 @@ async function enforceSchemaRules(db, fileId, schemaColumns, previewData, rowCou
         });
         ruleErrors.push({ columnName, uiRuleType, error: err.message });
       }
+    }
+  }
+
+  // --- File-level rules (e.g. record_count) ---
+  // Each entry is { rule_type, config } (normalised by normaliseSchema).
+  // column_name is set to '__file__' — these rules are not scoped to any column.
+  for (const fileLevelEntry of fileQualityRules) {
+    const normalized = (fileLevelEntry.rule_type || '').toLowerCase().trim();
+    if (!RULE_TYPE_MAP[normalized]) {
+      systemLogger.warn('[schemaRuleEnforcer] Unknown file-level rule type — skipping', {
+        fileId, uiRuleType: normalized
+      });
+      continue;
+    }
+    try {
+      const rule = await findOrCreateSchemaRule(db, normalized, '__file__', 'warning', fileLevelEntry.config || null);
+      if (!rule) {
+        ruleErrors.push({ columnName: '__file__', uiRuleType: normalized, error: 'rule row not created' });
+        continue;
+      }
+      createdRules.push(rule);
+      await db.query(
+        `INSERT INTO file_quality_rules (file_id, quality_rule_id)
+         VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+        [fileId, rule.id]
+      );
+    } catch (err) {
+      systemLogger.error('[schemaRuleEnforcer] Failed to find/create file-level schema rule', {
+        fileId, uiRuleType: normalized, error: err.message
+      });
+      ruleErrors.push({ columnName: '__file__', uiRuleType: normalized, error: err.message });
     }
   }
 
@@ -281,21 +395,31 @@ async function enforceSchemaRules(db, fileId, schemaColumns, previewData, rowCou
  * @returns {Promise<Object>}
  */
 async function validateSchemaRulesInline(schemaColumns, sampleData, metadata) {
-  if (!schemaColumns || !Array.isArray(schemaColumns) || schemaColumns.length === 0) {
-    return { executed: false, reason: 'No schema columns' };
-  }
-  const columnsWithRules = schemaColumns.filter(
+  // Normalise: accept both legacy bare array and new {columns, file_quality_rules} object
+  const { columns: normColumns, fileQualityRules } = normaliseSchema(schemaColumns);
+
+  const columnsWithRules = normColumns.filter(
     col => col.quality_rules && Array.isArray(col.quality_rules) && col.quality_rules.length > 0
   );
-  if (columnsWithRules.length === 0) {
+  const hasFileLevelRules = fileQualityRules.length > 0;
+
+  if (columnsWithRules.length === 0 && !hasFileLevelRules) {
     return { executed: false, reason: 'No schema quality_rules defined' };
   }
   if (!sampleData || sampleData.length === 0) {
-    return { executed: false, reason: 'No sample data' };
+    // File-level rules (e.g. record_count) use metadata.actual_row_count, not row data.
+    // Allow evaluation to proceed when ONLY file-level rules are present so they can be
+    // assessed using the authoritative count even without any sample rows.
+    if (columnsWithRules.length > 0 || !hasFileLevelRules) {
+      return { executed: false, reason: 'No sample data' };
+    }
+    sampleData = []; // proceed with empty array for file-level-only evaluation
   }
 
   // Build synthetic rule objects using the resolved engine types
   const syntheticRules = [];
+
+  // Per-column rules
   for (const col of columnsWithRules) {
     const columnName = col.name || col.column_name;
     if (!columnName) continue;
@@ -313,6 +437,27 @@ async function validateSchemaRulesInline(schemaColumns, sampleData, metadata) {
         enabled:     true
       });
     }
+  }
+
+  // File-level rules (e.g. record_count) — enforced against whole file
+  // Each entry is { rule_type, config } (normalised by normaliseSchema).
+  for (const fileLevelEntry of fileQualityRules) {
+    const normalized = (fileLevelEntry.rule_type || '').toLowerCase().trim();
+    const resolution = resolveRuleType(normalized);
+    if (!resolution) continue;
+    // Prefer the config embedded in the schema entry; fall back to RULE_TYPE_MAP default
+    const effectiveConfig = (fileLevelEntry.config && Object.keys(fileLevelEntry.config).length > 0)
+      ? fileLevelEntry.config
+      : resolution.config;
+    syntheticRules.push({
+      id:          `synthetic_${normalized}___file__`,
+      rule_name:   `__schema_default__${normalized}`,
+      rule_type:   resolution.engineType,
+      column_name: '__file__',
+      rule_config: effectiveConfig,
+      severity:    'warning',
+      enabled:     true
+    });
   }
 
   if (syntheticRules.length === 0) {
@@ -518,6 +663,107 @@ async function executeRuleInline(rule, data, metadata) {
       break;
     }
 
+    case 'record_count': {
+      // File-level check: compare actual row count against the expected count.
+      // We require an authoritative `metadata.actual_row_count`; falling back to
+      // sample-data length produces false violations for files larger than the sample
+      // window, so we skip enforcement when the total is unavailable.
+      if (!metadata || metadata.actual_row_count == null) {
+        // No authoritative count — cannot evaluate safely; skip this rule
+        break;
+      }
+      const actual = Number(metadata.actual_row_count);
+
+      // Use QualityValidationEngine's operator vocabulary:
+      //   exactly / equals   — actual === expected_count (±tolerance_percent)
+      //   at_least           — actual >= expected_count (−tolerance_percent)
+      //   at_most            — actual <= expected_count (+tolerance_percent)
+      //   between            — min_count <= actual <= max_count
+      // Legacy aliases (greater_than, less_than, etc.) are mapped for backward compat.
+      const operator         = (config.operator || 'exactly').toLowerCase();
+      const expectedCount    = config.expected_count != null ? Number(config.expected_count) : null;
+      const minCount         = config.min_count     != null ? Number(config.min_count)      : null;
+      const maxCount         = config.max_count     != null ? Number(config.max_count)      : null;
+      const tolerancePct     = Number(config.tolerance_percent || 0);
+
+      let isViolation   = false;
+      let expectedLabel = '';
+
+      switch (operator) {
+        case 'exactly':
+        case 'equals': {
+          if (expectedCount == null) break;
+          const tol = tolerancePct > 0 ? Math.ceil(expectedCount * tolerancePct / 100) : 0;
+          isViolation   = Math.abs(actual - expectedCount) > tol;
+          expectedLabel = tolerancePct > 0
+            ? `Exactly ${expectedCount} rows (±${tolerancePct}%)`
+            : `Exactly ${expectedCount} rows`;
+          break;
+        }
+        case 'at_least':
+        case 'greater_than_or_equal': {
+          if (expectedCount == null) break;
+          const threshold = tolerancePct > 0
+            ? Math.floor(expectedCount * (1 - tolerancePct / 100))
+            : expectedCount;
+          isViolation   = actual < threshold;
+          expectedLabel = `At least ${expectedCount} rows`;
+          break;
+        }
+        case 'at_most':
+        case 'less_than_or_equal': {
+          if (expectedCount == null) break;
+          const threshold = tolerancePct > 0
+            ? Math.ceil(expectedCount * (1 + tolerancePct / 100))
+            : expectedCount;
+          isViolation   = actual > threshold;
+          expectedLabel = `At most ${expectedCount} rows`;
+          break;
+        }
+        case 'between': {
+          if (minCount == null || maxCount == null) break;
+          isViolation   = actual < minCount || actual > maxCount;
+          expectedLabel = `Between ${minCount} and ${maxCount} rows`;
+          break;
+        }
+        // Strict aliases (no tolerance support)
+        case 'greater_than': {
+          if (expectedCount == null) break;
+          isViolation   = actual <= expectedCount;
+          expectedLabel = `More than ${expectedCount} rows`;
+          break;
+        }
+        case 'less_than': {
+          if (expectedCount == null) break;
+          isViolation   = actual >= expectedCount;
+          expectedLabel = `Fewer than ${expectedCount} rows`;
+          break;
+        }
+        default:
+          break;
+      }
+
+      if (isViolation) {
+        violations.push({
+          rule_id:           rule.id,
+          column_name:       '__file__',
+          expected_value:    expectedLabel,
+          actual_value:      `${actual} row(s)`,
+          severity:          rule.severity,
+          violation_details: {
+            rule_type: engineType,
+            operator,
+            expected_count:    expectedCount,
+            min_count:         minCount,
+            max_count:         maxCount,
+            actual_count:      actual,
+            tolerance_percent: tolerancePct
+          }
+        });
+      }
+      break;
+    }
+
     default:
       break;
   }
@@ -543,24 +789,31 @@ async function executeRuleInline(rule, data, metadata) {
  * @returns {Promise<Object>} { executed, ruleResults, totalPassed, totalFailed, violationCount, errors }
  */
 async function enforceSchemaRulesForJob(pool, jobId, fileId, schemaColumns, rows, rowCount) {
-  if (!schemaColumns || !Array.isArray(schemaColumns) || schemaColumns.length === 0) {
-    return { executed: false, reason: 'No schema columns provided' };
-  }
+  // Normalise: accept both legacy bare array and new {columns, file_quality_rules} object
+  const { columns: normColumns, fileQualityRules } = normaliseSchema(schemaColumns);
 
-  const columnsWithRules = schemaColumns.filter(
+  const columnsWithRules = normColumns.filter(
     col => col.quality_rules && Array.isArray(col.quality_rules) && col.quality_rules.length > 0
   );
-  if (columnsWithRules.length === 0) {
+  const hasFileLevelRules = fileQualityRules.length > 0;
+
+  if (columnsWithRules.length === 0 && !hasFileLevelRules) {
     return { executed: false, reason: 'No schema quality_rules defined on any column' };
   }
   if (!rows || rows.length === 0) {
-    systemLogger.warn('[schemaRuleEnforcer] No rows available for job DQ enforcement', { jobId });
-    return { executed: false, reason: 'No rows available for validation' };
+    // File-level rules (record_count) use total rowCount from metadata, not row data.
+    // Allow the flow to continue when ONLY file-level rules are present.
+    if (columnsWithRules.length > 0 || !hasFileLevelRules) {
+      systemLogger.warn('[schemaRuleEnforcer] No rows available for job DQ enforcement', { jobId });
+      return { executed: false, reason: 'No rows available for validation' };
+    }
+    rows = []; // proceed with empty array for file-level-only evaluation
   }
 
   systemLogger.info('[schemaRuleEnforcer] Enforcing schema quality rules for job', {
     jobId,
     columnCount: columnsWithRules.length,
+    fileLevelRuleCount: fileQualityRules.length,
     totalRules: columnsWithRules.reduce((n, col) => n + col.quality_rules.length, 0),
     sampleRows: rows.length
   });
@@ -568,6 +821,7 @@ async function enforceSchemaRulesForJob(pool, jobId, fileId, schemaColumns, rows
   const createdRules = [];
   const ruleErrors  = [];
 
+  // --- Per-column rules ---
   for (const col of columnsWithRules) {
     const columnName = col.name || col.column_name;
     if (!columnName) continue;
@@ -594,6 +848,31 @@ async function enforceSchemaRulesForJob(pool, jobId, fileId, schemaColumns, rows
         });
         ruleErrors.push({ columnName, uiRuleType, error: err.message });
       }
+    }
+  }
+
+  // --- File-level rules (e.g. record_count) ---
+  // Each entry is { rule_type, config } (normalised by normaliseSchema).
+  for (const fileLevelEntry of fileQualityRules) {
+    const normalized = (fileLevelEntry.rule_type || '').toLowerCase().trim();
+    if (!RULE_TYPE_MAP[normalized]) {
+      systemLogger.warn('[schemaRuleEnforcer] Unknown file-level rule type in job DQ — skipping', {
+        jobId, uiRuleType: normalized
+      });
+      continue;
+    }
+    try {
+      const rule = await findOrCreateSchemaRule(pool, normalized, '__file__', 'warning', fileLevelEntry.config || null);
+      if (!rule) {
+        ruleErrors.push({ columnName: '__file__', uiRuleType: normalized, error: 'rule row not created' });
+        continue;
+      }
+      createdRules.push({ ...rule, _uiRuleType: normalized });
+    } catch (err) {
+      systemLogger.error('[schemaRuleEnforcer] Failed to find/create file-level schema rule for job', {
+        jobId, uiRuleType: normalized, error: err.message
+      });
+      ruleErrors.push({ columnName: '__file__', uiRuleType: normalized, error: err.message });
     }
   }
 

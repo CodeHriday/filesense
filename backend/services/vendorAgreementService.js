@@ -230,9 +230,12 @@ class VendorAgreementService {
         if (typeof schema === 'string' && schema.trim() !== '' && schema !== '[]') {
           try {
             const schemaObj = JSON.parse(schema);
-            if (Array.isArray(schemaObj) && schemaObj.length > 0) {
+            // Support both legacy bare array and new { columns, file_quality_rules } shape
+            const schemaArray = Array.isArray(schemaObj) ? schemaObj
+              : (Array.isArray(schemaObj?.columns) ? schemaObj.columns : []);
+            if (schemaArray.length > 0) {
               // Filter out empty objects - check for any meaningful data
-              const validRows = schemaObj.filter(row => {
+              const validRows = schemaArray.filter(row => {
                 if (!row || typeof row !== 'object') return false;
                 // Check if row has any non-empty, non-null values
                 const hasData = (row.column_name && row.column_name.trim()) || 
@@ -562,9 +565,12 @@ class VendorAgreementService {
         if (typeof schema === 'string' && schema.trim() !== '' && schema !== '[]') {
           try {
             const schemaObj = JSON.parse(schema);
-            if (Array.isArray(schemaObj) && schemaObj.length > 0) {
+            // Support both legacy bare array and new { columns, file_quality_rules } shape
+            const schemaArray = Array.isArray(schemaObj) ? schemaObj
+              : (Array.isArray(schemaObj?.columns) ? schemaObj.columns : []);
+            if (schemaArray.length > 0) {
               // Filter out empty objects - check for any meaningful data
-              const validRows = schemaObj.filter(row => {
+              const validRows = schemaArray.filter(row => {
                 if (!row || typeof row !== 'object') return false;
                 // Check if row has any non-empty, non-null values
                 const hasData = (row.column_name && row.column_name.trim()) || 

@@ -162,17 +162,26 @@ router.post('/:agreementId/file-schemas', requirePermission('vendor_agreements:w
       typeof schema === 'object' && 
       !Array.isArray(schema) && 
       schema._schemaRef === true;
+
+    // Accept the new { columns, file_quality_rules? } object shape alongside legacy bare arrays
+    const isNewSchemaObject = schema &&
+      typeof schema === 'object' &&
+      !Array.isArray(schema) &&
+      !isSchemaRefToken &&
+      Array.isArray(schema.columns) &&
+      schema.columns.length > 0;
     
-    if (!isSchemaRefToken && (!schema || !Array.isArray(schema) || schema.length === 0)) {
+    if (!isSchemaRefToken && !isNewSchemaObject && (!schema || !Array.isArray(schema) || schema.length === 0)) {
       return res.status(400).json({
         success: false,
-        error: 'schema is required and must be a non-empty array or a schema reference token'
+        error: 'schema is required and must be a non-empty array, a { columns } object, or a schema reference token'
       });
     }
     
-    // Only validate schema structure for actual arrays (not reference tokens)
+    // Only validate schema structure for actual column arrays (not reference tokens or new-shape objects)
+    const schemaColumnsToValidate = isNewSchemaObject ? schema.columns : (isSchemaRefToken ? [] : schema);
     if (!isSchemaRefToken) {
-      for (const col of schema) {
+      for (const col of schemaColumnsToValidate) {
         if (!col.column_name || !col.data_type) {
           return res.status(400).json({
             success: false,
@@ -641,16 +650,25 @@ router.put('/:agreementId/file-schemas/:schemaId', requirePermission('vendor_agr
         !Array.isArray(schema) && 
         schema._schemaRef === true;
       
-      if (!isSchemaRefToken && (!Array.isArray(schema) || schema.length === 0)) {
+      // Accept the new { columns, file_quality_rules? } object shape alongside legacy bare arrays
+      const isNewSchemaObjectUpdate = schema &&
+        typeof schema === 'object' &&
+        !Array.isArray(schema) &&
+        !isSchemaRefToken &&
+        Array.isArray(schema.columns) &&
+        schema.columns.length > 0;
+
+      if (!isSchemaRefToken && !isNewSchemaObjectUpdate && (!Array.isArray(schema) || schema.length === 0)) {
         return res.status(400).json({
           success: false,
-          error: 'schema must be a non-empty array or a schema reference token'
+          error: 'schema must be a non-empty array, a { columns } object, or a schema reference token'
         });
       }
       
-      // Only validate schema structure for actual arrays (not reference tokens)
+      // Only validate schema structure for actual column arrays (not reference tokens or new-shape objects)
+      const schemaColumnsToValidateUpdate = isNewSchemaObjectUpdate ? schema.columns : (isSchemaRefToken ? [] : schema);
       if (!isSchemaRefToken) {
-        for (const col of schema) {
+        for (const col of schemaColumnsToValidateUpdate) {
           if (!col.column_name || !col.data_type) {
             return res.status(400).json({
               success: false,

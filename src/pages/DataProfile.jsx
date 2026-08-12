@@ -943,7 +943,9 @@ function DataProfile() {
 
   // Schema Builder state
   const [availableGenericRules, setAvailableGenericRules] = useState([]);
+  const [availableFileLevelRules, setAvailableFileLevelRules] = useState([]);
   const [columnDQAssignments, setColumnDQAssignments] = useState({});
+  const [fileLevelDQSelections, setFileLevelDQSelections] = useState([]);
   const [schemaBuilderLoading, setSchemaBuilderLoading] = useState(false);
 
   // File Quality Rules assignment state
@@ -1197,6 +1199,8 @@ function DataProfile() {
     }
   };
 
+  const FILE_LEVEL_RULE_TYPES = ['record_count'];
+
   const fetchGenericQualityRules = async () => {
     try {
       setSchemaBuilderLoading(true);
@@ -1207,6 +1211,10 @@ function DataProfile() {
          'numeric_only_string', 'special_character_presence'].includes(rule.rule_type)
       );
       setAvailableGenericRules(genericRules);
+      const fileLevelRules = response.data.filter(rule =>
+        FILE_LEVEL_RULE_TYPES.includes(rule.rule_type)
+      );
+      setAvailableFileLevelRules(fileLevelRules);
     } catch (err) {
       console.error('Error fetching quality rules:', err);
     } finally {
@@ -1231,6 +1239,10 @@ function DataProfile() {
          'numeric_only_string', 'special_character_presence'].includes(rule.rule_type)
       );
       setAvailableGenericRules(genericRules);
+      const fileLevelRules = availableRules.filter(rule =>
+        FILE_LEVEL_RULE_TYPES.includes(rule.rule_type)
+      );
+      setAvailableFileLevelRules(fileLevelRules);
       
       // Load saved column assignments from the assigned rules
       // Create separate deep copies for current and saved state to avoid reference sharing
@@ -1476,10 +1488,6 @@ function DataProfile() {
     }
   };
 
-  // File-level rules operate on the whole file, not individual columns.
-  // Adding more file-level types here is a one-line change.
-  const FILE_LEVEL_RULE_TYPES = ['record_count'];
-
   const handleRuleToggle = (ruleId) => {
     // Toggle rule selection
     setSelectedRuleIds(prev => {
@@ -1548,6 +1556,16 @@ function DataProfile() {
     });
   };
 
+  const handleFileLevelRuleToggle = (ruleId) => {
+    setFileLevelDQSelections(prev => {
+      if (prev.includes(ruleId)) {
+        return prev.filter(id => id !== ruleId);
+      } else {
+        return [...prev, ruleId];
+      }
+    });
+  };
+
   const mapProfileTypeToSchemaType = (profileType) => {
     const type = (profileType || 'string').toLowerCase();
     if (type.includes('int') || type === 'integer') return 'int';
@@ -1562,7 +1580,7 @@ function DataProfile() {
   const generateSchemaJSON = () => {
     if (!profile || !profile.columns) return null;
     
-    const schema = profile.columns.map(col => {
+    const columns = profile.columns.map(col => {
       const baseSchema = {
         name: col.name,
         type: mapProfileTypeToSchemaType(col.type),
@@ -1584,8 +1602,28 @@ function DataProfile() {
       
       return baseSchema;
     });
-    
-    return schema;
+
+    const result = { columns };
+
+    if (fileLevelDQSelections.length > 0) {
+      const selectedRuleObjects = fileLevelDQSelections.map(ruleId => {
+        const rule = availableFileLevelRules.find(r => r.id === ruleId);
+        if (!rule) return null;
+        // Include the rule's configured parameters so the enforcer can evaluate them
+        // without needing to look up a separate DB record at enforcement time.
+        const entry = { rule_type: rule.rule_type };
+        const rc = typeof rule.rule_config === 'string'
+          ? (() => { try { return JSON.parse(rule.rule_config); } catch { return {}; } })()
+          : (rule.rule_config || {});
+        if (rc && Object.keys(rc).length > 0) entry.config = rc;
+        return entry;
+      }).filter(Boolean);
+      if (selectedRuleObjects.length > 0) {
+        result.file_quality_rules = selectedRuleObjects;
+      }
+    }
+
+    return result;
   };
 
   const handleDownloadSchema = () => {
@@ -3363,6 +3401,50 @@ function DataProfile() {
                 </tbody>
               </table>
             </div>
+          </div>
+        </div>
+
+        {/* File-Level Quality Rules */}
+        <div className="gps-card" style={{ marginTop: '16px' }}>
+          <div className="gps-card-header">
+            <h3 className="gps-card-title" style={{ margin: 0, fontSize: '11px' }}>File-Level Quality Rules</h3>
+          </div>
+          <div className="gps-card-body">
+            <p style={{ margin: '0 0 12px 0', fontSize: '10px', color: '#64748b' }}>
+              These rules apply to the entire file, not individual columns.
+            </p>
+            {availableFileLevelRules.length === 0 ? (
+              <p style={{ fontSize: '10px', color: '#94a3b8', margin: 0 }}>
+                No file-level quality rules available. Add a <em>record_count</em> rule in the Quality Rules tab to enable this section.
+              </p>
+            ) : (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                {availableFileLevelRules.map(rule => {
+                  const isSelected = fileLevelDQSelections.includes(rule.id);
+                  return (
+                    <button
+                      key={rule.id}
+                      onClick={() => handleFileLevelRuleToggle(rule.id)}
+                      style={{
+                        padding: '4px 10px',
+                        fontSize: '10px',
+                        fontFamily: 'Inter, sans-serif',
+                        fontWeight: 500,
+                        border: isSelected ? 'none' : '1px solid #e2e8f0',
+                        borderRadius: '4px',
+                        cursor: 'pointer',
+                        backgroundColor: isSelected ? '#025043' : '#f8fafc',
+                        color: isSelected ? 'white' : '#475569',
+                        transition: 'all 0.2s ease'
+                      }}
+                      title={rule.rule_name}
+                    >
+                      {rule.rule_type === 'record_count' ? 'Record Count' : rule.rule_name}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
 

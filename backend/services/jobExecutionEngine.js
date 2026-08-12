@@ -697,14 +697,16 @@ async function getFixedWidthSchemaFromAgreement(pool, vendorAgreementId, filenam
     // Fallback: Use schema column if header_definition is empty/null
     // The schema column contains the column definitions with width and start_position
     if (!headerDef || (Array.isArray(headerDef) && headerDef.length === 0)) {
-      let schemaDef = matchedSchema.schema;
-      if (typeof schemaDef === 'string') {
+      let rawSchemaDef = matchedSchema.schema;
+      if (typeof rawSchemaDef === 'string') {
         try {
-          schemaDef = JSON.parse(schemaDef);
+          rawSchemaDef = JSON.parse(rawSchemaDef);
         } catch (e) {
-          schemaDef = null;
+          rawSchemaDef = null;
         }
       }
+      // Support both legacy bare array and new { columns, file_quality_rules } shape
+      let schemaDef = Array.isArray(rawSchemaDef) ? rawSchemaDef : (Array.isArray(rawSchemaDef?.columns) ? rawSchemaDef.columns : rawSchemaDef);
       // Use schema as header definition if it has column definitions with width/start_position
       if (Array.isArray(schemaDef) && schemaDef.length > 0) {
         // Check if schema contains fixed-width column definitions
@@ -2584,9 +2586,11 @@ async function fetchGovernanceForMapping(pool, mapping, sourceFilename, projectI
     }
     
     // Extract PII columns from schema (same logic as Contract Validation)
-    const schemaObj = typeof matchedSchema.schema === 'string' 
+    const rawSchemaObj = typeof matchedSchema.schema === 'string' 
       ? JSON.parse(matchedSchema.schema) 
       : matchedSchema.schema;
+    // Support both legacy bare array and new { columns, file_quality_rules } shape
+    const schemaObj = Array.isArray(rawSchemaObj) ? rawSchemaObj : (Array.isArray(rawSchemaObj?.columns) ? rawSchemaObj.columns : rawSchemaObj);
     
     const piiColumns = [];
     if (Array.isArray(schemaObj) && schemaObj.length > 0) {
@@ -2642,7 +2646,10 @@ async function fetchGovernanceForMapping(pool, mapping, sourceFilename, projectI
       piiColumns: piiColumns,
       fileTags: fileTags,
       // Parsed schema columns — used by DQ enforcement step for all file types
-      schemaColumns: Array.isArray(schemaObj) && schemaObj.length > 0 ? schemaObj : null
+      schemaColumns: Array.isArray(schemaObj) && schemaObj.length > 0 ? schemaObj : null,
+      // Full raw schema (may be bare array or {columns, file_quality_rules} object) — preserves
+      // file_quality_rules so enforceSchemaRulesForJob can enforce them alongside per-column rules
+      schemaRaw: rawSchemaObj || null
     };
     
   } catch (error) {
@@ -3367,12 +3374,19 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
     // Uses governance.schemaColumns — already pattern-matched to this file — so this fires for
     // every file type (CSV, JSON, XLSX, XML, Parquet, fixed-width) when a contract schema exists.
     // Runs against source/parsed rows to validate incoming data, not the transformed output.
-    if (mapping.vendor_agreement_id && governance && governance.schemaColumns) {
+    if (mapping.vendor_agreement_id && governance && (governance.schemaColumns || governance.schemaRaw)) {
       try {
-        const schemaColumns = governance.schemaColumns;
-        const hasQualityRules = schemaColumns.some(
+        // Use schemaRaw (full schema object) when available so file-level rules are not lost.
+        // Fall back to schemaColumns (bare column array) for legacy governance objects.
+        const schemaForDQ = governance.schemaRaw || governance.schemaColumns;
+        const schemaColumnList = governance.schemaColumns || [];
+        const hasColumnRules = schemaColumnList.some(
           col => col.quality_rules && Array.isArray(col.quality_rules) && col.quality_rules.length > 0
         );
+        const rawForDQ = governance.schemaRaw;
+        const hasFileLevelRules = rawForDQ && !Array.isArray(rawForDQ) &&
+          Array.isArray(rawForDQ.file_quality_rules) && rawForDQ.file_quality_rules.length > 0;
+        const hasQualityRules = hasColumnRules || hasFileLevelRules;
 
         if (hasQualityRules) {
           // Use source rows captured during parsing (available for all parser types) or
@@ -3385,7 +3399,7 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
             pool,
             jobId,
             file.file_id || null,
-            schemaColumns,
+            schemaForDQ,
             sampleRows,
             rowsRead
           );

@@ -2628,9 +2628,11 @@ print(json.dumps(result))
     }
     
     // Extract PII columns from schema
-    const schemaObj = typeof matchedSchema.schema === 'string' 
+    // Support both legacy bare array and new { columns, file_quality_rules } shape
+    const rawSchemaObj = typeof matchedSchema.schema === 'string' 
       ? JSON.parse(matchedSchema.schema) 
       : matchedSchema.schema;
+    const schemaObj = Array.isArray(rawSchemaObj) ? rawSchemaObj : (Array.isArray(rawSchemaObj?.columns) ? rawSchemaObj.columns : rawSchemaObj);
     
     this.logger.info('Processing agreement schema for PII', {
       fileId,
@@ -2778,13 +2780,31 @@ print(json.dumps(result))
       });
     }
 
-    // Enforce schema-defined per-column quality rules if the schema defines any
-    if (Array.isArray(schemaObj) && schemaObj.length > 0 && previewData && previewData.length > 0) {
+    // Enforce schema-defined quality rules (per-column and file-level) if the schema defines any.
+    // Pass rawSchemaObj so enforceSchemaRules can access both columns and file_quality_rules.
+    const hasEnforceableSchemaRules = (() => {
+      if (!rawSchemaObj) return false;
+      if (Array.isArray(rawSchemaObj) && rawSchemaObj.length > 0) return true;
+      if (!Array.isArray(rawSchemaObj) && typeof rawSchemaObj === 'object') {
+        const cols = Array.isArray(rawSchemaObj.columns) && rawSchemaObj.columns.length > 0;
+        const fileLvl = Array.isArray(rawSchemaObj.file_quality_rules) && rawSchemaObj.file_quality_rules.length > 0;
+        return cols || fileLvl;
+      }
+      return false;
+    })();
+    // File-level rules (e.g. record_count) need only the authoritative rowCount from metadata,
+    // not actual preview rows. Allow enforcement to proceed when file-level rules exist even if
+    // previewData is empty (enforceSchemaRules handles the empty-preview case internally).
+    const hasFileLevelRulesInSchema = !Array.isArray(rawSchemaObj) &&
+      typeof rawSchemaObj === 'object' &&
+      Array.isArray(rawSchemaObj.file_quality_rules) &&
+      rawSchemaObj.file_quality_rules.length > 0;
+    if (hasEnforceableSchemaRules && ((previewData && previewData.length > 0) || hasFileLevelRulesInSchema)) {
       try {
         const schemaEnforcementResult = await enforceSchemaRules(
           this.dbPool,
           fileId,
-          schemaObj,
+          rawSchemaObj,
           previewData,
           rowCount,
           { fileName: filename }

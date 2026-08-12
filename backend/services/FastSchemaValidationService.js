@@ -591,18 +591,24 @@ class FastSchemaValidationService {
                   }
                 }
 
-                // Also run schema-defined per-column quality rules inline (no DB persistence at this stage)
-                const schemaColumns = (() => {
+                // Also run schema-defined quality rules inline (per-column and file-level)
+                const parsedSchemaForRules = (() => {
                   try {
                     const raw = matchedPatternObj?.schema;
-                    if (!raw) return [];
-                    return Array.isArray(raw) ? raw : (typeof raw === 'string' ? JSON.parse(raw) : []);
-                  } catch (e) { return []; }
+                    if (!raw) return null;
+                    return Array.isArray(raw) ? raw : (typeof raw === 'string' ? JSON.parse(raw) : raw);
+                  } catch (e) { return null; }
                 })();
-                const hasSchemaColumnRules = schemaColumns.some(
+                const schemaColumnsForRules = Array.isArray(parsedSchemaForRules)
+                  ? parsedSchemaForRules
+                  : (Array.isArray(parsedSchemaForRules?.columns) ? parsedSchemaForRules.columns : []);
+                const hasSchemaColumnRules = schemaColumnsForRules.some(
                   c => c.quality_rules && Array.isArray(c.quality_rules) && c.quality_rules.length > 0
                 );
-                if (hasSchemaColumnRules) {
+                const hasSchemaFileLevelRules = !Array.isArray(parsedSchemaForRules) &&
+                  Array.isArray(parsedSchemaForRules?.file_quality_rules) &&
+                  parsedSchemaForRules.file_quality_rules.length > 0;
+                if (hasSchemaColumnRules || hasSchemaFileLevelRules) {
                   let schemaRuleSampleData = sampleData;
                   if (!schemaRuleSampleData || schemaRuleSampleData.length === 0) {
                     try {
@@ -616,15 +622,27 @@ class FastSchemaValidationService {
                       );
                     } catch (_) { schemaRuleSampleData = []; }
                   }
-                  if (schemaRuleSampleData && schemaRuleSampleData.length > 0) {
+                  // Allow the call even when sample data is empty: file-level rules
+                  // (e.g. record_count) use metadata.actual_row_count, not row data.
+                  // validateSchemaRulesInline will safely skip record_count when no
+                  // authoritative row count is available in metadata.
+                  if (parsedSchemaForRules) {
                     try {
                       const schemaRuleResult = await validateSchemaRulesInline(
-                        schemaColumns,
-                        schemaRuleSampleData,
-                        { filePath, fileType: fileMetadata.fileType }
+                        parsedSchemaForRules,
+                        schemaRuleSampleData || [],
+                        {
+                          filePath,
+                          fileType: fileMetadata.fileType,
+                          // Supply the full record count so record_count rules evaluate
+                          // against the real file total, not the 100-row sample window.
+                          actual_row_count: (validationResult.recordCount != null)
+                            ? Number(validationResult.recordCount)
+                            : null
+                        }
                       );
                       result.schemaRuleValidation = schemaRuleResult;
-                      systemLogger.info('Schema column rule validation completed', {
+                      systemLogger.info('Schema rule validation completed', {
                         filePath,
                         rulesValidated: schemaRuleResult.rulesValidated,
                         violationCount: schemaRuleResult.violationCount
