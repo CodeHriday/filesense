@@ -1376,6 +1376,7 @@ app.get('/api/files/init-data', authenticateToken, attachVendorProfile, async (r
     const filterOptions = {
       sortBy: 'created_at',
       sortOrder: 'DESC',
+      limit: null,  // no cap — client-side pagination handles display; capping at 50 hides files after deletion
       projectIds: isAdmin ? null : accessibleProjectIds
     };
     
