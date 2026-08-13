@@ -22,6 +22,7 @@ export function normaliseSchema(schema) {
   }
   if (Array.isArray(schema)) return schema;
   if (schema && Array.isArray(schema.fields)) return schema.fields;
+  if (schema && Array.isArray(schema.columns)) return schema.columns;
   return [];
 }
 
