@@ -438,8 +438,16 @@ router.put('/:agreementId/file-schemas', requirePermission('vendor_agreements:wr
         typeof schemaDefinition === 'object' && 
         !Array.isArray(schemaDefinition) && 
         schemaDefinition._schemaRef === true;
+
+      // Accept { columns: [...], file_quality_rules?: [...] } object shape from template uploads
+      const isColumnsObject = schemaDefinition &&
+        typeof schemaDefinition === 'object' &&
+        !Array.isArray(schemaDefinition) &&
+        !isSchemaRefToken &&
+        Array.isArray(schemaDefinition.columns) &&
+        schemaDefinition.columns.length > 0;
       
-      if (!isSchemaRefToken && (!schemaDefinition || !Array.isArray(schemaDefinition) || schemaDefinition.length === 0)) {
+      if (!isSchemaRefToken && !isColumnsObject && (!schemaDefinition || !Array.isArray(schemaDefinition) || schemaDefinition.length === 0)) {
         await client.query('ROLLBACK');
         return res.status(400).json({
           success: false,
