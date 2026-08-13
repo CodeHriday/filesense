@@ -145,6 +145,34 @@ class VendorAgreementTemplateService {
       }
     }
 
+    // Add a cell comment to the Schema (JSON) header so users see the warning
+    // at the exact moment they are about to paste into that column.
+    const schemaColIndex = this.fileConfigFields.findIndex(f => f.field === 'schema');
+    if (schemaColIndex !== -1) {
+      const schemaHeaderCell = XLSX.utils.encode_cell({ r: 0, c: schemaColIndex });
+      if (ws[schemaHeaderCell]) {
+        ws[schemaHeaderCell].c = [
+          {
+            a: 'Note',
+            t: 'Paste single-line JSON only. Use the Copy button in the app Schema Preview \u2014 do NOT paste formatted (multi-line) JSON directly.'
+          }
+        ];
+        // Keep the comment hidden by default (shown as a hover tooltip in Excel)
+        ws[schemaHeaderCell].c.hidden = true;
+      }
+
+      // Disable text-wrap on Schema data cells so a multi-line paste is visually obvious
+      for (let R = 1; R <= 2; R++) {
+        const schemaDataCell = XLSX.utils.encode_cell({ r: R, c: schemaColIndex });
+        if (ws[schemaDataCell]) {
+          ws[schemaDataCell].s = {
+            ...(ws[schemaDataCell].s || {}),
+            alignment: { horizontal: 'left', vertical: 'center', wrapText: false }
+          };
+        }
+      }
+    }
+
     return ws;
   }
 
