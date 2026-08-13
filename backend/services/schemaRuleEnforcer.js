@@ -1074,4 +1074,4 @@ async function enforceSchemaRulesForJob(pool, jobId, fileId, schemaColumns, rows
   };
 }
 
-module.exports = { enforceSchemaRules, enforceSchemaRulesForJob, validateSchemaRulesInline, SUPPORTED_RULE_TYPES };
+module.exports = { enforceSchemaRules, enforceSchemaRulesForJob, validateSchemaRulesInline, SUPPORTED_RULE_TYPES, resolveRuleType, findOrCreateSchemaRule };
