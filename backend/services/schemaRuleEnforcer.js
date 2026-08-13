@@ -119,24 +119,68 @@ async function findOrCreateSchemaRule(db, uiRuleType, columnName, severity = 'wa
     ruleName = `__schema_default__record_count__${parts.join('_')}`;
   }
 
-  // 0. Candidate-based pre-lookup: when the caller supplies a list of explicitly-selected
-  //    rule IDs (from quality_rule_ids on the vendor schema), prefer any of those that is
-  //    enabled and matches the target column over creating a synthetic __schema_default__ row.
-  //    The rule_type filter is intentionally omitted — user-created rules may store the UI
-  //    name (e.g. 'date_format') rather than the engine name (e.g. 'validity'), and since
-  //    these IDs were deliberately chosen by the user we trust them unconditionally.
+  // 0. Candidate-based pre-lookup: when the caller supplies a list of pre-resolved rule IDs
+  //    (from quality_rule_ids on the vendor schema), prefer any of those that is enabled,
+  //    not a synthetic __schema_default__ row, matches the target engine type + discriminating
+  //    config, and matches the target column scope over creating a new __schema_default__ row.
+  //
+  //    Engine-type and config filters are required to prevent cross-type collisions when the
+  //    candidate list contains IDs for multiple rule types (e.g. email_validity and date_format
+  //    both resolved as global rules): without the filter, whichever ID sorts lowest would be
+  //    returned for every rule type that calls this function.
+  //
+  //    Synthetic __schema_default__ rows are excluded so that parse-time-resolved IDs only
+  //    reuse genuine user-created or admin-created rules.
+  //
   //    Tie-break: exact column-name match beats NULL/global; first result wins.
   if (Array.isArray(candidateRuleIds) && candidateRuleIds.length > 0) {
-    const candidate = await db.query(
-      `SELECT id, rule_name, rule_type, column_name, rule_config, severity, enabled
-       FROM quality_rules
-       WHERE id = ANY($1::int[])
-         AND enabled = true
-         AND (column_name = $2 OR column_name IS NULL)
-       ORDER BY (column_name = $2) DESC NULLS LAST, id
-       LIMIT 1`,
-      [candidateRuleIds, columnName]
-    );
+    let candidateSql;
+    let candidateParams;
+
+    if (engineType === 'validity' && defaultConfig.datatype) {
+      // Discriminate by datatype to prevent cross-type matches (email vs date vs phone vs number)
+      candidateSql = `
+        SELECT id, rule_name, rule_type, column_name, rule_config, severity, enabled
+        FROM quality_rules
+        WHERE id = ANY($1::int[])
+          AND enabled = true
+          AND NOT starts_with(rule_name, '__schema_default__')
+          AND rule_type = $2
+          AND rule_config->>'datatype' = $3
+          AND (column_name = $4 OR column_name IS NULL)
+        ORDER BY (column_name = $4) DESC NULLS LAST, id
+        LIMIT 1`;
+      candidateParams = [candidateRuleIds, engineType, defaultConfig.datatype, columnName];
+    } else if (engineType === 'completeness') {
+      // Only match strict null checks (threshold = 1.0); do not reuse looser completeness rules
+      candidateSql = `
+        SELECT id, rule_name, rule_type, column_name, rule_config, severity, enabled
+        FROM quality_rules
+        WHERE id = ANY($1::int[])
+          AND enabled = true
+          AND NOT starts_with(rule_name, '__schema_default__')
+          AND rule_type = $2
+          AND COALESCE((rule_config->>'threshold')::numeric, 1.0) = 1.0
+          AND (column_name = $3 OR column_name IS NULL)
+        ORDER BY (column_name = $3) DESC NULLS LAST, id
+        LIMIT 1`;
+      candidateParams = [candidateRuleIds, engineType, columnName];
+    } else {
+      // For uniqueness and other types with fixed/empty config, filter by engine type only
+      candidateSql = `
+        SELECT id, rule_name, rule_type, column_name, rule_config, severity, enabled
+        FROM quality_rules
+        WHERE id = ANY($1::int[])
+          AND enabled = true
+          AND NOT starts_with(rule_name, '__schema_default__')
+          AND rule_type = $2
+          AND (column_name = $3 OR column_name IS NULL)
+        ORDER BY (column_name = $3) DESC NULLS LAST, id
+        LIMIT 1`;
+      candidateParams = [candidateRuleIds, engineType, columnName];
+    }
+
+    const candidate = await db.query(candidateSql, candidateParams);
     if (candidate.rows.length > 0) return candidate.rows[0];
   }
 
@@ -1074,4 +1118,4 @@ async function enforceSchemaRulesForJob(pool, jobId, fileId, schemaColumns, rows
   };
 }
 
-module.exports = { enforceSchemaRules, enforceSchemaRulesForJob, validateSchemaRulesInline, SUPPORTED_RULE_TYPES, resolveRuleType, findOrCreateSchemaRule };
+module.exports = { enforceSchemaRules, enforceSchemaRulesForJob, validateSchemaRulesInline, SUPPORTED_RULE_TYPES, resolveRuleType, RULE_TYPE_MAP, findOrCreateSchemaRule };

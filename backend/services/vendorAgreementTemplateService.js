@@ -1,6 +1,19 @@
 const XLSX = require('xlsx');
 const path = require('path');
 const fs = require('fs');
+const { resolveRuleType } = require('./schemaRuleEnforcer');
+const { systemLogger } = require('../utils/logger');
+
+// Rule types whose effective config is fully determined by the type itself —
+// safe to do a broad DB lookup without risking mis-matched thresholds or patterns.
+// Config-sensitive types (record_count, length_check, range_check, validity_check) are
+// excluded because their parameters vary per schema.
+// special_character_presence maps to validity_check (config-sensitive) so it is also excluded.
+const BROAD_LOOKUP_SAFE = new Set([
+  'null_check', 'column_completeness', 'isna_check',
+  'duplicate_check', 'uniqueness',
+  'email_validity', 'phone_validity', 'date_format', 'timestamp_format', 'numeric_only_string'
+]);
 
 class VendorAgreementTemplateService {
   constructor() {
@@ -631,6 +644,143 @@ class VendorAgreementTemplateService {
     } catch (error) {
       throw new Error(`Failed to parse template: ${error.message}`);
     }
+  }
+
+  /**
+   * Resolve quality_rules type strings in parsed file configurations to existing
+   * enabled global quality rule IDs.
+   *
+   * For each schema column that carries quality_rules (e.g. ["null_check","date_format"]),
+   * looks up matching enabled global quality_rules rows in the DB and collects their IDs
+   * into quality_rule_ids on the file configuration.
+   *
+   * This ensures the schemaRuleEnforcer's candidate-ID lookup (step 0) fires for
+   * template-uploaded contracts instead of always falling through to the broad lookup.
+   *
+   * Config-sensitive rule types (record_count, length_check, range_check, validity_check)
+   * are skipped because their effective config varies per schema and cannot be safely
+   * matched to an arbitrary existing rule.
+   *
+   * @param {import('pg').Pool} db
+   * @param {Array<Object>}     fileConfigurations - Parsed file configs from parseTemplateUpload
+   * @returns {Promise<Array<Object>>} Same array, mutated in-place with quality_rule_ids added
+   */
+  async resolveQualityRuleIds(db, fileConfigurations) {
+    // Collect all distinct UI rule type strings used across all file configs
+    const allRuleTypes = new Set();
+    for (const fileConfig of fileConfigurations) {
+      const schema = fileConfig.schema;
+      if (!schema) continue;
+      const columns = Array.isArray(schema) ? schema : (schema.columns || []);
+      for (const col of columns) {
+        if (Array.isArray(col.quality_rules)) {
+          for (const rt of col.quality_rules) {
+            const normalized = (rt || '').toLowerCase().trim();
+            if (normalized && BROAD_LOOKUP_SAFE.has(normalized)) {
+              allRuleTypes.add(normalized);
+            }
+          }
+        }
+      }
+    }
+
+    if (allRuleTypes.size === 0) return fileConfigurations;
+
+    // For each distinct rule type, find matching enabled global quality rules in the DB.
+    // Mirrors the broad-lookup logic in schemaRuleEnforcer step 0b.
+    const ruleTypeToIds = new Map();
+
+    for (const uiRuleType of allRuleTypes) {
+      const resolution = resolveRuleType(uiRuleType);
+      if (!resolution) continue;
+
+      const { engineType, config: defaultConfig } = resolution;
+
+      let result;
+      try {
+        if (engineType === 'validity' && defaultConfig.datatype) {
+          // Discriminate by datatype to avoid cross-type matches (email vs date vs phone vs number).
+          // Exclude __schema_default__ synthetic rows — only reuse genuine user/admin-created rules.
+          result = await db.query(
+            `SELECT id FROM quality_rules
+             WHERE rule_type = $1
+               AND enabled = true
+               AND NOT starts_with(rule_name, '__schema_default__')
+               AND project_id IS NULL
+               AND rule_config->>'datatype' = $2
+             ORDER BY id`,
+            [engineType, defaultConfig.datatype]
+          );
+        } else if (engineType === 'completeness') {
+          // Only match strict null checks (threshold = 1.0).
+          // Exclude __schema_default__ synthetic rows.
+          result = await db.query(
+            `SELECT id FROM quality_rules
+             WHERE rule_type = $1
+               AND enabled = true
+               AND NOT starts_with(rule_name, '__schema_default__')
+               AND project_id IS NULL
+               AND COALESCE((rule_config->>'threshold')::numeric, 1.0) = 1.0
+             ORDER BY id`,
+            [engineType]
+          );
+        } else {
+          // uniqueness — config is always empty; any matching non-synthetic rule is safe.
+          // Exclude __schema_default__ synthetic rows.
+          result = await db.query(
+            `SELECT id FROM quality_rules
+             WHERE rule_type = $1
+               AND enabled = true
+               AND NOT starts_with(rule_name, '__schema_default__')
+               AND project_id IS NULL
+             ORDER BY id`,
+            [engineType]
+          );
+        }
+      } catch (err) {
+        systemLogger.warn('[VendorAgreementTemplateService] resolveQualityRuleIds DB error', {
+          uiRuleType, engineType, error: err.message
+        });
+        continue;
+      }
+
+      if (result.rows.length > 0) {
+        ruleTypeToIds.set(uiRuleType, result.rows.map(r => r.id));
+        systemLogger.debug('[VendorAgreementTemplateService] Resolved rule type to IDs', {
+          uiRuleType, engineType, ids: result.rows.map(r => r.id)
+        });
+      }
+    }
+
+    if (ruleTypeToIds.size === 0) return fileConfigurations;
+
+    // Populate quality_rule_ids on each file configuration
+    for (const fileConfig of fileConfigurations) {
+      const schema = fileConfig.schema;
+      if (!schema) continue;
+      const columns = Array.isArray(schema) ? schema : (schema.columns || []);
+
+      const resolvedIds = new Set();
+      for (const col of columns) {
+        if (Array.isArray(col.quality_rules)) {
+          for (const rt of col.quality_rules) {
+            const normalized = (rt || '').toLowerCase().trim();
+            const ids = ruleTypeToIds.get(normalized);
+            if (ids) ids.forEach(id => resolvedIds.add(id));
+          }
+        }
+      }
+
+      if (resolvedIds.size > 0) {
+        fileConfig.quality_rule_ids = [...resolvedIds];
+        systemLogger.info('[VendorAgreementTemplateService] Populated quality_rule_ids', {
+          pattern: fileConfig.file_name_pattern,
+          ids: fileConfig.quality_rule_ids
+        });
+      }
+    }
+
+    return fileConfigurations;
   }
 
   _validateField(fieldDef, value) {
