@@ -719,8 +719,23 @@ class VendorAgreementTemplateService {
             };
           }
           
+          // Helper: try to parse JSON, normalising common Excel mangling first
+          const tryParseSchemaJSON = (raw) => {
+            // First attempt: parse as-is
+            try { return JSON.parse(raw); } catch (_) {}
+            // Second attempt: replace Excel smart-quotes with straight quotes
+            const normalised = raw
+              .replace(/[\u201C\u201D\u201E\u201F]/g, '"') // curly double quotes → "
+              .replace(/[\u2018\u2019\u201A\u201B]/g, "'") // curly single quotes → '
+              .replace(/[\u2013\u2014]/g, '-');             // en/em dashes → -
+            try { return JSON.parse(normalised); } catch (_) {}
+            // Third attempt: strip a leading BOM or non-breaking space Excel may prepend
+            const stripped = raw.replace(/^[\uFEFF\u00A0\s]+/, '').replace(/[\uFEFF\u00A0\s]+$/, '');
+            return JSON.parse(stripped); // throws if still invalid — caught below
+          };
+
           try {
-            const parsed = JSON.parse(strValue);
+            const parsed = tryParseSchemaJSON(strValue);
             // Accept both formats:
             //   Legacy: a plain array of column definitions
             //   New:    { columns: [...], file_quality_rules: [...] }
@@ -732,7 +747,7 @@ class VendorAgreementTemplateService {
             } else {
               return {
                 valid: false,
-                error: 'Schema must be a JSON array or an object with a columns array'
+                error: 'Must be valid JSON array or object with columns array'
               };
             }
             // Check each item has required fields (support both old and new format)

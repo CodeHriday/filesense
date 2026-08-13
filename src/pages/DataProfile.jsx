@@ -947,6 +947,7 @@ function DataProfile() {
   const [columnDQAssignments, setColumnDQAssignments] = useState({});
   const [fileLevelDQSelections, setFileLevelDQSelections] = useState([]);
   const [schemaBuilderLoading, setSchemaBuilderLoading] = useState(false);
+  const [schemaCopied, setSchemaCopied] = useState(false);
 
   // File Quality Rules assignment state
   const [fileAvailableRules, setFileAvailableRules] = useState([]);
@@ -3464,8 +3465,48 @@ function DataProfile() {
 
         {/* Schema Preview */}
         <div className="gps-card" style={{ marginTop: '16px' }}>
-          <div className="gps-card-header">
+          <div className="gps-card-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <h3 className="gps-card-title" style={{ margin: 0, fontSize: '11px' }}>Schema Preview</h3>
+            <button
+              onClick={() => {
+                navigator.clipboard.writeText(JSON.stringify(generateSchemaJSON(), null, 2))
+                  .then(() => {
+                    setSchemaCopied(true);
+                    setTimeout(() => setSchemaCopied(false), 2000);
+                  });
+              }}
+              title="Copy schema JSON"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                background: 'none',
+                border: '1px solid #cbd5e1',
+                borderRadius: '4px',
+                padding: '3px 8px',
+                cursor: 'pointer',
+                fontSize: '10px',
+                color: schemaCopied ? '#16a34a' : '#64748b',
+                transition: 'color 0.2s',
+              }}
+            >
+              {schemaCopied ? (
+                <>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                  Copied!
+                </>
+              ) : (
+                <>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                  </svg>
+                  Copy
+                </>
+              )}
+            </button>
           </div>
           <div className="gps-card-body">
             <pre style={{ 
