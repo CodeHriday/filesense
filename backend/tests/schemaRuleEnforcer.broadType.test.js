@@ -135,6 +135,17 @@ function buildMockDb({ existingRules = [], insertedRules = [] } = {}) {
       }
 
       // -----------------------------------------------------------------------
+      // Name-first lookup (step -1) — WHERE rule_name = $1 AND project_id IS NULL AND enabled = true
+      // -----------------------------------------------------------------------
+      if (normalised.includes('where rule_name = $1 and project_id is null and enabled = true')) {
+        const [namedRuleName] = params;
+        const rows = existingRules.filter(
+          r => r.rule_name === namedRuleName && r.project_id == null && r.enabled
+        );
+        return { rows: rows.slice(0, 1) };
+      }
+
+      // -----------------------------------------------------------------------
       // Exact-name lookup (step 1) — WHERE rule_name = $1 AND column_name = $2
       // -----------------------------------------------------------------------
       if (normalised.includes('where rule_name = $1 and column_name = $2')) {
@@ -556,6 +567,129 @@ describe('schemaRuleEnforcer — broad-type rule matching', () => {
   });
 
   // =========================================================================
+  // Step -1: Name-first lookup — namedRuleName wins before candidate/broad
+  // =========================================================================
+
+  describe('Name-first lookup when namedRuleName is provided', () => {
+
+    const FILE_REC_CNT_RULE = {
+      id: 60,
+      rule_name: 'file_rec_cnt',
+      rule_type: 'record_count',
+      column_name: null,
+      rule_config: { operator: 'exactly', expected_count: 5 },
+      severity: 'warning',
+      enabled: true,
+      project_id: null
+    };
+
+    const DATE_FORMAT_NAMED = {
+      id: 70,
+      rule_name: 'Date Format Validation',
+      rule_type: 'date_format',   // stored as UI alias
+      column_name: null,
+      rule_config: {},
+      severity: 'warning',
+      enabled: true,
+      project_id: null
+    };
+
+    test('column-level: named rule "Date Format Validation" is returned by name, no phantom created', async () => {
+      const inserted = [];
+      // DB has the named rule; no broad-type candidate would match without namedRuleName
+      const db = buildMockDb({ existingRules: [DATE_FORMAT_NAMED], insertedRules: inserted });
+
+      const result = await findOrCreateSchemaRule(
+        db, 'date_format', 'Enrollment_date', 'warning', null, [], 'Date Format Validation'
+      );
+
+      expect(result).not.toBeNull();
+      expect(result.id).toBe(70);
+      expect(result.rule_name).toBe('Date Format Validation');
+      // Normalized so QualityValidationEngine can execute it
+      expect(result.rule_type).toBe('validity');
+      expect(result.rule_config).toMatchObject({ datatype: 'date' });
+      expect(inserted).toHaveLength(0);
+    });
+
+    test('file-level: named rule "file_rec_cnt" is returned by name — no phantom record_count row', async () => {
+      const inserted = [];
+      const db = buildMockDb({ existingRules: [FILE_REC_CNT_RULE], insertedRules: inserted });
+
+      // Caller passes specific config override (from schema); name-first lookup wins before
+      // the config fingerprint path that would create __schema_default__record_count__exactly_5
+      const result = await findOrCreateSchemaRule(
+        db, 'record_count', '__file__', 'warning',
+        { operator: 'exactly', expected_count: 5 },
+        [], 'file_rec_cnt'
+      );
+
+      expect(result).not.toBeNull();
+      expect(result.id).toBe(60);
+      expect(result.rule_name).toBe('file_rec_cnt');
+      expect(result.rule_type).toBe('record_count');
+      // No phantom __schema_default__record_count__* row created
+      expect(inserted).toHaveLength(0);
+    });
+
+    test('name-first lookup takes priority over a broader candidate match', async () => {
+      const inserted = [];
+      const SPECIFIC_NAMED = {
+        id: 71,
+        rule_name: 'Customer Date Format',
+        rule_type: 'validity',
+        column_name: 'order_date',
+        rule_config: { type: 'datatype', datatype: 'date' },
+        severity: 'error',
+        enabled: true,
+        project_id: null
+      };
+      // Both the named rule and DATE_FORMAT_RULE exist; name-first must win
+      const db = buildMockDb({
+        existingRules: [DATE_FORMAT_RULE, SPECIFIC_NAMED],
+        insertedRules: inserted
+      });
+
+      const result = await findOrCreateSchemaRule(
+        db, 'date_format', 'order_date', 'warning', null, [10], 'Customer Date Format'
+      );
+
+      expect(result).not.toBeNull();
+      expect(result.id).toBe(71);
+      expect(result.rule_name).toBe('Customer Date Format');
+      expect(inserted).toHaveLength(0);
+    });
+
+    test('name not found in DB falls through to broad-type lookup', async () => {
+      const inserted = [];
+      // DATE_FORMAT_RULE exists but name "Missing Rule" does not
+      const db = buildMockDb({ existingRules: [DATE_FORMAT_RULE], insertedRules: inserted });
+
+      const result = await findOrCreateSchemaRule(
+        db, 'date_format', 'order_date', 'warning', null, [], 'Missing Rule'
+      );
+
+      // Falls through to broad lookup → DATE_FORMAT_RULE reused
+      expect(result).not.toBeNull();
+      expect(result.id).toBe(DATE_FORMAT_RULE.id);
+      expect(inserted).toHaveLength(0);
+    });
+
+    test('empty namedRuleName skips name-first lookup (backward compatible)', async () => {
+      const inserted = [];
+      const db = buildMockDb({ existingRules: [DATE_FORMAT_RULE], insertedRules: inserted });
+
+      // No namedRuleName passed — uses broad lookup as before
+      const result = await findOrCreateSchemaRule(db, 'date_format', 'order_date', 'warning', null, [], '');
+
+      expect(result).not.toBeNull();
+      expect(result.id).toBe(DATE_FORMAT_RULE.id);
+      expect(inserted).toHaveLength(0);
+    });
+
+  });
+
+  // =========================================================================
   // Step 0: Candidate pre-lookup still wins when real IDs are supplied
   // =========================================================================
 
@@ -690,6 +824,227 @@ describe('schemaRuleEnforcer — broad-type rule matching', () => {
       expect(resolveRuleType('Date_Format')).not.toBeNull();
       expect(resolveRuleType('DUPLICATE_CHECK')).not.toBeNull();
     });
+  });
+
+  // =========================================================================
+  // normaliseSchema — object-form and string-form entries
+  // =========================================================================
+
+  describe('normaliseSchema — per-column quality_rules normalisation', () => {
+    const { normaliseSchema } = require('../services/schemaRuleEnforcer');
+
+    test('bare-string column entries are preserved as { rule_type, rule_name: "" }', () => {
+      const schema = [
+        { column_name: 'enrollment_date', quality_rules: ['date_format', 'null_check'] }
+      ];
+      const { columns } = normaliseSchema(schema);
+      expect(columns[0].quality_rules).toEqual([
+        { rule_type: 'date_format', rule_name: '' },
+        { rule_type: 'null_check',  rule_name: '' }
+      ]);
+    });
+
+    test('object-form column entries preserve rule_name', () => {
+      const schema = [
+        {
+          column_name: 'enrollment_date',
+          quality_rules: [
+            { rule_type: 'date_format', rule_name: 'Date Format Validation' },
+            { rule_type: 'null_check'  }   // rule_name absent → ''
+          ]
+        }
+      ];
+      const { columns } = normaliseSchema(schema);
+      expect(columns[0].quality_rules).toEqual([
+        { rule_type: 'date_format', rule_name: 'Date Format Validation' },
+        { rule_type: 'null_check',  rule_name: '' }
+      ]);
+    });
+
+    test('file_quality_rules entries preserve rule_name', () => {
+      const schema = {
+        columns: [],
+        file_quality_rules: [
+          { rule_type: 'record_count', rule_name: 'file_rec_cnt', config: { operator: 'exactly', expected_count: 5 } },
+          'some_bare_string_rule'
+        ]
+      };
+      const { fileQualityRules } = normaliseSchema(schema);
+      expect(fileQualityRules[0]).toEqual({
+        rule_type: 'record_count',
+        rule_name: 'file_rec_cnt',
+        config:    { operator: 'exactly', expected_count: 5 }
+      });
+      expect(fileQualityRules[1]).toEqual({ rule_type: 'some_bare_string_rule', rule_name: '', config: {} });
+    });
+
+    test('columns without quality_rules are passed through unchanged', () => {
+      const schema = [
+        { column_name: 'name', data_type: 'string' }
+      ];
+      const { columns } = normaliseSchema(schema);
+      expect(columns[0].quality_rules).toBeUndefined();
+    });
+  });
+
+  // =========================================================================
+  // validateSchemaRulesInline — object-form entries must not throw
+  // =========================================================================
+
+  describe('validateSchemaRulesInline handles object-form quality_rules entries', () => {
+    const { validateSchemaRulesInline } = require('../services/schemaRuleEnforcer');
+
+    test('object-form entries resolve without throwing (bare-string backward compat)', async () => {
+      const schema = [
+        { column_name: 'enrollment_date', quality_rules: ['date_format'] }
+      ];
+      const sampleData = [{ enrollment_date: '2024-01-01' }, { enrollment_date: 'not-a-date' }];
+      await expect(validateSchemaRulesInline(schema, sampleData, {})).resolves.not.toThrow();
+    });
+
+    test('object-form entries { rule_type, rule_name } resolve without throwing', async () => {
+      const schema = [
+        {
+          column_name: 'enrollment_date',
+          quality_rules: [{ rule_type: 'date_format', rule_name: 'Date Format Validation' }]
+        }
+      ];
+      const sampleData = [{ enrollment_date: '2024-01-01' }];
+      // Should not throw a TypeError from calling .toLowerCase() on an object
+      await expect(validateSchemaRulesInline(schema, sampleData, {})).resolves.not.toThrow();
+    });
+
+    test('mixed object and string entries resolve without throwing', async () => {
+      const schema = [
+        {
+          column_name: 'enrollment_date',
+          quality_rules: [
+            { rule_type: 'date_format', rule_name: 'Date Format Validation' },
+            'null_check'
+          ]
+        }
+      ];
+      const sampleData = [{ enrollment_date: '2024-01-01' }];
+      await expect(validateSchemaRulesInline(schema, sampleData, {})).resolves.not.toThrow();
+    });
+  });
+
+  // =========================================================================
+  // enforceSchemaRules — execution scoping: global named rule must validate
+  // the schema column, not skip due to null column_name
+  // =========================================================================
+
+  describe('enforceSchemaRules — global named rule is scoped to schema column for execution', () => {
+
+    test('global named date rule produces violation scoped to Enrollment_date column', async () => {
+      // Simulates the "Date Format Validation" scenario: the DB rule has column_name=null
+      // (it is a global/shared rule), but the contract schema applies it to Enrollment_date.
+      // QualityValidationEngine must receive the rule with column_name='Enrollment_date'
+      // so it can find and validate the correct data column.
+      const GLOBAL_DATE_NAMED = {
+        id:          70,
+        rule_name:   'Date Format Validation',
+        rule_type:   'date_format',   // stored as UI alias → normalised to 'validity'
+        column_name: null,            // global row — no column pinned in DB
+        rule_config: {},
+        severity:    'warning',
+        enabled:     true,
+        project_id:  null
+      };
+
+      const db = buildMockDb({ existingRules: [GLOBAL_DATE_NAMED] });
+
+      const { enforceSchemaRules } = require('../services/schemaRuleEnforcer');
+      const QualityValidationEngine = require('../services/qualityValidationEngine');
+
+      // Use mockImplementationOnce to capture the rules array passed to validateData directly,
+      // avoiding fragile mock.results indexing across multiple test-suite calls.
+      let capturedRules = null;
+      QualityValidationEngine.mockImplementationOnce(() => ({
+        validateData: jest.fn(async (rules) => {
+          capturedRules = rules;
+          return { violations: [], errors: [], summary: {} };
+        }),
+        persistViolations: jest.fn().mockResolvedValue(undefined)
+      }));
+
+      const schema = [
+        {
+          column_name:   'Enrollment_date',
+          quality_rules: [{ rule_type: 'date_format', rule_name: 'Date Format Validation' }]
+        }
+      ];
+      const previewData = [
+        { Enrollment_date: '2024-01-01' },  // valid
+        { Enrollment_date: 'not-a-date'  }  // invalid
+      ];
+
+      await enforceSchemaRules(db, 99, schema, previewData, 2);
+
+      // validateData must have been called with our rules
+      expect(capturedRules).not.toBeNull();
+      expect(capturedRules).toHaveLength(1);
+
+      const execRule = capturedRules[0];
+      // id must be preserved (for file_quality_rules association)
+      expect(execRule.id).toBe(70);
+      // column_name must be the schema column, NOT null — engine needs this to find the data
+      expect(execRule.column_name).toBe('Enrollment_date');
+      // rule_type must be normalised to engine type so the engine can execute it
+      expect(execRule.rule_type).toBe('validity');
+    });
+
+  });
+
+  // =========================================================================
+  // enforceSchemaRules — multi-column merge: same rule applied to two columns
+  // =========================================================================
+
+  describe('enforceSchemaRules — multi-column target_columns merging', () => {
+
+    test('same rule applied to two columns accumulates both in target_columns via DISTINCT unnest', async () => {
+      // Arrange: one global date_format rule; schema applies it to two columns
+      const insertedParams = [];
+      const db = buildMockDb({ existingRules: [DATE_FORMAT_RULE] });
+
+      // Override db.query to capture INSERT params for file_quality_rules
+      const origQuery = db.query.bind(db);
+      db.query = jest.fn(async (sql, params) => {
+        const norm = sql.replace(/\s+/g, ' ').trim().toLowerCase();
+        if (norm.includes('insert into file_quality_rules')) {
+          insertedParams.push({ sql, params });
+          return { rows: [] };
+        }
+        return origQuery(sql, params);
+      });
+
+      const { enforceSchemaRules } = require('../services/schemaRuleEnforcer');
+
+      const schema = [
+        { column_name: 'enrollment_date', quality_rules: [{ rule_type: 'date_format', rule_name: '' }] },
+        { column_name: 'start_date',      quality_rules: [{ rule_type: 'date_format', rule_name: '' }] }
+      ];
+
+      // enforceSchemaRules early-returns when previewData is empty and column rules exist;
+      // supply a minimal sample row to allow the association loop to run.
+      const previewData = [{ enrollment_date: '2024-01-01', start_date: '2024-06-01' }];
+      await enforceSchemaRules(db, 42, schema, previewData, 1);
+
+      // Two columns → two INSERT/upsert calls for the same rule
+      expect(insertedParams).toHaveLength(2);
+
+      // The SQL must use DISTINCT unnest merge rather than overwrite
+      for (const { sql } of insertedParams) {
+        expect(sql.toLowerCase()).toContain('distinct');
+        expect(sql.toLowerCase()).toContain('unnest');
+      }
+
+      // Each call carries the correct column name as the 3rd param
+      const colNames = insertedParams.map(({ params }) => params[2]);
+      expect(colNames).toContain('enrollment_date');
+      expect(colNames).toContain('start_date');
+    });
+
   });
 
 });

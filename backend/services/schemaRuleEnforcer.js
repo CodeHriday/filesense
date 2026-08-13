@@ -91,12 +91,39 @@ function resolveRuleType(uiRuleType) {
  *                                       the generated schema JSON.
  * @returns {Promise<Object|null>}
  */
-async function findOrCreateSchemaRule(db, uiRuleType, columnName, severity = 'warning', configOverride = null, candidateRuleIds = []) {
+async function findOrCreateSchemaRule(db, uiRuleType, columnName, severity = 'warning', configOverride = null, candidateRuleIds = [], namedRuleName = '') {
   const resolution = resolveRuleType(uiRuleType);
   if (!resolution) return null;
 
   const { engineType, config: defaultConfig } = resolution;
   const config = (configOverride && Object.keys(configOverride).length > 0) ? configOverride : defaultConfig;
+
+  // -1. Name-first lookup: when the caller supplies a specific rule_name (e.g. "file_rec_cnt"
+  //     or "Date Format Validation"), find and reuse that rule before any type-based lookups.
+  //     This is the most reliable path for template contracts because it does not depend on
+  //     quality_rule_ids being populated correctly.
+  //
+  //     The matched rule is normalized to the canonical engine type + defaultConfig so
+  //     QualityValidationEngine can execute it, while rule.id is preserved for the
+  //     file_quality_rules association.
+  if (namedRuleName && typeof namedRuleName === 'string' && namedRuleName.trim()) {
+    const namedResult = await db.query(
+      `SELECT id, rule_name, rule_type, column_name, rule_config, severity, enabled
+       FROM quality_rules
+       WHERE rule_name = $1 AND project_id IS NULL AND enabled = true
+       LIMIT 1`,
+      [namedRuleName.trim()]
+    );
+    if (namedResult.rows.length > 0) {
+      const row = namedResult.rows[0];
+      systemLogger.debug('[schemaRuleEnforcer] Name-first lookup matched existing rule', {
+        uiRuleType, namedRuleName, columnName, matchedId: row.id, matchedName: row.rule_name
+      });
+      return (row.rule_type === engineType)
+        ? row
+        : { ...row, rule_type: engineType, rule_config: defaultConfig };
+    }
+  }
 
   // For config-specific rules (e.g. record_count whose thresholds vary per schema),
   // build a canonical fingerprint from ALL enforcement-relevant config fields so that
@@ -365,24 +392,57 @@ const FILE_LEVEL_RULE_TYPES = new Set(['record_count']);
  */
 function normaliseSchema(schema) {
   /**
-   * Normalise a `file_quality_rules` entry to a { rule_type, config } object.
-   * Accepts either a bare string ("record_count") or an object
-   * ({ rule_type, config? }) produced by the updated Schema Builder.
+   * Normalise a `file_quality_rules` entry to a { rule_type, rule_name?, config } object.
+   * Accepts:
+   *   - bare string ("record_count")
+   *   - object with rule_type, and optionally rule_name and config
+   *     ({ rule_type, rule_name?, config? })
+   *
+   * rule_name, when present, allows the enforcer to locate an existing named rule by
+   * exact name (e.g. "file_rec_cnt") rather than falling back to a synthetic phantom.
    */
   function normaliseFileLevelEntry(r) {
-    if (typeof r === 'string') return { rule_type: r, config: {} };
+    if (typeof r === 'string') return { rule_type: r, rule_name: '', config: {} };
     if (r && typeof r === 'object' && r.rule_type) {
-      return { rule_type: r.rule_type, config: r.config || {} };
+      return {
+        rule_type:  r.rule_type,
+        rule_name:  r.rule_name  || '',
+        config:     r.config     || {}
+      };
+    }
+    return null;
+  }
+
+  /**
+   * Normalise a per-column quality_rules entry to a { rule_type, rule_name? } object.
+   * Accepts:
+   *   - bare string ("date_format")
+   *   - object with rule_type, and optionally rule_name
+   *     ({ rule_type, rule_name? })
+   */
+  function normaliseColumnEntry(r) {
+    if (typeof r === 'string') return { rule_type: r, rule_name: '' };
+    if (r && typeof r === 'object' && r.rule_type) {
+      return { rule_type: r.rule_type, rule_name: r.rule_name || '' };
     }
     return null;
   }
 
   if (Array.isArray(schema)) {
-    return { columns: schema, fileQualityRules: [] };
+    // Normalise per-column quality_rules entries in a bare column array
+    const columns = schema.map(col => {
+      if (!col.quality_rules || !Array.isArray(col.quality_rules)) return col;
+      return { ...col, quality_rules: col.quality_rules.map(normaliseColumnEntry).filter(Boolean) };
+    });
+    return { columns, fileQualityRules: [] };
   }
   if (schema && typeof schema === 'object' && Array.isArray(schema.columns)) {
+    const columns = schema.columns.map(col => {
+      if (!col.quality_rules || !Array.isArray(col.quality_rules)) return col;
+      return { ...col, quality_rules: col.quality_rules.map(normaliseColumnEntry).filter(Boolean) };
+    });
     return {
-      columns: schema.columns,
+      columns,
       fileQualityRules: Array.isArray(schema.file_quality_rules)
         ? schema.file_quality_rules.map(normaliseFileLevelEntry).filter(Boolean)
         : []
@@ -455,48 +515,79 @@ async function enforceSchemaRules(db, fileId, schemaColumns, previewData, rowCou
   const ruleErrors  = [];
 
   // --- Per-column rules ---
+  // Each col.quality_rules entry is now a { rule_type, rule_name } object (normalised above).
+  // rule_name, when non-empty, drives a name-first lookup so the exact named rule is reused.
+  // target_columns records which column this global rule was applied to, fixing "(All Columns)".
   for (const col of columnsWithRules) {
     const columnName = col.name || col.column_name;
     if (!columnName) continue;
 
-    for (const uiRuleType of col.quality_rules) {
-      const normalized = (uiRuleType || '').toLowerCase().trim();
+    for (const entry of col.quality_rules) {
+      // entry is { rule_type, rule_name } after normaliseSchema; guard for bare strings too
+      const ruleTypeRaw  = (typeof entry === 'string' ? entry : entry.rule_type) || '';
+      const ruleNameHint = (typeof entry === 'object' && entry.rule_name) ? entry.rule_name : '';
+      const normalized   = ruleTypeRaw.toLowerCase().trim();
+
       if (!RULE_TYPE_MAP[normalized]) {
         systemLogger.warn('[schemaRuleEnforcer] Unknown rule type — skipping', {
-          fileId, columnName, uiRuleType
+          fileId, columnName, ruleTypeRaw
         });
         continue;
       }
 
       try {
-        const rule = await findOrCreateSchemaRule(db, normalized, columnName, 'warning', null, candidateRuleIds);
+        const rule = await findOrCreateSchemaRule(
+          db, normalized, columnName, 'warning', null, candidateRuleIds, ruleNameHint
+        );
         if (!rule) {
-          ruleErrors.push({ columnName, uiRuleType, error: 'rule row not created' });
+          ruleErrors.push({ columnName, uiRuleType: normalized, error: 'rule row not created' });
           continue;
         }
 
-        createdRules.push(rule);
+        // Push an execution-scoped copy: override column_name to the schema column so
+        // QualityValidationEngine knows which column to validate. The DB row (rule.id) is
+        // preserved for the file_quality_rules association; we do NOT mutate the global row.
+        createdRules.push({ ...rule, column_name: columnName });
 
+        // Write target_columns so DataProfile shows the correct column (not "(All Columns)"),
+        // even when the matched quality_rules row itself is global (column_name IS NULL).
+        //
+        // ON CONFLICT merges rather than overwrites: if the same global rule applies to
+        // multiple columns of the same file (e.g. date_format on both enrollment_date and
+        // start_date) each column name is accumulated, so the UI can show all affected
+        // columns instead of only the last one processed.
         await db.query(
-          `INSERT INTO file_quality_rules (file_id, quality_rule_id, is_schema_enforced)
-           VALUES ($1, $2, true)
-           ON CONFLICT (file_id, quality_rule_id) DO UPDATE SET is_schema_enforced = true`,
-          [fileId, rule.id]
+          `INSERT INTO file_quality_rules (file_id, quality_rule_id, is_schema_enforced, target_columns)
+           VALUES ($1, $2, true, ARRAY[$3]::text[])
+           ON CONFLICT (file_id, quality_rule_id)
+           DO UPDATE SET is_schema_enforced = true,
+                         target_columns = (
+                           SELECT ARRAY(
+                             SELECT DISTINCT unnest(
+                               COALESCE(file_quality_rules.target_columns, '{}'::text[])
+                               || ARRAY[$3]::text[]
+                             ) ORDER BY 1
+                           )
+                         )`,
+          [fileId, rule.id, columnName]
         );
       } catch (err) {
         systemLogger.error('[schemaRuleEnforcer] Failed to find/create schema rule', {
-          fileId, columnName, uiRuleType, error: err.message
+          fileId, columnName, uiRuleType: normalized, error: err.message
         });
-        ruleErrors.push({ columnName, uiRuleType, error: err.message });
+        ruleErrors.push({ columnName, uiRuleType: normalized, error: err.message });
       }
     }
   }
 
   // --- File-level rules (e.g. record_count) ---
-  // Each entry is { rule_type, config } (normalised by normaliseSchema).
+  // Each entry is { rule_type, rule_name?, config } (normalised by normaliseSchema).
   // column_name is set to '__file__' — these rules are not scoped to any column.
+  // rule_name, when non-empty, drives a name-first lookup so "file_rec_cnt" (or any
+  // other explicitly named file-level rule) is reused rather than creating a phantom.
   for (const fileLevelEntry of fileQualityRules) {
-    const normalized = (fileLevelEntry.rule_type || '').toLowerCase().trim();
+    const normalized     = (fileLevelEntry.rule_type || '').toLowerCase().trim();
+    const ruleNameHint   = fileLevelEntry.rule_name || '';
     if (!RULE_TYPE_MAP[normalized]) {
       systemLogger.warn('[schemaRuleEnforcer] Unknown file-level rule type — skipping', {
         fileId, uiRuleType: normalized
@@ -504,12 +595,15 @@ async function enforceSchemaRules(db, fileId, schemaColumns, previewData, rowCou
       continue;
     }
     try {
-      const rule = await findOrCreateSchemaRule(db, normalized, '__file__', 'warning', fileLevelEntry.config || null, candidateRuleIds);
+      const rule = await findOrCreateSchemaRule(
+        db, normalized, '__file__', 'warning', fileLevelEntry.config || null, candidateRuleIds, ruleNameHint
+      );
       if (!rule) {
         ruleErrors.push({ columnName: '__file__', uiRuleType: normalized, error: 'rule row not created' });
         continue;
       }
       createdRules.push(rule);
+      // File-level rules have no column scope; target_columns stays empty.
       await db.query(
         `INSERT INTO file_quality_rules (file_id, quality_rule_id, is_schema_enforced)
          VALUES ($1, $2, true)
@@ -613,11 +707,13 @@ async function validateSchemaRulesInline(schemaColumns, sampleData, metadata) {
   const syntheticRules = [];
 
   // Per-column rules
+  // Each entry is { rule_type, rule_name } after normaliseSchema; guard for bare strings too.
   for (const col of columnsWithRules) {
     const columnName = col.name || col.column_name;
     if (!columnName) continue;
-    for (const uiRuleType of col.quality_rules) {
-      const normalized  = (uiRuleType || '').toLowerCase().trim();
+    for (const entry of col.quality_rules) {
+      const ruleTypeRaw = (typeof entry === 'string' ? entry : entry.rule_type) || '';
+      const normalized  = ruleTypeRaw.toLowerCase().trim();
       const resolution  = resolveRuleType(normalized);
       if (!resolution) continue;
       syntheticRules.push({
@@ -1015,39 +1111,51 @@ async function enforceSchemaRulesForJob(pool, jobId, fileId, schemaColumns, rows
   const ruleErrors  = [];
 
   // --- Per-column rules ---
+  // Each entry is { rule_type, rule_name } after normaliseSchema; guard for bare strings too.
+  // rule_name, when non-empty, drives the name-first lookup so named rules are reused.
   for (const col of columnsWithRules) {
     const columnName = col.name || col.column_name;
     if (!columnName) continue;
 
-    for (const uiRuleType of col.quality_rules) {
-      const normalized = (uiRuleType || '').toLowerCase().trim();
+    for (const entry of col.quality_rules) {
+      const ruleTypeRaw  = (typeof entry === 'string' ? entry : entry.rule_type) || '';
+      const ruleNameHint = (typeof entry === 'object' && entry.rule_name) ? entry.rule_name : '';
+      const normalized   = ruleTypeRaw.toLowerCase().trim();
+
       if (!RULE_TYPE_MAP[normalized]) {
         systemLogger.warn('[schemaRuleEnforcer] Unknown rule type in job DQ — skipping', {
-          jobId, columnName, uiRuleType
+          jobId, columnName, ruleTypeRaw
         });
         continue;
       }
 
       try {
-        const rule = await findOrCreateSchemaRule(pool, normalized, columnName, 'warning');
+        const rule = await findOrCreateSchemaRule(
+          pool, normalized, columnName, 'warning', null, [], ruleNameHint
+        );
         if (!rule) {
-          ruleErrors.push({ columnName, uiRuleType, error: 'rule row not created' });
+          ruleErrors.push({ columnName, uiRuleType: normalized, error: 'rule row not created' });
           continue;
         }
-        createdRules.push({ ...rule, _uiRuleType: normalized });
+        // Push an execution-scoped copy: override column_name to the schema column so
+        // QualityValidationEngine knows which column to validate. The DB row id is
+        // preserved for association; we do NOT mutate the global row.
+        createdRules.push({ ...rule, column_name: columnName, _uiRuleType: normalized });
       } catch (err) {
         systemLogger.error('[schemaRuleEnforcer] Failed to find/create schema rule for job', {
-          jobId, columnName, uiRuleType, error: err.message
+          jobId, columnName, uiRuleType: normalized, error: err.message
         });
-        ruleErrors.push({ columnName, uiRuleType, error: err.message });
+        ruleErrors.push({ columnName, uiRuleType: normalized, error: err.message });
       }
     }
   }
 
   // --- File-level rules (e.g. record_count) ---
-  // Each entry is { rule_type, config } (normalised by normaliseSchema).
+  // Each entry is { rule_type, rule_name?, config } (normalised by normaliseSchema).
+  // rule_name, when non-empty, drives name-first lookup before config-fingerprint fallback.
   for (const fileLevelEntry of fileQualityRules) {
-    const normalized = (fileLevelEntry.rule_type || '').toLowerCase().trim();
+    const normalized   = (fileLevelEntry.rule_type || '').toLowerCase().trim();
+    const ruleNameHint = fileLevelEntry.rule_name || '';
     if (!RULE_TYPE_MAP[normalized]) {
       systemLogger.warn('[schemaRuleEnforcer] Unknown file-level rule type in job DQ — skipping', {
         jobId, uiRuleType: normalized
@@ -1055,7 +1163,9 @@ async function enforceSchemaRulesForJob(pool, jobId, fileId, schemaColumns, rows
       continue;
     }
     try {
-      const rule = await findOrCreateSchemaRule(pool, normalized, '__file__', 'warning', fileLevelEntry.config || null);
+      const rule = await findOrCreateSchemaRule(
+        pool, normalized, '__file__', 'warning', fileLevelEntry.config || null, [], ruleNameHint
+      );
       if (!rule) {
         ruleErrors.push({ columnName: '__file__', uiRuleType: normalized, error: 'rule row not created' });
         continue;
@@ -1162,4 +1272,4 @@ async function enforceSchemaRulesForJob(pool, jobId, fileId, schemaColumns, rows
   };
 }
 
-module.exports = { enforceSchemaRules, enforceSchemaRulesForJob, validateSchemaRulesInline, SUPPORTED_RULE_TYPES, resolveRuleType, RULE_TYPE_MAP, findOrCreateSchemaRule };
+module.exports = { enforceSchemaRules, enforceSchemaRulesForJob, validateSchemaRulesInline, normaliseSchema, SUPPORTED_RULE_TYPES, resolveRuleType, RULE_TYPE_MAP, findOrCreateSchemaRule };
