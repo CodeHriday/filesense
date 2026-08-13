@@ -991,7 +991,7 @@ function FileConfigurationsSection({ fileConfigurations, onChange }) {
                         <div className="schema-view-row">
                           <details>
                             <summary>View Schema ({normaliseSchema(config.schema).length} fields)</summary>
-                            <pre>{JSON.stringify(normaliseSchema(config.schema), null, 2)}</pre>
+                            <pre>{JSON.stringify(config.schema, null, 2)}</pre>
                           </details>
                           <div className="schema-update-controls">
                             <input
