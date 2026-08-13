@@ -292,8 +292,14 @@ const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
     try {
       const response = await axios.get(`/api/vendor-agreements/${vendorAgreementId}/file-schemas/${fileId}`);
       if (response.data.success && response.data.fileSchema) {
+        // Normalize schema: legacy format is a bare column array; new format is
+        // { columns: [...], file_quality_rules: [...] }. Extract columns from either.
+        const rawSchema = response.data.fileSchema.schema;
+        const schemaColumns = Array.isArray(rawSchema)
+          ? rawSchema
+          : (rawSchema && Array.isArray(rawSchema.columns) ? rawSchema.columns : []);
         setSchema({
-          columns: response.data.fileSchema.schema || [],
+          columns: schemaColumns,
           contains_pii: response.data.fileSchema.contains_pii,
           data_classification: response.data.fileSchema.data_classification,
           file_type: response.data.fileSchema.file_type,

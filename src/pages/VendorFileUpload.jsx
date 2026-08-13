@@ -785,9 +785,13 @@ function VendorFileUpload() {
                     const isExpanded = expandedSchemas[schema.id];
                     let schemaFields = [];
                     try {
-                      schemaFields = typeof schema.schema === 'string' 
-                        ? JSON.parse(schema.schema) 
-                        : schema.schema || [];
+                      const rawSchema = typeof schema.schema === 'string'
+                        ? JSON.parse(schema.schema)
+                        : schema.schema;
+                      // Normalize: legacy format is a bare array; new format is { columns, file_quality_rules }
+                      schemaFields = Array.isArray(rawSchema)
+                        ? rawSchema
+                        : (rawSchema && Array.isArray(rawSchema.columns) ? rawSchema.columns : []);
                     } catch (e) {
                       schemaFields = [];
                     }
