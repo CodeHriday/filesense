@@ -16,6 +16,7 @@ import PropTypes from 'prop-types';
  * @param {string} cancelText - Text for cancel button (default: 'Cancel')
  * @param {string} variant - 'danger' | 'warning' | 'info' | 'success' (default: 'danger')
  * @param {boolean} showCancel - Whether to show cancel button (default: true)
+ * @param {React.ReactNode} children - Optional extra content rendered between body and footer
  */
 const ConfirmationModal = ({
   isOpen,
@@ -27,7 +28,8 @@ const ConfirmationModal = ({
   confirmText = 'Confirm',
   cancelText = 'Cancel',
   variant = 'danger',
-  showCancel = true
+  showCancel = true,
+  children
 }) => {
   if (!isOpen) return null;
 
@@ -55,7 +57,13 @@ const ConfirmationModal = ({
           <p className="confirmation-message">{message}</p>
           {subMessage && <p className="confirmation-sub-message">{subMessage}</p>}
         </div>
-        
+
+        {children && (
+          <div className="confirmation-modal-extra">
+            {children}
+          </div>
+        )}
+
         <div className="confirmation-modal-footer">
           {showCancel && (
             <button className="confirmation-btn confirmation-btn--cancel" onClick={onClose}>

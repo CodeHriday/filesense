@@ -200,15 +200,35 @@ export const deleteFile = async (fileId) => {
 };
 
 /**
- * Delete multiple files by IDs
+ * Delete multiple files by IDs, or all copies in a logical group.
+ * @param {string[]|Object} payload
+ *   - string[] — legacy: array of file IDs (bulk-select path)
+ *   - { logicalFileId, projectId } — delete every copy in the logical group
+ *   - { fileIds } — explicit ID array wrapped in an object
  */
-export const bulkDeleteFiles = async (fileIds) => {
+export const bulkDeleteFiles = async (payload) => {
   try {
-    const response = await axios.post(`${API_URL}/files/bulk-delete`, { fileIds });
+    const body = Array.isArray(payload) ? { fileIds: payload } : payload;
+    const response = await axios.post(`${API_URL}/files/bulk-delete`, body);
     return response.data;
   } catch (error) {
     console.error('Error bulk deleting files:', error);
     throw new Error(error.response?.data?.message || 'Failed to delete files');
+  }
+};
+
+/**
+ * Return all copies of a file (same logical group or same filename+project).
+ * @returns {{ copies: string[], count: number, logicalFileId: string|null, filename: string }}
+ */
+export const getFileCopies = async (fileId) => {
+  try {
+    const encodedFileId = encodeURIComponent(fileId);
+    const response = await axios.get(`${API_URL}/files/${encodedFileId}/copies`);
+    return response.data;
+  } catch (error) {
+    console.error(`Error fetching copies for file ${fileId}:`, error);
+    throw new Error(error.response?.data?.message || 'Failed to fetch file copies');
   }
 };
 

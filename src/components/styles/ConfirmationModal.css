@@ -124,6 +124,11 @@
   margin: 8px 0 0 0;
 }
 
+/* Extra content rendered between body and footer (e.g. "delete all copies" checkbox) */
+.confirmation-modal-extra {
+  padding: 0 20px 16px;
+}
+
 .confirmation-modal-footer {
   display: flex;
   justify-content: flex-end;

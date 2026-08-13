@@ -2025,10 +2025,43 @@ app.post('/api/files/bulk-delete',
   authenticateToken,
   invalidateCache('cache:*:*files*'), 
   async (req, res) => {
-  const { fileIds } = req.body;
+  let { fileIds, logicalFileId, projectId, filename } = req.body;
   const client = await dbPool.connect();
-  
+
+  // Support "delete all copies" mode: resolve fileIds from logical group
+  if (!fileIds && logicalFileId) {
+    try {
+      const { rows: userProjects } = await client.query(
+        `SELECT project_id FROM user_projects WHERE user_id = $1`,
+        [req.user.id]
+      );
+      const accessibleProjectIds = userProjects.map(r => r.project_id);
+
+      let copyRows;
+      if (logicalFileId !== 'null' && logicalFileId !== null) {
+        const result = await client.query(
+          `SELECT file_id FROM files WHERE logical_file_id = $1 AND project_id = ANY($2::int[])`,
+          [logicalFileId, accessibleProjectIds]
+        );
+        copyRows = result.rows;
+      } else if (projectId && filename) {
+        // Fallback: resolve via filename+project when no logical_file_id
+        const result = await client.query(
+          `SELECT file_id FROM files WHERE filename = $1 AND project_id = $2 AND project_id = ANY($3::int[])`,
+          [filename, projectId, accessibleProjectIds]
+        );
+        copyRows = result.rows;
+      }
+      fileIds = (copyRows || []).map(r => r.file_id);
+    } catch (err) {
+      client.release();
+      logger.error('Error resolving logical file group for bulk delete', { error: err.message });
+      return res.status(500).json({ error: 'Failed to resolve file group' });
+    }
+  }
+
   if (!fileIds || !Array.isArray(fileIds) || fileIds.length === 0) {
+    client.release();
     return res.status(400).json({ error: 'No file IDs provided' });
   }
   
@@ -2105,6 +2138,57 @@ app.post('/api/files/bulk-delete',
   } finally {
     // Always release the client back to the pool
     client.release();
+  }
+});
+
+// Get all copies of a file (same logical group or same filename+project)
+app.get('/api/files/:fileId/copies', authenticateToken, async (req, res) => {
+  const { fileId } = req.params;
+  try {
+    const { rows: userProjects } = await dbPool.query(
+      `SELECT project_id FROM user_projects WHERE user_id = $1`,
+      [req.user.id]
+    );
+    const accessibleProjectIds = userProjects.map(r => r.project_id);
+
+    // Look up the reference file
+    const refResult = await dbPool.query(
+      `SELECT file_id, filename, project_id, logical_file_id FROM files WHERE file_id = $1`,
+      [fileId]
+    );
+    if (refResult.rows.length === 0) {
+      return res.status(404).json({ error: 'File not found' });
+    }
+    const ref = refResult.rows[0];
+    if (!accessibleProjectIds.includes(parseInt(ref.project_id))) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    let copyRows;
+    if (ref.logical_file_id) {
+      const result = await dbPool.query(
+        `SELECT file_id FROM files WHERE logical_file_id = $1 AND project_id = ANY($2::int[])`,
+        [ref.logical_file_id, accessibleProjectIds]
+      );
+      copyRows = result.rows;
+    } else {
+      const result = await dbPool.query(
+        `SELECT file_id FROM files WHERE filename = $1 AND project_id = $2`,
+        [ref.filename, ref.project_id]
+      );
+      copyRows = result.rows;
+    }
+
+    const copies = copyRows.map(r => r.file_id);
+    res.json({
+      copies,
+      count: copies.length,
+      logicalFileId: ref.logical_file_id || null,
+      filename: ref.filename
+    });
+  } catch (err) {
+    logger.error('Error fetching file copies', { error: err.message, fileId });
+    res.status(500).json({ error: 'Failed to fetch file copies' });
   }
 });
 
