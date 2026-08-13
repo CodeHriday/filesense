@@ -3469,13 +3469,15 @@ function DataProfile() {
             <h3 className="gps-card-title" style={{ margin: 0, fontSize: '11px' }}>Schema Preview</h3>
             <button
               onClick={() => {
-                navigator.clipboard.writeText(JSON.stringify(generateSchemaJSON(), null, 2))
+                // Copy minified (single-line) JSON — multi-line JSON pasted into Excel
+                // gets split across rows by Excel's paste handler, corrupting the value.
+                navigator.clipboard.writeText(JSON.stringify(generateSchemaJSON()))
                   .then(() => {
                     setSchemaCopied(true);
                     setTimeout(() => setSchemaCopied(false), 2000);
                   });
               }}
-              title="Copy schema JSON"
+              title="Copy single-line JSON for Excel"
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -3522,6 +3524,9 @@ function DataProfile() {
             }}>
               {JSON.stringify(generateSchemaJSON(), null, 2)}
             </pre>
+            <p style={{ margin: '8px 0 0', fontSize: '10px', color: '#64748b' }}>
+              ⚠️ Use the <strong>Copy</strong> button above when pasting into Excel — it copies a single-line version that won't get split across rows. Do not manually select and copy the formatted text above.
+            </p>
           </div>
         </div>
       </div>
