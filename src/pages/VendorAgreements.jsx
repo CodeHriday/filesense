@@ -11,7 +11,7 @@ import S3FolderBrowser from '../components/S3FolderBrowser';
 import VendorUserSelect from '../components/VendorUserSelect';
 import ThreeStageApprovalPanel from '../components/ThreeStageApprovalPanel';
 import FileSchemaManager from '../components/FileSchemaManager';
-import FileConfigurationsSection from '../components/FileConfigurationsSection';
+import FileConfigurationsSection, { normaliseSchema } from '../components/FileConfigurationsSection';
 import { useAuth } from '../context/AuthContext';
 import { isVendorUser } from '../utils/userHelpers';
 import { formatChangeSummary } from '../utils/formatters';
