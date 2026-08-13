@@ -2732,15 +2732,16 @@ print(json.dumps(result))
       }
     }
     
-    // Extract file-level tags from quality_rule_ids
+    // Extract file-level tags from quality_rule_ids and link rules to the file
     let fileTags = [];
-    if (matchedSchema.quality_rule_ids && Array.isArray(matchedSchema.quality_rule_ids)) {
+    if (matchedSchema.quality_rule_ids && Array.isArray(matchedSchema.quality_rule_ids) && matchedSchema.quality_rule_ids.length > 0) {
       // Fetch quality rule names to use as tags
       try {
         const rulesResult = await this.dbPool.query(`
           SELECT id, rule_name 
           FROM quality_rules 
           WHERE id = ANY($1::int[])
+            AND enabled = true
         `, [matchedSchema.quality_rule_ids]);
         
         fileTags = rulesResult.rows.map(r => r.rule_name);
@@ -2749,6 +2750,29 @@ print(json.dumps(result))
           fileId,
           ruleIds: matchedSchema.quality_rule_ids,
           tags: fileTags
+        });
+
+        // Also link these explicitly-chosen contract rules to the file so they are
+        // enforced alongside any schema-embedded quality_rules.
+        for (const row of rulesResult.rows) {
+          try {
+            await this.dbPool.query(
+              `INSERT INTO file_quality_rules (file_id, quality_rule_id)
+               VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+              [fileId, row.id]
+            );
+          } catch (linkErr) {
+            this.logger.warn('Failed to link contract quality rule to file', {
+              fileId,
+              ruleId: row.id,
+              ruleName: row.rule_name,
+              error: linkErr.message
+            });
+          }
+        }
+        this.logger.info('Linked contract quality_rule_ids to file', {
+          fileId,
+          linkedCount: rulesResult.rows.length
         });
       } catch (tagError) {
         this.logger.warn('Failed to fetch quality rule names for tags', {
@@ -2807,7 +2831,12 @@ print(json.dumps(result))
           rawSchemaObj,
           previewData,
           rowCount,
-          { fileName: filename }
+          {
+            fileName: filename,
+            candidateRuleIds: Array.isArray(matchedSchema.quality_rule_ids)
+              ? matchedSchema.quality_rule_ids
+              : []
+          }
         );
         this.logger.info('Schema rule enforcement completed', {
           fileId,
@@ -2984,14 +3013,15 @@ print(json.dumps(result))
       });
     }
     
-    // Step 5: Extract file-level tags from quality_rule_ids
+    // Step 5: Extract file-level tags from quality_rule_ids and link rules to the file
     let fileTags = [];
-    if (matchedSchema.quality_rule_ids && Array.isArray(matchedSchema.quality_rule_ids)) {
+    if (matchedSchema.quality_rule_ids && Array.isArray(matchedSchema.quality_rule_ids) && matchedSchema.quality_rule_ids.length > 0) {
       try {
         const rulesResult = await this.dbPool.query(`
           SELECT id, rule_name 
           FROM quality_rules 
           WHERE id = ANY($1::int[])
+            AND enabled = true
         `, [matchedSchema.quality_rule_ids]);
         
         fileTags = rulesResult.rows.map(r => r.rule_name);
@@ -3000,6 +3030,28 @@ print(json.dumps(result))
           fileId,
           ruleIds: matchedSchema.quality_rule_ids,
           tags: fileTags
+        });
+
+        // Link these explicitly-chosen contract rules to the file so they are enforced.
+        for (const row of rulesResult.rows) {
+          try {
+            await this.dbPool.query(
+              `INSERT INTO file_quality_rules (file_id, quality_rule_id)
+               VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+              [fileId, row.id]
+            );
+          } catch (linkErr) {
+            this.logger.warn('Failed to link contract quality rule to vendor file', {
+              fileId,
+              ruleId: row.id,
+              ruleName: row.rule_name,
+              error: linkErr.message
+            });
+          }
+        }
+        this.logger.info('Linked contract quality_rule_ids to vendor file', {
+          fileId,
+          linkedCount: rulesResult.rows.length
         });
       } catch (tagError) {
         this.logger.warn('Failed to fetch quality rule names for vendor file tags', {

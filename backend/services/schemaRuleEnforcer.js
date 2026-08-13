@@ -91,7 +91,7 @@ function resolveRuleType(uiRuleType) {
  *                                       the generated schema JSON.
  * @returns {Promise<Object|null>}
  */
-async function findOrCreateSchemaRule(db, uiRuleType, columnName, severity = 'warning', configOverride = null) {
+async function findOrCreateSchemaRule(db, uiRuleType, columnName, severity = 'warning', configOverride = null, candidateRuleIds = []) {
   const resolution = resolveRuleType(uiRuleType);
   if (!resolution) return null;
 
@@ -119,7 +119,28 @@ async function findOrCreateSchemaRule(db, uiRuleType, columnName, severity = 'wa
     ruleName = `__schema_default__record_count__${parts.join('_')}`;
   }
 
-  // 1. Look for an existing system rule for this UI type + column
+  // 0. Candidate-based pre-lookup: when the caller supplies a list of explicitly-selected
+  //    rule IDs (from quality_rule_ids on the vendor schema), prefer any of those that has
+  //    a matching engine rule_type over creating a synthetic __schema_default__ row.
+  //    This is safe because these IDs were deliberately chosen by the user; we are not
+  //    doing an open-ended rule_type scan that could grab an unrelated rule.
+  //    Tie-break: exact column-name match beats NULL/global; first result wins.
+  if (Array.isArray(candidateRuleIds) && candidateRuleIds.length > 0) {
+    const candidate = await db.query(
+      `SELECT id, rule_name, rule_type, column_name, rule_config, severity, enabled
+       FROM quality_rules
+       WHERE id = ANY($1::int[])
+         AND rule_type = $2
+         AND enabled = true
+         AND (column_name = $3 OR column_name IS NULL)
+       ORDER BY (column_name = $3) DESC NULLS LAST, id
+       LIMIT 1`,
+      [candidateRuleIds, engineType, columnName]
+    );
+    if (candidate.rows.length > 0) return candidate.rows[0];
+  }
+
+  // 1. Look for an existing system rule for this UI type + column (by generated name)
   const existing = await db.query(
     `SELECT id, rule_name, rule_type, column_name, rule_config, severity, enabled
      FROM quality_rules
@@ -227,9 +248,14 @@ function normaliseSchema(schema) {
  * @param {number}       rowCount      - Total file row count
  * @param {Object}       [options]
  * @param {string}       [options.fileName]
+ * @param {number[]}     [options.candidateRuleIds] - Explicitly-selected rule IDs from the
+ *                       vendor schema's quality_rule_ids; used to prefer existing rules over
+ *                       creating synthetic __schema_default__ rows.
  * @returns {Promise<Object>}
  */
 async function enforceSchemaRules(db, fileId, schemaColumns, previewData, rowCount, options = {}) {
+  const candidateRuleIds = Array.isArray(options.candidateRuleIds) ? options.candidateRuleIds : [];
+
   // Normalise: accept both legacy bare array and new {columns, file_quality_rules} object
   const { columns: normColumns, fileQualityRules } = normaliseSchema(schemaColumns);
 
@@ -278,7 +304,7 @@ async function enforceSchemaRules(db, fileId, schemaColumns, previewData, rowCou
       }
 
       try {
-        const rule = await findOrCreateSchemaRule(db, normalized, columnName, 'warning');
+        const rule = await findOrCreateSchemaRule(db, normalized, columnName, 'warning', null, candidateRuleIds);
         if (!rule) {
           ruleErrors.push({ columnName, uiRuleType, error: 'rule row not created' });
           continue;
@@ -312,7 +338,7 @@ async function enforceSchemaRules(db, fileId, schemaColumns, previewData, rowCou
       continue;
     }
     try {
-      const rule = await findOrCreateSchemaRule(db, normalized, '__file__', 'warning', fileLevelEntry.config || null);
+      const rule = await findOrCreateSchemaRule(db, normalized, '__file__', 'warning', fileLevelEntry.config || null, candidateRuleIds);
       if (!rule) {
         ruleErrors.push({ columnName: '__file__', uiRuleType: normalized, error: 'rule row not created' });
         continue;
