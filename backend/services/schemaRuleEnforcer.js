@@ -119,9 +119,16 @@ async function findOrCreateSchemaRule(db, uiRuleType, columnName, severity = 'wa
       systemLogger.debug('[schemaRuleEnforcer] Name-first lookup matched existing rule', {
         uiRuleType, namedRuleName, columnName, matchedId: row.id, matchedName: row.rule_name
       });
-      return (row.rule_type === engineType)
-        ? row
-        : { ...row, rule_type: engineType, rule_config: defaultConfig };
+      if (row.rule_type === engineType) {
+        // For record_count, the schema's configOverride carries the actual thresholds
+        // (operator, expected_count, etc.) that must drive execution. Apply it so
+        // QualityValidationEngine uses the schema values, not the stored rule's config.
+        // row.id is preserved so the file_quality_rules association points at the real rule.
+        return (engineType === 'record_count' && configOverride && Object.keys(configOverride).length > 0)
+          ? { ...row, rule_config: configOverride }
+          : row;
+      }
+      return { ...row, rule_type: engineType, rule_config: defaultConfig };
     }
   }
 
@@ -230,9 +237,14 @@ async function findOrCreateSchemaRule(db, uiRuleType, columnName, severity = 'wa
       // A user-created rule may store the UI alias (e.g. 'date_format') as rule_type rather
       // than the engine type ('validity').  Preserving row.id keeps the file_quality_rules
       // association pointing at the correct rule while making the execution path work.
-      return (row.rule_type === engineType)
-        ? row
-        : { ...row, rule_type: engineType, rule_config: defaultConfig };
+      if (row.rule_type === engineType) {
+        // For record_count, apply configOverride so the schema thresholds drive execution
+        // while preserving row.id for the file_quality_rules association.
+        return (engineType === 'record_count' && configOverride && Object.keys(configOverride).length > 0)
+          ? { ...row, rule_config: configOverride }
+          : row;
+      }
+      return { ...row, rule_type: engineType, rule_config: defaultConfig };
     }
   }
 
@@ -330,6 +342,52 @@ async function findOrCreateSchemaRule(db, uiRuleType, columnName, severity = 'wa
           : { ...row, rule_type: engineType, rule_config: defaultConfig };
       }
     }
+  }
+
+  // 0c. Record-count file-level lookup: for record_count rules scoped to '__file__',
+  //     search for any enabled, non-synthetic record_count rule rather than creating a
+  //     phantom __schema_default__record_count__* row.
+  //
+  //     This is the primary path for file-level record_count enforcement:
+  //       - If a real user-defined rule (e.g. "file_rec_count") exists, reuse it.
+  //       - If none exists, return null so the caller skips the rule entirely.
+  //
+  //     The rule is intentionally NOT created synthetically — per the user requirement,
+  //     rules that don't exist in the Quality Rules section should never be auto-created.
+  //     The configOverride (operator, expected_count, etc.) is applied at execution time
+  //     by QualityValidationEngine, not stored on the matched rule row.
+  if (engineType === 'record_count' && columnName === '__file__') {
+    const rcBroad = await db.query(
+      `SELECT id, rule_name, rule_type, column_name, rule_config, severity, enabled
+       FROM quality_rules
+       WHERE rule_type = 'record_count'
+         AND enabled = true
+         AND NOT starts_with(rule_name, '__schema_default__')
+         AND project_id IS NULL
+         AND (column_name = '__file__' OR column_name IS NULL)
+       ORDER BY (column_name = '__file__') DESC NULLS LAST, id
+       LIMIT 1`,
+      []
+    );
+    if (rcBroad.rows.length > 0) {
+      const row = rcBroad.rows[0];
+      systemLogger.debug('[schemaRuleEnforcer] Record-count broad lookup matched existing rule', {
+        uiRuleType, columnName, matchedId: row.id, matchedName: row.rule_name
+      });
+      // Preserve row.id for the file_quality_rules association (so the UI shows the real rule),
+      // but apply configOverride so QualityValidationEngine uses the schema's thresholds
+      // (operator, expected_count, etc.) rather than the matched rule's stored config.
+      // Without this the engine would silently validate against the wrong count.
+      const execRow = (configOverride && Object.keys(configOverride).length > 0)
+        ? { ...row, rule_config: configOverride }
+        : row;
+      return execRow;
+    }
+    // No real record_count rule exists in Quality Rules — skip rather than create a phantom.
+    systemLogger.info('[schemaRuleEnforcer] No real record_count rule found — skipping file-level rule (phantom creation suppressed)', {
+      uiRuleType, columnName
+    });
+    return null;
   }
 
   // 1. Look for an existing system rule for this UI type + column (by generated name)
@@ -599,7 +657,15 @@ async function enforceSchemaRules(db, fileId, schemaColumns, previewData, rowCou
         db, normalized, '__file__', 'warning', fileLevelEntry.config || null, candidateRuleIds, ruleNameHint
       );
       if (!rule) {
-        ruleErrors.push({ columnName: '__file__', uiRuleType: normalized, error: 'rule row not created' });
+        // For record_count, null means no real rule exists in Quality Rules — intentionally
+        // skipped to prevent phantom creation. For other types, null signals a real error.
+        if (normalized === 'record_count') {
+          systemLogger.info('[schemaRuleEnforcer] File-level record_count rule skipped — no matching rule in Quality Rules', {
+            fileId, uiRuleType: normalized
+          });
+        } else {
+          ruleErrors.push({ columnName: '__file__', uiRuleType: normalized, error: 'rule row not created' });
+        }
         continue;
       }
       createdRules.push(rule);

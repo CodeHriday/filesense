@@ -8,7 +8,7 @@
  * Done criteria (Task #193):
  *  ✓ Broad-type lookup matches an existing named rule when candidateRuleIds = []
  *  ✓ No __schema_default__* rows are created for broad-type-compatible rule types
- *  ✓ Config-specific rules (record_count) still produce distinct synthetic rows
+ *  ✓ File-level record_count reuses existing real rule (no phantom) or skips when none exists
  *  ✓ Candidate pre-lookup still wins when caller supplies real IDs
  *  ✓ Falls through to synthetic creation when no broad match exists in DB
  */
@@ -83,6 +83,32 @@ function buildMockDb({ existingRules = [], insertedRules = [] } = {}) {
           const aExact = a.column_name === colName ? 1 : 0;
           const bExact = b.column_name === colName ? 1 : 0;
           return bExact - aExact || a.id - b.id;
+        });
+        return { rows: rows.slice(0, 1) };
+      }
+
+      // -----------------------------------------------------------------------
+      // Record-count file-level lookup (step 0c) — WHERE rule_type = 'record_count'
+      // AND (column_name = '__file__' OR column_name IS NULL)
+      // Distinguishing features: SQL contains "column_name = '__file__'" and params = [].
+      // -----------------------------------------------------------------------
+      if (
+        normalised.includes("column_name = '__file__'") &&
+        normalised.includes("not starts_with(rule_name, '__schema_default__')") &&
+        params.length === 0
+      ) {
+        let rows = existingRules.filter(r => {
+          if (r.rule_type !== 'record_count') return false;
+          if (!r.enabled) return false;
+          if (r.rule_name.startsWith('__schema_default__')) return false;
+          if (r.project_id !== null && r.project_id !== undefined) return false;
+          if (r.column_name !== null && r.column_name !== '__file__') return false;
+          return true;
+        });
+        rows.sort((a, b) => {
+          const aFile = a.column_name === '__file__' ? 1 : 0;
+          const bFile = b.column_name === '__file__' ? 1 : 0;
+          return bFile - aFile || a.id - b.id;
         });
         return { rows: rows.slice(0, 1) };
       }
@@ -502,43 +528,163 @@ describe('schemaRuleEnforcer — broad-type rule matching', () => {
   });
 
   // =========================================================================
-  // Config-specific types — record_count must still get synthetic rows
+  // File-level record_count — new behavior: reuse real rule or skip, never create phantom
   // =========================================================================
 
-  describe('Config-specific rules (record_count) still create distinct synthetic rows', () => {
+  describe('File-level record_count — reuse real rule or skip (no phantom creation)', () => {
 
-    test('record_count with config override produces __schema_default__record_count__* row', async () => {
+    const FILE_REC_COUNT_RULE = {
+      id: 55,
+      rule_name: 'file_rec_count',
+      rule_type: 'record_count',
+      column_name: '__file__',
+      rule_config: { operator: 'exactly', expected_count: 750 },
+      severity: 'warning',
+      enabled: true,
+      project_id: null
+    };
+
+    const FILE_REC_COUNT_GLOBAL = {
+      id: 56,
+      rule_name: 'file_rec_count_global',
+      rule_type: 'record_count',
+      column_name: null,          // global (no column scope)
+      rule_config: { operator: 'exactly', expected_count: 1000 },
+      severity: 'warning',
+      enabled: true,
+      project_id: null
+    };
+
+    test('real file_rec_count rule is reused — no phantom __schema_default__ row created', async () => {
       const inserted = [];
-      const db = buildMockDb({ insertedRules: inserted });
+      const db = buildMockDb({ existingRules: [FILE_REC_COUNT_RULE], insertedRules: inserted });
       const config = { operator: 'exactly', expected_count: 1000 };
 
       const result = await findOrCreateSchemaRule(db, 'record_count', '__file__', 'warning', config, []);
 
       expect(result).not.toBeNull();
-      expect(result.rule_name).toMatch(/^__schema_default__record_count__/);
-      expect(result.rule_name).toContain('exactly');
-      expect(result.rule_name).toContain('ec1000');
-      expect(inserted).toHaveLength(1);
+      // Real rule ID preserved for file_quality_rules association
+      expect(result.id).toBe(FILE_REC_COUNT_RULE.id);
+      expect(result.rule_name).toBe('file_rec_count');
+      // configOverride applied so QualityValidationEngine uses the schema's thresholds
+      expect(result.rule_config).toEqual(config);
+      // No synthetic row created
+      expect(inserted).toHaveLength(0);
     });
 
-    test('different record_count configs produce different rule names', async () => {
+    test('returns null (skip) when no real record_count rule exists — no phantom created', async () => {
       const inserted = [];
-      const db = buildMockDb({ insertedRules: inserted });
+      // DB is empty — no real record_count rule at all
+      const db = buildMockDb({ existingRules: [], insertedRules: inserted });
+      const config = { operator: 'exactly', expected_count: 1000 };
 
-      const cfg1 = { operator: 'exactly',   expected_count: 500  };
-      const cfg2 = { operator: 'at_least',  expected_count: 100  };
-      const cfg3 = { operator: 'between',   min_count: 200, max_count: 300 };
+      const result = await findOrCreateSchemaRule(db, 'record_count', '__file__', 'warning', config, []);
+
+      // Must be null — no insert, no phantom
+      expect(result).toBeNull();
+      expect(inserted).toHaveLength(0);
+    });
+
+    test('different schema configs all reuse the same real rule (ID preserved, config varied)', async () => {
+      const inserted = [];
+      const db = buildMockDb({ existingRules: [FILE_REC_COUNT_RULE], insertedRules: inserted });
+
+      const cfg1 = { operator: 'exactly',  expected_count: 500 };
+      const cfg2 = { operator: 'at_least', expected_count: 100 };
 
       const r1 = await findOrCreateSchemaRule(db, 'record_count', '__file__', 'warning', cfg1, []);
       const r2 = await findOrCreateSchemaRule(db, 'record_count', '__file__', 'warning', cfg2, []);
-      const r3 = await findOrCreateSchemaRule(db, 'record_count', '__file__', 'warning', cfg3, []);
 
-      const names = [r1.rule_name, r2.rule_name, r3.rule_name];
-      const unique = new Set(names);
-      expect(unique.size).toBe(3);
-      expect(r3.rule_name).toContain('mn200');
-      expect(r3.rule_name).toContain('mx300');
+      // Both return the same real rule ID
+      expect(r1.id).toBe(FILE_REC_COUNT_RULE.id);
+      expect(r2.id).toBe(FILE_REC_COUNT_RULE.id);
+      // Each gets its own config override
+      expect(r1.rule_config).toEqual(cfg1);
+      expect(r2.rule_config).toEqual(cfg2);
+      // No synthetic rows created
+      expect(inserted).toHaveLength(0);
     });
+
+    test('global (column_name IS NULL) record_count rule is also matched', async () => {
+      const inserted = [];
+      const db = buildMockDb({ existingRules: [FILE_REC_COUNT_GLOBAL], insertedRules: inserted });
+      const config = { operator: 'at_least', expected_count: 200 };
+
+      const result = await findOrCreateSchemaRule(db, 'record_count', '__file__', 'warning', config, []);
+
+      expect(result).not.toBeNull();
+      expect(result.id).toBe(FILE_REC_COUNT_GLOBAL.id);
+      expect(result.rule_config).toEqual(config);
+      expect(inserted).toHaveLength(0);
+    });
+
+    test('column_name="__file__" rule takes priority over global (column_name IS NULL) rule', async () => {
+      const inserted = [];
+      const db = buildMockDb({
+        existingRules: [FILE_REC_COUNT_GLOBAL, FILE_REC_COUNT_RULE],
+        insertedRules: inserted
+      });
+      const config = { operator: 'exactly', expected_count: 750 };
+
+      const result = await findOrCreateSchemaRule(db, 'record_count', '__file__', 'warning', config, []);
+
+      // __file__-scoped rule wins over global
+      expect(result.id).toBe(FILE_REC_COUNT_RULE.id);
+      expect(inserted).toHaveLength(0);
+    });
+
+    test('disabled record_count rules are not matched (returns null)', async () => {
+      const DISABLED = { ...FILE_REC_COUNT_RULE, enabled: false };
+      const inserted = [];
+      const db = buildMockDb({ existingRules: [DISABLED], insertedRules: inserted });
+
+      const result = await findOrCreateSchemaRule(db, 'record_count', '__file__', 'warning',
+        { operator: 'exactly', expected_count: 750 }, []);
+
+      expect(result).toBeNull();
+      expect(inserted).toHaveLength(0);
+    });
+
+    test('__schema_default__ record_count rows are not matched by broad lookup', async () => {
+      // A pre-existing phantom must not be recycled — a real rule must exist for reuse
+      const PHANTOM = {
+        id: 57,
+        rule_name: '__schema_default__record_count__exactly_ec750',
+        rule_type: 'record_count',
+        column_name: '__file__',
+        rule_config: { operator: 'exactly', expected_count: 750 },
+        severity: 'warning',
+        enabled: true,
+        project_id: null
+      };
+      const inserted = [];
+      const db = buildMockDb({ existingRules: [PHANTOM], insertedRules: inserted });
+
+      const result = await findOrCreateSchemaRule(db, 'record_count', '__file__', 'warning',
+        { operator: 'exactly', expected_count: 750 }, []);
+
+      // Phantom excluded → no real rule → null returned, no new insert
+      expect(result).toBeNull();
+      expect(inserted).toHaveLength(0);
+    });
+
+    test('no configOverride returns real rule with its stored config unchanged', async () => {
+      const inserted = [];
+      const db = buildMockDb({ existingRules: [FILE_REC_COUNT_RULE], insertedRules: inserted });
+
+      // No configOverride (null) — should return the rule as-is
+      const result = await findOrCreateSchemaRule(db, 'record_count', '__file__', 'warning', null, []);
+
+      expect(result).not.toBeNull();
+      expect(result.id).toBe(FILE_REC_COUNT_RULE.id);
+      // rule_config unchanged — stored config used
+      expect(result.rule_config).toEqual(FILE_REC_COUNT_RULE.rule_config);
+      expect(inserted).toHaveLength(0);
+    });
+
+  });
+
+  describe('Config-sensitive column-level rules (length_check) still create synthetic rows', () => {
 
     test('length_check is excluded from broad-type lookup (config-sensitive)', async () => {
       // length_check should never reuse a global length_check rule via broad lookup;
@@ -629,6 +775,29 @@ describe('schemaRuleEnforcer — broad-type rule matching', () => {
       expect(result.rule_name).toBe('file_rec_cnt');
       expect(result.rule_type).toBe('record_count');
       // No phantom __schema_default__record_count__* row created
+      expect(inserted).toHaveLength(0);
+    });
+
+    test('file-level named record_count: schema configOverride applied even when different from stored config', async () => {
+      // FILE_REC_CNT_RULE stores expected_count:5; schema declares 1000.
+      // QualityValidationEngine must execute against 1000, not 5.
+      const inserted = [];
+      const db = buildMockDb({ existingRules: [FILE_REC_CNT_RULE], insertedRules: inserted });
+      const schemaConfig = { operator: 'exactly', expected_count: 1000 };
+
+      const result = await findOrCreateSchemaRule(
+        db, 'record_count', '__file__', 'warning',
+        schemaConfig, [], 'file_rec_cnt'
+      );
+
+      expect(result).not.toBeNull();
+      // Real rule ID preserved for file_quality_rules association
+      expect(result.id).toBe(60);
+      expect(result.rule_name).toBe('file_rec_cnt');
+      // Schema thresholds override stored config for execution
+      expect(result.rule_config).toEqual(schemaConfig);
+      // Stored rule not mutated (execution-scoped copy only)
+      expect(FILE_REC_CNT_RULE.rule_config.expected_count).toBe(5);
       expect(inserted).toHaveLength(0);
     });
 
@@ -727,6 +896,38 @@ describe('schemaRuleEnforcer — broad-type rule matching', () => {
 
       // Disabled candidate skipped → broad lookup finds DATE_FORMAT_RULE
       expect(result.id).toBe(DATE_FORMAT_RULE.id);
+      expect(inserted).toHaveLength(0);
+    });
+
+    test('candidate record_count rule: schema configOverride applied even when different from stored config', async () => {
+      // Candidate rule stores expected_count:5; schema declares 1000.
+      // QualityValidationEngine must validate against 1000, not 5.
+      const CANDIDATE_RC = {
+        id: 102,
+        rule_name: 'file_rec_count_candidate',
+        rule_type: 'record_count',
+        column_name: '__file__',
+        rule_config: { operator: 'exactly', expected_count: 5 },
+        severity: 'warning',
+        enabled: true,
+        project_id: null
+      };
+      const inserted = [];
+      const db = buildMockDb({ existingRules: [CANDIDATE_RC], insertedRules: inserted });
+      const schemaConfig = { operator: 'at_least', expected_count: 1000 };
+
+      const result = await findOrCreateSchemaRule(
+        db, 'record_count', '__file__', 'warning', schemaConfig, [102]
+      );
+
+      expect(result).not.toBeNull();
+      // Real rule ID preserved for file_quality_rules association
+      expect(result.id).toBe(102);
+      expect(result.rule_name).toBe('file_rec_count_candidate');
+      // Schema thresholds override stored config for execution
+      expect(result.rule_config).toEqual(schemaConfig);
+      // Stored rule not mutated (execution-scoped copy only)
+      expect(CANDIDATE_RC.rule_config.expected_count).toBe(5);
       expect(inserted).toHaveLength(0);
     });
 
