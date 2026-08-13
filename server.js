@@ -5590,6 +5590,7 @@ const { up: migrateVendorAgreementSchemasToFileSchemas } = require('./backend/mi
 const { addPrimaryKeyColumnsToQualityRuleViolations } = require('./backend/migrations/addPrimaryKeyColumnsToQualityRuleViolations');
 const seedGovernanceTags = require('./backend/migrations/seedGovernanceTags');
 const migrateColumnSensitivityToGovernance = require('./backend/migrations/migrateColumnSensitivityToGovernance');
+const removePhantomSchemaDefaultRules = require('./backend/migrations/removePhantomSchemaDefaultRules');
 const { up: addSLAMonitoringToVendorAgreements } = require('./backend/migrations/addSLAMonitoringToVendorAgreements');
 const { addVendorSLAToAlertScope } = require('./backend/migrations/addVendorSLAToAlertScope');
 const enterprisePerformanceOptimizations = require('./backend/migrations/enterprisePerformanceOptimizations');
@@ -5642,6 +5643,11 @@ const { up: addLastRunAtToFileQualityRules } = require('./backend/migrations/add
     await migrationTracker.runOnce('addPrimaryKeyColumnsToQualityRuleViolations', () => addPrimaryKeyColumnsToQualityRuleViolations(dbPool));
     await migrationTracker.runOnce('seedGovernanceTags', () => seedGovernanceTags(dbPool));
     await migrationTracker.runOnce('migrateColumnSensitivityToGovernance', () => migrateColumnSensitivityToGovernance(dbPool));
+    // NOTE: 'removePhantomSchemaDefaultRules' (V1) used LIKE '__schema_default__%' which is
+    // unsafe — '_' is a SQL wildcard. That call is intentionally omitted here so it never
+    // runs on fresh databases. Environments where V1 already ran are covered by schema_migrations.
+    // V2 uses starts_with() for a safe literal-prefix match on all environments.
+    await migrationTracker.runOnce('removePhantomSchemaDefaultRulesV2', () => removePhantomSchemaDefaultRules(dbPool));
     await migrationTracker.runOnce('addSLAMonitoringToVendorAgreements', () => addSLAMonitoringToVendorAgreements());
     await migrationTracker.runOnce('addVendorSLAToAlertScope', () => addVendorSLAToAlertScope(dbPool));
     await migrationTracker.runOnce('addProjectToVisualWorkflows', () => addProjectToVisualWorkflows(dbPool));
