@@ -2877,7 +2877,7 @@ function DataProfile() {
                                 : rule.rule_name}
                             </span>
                             <span className="gps-badge gps-badge--secondary" style={{ fontSize: '8px' }}>{rule.rule_type}</span>
-                            {rule.rule_name && rule.rule_name.startsWith('__schema_default__') && (
+                            {(rule.is_schema_enforced || (rule.rule_name && rule.rule_name.startsWith('__schema_default__'))) && (
                               <span style={{
                                 fontSize: '8px',
                                 backgroundColor: '#ede9fe',

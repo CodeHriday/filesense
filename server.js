@@ -5599,6 +5599,7 @@ const { createAllowedEmailDomains } = require('./backend/migrations/createAllowe
 const { up: addDQValidationColumns } = require('./backend/migrations/addDQValidationColumns');
 const createGetUserProjectsFunction = require('./backend/migrations/createGetUserProjectsFunction');
 const { up: addLastRunAtToFileQualityRules } = require('./backend/migrations/addLastRunAtToFileQualityRules');
+const { up: addIsSchemaEnforcedToFileQualityRules } = require('./backend/migrations/addIsSchemaEnforcedToFileQualityRules');
 
 // Run schema migrations asynchronously with tracking to prevent re-running
 (async () => {
@@ -5656,6 +5657,7 @@ const { up: addLastRunAtToFileQualityRules } = require('./backend/migrations/add
     await migrationTracker.runOnce('addDQValidationColumns', () => addDQValidationColumns(dbPool));
     await migrationTracker.runOnce('createGetUserProjectsFunction', () => createGetUserProjectsFunction(dbPool));
     await migrationTracker.runOnce('addLastRunAtToFileQualityRules', () => addLastRunAtToFileQualityRules(dbPool));
+    await migrationTracker.runOnce('addIsSchemaEnforcedToFileQualityRules', () => addIsSchemaEnforcedToFileQualityRules(dbPool));
     
     console.log('🎉 All migrations completed successfully');
   } catch (err) {
@@ -7892,7 +7894,7 @@ app.get('/api/files/:fileId/quality-rules', authenticateToken, async (req, res) 
     // Get assigned rules with target columns
     const assignedResult = await dbPool.query(`
       SELECT qr.id, qr.rule_name, qr.rule_type, qr.severity, qr.description, qr.enabled, 
-             fqr.created_at as assigned_at, fqr.target_columns
+             fqr.created_at as assigned_at, fqr.target_columns, fqr.is_schema_enforced
       FROM file_quality_rules fqr
       JOIN quality_rules qr ON fqr.quality_rule_id = qr.id
       WHERE fqr.file_id = $1

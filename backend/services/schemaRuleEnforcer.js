@@ -120,24 +120,101 @@ async function findOrCreateSchemaRule(db, uiRuleType, columnName, severity = 'wa
   }
 
   // 0. Candidate-based pre-lookup: when the caller supplies a list of explicitly-selected
-  //    rule IDs (from quality_rule_ids on the vendor schema), prefer any of those that has
-  //    a matching engine rule_type over creating a synthetic __schema_default__ row.
-  //    This is safe because these IDs were deliberately chosen by the user; we are not
-  //    doing an open-ended rule_type scan that could grab an unrelated rule.
+  //    rule IDs (from quality_rule_ids on the vendor schema), prefer any of those that is
+  //    enabled and matches the target column over creating a synthetic __schema_default__ row.
+  //    The rule_type filter is intentionally omitted — user-created rules may store the UI
+  //    name (e.g. 'date_format') rather than the engine name (e.g. 'validity'), and since
+  //    these IDs were deliberately chosen by the user we trust them unconditionally.
   //    Tie-break: exact column-name match beats NULL/global; first result wins.
   if (Array.isArray(candidateRuleIds) && candidateRuleIds.length > 0) {
     const candidate = await db.query(
       `SELECT id, rule_name, rule_type, column_name, rule_config, severity, enabled
        FROM quality_rules
        WHERE id = ANY($1::int[])
-         AND rule_type = $2
          AND enabled = true
-         AND (column_name = $3 OR column_name IS NULL)
-       ORDER BY (column_name = $3) DESC NULLS LAST, id
+         AND (column_name = $2 OR column_name IS NULL)
+       ORDER BY (column_name = $2) DESC NULLS LAST, id
        LIMIT 1`,
-      [candidateRuleIds, engineType, columnName]
+      [candidateRuleIds, columnName]
     );
     if (candidate.rows.length > 0) return candidate.rows[0];
+  }
+
+  // 0b. Safe broad lookup: for non-config-sensitive types, search all enabled global rules
+  //     by engine type + discriminating config fields, even when candidateRuleIds is empty.
+  //     This is the primary fix for template-uploaded contracts, which always produce
+  //     quality_rule_ids = [] because the template parser never resolves rule type strings
+  //     to IDs — so the candidate lookup above never fires for them.
+  //
+  //     "Safe" means: the effective config is fully determined by the rule type itself and
+  //     was NOT overridden by a schema-specific configOverride.  Types excluded because their
+  //     thresholds/patterns vary per-schema: record_count, length_check, range_check,
+  //     validity_check.  Those still fall through to the synthetic __schema_default__ path.
+  //
+  //     Discriminating config filters prevent cross-type matches:
+  //       validity  → also filter rule_config->>'datatype' (date vs email vs phone vs number)
+  //       completeness → also require threshold = 1.0 (only match strict null checks)
+  //       uniqueness → no extra filter (config is empty by definition)
+  {
+    const hasConfigOverride = configOverride && Object.keys(configOverride).length > 0;
+    const BROAD_LOOKUP_EXCLUDED = new Set(['record_count', 'length_check', 'range_check', 'validity_check']);
+
+    if (!hasConfigOverride && !BROAD_LOOKUP_EXCLUDED.has(engineType)) {
+      let broadSql;
+      let broadParams;
+
+      if (engineType === 'validity' && defaultConfig.datatype) {
+        // datatype filter prevents Email Validity being returned for date_format, etc.
+        broadSql = `
+          SELECT id, rule_name, rule_type, column_name, rule_config, severity, enabled
+          FROM quality_rules
+          WHERE rule_type = $1
+            AND enabled = true
+            AND NOT starts_with(rule_name, '__schema_default__')
+            AND project_id IS NULL
+            AND (column_name = $2 OR column_name IS NULL)
+            AND rule_config->>'datatype' = $3
+          ORDER BY (column_name = $2) DESC NULLS LAST, id
+          LIMIT 1`;
+        broadParams = [engineType, columnName, defaultConfig.datatype];
+      } else if (engineType === 'completeness') {
+        // Only reuse completeness rules whose threshold matches the schema default (1.0 = 0 nulls).
+        // COALESCE treats a missing threshold field the same as 1.0 (the implicit default).
+        broadSql = `
+          SELECT id, rule_name, rule_type, column_name, rule_config, severity, enabled
+          FROM quality_rules
+          WHERE rule_type = $1
+            AND enabled = true
+            AND NOT starts_with(rule_name, '__schema_default__')
+            AND project_id IS NULL
+            AND (column_name = $2 OR column_name IS NULL)
+            AND COALESCE((rule_config->>'threshold')::numeric, 1.0) = 1.0
+          ORDER BY (column_name = $2) DESC NULLS LAST, id
+          LIMIT 1`;
+        broadParams = [engineType, columnName];
+      } else {
+        // uniqueness — config is always empty; any matching rule is interchangeable
+        broadSql = `
+          SELECT id, rule_name, rule_type, column_name, rule_config, severity, enabled
+          FROM quality_rules
+          WHERE rule_type = $1
+            AND enabled = true
+            AND NOT starts_with(rule_name, '__schema_default__')
+            AND project_id IS NULL
+            AND (column_name = $2 OR column_name IS NULL)
+          ORDER BY (column_name = $2) DESC NULLS LAST, id
+          LIMIT 1`;
+        broadParams = [engineType, columnName];
+      }
+
+      const broad = await db.query(broadSql, broadParams);
+      if (broad.rows.length > 0) {
+        systemLogger.debug('[schemaRuleEnforcer] Broad-type lookup matched existing rule', {
+          uiRuleType, engineType, columnName, matchedId: broad.rows[0].id, matchedName: broad.rows[0].rule_name
+        });
+        return broad.rows[0];
+      }
+    }
   }
 
   // 1. Look for an existing system rule for this UI type + column (by generated name)
@@ -313,8 +390,9 @@ async function enforceSchemaRules(db, fileId, schemaColumns, previewData, rowCou
         createdRules.push(rule);
 
         await db.query(
-          `INSERT INTO file_quality_rules (file_id, quality_rule_id)
-           VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+          `INSERT INTO file_quality_rules (file_id, quality_rule_id, is_schema_enforced)
+           VALUES ($1, $2, true)
+           ON CONFLICT (file_id, quality_rule_id) DO UPDATE SET is_schema_enforced = true`,
           [fileId, rule.id]
         );
       } catch (err) {
@@ -345,8 +423,9 @@ async function enforceSchemaRules(db, fileId, schemaColumns, previewData, rowCou
       }
       createdRules.push(rule);
       await db.query(
-        `INSERT INTO file_quality_rules (file_id, quality_rule_id)
-         VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+        `INSERT INTO file_quality_rules (file_id, quality_rule_id, is_schema_enforced)
+         VALUES ($1, $2, true)
+         ON CONFLICT (file_id, quality_rule_id) DO UPDATE SET is_schema_enforced = true`,
         [fileId, rule.id]
       );
     } catch (err) {
