@@ -147,23 +147,22 @@ export const FileCatalog = ({ onFileSelect }) => {
     setSelectedType(e.target.value);
   };
 
-  const handleDelete = (file) => {
+  const handleDelete = async (file) => {
     console.log('[DELETE BUTTON CLICKED] File:', file);
     setFileToDelete(file);
     setDeleteAllCopies(false);
     setFileCopiesCount(0);
-    setShowDeleteModal(true);
-    // Fetch copy count in the background so the checkbox can appear
     setFileCopiesLoading(true);
-    getFileCopies(file.file_id)
-      .then(data => {
-        setFileCopiesCount(data.count || 0);
-      })
-      .catch(() => {
-        // Non-fatal: checkbox just won't appear
-        setFileCopiesCount(0);
-      })
-      .finally(() => setFileCopiesLoading(false));
+    // Fetch copy count BEFORE opening modal so checkbox is present immediately
+    try {
+      const data = await getFileCopies(file.file_id);
+      setFileCopiesCount(data.count || 0);
+    } catch {
+      setFileCopiesCount(0);
+    } finally {
+      setFileCopiesLoading(false);
+    }
+    setShowDeleteModal(true);
   };
 
   const confirmDelete = () => {

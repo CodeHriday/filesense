@@ -2029,28 +2029,45 @@ app.post('/api/files/bulk-delete',
   const client = await dbPool.connect();
 
   // Support "delete all copies" mode: resolve fileIds from logical group
-  if (!fileIds && logicalFileId) {
+  if (!fileIds && (logicalFileId || (projectId && filename))) {
     try {
-      const { rows: userProjects } = await client.query(
-        `SELECT project_id FROM user_projects WHERE user_id = $1`,
-        [req.user.id]
-      );
-      const accessibleProjectIds = userProjects.map(r => r.project_id);
+      const { getUserProjects } = require('./backend/middleware/requireProjectAccess');
+      const isAdmin = userHasAllProjectAccess(req.user);
 
       let copyRows;
-      if (logicalFileId !== 'null' && logicalFileId !== null) {
-        const result = await client.query(
-          `SELECT file_id FROM files WHERE logical_file_id = $1 AND project_id = ANY($2::int[])`,
-          [logicalFileId, accessibleProjectIds]
-        );
-        copyRows = result.rows;
+      if (logicalFileId && logicalFileId !== 'null') {
+        if (isAdmin) {
+          const result = await client.query(
+            `SELECT file_id FROM files WHERE logical_file_id = $1`,
+            [logicalFileId]
+          );
+          copyRows = result.rows;
+        } else {
+          const userProjects = await getUserProjects(req.user.id);
+          const accessibleProjectIds = userProjects.map(p => p.id);
+          const result = await client.query(
+            `SELECT file_id FROM files WHERE logical_file_id = $1 AND project_id = ANY($2::int[])`,
+            [logicalFileId, accessibleProjectIds]
+          );
+          copyRows = result.rows;
+        }
       } else if (projectId && filename) {
         // Fallback: resolve via filename+project when no logical_file_id
-        const result = await client.query(
-          `SELECT file_id FROM files WHERE filename = $1 AND project_id = $2 AND project_id = ANY($3::int[])`,
-          [filename, projectId, accessibleProjectIds]
-        );
-        copyRows = result.rows;
+        if (isAdmin) {
+          const result = await client.query(
+            `SELECT file_id FROM files WHERE filename = $1 AND project_id = $2`,
+            [filename, projectId]
+          );
+          copyRows = result.rows;
+        } else {
+          const userProjects = await getUserProjects(req.user.id);
+          const accessibleProjectIds = userProjects.map(p => p.id);
+          const result = await client.query(
+            `SELECT file_id FROM files WHERE filename = $1 AND project_id = $2 AND project_id = ANY($3::int[])`,
+            [filename, projectId, accessibleProjectIds]
+          );
+          copyRows = result.rows;
+        }
       }
       fileIds = (copyRows || []).map(r => r.file_id);
     } catch (err) {
@@ -2145,13 +2162,10 @@ app.post('/api/files/bulk-delete',
 app.get('/api/files/:fileId/copies', authenticateToken, async (req, res) => {
   const { fileId } = req.params;
   try {
-    const { rows: userProjects } = await dbPool.query(
-      `SELECT project_id FROM user_projects WHERE user_id = $1`,
-      [req.user.id]
-    );
-    const accessibleProjectIds = userProjects.map(r => r.project_id);
+    const { getUserProjects } = require('./backend/middleware/requireProjectAccess');
+    const isAdmin = userHasAllProjectAccess(req.user);
 
-    // Look up the reference file
+    // Look up the reference file (no project filter yet — check access after)
     const refResult = await dbPool.query(
       `SELECT file_id, filename, project_id, logical_file_id FROM files WHERE file_id = $1`,
       [fileId]
@@ -2160,15 +2174,40 @@ app.get('/api/files/:fileId/copies', authenticateToken, async (req, res) => {
       return res.status(404).json({ error: 'File not found' });
     }
     const ref = refResult.rows[0];
-    if (!accessibleProjectIds.includes(parseInt(ref.project_id))) {
-      return res.status(403).json({ error: 'Access denied' });
+
+    // Access check for non-admins
+    if (!isAdmin) {
+      const userProjects = await getUserProjects(req.user.id);
+      const accessibleProjectIds = userProjects.map(p => p.id);
+      if (!accessibleProjectIds.includes(parseInt(ref.project_id))) {
+        return res.status(403).json({ error: 'Access denied' });
+      }
+
+      // Find siblings restricted to accessible projects
+      let copyRows;
+      if (ref.logical_file_id) {
+        const result = await dbPool.query(
+          `SELECT file_id FROM files WHERE logical_file_id = $1 AND project_id = ANY($2::int[])`,
+          [ref.logical_file_id, accessibleProjectIds]
+        );
+        copyRows = result.rows;
+      } else {
+        const result = await dbPool.query(
+          `SELECT file_id FROM files WHERE filename = $1 AND project_id = $2`,
+          [ref.filename, ref.project_id]
+        );
+        copyRows = result.rows;
+      }
+      const copies = copyRows.map(r => r.file_id);
+      return res.json({ copies, count: copies.length, logicalFileId: ref.logical_file_id || null, filename: ref.filename });
     }
 
+    // Admin: no project restriction
     let copyRows;
     if (ref.logical_file_id) {
       const result = await dbPool.query(
-        `SELECT file_id FROM files WHERE logical_file_id = $1 AND project_id = ANY($2::int[])`,
-        [ref.logical_file_id, accessibleProjectIds]
+        `SELECT file_id FROM files WHERE logical_file_id = $1`,
+        [ref.logical_file_id]
       );
       copyRows = result.rows;
     } else {
@@ -2180,12 +2219,7 @@ app.get('/api/files/:fileId/copies', authenticateToken, async (req, res) => {
     }
 
     const copies = copyRows.map(r => r.file_id);
-    res.json({
-      copies,
-      count: copies.length,
-      logicalFileId: ref.logical_file_id || null,
-      filename: ref.filename
-    });
+    res.json({ copies, count: copies.length, logicalFileId: ref.logical_file_id || null, filename: ref.filename });
   } catch (err) {
     logger.error('Error fetching file copies', { error: err.message, fileId });
     res.status(500).json({ error: 'Failed to fetch file copies' });
