@@ -137,51 +137,76 @@ async function findOrCreateSchemaRule(db, uiRuleType, columnName, severity = 'wa
     let candidateSql;
     let candidateParams;
 
+    // UI type aliases grouped by engine type + discriminating config value.
+    // User-created rules may store either the engine type (e.g. 'validity') or the UI alias
+    // (e.g. 'date_format') as rule_type — both arms must be accepted.
     if (engineType === 'validity' && defaultConfig.datatype) {
-      // Discriminate by datatype to prevent cross-type matches (email vs date vs phone vs number)
+      const datatypeAliases = {
+        date:   ['date_format', 'timestamp_format'],
+        email:  ['email_validity'],
+        phone:  ['phone_validity'],
+        number: ['numeric_only_string'],
+      }[defaultConfig.datatype] || [];
+
       candidateSql = `
         SELECT id, rule_name, rule_type, column_name, rule_config, severity, enabled
         FROM quality_rules
         WHERE id = ANY($1::int[])
           AND enabled = true
           AND NOT starts_with(rule_name, '__schema_default__')
-          AND rule_type = $2
-          AND rule_config->>'datatype' = $3
+          AND (
+            (rule_type = $2 AND rule_config->>'datatype' = $3)
+            OR rule_type = ANY($4::text[])
+          )
+          AND (column_name = $5 OR column_name IS NULL)
+        ORDER BY (column_name = $5) DESC NULLS LAST, id
+        LIMIT 1`;
+      candidateParams = [candidateRuleIds, engineType, defaultConfig.datatype, datatypeAliases, columnName];
+    } else if (engineType === 'completeness') {
+      candidateSql = `
+        SELECT id, rule_name, rule_type, column_name, rule_config, severity, enabled
+        FROM quality_rules
+        WHERE id = ANY($1::int[])
+          AND enabled = true
+          AND NOT starts_with(rule_name, '__schema_default__')
+          AND (
+            (rule_type = $2 AND COALESCE((rule_config->>'threshold')::numeric, 1.0) = 1.0)
+            OR rule_type = ANY($3::text[])
+          )
           AND (column_name = $4 OR column_name IS NULL)
         ORDER BY (column_name = $4) DESC NULLS LAST, id
         LIMIT 1`;
-      candidateParams = [candidateRuleIds, engineType, defaultConfig.datatype, columnName];
-    } else if (engineType === 'completeness') {
-      // Only match strict null checks (threshold = 1.0); do not reuse looser completeness rules
-      candidateSql = `
-        SELECT id, rule_name, rule_type, column_name, rule_config, severity, enabled
-        FROM quality_rules
-        WHERE id = ANY($1::int[])
-          AND enabled = true
-          AND NOT starts_with(rule_name, '__schema_default__')
-          AND rule_type = $2
-          AND COALESCE((rule_config->>'threshold')::numeric, 1.0) = 1.0
-          AND (column_name = $3 OR column_name IS NULL)
-        ORDER BY (column_name = $3) DESC NULLS LAST, id
-        LIMIT 1`;
-      candidateParams = [candidateRuleIds, engineType, columnName];
+      candidateParams = [candidateRuleIds, engineType, ['null_check', 'isna_check', 'column_completeness'], columnName];
     } else {
-      // For uniqueness and other types with fixed/empty config, filter by engine type only
+      // uniqueness + duplicate_check are interchangeable; also accept the specific uiRuleType
+      // for any other engine type so explicit selections are never filtered out.
+      const typeSet = engineType === 'uniqueness'
+        ? ['uniqueness', 'duplicate_check']
+        : [engineType, uiRuleType].filter((v, i, a) => a.indexOf(v) === i);
       candidateSql = `
         SELECT id, rule_name, rule_type, column_name, rule_config, severity, enabled
         FROM quality_rules
         WHERE id = ANY($1::int[])
           AND enabled = true
           AND NOT starts_with(rule_name, '__schema_default__')
-          AND rule_type = $2
+          AND rule_type = ANY($2::text[])
           AND (column_name = $3 OR column_name IS NULL)
         ORDER BY (column_name = $3) DESC NULLS LAST, id
         LIMIT 1`;
-      candidateParams = [candidateRuleIds, engineType, columnName];
+      candidateParams = [candidateRuleIds, typeSet, columnName];
     }
 
     const candidate = await db.query(candidateSql, candidateParams);
-    if (candidate.rows.length > 0) return candidate.rows[0];
+    if (candidate.rows.length > 0) {
+      const row = candidate.rows[0];
+      // Normalize to canonical engine type/config so QualityValidationEngine can execute it.
+      // A user-created rule may store the UI alias (e.g. 'date_format') as rule_type rather
+      // than the engine type ('validity').  Preserving row.id keeps the file_quality_rules
+      // association pointing at the correct rule while making the execution path work.
+      return (row.rule_type === engineType)
+        ? row
+        : { ...row, rule_type: engineType, rule_config: defaultConfig };
+    }
   }
 
   // 0b. Safe broad lookup: for non-config-sensitive types, search all enabled global rules
@@ -207,56 +232,75 @@ async function findOrCreateSchemaRule(db, uiRuleType, columnName, severity = 'wa
       let broadSql;
       let broadParams;
 
+      // Each arm accepts rules stored under EITHER the engine type name (e.g. 'validity')
+      // OR the UI alias (e.g. 'date_format') — user-created rules may store either form.
+      // The datatype/threshold filter is applied only to the engine-type arm; UI aliases
+      // are already specific enough to avoid cross-type matches without extra filtering.
       if (engineType === 'validity' && defaultConfig.datatype) {
-        // datatype filter prevents Email Validity being returned for date_format, etc.
+        const datatypeAliases = {
+          date:   ['date_format', 'timestamp_format'],
+          email:  ['email_validity'],
+          phone:  ['phone_validity'],
+          number: ['numeric_only_string'],
+        }[defaultConfig.datatype] || [];
+
         broadSql = `
           SELECT id, rule_name, rule_type, column_name, rule_config, severity, enabled
           FROM quality_rules
-          WHERE rule_type = $1
+          WHERE (
+            (rule_type = $1 AND rule_config->>'datatype' = $2)
+            OR rule_type = ANY($3::text[])
+          )
             AND enabled = true
             AND NOT starts_with(rule_name, '__schema_default__')
             AND project_id IS NULL
-            AND (column_name = $2 OR column_name IS NULL)
-            AND rule_config->>'datatype' = $3
-          ORDER BY (column_name = $2) DESC NULLS LAST, id
+            AND (column_name = $4 OR column_name IS NULL)
+          ORDER BY (column_name = $4) DESC NULLS LAST, id
           LIMIT 1`;
-        broadParams = [engineType, columnName, defaultConfig.datatype];
+        broadParams = [engineType, defaultConfig.datatype, datatypeAliases, columnName];
       } else if (engineType === 'completeness') {
-        // Only reuse completeness rules whose threshold matches the schema default (1.0 = 0 nulls).
-        // COALESCE treats a missing threshold field the same as 1.0 (the implicit default).
+        // Engine-type arm: threshold = 1.0 ensures we don't reuse a looser completeness rule.
+        // UI-alias arm: null_check/isna_check/column_completeness always imply threshold 1.0.
         broadSql = `
           SELECT id, rule_name, rule_type, column_name, rule_config, severity, enabled
           FROM quality_rules
-          WHERE rule_type = $1
+          WHERE (
+            (rule_type = $1 AND COALESCE((rule_config->>'threshold')::numeric, 1.0) = 1.0)
+            OR rule_type = ANY($2::text[])
+          )
             AND enabled = true
             AND NOT starts_with(rule_name, '__schema_default__')
             AND project_id IS NULL
-            AND (column_name = $2 OR column_name IS NULL)
-            AND COALESCE((rule_config->>'threshold')::numeric, 1.0) = 1.0
-          ORDER BY (column_name = $2) DESC NULLS LAST, id
+            AND (column_name = $3 OR column_name IS NULL)
+          ORDER BY (column_name = $3) DESC NULLS LAST, id
           LIMIT 1`;
-        broadParams = [engineType, columnName];
+        broadParams = [engineType, ['null_check', 'isna_check', 'column_completeness'], columnName];
       } else {
-        // uniqueness — config is always empty; any matching rule is interchangeable
+        // uniqueness — accept both 'uniqueness' and 'duplicate_check'; configs are equivalent
         broadSql = `
           SELECT id, rule_name, rule_type, column_name, rule_config, severity, enabled
           FROM quality_rules
-          WHERE rule_type = $1
+          WHERE rule_type = ANY($1::text[])
             AND enabled = true
             AND NOT starts_with(rule_name, '__schema_default__')
             AND project_id IS NULL
             AND (column_name = $2 OR column_name IS NULL)
           ORDER BY (column_name = $2) DESC NULLS LAST, id
           LIMIT 1`;
-        broadParams = [engineType, columnName];
+        broadParams = [['uniqueness', 'duplicate_check'], columnName];
       }
 
       const broad = await db.query(broadSql, broadParams);
       if (broad.rows.length > 0) {
+        const row = broad.rows[0];
         systemLogger.debug('[schemaRuleEnforcer] Broad-type lookup matched existing rule', {
-          uiRuleType, engineType, columnName, matchedId: broad.rows[0].id, matchedName: broad.rows[0].rule_name
+          uiRuleType, engineType, columnName, matchedId: row.id, matchedName: row.rule_name,
+          originalRuleType: row.rule_type, normalizedTo: engineType
         });
-        return broad.rows[0];
+        // Normalize to canonical engine type/config so QualityValidationEngine can execute it.
+        return (row.rule_type === engineType)
+          ? row
+          : { ...row, rule_type: engineType, rule_config: defaultConfig };
       }
     }
   }

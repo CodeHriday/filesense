@@ -45,14 +45,40 @@ function buildMockDb({ existingRules = [], insertedRules = [] } = {}) {
 
       // -----------------------------------------------------------------------
       // Candidate pre-lookup (step 0) — WHERE id = ANY($1::int[])
+      // The new SQL accepts rules stored under either the engine type OR UI aliases,
+      // so columnName is always the LAST param and accepted types are in params[1..n-1].
       // -----------------------------------------------------------------------
       if (normalised.includes('id = any($1::int[])')) {
-        const [candidateIds, colName] = params;
-        const rows = existingRules.filter(
-          r => candidateIds.includes(r.id) && r.enabled &&
-               (r.column_name === colName || r.column_name === null)
-        );
-        // mirror ORDER BY (column_name = $2) DESC NULLS LAST, id
+        const ids     = params[0];                    // always first
+        const colName = params[params.length - 1];    // always last
+        const KNOWN_DATATYPES = new Set(['date', 'email', 'phone', 'number']);
+        const acceptedTypes = new Set();
+        let datatype = null;
+        for (let i = 1; i < params.length - 1; i++) {
+          const p = params[i];
+          if (typeof p === 'string') {
+            if (KNOWN_DATATYPES.has(p)) datatype = p;
+            else acceptedTypes.add(p);
+          }
+          if (Array.isArray(p)) p.forEach(t => acceptedTypes.add(t));
+        }
+        const rows = existingRules.filter(r => {
+          if (!ids.includes(r.id)) return false;
+          if (!r.enabled) return false;
+          if (r.rule_name.startsWith('__schema_default__')) return false;
+          if (acceptedTypes.size > 0 && !acceptedTypes.has(r.rule_type)) return false;
+          if (r.column_name !== null && r.column_name !== colName) return false;
+          // For the canonical 'validity' engine arm, guard with datatype to avoid
+          // an email_validity rule matching a date_format request
+          if (r.rule_type === 'validity' && datatype !== null) {
+            return r.rule_config?.datatype === datatype;
+          }
+          if (r.rule_type === 'completeness') {
+            const t = r.rule_config?.threshold ?? 1.0;
+            return Number(t) === 1.0;
+          }
+          return true;
+        });
         rows.sort((a, b) => {
           const aExact = a.column_name === colName ? 1 : 0;
           const bExact = b.column_name === colName ? 1 : 0;
@@ -62,35 +88,44 @@ function buildMockDb({ existingRules = [], insertedRules = [] } = {}) {
       }
 
       // -----------------------------------------------------------------------
-      // Broad-type lookup (step 0b) — WHERE rule_type = $1 AND NOT starts_with…
+      // Broad-type lookup (step 0b) — NOT starts_with(__schema_default__)
+      // The new SQL accepts multiple rule_type values via ANY(). Accepted types and
+      // any discriminating values (datatype) are all embedded in the params array;
+      // columnName is always the last element.
       // -----------------------------------------------------------------------
       if (
         normalised.includes("not starts_with(rule_name, '__schema_default__')") ||
         normalised.includes("not starts_with(rule_name, '__schema_default") // safety variant
       ) {
-        const [engineType, colName, extra] = params;
+        const colName = params[params.length - 1];    // always last
+        const KNOWN_DATATYPES = new Set(['date', 'email', 'phone', 'number']);
+        const acceptedTypes = new Set();
+        let datatype = null;
+        for (let i = 0; i < params.length - 1; i++) {
+          const p = params[i];
+          if (typeof p === 'string') {
+            if (KNOWN_DATATYPES.has(p)) datatype = p;
+            else acceptedTypes.add(p);
+          }
+          if (Array.isArray(p)) p.forEach(t => acceptedTypes.add(t));
+        }
         let rows = existingRules.filter(r => {
-          if (r.rule_type !== engineType) return false;
+          if (!acceptedTypes.has(r.rule_type)) return false;
           if (!r.enabled) return false;
           if (r.rule_name.startsWith('__schema_default__')) return false;
           if (r.project_id !== null && r.project_id !== undefined) return false;
           if (r.column_name !== null && r.column_name !== colName) return false;
-          return true;
-        });
-
-        // Apply extra discriminating filter supplied in params
-        if (engineType === 'validity' && extra) {
-          // $3 = datatype value
-          rows = rows.filter(r => r.rule_config?.datatype === extra);
-        }
-        if (engineType === 'completeness') {
-          // threshold filter via COALESCE(threshold, 1.0) = 1.0
-          rows = rows.filter(r => {
+          // Guard the canonical 'validity' engine arm with the datatype discriminator
+          if (r.rule_type === 'validity' && datatype !== null) {
+            return r.rule_config?.datatype === datatype;
+          }
+          // Guard the canonical 'completeness' engine arm with threshold = 1.0
+          if (r.rule_type === 'completeness') {
             const t = r.rule_config?.threshold ?? 1.0;
             return Number(t) === 1.0;
-          });
-        }
-
+          }
+          return true;
+        });
         rows.sort((a, b) => {
           const aExact = a.column_name === colName ? 1 : 0;
           const bExact = b.column_name === colName ? 1 : 0;
@@ -328,6 +363,128 @@ describe('schemaRuleEnforcer — broad-type rule matching', () => {
       // Real named rule must win over the synthetic one
       expect(result.id).toBe(DATE_FORMAT_RULE.id);
       expect(result.rule_name).toBe('Date Format Check');
+      expect(inserted).toHaveLength(0);
+    });
+
+  });
+
+  // =========================================================================
+  // Step 0b: Normalization — rules stored under UI alias are returned with
+  // the canonical engine type/config so QualityValidationEngine can execute them
+  // =========================================================================
+
+  describe('Alias-backed matched rules are normalized to canonical engine type', () => {
+
+    test('rule stored as rule_type="date_format" is matched AND normalized to rule_type="validity"', async () => {
+      const DATE_FORMAT_UI_STORED = {
+        id: 14,
+        rule_name: 'Date Format Validation',
+        rule_type: 'date_format',      // stored under UI alias, not engine type
+        column_name: null,
+        rule_config: { formats: ['YYYY-MM-DD'] }, // custom config — overwritten on return
+        severity: 'warning',
+        enabled: true,
+        project_id: null
+      };
+      const inserted = [];
+      const db = buildMockDb({ existingRules: [DATE_FORMAT_UI_STORED], insertedRules: inserted });
+
+      const result = await findOrCreateSchemaRule(db, 'date_format', 'enrollment_date', 'warning', null, []);
+
+      expect(result).not.toBeNull();
+      // Rule identity preserved for file_quality_rules association
+      expect(result.id).toBe(14);
+      expect(result.rule_name).toBe('Date Format Validation');
+      // Normalized so QualityValidationEngine can dispatch it
+      expect(result.rule_type).toBe('validity');
+      expect(result.rule_config).toMatchObject({ datatype: 'date' });
+      // No synthetic row created
+      expect(inserted).toHaveLength(0);
+    });
+
+    test('rule stored as rule_type="null_check" is matched AND normalized to rule_type="completeness"', async () => {
+      const NULL_CHECK_UI = {
+        id: 22,
+        rule_name: 'Null Check Validation',
+        rule_type: 'null_check',
+        column_name: null,
+        rule_config: {},
+        severity: 'warning',
+        enabled: true,
+        project_id: null
+      };
+      const inserted = [];
+      const db = buildMockDb({ existingRules: [NULL_CHECK_UI], insertedRules: inserted });
+
+      const result = await findOrCreateSchemaRule(db, 'null_check', 'customer_id', 'warning', null, []);
+
+      expect(result).not.toBeNull();
+      expect(result.id).toBe(22);
+      expect(result.rule_name).toBe('Null Check Validation');
+      expect(result.rule_type).toBe('completeness');
+      expect(result.rule_config).toMatchObject({ threshold: 1.0 });
+      expect(inserted).toHaveLength(0);
+    });
+
+    test('rule stored as rule_type="duplicate_check" is matched AND normalized to rule_type="uniqueness"', async () => {
+      const DUPLICATE_CHECK_UI = {
+        id: 31,
+        rule_name: 'Duplicate Detection',
+        rule_type: 'duplicate_check',
+        column_name: null,
+        rule_config: {},
+        severity: 'warning',
+        enabled: true,
+        project_id: null
+      };
+      const inserted = [];
+      const db = buildMockDb({ existingRules: [DUPLICATE_CHECK_UI], insertedRules: inserted });
+
+      const result = await findOrCreateSchemaRule(db, 'duplicate_check', 'order_id', 'warning', null, []);
+
+      expect(result).not.toBeNull();
+      expect(result.id).toBe(31);
+      expect(result.rule_type).toBe('uniqueness');
+      expect(inserted).toHaveLength(0);
+    });
+
+    test('candidate rule stored as rule_type="date_format" is matched AND normalized', async () => {
+      const CANDIDATE_UI_TYPE = {
+        id: 200,
+        rule_name: 'My Date Format Rule',
+        rule_type: 'date_format',       // user saved it with UI alias as rule_type
+        column_name: null,
+        rule_config: { formats: ['MM-DD-YYYY'] },
+        severity: 'error',
+        enabled: true,
+        project_id: null
+      };
+      const inserted = [];
+      const db = buildMockDb({ existingRules: [CANDIDATE_UI_TYPE], insertedRules: inserted });
+
+      const result = await findOrCreateSchemaRule(db, 'date_format', 'enrollment_date', 'warning', null, [200]);
+
+      expect(result).not.toBeNull();
+      expect(result.id).toBe(200);
+      expect(result.rule_name).toBe('My Date Format Rule');
+      // Normalized so the engine can execute it — rule identity (id) is preserved
+      expect(result.rule_type).toBe('validity');
+      expect(result.rule_config).toMatchObject({ datatype: 'date' });
+      expect(inserted).toHaveLength(0);
+    });
+
+    test('rule already stored under canonical engine type is returned unchanged', async () => {
+      // DATE_FORMAT_RULE uses rule_type='validity' — no normalization needed
+      const inserted = [];
+      const db = buildMockDb({ existingRules: [DATE_FORMAT_RULE], insertedRules: inserted });
+
+      const result = await findOrCreateSchemaRule(db, 'date_format', 'order_date', 'warning', null, []);
+
+      expect(result).not.toBeNull();
+      expect(result.id).toBe(DATE_FORMAT_RULE.id);
+      expect(result.rule_type).toBe('validity');
+      // Config from the stored rule (not overwritten) since rule_type already matches engine
+      expect(result.rule_config).toMatchObject({ datatype: 'date' });
       expect(inserted).toHaveLength(0);
     });
 
