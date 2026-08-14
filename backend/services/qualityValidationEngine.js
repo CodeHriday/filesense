@@ -191,6 +191,11 @@ class QualityValidationEngine {
         return this.validateLengthCheck(rule, data, metadata);
       case 'range_check':
         return this.validateRangeCheck(rule, data, metadata);
+      // Date/timestamp format checks — user-created rules store these as their own rule_type
+      case 'date_format':
+        return this.validateDateFormat(rule, data, metadata, false);
+      case 'timestamp_format':
+        return this.validateDateFormat(rule, data, metadata, true);
       default:
         throw new Error(`Unsupported rule type: ${ruleType}`);
     }
@@ -1241,6 +1246,90 @@ class QualityValidationEngine {
       }
     });
     
+    return violations;
+  }
+
+  /**
+   * Validate date / timestamp format.
+   * rule_config options (all optional):
+   *   format  — human-readable token string, e.g. "MM/DD/YYYY" or "YYYY-MM-DD HH:mm:ss".
+   *             Tokens YYYY, MM, DD, HH, mm, ss are converted to \d{N} patterns.
+   *   pattern — raw regex string (takes precedence over format).
+   * Falls back to broad date/timestamp regexes when neither is supplied.
+   * @param {boolean} isTimestamp - when true, use a timestamp-aware fallback regex.
+   */
+  validateDateFormat(rule, data, metadata, isTimestamp = false) {
+    const violations = [];
+    const config = typeof rule.rule_config === 'string'
+      ? JSON.parse(rule.rule_config)
+      : (rule.rule_config || {});
+
+    if (!rule.column_name) {
+      systemLogger.warn('date_format rule requires column_name', { rule_id: rule.id });
+      return violations;
+    }
+
+    // Build the test regex from config.pattern > config.format > built-in fallback
+    let testRegex;
+    try {
+      if (config.pattern) {
+        validateRegexSafety(config.pattern);
+        testRegex = new RegExp(config.pattern);
+      } else if (config.format) {
+        // Convert format tokens to regex fragments (e.g. "MM/DD/YYYY" → /^\d{2}\/\d{2}\/\d{4}$/)
+        const escaped = config.format
+          .replace(/YYYY/g, '\\d{4}')
+          .replace(/MM/g,   '\\d{2}')
+          .replace(/DD/g,   '\\d{2}')
+          .replace(/HH/g,   '\\d{2}')
+          .replace(/mm/g,   '\\d{2}')
+          .replace(/ss/g,   '\\d{2}')
+          .replace(/[.+?^${}()|[\]\\]/g, c => c === '\\' ? c : `\\${c}`);
+        testRegex = new RegExp(`^${escaped}$`);
+      } else if (isTimestamp) {
+        // ISO 8601 and common timestamp variants
+        testRegex = /^\d{4}-\d{2}-\d{2}[T\s]\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:?\d{2})?$/;
+      } else {
+        // YYYY-MM-DD, MM/DD/YYYY, DD-MM-YYYY
+        testRegex = /^\d{4}-\d{2}-\d{2}$|^\d{2}\/\d{2}\/\d{4}$|^\d{2}-\d{2}-\d{4}$/;
+      }
+    } catch (e) {
+      systemLogger.warn('Invalid pattern in date_format rule, skipping', { rule_id: rule.id, error: e.message });
+      return violations;
+    }
+
+    const expectedDesc = config.format || config.pattern || (isTimestamp ? 'timestamp format' : 'date format (YYYY-MM-DD or MM/DD/YYYY)');
+    const primaryKeyColumn = metadata.primaryKeyColumn;
+
+    data.forEach((row, rowIndex) => {
+      const value = row[rule.column_name];
+
+      // Skip null / empty — completeness rules handle those separately
+      if (value === null || value === undefined || String(value).trim() === '') return;
+
+      const strValue = String(value).trim();
+      if (!testRegex.test(strValue)) {
+        violations.push({
+          rule_id: rule.id,
+          file_id: metadata.file_id || null,
+          job_id: metadata.job_id || null,
+          row_number: rowIndex + 1,
+          column_name: rule.column_name,
+          expected_value: expectedDesc,
+          actual_value: strValue,
+          primary_key_column: primaryKeyColumn,
+          primary_key_value: primaryKeyColumn ? String(row[primaryKeyColumn] || '') : '',
+          violation_details: {
+            rule_type: isTimestamp ? 'timestamp_format' : 'date_format',
+            expected_format: expectedDesc,
+            reason: `Value "${strValue}" does not match expected ${isTimestamp ? 'timestamp' : 'date'} format: ${expectedDesc}`
+          },
+          severity: rule.severity || 'warning',
+          record_snapshot: row
+        });
+      }
+    });
+
     return violations;
   }
 }

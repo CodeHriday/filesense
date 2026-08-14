@@ -410,7 +410,7 @@ module.exports = (dbPool, authenticate) => {
       }
 
       // Validate rule_type
-      const validRuleTypes = ['completeness', 'validity', 'consistency', 'uniqueness', 'freshness', 'record_count', 'validity_check', 'length_check', 'range_check'];
+      const validRuleTypes = ['completeness', 'validity', 'consistency', 'uniqueness', 'freshness', 'record_count', 'validity_check', 'length_check', 'range_check', 'date_format', 'timestamp_format'];
       if (!validRuleTypes.includes(rule_type)) {
         return res.status(400).json({
           success: false,
@@ -489,7 +489,7 @@ module.exports = (dbPool, authenticate) => {
 
       // Validate rule_type if provided
       if (rule_type) {
-        const validRuleTypes = ['completeness', 'validity', 'consistency', 'uniqueness', 'freshness', 'record_count', 'validity_check', 'length_check', 'range_check'];
+        const validRuleTypes = ['completeness', 'validity', 'consistency', 'uniqueness', 'freshness', 'record_count', 'validity_check', 'length_check', 'range_check', 'date_format', 'timestamp_format'];
         if (!validRuleTypes.includes(rule_type)) {
           return res.status(400).json({
             success: false,
