@@ -1937,29 +1937,23 @@ const VisualMappingCanvasContent = () => {
           onSave={handleSaveNodeConfig}
           initialConfig={getCurrentNodeConfig()}
           schema={getCumulativeSchema()}
-          agreementFileQualityRules={(() => {
-            // Walk immediate upstream nodes to find the source config's file-level rules.
-            // Used by ExpressionModal to pre-populate __file__-scoped DQ assignments.
-            const upEdges = edges.filter(e => e.target === configNodeId);
-            for (const edge of upEdges) {
-              const upNode = nodes.find(n => n.id === edge.source);
-              if (upNode?.type === 'sourceConfig') {
-                return upNode.data?.config?.agreementFileQualityRules || [];
+          agreementSourceConfig={(() => {
+            // Recursively walk ancestors to find the nearest source config node.
+            // A direct parent walk misses multi-hop topologies such as
+            // sourceConfig → rdmLookup → expression.
+            const findAncestorSourceConfig = (nodeId, visited = new Set()) => {
+              if (visited.has(nodeId)) return null;
+              visited.add(nodeId);
+              const node = nodes.find(n => n.id === nodeId);
+              if (!node) return null;
+              if (node.type === 'sourceConfig') return node.data?.config || null;
+              for (const e of edges.filter(e => e.target === nodeId)) {
+                const found = findAncestorSourceConfig(e.source, visited);
+                if (found) return found;
               }
-            }
-            return [];
-          })()}
-          agreementQualityRuleIds={(() => {
-            // Pre-resolved file-level rule DB IDs — used as fallback when name resolution
-            // produces no matches (e.g. string-format or renamed rule references).
-            const upEdges = edges.filter(e => e.target === configNodeId);
-            for (const edge of upEdges) {
-              const upNode = nodes.find(n => n.id === edge.source);
-              if (upNode?.type === 'sourceConfig') {
-                return upNode.data?.config?.agreementQualityRuleIds || [];
-              }
-            }
-            return [];
+              return null;
+            };
+            return findAncestorSourceConfig(configNodeId) || {};
           })()}
         />
       )}
