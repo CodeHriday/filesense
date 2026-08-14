@@ -2456,16 +2456,63 @@ app.post('/api/files/upload', authenticateToken, invalidateCache('cache:*:*files
   console.log('req.body.archive_password:', req.body.archive_password);
   console.log('req.files count:', req.files?.length);
   try {
-    // Check if user has file_upload:write permission
-    if (!req.user || !req.user.permissions || !req.user.permissions.includes('file_upload:write')) {
+    // Check if user has file upload permission.
+    // The JWT payload never embeds permissions (only roles), so we check via the DB.
+    // Effective roles include BOTH direct user_roles AND roles inherited through
+    // access_group_roles memberships — same model used by authenticateToken middleware.
+    // Allowed if an effective role is upload-capable, OR if a role_permissions link
+    // grants file_upload:write to any effective role.
+    let isAllowedToUpload = false;
+    if (req.user && req.user.id) {
+      try {
+        // Single query: effective role names (direct + group-inherited)
+        const effectiveRolesResult = await dbPool.query(`
+          SELECT DISTINCT r.name
+          FROM roles r
+          JOIN user_roles ur ON r.id = ur.role_id
+          WHERE ur.user_id = $1
+          UNION
+          SELECT DISTINCT r.name
+          FROM roles r
+          JOIN access_group_roles agr ON r.id = agr.role_id
+          JOIN user_groups ug ON agr.group_id = ug.group_id
+          WHERE ug.user_id = $1
+        `, [req.user.id]);
+
+        const effectiveRoleNames = effectiveRolesResult.rows.map(r => r.name);
+
+        const uploadCapableRoles = ['Admin', 'Data Engineer', 'Creator'];
+        if (effectiveRoleNames.some(name => uploadCapableRoles.includes(name))) {
+          isAllowedToUpload = true;
+        } else {
+          // Fallback: check the role_permissions junction table for an explicit
+          // file_upload:write grant on any effective role (direct or group-inherited).
+          const uploadPermCheck = await dbPool.query(`
+            SELECT 1
+            FROM permissions p
+            JOIN role_permissions rp ON p.id = rp.permission_id
+            JOIN roles r ON r.id = rp.role_id
+            WHERE r.name = ANY($1::varchar[])
+              AND p.name = ANY($2::varchar[])
+            LIMIT 1
+          `, [effectiveRoleNames, ['file_upload:write', 'file:write']]);
+          isAllowedToUpload = uploadPermCheck.rows.length > 0;
+        }
+      } catch (permCheckErr) {
+        logger.error('Upload permission check failed', { error: permCheckErr.message, userId: req.user.id });
+        // Fail closed — deny upload if the permission check itself errors
+        isAllowedToUpload = false;
+      }
+    }
+
+    if (!isAllowedToUpload) {
       // Clean up temp files if they exist
       if (req.files && req.files.length > 0) {
         req.files.forEach(file => {
           try { fs.unlinkSync(file.path); } catch (e) {}
         });
       }
-      
-      return res.status(403).json({ 
+      return res.status(403).json({
         error: 'Access denied',
         message: 'You do not have permission to upload files. Contact your administrator.'
       });
@@ -5721,6 +5768,7 @@ const { up: addLastRunAtToFileQualityRules } = require('./backend/migrations/add
 const { up: addIsSchemaEnforcedToFileQualityRules } = require('./backend/migrations/addIsSchemaEnforcedToFileQualityRules');
 const { patchEnrollmentSchemaRuleNames } = require('./backend/migrations/patchEnrollmentSchemaRuleNames');
 const { up: addErrorActionToTransformationQualityRules } = require('./backend/migrations/addErrorActionToTransformationQualityRules');
+const ensureFileUploadPermissions = require('./backend/migrations/ensureFileUploadPermissions');
 
 // Run schema migrations asynchronously with tracking to prevent re-running
 (async () => {
@@ -5781,6 +5829,9 @@ const { up: addErrorActionToTransformationQualityRules } = require('./backend/mi
     await migrationTracker.runOnce('addIsSchemaEnforcedToFileQualityRules', () => addIsSchemaEnforcedToFileQualityRules(dbPool));
     await migrationTracker.runOnce('patchEnrollmentSchemaRuleNames', () => patchEnrollmentSchemaRuleNames(dbPool));
     await migrationTracker.runOnce('addErrorActionToTransformationQualityRules', () => addErrorActionToTransformationQualityRules(dbPool));
+    // Ensure file upload permissions exist in role_permissions table (idempotent).
+    // This runs on every restart (not tracked) so new roles added in prod are always covered.
+    await ensureFileUploadPermissions(dbPool);
     
     console.log('🎉 All migrations completed successfully');
   } catch (err) {
@@ -10100,9 +10151,24 @@ app.get('/api/auth/me', authenticateToken, async (req, res) => {
     
     console.log('User found in database');
     
-    // Get the complete role information from the database
-    const userRoles = req.user.roles || [];
-    console.log('User roles from token:', userRoles);
+    // Always fetch roles fresh from the database so role changes take effect
+    // without requiring the user to re-login. Includes BOTH direct user_roles
+    // assignments AND roles inherited through access_group_roles memberships,
+    // matching the same logic used by the authenticateToken middleware.
+    const freshRolesResult = await dbPool.query(`
+      SELECT DISTINCT r.name
+      FROM roles r
+      JOIN user_roles ur ON r.id = ur.role_id
+      WHERE ur.user_id = $1
+      UNION
+      SELECT DISTINCT r.name
+      FROM roles r
+      JOIN access_group_roles agr ON r.id = agr.role_id
+      JOIN user_groups ug ON agr.group_id = ug.group_id
+      WHERE ug.user_id = $1
+    `, [userId]);
+    const userRoles = freshRolesResult.rows.map(row => row.name);
+    console.log('User roles from database (fresh, direct + group-inherited):', userRoles);
     
     let permissions = [];
     let roleDetails = []; // Initialize roleDetails here
