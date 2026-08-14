@@ -3754,7 +3754,7 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
               abort_rule_ids: abortRuleIds,
               abort_rule_names: abortRuleNames,
               worst_action: worstAction
-            });
+            }, visualExecutionId);
 
             const abortError = new Error(abortMessage);
             abortError.code = 'DQ_ABORT';
@@ -3770,13 +3770,13 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
               warn_rule_ids: warnRuleIds,
               warn_rule_names: warnRuleNames,
               worst_action: worstAction
-            });
+            }, visualExecutionId);
           } else {
             // log_continue — log at info level and proceed silently
             await logJobExecution(pool, jobId, 'info', `Quality violations detected but continuing per per-rule error action`, {
               violations_summary: validationResult.summary,
               worst_action: worstAction
-            });
+            }, visualExecutionId);
           }
         }
       } else if (qualityRulesResult.rows.length > 0) {
@@ -3785,7 +3785,7 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
     } catch (qualityValidationError) {
       await logJobExecution(pool, jobId, 'error', `Quality validation failed: ${qualityValidationError.message}`, {
         error: qualityValidationError.stack
-      });
+      }, visualExecutionId);
       // Re-throw if this was an abort due to DQ violations (identified by error code, not message text)
       if (qualityValidationError.code === 'DQ_ABORT') {
         throw qualityValidationError;
