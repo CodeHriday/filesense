@@ -1275,60 +1275,113 @@ class QualityValidationEngine {
       return violations;
     }
 
-    // Build the test regex from config.pattern > config.format > built-in fallback
-    let testRegex;
+    // Convert a format token string (e.g. "YYYY-MM-DD") to an anchored regex
+    const formatToRegex = (fmt) => {
+      const escaped = fmt
+        .replace(/[.+?^${}()|[\]\\]/g, c => `\\${c}`)  // escape regex metacharacters first
+        .replace(/YYYY/g, '\\d{4}')
+        .replace(/MM/g,   '\\d{2}')
+        .replace(/DD/g,   '\\d{2}')
+        .replace(/HH/g,   '\\d{2}')
+        .replace(/mm/g,   '\\d{2}')
+        .replace(/ss/g,   '\\d{2}');
+      return new RegExp(`^${escaped}$`);
+    };
+
+    // Semantic date validation: extract year/month/day from a matched format and verify their ranges.
+    // This catches "2026-24-01" (month 24) even though it matches the YYYY-MM-DD format pattern.
+    const isDateSemanticValid = (strValue, fmt) => {
+      try {
+        const sepMatch = fmt.match(/[^A-Za-z0-9]/);
+        const sep = sepMatch ? sepMatch[0] : null;
+        if (!sep) return false;
+        const fmtParts = fmt.split(sep);
+        const valParts = strValue.split(sep);
+        if (fmtParts.length !== valParts.length) return false;
+        let year, month, day;
+        fmtParts.forEach((part, i) => {
+          const num = parseInt(valParts[i], 10);
+          if (part.includes('YYYY'))     year  = num;
+          else if (part.includes('MM'))  month = num;
+          else if (part.includes('DD'))  day   = num;
+        });
+        if (!year || !month || !day)         return false;
+        if (year  < 1000 || year  > 9999)   return false;
+        if (month < 1    || month > 12)      return false;
+        if (day   < 1    || day   > 31)      return false;
+        // Date constructor rolls over invalid days (e.g. Feb 30 → Mar 2) — detect that
+        const d = new Date(year, month - 1, day);
+        return d.getFullYear() === year && d.getMonth() === month - 1 && d.getDate() === day;
+      } catch {
+        return false;
+      }
+    };
+
+    // Build the list of format entries to test.
+    // Priority: config.formats[] > config.format > config.pattern > built-in fallback
+    let formatEntries; // [{fmt: string, regex: RegExp, rawPattern?: bool}]
+    let expectedDesc;
+
     try {
-      if (config.pattern) {
-        validateRegexSafety(config.pattern);
-        testRegex = new RegExp(config.pattern);
+      if (Array.isArray(config.formats) && config.formats.length > 0) {
+        // Multi-format config: value must match at least one format AND pass semantic validation
+        formatEntries = config.formats.map(fmt => ({ fmt, regex: formatToRegex(fmt) }));
+        expectedDesc = config.formats.join(' or ');
       } else if (config.format) {
-        // Convert format tokens to regex fragments (e.g. "MM/DD/YYYY" → /^\d{2}\/\d{2}\/\d{4}$/)
-        const escaped = config.format
-          .replace(/YYYY/g, '\\d{4}')
-          .replace(/MM/g,   '\\d{2}')
-          .replace(/DD/g,   '\\d{2}')
-          .replace(/HH/g,   '\\d{2}')
-          .replace(/mm/g,   '\\d{2}')
-          .replace(/ss/g,   '\\d{2}')
-          .replace(/[.+?^${}()|[\]\\]/g, c => c === '\\' ? c : `\\${c}`);
-        testRegex = new RegExp(`^${escaped}$`);
+        formatEntries = [{ fmt: config.format, regex: formatToRegex(config.format) }];
+        expectedDesc = config.format;
+      } else if (config.pattern) {
+        validateRegexSafety(config.pattern);
+        formatEntries = [{ fmt: config.pattern, regex: new RegExp(config.pattern), rawPattern: true }];
+        expectedDesc = config.pattern;
       } else if (isTimestamp) {
-        // ISO 8601 and common timestamp variants
-        testRegex = /^\d{4}-\d{2}-\d{2}[T\s]\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:?\d{2})?$/;
+        const tsRegex = /^\d{4}-\d{2}-\d{2}[T\s]\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:?\d{2})?$/;
+        formatEntries = [{ fmt: 'timestamp', regex: tsRegex, rawPattern: true }];
+        expectedDesc = 'timestamp format (YYYY-MM-DD HH:mm:ss)';
       } else {
-        // YYYY-MM-DD, MM/DD/YYYY, DD-MM-YYYY
-        testRegex = /^\d{4}-\d{2}-\d{2}$|^\d{2}\/\d{2}\/\d{4}$|^\d{2}-\d{2}-\d{4}$/;
+        formatEntries = [
+          { fmt: 'YYYY-MM-DD', regex: /^\d{4}-\d{2}-\d{2}$/ },
+          { fmt: 'MM/DD/YYYY', regex: /^\d{2}\/\d{2}\/\d{4}$/ },
+          { fmt: 'DD/MM/YYYY', regex: /^\d{2}\/\d{2}\/\d{4}$/ },
+        ];
+        expectedDesc = 'date format (YYYY-MM-DD or MM/DD/YYYY)';
       }
     } catch (e) {
-      systemLogger.warn('Invalid pattern in date_format rule, skipping', { rule_id: rule.id, error: e.message });
+      systemLogger.warn('Invalid pattern/format in date_format rule, skipping', { rule_id: rule.id, error: e.message });
       return violations;
     }
 
-    const expectedDesc = config.format || config.pattern || (isTimestamp ? 'timestamp format' : 'date format (YYYY-MM-DD or MM/DD/YYYY)');
     const primaryKeyColumn = metadata.primaryKeyColumn;
 
     data.forEach((row, rowIndex) => {
-      const value = row[rule.column_name];
+      const value = row[columnToValidate];
 
       // Skip null / empty — completeness rules handle those separately
       if (value === null || value === undefined || String(value).trim() === '') return;
 
       const strValue = String(value).trim();
-      if (!testRegex.test(strValue)) {
+
+      // Value is valid only if it matches at least one expected format regex AND passes semantic date validation
+      const matchedEntry = formatEntries.find(({ regex }) => regex.test(strValue));
+      const isValid = matchedEntry
+        ? (matchedEntry.rawPattern || isDateSemanticValid(strValue, matchedEntry.fmt))
+        : false;
+
+      if (!isValid) {
         violations.push({
           rule_id: rule.id,
           file_id: metadata.file_id || null,
           job_id: metadata.job_id || null,
           row_number: rowIndex + 1,
-          column_name: rule.column_name,
-          expected_value: expectedDesc,
+          column_name: columnToValidate,
+          expected_value: `Value must be a valid date (${expectedDesc})`,
           actual_value: strValue,
           primary_key_column: primaryKeyColumn,
           primary_key_value: primaryKeyColumn ? String(row[primaryKeyColumn] || '') : '',
           violation_details: {
             rule_type: isTimestamp ? 'timestamp_format' : 'date_format',
             expected_format: expectedDesc,
-            reason: `Value "${strValue}" does not match expected ${isTimestamp ? 'timestamp' : 'date'} format: ${expectedDesc}`
+            reason: `Value "${strValue}" does not match any accepted ${isTimestamp ? 'timestamp' : 'date'} format: ${expectedDesc}`
           },
           severity: rule.severity || 'warning',
           record_snapshot: row
