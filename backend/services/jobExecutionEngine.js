@@ -3654,9 +3654,21 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
         ORDER BY qr.id
       `, [mapping.mapping_id]);
       
-      const hasRecordCountRules = qualityRulesResult.rows.some(r => r.rule_type === 'record_count');
+      // record_count and record_count_match are both valid type strings for aggregate count rules.
+      const hasRecordCountRules = qualityRulesResult.rows.some(
+        r => r.rule_type === 'record_count' || r.rule_type === 'record_count_match'
+      );
       const shouldRunValidation = qualityRulesResult.rows.length > 0 &&
         (transformedRows.length > 0 || hasRecordCountRules);
+
+      // Always emit a diagnostic line so operators can confirm rules were (or were not) linked.
+      await logJobExecution(pool, jobId, 'info',
+        qualityRulesResult.rows.length > 0
+          ? `[DQ] Found ${qualityRulesResult.rows.length} quality rule(s) for mapping ${mapping.mapping_id}`
+          : `[DQ] No quality rules linked to this mapping — skipping DQ validation`,
+        { mapping_id: mapping.mapping_id, rule_count: qualityRulesResult.rows.length },
+        visualExecutionId
+      );
 
       if (shouldRunValidation) {
         await logJobExecution(pool, jobId, 'info', `Running quality validation with ${qualityRulesResult.rows.length} rules`, {

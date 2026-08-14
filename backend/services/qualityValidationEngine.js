@@ -85,7 +85,8 @@ class QualityValidationEngine {
       if (!data || data.length === 0) {
         // If actual_row_count is explicitly set, record_count rules can still be evaluated
         // (e.g. a VM job that produced 0 output rows). Other rules need row data and are skipped.
-        const recordCountRules = rules.filter(r => r.enabled !== false && r.rule_type === 'record_count');
+        const recordCountRules = rules.filter(r => r.enabled !== false &&
+          (r.rule_type === 'record_count' || r.rule_type === 'record_count_match'));
         if (recordCountRules.length === 0 || metadata.actual_row_count === undefined) {
           systemLogger.warn('No data provided for validation', metadata);
           return { violations, errors, summary };
@@ -181,6 +182,7 @@ class QualityValidationEngine {
       case 'freshness':
         return this.validateFreshness(rule, data, metadata);
       case 'record_count':
+      case 'record_count_match':
         return this.validateRecordCount(rule, data, metadata);
       // Generic rule types for contract/profiling modules
       case 'validity_check':

@@ -101,6 +101,13 @@ class VisualMappingCompiler {
         has_multi_source_join: hasMultipleSources && hasJoins
       };
       
+      if (compiledSteps.qualityRuleIds.length === 0) {
+        systemLogger.warn('Visual mapping compiled with no quality rule IDs — DQ validation will be skipped at execution time', {
+          mappingId: visualMapping.id,
+          hint: 'Open the expression node and save DQ rule assignments, or add rules via the Target Rules node'
+        });
+      }
+
       systemLogger.info('Visual mapping compiled successfully', {
         mappingId: visualMapping.id,
         nodeCount: nodes.length,
