@@ -247,6 +247,8 @@ router.get('/mapping-job-violations', async (req, res) => {
       LEFT JOIN visual_mapping_executions vme ON vme.job_id = tj.job_id
       LEFT JOIN visual_mapping_defs vmd ON vmd.id = vme.mapping_id
       LEFT JOIN projects vmd_sp ON vmd.sub_project_id = vmd_sp.id
+      LEFT JOIN projects vd_sp ON (qrv.violation_details->>'_sub_project_id') IS NOT NULL
+        AND vd_sp.id = (qrv.violation_details->>'_sub_project_id')::integer
     `;
 
     const countQuery = `
@@ -274,12 +276,12 @@ router.get('/mapping-job-violations', async (req, res) => {
         qr.rule_name,
         qr.rule_type,
         qr.description as rule_description,
-        COALESCE(f.filename, fad.file_name) as filename,
+        COALESCE(f.filename, fad.file_name, qrv.violation_details->>'_file_name') as filename,
         f.metadata as file_metadata,
         COALESCE(p.id, tj_p.id) as project_id,
         COALESCE(p.name, tj_p.name) as project_name,
-        COALESCE(sp.id, vmd_sp.id) as sub_project_id,
-        COALESCE(sp.name, vmd_sp.name) as sub_project_name,
+        COALESCE(sp.id, vmd_sp.id, vd_sp.id) as sub_project_id,
+        COALESCE(sp.name, vmd_sp.name, vd_sp.name) as sub_project_name,
         tj.mapping_name,
         tj.job_id as transformation_job_id,
         tj.start_time as job_start_time,

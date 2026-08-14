@@ -3724,6 +3724,18 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
 
         // Persist violations to database
         if (validationResult.violations.length > 0) {
+          // Embed source metadata into violation_details so the violations review page
+          // can display filename and sub-project even when join paths are unavailable
+          // (e.g. temp mapping deleted, synthetic file_id not in files table).
+          for (const v of validationResult.violations) {
+            if (!v.violation_details || typeof v.violation_details !== 'object') {
+              v.violation_details = {};
+            }
+            v.violation_details._file_name = file.filename || null;
+            if (mapping.sub_project_id) v.violation_details._sub_project_id = mapping.sub_project_id;
+            if (mapping.project_id) v.violation_details._project_id = mapping.project_id;
+          }
+
           const violationsPersisted = await persistViolations(pool, jobId, file.file_id, validationResult.violations);
           
           await logJobExecution(pool, jobId, 'info', `Quality violations persisted`, {
