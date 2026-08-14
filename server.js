@@ -6857,14 +6857,24 @@ app.post('/api/files/:fileId/quality-rules/run', authenticateToken, async (req, 
       ORDER BY row_number
     `, [fileId]);
     
-    // When there is no preview data, column-level rules cannot run, but record_count rules
-    // can still be evaluated using the stored row_count from the files table.
+    // When there is no preview data, column-level rules cannot run.
+    // record_count rules CAN still be evaluated using the stored row_count from the files table,
+    // but ONLY when no column-level rules are also assigned — otherwise we must return 400 so
+    // the UI can trigger its S3 re-profile / re-upload retry flow before any DB mutations occur.
     const hasRecordCountRulesAssigned = rulesResult.rows.some(r => r.rule_type === 'record_count');
-    if (previewResult.rows.length === 0 && !hasRecordCountRulesAssigned) {
-      return res.status(400).json({ 
-        error: 'No file data available',
-        message: 'Please re-profile the file to run quality checks'
-      });
+    const hasColumnLevelRulesAssigned = rulesResult.rows.some(
+      r => r.rule_type !== 'record_count' && (r.target_columns || []).length > 0
+    );
+    if (previewResult.rows.length === 0) {
+      if (hasColumnLevelRulesAssigned || !hasRecordCountRulesAssigned) {
+        // Column-level rules need preview data to resolve cell values; returning 400 here
+        // preserves existing violations in the DB and triggers the UI's re-profile flow.
+        return res.status(400).json({ 
+          error: 'No file data available',
+          message: 'Please re-profile the file to run quality checks'
+        });
+      }
+      // Only record_count rules assigned — safe to continue; they use files.row_count fallback.
     }
     
     const rows = previewResult.rows;
@@ -7287,12 +7297,21 @@ app.post('/api/files/:fileId/quality-rules/run', authenticateToken, async (req, 
     }
     
     // Use transaction to atomically replace violations (delete old, insert new)
+    // Deletion is scoped to rules that were actually evaluated so that violations
+    // for rules that were not evaluated (e.g. had no resolvable target column) are
+    // preserved rather than wiped — which would incorrectly make them appear as Passed.
+    const evaluatedIds = [...evaluatedRuleIds];
     const client = await dbPool.connect();
     try {
       await client.query('BEGIN');
       
-      // Clear existing violations for this file
-      await client.query('DELETE FROM quality_rule_violations WHERE file_id = $1', [fileId]);
+      // Clear existing violations only for rules that were just evaluated.
+      if (evaluatedIds.length > 0) {
+        await client.query(
+          'DELETE FROM quality_rule_violations WHERE file_id = $1 AND rule_id = ANY($2)',
+          [fileId, evaluatedIds]
+        );
+      }
       
       // Insert new violations in batches
       if (violations.length > 0) {
@@ -7318,7 +7337,6 @@ app.post('/api/files/:fileId/quality-rules/run', authenticateToken, async (req, 
       }
       
       // Stamp last_run_at only for rules that were actually evaluated.
-      const evaluatedIds = [...evaluatedRuleIds];
       if (evaluatedIds.length > 0) {
         await client.query(
           `UPDATE file_quality_rules

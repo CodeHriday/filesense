@@ -1267,14 +1267,18 @@ function DataProfile() {
       setSavedRuleColumnAssignments(persistedAssignments);
       
       // Also sync with Schema Builder: invert mapping from { ruleId: [columns] } to { column: [ruleIds] }
+      // Keys are normalised to lowercase so that lookups against profile.columns (which carry
+      // the original CSV-header case) and stored target_columns (which carry the case the user
+      // had active when assigning) always match regardless of case differences.
       const invertedAssignments = {};
       Object.entries(currentAssignments).forEach(([ruleId, columns]) => {
         (columns || []).forEach(columnName => {
-          if (!invertedAssignments[columnName]) {
-            invertedAssignments[columnName] = [];
+          const key = columnName.toLowerCase();
+          if (!invertedAssignments[key]) {
+            invertedAssignments[key] = [];
           }
           // Keep rule id as number to match availableGenericRules.id
-          invertedAssignments[columnName].push(parseInt(ruleId, 10));
+          invertedAssignments[key].push(parseInt(ruleId, 10));
         });
       });
       setColumnDQAssignments(invertedAssignments);
@@ -1299,14 +1303,16 @@ function DataProfile() {
       setSavedRuleColumnAssignments(savedCopy);
       
       // Sync with Schema Builder: invert mapping from { ruleId: [columns] } to { column: [ruleIds] }
+      // Keys are normalised to lowercase — see fetchFileQualityRulesData for the rationale.
       const invertedAssignments = {};
       Object.entries(ruleColumnAssignments).forEach(([ruleId, columns]) => {
         (columns || []).forEach(columnName => {
-          if (!invertedAssignments[columnName]) {
-            invertedAssignments[columnName] = [];
+          const key = columnName.toLowerCase();
+          if (!invertedAssignments[key]) {
+            invertedAssignments[key] = [];
           }
           // Keep rule id in its original form from the API (should match availableGenericRules.id)
-          invertedAssignments[columnName].push(parseInt(ruleId, 10));
+          invertedAssignments[key].push(parseInt(ruleId, 10));
         });
       });
       setColumnDQAssignments(invertedAssignments);
@@ -1553,12 +1559,15 @@ function DataProfile() {
   };
 
   const handleColumnRuleToggle = (columnName, ruleId) => {
+    // Normalise to lowercase so reads and writes share the same key format,
+    // preventing case mismatches between CSV header case and target_columns storage.
+    const key = columnName.toLowerCase();
     setColumnDQAssignments(prev => {
-      const columnRules = prev[columnName] || [];
+      const columnRules = prev[key] || [];
       if (columnRules.includes(ruleId)) {
-        return { ...prev, [columnName]: columnRules.filter(id => id !== ruleId) };
+        return { ...prev, [key]: columnRules.filter(id => id !== ruleId) };
       } else {
-        return { ...prev, [columnName]: [...columnRules, ruleId] };
+        return { ...prev, [key]: [...columnRules, ruleId] };
       }
     });
   };
@@ -1599,7 +1608,9 @@ function DataProfile() {
         baseSchema.width = Math.min(Math.ceil(col.max_length * 1.2), 255);
       }
       
-      const assignedRuleIds = columnDQAssignments[col.name] || [];
+      // Lookup is normalised to lowercase — columnDQAssignments keys are stored lowercase
+      // to prevent case mismatches between target_columns storage and profile column names.
+      const assignedRuleIds = columnDQAssignments[col.name.toLowerCase()] || [];
       if (assignedRuleIds.length > 0) {
         baseSchema.quality_rules = assignedRuleIds.map(ruleId => {
           const rule = availableGenericRules.find(r => r.id === ruleId);
@@ -3362,7 +3373,9 @@ function DataProfile() {
                     const isNullable = col.missing > 0 || col.nullable !== false;
                     const columnTags = allColumnGovernanceTags[col.name] || [];
                     const hasPII = col.pii || columnTags.some(t => t.tag_name?.toLowerCase().includes('pii'));
-                    const assignedRules = columnDQAssignments[col.name] || [];
+                    // Lookup normalised to lowercase — columnDQAssignments keys are stored lowercase
+                    // to avoid case mismatches between target_columns storage and profile column names.
+                    const assignedRules = columnDQAssignments[col.name.toLowerCase()] || [];
 
                     return (
                       <tr key={col.name}>
