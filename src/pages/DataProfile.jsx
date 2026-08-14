@@ -966,6 +966,7 @@ function DataProfile() {
   const [revalidateProgress, setRevalidateProgress] = useState(0); // Upload progress
   const [violationsPage, setViolationsPage] = useState(1); // Current page for violations
   const [refreshingRules, setRefreshingRules] = useState(false); // Loading state for refresh button
+  const [columnRulesSkippedCount, setColumnRulesSkippedCount] = useState(0); // Column rules skipped due to missing preview data
   const VIOLATIONS_PER_PAGE = 20; // Pagination size
 
   // Processing status polling state
@@ -1381,10 +1382,12 @@ function DataProfile() {
       
       // Success - response.data.success is true
       const violationsFound = response.data.violations_found || 0;
+      const skippedCount = response.data.column_rules_skipped_no_preview || 0;
+      setColumnRulesSkippedCount(skippedCount);
       setSuccessMessage(`Quality rules executed: ${violationsFound} violation(s) found`);
       setTimeout(() => setSuccessMessage(null), 3000);
       await fetchQualityViolations();
-      return { success: true, violationsFound };
+      return { success: true, violationsFound, skippedCount };
     } catch (err) {
       console.error('Error running quality rules:', err);
       throw err;
@@ -1443,6 +1446,39 @@ function DataProfile() {
     }
   };
   
+  // Trigger file re-profiling so column-level quality rules can run
+  const handleTriggerReprofile = async () => {
+    const token = localStorage.getItem('token');
+    const encodedFileId = encodeURIComponent(fileId);
+    const hasS3Location = file?.metadata?.s3_bucket && file?.metadata?.s3_key;
+
+    if (hasS3Location) {
+      try {
+        setSuccessMessage('Fetching file from S3 and re-profiling...');
+        pendingRulesRunRef.current = true;
+        const retryResponse = await axios.post(`/api/files/${encodedFileId}/retry`, {}, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (retryResponse.data.success || retryResponse.data.jobId) {
+          setSuccessMessage('Re-profiling file… Quality rules will run automatically when complete.');
+          setIsProcessing(true);
+          setColumnRulesSkippedCount(0);
+          setTimeout(() => setSuccessMessage(null), 5000);
+        }
+      } catch (retryErr) {
+        console.error('Failed to fetch from S3 for re-profile:', retryErr);
+        pendingRulesRunRef.current = false;
+        setShowRevalidateModal(true);
+        setRevalidateFile(null);
+        setRevalidateProgress(0);
+      }
+    } else {
+      setShowRevalidateModal(true);
+      setRevalidateFile(null);
+      setRevalidateProgress(0);
+    }
+  };
+
   const handleRevalidateFileSelect = (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -2506,6 +2542,49 @@ function DataProfile() {
     
     const hasUnsavedChanges = hasRuleChanges || hasColumnChanges;
 
+    // Banner shown when column rules were skipped because file has no preview data
+    const skippedNoPreviewBanner = columnRulesSkippedCount > 0 ? (
+      <div style={{
+        display: 'flex',
+        alignItems: 'flex-start',
+        gap: '10px',
+        padding: '12px 16px',
+        marginBottom: '16px',
+        background: '#fffbeb',
+        border: '1px solid #f59e0b',
+        borderRadius: '8px',
+        fontSize: '12px',
+        color: '#92400e'
+      }}>
+        <FiAlertTriangle size={16} style={{ color: '#f59e0b', flexShrink: 0, marginTop: '1px' }} />
+        <div style={{ flex: 1 }}>
+          <strong style={{ display: 'block', marginBottom: '4px' }}>
+            {columnRulesSkippedCount} column-level rule{columnRulesSkippedCount !== 1 ? 's' : ''} could not run — no preview data available
+          </strong>
+          <span style={{ color: '#78350f' }}>
+            Column checks require a file preview. Re-profile the file to generate preview data, then run rules again.
+          </span>
+          <div style={{ marginTop: '8px' }}>
+            <button
+              className="btn btn-outline"
+              style={{ fontSize: '11px', padding: '4px 10px' }}
+              onClick={handleTriggerReprofile}
+            >
+              <FiRefreshCw size={11} style={{ marginRight: '4px' }} />
+              Re-profile File
+            </button>
+          </div>
+        </div>
+        <button
+          onClick={() => setColumnRulesSkippedCount(0)}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0', color: '#92400e', flexShrink: 0 }}
+          title="Dismiss"
+        >
+          <FiX size={14} />
+        </button>
+      </div>
+    ) : null;
+
     const renderRuleAssignmentSection = () => {
       const columns = profile?.columns || [];
       
@@ -2937,6 +3016,7 @@ function DataProfile() {
     if (!qualityViolations) {
       return (
         <div className="quality-rules-tab">
+          {skippedNoPreviewBanner}
           {renderRuleAssignmentSection()}
           <div className="empty-state">
             <FiCheckCircle size={48} style={{ marginBottom: '16px', opacity: 0.5 }} />
@@ -2967,6 +3047,7 @@ function DataProfile() {
     if (applied_rules.length === 0) {
       return (
         <div className="quality-rules-tab">
+          {skippedNoPreviewBanner}
           {renderRuleAssignmentSection()}
           {renderAppliedRulesSection()}
           <div className="gps-card">
@@ -2990,6 +3071,7 @@ function DataProfile() {
     if (violations.length === 0 && allRulesPassed) {
       return (
         <div className="quality-rules-tab">
+          {skippedNoPreviewBanner}
           {renderRuleAssignmentSection()}
           {renderAppliedRulesSection()}
           <div className="gps-card">
@@ -3008,6 +3090,7 @@ function DataProfile() {
     if (violations.length === 0 && !rulesHaveBeenRun) {
       return (
         <div className="quality-rules-tab">
+          {skippedNoPreviewBanner}
           {renderRuleAssignmentSection()}
           {renderAppliedRulesSection()}
           <div className="gps-card">
@@ -3023,6 +3106,7 @@ function DataProfile() {
 
     return (
       <div className="quality-rules-tab">
+        {skippedNoPreviewBanner}
         {renderRuleAssignmentSection()}
         {renderAppliedRulesSection()}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>

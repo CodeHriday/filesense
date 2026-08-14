@@ -6857,24 +6857,20 @@ app.post('/api/files/:fileId/quality-rules/run', authenticateToken, async (req, 
       ORDER BY row_number
     `, [fileId]);
     
-    // When there is no preview data, column-level rules cannot run.
-    // record_count rules CAN still be evaluated using the stored row_count from the files table,
-    // but ONLY when no column-level rules are also assigned — otherwise we must return 400 so
-    // the UI can trigger its S3 re-profile / re-upload retry flow before any DB mutations occur.
-    const hasRecordCountRulesAssigned = rulesResult.rows.some(r => r.rule_type === 'record_count');
+    // When there is no preview data, column-level rules cannot run but record_count rules
+    // CAN always be evaluated using the stored row_count from the files table.
+    // Count skipped column-level rules and include the count in the response so the UI
+    // can show a banner prompting the user to re-profile rather than auto-triggering it.
     const hasColumnLevelRulesAssigned = rulesResult.rows.some(
       r => r.rule_type !== 'record_count' && (r.target_columns || []).length > 0
     );
-    if (previewResult.rows.length === 0) {
-      if (hasColumnLevelRulesAssigned || !hasRecordCountRulesAssigned) {
-        // Column-level rules need preview data to resolve cell values; returning 400 here
-        // preserves existing violations in the DB and triggers the UI's re-profile flow.
-        return res.status(400).json({ 
-          error: 'No file data available',
-          message: 'Please re-profile the file to run quality checks'
-        });
-      }
-      // Only record_count rules assigned — safe to continue; they use files.row_count fallback.
+    let columnRulesSkippedNoPreview = 0;
+    if (previewResult.rows.length === 0 && hasColumnLevelRulesAssigned) {
+      // Count column-level rules that cannot be evaluated without preview data.
+      // They remain "Not Run" (not stamped) and the UI will show a banner.
+      columnRulesSkippedNoPreview = rulesResult.rows.filter(
+        r => r.rule_type !== 'record_count' && (r.target_columns || []).length > 0
+      ).length;
     }
     
     const rows = previewResult.rows;
@@ -7367,6 +7363,7 @@ app.post('/api/files/:fileId/quality-rules/run', authenticateToken, async (req, 
       message: `Quality rules executed successfully`,
       rules_executed: rulesResult.rows.length,
       violations_found: violations.length,
+      column_rules_skipped_no_preview: columnRulesSkippedNoPreview,
       violations_by_rule: rulesResult.rows.map(rule => ({
         rule_id: rule.id,
         rule_name: rule.rule_name,
