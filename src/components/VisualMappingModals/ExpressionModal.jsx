@@ -106,7 +106,7 @@ const ExpressionModal = ({ isOpen, onClose, onSave, initialConfig = {}, schema =
             const refType = isStr ? qr : qr.rule_type;
             let rule = refName ? allRules.find(r => r.rule_name === refName) : null;
             if (!rule && refType) rule = allRules.find(r => r.rule_type === refType);
-            if (rule) matched.push({ ruleId: rule.id, errorAction: 'log_continue', applyTo: 'etl_job' });
+            if (rule) matched.push({ ruleId: rule.id, ruleName: rule.rule_name, errorAction: 'log_continue', applyTo: 'etl_job' });
           }
           return matched;
         };
@@ -358,7 +358,7 @@ const ExpressionModal = ({ isOpen, onClose, onSave, initialConfig = {}, schema =
                           <td>
                             {col.dqRules.length > 0 ? (
                               <span style={{ fontSize: '9px', color: '#6b7280' }}>
-                                {col.dqRules.map(r => r.name || r.rule_type || `Rule ${r.ruleId}`).join(', ')}
+                                {col.dqRules.map(r => r.ruleName || r.name || r.rule_type || `Rule ${r.ruleId}`).join(', ')}
                               </span>
                             ) : '—'}
                           </td>
