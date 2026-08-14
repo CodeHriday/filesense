@@ -787,7 +787,10 @@ const VisualMappingCanvasContent = () => {
           name: col.column_name || col.name,
           type: col.data_type || col.type,
           description: col.description,
-          contains_pii: col.contains_pii || col.pii || false
+          contains_pii: col.contains_pii || col.pii || false,
+          // Preserve per-column quality_rules so ExpressionModal can auto-populate
+          // dqRuleAssignments on first open when backed by a vendor agreement.
+          quality_rules: col.quality_rules || []
         }));
         console.log(`getCumulativeSchema: Source Config node ${nodeId} output schema:`, transformedSchema.length, 'columns');
         return transformedSchema;
@@ -1934,6 +1937,30 @@ const VisualMappingCanvasContent = () => {
           onSave={handleSaveNodeConfig}
           initialConfig={getCurrentNodeConfig()}
           schema={getCumulativeSchema()}
+          agreementFileQualityRules={(() => {
+            // Walk immediate upstream nodes to find the source config's file-level rules.
+            // Used by ExpressionModal to pre-populate __file__-scoped DQ assignments.
+            const upEdges = edges.filter(e => e.target === configNodeId);
+            for (const edge of upEdges) {
+              const upNode = nodes.find(n => n.id === edge.source);
+              if (upNode?.type === 'sourceConfig') {
+                return upNode.data?.config?.agreementFileQualityRules || [];
+              }
+            }
+            return [];
+          })()}
+          agreementQualityRuleIds={(() => {
+            // Pre-resolved file-level rule DB IDs — used as fallback when name resolution
+            // produces no matches (e.g. string-format or renamed rule references).
+            const upEdges = edges.filter(e => e.target === configNodeId);
+            for (const edge of upEdges) {
+              const upNode = nodes.find(n => n.id === edge.source);
+              if (upNode?.type === 'sourceConfig') {
+                return upNode.data?.config?.agreementQualityRuleIds || [];
+              }
+            }
+            return [];
+          })()}
         />
       )}
       

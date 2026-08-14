@@ -298,13 +298,20 @@ const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
         const schemaColumns = Array.isArray(rawSchema)
           ? rawSchema
           : (rawSchema && Array.isArray(rawSchema.columns) ? rawSchema.columns : []);
+        // Extract file-level quality rules (new object format only; legacy bare array has none)
+        const fileQualityRules = (rawSchema && !Array.isArray(rawSchema) && Array.isArray(rawSchema.file_quality_rules))
+          ? rawSchema.file_quality_rules
+          : [];
         setSchema({
           columns: schemaColumns,
           contains_pii: response.data.fileSchema.contains_pii,
           data_classification: response.data.fileSchema.data_classification,
           file_type: response.data.fileSchema.file_type,
           column_metadata: response.data.fileSchema.column_metadata || {},
-          source: 'agreement'
+          source: 'agreement',
+          // Preserve DQ rule references so downstream expression nodes can auto-populate
+          quality_rule_ids: response.data.fileSchema.quality_rule_ids || [],
+          file_quality_rules: fileQualityRules
         });
       }
     } catch (error) {
@@ -487,7 +494,9 @@ const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
       // Include file type and password status for restoration (only save hasArchivePassword when true)
       selectedFileType: selectedFileType || null,
       hasArchivePassword: hasArchivePassword === true ? true : undefined,
-      // Include schema for downstream propagation
+      // Include schema for downstream propagation.
+      // Column objects retain their quality_rules arrays so getCumulativeSchema can
+      // carry them through to ExpressionModal for DQ auto-population.
       schema: schema?.columns || [],
       schemaMetadata: schema ? {
         contains_pii: schema.contains_pii,
@@ -495,7 +504,11 @@ const SourceConfigModal = ({ isOpen, onClose, onSave, initialConfig = {} }) => {
         file_type: schema.file_type,
         column_metadata: schema.column_metadata || {},
         source: schema.source
-      } : null
+      } : null,
+      // Agreement-level DQ rule references — expression nodes use these to pre-populate
+      // dqRuleAssignments on first open (skipped when user has explicitly saved assignments).
+      agreementQualityRuleIds: schema?.quality_rule_ids || [],
+      agreementFileQualityRules: schema?.file_quality_rules || []
     };
     console.log('Saving Source Configuration with schema:', { 
       schemaColumnsCount: schema?.columns?.length || 0, 

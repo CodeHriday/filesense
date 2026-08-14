@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import axios from 'axios';
 import PropTypes from 'prop-types';
 import TableBasedMapper from '../TableBasedMapper';
 import './MappingConfigModal.css';
@@ -20,7 +21,7 @@ const formatTypeWithPrecision = (type, precision, scale) => {
   return baseType;
 };
 
-const ExpressionModal = ({ isOpen, onClose, onSave, initialConfig = {}, schema = [] }) => {
+const ExpressionModal = ({ isOpen, onClose, onSave, initialConfig = {}, schema = [], agreementFileQualityRules = [], agreementQualityRuleIds = [] }) => {
   const [name, setName] = useState(initialConfig.name || '');
   const [description, setDescription] = useState(initialConfig.description || '');
   const [fieldMappings, setFieldMappings] = useState(initialConfig.fieldMappings || []);
@@ -42,6 +43,99 @@ const ExpressionModal = ({ isOpen, onClose, onSave, initialConfig = {}, schema =
       setActiveTab('mappings');
     }
   }, [isOpen, initialConfig]);
+
+  // Auto-populate dqRuleAssignments from the agreement's schema on first open.
+  // Guard: fires only when dqRuleAssignments was never explicitly saved (key absent from
+  // initialConfig). If the user cleared assignments and saved (value = {}), the key IS
+  // present and we skip — respecting the user's choice.
+  useEffect(() => {
+    if (!isOpen) return;
+    if (initialConfig.dqRuleAssignments !== undefined && initialConfig.dqRuleAssignments !== null) return;
+
+    const columnsWithRules = schema.filter(col => col.quality_rules && col.quality_rules.length > 0);
+    const hasFileRules = agreementFileQualityRules && agreementFileQualityRules.length > 0;
+    const hasFileRuleIds = agreementQualityRuleIds && agreementQualityRuleIds.length > 0;
+    if (columnsWithRules.length === 0 && !hasFileRules && !hasFileRuleIds) return;
+
+    const autoPopulate = async () => {
+      try {
+        // Paginate through the full quality-rules catalogue so we never miss a rule
+        // that sits beyond any fixed-size first page (API is ordered by created_at DESC).
+        const allRules = [];
+        const PAGE_SIZE = 500;
+        let offset = 0;
+        while (true) {
+          const page = await axios.get(`/api/quality-rules?limit=${PAGE_SIZE}&offset=${offset}`);
+          const rows = page.data?.rules || [];
+          allRules.push(...rows);
+          if (!page.data?.pagination?.hasMore) break;
+          offset += PAGE_SIZE;
+        }
+
+        // Resolve an array of quality rule references to dqRuleAssignment objects.
+        // Each ref may be:
+        //   - an object:  { rule_name, rule_type }   (new schema format)
+        //   - a string:   "date_format"               (legacy / template format)
+        // Strings are tried as rule_name first, then rule_type.
+        const resolveRules = (qualityRuleRefs) => {
+          const matched = [];
+          for (const qr of qualityRuleRefs) {
+            const isString = typeof qr === 'string';
+            const refName = isString ? qr : qr.rule_name;
+            const refType = isString ? qr : qr.rule_type;
+            let rule = refName ? allRules.find(r => r.rule_name === refName) : null;
+            if (!rule && refType) {
+              rule = allRules.find(r => r.rule_type === refType);
+            }
+            if (rule) {
+              matched.push({ ruleId: rule.id, errorAction: 'log_continue', applyTo: 'etl_job' });
+            }
+          }
+          return matched;
+        };
+
+        const assignments = {};
+
+        // Column-level rules
+        for (const col of columnsWithRules) {
+          const matched = resolveRules(col.quality_rules);
+          if (matched.length > 0) {
+            assignments[col.name] = matched;
+          }
+        }
+
+        // File-level rules stored under the __file__ pseudo-key.
+        // Primary: resolve by name/type from agreementFileQualityRules.
+        // Fallback: use pre-resolved agreementQualityRuleIds directly when
+        //   agreementFileQualityRules is absent or yields no matches.
+        if (hasFileRules) {
+          const fileMatched = resolveRules(agreementFileQualityRules);
+          if (fileMatched.length > 0) {
+            assignments['__file__'] = fileMatched;
+          } else if (hasFileRuleIds) {
+            // Name resolution found nothing; fall back to the DB IDs saved on the schema
+            assignments['__file__'] = agreementQualityRuleIds.map(id => ({
+              ruleId: id, errorAction: 'log_continue', applyTo: 'etl_job'
+            }));
+          }
+        } else if (hasFileRuleIds) {
+          // No rule-object array, but we have pre-resolved IDs — use them directly
+          assignments['__file__'] = agreementQualityRuleIds.map(id => ({
+            ruleId: id, errorAction: 'log_continue', applyTo: 'etl_job'
+          }));
+        }
+
+        if (Object.keys(assignments).length > 0) {
+          console.log('[ExpressionModal] Auto-populated DQ assignments from agreement:', assignments);
+          setDqRuleAssignments(assignments);
+        }
+      } catch (err) {
+        console.error('[ExpressionModal] Auto-populate DQ rules failed:', err);
+      }
+    };
+
+    autoPopulate();
+  }, [isOpen]); // eslint-disable-line react-hooks/exhaustive-deps -- intentional: runs on open only
 
   const outputSchema = useMemo(() => {
     return fieldMappings
@@ -304,6 +398,8 @@ ExpressionModal.propTypes = {
   isOpen: PropTypes.bool.isRequired,
   onClose: PropTypes.func.isRequired,
   onSave: PropTypes.func.isRequired,
+  agreementFileQualityRules: PropTypes.array,
+  agreementQualityRuleIds: PropTypes.array,
 
   initialConfig: PropTypes.shape({
     name: PropTypes.string,
