@@ -511,7 +511,27 @@ async function getAuditRecords(pool, filters = {}) {
           f.project_id,
           COALESCE(f.sub_project_id, tm.sub_project_id) as sub_project_id,
           COALESCE(sp.name, tm_sp.name) as sub_project_name,
-          f.quality_score,
+          COALESCE(
+            f.quality_score,
+            -- Fallback for VM files whose profiling files row does not exist yet:
+            -- derive quality_score from DQ rule results (passed rules / total rules * 100).
+            (
+              SELECT CASE
+                WHEN COUNT(DISTINCT fqr.quality_rule_id) = 0 THEN NULL
+                ELSE ROUND(
+                  (COUNT(DISTINCT fqr.quality_rule_id) -
+                    COUNT(DISTINCT qrv.rule_id))::numeric /
+                  COUNT(DISTINCT fqr.quality_rule_id) * 100,
+                  1
+                )
+              END
+              FROM file_quality_rules fqr
+              LEFT JOIN quality_rule_violations qrv
+                ON qrv.rule_id = fqr.quality_rule_id
+                AND qrv.file_id = fad.file_id
+              WHERE fqr.file_id = fad.file_id
+            )
+          ) as quality_score,
           COALESCE(f.column_count, fad.number_of_columns) as number_of_columns,
           COALESCE(f.row_count, fad.no_of_records_in_source) as row_count,
           tj.job_id,

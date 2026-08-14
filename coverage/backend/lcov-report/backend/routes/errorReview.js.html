@@ -25,7 +25,7 @@
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>0/240</span>
+                <span class='fraction'>0/241</span>
             </div>
         
             
@@ -46,7 +46,7 @@
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>0/235</span>
+                <span class='fraction'>0/236</span>
             </div>
         
             
@@ -872,7 +872,17 @@
 <a name='L807'></a><a href='#L807'>807</a>
 <a name='L808'></a><a href='#L808'>808</a>
 <a name='L809'></a><a href='#L809'>809</a>
-<a name='L810'></a><a href='#L810'>810</a></td><td class="line-coverage quiet"><span class="cline-any cline-no">&nbsp;</span>
+<a name='L810'></a><a href='#L810'>810</a>
+<a name='L811'></a><a href='#L811'>811</a>
+<a name='L812'></a><a href='#L812'>812</a>
+<a name='L813'></a><a href='#L813'>813</a>
+<a name='L814'></a><a href='#L814'>814</a>
+<a name='L815'></a><a href='#L815'>815</a>
+<a name='L816'></a><a href='#L816'>816</a>
+<a name='L817'></a><a href='#L817'>817</a>
+<a name='L818'></a><a href='#L818'>818</a>
+<a name='L819'></a><a href='#L819'>819</a>
+<a name='L820'></a><a href='#L820'>820</a></td><td class="line-coverage quiet"><span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
@@ -1101,7 +1111,12 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -1114,6 +1129,10 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -1121,6 +1140,7 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -1910,9 +1930,10 @@ function <span class="fstat-no" title="function not covered" >parseProjectId(</s
 &nbsp;
     const whereClause = <span class="cstat-no" title="statement not covered" >`WHERE ${whereConditions.join(' AND ')}`;</span>
 &nbsp;
-    const countQuery = <span class="cstat-no" title="statement not covered" >`</span>
-      SELECT COUNT(*) as total
-      FROM quality_rule_violations qrv
+    // Shared join fragment — used by both count and data queries.
+    // fad: fallback filename for VM jobs (synthetic file_id not in files table).
+    // vme/vmd/vmd_sp: fallback sub-project for VM jobs (temp mapping deleted after execution).
+    const joinFragment = <span class="cstat-no" title="statement not covered" >`</span>
       INNER JOIN quality_rules qr ON qrv.rule_id = qr.id
       LEFT JOIN files f ON qrv.file_id = f.file_id
       LEFT JOIN projects p ON f.project_id = p.id
@@ -1920,6 +1941,21 @@ function <span class="fstat-no" title="function not covered" >parseProjectId(</s
       LEFT JOIN transformation_jobs tj ON qrv.job_id = tj.job_id
       LEFT JOIN projects tj_p ON tj.project_id = tj_p.id
       LEFT JOIN users exec_user ON tj.executed_by = exec_user.id
+      LEFT JOIN LATERAL (
+        SELECT file_name FROM file_audit_details
+        WHERE transformation_job_id = tj.id AND file_role = 'source'
+        ORDER BY created_dt DESC
+        LIMIT 1
+      ) fad ON true
+      LEFT JOIN visual_mapping_executions vme ON vme.job_id = tj.job_id
+      LEFT JOIN visual_mapping_defs vmd ON vmd.id = vme.mapping_id
+      LEFT JOIN projects vmd_sp ON vmd.sub_project_id = vmd_sp.id
+    `;
+&nbsp;
+    const countQuery = <span class="cstat-no" title="statement not covered" >`</span>
+      SELECT COUNT(*) as total
+      FROM quality_rule_violations qrv
+      ${joinFragment}
       ${whereClause}
     `;
 &nbsp;
@@ -1941,25 +1977,19 @@ function <span class="fstat-no" title="function not covered" >parseProjectId(</s
         qr.rule_name,
         qr.rule_type,
         qr.description as rule_description,
-        f.filename,
+        COALESCE(f.filename, fad.file_name) as filename,
         f.metadata as file_metadata,
         COALESCE(p.id, tj_p.id) as project_id,
         COALESCE(p.name, tj_p.name) as project_name,
-        sp.id as sub_project_id,
-        sp.name as sub_project_name,
+        COALESCE(sp.id, vmd_sp.id) as sub_project_id,
+        COALESCE(sp.name, vmd_sp.name) as sub_project_name,
         tj.mapping_name,
         tj.job_id as transformation_job_id,
         tj.start_time as job_start_time,
         exec_user.username as executed_by_username,
         exec_user.full_name as executed_by_fullname
       FROM quality_rule_violations qrv
-      INNER JOIN quality_rules qr ON qrv.rule_id = qr.id
-      LEFT JOIN files f ON qrv.file_id = f.file_id
-      LEFT JOIN projects p ON f.project_id = p.id
-      LEFT JOIN projects sp ON f.sub_project_id = sp.id
-      LEFT JOIN transformation_jobs tj ON qrv.job_id = tj.job_id
-      LEFT JOIN projects tj_p ON tj.project_id = tj_p.id
-      LEFT JOIN users exec_user ON tj.executed_by = exec_user.id
+      ${joinFragment}
       ${whereClause}
       ORDER BY qrv.created_at DESC
       LIMIT $${++paramCount} OFFSET $${++paramCount}
@@ -2497,7 +2527,7 @@ function <span class="fstat-no" title="function not covered" >parseProjectId(</s
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-08-14T06:06:32.335Z
+                at 2026-08-14T06:45:36.241Z
             </div>
         <script src="../../prettify.js"></script>
         <script>

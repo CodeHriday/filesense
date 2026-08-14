@@ -3644,6 +3644,11 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
       }
     }
 
+    // DQ quality score for the VM target file — computed from transformation quality rules and
+    // written to the files table (with the target's synthetic file_id) inside step 4, where
+    // outputFilename / outputBuffer / outputSchema are all in scope.
+    let dqQualityScore = null;
+
     // Step 3.3: Run quality validation on transformed data (if quality rules are defined)
     try {
       const qualityRulesResult = await pool.query(`
@@ -3704,7 +3709,19 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
           error_count: validationResult.summary.error_count,
           warning_count: validationResult.summary.warning_count
         });
-        
+
+        // Compute quality_score for the VM target file from the DQ rule pass/fail rate.
+        // Stored in dqQualityScore and written to the files table inside step 4 once
+        // outputFilename / outputBuffer / outputSchema are in scope.
+        {
+          const totalRules = qualityRulesResult.rows.length;
+          if (totalRules > 0) {
+            const violatedRuleIds = new Set(validationResult.violations.map(v => v.rule_id));
+            const passedRules = totalRules - violatedRuleIds.size;
+            dqQualityScore = Math.round((passedRules / totalRules) * 1000) / 10; // 0.0–100.0
+          }
+        }
+
         // Persist violations to database
         if (validationResult.violations.length > 0) {
           const violationsPersisted = await persistViolations(pool, jobId, file.file_id, validationResult.violations);
@@ -3980,6 +3997,74 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
             }))
           : [];
         
+        // Write quality_score from the DQ rule run (step 3.3) to the files table for
+        // the VM target synthetic file_id.  This must happen here (after outputBuffer /
+        // outputFilename / outputSchema are defined) so the INSERT has all required fields.
+        // profileFileBuffer (step 6) may later overwrite quality_score with a profiling-based
+        // value; the DQ score takes effect immediately and persists if profiling is unavailable.
+        const targetFileIdForDQ = `transformed_${jobId}_${file.filename}`;
+        if (dqQualityScore !== null) {
+          try {
+            await pool.query(`
+              INSERT INTO files (
+                file_id, filename, file_type, file_size, row_count, column_count,
+                file_role, correlation_id, project_id, processing_step, quality_score,
+                created_at, updated_at
+              ) VALUES ($1, $2, $3, $4, $5, $6, 'target', $7, $8, 'complete', $9, NOW(), NOW())
+              ON CONFLICT (file_id) DO UPDATE SET
+                quality_score = EXCLUDED.quality_score,
+                updated_at = NOW()
+            `, [
+              targetFileIdForDQ,
+              outputFilename,
+              outputFormat,
+              outputBuffer.length,
+              transformedRows.length,
+              outputSchema.length,
+              correlationId,
+              mapping.project_id || null,
+              dqQualityScore
+            ]);
+            await logJobExecution(pool, jobId, 'info',
+              `VM target quality_score persisted from DQ rule run (${dqQualityScore}%)`, {
+              fileId: targetFileIdForDQ,
+              dqQualityScore
+            });
+          } catch (qsErr) {
+            await logJobExecution(pool, jobId, 'warn',
+              `Failed to persist VM target DQ quality_score: ${qsErr.message}`, {
+              error: qsErr.stack
+            });
+          }
+        } else {
+          // No DQ rules ran — ensure a minimal files row still exists so that profiling
+          // and any subsequent DQ rule run can write quality_score against this file_id.
+          try {
+            await pool.query(`
+              INSERT INTO files (
+                file_id, filename, file_type, file_size, row_count, column_count,
+                file_role, correlation_id, project_id, processing_step,
+                created_at, updated_at
+              ) VALUES ($1, $2, $3, $4, $5, $6, 'target', $7, $8, 'complete', NOW(), NOW())
+              ON CONFLICT (file_id) DO NOTHING
+            `, [
+              targetFileIdForDQ,
+              outputFilename,
+              outputFormat,
+              outputBuffer.length,
+              transformedRows.length,
+              outputSchema.length,
+              correlationId,
+              mapping.project_id || null
+            ]);
+          } catch (minimalInsertErr) {
+            await logJobExecution(pool, jobId, 'warn',
+              `Failed to upsert minimal files row for VM target: ${minimalInsertErr.message}`, {
+              error: minimalInsertErr.stack
+            });
+          }
+        }
+
         // Capture schema for output file
         const schemaResult = await captureFileSchema(pool, {
           fileId: `transformed_${jobId}_${file.filename}`,
@@ -4523,6 +4608,36 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
               `TARGET file profiling failed: ${targetProfilingResult.error}`, {
               fileRole: 'target'
             });
+            // Profiling failed — ensure a minimal files row exists for this synthetic file_id
+            // so that subsequent DQ rule runs can write quality_score back to it and the
+            // catalog COALESCE fallback (f.quality_score) has a row to join against.
+            try {
+              const targetFileId = `transformed_${jobId}_${file.filename}`;
+              await pool.query(`
+                INSERT INTO files (file_id, filename, file_type, file_size, row_count, column_count,
+                  file_role, correlation_id, project_id, processing_step, created_at, updated_at)
+                VALUES ($1, $2, $3, $4, $5, $6, 'target', $7, $8, 'complete', NOW(), NOW())
+                ON CONFLICT (file_id) DO NOTHING
+              `, [
+                targetFileId,
+                outputFilename,
+                outputFormat,
+                outputBuffer.length,
+                rowsWritten,
+                outputSchema.length,
+                correlationId,
+                mapping.project_id || null
+              ]);
+              await logJobExecution(pool, jobId, 'info',
+                'Minimal files row upserted for VM target file (profiling failed)', {
+                fileId: targetFileId
+              });
+            } catch (fallbackErr) {
+              await logJobExecution(pool, jobId, 'warn',
+                `Failed to upsert minimal files row for VM target: ${fallbackErr.message}`, {
+                error: fallbackErr.stack
+              });
+            }
           }
         } catch (profilingError) {
           // Log but don't fail the job if profiling fails
@@ -4530,6 +4645,35 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
             `TARGET file profiling failed: ${profilingError.message}`, {
             error: profilingError.stack
           });
+          // Ensure a minimal files row exists so DQ rule runs can store quality_score
+          // for this VM target file even when the Python profiler is unavailable.
+          try {
+            const targetFileId = `transformed_${jobId}_${file.filename}`;
+            await pool.query(`
+              INSERT INTO files (file_id, filename, file_type, file_size, row_count, column_count,
+                file_role, correlation_id, project_id, processing_step, created_at, updated_at)
+              VALUES ($1, $2, $3, $4, $5, $6, 'target', $7, $8, 'complete', NOW(), NOW())
+              ON CONFLICT (file_id) DO NOTHING
+            `, [
+              targetFileId,
+              outputFilename,
+              outputFormat,
+              outputBuffer.length,
+              rowsWritten,
+              outputSchema.length,
+              correlationId,
+              mapping.project_id || null
+            ]);
+            await logJobExecution(pool, jobId, 'info',
+              'Minimal files row upserted for VM target file (profiling exception)', {
+              fileId: targetFileId
+            });
+          } catch (fallbackErr) {
+            await logJobExecution(pool, jobId, 'warn',
+              `Failed to upsert minimal files row for VM target: ${fallbackErr.message}`, {
+              error: fallbackErr.stack
+            });
+          }
         }
       } catch (auditError) {
         // Log but don't fail the job if audit fails
