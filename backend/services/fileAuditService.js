@@ -400,7 +400,9 @@ async function getAuditRecords(pool, filters = {}) {
     // Add project filtering (unless admin)
     // Check both files table and transformation_mappings table for project association
     if (!isAdmin && projectIds.length > 0) {
-      conditions.push(`(f.project_id = ANY($${paramIndex}::integer[]) OR tm.project_id = ANY($${paramIndex}::integer[]))`);
+      // vm.project_id covers VM jobs whose temp transformation_mappings row has been deleted
+      // (so tm is NULL) and whose source file_id is synthetic (so f is NULL).
+      conditions.push(`(f.project_id = ANY($${paramIndex}::integer[]) OR tm.project_id = ANY($${paramIndex}::integer[]) OR vm.project_id = ANY($${paramIndex}::integer[]))`);
       params.push(projectIds);
       paramIndex++;
     }
@@ -482,6 +484,10 @@ async function getAuditRecords(pool, filters = {}) {
         ON fad.transformation_job_id = tj.id
       LEFT JOIN transformation_mappings tm 
         ON tj.mapping_id = tm.mapping_id
+      LEFT JOIN visual_mapping_executions vme
+        ON vme.job_id = tj.job_id
+      LEFT JOIN visual_mapping_defs vm
+        ON vm.id = vme.mapping_id
       ${whereClause}
     `;
     const countResult = await pool.query(countQuery, params.slice(0, paramIndex - 1));
@@ -553,6 +559,10 @@ async function getAuditRecords(pool, filters = {}) {
           ON tj.workflow_execution_id = nwr.id
         LEFT JOIN n_step_workflows nw 
           ON nwr.workflow_id = nw.id
+        LEFT JOIN visual_mapping_executions vme
+          ON vme.job_id = tj.job_id
+        LEFT JOIN visual_mapping_defs vm
+          ON vm.id = vme.mapping_id
         ${whereClause}
         ORDER BY fad.id, fad.created_dt DESC
       ) AS distinct_audits
