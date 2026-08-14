@@ -800,8 +800,19 @@ router.post('/:id/execute', authorize('visual_mapping_orchestrator:execute'), as
         );
         
         transformationDbId = transformResult.rows[0].id;
-        
-        console.log(`[VISUAL-MAPPING-EXECUTE] Temp mapping created: ${tempMappingId}, DB ID: ${transformationDbId}`);
+
+        // Persist DQ rule associations so the job engine enforces them.
+        // qualityRuleIds comes from targetRules.selectedQualityRules + expression node dqRuleAssignments.
+        const qualityRuleIds = transformationMapping.quality_rule_ids || [];
+        for (const ruleId of qualityRuleIds) {
+          await pool.query(
+            `INSERT INTO transformation_quality_rules (mapping_id, quality_rule_id)
+             VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+            [transformationDbId, ruleId]
+          );
+        }
+
+        console.log(`[VISUAL-MAPPING-EXECUTE] Temp mapping created: ${tempMappingId}, DB ID: ${transformationDbId}, DQ rules: ${qualityRuleIds.length}`);
         
         // Use jobExecutionEngine to execute
         const { executeTransformationJob } = require('../services/jobExecutionEngine');

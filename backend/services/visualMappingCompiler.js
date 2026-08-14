@@ -596,6 +596,19 @@ class VisualMappingCompiler {
             if (config.piiColumns) {
               result.piiColumns.push(...config.piiColumns);
             }
+            // Collect DQ rule IDs from dqRuleAssignments so they are inserted into
+            // transformation_quality_rules and enforced during execution.
+            if (config.dqRuleAssignments && typeof config.dqRuleAssignments === 'object') {
+              for (const assignments of Object.values(config.dqRuleAssignments)) {
+                if (Array.isArray(assignments)) {
+                  for (const a of assignments) {
+                    if (a.ruleId && !result.qualityRuleIds.includes(a.ruleId)) {
+                      result.qualityRuleIds.push(a.ruleId);
+                    }
+                  }
+                }
+              }
+            }
             break;
             
           case 'rdmLookup':

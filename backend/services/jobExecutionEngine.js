@@ -3711,9 +3711,15 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
             });
             
             throw new Error(abortMessage);
+          } else if (violationHandling === 'log_warn') {
+            // Warn: violations are persisted and surfaced as warnings; job completes successfully
+            await logJobExecution(pool, jobId, 'warn', `Quality violations detected — job completed with warnings (${validationResult.summary.violations_found} violation(s))`, {
+              violations_summary: validationResult.summary,
+              violation_handling: violationHandling
+            });
           } else {
-            // log_continue - just log and proceed
-            await logJobExecution(pool, jobId, 'warn', `Quality violations detected but continuing per violation_handling policy`, {
+            // log_continue — log at info level and proceed silently
+            await logJobExecution(pool, jobId, 'info', `Quality violations detected but continuing per violation_handling policy`, {
               violations_summary: validationResult.summary,
               violation_handling: violationHandling
             });

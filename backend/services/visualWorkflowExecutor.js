@@ -467,7 +467,24 @@ class VisualWorkflowExecutor {
       );
       
       const transformationDbId = transformResult.rows[0].id;
-      
+
+      // Persist DQ rule associations so the job engine enforces them.
+      // qualityRuleIds comes from targetRules.selectedQualityRules + expression node dqRuleAssignments.
+      const qualityRuleIds = transformationMapping.quality_rule_ids || [];
+      if (qualityRuleIds.length > 0) {
+        for (const ruleId of qualityRuleIds) {
+          await pool.query(
+            `INSERT INTO transformation_quality_rules (mapping_id, quality_rule_id)
+             VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+            [transformationDbId, ruleId]
+          );
+        }
+        systemLogger.info('Inserted DQ rule associations for VM temp mapping', {
+          transformationDbId,
+          ruleCount: qualityRuleIds.length
+        });
+      }
+
       systemLogger.info('Created temp transformation mapping for workflow execution', {
         workflowId: this.workflowId,
         tempMappingId,

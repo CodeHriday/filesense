@@ -464,6 +464,7 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
   const getErrorActionLabel = (errorAction) => {
     switch (errorAction) {
       case 'log_abort': return 'Abort';
+      case 'log_warn': return 'Warn';
       case 'log_continue': return 'Continue';
       default: return 'Continue';
     }
@@ -471,7 +472,9 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
   
   // Get error action style class
   const getErrorActionClass = (errorAction) => {
-    return errorAction === 'log_abort' ? 'error-action-abort' : 'error-action-continue';
+    if (errorAction === 'log_abort') return 'error-action-abort';
+    if (errorAction === 'log_warn') return 'error-action-warn';
+    return 'error-action-continue';
   };
 
   const buildExpression = (mapping) => {
@@ -2461,6 +2464,7 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
                         style={{ fontSize: '10px', fontFamily: 'Inter', padding: '2px 4px' }}
                       >
                         <option value="log_continue">Log & Continue</option>
+                        <option value="log_warn">Log & Warn</option>
                         <option value="log_abort">Log & Abort Job</option>
                       </select>
                     </div>
@@ -2498,6 +2502,7 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
                                   style={{ fontSize: '9px', fontFamily: 'Inter', padding: '1px 2px', marginRight: '4px' }}
                                 >
                                   <option value="log_continue">Continue</option>
+                                  <option value="log_warn">Warn</option>
                                   <option value="log_abort">Abort</option>
                                 </select>
                                 <button 
@@ -2602,7 +2607,7 @@ TableBasedMapper.propTypes = {
     PropTypes.arrayOf(
       PropTypes.shape({
         ruleId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
-        errorAction: PropTypes.oneOf(['log_continue', 'log_abort']),
+        errorAction: PropTypes.oneOf(['log_continue', 'log_warn', 'log_abort']),
         applyTo: PropTypes.string
       })
     )
