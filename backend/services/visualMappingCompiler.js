@@ -89,6 +89,7 @@ class VisualMappingCompiler {
         violation_handling: compiledSteps.violationHandling || 'log_continue',
         quality_rule_ids: compiledSteps.qualityRuleIds || [],
         quality_rule_actions: compiledSteps.qualityRuleActions || {},
+        quality_rule_columns: compiledSteps.qualityRuleColumns || {},
         enable_anomaly_detection: compiledSteps.enableAnomalyDetection || false,
         node_execution_map: executionOrder.executionMap,
         vendor_agreement_id: compiledSteps.vendorAgreementId || null,
@@ -552,6 +553,10 @@ class VisualMappingCompiler {
       // Maps ruleId -> errorAction for per-rule On Failure behaviour.
       // Populated from expression node dqRuleAssignments and targetRules selectedQualityRules.
       qualityRuleActions: {},
+      // Maps ruleId -> columnName for rules whose column is assigned at the node level
+      // (e.g. date_format rules on expression nodes via dqRuleAssignments) rather than
+      // stored globally on the quality_rules row. Used by the DQ step as a column override.
+      qualityRuleColumns: {},
       enableAnomalyDetection: false,
       // Multi-source support: collect all source configurations
       sourceCatalog: [],
@@ -609,7 +614,7 @@ class VisualMappingCompiler {
             // Collect DQ rule IDs from dqRuleAssignments so they are inserted into
             // transformation_quality_rules and enforced during execution.
             if (config.dqRuleAssignments && typeof config.dqRuleAssignments === 'object') {
-              for (const assignments of Object.values(config.dqRuleAssignments)) {
+              for (const [columnName, assignments] of Object.entries(config.dqRuleAssignments)) {
                 if (Array.isArray(assignments)) {
                   for (const a of assignments) {
                     if (a.ruleId && !result.qualityRuleIds.includes(a.ruleId)) {
@@ -618,6 +623,12 @@ class VisualMappingCompiler {
                     // Persist per-rule errorAction so the engine can honour Warn/Abort per rule
                     if (a.ruleId && a.errorAction) {
                       result.qualityRuleActions[a.ruleId] = a.errorAction;
+                    }
+                    // Capture column → rule mapping so the DQ step knows which column to validate
+                    // when the quality_rules row itself has no column_name (e.g. date_format rules
+                    // assigned to a specific column in the VM expression node).
+                    if (a.ruleId && columnName) {
+                      result.qualityRuleColumns[a.ruleId] = columnName;
                     }
                   }
                 }

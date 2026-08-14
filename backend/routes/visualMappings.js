@@ -764,9 +764,10 @@ router.post('/:id/execute', authorize('visual_mapping_orchestrator:execute'), as
             schema_drift_handling, violation_handling,
             created_by, is_visual_mapping, visual_mapping_id, is_temporary,
             vendor_agreement_id,
-            source_catalog, join_specs, has_multi_source_join, primary_source_node_id
+            source_catalog, join_specs, has_multi_source_join, primary_source_node_id,
+            quality_rule_columns
           ) VALUES (
-            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, true, $22, true, $23, $24, $25, $26, $27
+            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, true, $22, true, $23, $24, $25, $26, $27, $28
           ) RETURNING id`,
           [
             tempMappingId,
@@ -795,7 +796,8 @@ router.post('/:id/execute', authorize('visual_mapping_orchestrator:execute'), as
             JSON.stringify(transformationMapping.source_catalog || []),
             JSON.stringify(transformationMapping.join_specs || []),
             transformationMapping.has_multi_source_join || false,
-            transformationMapping.primary_source_node_id || null
+            transformationMapping.primary_source_node_id || null,
+            JSON.stringify(transformationMapping.quality_rule_columns || {})
           ]
         );
         

@@ -3712,8 +3712,23 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
           transformed_row_count: transformedRows.length
         };
         
+        // Apply per-mapping column overrides: VM expression nodes assign quality rules
+        // to specific columns (e.g. date_format on "enrollment_date") but the global
+        // quality_rules row may have column_name = null. Merge the override here so
+        // the validation engine knows which column to check.
+        const qualityRuleColumnOverrides =
+          (typeof mapping.quality_rule_columns === 'object' && mapping.quality_rule_columns !== null)
+            ? mapping.quality_rule_columns
+            : {};
+        const rulesForValidation = qualityRulesResult.rows.map(rule => {
+          if (!rule.column_name && qualityRuleColumnOverrides[rule.id]) {
+            return { ...rule, column_name: qualityRuleColumnOverrides[rule.id] };
+          }
+          return rule;
+        });
+
         const validationResult = await qualityEngine.validateData(
-          qualityRulesResult.rows,
+          rulesForValidation,
           rowsForDQ,
           validationMetadata
         );
