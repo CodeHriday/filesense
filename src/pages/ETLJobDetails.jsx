@@ -557,9 +557,34 @@ function ETLJobDetails() {
                         <span className="log-time">{formatDate(log.created_at)}</span>
                       </div>
                       <div className="log-message">{log.message}</div>
-                      {log.details && (
-                        <pre className="log-details">{JSON.stringify(log.details, null, 2)}</pre>
-                      )}
+                      {log.details && (() => {
+                        const d = log.details;
+                        const ruleNames = d.abort_rule_names || d.warn_rule_names;
+                        if (ruleNames && ruleNames.length > 0) {
+                          const isAbort = !!d.abort_rule_names;
+                          return (
+                            <div className="log-details log-details-quality">
+                              <div className="log-details-rule-label">
+                                {isAbort ? 'Abort-action rule(s) triggered:' : 'Warn-action rule(s) triggered:'}
+                              </div>
+                              <ul className="log-details-rule-list">
+                                {ruleNames.map((name, i) => (
+                                  <li key={i} className="log-details-rule-item">{name}</li>
+                                ))}
+                              </ul>
+                              {d.violations_summary && (
+                                <div className="log-details-violation-summary">
+                                  {d.violations_summary.violations_found} violation(s) found
+                                  {d.violations_summary.critical_count > 0 && ` · ${d.violations_summary.critical_count} critical`}
+                                  {d.violations_summary.error_count > 0 && ` · ${d.violations_summary.error_count} error`}
+                                  {d.violations_summary.warning_count > 0 && ` · ${d.violations_summary.warning_count} warning`}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        }
+                        return <pre className="log-details">{JSON.stringify(d, null, 2)}</pre>;
+                      })()}
                     </div>
                   ))}
                 </div>

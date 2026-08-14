@@ -709,12 +709,16 @@ router.get('/:id/full', async (req, res) => {
     
     const [logsResult, anomaliesResult, metricsResult] = await Promise.all([
       pool.query(`
-        SELECT id, job_id, log_level, message, details, created_at
-        FROM job_logs
+        SELECT id, job_id,
+               log_level, log_level AS level,
+               message,
+               log_details, log_details AS details,
+               timestamp, timestamp AS created_at
+        FROM transformation_logs
         WHERE job_id = $1
-        ORDER BY created_at ASC
+        ORDER BY timestamp ASC
         LIMIT 1000
-      `, [job.id]),
+      `, [job.job_id]),
       pool.query(`
         SELECT id, anomaly_type, severity, description, detected_at, status
         FROM anomalies
