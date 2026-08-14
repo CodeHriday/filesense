@@ -25,14 +25,14 @@
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>0/200</span>
+                <span class='fraction'>0/207</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>0/138</span>
+                <span class='fraction'>0/146</span>
             </div>
         
             
@@ -46,7 +46,7 @@
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>0/196</span>
+                <span class='fraction'>0/203</span>
             </div>
         
             
@@ -726,7 +726,29 @@
 <a name='L661'></a><a href='#L661'>661</a>
 <a name='L662'></a><a href='#L662'>662</a>
 <a name='L663'></a><a href='#L663'>663</a>
-<a name='L664'></a><a href='#L664'>664</a></td><td class="line-coverage quiet"><span class="cline-any cline-no">&nbsp;</span>
+<a name='L664'></a><a href='#L664'>664</a>
+<a name='L665'></a><a href='#L665'>665</a>
+<a name='L666'></a><a href='#L666'>666</a>
+<a name='L667'></a><a href='#L667'>667</a>
+<a name='L668'></a><a href='#L668'>668</a>
+<a name='L669'></a><a href='#L669'>669</a>
+<a name='L670'></a><a href='#L670'>670</a>
+<a name='L671'></a><a href='#L671'>671</a>
+<a name='L672'></a><a href='#L672'>672</a>
+<a name='L673'></a><a href='#L673'>673</a>
+<a name='L674'></a><a href='#L674'>674</a>
+<a name='L675'></a><a href='#L675'>675</a>
+<a name='L676'></a><a href='#L676'>676</a>
+<a name='L677'></a><a href='#L677'>677</a>
+<a name='L678'></a><a href='#L678'>678</a>
+<a name='L679'></a><a href='#L679'>679</a>
+<a name='L680'></a><a href='#L680'>680</a>
+<a name='L681'></a><a href='#L681'>681</a>
+<a name='L682'></a><a href='#L682'>682</a>
+<a name='L683'></a><a href='#L683'>683</a>
+<a name='L684'></a><a href='#L684'>684</a>
+<a name='L685'></a><a href='#L685'>685</a>
+<a name='L686'></a><a href='#L686'>686</a></td><td class="line-coverage quiet"><span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
@@ -1195,6 +1217,28 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -1503,7 +1547,7 @@ class VisualWorkflowExecutor {
 <span class="cstat-no" title="statement not covered" >      throw error;</span>
     }
   }
-  
+&nbsp;
 <span class="fstat-no" title="function not covered" >  as</span>ync updateExecutionRecord(status, startTime, summary = <span class="branch-0 cbranch-no" title="branch not covered" >null,</span> errorMessage = <span class="branch-0 cbranch-no" title="branch not covered" >null)</span> {
     const endTime = <span class="cstat-no" title="statement not covered" >Date.now();</span>
     const durationMs = <span class="cstat-no" title="statement not covered" >endTime - startTime;</span>
@@ -1858,7 +1902,29 @@ class VisualWorkflowExecutor {
       );
       
       const transformationDbId = <span class="cstat-no" title="statement not covered" >transformResult.rows[0].id;</span>
-      
+&nbsp;
+      // Persist DQ rule associations so the job engine enforces them.
+      // qualityRuleIds comes from targetRules.selectedQualityRules + expression node dqRuleAssignments.
+      // qualityRuleActions maps ruleId -&gt; per-rule errorAction (log_continue / log_warn / log_abort).
+      const qualityRuleIds = <span class="cstat-no" title="statement not covered" >transformationMapping.quality_rule_ids || [];</span>
+      const qualityRuleActions = <span class="cstat-no" title="statement not covered" >transformationMapping.quality_rule_actions || {};</span>
+<span class="cstat-no" title="statement not covered" >      if (qualityRuleIds.length &gt; 0) {</span>
+<span class="cstat-no" title="statement not covered" >        for (const ruleId of qualityRuleIds) {</span>
+          const errorAction = <span class="cstat-no" title="statement not covered" >qualityRuleActions[ruleId] || 'log_continue';</span>
+<span class="cstat-no" title="statement not covered" >          await pool.query(</span>
+            `INSERT INTO transformation_quality_rules (mapping_id, quality_rule_id, error_action)
+             VALUES ($1, $2, $3)
+             ON CONFLICT (mapping_id, quality_rule_id)
+             DO UPDATE SET error_action = EXCLUDED.error_action`,
+            [tempMappingId, ruleId, errorAction]
+          );
+        }
+<span class="cstat-no" title="statement not covered" >        systemLogger.info('Inserted DQ rule associations for VM temp mapping', {</span>
+          transformationDbId,
+          ruleCount: qualityRuleIds.length
+        });
+      }
+&nbsp;
 <span class="cstat-no" title="statement not covered" >      systemLogger.info('Created temp transformation mapping for workflow execution', {</span>
         workflowId: this.workflowId,
         tempMappingId,
@@ -2059,7 +2125,7 @@ async function <span class="fstat-no" title="function not covered" >executeVisua
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-08-13T12:49:52.329Z
+                at 2026-08-14T05:25:07.604Z
             </div>
         <script src="../../prettify.js"></script>
         <script>

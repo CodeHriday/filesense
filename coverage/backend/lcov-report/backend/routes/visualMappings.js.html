@@ -25,14 +25,14 @@
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>0/421</span>
+                <span class='fraction'>0/426</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>0/319</span>
+                <span class='fraction'>0/327</span>
             </div>
         
             
@@ -46,7 +46,7 @@
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>0/412</span>
+                <span class='fraction'>0/417</span>
             </div>
         
             
@@ -1429,7 +1429,23 @@
 <a name='L1364'></a><a href='#L1364'>1364</a>
 <a name='L1365'></a><a href='#L1365'>1365</a>
 <a name='L1366'></a><a href='#L1366'>1366</a>
-<a name='L1367'></a><a href='#L1367'>1367</a></td><td class="line-coverage quiet"><span class="cline-any cline-no">&nbsp;</span>
+<a name='L1367'></a><a href='#L1367'>1367</a>
+<a name='L1368'></a><a href='#L1368'>1368</a>
+<a name='L1369'></a><a href='#L1369'>1369</a>
+<a name='L1370'></a><a href='#L1370'>1370</a>
+<a name='L1371'></a><a href='#L1371'>1371</a>
+<a name='L1372'></a><a href='#L1372'>1372</a>
+<a name='L1373'></a><a href='#L1373'>1373</a>
+<a name='L1374'></a><a href='#L1374'>1374</a>
+<a name='L1375'></a><a href='#L1375'>1375</a>
+<a name='L1376'></a><a href='#L1376'>1376</a>
+<a name='L1377'></a><a href='#L1377'>1377</a>
+<a name='L1378'></a><a href='#L1378'>1378</a>
+<a name='L1379'></a><a href='#L1379'>1379</a>
+<a name='L1380'></a><a href='#L1380'>1380</a>
+<a name='L1381'></a><a href='#L1381'>1381</a>
+<a name='L1382'></a><a href='#L1382'>1382</a>
+<a name='L1383'></a><a href='#L1383'>1383</a></td><td class="line-coverage quiet"><span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
@@ -2231,6 +2247,22 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -2825,7 +2857,7 @@ async function <span class="fstat-no" title="function not covered" >sendVisualMa
 <span class="cstat-no" title="statement not covered" >      return;</span>
     }
     
-    const isSuccess = <span class="cstat-no" title="statement not covered" >jobResult.status === 'completed';</span>
+    const isSuccess = <span class="cstat-no" title="statement not covered" >jobResult.status === 'completed' || jobResult.status === 'completed_with_warnings';</span>
     const shouldNotify = <span class="cstat-no" title="statement not covered" >(isSuccess &amp;&amp; notificationSettings.notifyOnSuccess) || </span>
                          (!isSuccess &amp;&amp; notificationSettings.notifyOnFailure);
     
@@ -3597,8 +3629,24 @@ async function <span class="fstat-no" title="function not covered" >sendVisualMa
         );
         
 <span class="cstat-no" title="statement not covered" >        transformationDbId = transformResult.rows[0].id;</span>
-        
-<span class="cstat-no" title="statement not covered" >        console.log(`[VISUAL-MAPPING-EXECUTE] Temp mapping created: ${tempMappingId}, DB ID: ${transformationDbId}`);</span>
+&nbsp;
+        // Persist DQ rule associations so the job engine enforces them.
+        // qualityRuleIds comes from targetRules.selectedQualityRules + expression node dqRuleAssignments.
+        // qualityRuleActions maps ruleId -&gt; per-rule errorAction (log_continue / log_warn / log_abort).
+        const qualityRuleIds = <span class="cstat-no" title="statement not covered" >transformationMapping.quality_rule_ids || [];</span>
+        const qualityRuleActions = <span class="cstat-no" title="statement not covered" >transformationMapping.quality_rule_actions || {};</span>
+<span class="cstat-no" title="statement not covered" >        for (const ruleId of qualityRuleIds) {</span>
+          const errorAction = <span class="cstat-no" title="statement not covered" >qualityRuleActions[ruleId] || 'log_continue';</span>
+<span class="cstat-no" title="statement not covered" >          await pool.query(</span>
+            `INSERT INTO transformation_quality_rules (mapping_id, quality_rule_id, error_action)
+             VALUES ($1, $2, $3)
+             ON CONFLICT (mapping_id, quality_rule_id)
+             DO UPDATE SET error_action = EXCLUDED.error_action`,
+            [tempMappingId, ruleId, errorAction]
+          );
+        }
+&nbsp;
+<span class="cstat-no" title="statement not covered" >        console.log(`[VISUAL-MAPPING-EXECUTE] Temp mapping created: ${tempMappingId}, DB ID: ${transformationDbId}, DQ rules: ${qualityRuleIds.length}`);</span>
         
         // Use jobExecutionEngine to execute
         const { executeTransformationJob } = <span class="cstat-no" title="statement not covered" >require('../services/jobExecutionEngine');</span>
@@ -4168,7 +4216,7 @@ function <span class="fstat-no" title="function not covered" >sanitizeBigInt(</s
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-08-13T12:49:52.329Z
+                at 2026-08-14T05:25:07.604Z
             </div>
         <script src="../../prettify.js"></script>
         <script>
