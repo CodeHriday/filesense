@@ -1,12 +1,12 @@
 ========================================
-JOB {{#if (isSuccess status)}}COMPLETED{{else}}FAILED{{/if}}
+JOB {{#if (isWarning status)}}COMPLETED WITH WARNINGS{{else if (isSuccess status)}}COMPLETED{{else}}FAILED{{/if}}
 ========================================
 
 Job Name: {{jobName}}
 Job ID: {{jobId}}
 Project: {{projectName}}
 
-Status: {{status}}
+Status: {{#if (isWarning status)}}Completed with warnings{{else}}{{status}}{{/if}}
 Execution Time: {{formatDate executionTime}}
 
 Execution Metrics:
@@ -17,6 +17,13 @@ Records Processed: {{formatNumber recordsProcessed}}
 Quality Violations: {{formatNumber qualityViolations}}
 {{/if}}
 
+{{#if (isWarning status)}}
+Quality Warnings:
+-----------------
+This job completed successfully but encountered {{formatNumber qualityViolations}} quality violation(s).
+Please review the Quality Violations tab for details.
+{{/if}}
+
 {{#if error}}
 Error Details:
 --------------
@@ -24,10 +31,12 @@ Error Details:
 {{/if}}
 
 {{#if hasViolations}}
+{{#unless (isWarning status)}}
 Quality Violations:
 -------------------
 This job encountered {{formatNumber qualityViolations}} quality violations.
 Please review the attached report for details.
+{{/unless}}
 {{/if}}
 
 ========================================

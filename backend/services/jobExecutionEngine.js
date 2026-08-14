@@ -1933,6 +1933,7 @@ async function executeTransformationJob(pool, mappingId, userId, options = {}) {
     let totalRowsWritten = 0;
     let totalRowsFailed = 0;
     let filesProcessedSoFar = 0;
+    let hasWarnViolations = false; // Aggregated from per-file processFile results
     
     for (const file of matchingFiles) {
       await logJobExecution(pool, jobId, 'info', `Processing file: ${file.filename}`, {
@@ -2097,6 +2098,7 @@ async function executeTransformationJob(pool, mappingId, userId, options = {}) {
         totalRowsRead += fileResult.rowsRead;
         totalRowsWritten += fileResult.rowsWritten;
         totalRowsFailed += fileResult.rowsFailed;
+        if (fileResult.hasWarnViolations) hasWarnViolations = true;
         filesProcessedSoFar++;
         
         // Update job progress immediately after each file for real-time tracking
@@ -2180,8 +2182,9 @@ async function executeTransformationJob(pool, mappingId, userId, options = {}) {
     }
     
     // Update job with final statistics
+    const finalStatus = hasWarnViolations ? 'completed_with_warnings' : 'completed';
     await updateJob(pool, jobId, {
-      status: 'completed',
+      status: finalStatus,
       files_processed: matchingFiles.length,
       rows_read: totalRowsRead,
       rows_written: totalRowsWritten,
@@ -2270,7 +2273,7 @@ async function executeTransformationJob(pool, mappingId, userId, options = {}) {
     // Emit alert event (fire-and-forget, non-blocking)
     setImmediate(() => {
       try {
-        alertAggregationWorker.onJobCompleted(jobId, 'completed').catch(err => {
+        alertAggregationWorker.onJobCompleted(jobId, finalStatus).catch(err => {
           systemLogger.warn('Failed to emit job completion alert event', {
             jobId,
             error: err.message
@@ -2286,7 +2289,7 @@ async function executeTransformationJob(pool, mappingId, userId, options = {}) {
     
     return {
       jobId,
-      status: 'completed',
+      status: finalStatus,
       filesProcessed: matchingFiles.length,
       rowsRead: totalRowsRead,
       rowsWritten: totalRowsWritten,
@@ -2790,6 +2793,7 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
   let rowsRead = 0;
   let rowsWritten = 0;
   let rowsFailed = 0;
+  let hasWarnViolations = false; // Set to true if log_warn violations are detected
   const transformedRows = [];
   
   // Get correlation_id from job record for source/target file linking
@@ -3736,7 +3740,8 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
 
             throw new Error(abortMessage);
           } else if (worstAction === 'log_warn') {
-            // Warn: violations are persisted and surfaced as warnings; job completes successfully
+            // Warn: violations are persisted and surfaced as warnings; job completes with warnings status
+            hasWarnViolations = true;
             await logJobExecution(pool, jobId, 'warn', `Quality violations detected — job completed with warnings (${validationResult.summary.violations_found} violation(s), ${warnRuleIds.length} from Warn-action rule(s))`, {
               violations_summary: validationResult.summary,
               warn_rule_ids: warnRuleIds,
@@ -4498,7 +4503,8 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
     return {
       rowsRead,
       rowsWritten,
-      rowsFailed
+      rowsFailed,
+      hasWarnViolations
     };
     
   } catch (error) {

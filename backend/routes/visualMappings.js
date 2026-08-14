@@ -28,7 +28,7 @@ async function sendVisualMappingNotification(mapping, jobResult, executionId) {
       return;
     }
     
-    const isSuccess = jobResult.status === 'completed';
+    const isSuccess = jobResult.status === 'completed' || jobResult.status === 'completed_with_warnings';
     const shouldNotify = (isSuccess && notificationSettings.notifyOnSuccess) || 
                          (!isSuccess && notificationSettings.notifyOnFailure);
     

@@ -608,6 +608,10 @@ class VisualMappingCompiler {
                     if (a.ruleId && !result.qualityRuleIds.includes(a.ruleId)) {
                       result.qualityRuleIds.push(a.ruleId);
                     }
+                    // Persist per-rule errorAction so the engine can honour Warn/Abort per rule
+                    if (a.ruleId && a.errorAction) {
+                      result.qualityRuleActions[a.ruleId] = a.errorAction;
+                    }
                   }
                 }
               }

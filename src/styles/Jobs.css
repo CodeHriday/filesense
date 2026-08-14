@@ -130,6 +130,11 @@
   color: #e74c3c;
 }
 
+.status-completed_with_warnings {
+  background-color: #fff8e1;
+  color: #d97706;
+}
+
 .icon-button {
   background: none;
   border: none;

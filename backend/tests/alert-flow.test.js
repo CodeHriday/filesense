@@ -261,6 +261,34 @@ describe('End-to-End Alert Flow Tests', () => {
       expect(email.subject).toContain('Job Completed');
     });
 
+    test('should compose warning email for completed_with_warnings status', async () => {
+      const composer = new EmailComposer();
+
+      const email = await composer.composeJobAlert({
+        job: {
+          name: 'Warn Job',
+          id: 'warn-job-001',
+          project_name: 'Test Project'
+        },
+        status: 'completed_with_warnings',
+        error: null,
+        duration: 3000,
+        recordsProcessed: 500,
+        qualityViolations: 3
+      });
+
+      // Subject should say WARNING, not FAILED
+      expect(email.subject).toContain('WARNING');
+      expect(email.subject).toContain('Warn Job');
+      expect(email.subject).not.toContain('FAILED');
+      // HTML should render warning label, not Failed
+      expect(email.html).toContain('Completed with Warnings');
+      expect(email.html).not.toContain('>Failed<');
+      // Text should match
+      expect(email.text).toContain('COMPLETED WITH WARNINGS');
+      expect(email.text).not.toContain('FAILED');
+    });
+
     test('should compose consolidated email with multiple events', async () => {
       const composer = new EmailComposer();
       

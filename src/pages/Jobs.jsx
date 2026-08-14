@@ -245,6 +245,7 @@ const Jobs = () => {
       pending: { icon: FiClock, badgeClass: 'gps-badge gps-badge--pending', text: 'Pending' },
       running: { icon: FiRefreshCw, badgeClass: 'gps-badge gps-badge--info', text: 'Running' },
       completed: { icon: FiCheckCircle, badgeClass: 'gps-badge gps-badge--success', text: 'Completed' },
+      completed_with_warnings: { icon: FiAlertCircle, badgeClass: 'gps-badge gps-badge--warning', text: 'Completed with warnings' },
       failed: { icon: FiXCircle, badgeClass: 'gps-badge gps-badge--danger', text: 'Failed' },
       cancelled: { icon: FiAlertCircle, badgeClass: 'gps-badge gps-badge--warning', text: 'Cancelled' }
     };

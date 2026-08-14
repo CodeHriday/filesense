@@ -322,6 +322,7 @@ function Monitor() {
   const getStatusBadgeClass = (status, skippedFiles = 0) => {
     if (!status) return 'gps-badge gps-badge--pending';
     const statusLower = status.toLowerCase();
+    if (statusLower === 'completed_with_warnings') return 'gps-badge gps-badge--warning';
     if (statusLower === 'success' || statusLower === 'completed') {
       return skippedFiles > 0 ? 'gps-badge gps-badge--warning' : 'gps-badge gps-badge--success';
     }
@@ -479,6 +480,7 @@ function Monitor() {
                   <option value="">All Statuses</option>
                   <option value="success">Success</option>
                   <option value="completed">Completed</option>
+                  <option value="completed_with_warnings">Completed with warnings</option>
                   <option value="running">Running</option>
                   <option value="failed">Failed</option>
                   <option value="pending">Pending</option>
@@ -772,6 +774,7 @@ function Monitor() {
                   <option value="">All Statuses</option>
                   <option value="success">Success</option>
                   <option value="completed">Completed</option>
+                  <option value="completed_with_warnings">Completed with warnings</option>
                   <option value="running">Running</option>
                   <option value="failed">Failed</option>
                   <option value="pending">Pending</option>

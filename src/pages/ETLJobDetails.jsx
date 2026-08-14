@@ -136,6 +136,7 @@ function ETLJobDetails() {
   const getStatusBadge = (status) => {
     const config = {
       completed: { icon: FiCheckCircle, class: 'status-success', label: 'Completed' },
+      completed_with_warnings: { icon: FiAlertTriangle, class: 'status-warning', label: 'Completed with warnings' },
       running: { icon: FiClock, class: 'status-running', label: 'Running' },
       failed: { icon: FiXCircle, class: 'status-error', label: 'Failed' },
       pending: { icon: FiAlertCircle, class: 'status-warning', label: 'Pending' },
