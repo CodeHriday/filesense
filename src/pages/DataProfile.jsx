@@ -967,6 +967,7 @@ function DataProfile() {
   const [violationsPage, setViolationsPage] = useState(1); // Current page for violations
   const [refreshingRules, setRefreshingRules] = useState(false); // Loading state for refresh button
   const [columnRulesSkippedCount, setColumnRulesSkippedCount] = useState(0); // Column rules skipped due to missing preview data
+  const [columnRulesColumnNotFoundCount, setColumnRulesColumnNotFoundCount] = useState(0); // Column rules skipped because target column not found in file
   const VIOLATIONS_PER_PAGE = 20; // Pagination size
 
   // Processing status polling state
@@ -1492,11 +1493,13 @@ function DataProfile() {
       // Success - response.data.success is true
       const violationsFound = response.data.violations_found || 0;
       const skippedCount = response.data.column_rules_skipped_no_preview || 0;
+      const columnNotFoundCount = response.data.column_rules_column_not_found || 0;
       setColumnRulesSkippedCount(skippedCount);
+      setColumnRulesColumnNotFoundCount(columnNotFoundCount);
       setSuccessMessage(`Quality rules executed: ${violationsFound} violation(s) found`);
       setTimeout(() => setSuccessMessage(null), 3000);
       await fetchQualityViolations();
-      return { success: true, violationsFound, skippedCount };
+      return { success: true, violationsFound, skippedCount, columnNotFoundCount };
     } catch (err) {
       console.error('Error running quality rules:', err);
       throw err;
@@ -1572,6 +1575,7 @@ function DataProfile() {
           setSuccessMessage('Re-profiling file… Quality rules will run automatically when complete.');
           setIsProcessing(true);
           setColumnRulesSkippedCount(0);
+          setColumnRulesColumnNotFoundCount(0);
           setTimeout(() => setSuccessMessage(null), 5000);
         }
       } catch (retryErr) {
@@ -2834,6 +2838,39 @@ function DataProfile() {
       </div>
     ) : null;
 
+    // Banner shown when column rules were skipped because target column not found in file
+    const columnNotFoundBanner = columnRulesColumnNotFoundCount > 0 ? (
+      <div style={{
+        display: 'flex',
+        alignItems: 'flex-start',
+        gap: '10px',
+        padding: '12px 16px',
+        marginBottom: '16px',
+        background: '#fff7ed',
+        border: '1px solid #f97316',
+        borderRadius: '8px',
+        fontSize: '12px',
+        color: '#7c2d12'
+      }}>
+        <FiAlertTriangle size={16} style={{ color: '#f97316', flexShrink: 0, marginTop: '1px' }} />
+        <div style={{ flex: 1 }}>
+          <strong style={{ display: 'block', marginBottom: '4px' }}>
+            {columnRulesColumnNotFoundCount} column-level rule{columnRulesColumnNotFoundCount !== 1 ? 's' : ''} could not run — target column not found in this file
+          </strong>
+          <span style={{ color: '#9a3412' }}>
+            The rule's assigned column doesn't match any header in this file. Check the rule assignment and ensure the column name matches exactly.
+          </span>
+        </div>
+        <button
+          onClick={() => setColumnRulesColumnNotFoundCount(0)}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0', color: '#7c2d12', flexShrink: 0 }}
+          title="Dismiss"
+        >
+          <FiX size={14} />
+        </button>
+      </div>
+    ) : null;
+
     const renderRuleAssignmentSection = () => {
       const columns = profile?.columns || [];
       
@@ -3266,6 +3303,7 @@ function DataProfile() {
       return (
         <div className="quality-rules-tab">
           {skippedNoPreviewBanner}
+          {columnNotFoundBanner}
           {renderRuleAssignmentSection()}
           <div className="empty-state">
             <FiCheckCircle size={48} style={{ marginBottom: '16px', opacity: 0.5 }} />
@@ -3297,6 +3335,7 @@ function DataProfile() {
       return (
         <div className="quality-rules-tab">
           {skippedNoPreviewBanner}
+          {columnNotFoundBanner}
           {renderRuleAssignmentSection()}
           {renderAppliedRulesSection()}
           <div className="gps-card">
@@ -3321,6 +3360,7 @@ function DataProfile() {
       return (
         <div className="quality-rules-tab">
           {skippedNoPreviewBanner}
+          {columnNotFoundBanner}
           {renderRuleAssignmentSection()}
           {renderAppliedRulesSection()}
           <div className="gps-card">
@@ -3340,6 +3380,7 @@ function DataProfile() {
       return (
         <div className="quality-rules-tab">
           {skippedNoPreviewBanner}
+          {columnNotFoundBanner}
           {renderRuleAssignmentSection()}
           {renderAppliedRulesSection()}
           <div className="gps-card">
@@ -3356,6 +3397,7 @@ function DataProfile() {
     return (
       <div className="quality-rules-tab">
         {skippedNoPreviewBanner}
+        {columnNotFoundBanner}
         {renderRuleAssignmentSection()}
         {renderAppliedRulesSection()}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>

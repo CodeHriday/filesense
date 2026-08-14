@@ -635,9 +635,8 @@ router.get('/executive-metrics', dashboardCacheMiddleware, async (req, res) => {
         LEFT JOIN files f ON f.created_at >= $1 AND f.metadata->>'upload_method' = 'api'
         LEFT JOIN file_audit_details fad ON f.file_id = fad.file_id
         WHERE at.is_active = true AND at.revoked_at IS NULL AND (at.expires_at IS NULL OR at.expires_at > NOW())
-        AND (at.project_id IS NULL OR at.project_id IN (SELECT project_id FROM get_user_projects($2))) 
         AND (f.id IS NULL OR fad.file_role IS NULL OR fad.file_role != 'target')
-      `, [rangeStart, userId]);
+      `, [rangeStart]);
       activeTokens = parseInt(apiResult.rows[0]?.active_tokens || 0);
       apiRequests = parseInt(apiResult.rows[0]?.total_requests || 0);
 
@@ -768,9 +767,8 @@ router.get('/executive-metrics', dashboardCacheMiddleware, async (req, res) => {
         LEFT JOIN files f ON f.created_at >= $1 AND f.metadata->>'upload_method' = 'api'
         LEFT JOIN file_audit_details fad ON f.file_id = fad.file_id
         WHERE at.is_active = true AND at.revoked_at IS NULL AND (at.expires_at IS NULL OR at.expires_at > NOW())
-        AND (at.project_id IS NULL OR at.project_id IN (SELECT project_id FROM get_user_projects($2))) 
         AND (f.id IS NULL OR fad.file_role IS NULL OR fad.file_role != 'target')
-      `, [rangeStart, userId]);
+      `, [rangeStart]);
       activeTokens = parseInt(apiResult.rows[0]?.active_tokens || 0);
       apiRequests = parseInt(apiResult.rows[0]?.total_requests || 0);
 

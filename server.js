@@ -6945,6 +6945,19 @@ app.post('/api/files/:fileId/quality-rules/run', authenticateToken, async (req, 
     // columns remain "Not Run" rather than being falsely promoted to Passed.
     const evaluatedRuleIds = new Set();
 
+    // Track column-level rules where every target column failed to resolve while
+    // preview rows exist. Surfaced to the UI so users understand why a rule stayed
+    // "Not Run" despite preview data being present.
+    const columnNotFoundRuleIds = new Set();
+
+    // Rule types this switch handles — defined once, outside all loops, for efficiency.
+    // Rule types not listed here have no case and must remain "Not Run".
+    const COLUMN_SWITCH_TYPES = new Set([
+      'null_check', 'column_completeness', 'email_validity', 'phone_validity',
+      'date_format', 'timestamp_format', 'isna_check', 'numeric_only_string',
+      'special_character_presence'
+    ]);
+
     // Execute each rule against its target columns (collect violations first)
     for (const rule of rulesResult.rows) {
       const targetColumns = rule.target_columns || [];
@@ -6955,6 +6968,7 @@ app.post('/api/files/:fileId/quality-rules/run', authenticateToken, async (req, 
         continue;
       }
 
+      let anyColumnResolved = false;
       for (const columnName of targetColumns) {
         // Resolve the target column name to the actual header name
         const actualColumnName = resolveColumnName(columnName);
@@ -6971,6 +6985,14 @@ app.post('/api/files/:fileId/quality-rules/run', authenticateToken, async (req, 
           continue;
         }
 
+        // Mark as evaluated as soon as any target column resolves — BEFORE the row
+        // loop so a zero-row file (empty CSV with valid headers) still stamps
+        // last_run_at rather than remaining perpetually "Not Run".
+        anyColumnResolved = true;
+        if (COLUMN_SWITCH_TYPES.has(rule.rule_type)) {
+          evaluatedRuleIds.add(rule.id);
+        }
+
         for (const row of rows) {
           const rowData = row.row_data;
           const cellValue = rowData[actualColumnName];
@@ -6978,18 +7000,6 @@ app.post('/api/files/:fileId/quality-rules/run', authenticateToken, async (req, 
           let isViolation = false;
           let expectedValue = null;
           let violationDetails = {};
-
-          // Only stamp rule types that this switch actually handles.
-          // Rule types not listed here (e.g. engine-only types) have no case and
-          // must remain "Not Run" — stamping them here would produce a false Passed.
-          const COLUMN_SWITCH_TYPES = new Set([
-            'null_check', 'column_completeness', 'email_validity', 'phone_validity',
-            'date_format', 'timestamp_format', 'isna_check', 'numeric_only_string',
-            'special_character_presence'
-          ]);
-          if (COLUMN_SWITCH_TYPES.has(rule.rule_type)) {
-            evaluatedRuleIds.add(rule.id);
-          }
           
           // Check based on rule type
           switch (rule.rule_type) {
@@ -7162,6 +7172,11 @@ app.post('/api/files/:fileId/quality-rules/run', authenticateToken, async (req, 
             });
           }
         }
+      }
+
+      // Track rules where no target column could be resolved despite rows being present.
+      if (!anyColumnResolved && targetColumns.length > 0 && rows.length > 0) {
+        columnNotFoundRuleIds.add(rule.id);
       }
       
       // Handle duplicate check separately - check EACH target column independently
@@ -7390,6 +7405,7 @@ app.post('/api/files/:fileId/quality-rules/run', authenticateToken, async (req, 
       rules_executed: rulesResult.rows.length,
       violations_found: violations.length,
       column_rules_skipped_no_preview: columnRulesSkippedNoPreview,
+      column_rules_column_not_found: columnNotFoundRuleIds.size,
       violations_by_rule: rulesResult.rows.map(rule => ({
         rule_id: rule.id,
         rule_name: rule.rule_name,
@@ -7647,6 +7663,13 @@ app.post('/api/files/:fileId/quality-rules/revalidate', authenticateToken, uploa
     // Track which rule IDs were actually evaluated (not skipped).
     const revalidatedEvaluatedRuleIds = new Set();
 
+    // Rule types the revalidation endpoint handles — defined once, outside all loops.
+    const REVALIDATE_COLUMN_SWITCH_TYPES = new Set([
+      'null_check', 'column_completeness', 'email_validity', 'phone_validity',
+      'date_format', 'timestamp_format', 'isna_check', 'numeric_only_string',
+      'special_character_presence'
+    ]);
+
     // Execute each rule against its target columns
     for (const rule of rulesResult.rows) {
       const targetColumns = rule.target_columns || [];
@@ -7654,6 +7677,7 @@ app.post('/api/files/:fileId/quality-rules/revalidate', authenticateToken, uploa
       // record_count is file-level — allow it through even with no target columns
       if (targetColumns.length === 0 && rule.rule_type !== 'record_count') continue;
 
+      let anyColumnResolved = false;
       for (const columnName of targetColumns) {
         // Resolve the target column name to the actual header name
         const actualColumnName = resolveColumnName(columnName);
@@ -7670,6 +7694,12 @@ app.post('/api/files/:fileId/quality-rules/revalidate', authenticateToken, uploa
           continue;
         }
 
+        // Mark as evaluated before the row loop so zero-row files still stamp correctly.
+        anyColumnResolved = true;
+        if (REVALIDATE_COLUMN_SWITCH_TYPES.has(rule.rule_type)) {
+          revalidatedEvaluatedRuleIds.add(rule.id);
+        }
+
         for (const row of parsedRows) {
           const rowData = row.row_data;
           // Use the resolved actual column name for lookup
@@ -7678,16 +7708,6 @@ app.post('/api/files/:fileId/quality-rules/revalidate', authenticateToken, uploa
           let isViolation = false;
           let expectedValue = null;
           let violationDetails = {};
-
-          // Only stamp rule types that this switch actually handles.
-          const REVALIDATE_COLUMN_SWITCH_TYPES = new Set([
-            'null_check', 'column_completeness', 'email_validity', 'phone_validity',
-            'date_format', 'timestamp_format', 'isna_check', 'numeric_only_string',
-            'special_character_presence'
-          ]);
-          if (REVALIDATE_COLUMN_SWITCH_TYPES.has(rule.rule_type)) {
-            revalidatedEvaluatedRuleIds.add(rule.id);
-          }
           
           switch (rule.rule_type) {
             case 'null_check':
