@@ -3663,8 +3663,19 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
       const hasRecordCountRules = qualityRulesResult.rows.some(
         r => r.rule_type === 'record_count' || r.rule_type === 'record_count_match'
       );
+
+      // Attribute-level DQ rules (validity, completeness, etc.) carry column_name values that
+      // match the SOURCE file's column names, not the transformed-output column names.
+      // When transformedRows is empty (e.g. the target format drops/renames every column) or
+      // simply when source rows are available, validate against source rows so that rules
+      // like date_format, pattern, and completeness can inspect the original field values.
+      const dqSourceRows = parseResult.sourceRows && parseResult.sourceRows.length > 0
+        ? parseResult.sourceRows
+        : [];
+      const rowsForDQ = transformedRows.length > 0 ? transformedRows : dqSourceRows;
+
       const shouldRunValidation = qualityRulesResult.rows.length > 0 &&
-        (transformedRows.length > 0 || hasRecordCountRules);
+        (rowsForDQ.length > 0 || hasRecordCountRules);
 
       // Always emit a diagnostic line so operators can confirm rules were (or were not) linked.
       await logJobExecution(pool, jobId, 'info',
@@ -3676,9 +3687,13 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
       );
 
       if (shouldRunValidation) {
-        await logJobExecution(pool, jobId, 'info', `Running quality validation with ${qualityRulesResult.rows.length} rules`, {
+        const dqDatasetLabel = transformedRows.length > 0 ? 'transformed rows' : 'source rows (transformed output was empty)';
+        await logJobExecution(pool, jobId, 'info', `Running quality validation with ${qualityRulesResult.rows.length} rules against ${dqDatasetLabel}`, {
           rule_count: qualityRulesResult.rows.length,
-          row_count: transformedRows.length
+          row_count: rowsForDQ.length,
+          transformed_row_count: transformedRows.length,
+          source_row_count: dqSourceRows.length,
+          dataset_used: transformedRows.length > 0 ? 'transformed' : 'source'
         });
         
         const QualityValidationEngine = require('./qualityValidationEngine');
@@ -3692,14 +3707,14 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
           upload_date: new Date(),
           // record_count rules validate the SOURCE file's row count, not the transformed output.
           // rowsRead reflects how many rows were parsed from the incoming file; fall back to
-          // transformedRows.length only when the source count is unavailable.
-          actual_row_count: (rowsRead > 0 ? rowsRead : null) ?? transformedRows.length,
+          // rowsForDQ length only when the source count is unavailable.
+          actual_row_count: (rowsRead > 0 ? rowsRead : null) ?? rowsForDQ.length,
           transformed_row_count: transformedRows.length
         };
         
         const validationResult = await qualityEngine.validateData(
           qualityRulesResult.rows,
-          transformedRows,
+          rowsForDQ,
           validationMetadata
         );
         
