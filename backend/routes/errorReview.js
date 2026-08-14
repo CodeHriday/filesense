@@ -227,9 +227,10 @@ router.get('/mapping-job-violations', async (req, res) => {
 
     const whereClause = `WHERE ${whereConditions.join(' AND ')}`;
 
-    const countQuery = `
-      SELECT COUNT(*) as total
-      FROM quality_rule_violations qrv
+    // Shared join fragment — used by both count and data queries.
+    // fad: fallback filename for VM jobs (synthetic file_id not in files table).
+    // vme/vmd/vmd_sp: fallback sub-project for VM jobs (temp mapping deleted after execution).
+    const joinFragment = `
       INNER JOIN quality_rules qr ON qrv.rule_id = qr.id
       LEFT JOIN files f ON qrv.file_id = f.file_id
       LEFT JOIN projects p ON f.project_id = p.id
@@ -237,6 +238,17 @@ router.get('/mapping-job-violations', async (req, res) => {
       LEFT JOIN transformation_jobs tj ON qrv.job_id = tj.job_id
       LEFT JOIN projects tj_p ON tj.project_id = tj_p.id
       LEFT JOIN users exec_user ON tj.executed_by = exec_user.id
+      LEFT JOIN file_audit_details fad
+        ON fad.file_id = qrv.file_id AND fad.file_role = 'source'
+      LEFT JOIN visual_mapping_executions vme ON vme.job_id = tj.job_id
+      LEFT JOIN visual_mapping_defs vmd ON vmd.id = vme.mapping_id
+      LEFT JOIN projects vmd_sp ON vmd.sub_project_id = vmd_sp.id
+    `;
+
+    const countQuery = `
+      SELECT COUNT(*) as total
+      FROM quality_rule_violations qrv
+      ${joinFragment}
       ${whereClause}
     `;
 
@@ -258,25 +270,19 @@ router.get('/mapping-job-violations', async (req, res) => {
         qr.rule_name,
         qr.rule_type,
         qr.description as rule_description,
-        f.filename,
+        COALESCE(f.filename, fad.file_name) as filename,
         f.metadata as file_metadata,
         COALESCE(p.id, tj_p.id) as project_id,
         COALESCE(p.name, tj_p.name) as project_name,
-        sp.id as sub_project_id,
-        sp.name as sub_project_name,
+        COALESCE(sp.id, vmd_sp.id) as sub_project_id,
+        COALESCE(sp.name, vmd_sp.name) as sub_project_name,
         tj.mapping_name,
         tj.job_id as transformation_job_id,
         tj.start_time as job_start_time,
         exec_user.username as executed_by_username,
         exec_user.full_name as executed_by_fullname
       FROM quality_rule_violations qrv
-      INNER JOIN quality_rules qr ON qrv.rule_id = qr.id
-      LEFT JOIN files f ON qrv.file_id = f.file_id
-      LEFT JOIN projects p ON f.project_id = p.id
-      LEFT JOIN projects sp ON f.sub_project_id = sp.id
-      LEFT JOIN transformation_jobs tj ON qrv.job_id = tj.job_id
-      LEFT JOIN projects tj_p ON tj.project_id = tj_p.id
-      LEFT JOIN users exec_user ON tj.executed_by = exec_user.id
+      ${joinFragment}
       ${whereClause}
       ORDER BY qrv.created_at DESC
       LIMIT $${++paramCount} OFFSET $${++paramCount}

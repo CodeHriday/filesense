@@ -3685,7 +3685,11 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
           file_name: file.filename,
           mapping_id: mapping.mapping_id,
           upload_date: new Date(),
-          actual_row_count: transformedRows.length
+          // record_count rules validate the SOURCE file's row count, not the transformed output.
+          // rowsRead reflects how many rows were parsed from the incoming file; fall back to
+          // transformedRows.length only when the source count is unavailable.
+          actual_row_count: (rowsRead > 0 ? rowsRead : null) ?? transformedRows.length,
+          transformed_row_count: transformedRows.length
         };
         
         const validationResult = await qualityEngine.validateData(
