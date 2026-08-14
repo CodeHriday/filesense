@@ -238,8 +238,15 @@ router.get('/mapping-job-violations', async (req, res) => {
       LEFT JOIN transformation_jobs tj ON qrv.job_id = tj.job_id
       LEFT JOIN projects tj_p ON tj.project_id = tj_p.id
       LEFT JOIN users exec_user ON tj.executed_by = exec_user.id
-      LEFT JOIN file_audit_details fad
-        ON fad.file_id = qrv.file_id AND fad.file_role = 'source'
+      LEFT JOIN LATERAL (
+        SELECT file_name FROM file_audit_details
+        WHERE file_id = qrv.file_id AND file_role = 'source'
+          AND (transformation_job_id = tj.id OR (tj.id IS NULL AND qrv.job_id IS NOT NULL AND job_id = (
+            SELECT id FROM transformation_jobs WHERE job_id = qrv.job_id LIMIT 1
+          )))
+        ORDER BY created_dt DESC
+        LIMIT 1
+      ) fad ON true
       LEFT JOIN visual_mapping_executions vme ON vme.job_id = tj.job_id
       LEFT JOIN visual_mapping_defs vmd ON vmd.id = vme.mapping_id
       LEFT JOIN projects vmd_sp ON vmd.sub_project_id = vmd_sp.id

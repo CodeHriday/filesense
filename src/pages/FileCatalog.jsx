@@ -491,26 +491,30 @@ export const FileCatalog = ({ onFileSelect }) => {
         </td>
         <td>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <QualityTooltip 
-              score={parseFloat(file.quality_score)}
-              components={{
-                completeness: file.quality_components?.completeness || 95,
-                consistency: file.quality_components?.consistency || 85,
-                validity: file.quality_components?.validity || 80,
-                uniqueness: file.quality_components?.uniqueness || 75,
-                timeliness: file.quality_components?.timeliness || 90
-              }}
-              position={rowIndex < 4 ? 'bottom' : 'top'}
-              animated={true}
-            >
-              <span style={{ 
-                fontWeight: 600, 
-                fontSize: '10px',
-                color: parseFloat(file.quality_score) >= 90 ? '#16a34a' : parseFloat(file.quality_score) >= 70 ? '#d97706' : '#dc2626'
-              }}>
-                {parseFloat(file.quality_score).toFixed(1)}%
-              </span>
-            </QualityTooltip>
+            {file.quality_score != null && !isNaN(parseFloat(file.quality_score)) ? (
+              <QualityTooltip 
+                score={parseFloat(file.quality_score)}
+                components={{
+                  completeness: file.quality_components?.completeness || 95,
+                  consistency: file.quality_components?.consistency || 85,
+                  validity: file.quality_components?.validity || 80,
+                  uniqueness: file.quality_components?.uniqueness || 75,
+                  timeliness: file.quality_components?.timeliness || 90
+                }}
+                position={rowIndex < 4 ? 'bottom' : 'top'}
+                animated={true}
+              >
+                <span style={{ 
+                  fontWeight: 600, 
+                  fontSize: '10px',
+                  color: parseFloat(file.quality_score) >= 90 ? '#16a34a' : parseFloat(file.quality_score) >= 70 ? '#d97706' : '#dc2626'
+                }}>
+                  {parseFloat(file.quality_score).toFixed(1)}%
+                </span>
+              </QualityTooltip>
+            ) : (
+              <span style={{ fontWeight: 600, fontSize: '10px', color: '#6b7280' }}>N/A</span>
+            )}
             {headerInfo && (
               <span 
                 className={`gps-badge ${headerInfo.status === 'critical' ? 'gps-badge--danger' : 'gps-badge--warning'}`}

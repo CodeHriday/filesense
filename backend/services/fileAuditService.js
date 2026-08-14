@@ -512,30 +512,52 @@ async function getAuditRecords(pool, filters = {}) {
           COALESCE(f.sub_project_id, tm.sub_project_id) as sub_project_id,
           COALESCE(sp.name, tm_sp.name) as sub_project_name,
           f.quality_score,
-          f.column_count as number_of_columns,
-          f.row_count,
+          COALESCE(f.column_count, fad.number_of_columns) as number_of_columns,
+          COALESCE(f.row_count, fad.no_of_records_in_source) as row_count,
           tj.job_id,
           tj.schema_validation,
           lfg.has_schema_changes,
-          (
-            SELECT json_agg(
-              json_build_object(
-                'name', fc.column_name,
-                'column_name', fc.column_name,
-                'data_type', fc.column_type,
-                'type', fc.column_type,
-                'null_count', fc.null_count,
-                'missing', fc.null_count,
-                'unique_values', fc.unique_count,
-                'distinct_count', fc.unique_count,
-                'min_value', COALESCE(fc.min_value_decimal::text, fc.min_value),
-                'max_value', COALESCE(fc.max_value_decimal::text, fc.max_value)
+          COALESCE(
+            (
+              SELECT json_agg(
+                json_build_object(
+                  'name', fc.column_name,
+                  'column_name', fc.column_name,
+                  'data_type', fc.column_type,
+                  'type', fc.column_type,
+                  'null_count', fc.null_count,
+                  'missing', fc.null_count,
+                  'unique_values', fc.unique_count,
+                  'distinct_count', fc.unique_count,
+                  'min_value', COALESCE(fc.min_value_decimal::text, fc.min_value),
+                  'max_value', COALESCE(fc.max_value_decimal::text, fc.max_value)
+                )
+                ORDER BY fc.column_index
               )
-              ORDER BY fc.column_index
-            )
-            FROM file_columns fc
-            WHERE fc.file_id = fad.file_id
-              AND (fc.file_role = fad.file_role OR (fc.file_role IS NULL AND fad.file_role IS NULL))
+              FROM file_columns fc
+              WHERE fc.file_id = fad.file_id
+                AND (fc.file_role = fad.file_role OR (fc.file_role IS NULL AND fad.file_role IS NULL))
+            ),
+            CASE
+              WHEN fsd.file_schema IS NOT NULL AND fsd.file_schema ? 'columns' THEN (
+                SELECT json_agg(
+                  json_build_object(
+                    'name', col->>'name',
+                    'column_name', col->>'name',
+                    'data_type', col->>'type',
+                    'type', col->>'type',
+                    'null_count', NULL,
+                    'missing', NULL,
+                    'unique_values', NULL,
+                    'distinct_count', NULL,
+                    'min_value', NULL,
+                    'max_value', NULL
+                  )
+                )
+                FROM jsonb_array_elements(fsd.file_schema->'columns') AS col
+              )
+              ELSE NULL
+            END
           ) as column_stats
         FROM file_audit_details fad
         LEFT JOIN files f ON fad.file_id = f.file_id
