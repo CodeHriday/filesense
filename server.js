@@ -135,21 +135,81 @@ const sanitizeError = (error, genericMessage = 'An error occurred') => {
 };
 
 // Comprehensive date validation helper with detailed error messages
-const validateDateFormat = (dateString) => {
+// All named date formats — used for both auto-detection and strict single-format validation.
+// Formats with ambiguous patterns (MM/DD vs DD/MM, MM-DD vs DD-MM) are disambiguated only
+// when the caller passes an explicit expectedFormat; in auto-detect mode the first match wins.
+const ALL_DATE_FORMATS = [
+  { pattern: /^(\d{4})-(\d{2})-(\d{2})$/, name: 'YYYY-MM-DD',  yearIdx: 1, monthIdx: 2, dayIdx: 3 },
+  { pattern: /^(\d{2})\/(\d{2})\/(\d{4})$/, name: 'MM/DD/YYYY', yearIdx: 3, monthIdx: 1, dayIdx: 2 },
+  { pattern: /^(\d{2})\/(\d{2})\/(\d{4})$/, name: 'DD/MM/YYYY', yearIdx: 3, monthIdx: 2, dayIdx: 1 },
+  { pattern: /^(\d{2})-(\d{2})-(\d{4})$/,  name: 'MM-DD-YYYY', yearIdx: 3, monthIdx: 1, dayIdx: 2 },
+  { pattern: /^(\d{2})-(\d{2})-(\d{4})$/,  name: 'DD-MM-YYYY', yearIdx: 3, monthIdx: 2, dayIdx: 1 },
+  { pattern: /^(\d{4})\/(\d{2})\/(\d{2})$/, name: 'YYYY/MM/DD', yearIdx: 1, monthIdx: 2, dayIdx: 3 },
+  { pattern: /^(\d{2})\.(\d{2})\.(\d{4})$/, name: 'DD.MM.YYYY', yearIdx: 3, monthIdx: 2, dayIdx: 1 },
+];
+
+// Subset used for auto-detection when no format is specified — avoids ambiguous patterns.
+const AUTO_DETECT_FORMAT_NAMES = new Set(['YYYY-MM-DD', 'MM/DD/YYYY', 'MM-DD-YYYY', 'YYYY/MM/DD', 'DD.MM.YYYY']);
+
+/**
+ * Build a single-format validator from a custom format token string such as
+ * "YYYY/DD/MM".  Tokens: YYYY (4-digit year), MM (2-digit month), DD (2-digit day).
+ * Returns null when the format string contains none of the required tokens.
+ */
+const buildCustomDateFormat = (formatStr) => {
+  if (!formatStr || typeof formatStr !== 'string') return null;
+  const tokenOrder = [];
+  // Find token positions so we know which capture group maps to what
+  const positions = [
+    { token: 'YYYY', idx: formatStr.indexOf('YYYY') },
+    { token: 'MM',   idx: formatStr.indexOf('MM')   },
+    { token: 'DD',   idx: formatStr.indexOf('DD')   },
+  ].filter(t => t.idx >= 0).sort((a, b) => a.idx - b.idx);
+  if (positions.length < 3) return null; // Must have all three tokens
+  // Escape separator chars and replace tokens with capture groups
+  const regexStr = formatStr
+    .replace(/[.*+?^${}()|[\]\\]/g, c => `\\${c}`)
+    .replace('YYYY', '(\\d{4})')
+    .replace('MM',   '(\\d{2})')
+    .replace('DD',   '(\\d{2})');
+  const yearIdx  = positions.findIndex(p => p.token === 'YYYY') + 1;
+  const monthIdx = positions.findIndex(p => p.token === 'MM')   + 1;
+  const dayIdx   = positions.findIndex(p => p.token === 'DD')   + 1;
+  return { pattern: new RegExp(`^${regexStr}$`), name: formatStr, yearIdx, monthIdx, dayIdx };
+};
+
+/**
+ * Validate a date string.
+ * @param {string} dateString   - The value to validate.
+ * @param {string|null} expectedFormat - Named format (e.g. 'YYYY-MM-DD', 'DD/MM/YYYY') or a
+ *   custom token string (e.g. 'YYYY/DD/MM').  When null, any recognised format is accepted.
+ */
+const validateDateFormat = (dateString, expectedFormat = null) => {
   if (!dateString || typeof dateString !== 'string') {
-    return { valid: false, expectedFormat: 'YYYY-MM-DD', reason: 'Empty or invalid value' };
+    return { valid: false, expectedFormat: expectedFormat || 'YYYY-MM-DD', reason: 'Empty or invalid value' };
   }
   
   const trimmedValue = dateString.trim();
   
-  // Common date format patterns to check
-  const formats = [
-    { pattern: /^(\d{4})-(\d{2})-(\d{2})$/, name: 'YYYY-MM-DD', yearIdx: 1, monthIdx: 2, dayIdx: 3 },
-    { pattern: /^(\d{2})\/(\d{2})\/(\d{4})$/, name: 'MM/DD/YYYY', yearIdx: 3, monthIdx: 1, dayIdx: 2 },
-    { pattern: /^(\d{2})-(\d{2})-(\d{4})$/, name: 'MM-DD-YYYY', yearIdx: 3, monthIdx: 1, dayIdx: 2 },
-    { pattern: /^(\d{4})\/(\d{2})\/(\d{2})$/, name: 'YYYY/MM/DD', yearIdx: 1, monthIdx: 2, dayIdx: 3 },
-    { pattern: /^(\d{2})\.(\d{2})\.(\d{4})$/, name: 'DD.MM.YYYY', yearIdx: 3, monthIdx: 2, dayIdx: 1 },
-  ];
+  // Determine which formats to try
+  let formatsToTry;
+  if (expectedFormat) {
+    // Try named formats first
+    formatsToTry = ALL_DATE_FORMATS.filter(f => f.name === expectedFormat);
+    // Fall back to custom token parsing
+    if (formatsToTry.length === 0) {
+      const custom = buildCustomDateFormat(expectedFormat);
+      formatsToTry = custom ? [custom] : [];
+    }
+    if (formatsToTry.length === 0) {
+      return { valid: false, expectedFormat, reason: `Unrecognised date format: ${expectedFormat}` };
+    }
+  } else {
+    formatsToTry = ALL_DATE_FORMATS.filter(f => AUTO_DETECT_FORMAT_NAMES.has(f.name));
+  }
+
+  // Legacy alias — keep the same local variable name used below
+  const formats = formatsToTry;
   
   let matchedFormat = null;
   let year, month, day;
@@ -6955,7 +7015,8 @@ app.post('/api/files/:fileId/quality-rules/run', authenticateToken, async (req, 
     const COLUMN_SWITCH_TYPES = new Set([
       'null_check', 'column_completeness', 'email_validity', 'phone_validity',
       'date_format', 'timestamp_format', 'isna_check', 'numeric_only_string',
-      'special_character_presence'
+      'special_character_presence',
+      'validity', // engine-type alias — routes internally via rule_config.validity_type
     ]);
 
     // Execute each rule against its target columns (collect violations first)
@@ -7157,6 +7218,109 @@ app.post('/api/files/:fileId/quality-rules/run', authenticateToken, async (req, 
                 }
               }
               break;
+
+            case 'validity': {
+              // Engine-type alias used when rules are saved via the UI as rule_type='validity'.
+              // Routes to the appropriate sub-check based on rule_config.validity_type.
+              const rcCfg = (typeof rule.rule_config === 'string' ? JSON.parse(rule.rule_config) : rule.rule_config) || {};
+              const vType = rcCfg.validity_type;
+
+              if (vType === 'datatype') {
+                const dt = rcCfg.datatype;
+                if (dt === 'date') {
+                  if (cellValue && typeof cellValue === 'string') {
+                    const dv = validateDateFormat(cellValue, rcCfg.date_format || null);
+                    if (!dv.valid) {
+                      isViolation = true;
+                      expectedValue = `Format: ${rcCfg.date_format || dv.expectedFormat}`;
+                      violationDetails = { reason: dv.reason, value: cellValue, expectedFormat: rcCfg.date_format || dv.expectedFormat };
+                    }
+                  }
+                } else if (dt === 'datetime') {
+                  if (cellValue && typeof cellValue === 'string') {
+                    const datePart = cellValue.split(/[T\s]/)[0];
+                    const dv = validateDateFormat(datePart);
+                    if (!dv.valid) {
+                      isViolation = true;
+                      expectedValue = 'Format: YYYY-MM-DDTHH:mm:ss or YYYY-MM-DD HH:mm:ss';
+                      violationDetails = { reason: `Date portion invalid: ${dv.reason}`, value: cellValue };
+                    } else if (isNaN(new Date(cellValue).getTime())) {
+                      isViolation = true;
+                      expectedValue = 'Format: YYYY-MM-DDTHH:mm:ss';
+                      violationDetails = { reason: 'Invalid time portion', value: cellValue };
+                    }
+                  }
+                } else if (dt === 'email') {
+                  if (cellValue && typeof cellValue === 'string') {
+                    if (!/^[^\s@]{1,64}@[^\s@]{1,253}\.[^\s@]{1,63}$/.test(cellValue)) {
+                      isViolation = true; expectedValue = 'Valid email format';
+                      violationDetails = { reason: 'Invalid email format', value: cellValue };
+                    }
+                  }
+                } else if (dt === 'phone') {
+                  if (cellValue && typeof cellValue === 'string') {
+                    if (cellValue.replace(/\D/g, '').length < 10) {
+                      isViolation = true; expectedValue = 'Valid phone number (10+ digits)';
+                      violationDetails = { reason: 'Invalid phone format', value: cellValue };
+                    }
+                  }
+                } else if (dt === 'integer') {
+                  if (cellValue !== null && cellValue !== undefined && cellValue !== '') {
+                    const n = Number(cellValue);
+                    if (isNaN(n) || !Number.isInteger(n)) {
+                      isViolation = true; expectedValue = 'Whole number (integer)';
+                      violationDetails = { reason: 'Value is not an integer', value: cellValue };
+                    }
+                  }
+                } else if (dt === 'float' || dt === 'number') {
+                  if (cellValue !== null && cellValue !== undefined && cellValue !== '') {
+                    if (isNaN(Number(cellValue))) {
+                      isViolation = true; expectedValue = 'Numeric value';
+                      violationDetails = { reason: 'Value is not a number', value: cellValue };
+                    }
+                  }
+                } else if (dt === 'boolean') {
+                  if (cellValue !== null && cellValue !== undefined && cellValue !== '') {
+                    if (!['true','false','1','0','yes','no'].includes(String(cellValue).toLowerCase().trim())) {
+                      isViolation = true; expectedValue = 'Boolean value (true/false, 1/0, yes/no)';
+                      violationDetails = { reason: 'Value is not a boolean', value: cellValue };
+                    }
+                  }
+                }
+                // 'string' datatype — always passes
+              } else if (vType === 'pattern') {
+                if (cellValue !== null && cellValue !== undefined && cellValue !== '') {
+                  try {
+                    if (!new RegExp(rcCfg.pattern || '').test(String(cellValue))) {
+                      isViolation = true; expectedValue = `Matches pattern: ${rcCfg.pattern}`;
+                      violationDetails = { reason: 'Value does not match required pattern', value: cellValue, pattern: rcCfg.pattern };
+                    }
+                  } catch (_re) { /* invalid regex — skip */ }
+                }
+              } else if (vType === 'range') {
+                if (cellValue !== null && cellValue !== undefined && cellValue !== '') {
+                  const n = Number(cellValue);
+                  if (!isNaN(n)) {
+                    if (rcCfg.min !== undefined && n < Number(rcCfg.min)) {
+                      isViolation = true; expectedValue = `Value ≥ ${rcCfg.min}`;
+                      violationDetails = { reason: `Value ${n} is below minimum ${rcCfg.min}`, value: cellValue };
+                    } else if (rcCfg.max !== undefined && n > Number(rcCfg.max)) {
+                      isViolation = true; expectedValue = `Value ≤ ${rcCfg.max}`;
+                      violationDetails = { reason: `Value ${n} exceeds maximum ${rcCfg.max}`, value: cellValue };
+                    }
+                  }
+                }
+              } else if (vType === 'enum') {
+                if (cellValue !== null && cellValue !== undefined && cellValue !== '') {
+                  const allowed = (rcCfg.allowed_values || []).map(v => String(v).toLowerCase());
+                  if (allowed.length > 0 && !allowed.includes(String(cellValue).toLowerCase())) {
+                    isViolation = true; expectedValue = `One of: ${rcCfg.allowed_values?.join(', ')}`;
+                    violationDetails = { reason: 'Value not in allowed list', value: cellValue, allowed: rcCfg.allowed_values };
+                  }
+                }
+              }
+              break;
+            }
           }
           
           if (isViolation) {
@@ -7667,7 +7831,8 @@ app.post('/api/files/:fileId/quality-rules/revalidate', authenticateToken, uploa
     const REVALIDATE_COLUMN_SWITCH_TYPES = new Set([
       'null_check', 'column_completeness', 'email_validity', 'phone_validity',
       'date_format', 'timestamp_format', 'isna_check', 'numeric_only_string',
-      'special_character_presence'
+      'special_character_presence',
+      'validity', // engine-type alias — routes internally via rule_config.validity_type
     ]);
 
     // Execute each rule against its target columns
@@ -7859,6 +8024,107 @@ app.post('/api/files/:fileId/quality-rules/revalidate', authenticateToken, uploa
                 }
               }
               break;
+
+            case 'validity': {
+              // Engine-type alias — routes via rule_config.validity_type (revalidation path)
+              const rcCfgRv = (typeof rule.rule_config === 'string' ? JSON.parse(rule.rule_config) : rule.rule_config) || {};
+              const vTypeRv = rcCfgRv.validity_type;
+
+              if (vTypeRv === 'datatype') {
+                const dt = rcCfgRv.datatype;
+                if (dt === 'date') {
+                  if (cellValue && typeof cellValue === 'string') {
+                    const dv = validateDateFormat(cellValue, rcCfgRv.date_format || null);
+                    if (!dv.valid) {
+                      isViolation = true;
+                      expectedValue = `Format: ${rcCfgRv.date_format || dv.expectedFormat}`;
+                      violationDetails = { reason: dv.reason, value: cellValue, expectedFormat: rcCfgRv.date_format || dv.expectedFormat };
+                    }
+                  }
+                } else if (dt === 'datetime') {
+                  if (cellValue && typeof cellValue === 'string') {
+                    const datePart = cellValue.split(/[T\s]/)[0];
+                    const dv = validateDateFormat(datePart);
+                    if (!dv.valid) {
+                      isViolation = true;
+                      expectedValue = 'Format: YYYY-MM-DDTHH:mm:ss or YYYY-MM-DD HH:mm:ss';
+                      violationDetails = { reason: `Date portion invalid: ${dv.reason}`, value: cellValue };
+                    } else if (isNaN(new Date(cellValue).getTime())) {
+                      isViolation = true;
+                      expectedValue = 'Format: YYYY-MM-DDTHH:mm:ss';
+                      violationDetails = { reason: 'Invalid time portion', value: cellValue };
+                    }
+                  }
+                } else if (dt === 'email') {
+                  if (cellValue && typeof cellValue === 'string') {
+                    if (!/^[^\s@]{1,64}@[^\s@]{1,253}\.[^\s@]{1,63}$/.test(cellValue)) {
+                      isViolation = true; expectedValue = 'Valid email format';
+                      violationDetails = { reason: 'Invalid email format', value: cellValue };
+                    }
+                  }
+                } else if (dt === 'phone') {
+                  if (cellValue && typeof cellValue === 'string') {
+                    if (cellValue.replace(/\D/g, '').length < 10) {
+                      isViolation = true; expectedValue = 'Valid phone number (10+ digits)';
+                      violationDetails = { reason: 'Invalid phone format', value: cellValue };
+                    }
+                  }
+                } else if (dt === 'integer') {
+                  if (cellValue !== null && cellValue !== undefined && cellValue !== '') {
+                    const n = Number(cellValue);
+                    if (isNaN(n) || !Number.isInteger(n)) {
+                      isViolation = true; expectedValue = 'Whole number (integer)';
+                      violationDetails = { reason: 'Value is not an integer', value: cellValue };
+                    }
+                  }
+                } else if (dt === 'float' || dt === 'number') {
+                  if (cellValue !== null && cellValue !== undefined && cellValue !== '') {
+                    if (isNaN(Number(cellValue))) {
+                      isViolation = true; expectedValue = 'Numeric value';
+                      violationDetails = { reason: 'Value is not a number', value: cellValue };
+                    }
+                  }
+                } else if (dt === 'boolean') {
+                  if (cellValue !== null && cellValue !== undefined && cellValue !== '') {
+                    if (!['true','false','1','0','yes','no'].includes(String(cellValue).toLowerCase().trim())) {
+                      isViolation = true; expectedValue = 'Boolean value (true/false, 1/0, yes/no)';
+                      violationDetails = { reason: 'Value is not a boolean', value: cellValue };
+                    }
+                  }
+                }
+              } else if (vTypeRv === 'pattern') {
+                if (cellValue !== null && cellValue !== undefined && cellValue !== '') {
+                  try {
+                    if (!new RegExp(rcCfgRv.pattern || '').test(String(cellValue))) {
+                      isViolation = true; expectedValue = `Matches pattern: ${rcCfgRv.pattern}`;
+                      violationDetails = { reason: 'Value does not match required pattern', value: cellValue, pattern: rcCfgRv.pattern };
+                    }
+                  } catch (_re) { /* invalid regex — skip */ }
+                }
+              } else if (vTypeRv === 'range') {
+                if (cellValue !== null && cellValue !== undefined && cellValue !== '') {
+                  const n = Number(cellValue);
+                  if (!isNaN(n)) {
+                    if (rcCfgRv.min !== undefined && n < Number(rcCfgRv.min)) {
+                      isViolation = true; expectedValue = `Value ≥ ${rcCfgRv.min}`;
+                      violationDetails = { reason: `Value ${n} is below minimum ${rcCfgRv.min}`, value: cellValue };
+                    } else if (rcCfgRv.max !== undefined && n > Number(rcCfgRv.max)) {
+                      isViolation = true; expectedValue = `Value ≤ ${rcCfgRv.max}`;
+                      violationDetails = { reason: `Value ${n} exceeds maximum ${rcCfgRv.max}`, value: cellValue };
+                    }
+                  }
+                }
+              } else if (vTypeRv === 'enum') {
+                if (cellValue !== null && cellValue !== undefined && cellValue !== '') {
+                  const allowed = (rcCfgRv.allowed_values || []).map(v => String(v).toLowerCase());
+                  if (allowed.length > 0 && !allowed.includes(String(cellValue).toLowerCase())) {
+                    isViolation = true; expectedValue = `One of: ${rcCfgRv.allowed_values?.join(', ')}`;
+                    violationDetails = { reason: 'Value not in allowed list', value: cellValue, allowed: rcCfgRv.allowed_values };
+                  }
+                }
+              }
+              break;
+            }
           }
           
           if (isViolation) {

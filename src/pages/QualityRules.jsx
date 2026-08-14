@@ -514,7 +514,11 @@ function QualityRules() {
                   id="validity-datatype"
                   className="gps-form-select"
                   value={config.datatype || ''}
-                  onChange={(e) => updateRuleConfig('datatype', e.target.value)}
+                  onChange={(e) => {
+                    updateRuleConfig('datatype', e.target.value);
+                    // Clear any date_format when switching away from date
+                    if (e.target.value !== 'date') updateRuleConfig('date_format', undefined);
+                  }}
                 >
                   <option value="">Select data type...</option>
                   <option value="string">Text</option>
@@ -522,11 +526,60 @@ function QualityRules() {
                   <option value="float">Decimal Number</option>
                   <option value="boolean">True/False</option>
                   <option value="date">Date</option>
-                  <option value="datetime">Date & Time</option>
+                  <option value="datetime">Date &amp; Time</option>
                 </select>
                 {formErrors.datatype && <span className="gps-form-hint" style={{ color: '#e53e3e' }}>{formErrors.datatype}</span>}
               </div>
             )}
+            {config.validity_type === 'datatype' && config.datatype === 'date' && (() => {
+              const KNOWN_DATE_FORMATS = ['YYYY-MM-DD', 'MM/DD/YYYY', 'DD/MM/YYYY', 'MM-DD-YYYY', 'DD-MM-YYYY', 'YYYY/MM/DD', 'DD.MM.YYYY'];
+              const isCustom = config.date_format && !KNOWN_DATE_FORMATS.includes(config.date_format);
+              const pickerValue = isCustom ? 'custom' : (config.date_format || '');
+              return (
+                <div className="gps-form-group">
+                  <label htmlFor="validity-date-format" className="gps-form-label">Date Format</label>
+                  <span className="gps-form-hint" style={{ marginTop: 0, marginBottom: '6px' }}>
+                    Choose a format to enforce strictly, or leave blank to accept any recognised date format.
+                  </span>
+                  <select
+                    id="validity-date-format"
+                    className="gps-form-select"
+                    value={pickerValue}
+                    onChange={(e) => {
+                      if (e.target.value === 'custom') {
+                        updateRuleConfig('date_format', '');
+                      } else {
+                        updateRuleConfig('date_format', e.target.value || undefined);
+                      }
+                    }}
+                  >
+                    <option value="">Any recognised date format</option>
+                    <option value="YYYY-MM-DD">YYYY-MM-DD (e.g. 2024-01-15)</option>
+                    <option value="MM/DD/YYYY">MM/DD/YYYY (e.g. 01/15/2024)</option>
+                    <option value="DD/MM/YYYY">DD/MM/YYYY (e.g. 15/01/2024)</option>
+                    <option value="MM-DD-YYYY">MM-DD-YYYY (e.g. 01-15-2024)</option>
+                    <option value="DD-MM-YYYY">DD-MM-YYYY (e.g. 15-01-2024)</option>
+                    <option value="YYYY/MM/DD">YYYY/MM/DD (e.g. 2024/01/15)</option>
+                    <option value="DD.MM.YYYY">DD.MM.YYYY (e.g. 15.01.2024)</option>
+                    <option value="custom">Custom format…</option>
+                  </select>
+                  {(pickerValue === 'custom' || isCustom) && (
+                    <input
+                      id="validity-date-format-custom"
+                      type="text"
+                      className="gps-form-input"
+                      style={{ marginTop: '8px' }}
+                      placeholder="e.g. YYYY/DD/MM or DD.YYYY.MM"
+                      value={isCustom ? config.date_format : ''}
+                      onChange={(e) => updateRuleConfig('date_format', e.target.value)}
+                    />
+                  )}
+                  <span className="gps-form-hint" style={{ marginTop: '4px' }}>
+                    Use tokens: <code>YYYY</code> (4-digit year), <code>MM</code> (2-digit month), <code>DD</code> (2-digit day)
+                  </span>
+                </div>
+              );
+            })()}
             
             <div className="gps-form-group" style={{ marginBottom: 0 }}>
               <label htmlFor="validity-column-name" className="gps-form-label">Column Name</label>
