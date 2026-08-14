@@ -3672,7 +3672,13 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
       const dqSourceRows = parseResult.sourceRows && parseResult.sourceRows.length > 0
         ? parseResult.sourceRows
         : [];
-      const rowsForDQ = transformedRows.length > 0 ? transformedRows : dqSourceRows;
+      // Attribute-level rules (date_format, validity, completeness) reference SOURCE column
+      // names (via dqRuleAssignments in the VM expression node). Always prefer source rows so
+      // those rules can look up column values by their original header names. Aggregate rules
+      // (record_count) use metadata.actual_row_count and don't iterate rows at all, so this
+      // choice does not affect them. Fall back to transformedRows only when source rows are
+      // unavailable (e.g. non-VM mappings that don't capture parseResult.sourceRows).
+      const rowsForDQ = dqSourceRows.length > 0 ? dqSourceRows : transformedRows;
 
       const shouldRunValidation = qualityRulesResult.rows.length > 0 &&
         (rowsForDQ.length > 0 || hasRecordCountRules);
@@ -3687,13 +3693,13 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
       );
 
       if (shouldRunValidation) {
-        const dqDatasetLabel = transformedRows.length > 0 ? 'transformed rows' : 'source rows (transformed output was empty)';
+        const dqDatasetLabel = dqSourceRows.length > 0 ? 'source rows' : 'transformed rows (source rows unavailable)';
         await logJobExecution(pool, jobId, 'info', `Running quality validation with ${qualityRulesResult.rows.length} rules against ${dqDatasetLabel}`, {
           rule_count: qualityRulesResult.rows.length,
           row_count: rowsForDQ.length,
           transformed_row_count: transformedRows.length,
           source_row_count: dqSourceRows.length,
-          dataset_used: transformedRows.length > 0 ? 'transformed' : 'source'
+          dataset_used: dqSourceRows.length > 0 ? 'source' : 'transformed'
         });
         
         const QualityValidationEngine = require('./qualityValidationEngine');
@@ -3725,6 +3731,16 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
             return { ...rule, column_name: qualityRuleColumnOverrides[rule.id] };
           }
           return rule;
+        });
+
+        // Debug: log what the DQ step will actually validate (remove once confirmed working)
+        systemLogger.info('[DQ-DEBUG] Rules after column override', {
+          qualityRuleColumnOverrides,
+          rules: rulesForValidation.map(r => ({ id: r.id, name: r.rule_name, type: r.rule_type, column_name: r.column_name, rule_config: r.rule_config })),
+          sourceRowKeys: dqSourceRows[0] ? Object.keys(dqSourceRows[0]) : [],
+          transformedRowKeys: transformedRows[0] ? Object.keys(transformedRows[0]) : [],
+          rowsForDQKeys: rowsForDQ[0] ? Object.keys(rowsForDQ[0]) : [],
+          rowCount: rowsForDQ.length
         });
 
         const validationResult = await qualityEngine.validateData(

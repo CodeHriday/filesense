@@ -1264,8 +1264,14 @@ class QualityValidationEngine {
       ? JSON.parse(rule.rule_config)
       : (rule.rule_config || {});
 
-    if (!rule.column_name) {
-      systemLogger.warn('date_format rule requires column_name', { rule_id: rule.id });
+    // Resolve the column to validate: quality_rules.column_name > rule_config.column_name > rule_config.column
+    const columnToValidate = rule.column_name || config.column_name || config.column || null;
+    if (!columnToValidate) {
+      systemLogger.warn('date_format rule requires column_name', {
+        rule_id: rule.id,
+        rule_config_keys: Object.keys(config),
+        hint: 'Set column_name on the quality_rules row, or add column_name/column to rule_config'
+      });
       return violations;
     }
 
