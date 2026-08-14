@@ -476,7 +476,7 @@ class VisualWorkflowExecutor {
           await pool.query(
             `INSERT INTO transformation_quality_rules (mapping_id, quality_rule_id)
              VALUES ($1, $2) ON CONFLICT DO NOTHING`,
-            [transformationDbId, ruleId]
+            [tempMappingId, ruleId]
           );
         }
         systemLogger.info('Inserted DQ rule associations for VM temp mapping', {

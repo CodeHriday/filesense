@@ -759,7 +759,13 @@ class VisualMappingCompiler {
             result.targetFileName = config.fileName;
             result.targetFileFormat = config.fileFormat;
             result.violationHandling = config.violationHandling;
-            result.qualityRuleIds = config.selectedQualityRules || [];
+            // Merge selectedQualityRules with any IDs already collected from
+            // expression-node dqRuleAssignments (avoid overwriting them).
+            for (const ruleId of (config.selectedQualityRules || [])) {
+              if (!result.qualityRuleIds.includes(ruleId)) {
+                result.qualityRuleIds.push(ruleId);
+              }
+            }
             result.enableAnomalyDetection = config.anomalyDetection || false;
             // Capture orderedColumns for filtering/reordering fieldMappings
             result.orderedColumns = config.orderedColumns || [];

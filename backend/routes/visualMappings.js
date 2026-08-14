@@ -808,7 +808,7 @@ router.post('/:id/execute', authorize('visual_mapping_orchestrator:execute'), as
           await pool.query(
             `INSERT INTO transformation_quality_rules (mapping_id, quality_rule_id)
              VALUES ($1, $2) ON CONFLICT DO NOTHING`,
-            [transformationDbId, ruleId]
+            [tempMappingId, ruleId]
           );
         }
 
