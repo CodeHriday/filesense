@@ -3643,7 +3643,7 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
     // Step 3.3: Run quality validation on transformed data (if quality rules are defined)
     try {
       const qualityRulesResult = await pool.query(`
-        SELECT qr.* 
+        SELECT qr.*, tqr.error_action AS per_rule_error_action
         FROM transformation_quality_rules tqr
         INNER JOIN quality_rules qr ON tqr.quality_rule_id = qr.id
         WHERE tqr.mapping_id = $1 AND qr.enabled = true
@@ -3693,35 +3693,60 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
             violations_count: violationsPersisted
           });
           
-          // Handle violations based on violation_handling policy
-          const violationHandling = mapping.violation_handling || 'log_continue';
-          
-          if (violationHandling === 'log_abort') {
-            const abortMessage = `Quality violations detected (${validationResult.summary.violations_found} total). Aborting job per violation_handling policy.`;
-            
+          // Build a per-rule action map from the loaded quality rules.
+          // Each row has per_rule_error_action (from tqr.error_action) with a
+          // fallback to the global mapping.violation_handling setting.
+          const globalViolationHandling = mapping.violation_handling || 'log_continue';
+          const ruleActionMap = {};
+          for (const row of qualityRulesResult.rows) {
+            ruleActionMap[row.id] = row.per_rule_error_action || globalViolationHandling;
+          }
+
+          // Determine the most severe action required across all fired violations.
+          // Priority: log_abort > log_warn > log_continue
+          const actionRank = { log_abort: 2, log_warn: 1, log_continue: 0 };
+          let worstAction = 'log_continue';
+          const abortRuleIds = [];
+          const warnRuleIds = [];
+
+          for (const violation of validationResult.violations) {
+            const ruleId = violation.rule_id;
+            const action = ruleActionMap[ruleId] || globalViolationHandling;
+            if ((actionRank[action] || 0) > (actionRank[worstAction] || 0)) {
+              worstAction = action;
+            }
+            if (action === 'log_abort') abortRuleIds.push(ruleId);
+            else if (action === 'log_warn') warnRuleIds.push(ruleId);
+          }
+
+          if (worstAction === 'log_abort') {
+            const abortMessage = `Quality violations detected (${validationResult.summary.violations_found} total, ${abortRuleIds.length} from Abort-action rule(s)). Aborting job per per-rule error action.`;
+
             await updateJob(pool, jobId, {
               status: 'failed',
               error_message: abortMessage,
               end_time: new Date()
             });
-            
+
             await logJobExecution(pool, jobId, 'error', abortMessage, {
               violations_summary: validationResult.summary,
-              violation_handling: violationHandling
+              abort_rule_ids: abortRuleIds,
+              worst_action: worstAction
             });
-            
+
             throw new Error(abortMessage);
-          } else if (violationHandling === 'log_warn') {
+          } else if (worstAction === 'log_warn') {
             // Warn: violations are persisted and surfaced as warnings; job completes successfully
-            await logJobExecution(pool, jobId, 'warn', `Quality violations detected — job completed with warnings (${validationResult.summary.violations_found} violation(s))`, {
+            await logJobExecution(pool, jobId, 'warn', `Quality violations detected — job completed with warnings (${validationResult.summary.violations_found} violation(s), ${warnRuleIds.length} from Warn-action rule(s))`, {
               violations_summary: validationResult.summary,
-              violation_handling: violationHandling
+              warn_rule_ids: warnRuleIds,
+              worst_action: worstAction
             });
           } else {
             // log_continue — log at info level and proceed silently
-            await logJobExecution(pool, jobId, 'info', `Quality violations detected but continuing per violation_handling policy`, {
+            await logJobExecution(pool, jobId, 'info', `Quality violations detected but continuing per per-rule error action`, {
               violations_summary: validationResult.summary,
-              violation_handling: violationHandling
+              worst_action: worstAction
             });
           }
         }
@@ -3733,7 +3758,7 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
         error: qualityValidationError.stack
       });
       // Re-throw if this was an abort due to violations
-      if (qualityValidationError.message.includes('Aborting job per violation_handling policy')) {
+      if (qualityValidationError.message.includes('Aborting job per per-rule error action')) {
         throw qualityValidationError;
       }
       // Otherwise, log error but continue processing

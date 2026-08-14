@@ -112,7 +112,7 @@ class VisualWorkflowExecutor {
       throw error;
     }
   }
-  
+
   async updateExecutionRecord(status, startTime, summary = null, errorMessage = null) {
     const endTime = Date.now();
     const durationMs = endTime - startTime;
@@ -470,13 +470,18 @@ class VisualWorkflowExecutor {
 
       // Persist DQ rule associations so the job engine enforces them.
       // qualityRuleIds comes from targetRules.selectedQualityRules + expression node dqRuleAssignments.
+      // qualityRuleActions maps ruleId -> per-rule errorAction (log_continue / log_warn / log_abort).
       const qualityRuleIds = transformationMapping.quality_rule_ids || [];
+      const qualityRuleActions = transformationMapping.quality_rule_actions || {};
       if (qualityRuleIds.length > 0) {
         for (const ruleId of qualityRuleIds) {
+          const errorAction = qualityRuleActions[ruleId] || 'log_continue';
           await pool.query(
-            `INSERT INTO transformation_quality_rules (mapping_id, quality_rule_id)
-             VALUES ($1, $2) ON CONFLICT DO NOTHING`,
-            [tempMappingId, ruleId]
+            `INSERT INTO transformation_quality_rules (mapping_id, quality_rule_id, error_action)
+             VALUES ($1, $2, $3)
+             ON CONFLICT (mapping_id, quality_rule_id)
+             DO UPDATE SET error_action = EXCLUDED.error_action`,
+            [tempMappingId, ruleId, errorAction]
           );
         }
         systemLogger.info('Inserted DQ rule associations for VM temp mapping', {

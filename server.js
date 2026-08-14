@@ -5720,6 +5720,7 @@ const createGetUserProjectsFunction = require('./backend/migrations/createGetUse
 const { up: addLastRunAtToFileQualityRules } = require('./backend/migrations/addLastRunAtToFileQualityRules');
 const { up: addIsSchemaEnforcedToFileQualityRules } = require('./backend/migrations/addIsSchemaEnforcedToFileQualityRules');
 const { patchEnrollmentSchemaRuleNames } = require('./backend/migrations/patchEnrollmentSchemaRuleNames');
+const { up: addErrorActionToTransformationQualityRules } = require('./backend/migrations/addErrorActionToTransformationQualityRules');
 
 // Run schema migrations asynchronously with tracking to prevent re-running
 (async () => {
@@ -5779,6 +5780,7 @@ const { patchEnrollmentSchemaRuleNames } = require('./backend/migrations/patchEn
     await migrationTracker.runOnce('addLastRunAtToFileQualityRules', () => addLastRunAtToFileQualityRules(dbPool));
     await migrationTracker.runOnce('addIsSchemaEnforcedToFileQualityRules', () => addIsSchemaEnforcedToFileQualityRules(dbPool));
     await migrationTracker.runOnce('patchEnrollmentSchemaRuleNames', () => patchEnrollmentSchemaRuleNames(dbPool));
+    await migrationTracker.runOnce('addErrorActionToTransformationQualityRules', () => addErrorActionToTransformationQualityRules(dbPool));
     
     console.log('🎉 All migrations completed successfully');
   } catch (err) {

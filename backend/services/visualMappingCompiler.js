@@ -1,7 +1,6 @@
 const { systemLogger } = require('../utils/logger');
 
 class VisualMappingCompiler {
-  
   /**
    * Compiles a visual mapping graph into an executable transformation mapping
    * @param {Object} visualMapping - The visual mapping definition with nodes and edges
@@ -89,6 +88,7 @@ class VisualMappingCompiler {
         schema_drift_handling: compiledSteps.schemaDriftHandling || 'none',
         violation_handling: compiledSteps.violationHandling || 'log_continue',
         quality_rule_ids: compiledSteps.qualityRuleIds || [],
+        quality_rule_actions: compiledSteps.qualityRuleActions || {},
         enable_anomaly_detection: compiledSteps.enableAnomalyDetection || false,
         node_execution_map: executionOrder.executionMap,
         vendor_agreement_id: compiledSteps.vendorAgreementId || null,
@@ -124,7 +124,7 @@ class VisualMappingCompiler {
       };
     }
   }
-  
+
   /**
    * Validates the graph structure
    */
@@ -207,7 +207,7 @@ class VisualMappingCompiler {
       errors
     };
   }
-  
+
   /**
    * Helper to get human-readable node type label
    */
@@ -223,7 +223,7 @@ class VisualMappingCompiler {
     };
     return labels[type] || type;
   }
-  
+
   /**
    * Validates individual node configuration
    */
@@ -296,7 +296,7 @@ class VisualMappingCompiler {
     
     return errors;
   }
-  
+
   /**
    * Propagates schemas through the graph in execution order
    */
@@ -428,7 +428,7 @@ class VisualMappingCompiler {
       };
     }
   }
-  
+
   /**
    * Gets the combined schema from all upstream nodes
    */
@@ -461,7 +461,7 @@ class VisualMappingCompiler {
     
     return combinedSchema;
   }
-  
+
   /**
    * Builds execution order using topological sort
    */
@@ -527,7 +527,7 @@ class VisualMappingCompiler {
       };
     }
   }
-  
+
   /**
    * Compiles nodes into transformation configuration
    * Enhanced to support multi-source joins with proper source cataloging
@@ -542,6 +542,9 @@ class VisualMappingCompiler {
       variables: [],
       piiColumns: [],
       qualityRuleIds: [],
+      // Maps ruleId -> errorAction for per-rule On Failure behaviour.
+      // Populated from expression node dqRuleAssignments and targetRules selectedQualityRules.
+      qualityRuleActions: {},
       enableAnomalyDetection: false,
       // Multi-source support: collect all source configurations
       sourceCatalog: [],
@@ -838,7 +841,7 @@ class VisualMappingCompiler {
       };
     }
   }
-  
+
   /**
    * Extracts schema from upstream nodes for a given node
    * Expression nodes act as strict column boundaries - only their explicit mappings pass through
