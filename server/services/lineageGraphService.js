@@ -1563,7 +1563,91 @@ async function getNodeDetails(nodeId, nodeType, projectId) {
         `, [fileData.file_id]);
         
         fileData.columns = columnsResult.rows;
-        
+
+        // Get DQ rules: directly assigned via file_quality_rules, plus rules
+        // inherited from the agreement's file-schema patterns (quality_rule_ids).
+        try {
+          const directRulesResult = await pool.query(`
+            SELECT
+              qr.id,
+              qr.rule_name,
+              qr.rule_type,
+              qr.severity,
+              qr.description,
+              COALESCE((
+                SELECT COUNT(*)::int
+                FROM quality_rule_violations qrv2
+                WHERE qrv2.rule_id = qr.id
+                  AND qrv2.file_id = $1
+                  AND qrv2.status != 'resolved'
+              ), 0) AS violation_count,
+              'direct' AS source
+            FROM file_quality_rules fqr
+            JOIN quality_rules qr ON qr.id = fqr.quality_rule_id
+            WHERE fqr.file_id = $1
+          `, [fileData.file_id]);
+
+          let schemaRules = [];
+          if (fileData.vendor_agreement_id) {
+            // Fetch all active schemas for the agreement, then match the file's
+            // filename against each file_name_pattern in JS (glob patterns) so
+            // we only include rules from schemas that actually cover this file.
+            const { matchesPattern } = require('../../backend/utils/filePatternMatcher');
+            const schemasResult = await pool.query(`
+              SELECT file_name_pattern, quality_rule_ids
+              FROM vendor_agreement_file_schemas
+              WHERE vendor_agreement_id = $1 AND is_active = TRUE
+            `, [fileData.vendor_agreement_id]);
+
+            const matchedRuleIds = new Set();
+            for (const schema of schemasResult.rows) {
+              try {
+                if (matchesPattern(fileData.filename, schema.file_name_pattern)) {
+                  const ids = Array.isArray(schema.quality_rule_ids)
+                    ? schema.quality_rule_ids
+                    : (typeof schema.quality_rule_ids === 'string'
+                        ? JSON.parse(schema.quality_rule_ids)
+                        : []);
+                  for (const id of ids) {
+                    const numId = parseInt(id, 10);
+                    if (!isNaN(numId)) matchedRuleIds.add(numId);
+                  }
+                }
+              } catch (_patternErr) { /* skip malformed pattern */ }
+            }
+
+            if (matchedRuleIds.size > 0) {
+              const schemaRulesResult = await pool.query(`
+                SELECT
+                  qr.id,
+                  qr.rule_name,
+                  qr.rule_type,
+                  qr.severity,
+                  qr.description,
+                  COALESCE((
+                    SELECT COUNT(*)::int
+                    FROM quality_rule_violations qrv2
+                    WHERE qrv2.rule_id = qr.id
+                      AND qrv2.file_id = $1
+                      AND qrv2.status != 'resolved'
+                  ), 0) AS violation_count,
+                  'agreement_schema' AS source
+                FROM quality_rules qr
+                WHERE qr.id = ANY($2)
+              `, [fileData.file_id, Array.from(matchedRuleIds)]);
+              schemaRules = schemaRulesResult.rows;
+            }
+          }
+
+          // Merge — direct assignment wins when the same rule appears in both sources
+          const rulesMap = new Map();
+          for (const rule of schemaRules) rulesMap.set(rule.id, rule);
+          for (const rule of directRulesResult.rows) rulesMap.set(rule.id, rule);
+          fileData.quality_rules = Array.from(rulesMap.values());
+        } catch (_qrErr) {
+          fileData.quality_rules = [];
+        }
+
         return fileData;
         
       case 'transformation': {
@@ -1772,6 +1856,52 @@ async function getNodeDetails(nodeId, nodeType, projectId) {
               } catch (_piiErr) { /* non-fatal — PII status is informational */ }
             }
 
+            // DQ rules for VM mappings: extracted from graph_data because the
+            // temp transformation_mappings row (and its transformation_quality_rules
+            // entries) are deleted after execution via CASCADE.
+            // targetRules.selectedQualityRules holds file-level rules;
+            // expression node dqRuleAssignments holds per-column rule IDs.
+            let vmQualityRules = [];
+            try {
+              const gNodes = vm.graph_data?.nodes || [];
+              const ruleIdSet = new Set();
+
+              for (const n of gNodes) {
+                if (n.type === 'targetRules') {
+                  const sqr = n.data?.selectedQualityRules
+                           || n.data?.config?.selectedQualityRules
+                           || [];
+                  for (const rid of sqr) {
+                    const numId = parseInt(rid, 10);
+                    if (!isNaN(numId)) ruleIdSet.add(numId);
+                  }
+                }
+                if (n.type === 'expression') {
+                  const assignments = n.data?.dqRuleAssignments
+                                   || n.data?.config?.dqRuleAssignments
+                                   || {};
+                  for (const ids of Object.values(assignments)) {
+                    if (Array.isArray(ids)) {
+                      for (const rid of ids) {
+                        const numId = parseInt(rid, 10);
+                        if (!isNaN(numId)) ruleIdSet.add(numId);
+                      }
+                    }
+                  }
+                }
+              }
+
+              if (ruleIdSet.size > 0) {
+                const vmQrResult = await pool.query(`
+                  SELECT id, rule_name, rule_type, severity, description,
+                         0 AS violation_count
+                  FROM quality_rules
+                  WHERE id = ANY($1)
+                `, [Array.from(ruleIdSet)]);
+                vmQualityRules = vmQrResult.rows;
+              }
+            } catch (_vmQrErr) { /* non-fatal */ }
+
             return {
               id: vm.vm_id,
               mapping_id: mappingId,
@@ -1783,7 +1913,8 @@ async function getNodeDetails(nodeId, nodeType, projectId) {
               rows_read: vm.rows_read ?? null,
               rows_written: vm.rows_written ?? vm.rows_processed ?? null,
               status: 'active',
-              field_mappings: vmFieldMappings
+              field_mappings: vmFieldMappings,
+              quality_rules: vmQualityRules
             };
           }
         }
@@ -1798,7 +1929,28 @@ async function getNodeDetails(nodeId, nodeType, projectId) {
           WHERE tm.mapping_id = $1
           GROUP BY tm.id
         `, [mappingId]);
-        return mappingResult.rows[0] || null;
+        if (!mappingResult.rows[0]) return null;
+        const mappingData = mappingResult.rows[0];
+        try {
+          // Violation counts are not attributable to a mapping (quality_rule_violations
+          // stores file_id/job_id only); violation_count is always 0 for mapping rules.
+          const tmQrResult = await pool.query(`
+            SELECT
+              qr.id,
+              qr.rule_name,
+              qr.rule_type,
+              qr.severity,
+              qr.description,
+              0 AS violation_count
+            FROM transformation_quality_rules tqr
+            JOIN quality_rules qr ON qr.id = tqr.quality_rule_id
+            WHERE tqr.mapping_id = $1
+          `, [mappingId]);
+          mappingData.quality_rules = tmQrResult.rows;
+        } catch (_tmQrErr) {
+          mappingData.quality_rules = [];
+        }
+        return mappingData;
       }
         
       case 'job':

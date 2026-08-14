@@ -667,6 +667,76 @@
   color: #7C3AED;
 }
 
+/* Data Quality Rules section */
+.drawer-dq-rules-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.drawer-dq-rule-item {
+  background: #F9FAFB;
+  border: 1px solid #E5E7EB;
+  border-radius: 6px;
+  padding: 10px 12px;
+}
+
+.drawer-dq-rule-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.drawer-dq-rule-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #111827;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.drawer-dq-rule-count {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 10px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.drawer-dq-rule-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 4px;
+}
+
+.drawer-dq-rule-badge {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 500;
+  padding: 2px 7px;
+  border-radius: 4px;
+  text-transform: capitalize;
+}
+
+.drawer-dq-rule-type {
+  background: #EFF6FF;
+  color: #1D4ED8;
+}
+
+.drawer-dq-rule-description {
+  font-size: 11px;
+  color: #6B7280;
+  margin-top: 4px;
+  line-height: 1.4;
+}
+
 /* PII badge inside column-mapping rows — sits inline next to the field name */
 .column-mapping-field-cell {
   display: flex;

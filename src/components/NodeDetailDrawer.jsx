@@ -202,6 +202,59 @@ const NodeDetailDrawer = ({ node, open, onClose }) => {
     );
   };
   
+  const renderQualityRules = () => {
+    const rules = details?.quality_rules || [];
+    const severityColor = (sev) => {
+      switch ((sev || '').toLowerCase()) {
+        case 'critical': return '#EF4444';
+        case 'error':    return '#F97316';
+        case 'warning':  return '#F59E0B';
+        case 'info':     return '#3B82F6';
+        default:         return '#9CA3AF';
+      }
+    };
+    return (
+      <section className="drawer-section">
+        <h3><FaShieldAlt style={{ marginRight: '8px', color: '#6366F1' }} />Data Quality Rules ({rules.length})</h3>
+        {rules.length === 0 ? (
+          <div className="no-mappings-message">No rules assigned</div>
+        ) : (
+          <div className="drawer-dq-rules-list">
+            {rules.map((rule, index) => (
+              <div className="drawer-dq-rule-item" key={`dqrule-${rule.id ?? index}`}>
+                <div className="drawer-dq-rule-header">
+                  <span className="drawer-dq-rule-name">{rule.rule_name}</span>
+                  <span
+                    className="drawer-dq-rule-count"
+                    style={{ background: rule.violation_count > 0 ? '#FEE2E2' : '#F0FDF4', color: rule.violation_count > 0 ? '#B91C1C' : '#15803D' }}
+                  >
+                    {rule.violation_count > 0 ? `${rule.violation_count} violation${rule.violation_count !== 1 ? 's' : ''}` : 'Clean'}
+                  </span>
+                </div>
+                <div className="drawer-dq-rule-meta">
+                  {rule.rule_type && (
+                    <span className="drawer-dq-rule-badge drawer-dq-rule-type">{rule.rule_type.replace(/_/g, ' ')}</span>
+                  )}
+                  {rule.severity && (
+                    <span
+                      className="drawer-dq-rule-badge drawer-dq-rule-severity"
+                      style={{ background: `${severityColor(rule.severity)}22`, color: severityColor(rule.severity) }}
+                    >
+                      {rule.severity}
+                    </span>
+                  )}
+                </div>
+                {rule.description && (
+                  <div className="drawer-dq-rule-description">{rule.description}</div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+    );
+  };
+
   const renderTransformationColumnMappings = () => {
     // Parse field_mappings from backend
     let fieldMappings = details?.field_mappings || [];
@@ -456,6 +509,9 @@ const NodeDetailDrawer = ({ node, open, onClose }) => {
           </section>
         )}
         
+        {/* Data Quality Rules — source files and transformations */}
+        {(isFile || isTransformation) && details?.quality_rules && renderQualityRules()}
+
         {/* Collapsible Columns Section for source/target files */}
         {(isFile || isTargetFile) && details?.columns && details.columns.length > 0 && (
           <section className="drawer-section">
