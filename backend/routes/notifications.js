@@ -68,7 +68,7 @@ router.get('/', async (req, res) => {
       });
     }
     
-    const { unread_only } = req.query;
+    const { unread_only, category } = req.query;
     
     // Test database connection and table existence
     try {
@@ -109,6 +109,25 @@ router.get('/', async (req, res) => {
     
     if (unread_only === 'true') {
       queryText += ` AND is_read = FALSE`;
+    }
+
+    // Category filter — maps UI category names to notification_type prefixes
+    if (category) {
+      switch (category) {
+        case 'job_runs':
+          queryText += ` AND notification_type LIKE 'job_run_%'`;
+          break;
+        case 'governance':
+          queryText += ` AND notification_type LIKE 'vendor_contract_%'`;
+          break;
+        case 'workflow':
+          queryText += ` AND (notification_type LIKE 'workflow_%')`;
+          break;
+        case 'unread':
+          queryText += ` AND is_read = FALSE`;
+          break;
+        // 'all' → no additional filter
+      }
     }
     
     queryText += ` ORDER BY created_at DESC LIMIT 100`;

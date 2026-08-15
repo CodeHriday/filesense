@@ -9,7 +9,8 @@ function NotificationBell() {
   const dropdownRef = useRef(null);
   const navigate = useNavigate();
   
-  const { data, refetch } = useAPINotifications();
+  // Poll every 30 seconds so the badge stays current while the user works
+  const { data, refetch } = useAPINotifications({ refetchInterval: 30 * 1000 });
   const markReadMutation = useMarkNotificationRead();
   const markAllReadMutation = useMarkAllNotificationsRead();
   
@@ -79,18 +80,18 @@ function NotificationBell() {
   };
 
   const getNotificationIcon = (type) => {
-    switch (type) {
-      case 'vendor_contract_pending_manager':
-      case 'vendor_contract_pending_governance':
-        return '📄';
-      case 'vendor_contract_approved_final':
-        return '✅';
-      case 'vendor_contract_rejected_manager':
-      case 'vendor_contract_rejected_governance':
-        return '❌';
-      default:
-        return '🔔';
-    }
+    if (!type) return '🔔';
+    if (type.startsWith('job_run_completed_with')) return '⚠️';
+    if (type === 'job_run_completed') return '✅';
+    if (type === 'job_run_failed') return '❌';
+    if (type.startsWith('job_run_')) return '⚙️';
+    if (type === 'workflow_jira_ticket') return '🎫';
+    if (type === 'workflow_email_sent') return '📧';
+    if (type.startsWith('workflow_')) return '🔗';
+    if (type.includes('approved')) return '✅';
+    if (type.includes('rejected')) return '❌';
+    if (type.startsWith('vendor_contract_')) return '📄';
+    return '🔔';
   };
 
   return (
@@ -135,6 +136,9 @@ function NotificationBell() {
                   className={`notification-item ${notification.is_read ? 'read' : 'unread'}`}
                   onClick={() => handleNotificationClick(notification)}
                 >
+                  <div className="notification-bell-icon-col">
+                    {getNotificationIcon(notification.notification_type)}
+                  </div>
                   <div className="notification-content">
                     <div className="notification-title">{notification.title}</div>
                     <div className="notification-message">{notification.message}</div>

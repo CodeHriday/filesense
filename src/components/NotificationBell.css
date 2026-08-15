@@ -148,6 +148,15 @@
 }
 
 
+.notification-bell .notification-dropdown .notification-item .notification-bell-icon-col {
+  font-size: 14px;
+  line-height: 1;
+  flex-shrink: 0;
+  margin-top: 1px;
+  width: 18px;
+  text-align: center;
+}
+
 .notification-bell .notification-dropdown .notification-item .notification-content {
   flex: 1;
   min-width: 0;

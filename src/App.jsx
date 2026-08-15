@@ -1,4 +1,5 @@
-import React, { useState, useEffect, Suspense, lazy } from 'react';
+import React, { useState, useEffect, useRef, Suspense, lazy } from 'react';
+import axios from 'axios';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import ErrorBoundary from './components/ErrorBoundary';
 import { initializeAuditInterceptor } from './utils/auditInterceptor';
@@ -123,6 +124,7 @@ import './styles/Transformations.css';
 import './styles/ETLOrchestration.css';
 import './styles/global-page-styles.css';
 import { getSecret } from './config/secrets';
+import { useToast } from './context/ToastContext';
 
 function generateCodeVerifier(length = 64) {
   const array = new Uint8Array(length);
@@ -285,9 +287,32 @@ function AppContent({ showOnboarding, setShowOnboarding }) {
   const { currentUser, authStatus } = useAuth();
   const location = useLocation();
   const { isCollapsed } = useSidebar();
+  const { addToast } = useToast();
   const [showAIInsights, setShowAIInsights] = useState(false);
   const [selectedFileId, setSelectedFileId] = useState(null);
-  
+  // Track whether we have already shown the welcome summary for this login session
+  const welcomeShownRef = useRef(false);
+
+  // Login welcome summary — show an unread-count toast once per authenticated session
+  useEffect(() => {
+    if (authStatus === AUTH_STATUS.AUTHENTICATED && currentUser && !welcomeShownRef.current) {
+      welcomeShownRef.current = true;
+      axios.get('/api/notifications/count')
+        .then(res => {
+          const count = parseInt(res.data?.unread_count) || 0;
+          if (count > 0) {
+            addToast(
+              'info',
+              `${count} unread notification${count === 1 ? '' : 's'}`,
+              `You have ${count} unread notification${count === 1 ? '' : 's'}. Check your inbox to stay up to date.`,
+              8000
+            );
+          }
+        })
+        .catch(() => {}); // silent — never block the app over a notification count
+    }
+  }, [authStatus, currentUser, addToast]);
+
   // Show loading while auth status is being determined
   // This prevents premature redirect to login before auth check completes
   if (authStatus === AUTH_STATUS.CHECKING) {
