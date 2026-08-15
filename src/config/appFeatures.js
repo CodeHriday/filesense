@@ -419,6 +419,14 @@ export const APP_FEATURES = [
     route: '/dashboard-settings',
     showInSidebar: true
   },
+  {
+    id: 'digest_subscriptions',
+    name: 'Digest Subscriptions',
+    category: 'Administration',
+    icon: FiMail,
+    route: '/digest-subscriptions',
+    showInSidebar: true
+  },
   
   // Data Stories & Jobs - ARCHIVED
   { 

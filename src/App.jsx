@@ -107,6 +107,7 @@ const WorkflowManager = lazy(() => import('./pages/WorkflowManager'));
 const VisualMappingCanvas = lazy(() => import('./pages/VisualMappingCanvas'));
 const VisualMappingManager = lazy(() => import('./pages/VisualMappingManager'));
 const Documentation = lazy(() => import('./pages/Documentation'));
+const DigestSubscriptions = lazy(() => import('./pages/DigestSubscriptions'));
 
 // Styles
 import './App.css';
@@ -374,6 +375,7 @@ function AppContent({ showOnboarding, setShowOnboarding }) {
                 <Route path="/badges" element={<ProtectedRoute><Badges /></ProtectedRoute>} />
                 {/* ARCHIVED: <Route path="/stories" element={<ProtectedRoute><DataStories /></ProtectedRoute>} /> */}
                 <Route path="/dashboard-settings" element={<ProtectedRoute><DashboardSettings /></ProtectedRoute>} />
+                <Route path="/digest-subscriptions" element={<ProtectedRoute><DigestSubscriptions /></ProtectedRoute>} />
                 <Route path="/users" element={<ProtectedRoute><UserManagement /></ProtectedRoute>} />
                 <Route path="/roles" element={<ProtectedRoute><RoleManagement /></ProtectedRoute>} />
                 <Route path="/audit-trail" element={<ProtectedRoute><AuditTrail /></ProtectedRoute>} />

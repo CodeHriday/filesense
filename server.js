@@ -5855,6 +5855,7 @@ const { up: addIsSchemaEnforcedToFileQualityRules } = require('./backend/migrati
 const { patchEnrollmentSchemaRuleNames } = require('./backend/migrations/patchEnrollmentSchemaRuleNames');
 const { up: addErrorActionToTransformationQualityRules } = require('./backend/migrations/addErrorActionToTransformationQualityRules');
 const ensureFileUploadPermissions = require('./backend/migrations/ensureFileUploadPermissions');
+const { createDigestTables } = require('./backend/migrations/createDigestTables');
 
 // Run schema migrations asynchronously with tracking to prevent re-running
 (async () => {
@@ -5915,6 +5916,7 @@ const ensureFileUploadPermissions = require('./backend/migrations/ensureFileUplo
     await migrationTracker.runOnce('addIsSchemaEnforcedToFileQualityRules', () => addIsSchemaEnforcedToFileQualityRules(dbPool));
     await migrationTracker.runOnce('patchEnrollmentSchemaRuleNames', () => patchEnrollmentSchemaRuleNames(dbPool));
     await migrationTracker.runOnce('addErrorActionToTransformationQualityRules', () => addErrorActionToTransformationQualityRules(dbPool));
+    await migrationTracker.runOnce('createDigestTables', () => createDigestTables(dbPool));
     // Ensure file upload permissions exist in role_permissions table (idempotent).
     // This runs on every restart (not tracked) so new roles added in prod are always covered.
     await ensureFileUploadPermissions(dbPool);
@@ -13890,6 +13892,11 @@ console.log('Added vendor agreement template routes');
 const notificationRoutes = require('./backend/routes/notifications');
 app.use('/api/notifications', notificationRoutes);
 console.log('Added notifications routes');
+
+// Digest subscription routes
+const digestRoutes = require('./backend/routes/digestRoutes');
+app.use('/api/digest-subscriptions', digestRoutes);
+console.log('Added digest subscription routes');
 
 // RDM routes
 const rdmRoutes = require('./backend/routes/rdm');
