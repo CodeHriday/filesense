@@ -118,13 +118,30 @@ function Notifications() {
 
   const getNotificationIcon = (type) => {
     const iconMap = {
+      // Vendor contract notifications
       vendor_contract_pending_vendor: '📄',
       vendor_contract_pending_governance: '🔍',
       vendor_contract_rejected_manager: '❌',
       vendor_contract_approved: '✅',
       vendor_contract_pending_manager: '👤',
+      // Job run notifications
+      job_run_completed: '✅',
+      job_run_completed_with_warnings: '⚠️',
+      job_run_failed: '❌',
     };
     return iconMap[type] || '🔔';
+  };
+
+  const getJobStats = (notification) => {
+    if (!notification.notification_type?.startsWith('job_run_')) return null;
+    const meta = typeof notification.metadata === 'string'
+      ? JSON.parse(notification.metadata)
+      : (notification.metadata || {});
+    const stats = [];
+    if (meta.filesProcessed != null) stats.push(`${meta.filesProcessed} file(s)`);
+    if (meta.rowsWritten != null) stats.push(`${meta.rowsWritten} rows written`);
+    if (meta.dqViolationCount > 0) stats.push(`${meta.dqViolationCount} DQ violation(s)`);
+    return stats.length ? stats.join(' · ') : null;
   };
 
   const filteredNotifications = getFilteredNotifications();
@@ -206,6 +223,16 @@ function Notifications() {
                     {!notification.is_read && <span className="unread-dot"></span>}
                   </div>
                   <div className="notification-message">{notification.message}</div>
+                  {getJobStats(notification) && (
+                    <div className="notification-job-stats" style={{
+                      fontSize: '12px',
+                      color: '#888',
+                      marginTop: '4px',
+                      fontFamily: 'monospace'
+                    }}>
+                      {getJobStats(notification)}
+                    </div>
+                  )}
                   <div className="notification-timestamp">
                     {formatTimestamp(notification.created_at)}
                   </div>

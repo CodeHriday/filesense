@@ -159,7 +159,7 @@ class VisualMappingCompiler {
     });
     
     const orphanedNodes = nodes.filter(n => 
-      !connectedNodeIds.has(n.id) && n.type !== 'sourceConfig'
+      !connectedNodeIds.has(n.id) && n.type !== 'sourceConfig' && n.type !== 'emailNotification'
     );
     
     if (orphanedNodes.length > 0) {
@@ -778,6 +778,21 @@ class VisualMappingCompiler {
             }
             break;
             
+          case 'emailNotification':
+            // Side-effect node: extract config for the job notification service.
+            // Does not produce a data transformation step.
+            if (!result.emailNotificationNodes) result.emailNotificationNodes = [];
+            result.emailNotificationNodes.push({
+              nodeId,
+              emailConnectionId: config.emailConnectionId || null,
+              recipients: config.recipients || '',
+              subject: config.subject || '',
+              notifyOnSuccess: config.notifyOnSuccess !== false,
+              notifyOnFailure: config.notifyOnFailure !== false,
+              includeStats: config.includeStats !== false
+            });
+            break;
+
           case 'targetRules':
             result.targetConnectionId = config.connectionId;
             result.targetFilePath = config.filePath;

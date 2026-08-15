@@ -30,7 +30,7 @@ import {
   FaTerminal,
   FaExclamationTriangle
 } from 'react-icons/fa';
-import { FiPlay } from 'react-icons/fi';
+import { FiPlay, FiMail } from 'react-icons/fi';
 import PropTypes from 'prop-types';
 import SourceConfigModal from '../components/VisualMappingModals/SourceConfigModal';
 import ExpressionModal from '../components/VisualMappingModals/ExpressionModal';
@@ -269,12 +269,173 @@ const JoinNode = ({ data }) => {
   );
 };
 
+// ── Email Notification config modal ──────────────────────────────────────────
+function EmailNotificationConfigModal({ initialConfig, emailConnections, onSave, onClose }) {
+  const [cfg, setCfg] = React.useState({
+    emailConnectionId: initialConfig.emailConnectionId || '',
+    recipients: initialConfig.recipients || '',
+    subject: initialConfig.subject || 'Job {status}: {jobName}',
+    notifyOnSuccess: initialConfig.notifyOnSuccess !== false,
+    notifyOnFailure: initialConfig.notifyOnFailure !== false,
+    includeStats: initialConfig.includeStats !== false
+  });
+
+  return (
+    <div
+      className="visual-mapping-modal-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Email Notification Configuration"
+      onClick={onClose}
+    >
+      <div
+        className="visual-mapping-modal"
+        style={{ maxWidth: 480, padding: '24px', borderRadius: 8 }}
+        onClick={e => e.stopPropagation()}
+      >
+        <h3 style={{ margin: '0 0 16px', display: 'flex', alignItems: 'center', gap: 8 }}>
+          📧 Email Notification
+        </h3>
+
+        <label style={{ display: 'block', marginBottom: 12 }}>
+          <span style={{ fontSize: 13, fontWeight: 600 }}>Email Provider</span>
+          <select
+            value={cfg.emailConnectionId}
+            onChange={e => setCfg(p => ({ ...p, emailConnectionId: e.target.value }))}
+            style={{ display: 'block', width: '100%', marginTop: 4, padding: '6px 8px', borderRadius: 4, border: '1px solid #ddd' }}
+          >
+            <option value="">— select email connection —</option>
+            {emailConnections.map(c => (
+              <option key={c.connection_id} value={c.connection_id}>{c.name}</option>
+            ))}
+          </select>
+          {emailConnections.length === 0 && (
+            <span style={{ fontSize: 11, color: '#888' }}>No email connections configured. Add one in Settings → Connections.</span>
+          )}
+        </label>
+
+        <label style={{ display: 'block', marginBottom: 12 }}>
+          <span style={{ fontSize: 13, fontWeight: 600 }}>Recipients</span>
+          <input
+            type="text"
+            placeholder="alice@example.com, bob@example.com"
+            value={cfg.recipients}
+            onChange={e => setCfg(p => ({ ...p, recipients: e.target.value }))}
+            style={{ display: 'block', width: '100%', marginTop: 4, padding: '6px 8px', borderRadius: 4, border: '1px solid #ddd', boxSizing: 'border-box' }}
+          />
+          <span style={{ fontSize: 11, color: '#888' }}>Comma or semicolon separated</span>
+        </label>
+
+        <label style={{ display: 'block', marginBottom: 12 }}>
+          <span style={{ fontSize: 13, fontWeight: 600 }}>Subject</span>
+          <input
+            type="text"
+            placeholder="Job {status}: {jobName}"
+            value={cfg.subject}
+            onChange={e => setCfg(p => ({ ...p, subject: e.target.value }))}
+            style={{ display: 'block', width: '100%', marginTop: 4, padding: '6px 8px', borderRadius: 4, border: '1px solid #ddd', boxSizing: 'border-box' }}
+          />
+          <span style={{ fontSize: 11, color: '#888' }}>Use &#123;status&#125; and &#123;jobName&#125; as placeholders</span>
+        </label>
+
+        <div style={{ marginBottom: 12 }}>
+          <span style={{ fontSize: 13, fontWeight: 600 }}>Send when</span>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8, cursor: 'pointer' }}>
+            <input type="checkbox" checked={cfg.notifyOnSuccess}
+              onChange={e => setCfg(p => ({ ...p, notifyOnSuccess: e.target.checked }))} />
+            Job completes (completed / completed with warnings)
+          </label>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6, cursor: 'pointer' }}>
+            <input type="checkbox" checked={cfg.notifyOnFailure}
+              onChange={e => setCfg(p => ({ ...p, notifyOnFailure: e.target.checked }))} />
+            Job fails
+          </label>
+        </div>
+
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20, cursor: 'pointer' }}>
+          <input type="checkbox" checked={cfg.includeStats}
+            onChange={e => setCfg(p => ({ ...p, includeStats: e.target.checked }))} />
+          <span style={{ fontSize: 13 }}>Include execution statistics in email body</span>
+        </label>
+
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+          <button
+            onClick={onClose}
+            style={{ padding: '8px 16px', borderRadius: 4, border: '1px solid #ddd', background: '#fff', cursor: 'pointer' }}
+          >
+            Cancel
+          </button>
+          <button
+            onClick={() => onSave(cfg)}
+            style={{ padding: '8px 16px', borderRadius: 4, border: 'none', background: '#1a73e8', color: '#fff', cursor: 'pointer', fontWeight: 600 }}
+          >
+            Save
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+EmailNotificationConfigModal.propTypes = {
+  initialConfig: PropTypes.object.isRequired,
+  emailConnections: PropTypes.array.isRequired,
+  onSave: PropTypes.func.isRequired,
+  onClose: PropTypes.func.isRequired
+};
+
+// ── Email Notification node ───────────────────────────────────────────────────
+const EmailNotificationNode = ({ data, isConnectable }) => {
+  const { label, config = {}, statusBadge, onConfigure } = data;
+  const recipientPreview = config.recipients
+    ? config.recipients.split(/[,;]+/)[0].trim()
+    : null;
+
+  return (
+    <div className={`visual-mapping-node email-notification-node${statusBadge ? ' has-status' : ''}`}>
+      <Handle type="target" position={Position.Left} isConnectable={isConnectable} className="visual-mapping-node-handle" />
+      <div className="visual-mapping-node-header" style={{ background: 'linear-gradient(135deg, #1a73e8 0%, #0d5cc1 100%)' }}>
+        <span className="visual-mapping-node-icon">📧</span>
+        <span className="visual-mapping-node-type">Email Notification</span>
+        {statusBadge && (
+          <span className={`visual-mapping-node-status-badge ${statusBadge.className}`}>
+            {statusBadge.icon} {statusBadge.text}
+          </span>
+        )}
+      </div>
+      <div className="visual-mapping-node-body">
+        <div className="visual-mapping-node-title">{label || 'Email Notification'}</div>
+        {recipientPreview && (
+          <div className="visual-mapping-node-detail" style={{ fontSize: '11px', color: '#888' }}>
+            To: {recipientPreview}{config.recipients?.includes(',') ? ' +more' : ''}
+          </div>
+        )}
+        {config.subject && (
+          <div className="visual-mapping-node-detail" style={{ fontSize: '11px', color: '#888' }}>
+            Subj: {config.subject.substring(0, 28)}{config.subject.length > 28 ? '…' : ''}
+          </div>
+        )}
+        {onConfigure && (
+          <button
+            className="visual-mapping-node-configure-btn"
+            onClick={(e) => { e.stopPropagation(); onConfigure(); }}
+          >
+            Configure
+          </button>
+        )}
+      </div>
+      <Handle type="source" position={Position.Right} isConnectable={isConnectable} className="visual-mapping-node-handle" />
+    </div>
+  );
+};
+
 const nodeTypes = {
   sourceConfig: SourceConfigNode,
   expression: ExpressionNode,
   rdmLookup: RdmLookupNode,
   targetRules: TargetRulesNode,
-  join: JoinNode
+  join: JoinNode,
+  emailNotification: EmailNotificationNode
 };
 
 // Prop validation for custom node components used by React Flow
@@ -326,6 +487,17 @@ JoinNode.propTypes = {
     onConfigure: PropTypes.func,
     nodeId: PropTypes.oneOfType([PropTypes.string, PropTypes.number])
   }).isRequired,
+};
+
+EmailNotificationNode.propTypes = {
+  data: PropTypes.shape({
+    statusBadge: PropTypes.shape({ text: PropTypes.string, icon: PropTypes.node }),
+    config: PropTypes.object,
+    label: PropTypes.string,
+    onConfigure: PropTypes.func,
+    nodeId: PropTypes.oneOfType([PropTypes.string, PropTypes.number])
+  }).isRequired,
+  isConnectable: PropTypes.bool
 };
 
 const formatRunDate = (dateStr) => {
@@ -1862,6 +2034,16 @@ const VisualMappingCanvasContent = () => {
                       <FaCheckCircle /> Target Config
                     </button>
                   </div>
+
+                  <div className="visual-mapping-palette-section">
+                    <h4>Notifications</h4>
+                    <button
+                      onClick={() => addNode('emailNotification', 'Email Notification')}
+                      className="visual-mapping-palette-item"
+                    >
+                      <FiMail /> Email Notification
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
@@ -2146,6 +2328,16 @@ const VisualMappingCanvasContent = () => {
         />
       )}
       
+      {/* Email Notification Config Modal */}
+      {configNodeType === 'emailNotification' && configModalOpen && (
+        <EmailNotificationConfigModal
+          initialConfig={getCurrentNodeConfig()}
+          emailConnections={emailConnections}
+          onSave={handleSaveNodeConfig}
+          onClose={() => setConfigModalOpen(false)}
+        />
+      )}
+
       {/* Console Panel */}
       {showConsole && (
         <div 

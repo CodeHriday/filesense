@@ -20,6 +20,7 @@ const { enforceSchemaRulesForJob } = require('./schemaRuleEnforcer');
 const { loadRDMContext } = require('./rdmContextLoader');
 const alertAggregationWorker = require('./AlertAggregationWorker');
 const visualMappingWS = require('./visualMappingWebSocket');
+const { fireJobNotification } = require('./JobNotificationService');
 const crypto = require('crypto');
 const ArchiveExtractionService = require('./archiveExtractionService');
 const ImmutableAuditLedgerService = require('./ImmutableAuditLedgerService');
@@ -2191,6 +2192,24 @@ async function executeTransformationJob(pool, mappingId, userId, options = {}) {
       rows_failed: totalRowsFailed,
       end_time: new Date()
     });
+
+    // Fire-and-forget job completion notification (non-blocking)
+    setImmediate(() => {
+      fireJobNotification(pool, {
+        userId,
+        jobId,
+        jobDbId: job?.id,
+        jobName: mapping?.mapping_name,
+        status: finalStatus,
+        metadata: {
+          filesProcessed: matchingFiles.length,
+          rowsRead: totalRowsRead,
+          rowsWritten: totalRowsWritten,
+          rowsFailed: totalRowsFailed
+        },
+        visualMappingId: mapping?.visual_mapping_id || null
+      }).catch(() => {}); // Already swallows internally; belt-and-suspenders
+    });
     
     // Update transformation_executions if tracking
     await updateTransformationExecution(pool, transformationExecutionId, 'COMPLETED', {
@@ -2304,6 +2323,22 @@ async function executeTransformationJob(pool, mappingId, userId, options = {}) {
         status: 'failed',
         error_message: error.message,
         end_time: new Date()
+      });
+
+      // Fire-and-forget failure notification (non-blocking)
+      const _failMeta = error.code === 'DQ_ABORT' && error.notificationMetadata
+        ? error.notificationMetadata
+        : {};
+      setImmediate(() => {
+        fireJobNotification(pool, {
+          userId,
+          jobId: job.job_id,
+          jobDbId: job?.id,
+          jobName: mapping?.mapping_name || 'Unknown',
+          status: 'failed',
+          metadata: { errorMessage: error.message, ..._failMeta },
+          visualMappingId: mapping?.visual_mapping_id || null
+        }).catch(() => {});
       });
       
       await logJobExecution(pool, job.job_id, 'error', 'Job execution failed', {
@@ -3849,6 +3884,11 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
 
             const abortError = new Error(abortMessage);
             abortError.code = 'DQ_ABORT';
+            // Carry DQ metadata so the outer catch can pass it to the notification service
+            abortError.notificationMetadata = {
+              dqViolationCount: validationResult.summary.violations_found,
+              violatedRuleNames: abortRuleNames
+            };
             throw abortError;
           } else if (worstAction === 'log_warn') {
             // Warn: violations are persisted and surfaced as warnings; job completes with warnings status
@@ -5800,6 +5840,20 @@ async function cancelJob(pool, jobId) {
     await logJobExecution(pool, jobId, 'info', 'Job cancelled by user');
     
     systemLogger.info('Job cancelled', { jobId, previousStatus: currentStatus });
+
+    // Fire-and-forget cancellation notification (non-blocking)
+    const _cancelledJob = jobResult.rows[0];
+    setImmediate(() => {
+      fireJobNotification(pool, {
+        userId: _cancelledJob.user_id,
+        jobId: _cancelledJob.job_id,
+        jobDbId: _cancelledJob.id,
+        jobName: _cancelledJob.mapping_name || jobId,
+        status: 'cancelled',
+        metadata: {},
+        visualMappingId: null
+      }).catch(() => {});
+    });
     
     return result;
     
