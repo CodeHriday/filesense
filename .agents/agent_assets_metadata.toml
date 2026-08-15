@@ -1,0 +1,9 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "VLUigw8eoqWhUqurcdc9q"
+uri = "file://docs/dq-test-cases.md"
+type = "text"
+title = "DQ Module Test Cases"
+description = "160 scenario-based test cases across 9 areas: profiling, rule CRUD, evaluation engine, Schema Builder, visual mappings, jobs dashboard, lineage, notifications, and edge cases."
