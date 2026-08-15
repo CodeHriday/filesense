@@ -170,6 +170,27 @@ const checkAgreementAccess = async (req, res, next) => {
       }
     }
     
+    // Check if user is a configured approver in the approval chain
+    if (agreement.approval_chain_config?.steps?.length) {
+      const isChainApprover = agreement.approval_chain_config.steps.some(
+        (step) =>
+          Array.isArray(step.approver_user_ids) &&
+          step.approver_user_ids.some((id) => parseInt(id, 10) === req.user.id)
+      );
+      if (isChainApprover) {
+        req.agreement = agreement;
+        req.isChainApprover = true;
+        return next();
+      }
+    }
+
+    // Check if user is the agreement creator (allowed to submit for chain approval)
+    if (agreement.created_by && agreement.created_by === req.user.id) {
+      req.agreement = agreement;
+      req.isCreator = true;
+      return next();
+    }
+
     // If user has read permission set earlier, allow access for viewing
     if (req.hasReadPermission) {
       return next();

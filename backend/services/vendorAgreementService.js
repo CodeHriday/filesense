@@ -2698,6 +2698,13 @@ class VendorAgreementService {
               WHERE agm2.user_id = $${paramCounter}
               AND va.additional_stakeholder_group_ids @> jsonb_build_array(agm2.group_id)
             )
+            OR va.created_by = $${paramCounter}
+            OR EXISTS (
+              SELECT 1 FROM jsonb_array_elements(
+                COALESCE(va.approval_chain_config->'steps', '[]'::jsonb)
+              ) AS step
+              WHERE (step->'approver_user_ids') @> jsonb_build_array($${paramCounter})
+            )
           )`);
           queryParams.push(userId, userEmail);
           paramCounter += 2;
@@ -2722,6 +2729,13 @@ class VendorAgreementService {
               SELECT 1 FROM access_group_members agm2
               WHERE agm2.user_id = $${paramCounter}
               AND va.additional_stakeholder_group_ids @> jsonb_build_array(agm2.group_id)
+            )
+            OR va.created_by = $${paramCounter}
+            OR EXISTS (
+              SELECT 1 FROM jsonb_array_elements(
+                COALESCE(va.approval_chain_config->'steps', '[]'::jsonb)
+              ) AS step
+              WHERE (step->'approver_user_ids') @> jsonb_build_array($${paramCounter})
             )
           )`);
           queryParams.push(userId);

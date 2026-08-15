@@ -10,6 +10,8 @@ import NotificationModal from '../components/NotificationModal';
 import S3FolderBrowser from '../components/S3FolderBrowser';
 import VendorUserSelect from '../components/VendorUserSelect';
 import ThreeStageApprovalPanel from '../components/ThreeStageApprovalPanel';
+import DynamicApprovalPanel from '../components/DynamicApprovalPanel';
+import ApprovalChainConfig from '../components/ApprovalChainConfig';
 import FileSchemaManager from '../components/FileSchemaManager';
 import FileConfigurationsSection, { normaliseSchema } from '../components/FileConfigurationsSection';
 import { useAuth } from '../context/AuthContext';
@@ -34,6 +36,7 @@ const VendorAgreements = () => {
   const [activeTab, setActiveTab] = useState('details');
   const [approvalHistory, setApprovalHistory] = useState([]);
   const [changeHistory, setChangeHistory] = useState([]);
+  const [stepDecisions, setStepDecisions] = useState([]);
   const [rejectComments, setRejectComments] = useState('');
   const [detailModalError, setDetailModalError] = useState('');
   const [detailModalSuccess, setDetailModalSuccess] = useState('');
@@ -220,11 +223,12 @@ const VendorAgreements = () => {
   const fetchAgreementDetails = async (agreementId) => {
     try {
       const response = await axios.get(`/api/vendor-agreements/${agreementId}/full`);
-      const { agreement: agreementData, approvals, changes } = response.data;
+      const { agreement: agreementData, approvals, changes, step_decisions } = response.data;
       
       setSelectedAgreement(agreementData);
       setApprovalHistory(Array.isArray(approvals) ? approvals : []);
       setChangeHistory(Array.isArray(changes) ? changes : []);
+      setStepDecisions(Array.isArray(step_decisions) ? step_decisions : []);
     } catch (error) {
       console.error('Error fetching agreement details:', error);
       setError('Failed to load agreement details');
@@ -786,6 +790,7 @@ const VendorAgreements = () => {
       additional_stakeholder_group_ids: agreement.additional_stakeholder_group_ids || []
     });
     setTemplateFile(null);
+    setSelectedAgreement(agreement);
     setModalMode('edit');
     setSuccessMessage('');
     setModalOpen(true);
@@ -810,6 +815,7 @@ const VendorAgreements = () => {
     setSelectedAgreement(null);
     setApprovalHistory([]);
     setChangeHistory([]);
+    setStepDecisions([]);
     setRejectComments('');
     setDetailModalError('');
     setDetailModalSuccess('');
@@ -1564,7 +1570,11 @@ const VendorAgreements = () => {
       case 'manager_rejected':
         return <span className="approval-badge approval-pending">Pending Vendor Manager</span>;
       
+      case 'pending_approval':
+        return <span className="approval-badge approval-partial">⛓ Chain Approval In Progress</span>;
+
       case 'governance_approved':
+      case 'fully_approved':
         return <span className="approval-badge approval-approved">Fully Approved ✓</span>;
       
       case 'governance_rejected':
@@ -2428,6 +2438,33 @@ const VendorAgreements = () => {
                   </div>
                 </div>
                 
+                {/* Section 5b: Approval Chain — edit mode only */}
+                {modalMode === 'edit' && selectedAgreement?.id && (
+                  <div className="form-section">
+                    <h3 className="section-title">Approval Chain</h3>
+                    <p className="section-description" style={{ fontSize: '12px', color: '#666', marginBottom: '16px' }}>
+                      Configure a sequential multi-step approval chain for this contract.
+                      After configuring, use the &ldquo;Submit for Chain Approval&rdquo; button inside
+                      the contract details view to start the approval process.
+                    </p>
+                    <ApprovalChainConfig
+                      agreement={selectedAgreement}
+                      users={stakeholderOptions.users}
+                      onSave={() => {
+                        /* Refresh the selected agreement so the badge updates */
+                        axios.get(`/api/vendor-agreements/${selectedAgreement.id}`)
+                          .then(r => setSelectedAgreement(r.data.agreement || r.data))
+                          .catch(() => {});
+                      }}
+                      onError={(msg) => setError(msg)}
+                      onSuccess={(msg) => {
+                        setSuccessMessage(msg);
+                        setTimeout(() => setSuccessMessage(''), 5000);
+                      }}
+                    />
+                  </div>
+                )}
+
                 {/* Section 6: Configuration */}
                 <div className="form-section">
                   <h3 className="section-title">Configuration</h3>
@@ -2819,22 +2856,75 @@ const VendorAgreements = () => {
                         </div>
                       </div>
                       
-                      <ThreeStageApprovalPanel
-                        agreement={selectedAgreement}
-                        currentUser={currentUser}
-                        onUpdate={() => fetchAgreementDetails(selectedAgreement.id)}
-                        onError={(msg) => setDetailModalError(msg)}
-                        onSuccess={(msg) => {
-                          setDetailModalSuccess(msg);
-                          setTimeout(() => setDetailModalSuccess(''), 5000);
-                          fetchData();
-                        }}
-                      />
+                      {/* Backward-compat guard: use DynamicApprovalPanel when a chain
+                          config is present, ThreeStageApprovalPanel for legacy contracts */}
+                      {selectedAgreement.approval_chain_config?.steps?.length > 0 ? (
+                        <DynamicApprovalPanel
+                          agreement={selectedAgreement}
+                          currentUser={currentUser}
+                          stepDecisions={stepDecisions}
+                          users={users}
+                          isAdmin={isAdmin}
+                          onUpdate={() => fetchAgreementDetails(selectedAgreement.id)}
+                          onError={(msg) => setDetailModalError(msg)}
+                          onSuccess={(msg) => {
+                            setDetailModalSuccess(msg);
+                            setTimeout(() => setDetailModalSuccess(''), 5000);
+                            fetchData();
+                          }}
+                        />
+                      ) : (
+                        <ThreeStageApprovalPanel
+                          agreement={selectedAgreement}
+                          currentUser={currentUser}
+                          onUpdate={() => fetchAgreementDetails(selectedAgreement.id)}
+                          onError={(msg) => setDetailModalError(msg)}
+                          onSuccess={(msg) => {
+                            setDetailModalSuccess(msg);
+                            setTimeout(() => setDetailModalSuccess(''), 5000);
+                            fetchData();
+                          }}
+                        />
+                      )}
                     </div>
                   )}
                   
                   {activeTab === 'approvals' && (
                     <div className="approvals-tab">
+                      {/* ── Chain step decisions (new N-step flow) ── */}
+                      {stepDecisions.length > 0 && (
+                        <>
+                          <h3>Approval Chain Decisions</h3>
+                          <table className="history-table" style={{ marginBottom: '20px' }}>
+                            <thead>
+                              <tr>
+                                <th>Step</th>
+                                <th>Timestamp</th>
+                                <th>Approver</th>
+                                <th>Action</th>
+                                <th>Comments</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {stepDecisions.map((dec, index) => (
+                                <tr key={index}>
+                                  <td>Step {dec.step_number}</td>
+                                  <td>{dec.decided_at ? new Date(dec.decided_at).toLocaleString() : '-'}</td>
+                                  <td>{dec.display_name || dec.username || dec.approver_user_id}</td>
+                                  <td>
+                                    <span className={`action-badge action-${dec.action}`}>
+                                      {dec.action}
+                                    </span>
+                                  </td>
+                                  <td>{dec.comments || '-'}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </>
+                      )}
+
+                      {/* ── Legacy 3-stage approval history ── */}
                       <h3>Approval History</h3>
                       {!Array.isArray(approvalHistory) || approvalHistory.length === 0 ? (
                         <p className="no-data">No approval history</p>
