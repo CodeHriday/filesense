@@ -251,6 +251,17 @@ function Notifications() {
     }
   };
 
+  const markAllAsRead = async () => {
+    try {
+      await axios.put('/api/notifications/read-all');
+      setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
+    } catch (err) {
+      console.error('Error marking all notifications as read:', err);
+      setError('Failed to mark all notifications as read');
+      setTimeout(() => setError(''), 3000);
+    }
+  };
+
   const handleNotificationClick = async (notification) => {
     if (!notification.is_read) await markAsRead(notification.id);
     if (notification.action_url) navigate(notification.action_url);
@@ -285,6 +296,14 @@ function Notifications() {
           {counts.unread > 0 && (
             <span className="unread-badge">{counts.unread}</span>
           )}
+          <button
+            className="mark-all-read-btn"
+            onClick={markAllAsRead}
+            disabled={counts.unread === 0}
+          >
+            <FiCheck />
+            Mark all as read
+          </button>
         </div>
       </div>
 

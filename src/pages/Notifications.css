@@ -40,6 +40,38 @@
   text-align: center;
 }
 
+.mark-all-read-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  background: transparent;
+  border: 1px solid #dadce0;
+  border-radius: 6px;
+  color: #1a73e8;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+
+.mark-all-read-btn:hover:not(:disabled) {
+  background: #e8f0fe;
+  border-color: #1a73e8;
+}
+
+.mark-all-read-btn:disabled {
+  color: #9ca3af;
+  border-color: #e8eaed;
+  cursor: not-allowed;
+}
+
+.mark-all-read-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
 .error-banner {
   background: #fef2f2;
   border: 1px solid #fecaca;
