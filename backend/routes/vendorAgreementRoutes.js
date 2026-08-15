@@ -634,11 +634,32 @@ router.get('/:id/full', checkAgreementAccess, async (req, res) => {
       LIMIT 100
     `, [agreementId]);
     
+    // Fetch configurable chain step decisions (new approval chain flow)
+    const stepDecisionsResult = await dbQuery(`
+      SELECT
+        vasd.id,
+        vasd.agreement_id,
+        vasd.step_number,
+        vasd.approver_user_id,
+        vasd.action,
+        vasd.comments,
+        vasd.decided_at,
+        vasd.agreement_version,
+        u.username,
+        u.email as user_email,
+        COALESCE(u.first_name || ' ' || u.last_name, u.username) as display_name
+      FROM vendor_approval_step_decisions vasd
+      LEFT JOIN users u ON vasd.approver_user_id = u.id
+      WHERE vasd.agreement_id = $1
+      ORDER BY vasd.step_number ASC, vasd.decided_at ASC
+    `, [agreementId]);
+
     res.json({
       success: true,
       agreement: req.agreement,
       approvals: approvalsWithDocs,
       changes: changesResult.rows,
+      step_decisions: stepDecisionsResult.rows,
       userRole: req.isAdmin ? 'admin' : (req.isVendor ? 'vendor' : 'owner')
     });
     
@@ -818,6 +839,137 @@ router.post('/:id/reject', checkAgreementAccess, async (req, res) => {
   } catch (error) {
     systemLogger.error('Error in POST /api/vendor-agreements/:id/reject', { error: error.message });
     res.status(400).json({ error: error.message });
+  }
+});
+
+/**
+ * ─────────────────────────────────────────────────────────────────────────────
+ * CONFIGURABLE N-STEP APPROVAL CHAIN ROUTES
+ * ─────────────────────────────────────────────────────────────────────────────
+ */
+
+/**
+ * GET /api/vendor-agreements/:id/approval-chain
+ * Retrieve the approval chain config and current step status for a contract.
+ * Accessible to anyone with read access to the agreement.
+ */
+router.get('/:id/approval-chain', checkAgreementAccess, async (req, res) => {
+  try {
+    const agreementId = parseInt(req.params.id);
+    const result = await vendorAgreementService.getApprovalChainConfig(agreementId);
+    res.json(result);
+  } catch (error) {
+    systemLogger.error('Error in GET /api/vendor-agreements/:id/approval-chain', { error: error.message });
+    res.status(error.message === 'Agreement not found' ? 404 : 500).json({ error: error.message });
+  }
+});
+
+/**
+ * PUT /api/vendor-agreements/:id/approval-chain
+ * Save (create or replace) the approval chain config for a contract.
+ * Restricted to the file owner and admins.
+ *
+ * Body: { steps: [{ name, approver_user_ids: [int], require_all: bool }, ...] }
+ */
+router.put('/:id/approval-chain', checkAgreementAccess, async (req, res) => {
+  try {
+    const agreementId = parseInt(req.params.id);
+
+    // Only admin or file owner may configure the chain
+    if (!req.isAdmin && !req.isOwner && !req.hasApprovePermission) {
+      return res.status(403).json({
+        error: 'Only the file owner or an admin can configure the approval chain'
+      });
+    }
+
+    const chainConfig = req.body;
+    const result = await vendorAgreementService.saveApprovalChainConfig(
+      agreementId,
+      chainConfig,
+      req.user.id,
+      req.isAdmin || false
+    );
+    res.json(result);
+  } catch (error) {
+    systemLogger.error('Error in PUT /api/vendor-agreements/:id/approval-chain', { error: error.message });
+    res.status(400).json({ error: error.message });
+  }
+});
+
+/**
+ * POST /api/vendor-agreements/:id/submit-for-approval
+ * Start the configurable approval chain for a contract.
+ * Transitions it to pending_approval and notifies step-1 approvers.
+ * If no chain config is set, returns a 400 instructing the user to configure it first.
+ */
+router.post('/:id/submit-for-approval', checkAgreementAccess, async (req, res) => {
+  try {
+    const agreementId = parseInt(req.params.id);
+
+    if (!req.isAdmin && !req.isOwner && !req.hasApprovePermission) {
+      // Created-by users can also submit — check that
+      const agreement = req.agreement;
+      if (agreement.created_by !== req.user.id) {
+        return res.status(403).json({
+          error: 'Only the file owner, creator, or an admin can submit this contract for approval'
+        });
+      }
+    }
+
+    const result = await vendorAgreementService.submitForApprovalChain(
+      agreementId,
+      req.user.id,
+      req.isAdmin || false
+    );
+    res.json(result);
+  } catch (error) {
+    systemLogger.error('Error in POST /api/vendor-agreements/:id/submit-for-approval', { error: error.message });
+    res.status(400).json({ error: error.message });
+  }
+});
+
+/**
+ * POST /api/vendor-agreements/:id/step-decision
+ * Record an approver's approve/reject decision for the current step.
+ * Evaluates quorum and automatically advances or finalises the chain.
+ *
+ * Body: { action: 'approve'|'reject', comments?: string }
+ */
+router.post('/:id/step-decision', checkAgreementAccess, async (req, res) => {
+  try {
+    const agreementId = parseInt(req.params.id);
+    const { action, comments } = req.body;
+
+    if (!action) {
+      return res.status(400).json({ error: 'action is required (approve or reject)' });
+    }
+
+    const result = await vendorAgreementService.recordStepDecision(
+      agreementId,
+      req.user.id,
+      action,
+      comments || null,
+      req.isAdmin || false
+    );
+    res.json(result);
+  } catch (error) {
+    systemLogger.error('Error in POST /api/vendor-agreements/:id/step-decision', { error: error.message });
+    res.status(400).json({ error: error.message });
+  }
+});
+
+/**
+ * GET /api/vendor-agreements/:id/step-decisions
+ * Get all step decisions for a contract (used to populate the approval history panel).
+ */
+router.get('/:id/step-decisions', checkAgreementAccess, async (req, res) => {
+  try {
+    const agreementId = parseInt(req.params.id);
+    const result = await vendorAgreementService.getStepDecisions(agreementId);
+    res.json(result);
+  } catch (error) {
+    systemLogger.error('Error in GET /api/vendor-agreements/:id/step-decisions', { error: error.message });
+    res.status(500).json({ error: 'Failed to fetch step decisions' });
   }
 });
 

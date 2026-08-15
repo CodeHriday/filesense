@@ -1415,6 +1415,234 @@ This is an automated notification from Data File Observatory.`;
       return result;
     }
   }
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // CONFIGURABLE N-STEP APPROVAL CHAIN NOTIFICATIONS
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  /**
+   * Fetch email addresses for the user IDs listed in a step config.
+   */
+  async _getStepApproverEmails(approverUserIds) {
+    if (!approverUserIds || approverUserIds.length === 0) return [];
+    try {
+      const result = await query(
+        `SELECT id, email, first_name, last_name
+         FROM users WHERE id = ANY($1::int[]) AND internal_user = true`,
+        [approverUserIds]
+      );
+      return result.rows.map(u => ({
+        id: u.id,
+        email: u.email,
+        name: [u.first_name, u.last_name].filter(Boolean).join(' ') || u.email
+      }));
+    } catch (err) {
+      systemLogger?.warn('Failed to get step approver emails', { userIds: approverUserIds, error: err.message });
+      return [];
+    }
+  }
+
+  /**
+   * Send step-approval-request email to the approvers for the current step.
+   */
+  async sendChainStepApprovalRequest({ agreement, stepConfig, stepNumber, totalSteps, submittedByUserId, baseUrl }) {
+    const result = { success: false, stakeholders: [], sent: 0, failed: 0, errors: [] };
+
+    try {
+      const provider = await this.getEmailProvider();
+      if (!provider) {
+        result.errors.push('No email provider configured');
+        return result;
+      }
+
+      const approvers = await this._getStepApproverEmails(stepConfig.approver_user_ids);
+      if (approvers.length === 0) {
+        result.errors.push('No approver email addresses found');
+        return result;
+      }
+
+      const vendorName = await this.getVendorName(agreement.vendor_id);
+      const submittedByName = submittedByUserId ? await this.getUserName(submittedByUserId) : 'System';
+      const appBaseUrl = baseUrl || process.env.APP_URL || 'https://your-app-url.replit.app';
+      const contractLabel = agreement.file_name || agreement.agreement_code;
+      const quorumLabel = stepConfig.require_all ? 'All approvers must approve' : 'Any one approver is sufficient';
+
+      const progressDots = Array.from({ length: totalSteps }, (_, i) => {
+        const cls = i < stepNumber - 1 ? 'stage-complete' : i === stepNumber - 1 ? 'stage-current' : 'stage-pending';
+        const label = i < stepNumber - 1 ? 'Complete' : i === stepNumber - 1 ? 'Pending Your Action' : 'Waiting';
+        return `<div class="stage-item"><span class="stage-dot ${cls}"></span><span class="stage-text">Step ${i + 1} — ${label}</span></div>`;
+      }).join('');
+
+      const subject = `[Action Required] Vendor Contract Approval — Step ${stepNumber} of ${totalSteps}: ${contractLabel}`;
+
+      const html = `
+<!DOCTYPE html><html><head><meta charset="UTF-8"><style>${this.getEmailStyles()}</style></head>
+<body><div class="container">
+  <div class="header header-info"><h1>Approval Required: Step ${stepNumber} of ${totalSteps}</h1></div>
+  <div class="content">
+    <div class="status-box status-warning">
+      <h3>Your action is needed</h3>
+      <p>Vendor contract "${contractLabel}" has been submitted for approval and is waiting for your decision at Step ${stepNumber}: <strong>${stepConfig.name}</strong>.</p>
+    </div>
+    <div class="details">
+      <div class="detail-row"><span class="detail-label">Agreement Code:</span><span class="detail-value">${agreement.agreement_code}</span></div>
+      <div class="detail-row"><span class="detail-label">Vendor:</span><span class="detail-value">${vendorName}</span></div>
+      <div class="detail-row"><span class="detail-label">Step:</span><span class="detail-value">${stepNumber} of ${totalSteps} — ${stepConfig.name}</span></div>
+      <div class="detail-row"><span class="detail-label">Quorum:</span><span class="detail-value">${quorumLabel}</span></div>
+      <div class="detail-row"><span class="detail-label">Submitted By:</span><span class="detail-value">${submittedByName}</span></div>
+    </div>
+    <div class="workflow-stage"><h4>Approval Progress:</h4>${progressDots}</div>
+    <a href="${appBaseUrl}/vendor-agreements?view=${agreement.id}" class="cta-button">Review &amp; Approve</a>
+  </div>
+  <div class="footer"><p>This is an automated notification from Data File Observatory.</p></div>
+</div></body></html>`;
+
+      const text = `ACTION REQUIRED: Vendor Contract Approval\n\nStep ${stepNumber} of ${totalSteps}: ${stepConfig.name}\nContract: ${contractLabel} (${agreement.agreement_code})\nVendor: ${vendorName}\nQuorum: ${quorumLabel}\n\nPlease log in to review and approve:\n${appBaseUrl}/vendor-agreements?view=${agreement.id}`;
+
+      const recipientEmails = approvers.map(a => a.email);
+      try {
+        await this.sendEmail(provider, { to: recipientEmails, subject, html, text });
+        result.sent = recipientEmails.length;
+        result.success = true;
+        result.stakeholders = approvers;
+        systemLogger?.info('Sent chain step approval-request email', { agreementId: agreement.id, stepNumber, recipients: recipientEmails });
+      } catch (sendError) {
+        result.failed = recipientEmails.length;
+        result.errors.push(sendError.message);
+        systemLogger?.error('Failed to send chain step approval-request email', { agreementId: agreement.id, stepNumber, error: sendError.message });
+      }
+      return result;
+    } catch (error) {
+      result.errors.push(error.message);
+      systemLogger?.error('Error in sendChainStepApprovalRequest', { agreementId: agreement.id, error: error.message });
+      return result;
+    }
+  }
+
+  /**
+   * Send fully-approved notification to all stakeholders.
+   */
+  async sendChainFullyApproved({ agreement, approvedByUserId, totalSteps, baseUrl }) {
+    const result = { success: false, stakeholders: [], sent: 0, failed: 0, errors: [] };
+
+    try {
+      const provider = await this.getEmailProvider();
+      if (!provider) { result.errors.push('No email provider configured'); return result; }
+
+      const stakeholders = await this.getStakeholders(agreement);
+      if (stakeholders.length === 0) { result.errors.push('No stakeholders to notify'); return result; }
+
+      const vendorName = await this.getVendorName(agreement.vendor_id);
+      const approvedByName = await this.getUserName(approvedByUserId);
+      const appBaseUrl = baseUrl || process.env.APP_URL || 'https://your-app-url.replit.app';
+      const contractLabel = agreement.file_name || agreement.agreement_code;
+
+      const subject = `[Fully Approved] Vendor Contract — ${contractLabel}`;
+
+      const html = `
+<!DOCTYPE html><html><head><meta charset="UTF-8"><style>${this.getEmailStyles()}</style></head>
+<body><div class="container">
+  <div class="header header-success"><h1>Vendor Contract Fully Approved</h1></div>
+  <div class="content">
+    <div class="status-box status-success">
+      <h3>All ${totalSteps} approval step${totalSteps !== 1 ? 's' : ''} completed</h3>
+      <p>Contract "${contractLabel}" has been fully approved and is now locked.</p>
+    </div>
+    <div class="details">
+      <div class="detail-row"><span class="detail-label">Agreement Code:</span><span class="detail-value">${agreement.agreement_code}</span></div>
+      <div class="detail-row"><span class="detail-label">Vendor:</span><span class="detail-value">${vendorName}</span></div>
+      <div class="detail-row"><span class="detail-label">Final Approver:</span><span class="detail-value">${approvedByName}</span></div>
+      <div class="detail-row"><span class="detail-label">Approved At:</span><span class="detail-value">${new Date().toLocaleString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', timeZoneName: 'short' })}</span></div>
+    </div>
+    <a href="${appBaseUrl}/vendor-agreements?view=${agreement.id}" class="cta-button">View Contract</a>
+  </div>
+  <div class="footer"><p>This is an automated notification from Data File Observatory.</p></div>
+</div></body></html>`;
+
+      const text = `VENDOR CONTRACT FULLY APPROVED\n\nContract: ${contractLabel} (${agreement.agreement_code})\nVendor: ${vendorName}\nAll ${totalSteps} approval steps completed.\nFinal approver: ${approvedByName}\n\nView: ${appBaseUrl}/vendor-agreements?view=${agreement.id}`;
+
+      const recipientEmails = stakeholders.map(s => s.email);
+      try {
+        await this.sendEmail(provider, { to: recipientEmails, subject, html, text });
+        result.sent = stakeholders.length;
+        result.success = true;
+        result.stakeholders = stakeholders;
+        systemLogger?.info('Sent chain fully-approved email', { agreementId: agreement.id, recipients: recipientEmails });
+      } catch (sendError) {
+        result.failed = stakeholders.length;
+        result.errors.push(sendError.message);
+        systemLogger?.error('Failed to send chain fully-approved email', { agreementId: agreement.id, error: sendError.message });
+      }
+      return result;
+    } catch (error) {
+      result.errors.push(error.message);
+      systemLogger?.error('Error in sendChainFullyApproved', { agreementId: agreement.id, error: error.message });
+      return result;
+    }
+  }
+
+  /**
+   * Send rejection notification to all stakeholders.
+   */
+  async sendChainRejected({ agreement, stepNumber, stepName, rejectedByUserId, rejectionReason, baseUrl }) {
+    const result = { success: false, stakeholders: [], sent: 0, failed: 0, errors: [] };
+
+    try {
+      const provider = await this.getEmailProvider();
+      if (!provider) { result.errors.push('No email provider configured'); return result; }
+
+      const stakeholders = await this.getStakeholders(agreement);
+      if (stakeholders.length === 0) { result.errors.push('No stakeholders to notify'); return result; }
+
+      const vendorName = await this.getVendorName(agreement.vendor_id);
+      const rejectedByName = await this.getUserName(rejectedByUserId);
+      const appBaseUrl = baseUrl || process.env.APP_URL || 'https://your-app-url.replit.app';
+      const contractLabel = agreement.file_name || agreement.agreement_code;
+
+      const subject = `[Rejected] Vendor Contract — ${contractLabel}`;
+
+      const html = `
+<!DOCTYPE html><html><head><meta charset="UTF-8"><style>${this.getEmailStyles()}</style></head>
+<body><div class="container">
+  <div class="header header-error"><h1>Vendor Contract Rejected</h1></div>
+  <div class="content">
+    <div class="status-box status-error">
+      <h3>Rejected at Step ${stepNumber}: ${stepName}</h3>
+      <p>Contract "${contractLabel}" has been rejected and the approval chain has been cancelled.</p>
+    </div>
+    <div class="details">
+      <div class="detail-row"><span class="detail-label">Agreement Code:</span><span class="detail-value">${agreement.agreement_code}</span></div>
+      <div class="detail-row"><span class="detail-label">Vendor:</span><span class="detail-value">${vendorName}</span></div>
+      <div class="detail-row"><span class="detail-label">Rejected By:</span><span class="detail-value">${rejectedByName}</span></div>
+      <div class="detail-row"><span class="detail-label">At Step:</span><span class="detail-value">${stepNumber} — ${stepName}</span></div>
+    </div>
+    ${rejectionReason ? `<div class="reason-box"><h4>Reason for rejection:</h4><p>${rejectionReason}</p></div>` : ''}
+    <a href="${appBaseUrl}/vendor-agreements?view=${agreement.id}" class="cta-button">View Contract</a>
+  </div>
+  <div class="footer"><p>This is an automated notification from Data File Observatory.</p></div>
+</div></body></html>`;
+
+      const text = `VENDOR CONTRACT REJECTED\n\nContract: ${contractLabel} (${agreement.agreement_code})\nVendor: ${vendorName}\nRejected at Step ${stepNumber}: ${stepName}\nRejected by: ${rejectedByName}\n${rejectionReason ? `Reason: ${rejectionReason}\n` : ''}\nView: ${appBaseUrl}/vendor-agreements?view=${agreement.id}`;
+
+      const recipientEmails = stakeholders.map(s => s.email);
+      try {
+        await this.sendEmail(provider, { to: recipientEmails, subject, html, text });
+        result.sent = stakeholders.length;
+        result.success = true;
+        result.stakeholders = stakeholders;
+        systemLogger?.info('Sent chain rejection email', { agreementId: agreement.id, stepNumber, recipients: recipientEmails });
+      } catch (sendError) {
+        result.failed = stakeholders.length;
+        result.errors.push(sendError.message);
+        systemLogger?.error('Failed to send chain rejection email', { agreementId: agreement.id, error: sendError.message });
+      }
+      return result;
+    } catch (error) {
+      result.errors.push(error.message);
+      systemLogger?.error('Error in sendChainRejected', { agreementId: agreement.id, error: error.message });
+      return result;
+    }
+  }
 }
 
 module.exports = new VendorAgreementNotificationService();
