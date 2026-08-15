@@ -21,6 +21,7 @@ const { loadRDMContext } = require('./rdmContextLoader');
 const alertAggregationWorker = require('./AlertAggregationWorker');
 const visualMappingWS = require('./visualMappingWebSocket');
 const { fireJobNotification } = require('./JobNotificationService');
+const JiraService = require('./JiraService');
 const crypto = require('crypto');
 const ArchiveExtractionService = require('./archiveExtractionService');
 const ImmutableAuditLedgerService = require('./ImmutableAuditLedgerService');
@@ -1642,6 +1643,18 @@ async function executeTransformationJob(pool, mappingId, userId, options = {}) {
                 actualSchema: validationResult.actualSchema,
                 expectedSchema: validationResult.expectedSchema
               });
+
+              // Fire-and-forget Jira ticket creation for schema-drift abort (non-blocking)
+              setImmediate(() => {
+                JiraService.createIssueForAbortedJob(pool, {
+                  jobId,
+                  jobName: mapping?.mapping_name || 'Unknown',
+                  mappingName: mapping?.mapping_name,
+                  abortReason: 'schema_drift',
+                  violatedRuleNames: [],
+                  violationCount: 0
+                }).catch(() => {});
+              });
               
               return { 
                 jobId, 
@@ -2340,6 +2353,20 @@ async function executeTransformationJob(pool, mappingId, userId, options = {}) {
           visualMappingId: mapping?.visual_mapping_id || null
         }).catch(() => {});
       });
+
+      // Fire-and-forget Jira ticket creation for DQ abort (non-blocking)
+      if (error.code === 'DQ_ABORT') {
+        setImmediate(() => {
+          JiraService.createIssueForAbortedJob(pool, {
+            jobId: job.job_id,
+            jobName: mapping?.mapping_name || 'Unknown',
+            mappingName: mapping?.mapping_name,
+            abortReason: 'dq_abort',
+            violatedRuleNames: error.notificationMetadata?.violatedRuleNames || [],
+            violationCount: error.notificationMetadata?.dqViolationCount || 0
+          }).catch(() => {});
+        });
+      }
       
       await logJobExecution(pool, job.job_id, 'error', 'Job execution failed', {
         error: error.message,

@@ -24,10 +24,18 @@ const Jobs = () => {
   const [itemsPerPage, setItemsPerPage] = useState(20);
   const [searchTerm, setSearchTerm] = useState('');
   const [lastRefreshed, setLastRefreshed] = useState(null);
+  const [jiraInstanceUrl, setJiraInstanceUrl] = useState(null);
   const isFetching = useRef(false);
 
   useEffect(() => {
     fetchJobs();
+    // Load Jira instance URL to build correct links
+    axios.get(`${API_BASE_URL}/api/jira/connections`, {
+      headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+    }).then(res => {
+      const first = (res.data || [])[0];
+      if (first?.instance_url) setJiraInstanceUrl(first.instance_url);
+    }).catch(() => {});
   }, []);
   
   useEffect(() => {
@@ -409,6 +417,7 @@ const Jobs = () => {
                   <th>Schedule</th>
                   <th>Status</th>
                   <th>Schema Validation</th>
+                  <th>Jira</th>
                   <th style={{ textAlign: 'center' }}>Files Processed</th>
                   <th>Rows</th>
                   <th>Start Time</th>
@@ -432,6 +441,27 @@ const Jobs = () => {
                     <td>{formatScheduleInfo(job)}</td>
                     <td>{getStatusBadge(job.status)}</td>
                     <td>{getSchemaValidationBadge(job.schema_validation)}</td>
+                    <td>
+                      {job.jira_issue_key ? (
+                        jiraInstanceUrl ? (
+                          <a
+                            href={`${jiraInstanceUrl}/browse/${job.jira_issue_key}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            title={`Open Jira issue ${job.jira_issue_key}`}
+                            style={{ fontSize: '11px', color: '#0052CC', fontWeight: 600, textDecoration: 'none' }}
+                          >
+                            🎫 {job.jira_issue_key}
+                          </a>
+                        ) : (
+                          <span style={{ fontSize: '11px', color: '#0052CC', fontWeight: 600 }}>
+                            🎫 {job.jira_issue_key}
+                          </span>
+                        )
+                      ) : (
+                        <span style={{ color: '#94a3b8', fontSize: '10px' }}>—</span>
+                      )}
+                    </td>
                     <td style={{ textAlign: 'center' }}>{job.files_processed || 0}</td>
                     <td>
                       {job.rows_read ? (

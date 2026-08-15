@@ -164,6 +164,7 @@ router.get('/v2', async (req, res) => {
         tj.records_failed,
         tj.error_message,
         tj.execution_type,
+        tj.jira_issue_key,
         mg.name as mapping_group_name,
         COALESCE(nw.name, vw.name) as workflow_name,
         tm.project_id,

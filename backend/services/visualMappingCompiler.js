@@ -159,7 +159,7 @@ class VisualMappingCompiler {
     });
     
     const orphanedNodes = nodes.filter(n => 
-      !connectedNodeIds.has(n.id) && n.type !== 'sourceConfig' && n.type !== 'emailNotification'
+      !connectedNodeIds.has(n.id) && n.type !== 'sourceConfig' && n.type !== 'emailNotification' && n.type !== 'jiraTicket'
     );
     
     if (orphanedNodes.length > 0) {

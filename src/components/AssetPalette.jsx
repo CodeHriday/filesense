@@ -106,6 +106,13 @@ function AssetPalette() {
       description: 'Send an email summary of upstream execution results',
       assetType: 'email_notification',
       icon: '📧'
+    },
+    {
+      id: 'jira_ticket_static',
+      name: 'Jira Ticket',
+      description: 'Create a Jira issue from upstream execution context',
+      assetType: 'jira_ticket',
+      icon: '🎫'
     }
   ];
 

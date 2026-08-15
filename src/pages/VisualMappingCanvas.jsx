@@ -1138,6 +1138,11 @@ const VisualMappingCanvasContent = () => {
   
   const addNode = (type, label) => {
     const nodeId = `${type}-${Date.now()}`;
+    // For action/side-effect nodes keep an explicit assetType so executors can
+    // identify them even when they inspect data.assetType rather than node.type.
+    const sideEffectAssetTypes = {
+      emailNotification: 'email_notification'
+    };
     const newNode = {
       id: nodeId,
       type,
@@ -1149,7 +1154,8 @@ const VisualMappingCanvasContent = () => {
         label,
         config: {},
         nodeId: nodeId,
-        onConfigure: handleNodeConfigure
+        onConfigure: handleNodeConfigure,
+        ...(sideEffectAssetTypes[type] ? { assetType: sideEffectAssetTypes[type] } : {})
       }
     };
     setNodes((nds) => [...nds, newNode]);
@@ -2036,13 +2042,14 @@ const VisualMappingCanvasContent = () => {
                   </div>
 
                   <div className="visual-mapping-palette-section">
-                    <h4>Notifications</h4>
+                    <h4>Notifications &amp; Integrations</h4>
                     <button
                       onClick={() => addNode('emailNotification', 'Email Notification')}
                       className="visual-mapping-palette-item"
                     >
                       <FiMail /> Email Notification
                     </button>
+
                   </div>
                 </div>
               )}

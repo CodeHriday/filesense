@@ -6,6 +6,7 @@ const { executeNStepWorkflow } = require('./nStepWorkflowExecutionEngine');
 const { v4: uuidv4 } = require('uuid');
 const ConnectionService = require('./ConnectionService');
 const NotificationService = require('./NotificationService');
+const JiraService = require('./JiraService');
 
 class VisualWorkflowExecutor {
   constructor(workflowId, userId) {
@@ -265,6 +266,21 @@ class VisualWorkflowExecutor {
         workflowId: this.workflowId,
         nodeId: node.id,
         success: emailResult.success
+      });
+      return;
+    }
+
+    // Jira ticket nodes have no DB asset — handle before the assetId check
+    // Accept both snake_case ('jira_ticket', from WorkflowBuilder) and camelCase
+    // ('jiraTicket', from VisualMappingCanvas) to cover both canvas origins.
+    if (_nodeType0 === 'jira_ticket' || _nodeType0 === 'jiraTicket') {
+      const jiraResult = await this.executeJiraTicket(node);
+      this.executionResults.set(node.id, jiraResult);
+      systemLogger.info('Jira ticket node executed', {
+        workflowId: this.workflowId,
+        nodeId: node.id,
+        success: jiraResult.success,
+        issueKey: jiraResult.issueKey
       });
       return;
     }
@@ -753,28 +769,97 @@ class VisualWorkflowExecutor {
     }
   }
 
+  /**
+   * Execute a jira_ticket node.
+   * Creates a Jira issue from the node configuration + upstream execution context.
+   * Never throws — failures are stored in the result object so downstream nodes continue.
+   */
+  async executeJiraTicket(node) {
+    const config = node.data?.config || {};
+    const base = { type: 'jira_ticket', assetType: 'jira_ticket' };
+
+    // Build description from upstream execution context
+    const completed = [];
+    for (const [, result] of this.executionResults.entries()) {
+      if (result && !result.skipped) completed.push(result);
+    }
+    const failedCount = this.executionErrors.size;
+    const totalRows  = completed.reduce((s, r) => s + (r.rowsWritten || 0), 0);
+    const totalFiles = completed.reduce((s, r) => s + (r.filesProcessed || 0), 0);
+    const allOk = failedCount === 0;
+    const overallStatus = allOk ? 'Completed' : 'Completed with errors';
+
+    const autoDescription = `Workflow ${overallStatus}. Nodes: ${completed.length}, Files: ${totalFiles}, Rows: ${totalRows}. Triggered by workflow ${this.workflowId}.`;
+    const description = config.description
+      ? config.description.replace('{status}', overallStatus).replace('{workflowId}', String(this.workflowId))
+      : autoDescription;
+
+    const summary = (config.summary || 'Workflow execution — {status}')
+      .replace('{status}', overallStatus)
+      .replace('{workflowId}', String(this.workflowId));
+
+    try {
+      const result = await JiraService.createIssueFromWorkflow(pool, {
+        summary,
+        description,
+        issueType:           config.issueType           || 'Task',
+        priority:            config.priority            || 'Medium',
+        assignee:            config.assignee            || undefined,
+        projectKeyOverride:  config.projectKey          || undefined,
+        connectionIdOverride: config.connectionId       || undefined
+      });
+
+      return { ...base, ...result };
+    } catch (err) {
+      systemLogger.warn('VisualWorkflowExecutor: jira_ticket creation failed (non-fatal)', {
+        workflowId: this.workflowId, nodeId: node.id, error: err.message
+      });
+      return { ...base, success: false, error: err.message };
+    }
+  }
+
   generateExecutionSummary() {
     const totalNodes = this.executionResults.size + this.executionErrors.size;
-    const successCount = this.executionResults.size;
-    const failedCount = this.executionErrors.size;
+
+    // Separate results into real-success, skipped, and failed-from-results.
+    // A result with { success: false, skipped: true } must NOT be counted as
+    // a success — callers that check successCount would see an inflated number
+    // and mark the workflow as fully successful even when key nodes were skipped.
+    let successCount = 0;
+    let skippedCount = 0;
+    let failedFromResults = 0;
+
+    for (const [, result] of this.executionResults.entries()) {
+      if (result?.skipped) {
+        skippedCount++;
+      } else if (result?.success) {
+        successCount++;
+      } else {
+        failedFromResults++;
+      }
+    }
+
+    const failedCount = this.executionErrors.size + failedFromResults;
 
     // Build detailed node status map
     const nodeStatuses = {};
-    
-    // Add successful nodes
+
+    // Results — distinguish completed, skipped, and failed-result entries
     for (const [nodeId, result] of this.executionResults.entries()) {
       nodeStatuses[nodeId] = {
-        status: 'completed',
-        success: result.success,
-        type: result.type,
-        assetId: result.assetId,
-        assetName: result.assetName,
-        jobId: result.jobId,
-        executedMappings: result.executedMappings
+        status: result?.skipped ? 'skipped' : (result?.success ? 'completed' : 'failed'),
+        success: !!result?.success,
+        skipped: !!result?.skipped,
+        skipReason: result?.reason || result?.error || null,
+        type: result?.type,
+        assetId: result?.assetId,
+        assetName: result?.assetName,
+        jobId: result?.jobId,
+        executedMappings: result?.executedMappings
       };
     }
-    
-    // Add failed nodes
+
+    // Thrown errors
     for (const [nodeId, error] of this.executionErrors.entries()) {
       nodeStatuses[nodeId] = {
         status: 'failed',
@@ -788,6 +873,7 @@ class VisualWorkflowExecutor {
       totalNodes,
       successCount,
       failedCount,
+      skippedCount,
       successRate: totalNodes > 0 ? (successCount / totalNodes * 100).toFixed(2) : 0,
       nodeStatuses  // Include detailed per-node execution status
     };

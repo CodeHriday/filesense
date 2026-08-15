@@ -5920,6 +5920,8 @@ const { createDigestTables } = require('./backend/migrations/createDigestTables'
     // Ensure file upload permissions exist in role_permissions table (idempotent).
     // This runs on every restart (not tracked) so new roles added in prod are always covered.
     await ensureFileUploadPermissions(dbPool);
+    // Add jira_issue_key to transformation_jobs (idempotent, no tracker needed).
+    await dbPool.query('ALTER TABLE transformation_jobs ADD COLUMN IF NOT EXISTS jira_issue_key VARCHAR(50)');
     
     console.log('🎉 All migrations completed successfully');
   } catch (err) {
@@ -13912,6 +13914,11 @@ console.log('Added alert policy routes');
 const emailConnectionRoutes = require('./backend/routes/emailConnectionRoutes');
 app.use('/api/email-connections', authenticateToken, emailConnectionRoutes);
 console.log('Added email connection routes');
+
+// Jira integration routes
+const jiraRoutes = require('./backend/routes/jiraRoutes');
+app.use('/api/jira', authenticateToken, jiraRoutes);
+console.log('Added Jira integration routes');
 
 // Allowed email domains routes (admin only)
 const allowedEmailDomainsRoutes = require('./backend/routes/allowedEmailDomainsRoutes');
