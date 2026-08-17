@@ -245,6 +245,11 @@
   color: #c53030;
 }
 
+.dap-vote-optional-na {
+  background: #f7f4ff;
+  color: #6b46c1;
+}
+
 /* Action panel (vote UI) */
 .dap-action-panel {
   background: white;

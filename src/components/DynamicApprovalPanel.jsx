@@ -92,12 +92,13 @@ const DynamicApprovalPanel = ({
         parseInt(d.approver_user_id, 10) === parseInt(currentUser.id, 10)
     );
 
-  // Admins can vote even when not explicitly listed (backend permits this)
+  // Only explicitly listed assignees may vote — admin bypass removed because the backend
+  // rejects non-assignees and showing the form misleads users into a guaranteed error.
   const canVote =
     status === 'pending_approval' &&
     !hasVoted &&
     !agreement.is_locked &&
-    (isAssignedToActiveStep || isAdmin);
+    isAssignedToActiveStep;
 
   /* ── Step state derivation ────────────────────────────── */
 
@@ -257,7 +258,16 @@ const DynamicApprovalPanel = ({
                       (d) =>
                         parseInt(d.approver_user_id, 10) === parseInt(userId, 10)
                     );
-                    const voteState = dec ? dec.action : 'pending';
+                    // For any-one-sufficient steps: once ≥1 approval satisfies the step,
+                    // non-voting assignees are moot — show "optional-na" instead of "pending".
+                    const stepSatisfied =
+                      !step.require_all &&
+                      decisions.some((d) => d.action === 'approve' || d.action === 'approved');
+                    const voteState = dec
+                      ? dec.action
+                      : stepSatisfied
+                      ? 'optional-na'
+                      : 'pending';
                     return (
                       <div key={userId} className="dap-approver-row">
                         <div className="dap-avatar">
@@ -274,7 +284,7 @@ const DynamicApprovalPanel = ({
                           )}
                         </div>
                         <span className={`dap-vote-chip dap-vote-${voteState}`}>
-                          {voteState}
+                          {voteState === 'optional-na' ? 'Optional-NA' : voteState}
                         </span>
                       </div>
                     );
