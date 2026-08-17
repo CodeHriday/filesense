@@ -147,11 +147,17 @@
 }
 
 /* ── Content area ── */
+/* Hard resets against FilePreview.css unscoped .notification-content rule */
 .notification-bell .notification-dropdown .notification-item .notification-content {
-  display: flex;
-  flex-direction: column;
+  display: flex !important;
+  flex-direction: column !important;
   gap: 2px;
   min-width: 0;
+  background: transparent !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+  box-shadow: none !important;
+  text-align: left !important;
 }
 
 /* Title row: title left, timestamp right */
