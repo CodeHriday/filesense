@@ -181,7 +181,7 @@
   background: #fff;
 }
 
-.notification-item {
+.notifications-list .notification-item {
   display: flex;
   align-items: flex-start;
   padding: 12px 14px;
@@ -189,28 +189,28 @@
   transition: background 0.12s;
 }
 
-.notification-item:last-child {
+.notifications-list .notification-item:last-child {
   border-bottom: none;
 }
 
-.notification-item:hover {
+.notifications-list .notification-item:hover {
   background: #f8f9fa;
 }
 
-.notification-item.unread {
+.notifications-list .notification-item.unread {
   background: #f4f7fd;
 }
 
-.notification-item.unread:hover {
+.notifications-list .notification-item.unread:hover {
   background: #eaf0fc;
 }
 
 /* Left accent stripe by category */
-.notification-item.notif-job {
+.notifications-list .notification-item.notif-job {
   border-left: 3px solid var(--color-primary, #1a73e8);
 }
 
-.notification-item.notif-workflow {
+.notifications-list .notification-item.notif-workflow {
   border-left: 3px solid #7c3aed;
 }
 
@@ -249,7 +249,7 @@
   min-width: 0;
 }
 
-.notification-title-row {
+.notifications-list .notification-title-row {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -272,7 +272,7 @@
   flex-shrink: 0;
 }
 
-.notification-message {
+.notifications-list .notification-message {
   font-size: var(--text-sm, 0.875rem);
   color: var(--text-secondary, #5f6368);
   margin-bottom: 4px;

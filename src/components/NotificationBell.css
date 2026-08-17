@@ -44,7 +44,7 @@
 .notification-bell .notification-dropdown {
   position: absolute;
   top: 100%;
-  right: -40px;
+  right: 0;
   margin-top: 6px;
   background: #ffffff;
   border: 1px solid #e5e7eb;
@@ -123,9 +123,13 @@
   padding: 8px 12px;
   border-bottom: 1px solid #f0f0f0;
   cursor: pointer;
-  background: transparent;
+  /* Hard resets — prevent any global .notification-item rule from bleeding in */
+  background: transparent !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  display: block !important;
+  text-align: left !important;
   transition: background-color 0.12s ease;
-  text-align: left;
 }
 
 .notification-bell .notification-dropdown .notification-item:last-child {
