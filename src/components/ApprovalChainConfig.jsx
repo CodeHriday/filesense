@@ -16,10 +16,12 @@ const emptyStep = (stepNumber) => ({
 /**
  * ApprovalChainConfig
  * Collapsible editor for configuring the N-step approval chain on a vendor contract.
- * Only rendered in edit mode (requires agreement.id).
- * Saves independently via PUT /:id/approval-chain.
+ *
+ * Edit mode  — pass `agreement` with an id; saves via PUT /:id/approval-chain.
+ * Create mode — pass `onChange(steps)`; no API call is made. The parent holds
+ *               the chain in state and POSTs it after the agreement is created.
  */
-const ApprovalChainConfig = ({ agreement, users, onSave, onError, onSuccess }) => {
+const ApprovalChainConfig = ({ agreement = null, users = [], onSave = null, onError, onSuccess, onChange = null }) => {
   const [expanded, setExpanded] = useState(false);
   const [steps, setSteps] = useState([emptyStep(1)]);
   const [saving, setSaving] = useState(false);
@@ -101,6 +103,14 @@ const ApprovalChainConfig = ({ agreement, users, onSave, onError, onSuccess }) =
       }
     }
 
+    // Draft/create mode — hand steps back to the parent, no API call
+    if (onChange) {
+      onChange(steps);
+      onSuccess('Approval chain applied');
+      setDirty(false);
+      return;
+    }
+
     try {
       setSaving(true);
       await axios.put(
@@ -144,7 +154,9 @@ const ApprovalChainConfig = ({ agreement, users, onSave, onError, onSuccess }) =
   };
 
   /* ── Configured badge ───────────────────────────────────── */
-  const configuredSteps = agreement?.approval_chain_config?.steps?.length || 0;
+  // In edit mode, read from the persisted config; in create/draft mode count local steps with approvers.
+  const configuredSteps = agreement?.approval_chain_config?.steps?.length
+    ?? (onChange && steps.some(s => s.approver_user_ids?.length) ? steps.length : 0);
 
   /* ── Render ─────────────────────────────────────────────── */
   return (
@@ -296,7 +308,7 @@ const ApprovalChainConfig = ({ agreement, users, onSave, onError, onSuccess }) =
                 'Saving…'
               ) : (
                 <>
-                  <FaSave /> Save Chain
+                  <FaSave /> {onChange ? 'Apply' : 'Save Chain'}
                 </>
               )}
             </button>
@@ -308,19 +320,18 @@ const ApprovalChainConfig = ({ agreement, users, onSave, onError, onSuccess }) =
 };
 
 ApprovalChainConfig.propTypes = {
+  // Required in edit mode; omitted in create/draft mode (onChange provided instead)
   agreement: PropTypes.shape({
-    id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
+    id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
     approval_chain_config: PropTypes.object,
-  }).isRequired,
+  }),
   users: PropTypes.array,
   onSave: PropTypes.func,
   onError: PropTypes.func.isRequired,
   onSuccess: PropTypes.func.isRequired,
+  // Create/draft mode: called with the steps array instead of hitting the API
+  onChange: PropTypes.func,
 };
 
-ApprovalChainConfig.defaultProps = {
-  users: [],
-  onSave: null,
-};
 
 export default ApprovalChainConfig;

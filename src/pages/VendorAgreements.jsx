@@ -30,6 +30,7 @@ const VendorAgreements = () => {
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
+  const [pendingApprovalChain, setPendingApprovalChain] = useState(null);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState('create');
   const [selectedAgreement, setSelectedAgreement] = useState(null);
@@ -680,6 +681,7 @@ const VendorAgreements = () => {
     });
     setTemplateFile(null);
     setTemplateError('');
+    setPendingApprovalChain(null);
     setModalMode('create');
     setError('');
     setSuccessMessage('');
@@ -1068,6 +1070,22 @@ const VendorAgreements = () => {
             'Content-Type': 'multipart/form-data'
           }
         });
+
+        // If the user configured an approval chain before creating, save it now
+        const newAgreementId = response.data?.agreement?.id || response.data?.id;
+        if (newAgreementId && pendingApprovalChain?.length) {
+          try {
+            await axios.put(
+              `/api/vendor-agreements/${newAgreementId}/approval-chain`,
+              { steps: pendingApprovalChain }
+            );
+          } catch (chainErr) {
+            // Chain save failure is non-fatal — contract was created successfully
+            console.warn('Approval chain could not be saved after create:', chainErr?.response?.data?.error);
+          }
+          setPendingApprovalChain(null);
+        }
+
         setNotificationModal({
           isOpen: true,
           type: 'success',
@@ -2438,7 +2456,26 @@ const VendorAgreements = () => {
                   </div>
                 </div>
                 
-                {/* Section 5b: Approval Chain — edit mode only */}
+                {/* Section 5b: Approval Chain — available in both create and edit modes */}
+                {modalMode === 'create' && (
+                  <div className="form-section">
+                    <h3 className="section-title">Approval Chain</h3>
+                    <p className="section-description" style={{ fontSize: '12px', color: '#666', marginBottom: '16px' }}>
+                      Optionally configure a sequential multi-step approval chain. Click &ldquo;Apply&rdquo; to
+                      confirm your steps — the chain will be saved automatically when the contract is created.
+                    </p>
+                    <ApprovalChainConfig
+                      users={stakeholderOptions.users}
+                      onChange={(steps) => setPendingApprovalChain(steps)}
+                      onError={(msg) => setError(msg)}
+                      onSuccess={(msg) => {
+                        setSuccessMessage(msg);
+                        setTimeout(() => setSuccessMessage(''), 5000);
+                      }}
+                    />
+                  </div>
+                )}
+
                 {modalMode === 'edit' && selectedAgreement?.id && (
                   <div className="form-section">
                     <h3 className="section-title">Approval Chain</h3>
