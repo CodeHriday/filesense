@@ -137,8 +137,9 @@ const checkAgreementAccess = async (req, res, next) => {
     // Admin-level access sees everything.
     if (userHasAdminAccess(req.user)) return grant({ isAdmin: true });
 
-    // read permission grants global visibility (internal staff with explicit read-all grant).
-    if (readPermission) return grant();
+    // Permissions (read/approve/write) control what operations are allowed on accessible
+    // agreements; they do not grant access to agreements the user has no association with.
+    // Only admin-level access bypasses association checks.
 
     // From here: the user must have an explicit relationship with this agreement.
 

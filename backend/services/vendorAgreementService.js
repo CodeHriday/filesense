@@ -2706,38 +2706,30 @@ class VendorAgreementService {
       }
       
       // Apply role-based filtering for non-admin users.
-      // Users with vendor_agreements:read permission (or admin access) are internal staff with
-      // explicit read-all grants — they bypass contact filtering and see all non-archived agreements.
-      // Users with only vendor_agreements:approve (no read, no admin) can vote when assigned but
-      // must still be scoped to agreements they are associated with (the association predicate
-      // below already includes chain approvers, so legitimate approvers keep their agreements).
-      if (!isAdmin && !hasReadPermission && userId) {
+      // Only users with Admin role/access see all agreements without restriction.
+      // All other users — including those with vendor_agreements:read or vendor_agreements:approve —
+      // are scoped to agreements where they hold an explicit, agreement-level association.
+      // Permissions (read/approve/write) control WHAT operations are permitted on accessible
+      // agreements; they do not grant global list visibility. Project membership is also excluded:
+      // being a member of a project grants access to project files, not to vendor agreements.
+      if (!isAdmin && userId) {
         if (userEmail) {
-          // Allow access if user is:
+          // Visible when the user is explicitly named on the agreement as:
           // 1. File owner (by user ID)
           // 2. Vendor user (by user ID)
-          // 3. Primary or secondary contact (by email)
-          // 4. Manager contact (by email)
-          // 5. Governance manager (by user ID)
-          // 6. Member of the vendor's project (direct or via access group)
-          // 7. Listed as an additional stakeholder (by user ID in JSONB column)
-          // 8. Member of an additional stakeholder group (via access_group_members)
+          // 3. Governance manager (by user ID)
+          // 4. Primary contact, secondary contact, or manager contact (by email)
+          // 5. Additional stakeholder (user ID in JSONB column)
+          // 6. Member of an explicitly listed stakeholder group on the agreement
+          // 7. Agreement creator
+          // 8. Configured approver in any step of the approval chain
           whereClauses.push(`(
-            va.file_owner_user_id = $${paramCounter} 
+            va.file_owner_user_id = $${paramCounter}
             OR v.vendor_user_id = $${paramCounter}
             OR va.governance_manager_user_id = $${paramCounter}
             OR va.primary_contact_email = $${paramCounter + 1}
             OR va.secondary_contact_email = $${paramCounter + 1}
             OR va.manager_contact = $${paramCounter + 1}
-            OR EXISTS (
-              SELECT 1 FROM project_members pm 
-              WHERE pm.project_id = v.project_id AND pm.user_id = $${paramCounter}
-            )
-            OR EXISTS (
-              SELECT 1 FROM access_group_members agm
-              JOIN project_access_groups pag ON agm.group_id = pag.group_id
-              WHERE pag.project_id = v.project_id AND agm.user_id = $${paramCounter}
-            )
             OR va.additional_stakeholder_user_ids @> jsonb_build_array($${paramCounter})
             OR EXISTS (
               SELECT 1 FROM access_group_members agm2
@@ -2755,21 +2747,11 @@ class VendorAgreementService {
           queryParams.push(userId, userEmail);
           paramCounter += 2;
         } else {
-          // Fallback if email not provided - check file owner, vendor user, governance manager,
-          // project membership, and additional stakeholder assignments
+          // Fallback when email is not available — same checks minus email-based fields
           whereClauses.push(`(
-            va.file_owner_user_id = $${paramCounter} 
+            va.file_owner_user_id = $${paramCounter}
             OR v.vendor_user_id = $${paramCounter}
             OR va.governance_manager_user_id = $${paramCounter}
-            OR EXISTS (
-              SELECT 1 FROM project_members pm 
-              WHERE pm.project_id = v.project_id AND pm.user_id = $${paramCounter}
-            )
-            OR EXISTS (
-              SELECT 1 FROM access_group_members agm
-              JOIN project_access_groups pag ON agm.group_id = pag.group_id
-              WHERE pag.project_id = v.project_id AND agm.user_id = $${paramCounter}
-            )
             OR va.additional_stakeholder_user_ids @> jsonb_build_array($${paramCounter})
             OR EXISTS (
               SELECT 1 FROM access_group_members agm2
