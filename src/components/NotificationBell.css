@@ -50,8 +50,8 @@
   border: 1px solid #e5e7eb;
   border-radius: 8px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.08);
-  width: 260px;
-  max-height: 420px;
+  width: 220px;
+  max-height: 380px;
   display: flex;
   flex-direction: column;
   z-index: 9999;
@@ -104,7 +104,7 @@
 .notification-bell .notification-dropdown .notification-list {
   flex: 1;
   overflow-y: auto;
-  max-height: 340px;
+  max-height: 300px;
 }
 
 .notification-bell .notification-dropdown .no-notifications {
@@ -186,12 +186,13 @@
 
 .notification-bell .notification-dropdown .notification-item .notification-title {
   font-weight: 600;
-  font-size: var(--text-sm, 0.875rem);
+  font-size: var(--text-xs, 0.75rem);
   color: #111827;
   line-height: 1.4;
   letter-spacing: 0.01em;
   margin: 0;
   padding: 0;
+  text-align: right;
   /* Collapsed: single truncated line */
   white-space: nowrap;
   overflow: hidden;
@@ -205,13 +206,14 @@
 }
 
 .notification-bell .notification-dropdown .notification-item .notification-message {
-  font-size: var(--text-xs, 0.75rem);
+  font-size: 0.65rem;
   font-weight: 400;
   color: #4b5563;
   line-height: 1.5;
   word-wrap: break-word;
   margin: 0;
   padding: 0;
+  text-align: right;
   /* Hidden when collapsed; revealed on hover */
   max-height: 0;
   overflow: hidden;
