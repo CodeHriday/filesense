@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { FaPlus, FaTimes, FaChevronDown, FaChevronUp, FaSave } from 'react-icons/fa';
 import axios from 'axios';
 import './ApprovalChainConfig.css';
@@ -21,12 +21,42 @@ const emptyStep = (stepNumber) => ({
  * Create mode — pass `onChange(steps)`; no API call is made. The parent holds
  *               the chain in state and POSTs it after the agreement is created.
  */
-const ApprovalChainConfig = ({ agreement = null, users = [], onSave = null, onError, onSuccess, onChange = null }) => {
+const ApprovalChainConfig = ({
+  agreement = null,
+  users = [],
+  onSave = null,
+  onError,
+  onSuccess,
+  onChange = null,
+  initialSteps = null,
+}) => {
   const [expanded, setExpanded] = useState(false);
   const [steps, setSteps] = useState([emptyStep(1)]);
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
   const [searchTerms, setSearchTerms] = useState({});
+
+  // Set to true the first time the user interacts with any field so that
+  // parent-driven initialSteps changes no longer overwrite local state.
+  const userModified = useRef(false);
+
+  /* ── Seed from initialSteps (create/draft mode only) ────── */
+  useEffect(() => {
+    if (!onChange) return;                  // edit mode — not applicable
+    if (userModified.current) return;       // user has taken ownership
+    if (!initialSteps?.length) return;
+
+    setSteps(
+      initialSteps.map((s) => ({
+        ...s,
+        approver_user_ids: Array.isArray(s.approver_user_ids)
+          ? s.approver_user_ids
+          : [],
+      }))
+    );
+    // Enable Apply so the user can confirm or adjust the pre-filled chain.
+    setDirty(true);
+  }, [initialSteps, onChange]);
 
   /* ── Load existing config when expanded ──────────────────── */
   useEffect(() => {
@@ -56,11 +86,13 @@ const ApprovalChainConfig = ({ agreement = null, users = [], onSave = null, onEr
 
   const addStep = () => {
     if (steps.length >= MAX_STEPS) return;
+    userModified.current = true;
     setSteps((prev) => [...prev, emptyStep(prev.length + 1)]);
     setDirty(true);
   };
 
   const removeStep = (idx) => {
+    userModified.current = true;
     setSteps((prev) =>
       prev
         .filter((_, i) => i !== idx)
@@ -70,6 +102,7 @@ const ApprovalChainConfig = ({ agreement = null, users = [], onSave = null, onEr
   };
 
   const updateStep = (idx, field, value) => {
+    userModified.current = true;
     setSteps((prev) =>
       prev.map((s, i) => (i === idx ? { ...s, [field]: value } : s))
     );
@@ -77,6 +110,7 @@ const ApprovalChainConfig = ({ agreement = null, users = [], onSave = null, onEr
   };
 
   const toggleApprover = (stepIdx, userId) => {
+    userModified.current = true;
     setSteps((prev) =>
       prev.map((s, i) => {
         if (i !== stepIdx) return s;
@@ -109,6 +143,7 @@ const ApprovalChainConfig = ({ agreement = null, users = [], onSave = null, onEr
 
     // Draft/create mode — hand steps back to the parent, no API call
     if (onChange) {
+      userModified.current = true;
       onChange(steps);
       onSuccess('Approval chain applied');
       setDirty(false);
@@ -341,6 +376,9 @@ ApprovalChainConfig.propTypes = {
   onSuccess: PropTypes.func.isRequired,
   // Create/draft mode: called with the steps array instead of hitting the API
   onChange: PropTypes.func,
+  // Auto-populate: pre-built steps driven by the parent (create mode only).
+  // Ignored once the user has interacted with any field.
+  initialSteps: PropTypes.array,
 };
 
 export default ApprovalChainConfig;

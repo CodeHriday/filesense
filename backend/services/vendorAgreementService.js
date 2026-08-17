@@ -131,7 +131,8 @@ class VendorAgreementService {
         frequency_pattern,
         arrival_time,
         arrival_days,
-        alert_threshold_minutes
+        alert_threshold_minutes,
+        initial_approval_chain
       } = agreementData;
       
       // Check for duplicate file_name
@@ -336,7 +337,51 @@ class VendorAgreementService {
         ) VALUES ($1, 'created', $2, 'Agreement created', 1, $3, CURRENT_TIMESTAMP)`,
         [agreement.id, JSON.stringify(agreement), createdBy]
       );
-      
+
+      // Save initial approval chain if provided.
+      // Done within this transaction so it is atomic with agreement creation and
+      // does not require the creator to be the file owner (the PUT endpoint does).
+      if (initial_approval_chain) {
+        const chainValidationError = this._validateChainConfig(initial_approval_chain);
+        if (chainValidationError) {
+          throw new Error(`Invalid approval chain: ${chainValidationError}`);
+        }
+
+        const normalisedSteps = initial_approval_chain.steps.map((s, idx) => ({
+          step_number: idx + 1,
+          name: s.name || `Step ${idx + 1}`,
+          approver_user_ids: s.approver_user_ids.map(Number),
+          require_all: Boolean(s.require_all),
+        }));
+        const normalisedConfig = { steps: normalisedSteps };
+
+        // Verify all approver IDs exist
+        const allApproverIds = normalisedSteps.flatMap(s => s.approver_user_ids);
+        const uniqueApproverIds = [...new Set(allApproverIds)];
+        const approverCheck = await client.query(
+          'SELECT id FROM users WHERE id = ANY($1::int[])',
+          [uniqueApproverIds]
+        );
+        const foundApproverIds = new Set(approverCheck.rows.map(r => r.id));
+        const missingApproverIds = uniqueApproverIds.filter(id => !foundApproverIds.has(id));
+        if (missingApproverIds.length > 0) {
+          throw new Error(`Approval chain references unknown user IDs: ${missingApproverIds.join(', ')}`);
+        }
+
+        await client.query(
+          `UPDATE vendor_agreements
+             SET approval_chain_config = $1, updated_at = CURRENT_TIMESTAMP
+           WHERE id = $2`,
+          [JSON.stringify(normalisedConfig), agreement.id]
+        );
+
+        systemLogger.info('Initial approval chain saved during agreement creation', {
+          agreementId: agreement.id,
+          stepCount: normalisedSteps.length,
+          createdBy,
+        });
+      }
+
       // Create notifications for vendor users (primary and secondary contacts)
       // Skip notification if this is a draft or if no contacts are specified
       if (finalStatus !== 'draft') {

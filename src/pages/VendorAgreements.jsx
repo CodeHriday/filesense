@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { FiEye, FiEdit2, FiTrash2, FiSearch, FiSlash } from 'react-icons/fi';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -31,6 +31,9 @@ const VendorAgreements = () => {
   const [successMessage, setSuccessMessage] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
   const [pendingApprovalChain, setPendingApprovalChain] = useState(null);
+  const [autoApprovalChain, setAutoApprovalChain] = useState(null);
+  // True once the user has clicked Apply — prevents field changes from overwriting their work.
+  const chainManuallyApplied = useRef(false);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState('create');
   const [selectedAgreement, setSelectedAgreement] = useState(null);
@@ -623,7 +626,105 @@ const VendorAgreements = () => {
       }));
     }
   }, [formData.file_owner_user_id, formData.manager_contact, users]);
-  
+
+  // ── Auto-populate 3-step approval chain ─────────────────────────────────
+  // Triggers whenever the vendor manager or governance manager changes.
+  // Skipped if the user has already manually applied their own chain.
+  useEffect(() => {
+    if (modalMode !== 'create') return;
+    if (chainManuallyApplied.current) return;
+
+    const mgr = formData.file_owner_user_id;
+    const gov = formData.governance_manager_user_id;
+    const primaryId = formData.primary_contact_user_id
+      ? Number(formData.primary_contact_user_id)
+      : null;
+
+    // All three anchor roles must be selected before auto-populating.
+    // Without a primary contact, Step 1 would have no approvers and the chain
+    // save would be rejected by the API.
+    if (!mgr || !gov || !primaryId) {
+      setAutoApprovalChain(null);
+      return;
+    }
+
+    const secondaryId = formData.secondary_contact_user_id
+      ? Number(formData.secondary_contact_user_id)
+      : null;
+
+    // Step 1 includes both contacts when set and distinct
+    const step1Ids = [];
+    if (primaryId) step1Ids.push(primaryId);
+    if (secondaryId && secondaryId !== primaryId) step1Ids.push(secondaryId);
+
+    setAutoApprovalChain([
+      {
+        step_number: 1,
+        name: 'Vendor Contact Approval',
+        approver_user_ids: step1Ids,
+        require_all: false,
+      },
+      {
+        step_number: 2,
+        name: 'Vendor Manager Approval',
+        approver_user_ids: [Number(mgr)],
+        require_all: false,
+      },
+      {
+        step_number: 3,
+        name: 'Governance Approval',
+        approver_user_ids: [Number(gov)],
+        require_all: false,
+      },
+    ]);
+  }, [
+    modalMode,
+    formData.file_owner_user_id,
+    formData.governance_manager_user_id,
+    formData.primary_contact_user_id,
+    formData.secondary_contact_user_id,
+  ]);
+
+  // ── Merged user list for the approval chain picker ───────────────────────
+  // In create mode, vendor contacts (primary / secondary) may not be in
+  // stakeholderOptions.users (which is the internal-user list).  Build a
+  // combined list so their checkboxes show and pre-selections render correctly.
+  const chainUsers = useMemo(() => {
+    const base = stakeholderOptions.users || [];
+    if (modalMode !== 'create') return base;
+
+    const extra = [];
+    const addIfMissing = (id, name, email) => {
+      if (!id) return;
+      const numId = Number(id);
+      if (base.some((u) => u.id === numId)) return;
+      if (extra.some((u) => u.id === numId)) return;
+      extra.push({ id: numId, fullName: name || '', email: email || '' });
+    };
+
+    addIfMissing(
+      formData.primary_contact_user_id,
+      formData.primary_contact_name,
+      formData.primary_contact_email
+    );
+    addIfMissing(
+      formData.secondary_contact_user_id,
+      formData.secondary_contact_name,
+      formData.secondary_contact_email
+    );
+
+    return extra.length ? [...extra, ...base] : base;
+  }, [
+    stakeholderOptions.users,
+    modalMode,
+    formData.primary_contact_user_id,
+    formData.primary_contact_name,
+    formData.primary_contact_email,
+    formData.secondary_contact_user_id,
+    formData.secondary_contact_name,
+    formData.secondary_contact_email,
+  ]);
+
   const openCreateModal = () => {
     setFileConfigurations([]);
     setFormData({
@@ -682,6 +783,8 @@ const VendorAgreements = () => {
     setTemplateFile(null);
     setTemplateError('');
     setPendingApprovalChain(null);
+    setAutoApprovalChain(null);
+    chainManuallyApplied.current = false;
     setModalMode('create');
     setError('');
     setSuccessMessage('');
@@ -1058,6 +1161,16 @@ const VendorAgreements = () => {
       
       // Include file configurations count for backend validation
       agreementData.file_configurations_count = fileConfigurations?.length || 0;
+
+      // Embed the approval chain in the creation payload so it is saved
+      // transactionally — avoids the owner-only permission check on the
+      // separate PUT /:id/approval-chain endpoint.
+      if (modalMode === 'create') {
+        const chainToSave = pendingApprovalChain || autoApprovalChain;
+        if (chainToSave?.length) {
+          agreementData.initial_approval_chain = { steps: chainToSave };
+        }
+      }
       
       // Backend expects 'agreementData' for CREATE and 'updateData' for UPDATE
       const dataKey = modalMode === 'create' ? 'agreementData' : 'updateData';
@@ -1071,20 +1184,9 @@ const VendorAgreements = () => {
           }
         });
 
-        // If the user configured an approval chain before creating, save it now
-        const newAgreementId = response.data?.agreement?.id || response.data?.id;
-        if (newAgreementId && pendingApprovalChain?.length) {
-          try {
-            await axios.put(
-              `/api/vendor-agreements/${newAgreementId}/approval-chain`,
-              { steps: pendingApprovalChain }
-            );
-          } catch (chainErr) {
-            // Chain save failure is non-fatal — contract was created successfully
-            console.warn('Approval chain could not be saved after create:', chainErr?.response?.data?.error);
-          }
-          setPendingApprovalChain(null);
-        }
+        // Chain was sent in the creation payload; clear local state.
+        setPendingApprovalChain(null);
+        setAutoApprovalChain(null);
 
         setNotificationModal({
           isOpen: true,
@@ -2465,8 +2567,12 @@ const VendorAgreements = () => {
                       confirm your steps — the chain will be saved automatically when the contract is created.
                     </p>
                     <ApprovalChainConfig
-                      users={stakeholderOptions.users}
-                      onChange={(steps) => setPendingApprovalChain(steps)}
+                      users={chainUsers}
+                      initialSteps={autoApprovalChain}
+                      onChange={(steps) => {
+                        chainManuallyApplied.current = true;
+                        setPendingApprovalChain(steps);
+                      }}
                       onError={(msg) => setError(msg)}
                       onSuccess={(msg) => {
                         setSuccessMessage(msg);
