@@ -308,8 +308,9 @@
 }
 
 .notif-status-error {
-  background: var(--color-error-light, #fee2e2);
+  background: #fff;
   color: #b91c1c;
+  border: 1px solid #b91c1c;
 }
 
 /* ── Rich metadata cards ──────────────────────────────────────────────────── */
