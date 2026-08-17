@@ -71,7 +71,7 @@
 .notification-bell .notification-dropdown .notification-bell-header h3 {
   margin: 0;
   padding: 0;
-  font-size: 10px;
+  font-size: var(--text-sm, 0.875rem);
   font-weight: 600;
   color: #111827;
   text-align: left;
@@ -84,12 +84,12 @@
   border: none;
   color: #4f46e5;
   cursor: pointer;
-  font-size: 9px !important;
+  font-size: var(--text-xs, 0.75rem);
   font-weight: 500;
   padding: 4px 6px;
   border-radius: 4px;
   transition: all 0.2s ease;
-  font-family: 'Inter', sans-serif;
+  font-family: inherit;
 }
 
 .notification-bell .notification-dropdown .mark-all-read-btn:hover:not(:disabled) {
@@ -115,7 +115,7 @@
 
 .notification-bell .notification-dropdown .no-notifications p {
   margin: 0;
-  font-size: 9px !important;
+  font-size: var(--text-sm, 0.875rem);
   font-weight: 400;
 }
 
@@ -149,13 +149,27 @@
 
 
 .notification-bell .notification-dropdown .notification-item .notification-bell-icon-col {
-  font-size: 14px;
   line-height: 1;
   flex-shrink: 0;
-  margin-top: 1px;
+  margin-top: 2px;
   width: 18px;
-  text-align: center;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
 }
+
+/* SVG icon colours (mirrors Notifications.css) */
+.nb-notif-icon {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
+.nb-notif-icon-success { color: #15803d; }
+.nb-notif-icon-warning { color: #b45309; }
+.nb-notif-icon-error   { color: var(--color-error, #dc2626); }
+.nb-notif-icon-neutral { color: var(--color-primary, #1a73e8); }
+.nb-notif-icon-default { color: var(--text-tertiary, #9ca3af); }
 
 .notification-bell .notification-dropdown .notification-item .notification-content {
   flex: 1;
@@ -167,7 +181,7 @@
 
 .notification-bell .notification-dropdown .notification-item .notification-title {
   font-weight: 600;
-  font-size: 10px !important;
+  font-size: var(--text-sm, 0.875rem);
   color: #111827;
   line-height: 1.4;
   letter-spacing: 0.01em;
@@ -176,7 +190,7 @@
 }
 
 .notification-bell .notification-dropdown .notification-item .notification-message {
-  font-size: 9px !important;
+  font-size: var(--text-xs, 0.75rem);
   font-weight: 400;
   color: #4b5563;
   line-height: 1.5;
@@ -186,7 +200,7 @@
 }
 
 .notification-bell .notification-dropdown .notification-item .notification-time {
-  font-size: 9px !important;
+  font-size: var(--text-xs, 0.75rem);
   font-weight: 500;
   color: #9ca3af;
   line-height: 1.3;
@@ -215,13 +229,13 @@
   border: none;
   color: #4f46e5;
   cursor: pointer;
-  font-size: 9px !important;
+  font-size: var(--text-xs, 0.75rem);
   font-weight: 600;
   padding: 6px 10px;
   border-radius: 4px;
   transition: all 0.2s ease;
   width: 100%;
-  font-family: 'Inter', sans-serif;
+  font-family: inherit;
 }
 
 .notification-bell .notification-dropdown .notification-footer button:hover {

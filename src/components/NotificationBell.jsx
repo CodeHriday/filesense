@@ -1,8 +1,47 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FaBell } from 'react-icons/fa';
+import {
+  FiBell, FiAlertTriangle, FiCheckCircle, FiAlertCircle,
+  FiSettings, FiLink, FiFileText,
+} from 'react-icons/fi';
 import { useAPINotifications, useMarkNotificationRead, useMarkAllNotificationsRead } from '../hooks/useAPINotifications';
 import './NotificationBell.css';
+
+// ── Strip leading emoji from stored titles (mirrors Notifications.jsx) ───────
+const LEADING_EMOJI_RE = /^[\p{Emoji_Presentation}\p{Extended_Pictographic}\s]+/u;
+function stripLeadingEmoji(text = '') {
+  return text.replace(LEADING_EMOJI_RE, '').trim();
+}
+
+// ── SVG icon per notification type (mirrors Notifications.jsx) ───────────────
+function NotificationIcon({ type }) {
+  if (type === 'job_run_completed_with_warnings') {
+    return <FiAlertTriangle className="nb-notif-icon nb-notif-icon-warning" />;
+  }
+  if (type === 'job_run_completed') {
+    return <FiCheckCircle className="nb-notif-icon nb-notif-icon-success" />;
+  }
+  if (type === 'job_run_failed' || type === 'job_run_aborted') {
+    return <FiAlertCircle className="nb-notif-icon nb-notif-icon-error" />;
+  }
+  if (type?.startsWith('job_run_')) {
+    return <FiSettings className="nb-notif-icon nb-notif-icon-neutral" />;
+  }
+  if (type?.startsWith('workflow_')) {
+    return <FiLink className="nb-notif-icon nb-notif-icon-neutral" />;
+  }
+  if (type?.includes('approved')) {
+    return <FiCheckCircle className="nb-notif-icon nb-notif-icon-success" />;
+  }
+  if (type?.includes('rejected')) {
+    return <FiAlertCircle className="nb-notif-icon nb-notif-icon-error" />;
+  }
+  if (type?.startsWith('vendor_contract_')) {
+    return <FiFileText className="nb-notif-icon nb-notif-icon-neutral" />;
+  }
+  return <FiBell className="nb-notif-icon nb-notif-icon-default" />;
+}
 
 function NotificationBell() {
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -79,21 +118,6 @@ function NotificationBell() {
     return date.toLocaleDateString();
   };
 
-  const getNotificationIcon = (type) => {
-    if (!type) return '🔔';
-    if (type.startsWith('job_run_completed_with')) return '⚠️';
-    if (type === 'job_run_completed') return '✅';
-    if (type === 'job_run_failed') return '❌';
-    if (type.startsWith('job_run_')) return '⚙️';
-    if (type === 'workflow_jira_ticket') return '🎫';
-    if (type === 'workflow_email_sent') return '📧';
-    if (type.startsWith('workflow_')) return '🔗';
-    if (type.includes('approved')) return '✅';
-    if (type.includes('rejected')) return '❌';
-    if (type.startsWith('vendor_contract_')) return '📄';
-    return '🔔';
-  };
-
   return (
     <div className="notification-bell" ref={dropdownRef}>
       <button
@@ -137,10 +161,10 @@ function NotificationBell() {
                   onClick={() => handleNotificationClick(notification)}
                 >
                   <div className="notification-bell-icon-col">
-                    {getNotificationIcon(notification.notification_type)}
+                    <NotificationIcon type={notification.notification_type} />
                   </div>
                   <div className="notification-content">
-                    <div className="notification-title">{notification.title}</div>
+                    <div className="notification-title">{stripLeadingEmoji(notification.title)}</div>
                     <div className="notification-message">{notification.message}</div>
                     <div className="notification-time">{formatTimestamp(notification.created_at)}</div>
                   </div>
