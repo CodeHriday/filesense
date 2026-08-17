@@ -326,7 +326,7 @@ export const APP_FEATURES = [
       },
       {
         id: 'vendor_agreements',
-        name: 'Vendor Data Contracts',
+        name: 'Data Sharing Agreements',
         parentId: 'vendor_management',
         category: 'Administration',
         icon: null,
@@ -386,7 +386,7 @@ export const APP_FEATURES = [
   },
   {
     id: 'vendor_agreements',
-    name: 'Vendor Data Contracts',
+    name: 'Data Sharing Agreements',
     category: 'Vendor Management',
     parentId: 'vendor_management',
     icon: null,
