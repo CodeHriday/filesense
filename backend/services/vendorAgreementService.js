@@ -3454,7 +3454,7 @@ class VendorAgreementService {
         `INSERT INTO vendor_agreement_approvals (
            agreement_id, approver_type, approver_user_id, action, comments,
            agreement_version, approval_timestamp, approval_stage
-         ) VALUES ($1, 'submitter', $2, 'approved', 'Submitted for configurable approval chain',
+         ) VALUES ($1, 'owner', $2, 'approved', 'Submitted for configurable approval chain',
                    $3, CURRENT_TIMESTAMP, 'chain_submission')`,
         [agreementId, userId, agreement.version]
       );
@@ -3619,7 +3619,7 @@ class VendorAgreementService {
         `INSERT INTO vendor_agreement_approvals (
            agreement_id, approver_type, approver_user_id, action, comments,
            agreement_version, approval_timestamp, approval_stage
-         ) VALUES ($1, 'chain_approver', $2, $3, $4, $5, CURRENT_TIMESTAMP, $6)`,
+         ) VALUES ($1, 'manager', $2, $3, $4, $5, CURRENT_TIMESTAMP, $6)`,
         [agreementId, userId, action === 'approve' ? 'approved' : 'rejected', comments, agreement.version, `chain_step_${currentStep}`]
       );
 
