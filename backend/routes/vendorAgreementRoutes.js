@@ -681,12 +681,35 @@ router.get('/:id/full', checkAgreementAccess, async (req, res) => {
       ORDER BY vasd.step_number ASC, vasd.decided_at ASC
     `, [agreementId]);
 
+    // Resolve all approver_user_ids from the chain config to names
+    // so vendor users (who can't hit stakeholder-options) still see real names
+    let chainUsers = [];
+    const chainConfig = req.agreement?.approval_chain_config;
+    if (chainConfig?.steps?.length) {
+      const allIds = [...new Set(
+        chainConfig.steps.flatMap(s => Array.isArray(s.approver_user_ids) ? s.approver_user_ids : [])
+          .map(id => parseInt(id, 10))
+          .filter(id => !isNaN(id))
+      )];
+      if (allIds.length) {
+        const placeholders = allIds.map((_, i) => `$${i + 1}`).join(', ');
+        const usersResult = await dbQuery(
+          `SELECT id, username, email, first_name, last_name,
+                  COALESCE(first_name || ' ' || last_name, username) as full_name
+           FROM users WHERE id IN (${placeholders})`,
+          allIds
+        );
+        chainUsers = usersResult.rows;
+      }
+    }
+
     res.json({
       success: true,
       agreement: req.agreement,
       approvals: approvalsWithDocs,
       changes: changesResult.rows,
       step_decisions: stepDecisionsResult.rows,
+      chain_users: chainUsers,
       userRole: req.isAdmin ? 'admin' : (req.isVendor ? 'vendor' : 'owner')
     });
     

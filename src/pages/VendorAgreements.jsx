@@ -41,6 +41,7 @@ const VendorAgreements = () => {
   const [approvalHistory, setApprovalHistory] = useState([]);
   const [changeHistory, setChangeHistory] = useState([]);
   const [stepDecisions, setStepDecisions] = useState([]);
+  const [agreementChainUsers, setAgreementChainUsers] = useState([]);
   const [rejectComments, setRejectComments] = useState('');
   const [detailModalError, setDetailModalError] = useState('');
   const [detailModalSuccess, setDetailModalSuccess] = useState('');
@@ -227,12 +228,13 @@ const VendorAgreements = () => {
   const fetchAgreementDetails = async (agreementId) => {
     try {
       const response = await axios.get(`/api/vendor-agreements/${agreementId}/full`);
-      const { agreement: agreementData, approvals, changes, step_decisions } = response.data;
+      const { agreement: agreementData, approvals, changes, step_decisions, chain_users } = response.data;
       
       setSelectedAgreement(agreementData);
       setApprovalHistory(Array.isArray(approvals) ? approvals : []);
       setChangeHistory(Array.isArray(changes) ? changes : []);
       setStepDecisions(Array.isArray(step_decisions) ? step_decisions : []);
+      setAgreementChainUsers(Array.isArray(chain_users) ? chain_users : []);
     } catch (error) {
       console.error('Error fetching agreement details:', error);
       setError('Failed to load agreement details');
@@ -3047,10 +3049,15 @@ const VendorAgreements = () => {
                           agreement={selectedAgreement}
                           currentUser={currentUser}
                           stepDecisions={stepDecisions}
-                          users={[
-                            ...stakeholderOptions.users,
-                            ...users.filter(u => !stakeholderOptions.users.some(su => su.id === u.id))
-                          ]}
+                          users={(() => {
+                            const base = agreementChainUsers.length ? agreementChainUsers : [];
+                            const extra = [...stakeholderOptions.users, ...users];
+                            const merged = [...base];
+                            for (const u of extra) {
+                              if (!merged.some(m => m.id === u.id)) merged.push(u);
+                            }
+                            return merged;
+                          })()}
                           isAdmin={isAdmin}
                           onUpdate={() => fetchAgreementDetails(selectedAgreement.id)}
                           onError={(msg) => setDetailModalError(msg)}
