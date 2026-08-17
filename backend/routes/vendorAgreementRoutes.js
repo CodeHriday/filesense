@@ -549,7 +549,48 @@ router.get('/init-data', async (req, res) => {
       userEmail: req.user.email,
       hasApprovePermission
     });
-    
+
+    const agreements = agreementsResult.agreements || [];
+
+    // Resolve chain approver names for all pending_approval agreements.
+    // Done server-side so every user type (admin, internal, vendor/contact) sees real names.
+    try {
+      const pendingIds = new Set();
+      for (const ag of agreements) {
+        if (ag.approval_status === 'pending_approval' && ag.approval_chain_config?.steps?.length) {
+          const stepIdx = (ag.current_approval_step || 1) - 1;
+          const step = ag.approval_chain_config.steps[stepIdx];
+          if (step?.approver_user_ids?.length) {
+            step.approver_user_ids.forEach(id => pendingIds.add(parseInt(id, 10)));
+          }
+        }
+      }
+      if (pendingIds.size > 0) {
+        const ids = [...pendingIds].filter(id => !isNaN(id));
+        const placeholders = ids.map((_, i) => `$${i + 1}`).join(', ');
+        const namesResult = await dbQuery(
+          `SELECT id, username, email, first_name, last_name,
+                  COALESCE(NULLIF(TRIM(first_name || ' ' || last_name), ''), username, email) AS display_name
+           FROM users WHERE id IN (${placeholders})`,
+          ids
+        );
+        const nameMap = {};
+        for (const row of namesResult.rows) nameMap[row.id] = row.display_name;
+
+        for (const ag of agreements) {
+          if (ag.approval_status === 'pending_approval' && ag.approval_chain_config?.steps?.length) {
+            const stepIdx = (ag.current_approval_step || 1) - 1;
+            const step = ag.approval_chain_config.steps[stepIdx];
+            ag.current_step_approver_names = (step?.approver_user_ids || [])
+              .map(id => nameMap[parseInt(id, 10)])
+              .filter(Boolean);
+          }
+        }
+      }
+    } catch (nameErr) {
+      systemLogger.warn('Could not resolve chain approver names for badge', { error: nameErr.message });
+    }
+
     let usersResult = { rows: [] };
     if (isAdminUser || hasWritePermission) {
       usersResult = await dbQuery(`
@@ -569,7 +610,7 @@ router.get('/init-data', async (req, res) => {
       vendorConnections,
       allConnections,
       vendors,
-      agreements: agreementsResult.agreements || [],
+      agreements,
       users: usersResult.rows,
       hasApprovePermission
     });

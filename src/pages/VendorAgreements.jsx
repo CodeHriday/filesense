@@ -169,6 +169,7 @@ const VendorAgreements = () => {
     }
     
     fetchData();
+    fetchStakeholderOptions();
   }, [currentUser, navigate]);
   
   // Handle opening agreement from notification
@@ -1713,8 +1714,40 @@ const VendorAgreements = () => {
       case 'manager_rejected':
         return <span className="approval-badge approval-pending">Pending Vendor Manager</span>;
       
-      case 'pending_approval':
-        return <span className="approval-badge approval-partial">⛓ Chain Approval In Progress</span>;
+      case 'pending_approval': {
+        const chainCfg = agreement.approval_chain_config;
+        const currentStep = agreement.current_approval_step;
+        const totalSteps = chainCfg?.steps?.length || 0;
+        // Use server-resolved names (available to all user types) as primary source;
+        // fall back to client-side user lists for optimistic display before a fresh fetch.
+        let approverNames = agreement.current_step_approver_names || [];
+        if (!approverNames.length) {
+          const stepConfig = chainCfg?.steps?.find(s => s.step_number === currentStep);
+          const allUsers = [
+            ...stakeholderOptions.users,
+            ...users.filter(u => !stakeholderOptions.users.some(su => su.id === u.id))
+          ];
+          approverNames = (stepConfig?.approver_user_ids || [])
+            .map(uid => {
+              const id = parseInt(uid, 10);
+              const u = allUsers.find(u => u.id === id || parseInt(u.id, 10) === id);
+              if (!u) return null;
+              if (u.first_name && u.last_name) return `${u.first_name} ${u.last_name}`;
+              return u.full_name || u.fullName || u.username || u.email || null;
+            })
+            .filter(Boolean);
+        }
+        return (
+          <span className="approval-badge approval-partial approval-badge-chain">
+            <span className="approval-chain-step">
+              ⛓ Step {currentStep}{totalSteps ? ` of ${totalSteps}` : ''} Active
+            </span>
+            {approverNames.length > 0 && (
+              <span className="approval-chain-approvers">{approverNames.join(', ')}</span>
+            )}
+          </span>
+        );
+      }
 
       case 'governance_approved':
       case 'fully_approved':
