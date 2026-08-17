@@ -3047,7 +3047,10 @@ const VendorAgreements = () => {
                           agreement={selectedAgreement}
                           currentUser={currentUser}
                           stepDecisions={stepDecisions}
-                          users={users}
+                          users={[
+                            ...stakeholderOptions.users,
+                            ...users.filter(u => !stakeholderOptions.users.some(su => su.id === u.id))
+                          ]}
                           isAdmin={isAdmin}
                           onUpdate={() => fetchAgreementDetails(selectedAgreement.id)}
                           onError={(msg) => setDetailModalError(msg)}
