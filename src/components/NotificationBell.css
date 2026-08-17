@@ -122,12 +122,17 @@
 .notification-bell .notification-dropdown .notification-item {
   display: flex;
   gap: 8px;
-  padding: 10px 12px;
+  padding: 7px 12px;
   border-bottom: 1px solid #f3f4f6;
   cursor: pointer;
-  transition: background-color 0.15s ease;
+  transition: background-color 0.15s ease, padding 0.18s ease;
   position: relative;
   align-items: flex-start;
+}
+
+.notification-bell .notification-dropdown .notification-item:hover {
+  padding-top: 9px;
+  padding-bottom: 9px;
 }
 
 .notification-bell .notification-dropdown .notification-item:last-child {
@@ -187,6 +192,16 @@
   letter-spacing: 0.01em;
   margin: 0;
   padding: 0;
+  /* Collapsed: single truncated line */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.notification-bell .notification-dropdown .notification-item:hover .notification-title {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
 }
 
 .notification-bell .notification-dropdown .notification-item .notification-message {
@@ -197,6 +212,16 @@
   word-wrap: break-word;
   margin: 0;
   padding: 0;
+  /* Hidden when collapsed; revealed on hover */
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  transition: max-height 0.2s ease, opacity 0.18s ease;
+}
+
+.notification-bell .notification-dropdown .notification-item:hover .notification-message {
+  max-height: 120px;
+  opacity: 1;
 }
 
 .notification-bell .notification-dropdown .notification-item .notification-time {
@@ -205,6 +230,17 @@
   color: #9ca3af;
   line-height: 1.3;
   margin-top: 1px;
+  /* Hidden when collapsed; revealed on hover */
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  transition: max-height 0.2s ease, opacity 0.18s ease;
+}
+
+.notification-bell .notification-dropdown .notification-item:hover .notification-time {
+  max-height: 24px;
+  opacity: 1;
+  margin-top: 3px;
 }
 
 .notification-bell .notification-dropdown .notification-item .unread-dot {
