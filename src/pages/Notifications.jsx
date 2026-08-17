@@ -1,7 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { FiBell, FiCheck, FiX, FiTrash2, FiMail } from 'react-icons/fi';
+import {
+  FiBell, FiCheck, FiTrash2, FiMail,
+  FiAlertCircle, FiCheckCircle, FiAlertTriangle,
+  FiFileText, FiLink, FiSettings,
+} from 'react-icons/fi';
 import './Notifications.css';
 
 // ── Category definitions ────────────────────────────────────────────────────
@@ -13,7 +17,6 @@ const CATEGORIES = [
   { key: 'workflow',   label: 'Workflow Events' },
 ];
 
-// Match a notification to a UI category
 function getCategory(type = '') {
   if (type.startsWith('job_run_')) return 'job_runs';
   if (type.startsWith('vendor_contract_')) return 'governance';
@@ -21,22 +24,44 @@ function getCategory(type = '') {
   return 'other';
 }
 
-// ── Icon & colour helpers ───────────────────────────────────────────────────
-function getNotificationIcon(type = '') {
-  if (type.startsWith('job_run_completed_with')) return '⚠️';
-  if (type === 'job_run_completed') return '✅';
-  if (type === 'job_run_failed') return '❌';
-  if (type.startsWith('job_run_')) return '⚙️';
-  if (type === 'workflow_jira_ticket') return '🎫';
-  if (type === 'workflow_email_sent') return '📧';
-  if (type.startsWith('workflow_')) return '🔗';
-  if (type.includes('approved')) return '✅';
-  if (type.includes('rejected')) return '❌';
-  if (type.startsWith('vendor_contract_')) return '📄';
-  return '🔔';
+// ── Strip leading emoji from stored titles ──────────────────────────────────
+// Notification titles in the DB may carry a leading emoji prefix (e.g. "❌ Job Failed:…").
+// We render a separate SVG icon per type, so strip the emoji here to avoid duplication.
+const LEADING_EMOJI_RE = /^[\p{Emoji_Presentation}\p{Extended_Pictographic}\s]+/u;
+function stripLeadingEmoji(text = '') {
+  return text.replace(LEADING_EMOJI_RE, '').trim();
 }
 
-// Colour-coded status badge for job_run_* types
+// ── SVG icon per notification type ─────────────────────────────────────────
+function NotificationIcon({ type }) {
+  if (type === 'job_run_completed_with_warnings') {
+    return <FiAlertTriangle className="notif-icon notif-icon-warning" />;
+  }
+  if (type === 'job_run_completed') {
+    return <FiCheckCircle className="notif-icon notif-icon-success" />;
+  }
+  if (type === 'job_run_failed' || type === 'job_run_aborted') {
+    return <FiAlertCircle className="notif-icon notif-icon-error" />;
+  }
+  if (type?.startsWith('job_run_')) {
+    return <FiSettings className="notif-icon notif-icon-neutral" />;
+  }
+  if (type?.startsWith('workflow_')) {
+    return <FiLink className="notif-icon notif-icon-neutral" />;
+  }
+  if (type?.includes('approved')) {
+    return <FiCheckCircle className="notif-icon notif-icon-success" />;
+  }
+  if (type?.includes('rejected')) {
+    return <FiAlertCircle className="notif-icon notif-icon-error" />;
+  }
+  if (type?.startsWith('vendor_contract_')) {
+    return <FiFileText className="notif-icon notif-icon-neutral" />;
+  }
+  return <FiBell className="notif-icon notif-icon-default" />;
+}
+
+// ── Colour-coded status badge ───────────────────────────────────────────────
 function JobStatusBadge({ type }) {
   if (!type?.startsWith('job_run_')) return null;
   if (type === 'job_run_completed') {
@@ -69,29 +94,32 @@ function parseMeta(notification) {
 function JobRunCard({ notification }) {
   const meta = parseMeta(notification);
   const stats = [];
-  if (meta.jobName)          stats.push({ label: 'Job', value: meta.jobName });
-  if (meta.mappingName)      stats.push({ label: 'Mapping', value: meta.mappingName });
-  if (meta.filesProcessed != null) stats.push({ label: 'Files', value: meta.filesProcessed });
-  if (meta.recordsProcessed != null) stats.push({ label: 'Records', value: meta.recordsProcessed.toLocaleString() });
-  if (meta.rowsWritten != null)      stats.push({ label: 'Rows written', value: meta.rowsWritten.toLocaleString() });
+  if (meta.jobName)                  stats.push({ label: 'Job',          value: meta.jobName });
+  if (meta.mappingName)              stats.push({ label: 'Mapping',       value: meta.mappingName });
+  if (meta.filesProcessed != null)   stats.push({ label: 'Files',         value: meta.filesProcessed });
+  if (meta.recordsProcessed != null) stats.push({ label: 'Records',       value: meta.recordsProcessed.toLocaleString() });
+  if (meta.rowsWritten != null)      stats.push({ label: 'Rows written',  value: meta.rowsWritten.toLocaleString() });
   if (meta.qualityScore != null)     stats.push({ label: 'Quality score', value: `${meta.qualityScore}%` });
   if (meta.dqViolationCount > 0)     stats.push({ label: 'DQ violations', value: meta.dqViolationCount, highlight: 'warn' });
 
   const topRules = Array.isArray(meta.violatedRuleNames) ? meta.violatedRuleNames.slice(0, 3) : [];
+  if (!stats.length && !topRules.length) return null;
 
   return (
     <div className="notif-rich-card">
-      <div className="notif-card-stats">
-        {stats.map(({ label, value, highlight }) => (
-          <span key={label} className={`notif-stat${highlight ? ` notif-stat-${highlight}` : ''}`}>
-            <span className="notif-stat-label">{label}</span>
-            <span className="notif-stat-value">{value}</span>
-          </span>
-        ))}
-      </div>
+      {stats.length > 0 && (
+        <div className="notif-card-stats">
+          {stats.map(({ label, value, highlight }) => (
+            <span key={label} className={`notif-stat${highlight ? ` notif-stat-${highlight}` : ''}`}>
+              <span className="notif-stat-label">{label}</span>
+              <span className="notif-stat-value">{value}</span>
+            </span>
+          ))}
+        </div>
+      )}
       {topRules.length > 0 && (
         <div className="notif-violated-rules">
-          <span className="notif-violated-rules-label">Top violated rules:</span>
+          <span className="notif-violated-rules-label">Violated rules:</span>
           {topRules.map(r => (
             <span key={r} className="notif-rule-pill">{r}</span>
           ))}
@@ -148,7 +176,6 @@ function WorkflowEventCard({ notification }) {
     );
   }
 
-  // Generic workflow card — show whatever key metadata exists
   const pairs = Object.entries(meta).filter(([k]) =>
     ['nodeType', 'workflowId', 'workflowName', 'result'].includes(k)
   );
@@ -267,7 +294,6 @@ function Notifications() {
     if (notification.action_url) navigate(notification.action_url);
   };
 
-  // Derive counts for tab badges
   const counts = {
     all:        notifications.length,
     unread:     notifications.filter(n => !n.is_read).length,
@@ -280,9 +306,12 @@ function Notifications() {
     return (
       <div className="notifications-page">
         <div className="notifications-header">
-          <h1>Notifications</h1>
+          <div className="notif-header-left">
+            <FiBell className="notif-page-icon" />
+            <h1 className="notifications-title">Notifications</h1>
+          </div>
         </div>
-        <div className="loading-state">Loading notifications…</div>
+        <div className="notif-loading">Loading notifications…</div>
       </div>
     );
   }
@@ -290,36 +319,36 @@ function Notifications() {
   return (
     <div className="notifications-page">
       <div className="notifications-header">
-        <div className="header-left">
-          <FiBell className="page-icon" />
-          <h1>Notifications</h1>
+        <div className="notif-header-left">
+          <FiBell className="notif-page-icon" />
+          <h1 className="notifications-title">Notifications</h1>
           {counts.unread > 0 && (
-            <span className="unread-badge">{counts.unread}</span>
+            <span className="notif-unread-badge">{counts.unread}</span>
           )}
-          <button
-            className="mark-all-read-btn"
-            onClick={markAllAsRead}
-            disabled={counts.unread === 0}
-          >
-            <FiCheck />
-            Mark all as read
-          </button>
         </div>
+        <button
+          className="notif-mark-all-btn"
+          onClick={markAllAsRead}
+          disabled={counts.unread === 0}
+        >
+          <FiCheck />
+          Mark all as read
+        </button>
       </div>
 
-      {error && <div className="error-banner">{error}</div>}
+      {error && <div className="notif-error-banner">{error}</div>}
 
       {/* Category filter tabs */}
       <div className="notifications-filters">
         {CATEGORIES.map(cat => (
           <button
             key={cat.key}
-            className={`filter-tab ${category === cat.key ? 'active' : ''}`}
+            className={`notif-filter-tab${category === cat.key ? ' active' : ''}`}
             onClick={() => setCategory(cat.key)}
           >
             {cat.label}
             {counts[cat.key] != null && (
-              <span className={`filter-tab-count ${cat.key === 'unread' && counts.unread > 0 ? 'filter-tab-count-unread' : ''}`}>
+              <span className={`notif-tab-count${cat.key === 'unread' && counts.unread > 0 ? ' notif-tab-count-unread' : ''}`}>
                 {counts[cat.key]}
               </span>
             )}
@@ -329,38 +358,45 @@ function Notifications() {
 
       <div className="notifications-list">
         {notifications.length === 0 ? (
-          <div className="empty-state">
-            <FiBell className="empty-icon" />
+          <div className="notif-empty-state">
+            <FiBell className="notif-empty-icon" />
             <p>No {category !== 'all' ? CATEGORIES.find(c => c.key === category)?.label.toLowerCase() : ''} notifications</p>
           </div>
         ) : (
           notifications.map(notification => {
             const type = notification.notification_type;
-            const isJobRun = type?.startsWith('job_run_');
+            const isJobRun  = type?.startsWith('job_run_');
             const isWorkflow = type?.startsWith('workflow_');
+            const displayTitle = stripLeadingEmoji(notification.title);
 
             return (
               <div
                 key={notification.id}
-                className={`notification-item${!notification.is_read ? ' unread' : ''}${isJobRun ? ' notification-item-job' : ''}${isWorkflow ? ' notification-item-workflow' : ''}`}
+                className={[
+                  'notification-item',
+                  !notification.is_read ? 'unread' : '',
+                  isJobRun   ? 'notif-job'      : '',
+                  isWorkflow ? 'notif-workflow'  : '',
+                ].filter(Boolean).join(' ')}
               >
                 <div
                   className="notification-content-wrapper"
                   onClick={() => handleNotificationClick(notification)}
                 >
-                  <div className="notification-icon">
-                    {getNotificationIcon(type)}
+                  {/* Single SVG icon — no emoji */}
+                  <div className="notification-icon-col">
+                    <NotificationIcon type={type} />
                   </div>
+
                   <div className="notification-details">
-                    <div className="notification-title">
-                      {notification.title}
+                    <div className="notification-title-row">
+                      <span className="notification-title-text">{displayTitle}</span>
                       {isJobRun && <JobStatusBadge type={type} />}
-                      {!notification.is_read && <span className="unread-dot" />}
+                      {!notification.is_read && <span className="notif-unread-dot" />}
                     </div>
                     <div className="notification-message">{notification.message}</div>
 
-                    {/* Rich cards */}
-                    {isJobRun && <JobRunCard notification={notification} />}
+                    {isJobRun   && <JobRunCard notification={notification} />}
                     {isWorkflow && <WorkflowEventCard notification={notification} />}
 
                     <div className="notification-timestamp">
@@ -368,10 +404,11 @@ function Notifications() {
                     </div>
                   </div>
                 </div>
+
                 <div className="notification-actions">
                   {!notification.is_read ? (
                     <button
-                      className="action-btn mark-read"
+                      className="notif-action-btn"
                       onClick={e => { e.stopPropagation(); markAsRead(notification.id); }}
                       title="Mark as read"
                     >
@@ -379,7 +416,7 @@ function Notifications() {
                     </button>
                   ) : (
                     <button
-                      className="action-btn mark-unread"
+                      className="notif-action-btn"
                       onClick={e => { e.stopPropagation(); markAsUnread(notification.id); }}
                       title="Mark as unread"
                     >
@@ -387,7 +424,7 @@ function Notifications() {
                     </button>
                   )}
                   <button
-                    className="action-btn delete"
+                    className="notif-action-btn notif-action-delete"
                     onClick={e => { e.stopPropagation(); deleteNotification(notification.id); }}
                     title="Delete"
                   >
