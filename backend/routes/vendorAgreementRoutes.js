@@ -117,85 +117,56 @@ const checkAgreementAccess = async (req, res, next) => {
     }
     
     const agreement = result.agreement;
-    
-    // Check if user has vendor_agreements:approve permission
-    // This allows access regardless of relationship to the agreement
-    if (hasPermission(req.user, 'vendor_agreements:approve')) {
+
+    // Compute permission flags upfront. These describe what actions the user may perform
+    // AFTER access is established — they do not grant access on their own.
+    // vendor_agreements:approve means "can vote when listed as an assignee"; it must not
+    // bypass relationship checks or a user could read any agreement by guessing its ID.
+    const approvePermission = hasPermission(req.user, 'vendor_agreements:approve');
+    const readPermission = hasPermission(req.user, 'vendor_agreements:read');
+
+    // Helper: stamp the request with the agreement and computed flags, then continue.
+    const grant = (roleFlags = {}) => {
       req.agreement = agreement;
-      req.hasApprovePermission = true;
-      // Note: Do NOT set req.isAdmin here - permission holders are NOT admins
+      req.hasApprovePermission = approvePermission;
+      req.hasReadPermission = readPermission;
+      Object.assign(req, roleFlags);
       return next();
-    }
-    
-    // Check if user has vendor_agreements:read permission
-    // This allows viewing but not necessarily approving
-    if (hasPermission(req.user, 'vendor_agreements:read')) {
-      req.agreement = agreement;
-      req.hasReadPermission = true;
-    }
-    
-    // Admin-level access has access to everything (uses permission-based check)
-    if (userHasAdminAccess(req.user)) {
-      req.agreement = agreement;
-      req.isAdmin = true;
-      return next();
-    }
-    
-    // Check if user is the vendor user
-    if (agreement.vendor_user_id === req.user.id) {
-      req.agreement = agreement;
-      req.isVendor = true;
-      return next();
-    }
-    
-    // Check if user is the file owner
-    if (agreement.file_owner_user_id === req.user.id) {
-      req.agreement = agreement;
-      req.isOwner = true;
-      return next();
-    }
-    
-    // Check if user is the primary or secondary contact (by email)
+    };
+
+    // Admin-level access sees everything.
+    if (userHasAdminAccess(req.user)) return grant({ isAdmin: true });
+
+    // read permission grants global visibility (internal staff with explicit read-all grant).
+    if (readPermission) return grant();
+
+    // From here: the user must have an explicit relationship with this agreement.
+
+    // Vendor user linked to the agreement's vendor
+    if (agreement.vendor_user_id === req.user.id) return grant({ isVendor: true });
+
+    // File owner
+    if (agreement.file_owner_user_id === req.user.id) return grant({ isOwner: true });
+
+    // Primary or secondary contact (by email)
     if (req.user.email) {
-      if (agreement.primary_contact_email === req.user.email) {
-        req.agreement = agreement;
-        req.isVendor = true; // Treat primary contact as vendor role
-        return next();
-      }
-      
-      if (agreement.secondary_contact_email === req.user.email) {
-        req.agreement = agreement;
-        req.isVendor = true; // Treat secondary contact as vendor role
-        return next();
-      }
+      if (agreement.primary_contact_email === req.user.email) return grant({ isVendor: true });
+      if (agreement.secondary_contact_email === req.user.email) return grant({ isVendor: true });
     }
-    
-    // Check if user is a configured approver in the approval chain
+
+    // Configured approver in any step of the approval chain
     if (agreement.approval_chain_config?.steps?.length) {
       const isChainApprover = agreement.approval_chain_config.steps.some(
         (step) =>
           Array.isArray(step.approver_user_ids) &&
           step.approver_user_ids.some((id) => parseInt(id, 10) === req.user.id)
       );
-      if (isChainApprover) {
-        req.agreement = agreement;
-        req.isChainApprover = true;
-        return next();
-      }
+      if (isChainApprover) return grant({ isChainApprover: true });
     }
 
-    // Check if user is the agreement creator (allowed to submit for chain approval)
-    if (agreement.created_by && agreement.created_by === req.user.id) {
-      req.agreement = agreement;
-      req.isCreator = true;
-      return next();
-    }
+    // Agreement creator (allowed to submit/re-submit for chain approval)
+    if (agreement.created_by && agreement.created_by === req.user.id) return grant({ isCreator: true });
 
-    // If user has read permission set earlier, allow access for viewing
-    if (req.hasReadPermission) {
-      return next();
-    }
-    
     return res.status(403).json({ error: 'Access denied' });
     
   } catch (error) {
@@ -420,6 +391,7 @@ router.get('/stakeholder-options', requirePermission('vendor_agreements:read'), 
 router.get('/init-data', async (req, res) => {
   try {
     const hasApprovePermission = hasPermission(req.user, 'vendor_agreements:approve');
+    const hasReadPermission = hasPermission(req.user, 'vendor_agreements:read');
     const hasWritePermission = hasPermission(req.user, 'vendor_agreements:write');
     const isAdminUser = userHasAdminAccess(req.user);
     
@@ -547,7 +519,8 @@ router.get('/init-data', async (req, res) => {
       userId: req.user.id,
       userRoles: req.user.roles,
       userEmail: req.user.email,
-      hasApprovePermission
+      hasApprovePermission,
+      hasReadPermission
     });
 
     const agreements = agreementsResult.agreements || [];

@@ -2706,11 +2706,12 @@ class VendorAgreementService {
       }
       
       // Apply role-based filtering for non-admin users.
-      // Users with vendor_agreements:approve or vendor_agreements:read permission are internal
-      // staff who have been explicitly granted access — they bypass contact filtering and see
-      // all non-archived agreements. Only external/vendor-role users are filtered to agreements
-      // where they hold a designated relationship (file owner, contact, project member, etc.).
-      if (!isAdmin && !hasApprovePermission && !hasReadPermission && userId) {
+      // Users with vendor_agreements:read permission (or admin access) are internal staff with
+      // explicit read-all grants — they bypass contact filtering and see all non-archived agreements.
+      // Users with only vendor_agreements:approve (no read, no admin) can vote when assigned but
+      // must still be scoped to agreements they are associated with (the association predicate
+      // below already includes chain approvers, so legitimate approvers keep their agreements).
+      if (!isAdmin && !hasReadPermission && userId) {
         if (userEmail) {
           // Allow access if user is:
           // 1. File owner (by user ID)
