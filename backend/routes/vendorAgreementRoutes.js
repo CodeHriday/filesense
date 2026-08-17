@@ -591,6 +591,51 @@ router.get('/init-data', async (req, res) => {
       systemLogger.warn('Could not resolve chain approver names for badge', { error: nameErr.message });
     }
 
+    // Compute vote progress (approved_count / total_count) for pending_approval agreements.
+    // Only counts approvals from users who are configured in the step's approver_user_ids —
+    // admin out-of-chain votes are excluded so the count matches the service's quorum check.
+    try {
+      const pendingAgreements = agreements.filter(ag => ag.approval_status === 'pending_approval');
+      if (pendingAgreements.length > 0) {
+        const pendingAgreementIds = pendingAgreements.map(ag => ag.id);
+        // Fetch individual decision rows so we can filter by configured approver list in JS
+        const decisionsResult = await dbQuery(
+          `SELECT agreement_id, step_number, agreement_version, approver_user_id
+           FROM vendor_approval_step_decisions
+           WHERE agreement_id = ANY($1) AND action = 'approve'`,
+          [pendingAgreementIds]
+        );
+        // Build a lookup: agreementId -> stepNumber -> version -> Set<approver_user_id>
+        const decisionMap = {};
+        for (const row of decisionsResult.rows) {
+          const aid = row.agreement_id;
+          const sn = row.step_number;
+          const ver = row.agreement_version;
+          if (!decisionMap[aid]) decisionMap[aid] = {};
+          if (!decisionMap[aid][sn]) decisionMap[aid][sn] = {};
+          if (!decisionMap[aid][sn][ver]) decisionMap[aid][sn][ver] = new Set();
+          decisionMap[aid][sn][ver].add(parseInt(row.approver_user_id, 10));
+        }
+        for (const ag of pendingAgreements) {
+          const stepIdx = (ag.current_approval_step || 1) - 1;
+          const step = ag.approval_chain_config?.steps?.[stepIdx];
+          if (step) {
+            const stepNum = ag.current_approval_step || 1;
+            const version = ag.version; // va.* exposes 'version', not 'agreement_version'
+            const configuredIds = new Set((step.approver_user_ids || []).map(id => parseInt(id, 10)));
+            const voterSet = decisionMap[ag.id]?.[stepNum]?.[version] || new Set();
+            // Count only votes from users configured for this step (excludes out-of-chain admin votes)
+            const approvedCount = [...voterSet].filter(uid => configuredIds.has(uid)).length;
+            const totalCount = configuredIds.size;
+            const requireAll = step.require_all !== false; // default: all must approve
+            ag.current_step_vote_progress = { approved_count: approvedCount, total_count: totalCount, require_all: requireAll };
+          }
+        }
+      }
+    } catch (voteErr) {
+      systemLogger.warn('Could not compute vote progress for badge', { error: voteErr.message });
+    }
+
     let usersResult = { rows: [] };
     if (isAdminUser || hasWritePermission) {
       usersResult = await dbQuery(`

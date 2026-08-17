@@ -1737,6 +1737,18 @@ const VendorAgreements = () => {
             })
             .filter(Boolean);
         }
+        const voteProgress = agreement.current_step_vote_progress;
+        let voteProgressText = null;
+        if (voteProgress) {
+          const { approved_count, total_count, require_all } = voteProgress;
+          if (require_all) {
+            voteProgressText = `${approved_count}/${total_count} approved`;
+          } else {
+            voteProgressText = approved_count >= 1
+              ? '1 approved ✓'
+              : `Awaiting 1 of ${total_count}`;
+          }
+        }
         return (
           <span className="approval-badge approval-partial approval-badge-chain">
             <span className="approval-chain-step">
@@ -1744,6 +1756,9 @@ const VendorAgreements = () => {
             </span>
             {approverNames.length > 0 && (
               <span className="approval-chain-approvers">{approverNames.join(', ')}</span>
+            )}
+            {voteProgressText && (
+              <span className="approval-chain-votes">{voteProgressText}</span>
             )}
           </span>
         );
