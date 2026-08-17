@@ -160,15 +160,13 @@ function NotificationBell() {
                   className={`notification-item ${notification.is_read ? 'read' : 'unread'}`}
                   onClick={() => handleNotificationClick(notification)}
                 >
-                  <div className="notification-bell-icon-col">
-                    <NotificationIcon type={notification.notification_type} />
-                  </div>
                   <div className="notification-content">
-                    <div className="notification-title">{stripLeadingEmoji(notification.title)}</div>
+                    <div className="notification-title-row">
+                      <span className="notification-title">{stripLeadingEmoji(notification.title)}</span>
+                      <span className="notification-time">{formatTimestamp(notification.created_at)}</span>
+                    </div>
                     <div className="notification-message">{notification.message}</div>
-                    <div className="notification-time">{formatTimestamp(notification.created_at)}</div>
                   </div>
-                  {!notification.is_read && <div className="unread-dot"></div>}
                 </div>
               ))
             )}
