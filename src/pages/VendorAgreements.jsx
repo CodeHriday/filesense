@@ -513,11 +513,15 @@ const VendorAgreements = () => {
         const newPrimaryContactName = selectedVendor.contact_name || '';
         const newPrimaryContactEmail = selectedVendor.contact_email || '';
         const newPrimaryContactPhone = selectedVendor.contact_phone || '';
-        
+        // vendor_user_id is the user account linked to the vendor's primary contact
+        const newPrimaryContactUserId = selectedVendor.vendor_user_id || '';
+
         // Extract secondary contact information from vendor's backup contact
         const newSecondaryContactName = selectedVendor.backup_contact_name || '';
         const newSecondaryContactEmail = selectedVendor.backup_contact_email || '';
         const newSecondaryContactPhone = selectedVendor.backup_contact_phone || '';
+        // backup_contact_user_id is resolved from the backup email in the init-data query
+        const newSecondaryContactUserId = selectedVendor.backup_contact_user_id || '';
         
         // Only update if the values would actually change
         if (formData.vendor_code !== newVendorCode || 
@@ -526,9 +530,11 @@ const VendorAgreements = () => {
             formData.primary_contact_name !== newPrimaryContactName ||
             formData.primary_contact_email !== newPrimaryContactEmail ||
             formData.primary_contact_phone !== newPrimaryContactPhone ||
+            formData.primary_contact_user_id !== newPrimaryContactUserId ||
             formData.secondary_contact_name !== newSecondaryContactName ||
             formData.secondary_contact_email !== newSecondaryContactEmail ||
-            formData.secondary_contact_phone !== newSecondaryContactPhone) {
+            formData.secondary_contact_phone !== newSecondaryContactPhone ||
+            formData.secondary_contact_user_id !== newSecondaryContactUserId) {
           setFormData(prev => ({
             ...prev,
             vendor_code: newVendorCode,
@@ -537,9 +543,11 @@ const VendorAgreements = () => {
             primary_contact_name: newPrimaryContactName,
             primary_contact_email: newPrimaryContactEmail,
             primary_contact_phone: newPrimaryContactPhone,
+            primary_contact_user_id: newPrimaryContactUserId,
             secondary_contact_name: newSecondaryContactName,
             secondary_contact_email: newSecondaryContactEmail,
-            secondary_contact_phone: newSecondaryContactPhone
+            secondary_contact_phone: newSecondaryContactPhone,
+            secondary_contact_user_id: newSecondaryContactUserId,
           }));
         }
       } else if (formData.vendor_code !== '' || formData.vendor_type !== '' || 
@@ -547,9 +555,11 @@ const VendorAgreements = () => {
                  formData.primary_contact_name !== '' ||
                  formData.primary_contact_email !== '' ||
                  formData.primary_contact_phone !== '' ||
+                 formData.primary_contact_user_id !== '' ||
                  formData.secondary_contact_name !== '' ||
                  formData.secondary_contact_email !== '' ||
-                 formData.secondary_contact_phone !== '') {
+                 formData.secondary_contact_phone !== '' ||
+                 formData.secondary_contact_user_id !== '') {
         // Vendor not found, clear vendor and contact fields
         setFormData(prev => ({
           ...prev,
@@ -559,9 +569,11 @@ const VendorAgreements = () => {
           primary_contact_name: '',
           primary_contact_email: '',
           primary_contact_phone: '',
+          primary_contact_user_id: '',
           secondary_contact_name: '',
           secondary_contact_email: '',
-          secondary_contact_phone: ''
+          secondary_contact_phone: '',
+          secondary_contact_user_id: '',
         }));
       }
     } else if (formData.vendor_code !== '' || formData.vendor_type !== '' || 
@@ -569,9 +581,11 @@ const VendorAgreements = () => {
                formData.primary_contact_name !== '' ||
                formData.primary_contact_email !== '' ||
                formData.primary_contact_phone !== '' ||
+               formData.primary_contact_user_id !== '' ||
                formData.secondary_contact_name !== '' ||
                formData.secondary_contact_email !== '' ||
-               formData.secondary_contact_phone !== '') {
+               formData.secondary_contact_phone !== '' ||
+               formData.secondary_contact_user_id !== '') {
       // No vendor selected, clear vendor and contact fields
       setFormData(prev => ({
         ...prev,
@@ -581,16 +595,20 @@ const VendorAgreements = () => {
         primary_contact_name: '',
         primary_contact_email: '',
         primary_contact_phone: '',
+        primary_contact_user_id: '',
         secondary_contact_name: '',
         secondary_contact_email: '',
-        secondary_contact_phone: ''
+        secondary_contact_phone: '',
+        secondary_contact_user_id: '',
       }));
     }
   }, [
-    formData.vendor_id, 
-    formData.vendor_code, 
-    formData.vendor_type, 
+    formData.vendor_id,
+    formData.vendor_code,
+    formData.vendor_type,
     formData.vendor_onboarding_date,
+    formData.primary_contact_user_id,
+    formData.secondary_contact_user_id,
     vendors
   ]);
   
@@ -636,47 +654,50 @@ const VendorAgreements = () => {
 
     const mgr = formData.file_owner_user_id;
     const gov = formData.governance_manager_user_id;
-    const primaryId = formData.primary_contact_user_id
-      ? Number(formData.primary_contact_user_id)
-      : null;
 
-    // All three anchor roles must be selected before auto-populating.
-    // Without a primary contact, Step 1 would have no approvers and the chain
-    // save would be rejected by the API.
-    if (!mgr || !gov || !primaryId) {
+    // Both anchor roles must be selected before auto-populating.
+    if (!mgr || !gov) {
       setAutoApprovalChain(null);
       return;
     }
 
+    const primaryId = formData.primary_contact_user_id
+      ? Number(formData.primary_contact_user_id)
+      : null;
     const secondaryId = formData.secondary_contact_user_id
       ? Number(formData.secondary_contact_user_id)
       : null;
 
-    // Step 1 includes both contacts when set and distinct
-    const step1Ids = [];
-    if (primaryId) step1Ids.push(primaryId);
-    if (secondaryId && secondaryId !== primaryId) step1Ids.push(secondaryId);
+    const steps = [];
 
-    setAutoApprovalChain([
-      {
+    // Step 1: vendor contacts — only included when the vendor has at least a
+    // primary contact linked to a user account.
+    if (primaryId) {
+      const step1Ids = [primaryId];
+      if (secondaryId && secondaryId !== primaryId) step1Ids.push(secondaryId);
+      steps.push({
         step_number: 1,
         name: 'Vendor Contact Approval',
         approver_user_ids: step1Ids,
         require_all: false,
-      },
-      {
-        step_number: 2,
-        name: 'Vendor Manager Approval',
-        approver_user_ids: [Number(mgr)],
-        require_all: false,
-      },
-      {
-        step_number: 3,
-        name: 'Governance Approval',
-        approver_user_ids: [Number(gov)],
-        require_all: false,
-      },
-    ]);
+      });
+    }
+
+    steps.push({
+      step_number: steps.length + 1,
+      name: 'Vendor Manager Approval',
+      approver_user_ids: [Number(mgr)],
+      require_all: false,
+    });
+
+    steps.push({
+      step_number: steps.length + 1,
+      name: 'Governance Approval',
+      approver_user_ids: [Number(gov)],
+      require_all: false,
+    });
+
+    setAutoApprovalChain(steps);
   }, [
     modalMode,
     formData.file_owner_user_id,

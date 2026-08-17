@@ -450,12 +450,15 @@ router.get('/init-data', async (req, res) => {
           SELECT v.id, v.vendor_name, v.vendor_code, v.status, v.vendor_type, v.vendor_onboarding_date,
                  v.contact_name, v.contact_email, v.contact_phone,
                  v.backup_contact_name, v.backup_contact_email, v.backup_contact_phone,
+                 v.vendor_user_id,
+                 bu.id AS backup_contact_user_id,
                  v.project_id, p.name as project_name,
                  p.drop_location_connection_id,
                  p.drop_location_bucket,
                  p.drop_location_prefix
           FROM vendors v
           LEFT JOIN projects p ON v.project_id = p.id
+          LEFT JOIN users bu ON LOWER(bu.email) = LOWER(v.backup_contact_email)
           WHERE v.status = 'active'
           ORDER BY v.vendor_name
         `);
@@ -475,12 +478,15 @@ router.get('/init-data', async (req, res) => {
             SELECT v.id, v.vendor_name, v.vendor_code, v.status, v.vendor_type, v.vendor_onboarding_date,
                    v.contact_name, v.contact_email, v.contact_phone,
                    v.backup_contact_name, v.backup_contact_email, v.backup_contact_phone,
+                   v.vendor_user_id,
+                   bu.id AS backup_contact_user_id,
                    v.project_id, p.name as project_name,
                    p.drop_location_connection_id,
                    p.drop_location_bucket,
                    p.drop_location_prefix
             FROM vendors v
             LEFT JOIN projects p ON v.project_id = p.id
+            LEFT JOIN users bu ON LOWER(bu.email) = LOWER(v.backup_contact_email)
             WHERE v.id = $1 AND v.status = 'active'
           `, [userVendorId]);
           vendors = vendorsResult.rows;
