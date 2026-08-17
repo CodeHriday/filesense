@@ -31,6 +31,10 @@ const ApprovalChainConfig = ({ agreement = null, users = [], onSave = null, onEr
   /* ── Load existing config when expanded ──────────────────── */
   useEffect(() => {
     if (!expanded) return;
+    // In create/draft mode the parent owns the applied state; local steps are
+    // the source of truth — never reset them on expand.
+    if (onChange) return;
+
     const existing = agreement?.approval_chain_config?.steps;
     if (existing?.length) {
       setSteps(
@@ -191,103 +195,109 @@ const ApprovalChainConfig = ({ agreement = null, users = [], onSave = null, onEr
             approvers to vote before the chain advances.
           </p>
 
+          {/* Horizontally scrollable step rail */}
           <div className="acc-steps">
             {steps.map((step, idx) => (
-              <div key={idx} className="acc-step-card">
-                {/* Step card header */}
-                <div className="acc-step-top">
-                  <span className="acc-step-num-label">Step {step.step_number}</span>
-                  {steps.length > 1 && (
-                    <button
-                      type="button"
-                      className="acc-remove-step"
-                      onClick={() => removeStep(idx)}
-                      title="Remove this step"
-                    >
-                      <FaTimes />
-                    </button>
-                  )}
-                </div>
-
-                {/* Step name */}
-                <div className="acc-field">
-                  <label htmlFor={`acc-name-${idx}`}>Step Name</label>
-                  <input
-                    id={`acc-name-${idx}`}
-                    type="text"
-                    value={step.name}
-                    onChange={(e) => updateStep(idx, 'name', e.target.value)}
-                    placeholder="e.g., Manager Review, Legal Sign-off"
-                    maxLength={100}
-                  />
-                </div>
-
-                {/* Quorum toggle */}
-                <div className="acc-field">
-                  <label>Quorum</label>
-                  <div className="acc-quorum-toggle">
-                    <button
-                      type="button"
-                      className={`acc-quorum-btn${!step.require_all ? ' active' : ''}`}
-                      onClick={() => updateStep(idx, 'require_all', false)}
-                    >
-                      Any one approver
-                    </button>
-                    <button
-                      type="button"
-                      className={`acc-quorum-btn${step.require_all ? ' active' : ''}`}
-                      onClick={() => updateStep(idx, 'require_all', true)}
-                    >
-                      All must approve
-                    </button>
-                  </div>
-                </div>
-
-                {/* Approver picker */}
-                <div className="acc-field">
-                  <label>
-                    Approvers{' '}
-                    <span className="acc-count">
-                      ({step.approver_user_ids?.length || 0} selected)
-                    </span>
-                  </label>
-                  <input
-                    type="text"
-                    className="acc-search"
-                    placeholder="Search by name or email…"
-                    value={searchTerms[idx] || ''}
-                    onChange={(e) =>
-                      setSearchTerms((prev) => ({ ...prev, [idx]: e.target.value }))
-                    }
-                  />
-                  <div className="acc-approver-list">
-                    {getFilteredUsers(idx).map((u) => {
-                      const selected =
-                        step.approver_user_ids?.includes(u.id) || false;
-                      return (
-                        <label
-                          key={u.id}
-                          className={`acc-approver-option${selected ? ' selected' : ''}`}
-                        >
-                          <input
-                            type="checkbox"
-                            checked={selected}
-                            onChange={() => toggleApprover(idx, u.id)}
-                          />
-                          <span>{getUserLabel(u)}</span>
-                        </label>
-                      );
-                    })}
-                    {getFilteredUsers(idx).length === 0 && (
-                      <span className="acc-no-results">No users match</span>
+              <React.Fragment key={idx}>
+                {idx > 0 && (
+                  <div className="acc-step-arrow" aria-hidden="true">→</div>
+                )}
+                <div className="acc-step-card">
+                  {/* Step card header */}
+                  <div className="acc-step-top">
+                    <span className="acc-step-num-label">Step {step.step_number}</span>
+                    {steps.length > 1 && (
+                      <button
+                        type="button"
+                        className="acc-remove-step"
+                        onClick={() => removeStep(idx)}
+                        title="Remove this step"
+                      >
+                        <FaTimes />
+                      </button>
                     )}
                   </div>
+
+                  {/* Step name */}
+                  <div className="acc-field">
+                    <label htmlFor={`acc-name-${idx}`}>Step Name</label>
+                    <input
+                      id={`acc-name-${idx}`}
+                      type="text"
+                      value={step.name}
+                      onChange={(e) => updateStep(idx, 'name', e.target.value)}
+                      placeholder="e.g., Manager Review"
+                      maxLength={100}
+                    />
+                  </div>
+
+                  {/* Quorum toggle */}
+                  <div className="acc-field">
+                    <label>Quorum</label>
+                    <div className="acc-quorum-toggle">
+                      <button
+                        type="button"
+                        className={`acc-quorum-btn${!step.require_all ? ' active' : ''}`}
+                        onClick={() => updateStep(idx, 'require_all', false)}
+                      >
+                        Any one
+                      </button>
+                      <button
+                        type="button"
+                        className={`acc-quorum-btn${step.require_all ? ' active' : ''}`}
+                        onClick={() => updateStep(idx, 'require_all', true)}
+                      >
+                        All must
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Approver picker — grows to fill remaining card height */}
+                  <div className="acc-field acc-field-approvers">
+                    <label>
+                      Approvers{' '}
+                      <span className="acc-count">
+                        ({step.approver_user_ids?.length || 0} selected)
+                      </span>
+                    </label>
+                    <input
+                      type="text"
+                      className="acc-search"
+                      placeholder="Search by name or email…"
+                      value={searchTerms[idx] || ''}
+                      onChange={(e) =>
+                        setSearchTerms((prev) => ({ ...prev, [idx]: e.target.value }))
+                      }
+                    />
+                    <div className="acc-approver-list">
+                      {getFilteredUsers(idx).map((u) => {
+                        const selected =
+                          step.approver_user_ids?.includes(u.id) || false;
+                        return (
+                          <label
+                            key={u.id}
+                            className={`acc-approver-option${selected ? ' selected' : ''}`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={selected}
+                              onChange={() => toggleApprover(idx, u.id)}
+                            />
+                            <span>{getUserLabel(u)}</span>
+                          </label>
+                        );
+                      })}
+                      {getFilteredUsers(idx).length === 0 && (
+                        <span className="acc-no-results">No users match</span>
+                      )}
+                    </div>
+                  </div>
                 </div>
-              </div>
+              </React.Fragment>
             ))}
           </div>
 
-          {/* Footer actions */}
+          {/* Footer actions — below the rail */}
           <div className="acc-footer">
             {steps.length < MAX_STEPS && (
               <button
@@ -332,6 +342,5 @@ ApprovalChainConfig.propTypes = {
   // Create/draft mode: called with the steps array instead of hitting the API
   onChange: PropTypes.func,
 };
-
 
 export default ApprovalChainConfig;
