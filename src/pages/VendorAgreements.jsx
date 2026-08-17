@@ -2587,6 +2587,26 @@ const VendorAgreements = () => {
                       Optionally configure a sequential multi-step approval chain. Click &ldquo;Apply&rdquo; to
                       confirm your steps — the chain will be saved automatically when the contract is created.
                     </p>
+                    {autoApprovalChain && !pendingApprovalChain && (
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'flex-start',
+                        gap: '8px',
+                        padding: '10px 14px',
+                        marginBottom: '12px',
+                        background: '#eff6ff',
+                        border: '1px solid #bfdbfe',
+                        borderRadius: '6px',
+                        fontSize: '12px',
+                        color: '#1d4ed8',
+                        lineHeight: '1.5',
+                      }}>
+                        <span style={{ flexShrink: 0, fontSize: '14px' }}>ℹ️</span>
+                        <span>
+                          Approval chain auto-configured from the selected contacts. Open below to review or customise, then click <strong>Apply</strong> to confirm.
+                        </span>
+                      </div>
+                    )}
                     <ApprovalChainConfig
                       users={chainUsers}
                       initialSteps={autoApprovalChain}
