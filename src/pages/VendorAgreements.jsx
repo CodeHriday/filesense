@@ -1833,8 +1833,8 @@ const VendorAgreements = () => {
         <>
           <div className="gps-page-header">
             <div className="gps-page-header-left">
-              <h1 className="gps-page-title">Vendor Contracts</h1>
-              <p className="gps-page-subtitle">Manage vendor file delivery agreements and contracts</p>
+              <h1 className="gps-page-title">Data Sharing Agreements</h1>
+              <p className="gps-page-subtitle">Manage data sharing agreements between internal and external parties</p>
             </div>
             <div className="gps-header-actions">
               <LineageBackButton />
@@ -1878,7 +1878,7 @@ const VendorAgreements = () => {
                     className="gps-btn gps-btn--primary"
                     onClick={openCreateModal}
                   >
-                    Create Vendor Contract
+                    Create Data Sharing Agreement
                   </button>
                 </>
               )}
