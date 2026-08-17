@@ -2018,7 +2018,7 @@ const VendorAgreements = () => {
             <ThreeSectionModal
               isOpen={modalOpen}
               onClose={closeModal}
-              title={modalMode === 'create' ? 'Create Vendor Contract' : 'Edit Vendor Contract'}
+              title={modalMode === 'create' ? 'Create Data Sharing Agreement' : 'Edit Data Sharing Agreement'}
               size="large"
               footer={
                 <>
@@ -2035,7 +2035,7 @@ const VendorAgreements = () => {
                     Save Draft
                   </button>
                   <button type="submit" form="agreement-form">
-                    {modalMode === 'create' || selectedAgreement?.status === 'draft' ? 'Create Contract' : 'Update Contract'}
+                    {modalMode === 'create' || selectedAgreement?.status === 'draft' ? 'Create Agreement' : 'Update Agreement'}
                   </button>
                 </>
               }
@@ -2283,10 +2283,10 @@ const VendorAgreements = () => {
                   </div>
                 </div>
                 
-                {/* Section 3: Vendor Information */}
+                {/* Section 3: Data Producer Information */}
                 {formData.vendor_id && (
                   <div className="form-section">
-                    <h3 className="section-title">Vendor Information</h3>
+                    <h3 className="section-title">Data Producer Information</h3>
                     
                     <div className="form-row-grid">
                       <div className="form-group">
@@ -2393,7 +2393,7 @@ const VendorAgreements = () => {
                 
                 {/* Section 4: Vendor Contact Information */}
                 <div className="form-section">
-                  <h3 className="section-title">Vendor Contact Information</h3>
+                  <h3 className="section-title">Contact Information</h3>
                   
                   <div className="two-column-grid">
                     {/* Primary Contact (Left Column) */}
