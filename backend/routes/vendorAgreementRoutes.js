@@ -185,7 +185,29 @@ router.post('/', requirePermission('vendor_agreements:write'), upload.single('sc
   
   try {
     const agreementData = JSON.parse(req.body.agreementData || '{}');
-    
+
+    // Non-admin users with write permission (Vendor Managers) may only create agreements
+    // for vendors they are already linked to — i.e. they must be the file_owner on at
+    // least one existing agreement for the target vendor.
+    // Admins bypass this check and can create for any vendor.
+    if (!userHasAdminAccess(req.user)) {
+      const targetVendorId = parseInt(agreementData.vendor_id, 10);
+      if (!targetVendorId || isNaN(targetVendorId)) {
+        return res.status(400).json({ error: 'vendor_id is required' });
+      }
+      const linkedCheck = await dbQuery(
+        `SELECT 1 FROM vendor_agreements
+         WHERE vendor_id = $1 AND file_owner_user_id = $2
+         LIMIT 1`,
+        [targetVendorId, req.user.id]
+      );
+      if (linkedCheck.rows.length === 0) {
+        return res.status(403).json({
+          error: 'Access denied. You may only create agreements for vendors you are linked to as file owner.'
+        });
+      }
+    }
+
     // Validate file configurations are required for non-draft contracts
     if (agreementData.status !== 'draft') {
       const fileConfigCount = parseInt(agreementData.file_configurations_count) || 0;
@@ -799,9 +821,10 @@ router.get('/:id', checkAgreementAccess, async (req, res) => {
 
 /**
  * PUT /api/vendor-agreements/:id
- * Update agreement (Requires vendor_agreements:write permission, can modify locked agreements)
+ * Update agreement (Requires vendor_agreements:write permission AND association with the agreement)
+ * Admins can edit any agreement; Vendor Managers can only edit agreements they are associated with.
  */
-router.put('/:id', requirePermission('vendor_agreements:write'), upload.single('schemaFile'), async (req, res) => {
+router.put('/:id', requirePermission('vendor_agreements:write'), checkAgreementAccess, upload.single('schemaFile'), async (req, res) => {
   let schemaFilePath = null;
   
   try {
@@ -812,6 +835,7 @@ router.put('/:id', requirePermission('vendor_agreements:write'), upload.single('
     }
     
     const updateData = JSON.parse(req.body.updateData || '{}');
+    const isAdminUser = req.isAdmin || userHasAdminAccess(req.user);
     
     // If schema file is uploaded, use it
     if (req.file) {
@@ -822,7 +846,7 @@ router.put('/:id', requirePermission('vendor_agreements:write'), upload.single('
         agreementId,
         updateData,
         req.user.id,
-        true, // isAdmin
+        isAdminUser,
         schemaFilePath,
         fileType
       );
@@ -833,7 +857,7 @@ router.put('/:id', requirePermission('vendor_agreements:write'), upload.single('
         agreementId,
         updateData,
         req.user.id,
-        true // isAdmin
+        isAdminUser
       );
       
       res.json(result);
@@ -1556,7 +1580,7 @@ router.post('/parse-template', templateUpload.single('templateFile'), async (req
 });
 
 // PATCH /api/vendor-agreements/:id/disable - Disable a vendor agreement
-router.patch('/:id/disable', requirePermission('vendor_agreements:write'), async (req, res) => {
+router.patch('/:id/disable', requirePermission('vendor_agreements:write'), checkAgreementAccess, async (req, res) => {
   try {
     const agreementId = parseInt(req.params.id);
     
@@ -1634,7 +1658,7 @@ router.get('/:id/check-dependencies', requirePermission('vendor_agreements:read'
 });
 
 // DELETE /api/vendor-agreements/:id - Delete a vendor agreement
-router.delete('/:id', requirePermission('vendor_agreements:write'), async (req, res) => {
+router.delete('/:id', requirePermission('vendor_agreements:write'), checkAgreementAccess, async (req, res) => {
   try {
     const agreementId = parseInt(req.params.id);
     
@@ -1857,7 +1881,7 @@ router.delete('/:id/documents/:docId', checkAgreementAccess, async (req, res) =>
  * POST /api/vendor-agreements/:id/archive-password
  * Store/update archive password for vendor agreement
  */
-router.post('/:id/archive-password', requirePermission('vendor_agreements:write'), async (req, res) => {
+router.post('/:id/archive-password', requirePermission('vendor_agreements:write'), checkAgreementAccess, async (req, res) => {
   try {
     const agreementId = parseInt(req.params.id);
     const { password } = req.body;
@@ -1945,7 +1969,7 @@ router.get('/:id/archive-password', requirePermission('vendor_agreements:read'),
  * DELETE /api/vendor-agreements/:id/archive-password
  * Delete archive password for vendor agreement
  */
-router.delete('/:id/archive-password', requirePermission('vendor_agreements:write'), async (req, res) => {
+router.delete('/:id/archive-password', requirePermission('vendor_agreements:write'), checkAgreementAccess, async (req, res) => {
   try {
     const agreementId = parseInt(req.params.id);
     
@@ -2097,7 +2121,7 @@ router.get('/:id/stakeholders', checkAgreementAccess, async (req, res) => {
  * PUT /:id/stakeholders
  * Update additional stakeholders for an agreement
  */
-router.put('/:id/stakeholders', requirePermission('vendor_agreements:write'), async (req, res) => {
+router.put('/:id/stakeholders', requirePermission('vendor_agreements:write'), checkAgreementAccess, async (req, res) => {
   try {
     const agreementId = parseInt(req.params.id);
     const { userIds = [], groupIds = [] } = req.body;

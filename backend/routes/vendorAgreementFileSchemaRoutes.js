@@ -10,6 +10,53 @@ const { systemLogger } = require('../utils/logger');
 const { requirePermission } = require('../middleware/vendorPermissions');
 const { matchesPattern } = require('../utils/filePatternMatcher');
 const PasswordVaultService = require('../services/passwordVaultService');
+const { userHasAdminAccess } = require('../utils/permissionHelpers');
+
+/**
+ * Check whether `user` has an explicit association with the given agreement.
+ * Mirrors the logic in checkAgreementAccess in vendorAgreementRoutes.js.
+ * Returns null if access is granted, or an error response object if denied.
+ */
+const checkFileSchemaAccess = async (user, agreementId) => {
+  // Admins bypass all association checks
+  if (userHasAdminAccess(user)) return null;
+
+  const result = await pool.query(
+    `SELECT file_owner_user_id, created_by, primary_contact_email,
+            secondary_contact_email, vendor_user_id, approval_chain_config
+     FROM vendor_agreements WHERE id = $1`,
+    [agreementId]
+  );
+
+  if (result.rows.length === 0) {
+    return { status: 404, body: { success: false, error: 'Vendor agreement not found' } };
+  }
+
+  const ag = result.rows[0];
+
+  if (ag.file_owner_user_id === user.id) return null;
+  if (ag.created_by === user.id) return null;
+  if (ag.vendor_user_id === user.id) return null;
+  if (user.email) {
+    if (ag.primary_contact_email === user.email) return null;
+    if (ag.secondary_contact_email === user.email) return null;
+  }
+
+  const chainConfig = typeof ag.approval_chain_config === 'string'
+    ? JSON.parse(ag.approval_chain_config)
+    : ag.approval_chain_config;
+
+  if (chainConfig?.steps?.length) {
+    const isChainApprover = chainConfig.steps.some(
+      (step) =>
+        Array.isArray(step.approver_user_ids) &&
+        step.approver_user_ids.some((id) => parseInt(id, 10) === user.id)
+    );
+    if (isChainApprover) return null;
+  }
+
+  return { status: 403, body: { success: false, error: 'Access denied. You are not associated with this agreement.' } };
+};
 
 let passwordVaultService = null;
 
@@ -133,6 +180,10 @@ router.post('/:agreementId/file-schemas', requirePermission('vendor_agreements:w
   
   try {
     const { agreementId } = req.params;
+
+    const accessDenied = await checkFileSchemaAccess(req.user, agreementId);
+    if (accessDenied) return res.status(accessDenied.status).json(accessDenied.body);
+
     const { 
       file_name_pattern, 
       file_description, 
@@ -314,7 +365,10 @@ router.put('/:agreementId/file-schemas', requirePermission('vendor_agreements:wr
   try {
     const { agreementId } = req.params;
     const { fileSchemas } = req.body;
-    
+
+    const accessDenied = await checkFileSchemaAccess(req.user, agreementId);
+    if (accessDenied) return res.status(accessDenied.status).json(accessDenied.body);
+
     // IMMEDIATE console.log for debugging
     console.log('=== BULK FILE SCHEMAS PUT ===');
     console.log('Agreement ID:', agreementId);
@@ -578,6 +632,10 @@ router.put('/:agreementId/file-schemas/:schemaId', requirePermission('vendor_agr
   
   try {
     const { agreementId, schemaId } = req.params;
+
+    const accessDenied = await checkFileSchemaAccess(req.user, agreementId);
+    if (accessDenied) return res.status(accessDenied.status).json(accessDenied.body);
+
     const { 
       file_name_pattern, 
       file_description, 
@@ -829,7 +887,10 @@ router.delete('/:agreementId/file-schemas/:schemaId', requirePermission('vendor_
   try {
     const { agreementId, schemaId } = req.params;
     const { hardDelete } = req.query;
-    
+
+    const accessDenied = await checkFileSchemaAccess(req.user, agreementId);
+    if (accessDenied) return res.status(accessDenied.status).json(accessDenied.body);
+
     // Verify file schema exists and belongs to this agreement
     const existingCheck = await pool.query(
       'SELECT id FROM vendor_agreement_file_schemas WHERE id = $1 AND vendor_agreement_id = $2',

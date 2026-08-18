@@ -161,6 +161,36 @@ const VendorAgreements = () => {
   // Check for admin-level access (uses permission-based check for backward compatibility)
   const isAdmin = hasPermission('users:write') || hasPermission('project_management:write') || (hasRole && hasRole('Admin'));
   const isVendor = isVendorUser(currentUser);
+  // Internal user with write permission but not admin-level access
+  const isVendorManager = !isAdmin && !isVendor && (hasPermission && hasPermission('vendor_agreements:write'));
+
+  // Mirror the backend checkAgreementAccess association check for a specific agreement.
+  // Returns true if the current user has an explicit relationship with the agreement
+  // (file owner, creator, contact, or approval-chain member).
+  const isAssociatedWithAgreement = (agreement) => {
+    if (!currentUser || !agreement) return false;
+    if (isAdmin) return true;
+    if (agreement.file_owner_user_id === currentUser.id) return true;
+    if (agreement.created_by === currentUser.id) return true;
+    if (currentUser.email) {
+      if (agreement.primary_contact_email === currentUser.email) return true;
+      if (agreement.secondary_contact_email === currentUser.email) return true;
+    }
+    if (agreement.approval_chain_config?.steps?.length) {
+      return agreement.approval_chain_config.steps.some(
+        (step) =>
+          Array.isArray(step.approver_user_ids) &&
+          step.approver_user_ids.some((id) => parseInt(id, 10) === currentUser.id)
+      );
+    }
+    return false;
+  };
+
+  // A Vendor Manager can create new agreements only when they are already associated
+  // with at least one vendor (i.e., they appear as file owner on an existing agreement).
+  const canCreate = isAdmin || (
+    isVendorManager && agreements.some((a) => a.file_owner_user_id === currentUser?.id)
+  );
   
   useEffect(() => {
     if (!currentUser) {
@@ -1898,7 +1928,7 @@ const VendorAgreements = () => {
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
               </div>
-              {(isAdmin || (hasPermission && hasPermission('vendor_agreements:write'))) && !isVendor && (
+              {canCreate && (
                 <>
                   {isAdmin && (
                     <>
@@ -2017,7 +2047,7 @@ const VendorAgreements = () => {
                           >
                             <FiEye />
                           </button>
-                          {(isAdmin || (isVendor && currentUser.vendor_id === agreement.vendor_id && hasPermission && hasPermission('vendor_agreements:write'))) && (
+                          {(isAdmin || ((isVendorManager || isVendor) && isAssociatedWithAgreement(agreement))) && (
                             <button 
                               className="gps-icon-btn gps-icon-btn--edit" 
                               onClick={() => openEditModal(agreement)}
