@@ -743,7 +743,19 @@ router.get('/:id/full', checkAgreementAccess, async (req, res) => {
       LIMIT 100
     `, [agreementId]);
     
-    // Fetch configurable chain step decisions (new approval chain flow)
+    // Timestamp of the most recent chain submission — used by the panel to separate
+    // current-round decisions from decisions that belong to earlier (rejected) rounds.
+    const lastSubmissionResult = await dbQuery(`
+      SELECT MAX(approval_timestamp) AS chain_submitted_at
+      FROM vendor_agreement_approvals
+      WHERE agreement_id = $1 AND approval_stage = 'chain_submission'
+    `, [agreementId]);
+    const chainSubmittedAt = lastSubmissionResult.rows[0]?.chain_submitted_at ?? null;
+
+    // Fetch configurable chain step decisions (new approval chain flow).
+    // Return ALL rows so the history tab can show a full audit trail; the panel
+    // uses chain_submitted_at (stamped on the agreement below) to isolate the
+    // current round rather than relying on agreement_version alone.
     const stepDecisionsResult = await dbQuery(`
       SELECT
         vasd.id,
@@ -785,9 +797,13 @@ router.get('/:id/full', checkAgreementAccess, async (req, res) => {
       }
     }
 
+    // Attach the last-submission timestamp so the panel can filter current-round
+    // decisions without relying solely on agreement_version.
+    const agreementWithMeta = { ...req.agreement, chain_submitted_at: chainSubmittedAt };
+
     res.json({
       success: true,
-      agreement: req.agreement,
+      agreement: agreementWithMeta,
       approvals: approvalsWithDocs,
       changes: changesResult.rows,
       step_decisions: stepDecisionsResult.rows,

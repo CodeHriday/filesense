@@ -31,14 +31,24 @@ const DynamicApprovalPanel = ({
 
   if (!steps.length) return null;
 
-  // Only use decisions from the current agreement version for vote-chip / quorum / hasVoted logic.
-  // The history tab in VendorAgreements uses the full stepDecisions array (all versions) for audit.
-  const currentRoundDecisions = currentVersion != null
-    ? stepDecisions.filter(
-        (d) => d.agreement_version === currentVersion ||
-               String(d.agreement_version) === String(currentVersion)
-      )
-    : stepDecisions;
+  // Isolate decisions that belong to the current approval round.
+  // Primary: filter by chain_submitted_at — only decisions recorded AFTER the last
+  // chain submission timestamp belong to this round. This correctly handles
+  // resubmissions that pre-date the per-round version increment.
+  // Fallback: filter by agreement_version for agreements with no submission timestamp.
+  const chainSubmittedAt = agreement.chain_submitted_at
+    ? new Date(agreement.chain_submitted_at)
+    : null;
+
+  const currentRoundDecisions = chainSubmittedAt
+    ? stepDecisions.filter((d) => d.decided_at && new Date(d.decided_at) >= chainSubmittedAt)
+    : currentVersion != null
+      ? stepDecisions.filter(
+          (d) =>
+            d.agreement_version === currentVersion ||
+            String(d.agreement_version) === String(currentVersion)
+        )
+      : stepDecisions;
 
   /* ── Helpers ─────────────────────────────────────────── */
 
