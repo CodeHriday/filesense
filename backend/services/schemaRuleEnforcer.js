@@ -91,7 +91,7 @@ function resolveRuleType(uiRuleType) {
  *                                       the generated schema JSON.
  * @returns {Promise<Object|null>}
  */
-async function findOrCreateSchemaRule(db, uiRuleType, columnName, severity = 'warning', configOverride = null, candidateRuleIds = [], namedRuleName = '') {
+async function findOrCreateSchemaRule(db, uiRuleType, columnName, severity = 'warning', configOverride = null, candidateRuleIds = [], namedRuleName = '', projectId = null) {
   const resolution = resolveRuleType(uiRuleType);
   if (!resolution) return null;
 
@@ -110,9 +110,12 @@ async function findOrCreateSchemaRule(db, uiRuleType, columnName, severity = 'wa
     const namedResult = await db.query(
       `SELECT id, rule_name, rule_type, column_name, rule_config, severity, enabled
        FROM quality_rules
-       WHERE rule_name = $1 AND project_id IS NULL AND enabled = true
+       WHERE rule_name = $1
+         AND enabled = true
+         AND (project_id IS NULL OR ($2::int IS NOT NULL AND project_id = $2::int))
+       ORDER BY (project_id IS NULL) ASC NULLS LAST
        LIMIT 1`,
-      [namedRuleName.trim()]
+      [namedRuleName.trim(), projectId || null]
     );
     if (namedResult.rows.length > 0) {
       const row = namedResult.rows[0];
@@ -363,11 +366,13 @@ async function findOrCreateSchemaRule(db, uiRuleType, columnName, severity = 'wa
        WHERE rule_type = 'record_count'
          AND enabled = true
          AND NOT starts_with(rule_name, '__schema_default__')
-         AND project_id IS NULL
+         AND (project_id IS NULL OR ($1::int IS NOT NULL AND project_id = $1::int))
          AND (column_name = '__file__' OR column_name IS NULL)
-       ORDER BY (column_name = '__file__') DESC NULLS LAST, id
+       ORDER BY (project_id IS NULL) ASC NULLS LAST,
+                (column_name = '__file__') DESC NULLS LAST,
+                id
        LIMIT 1`,
-      []
+      [projectId || null]
     );
     if (rcBroad.rows.length > 0) {
       const row = rcBroad.rows[0];
@@ -538,6 +543,10 @@ function normaliseSchema(schema) {
  */
 async function enforceSchemaRules(db, fileId, schemaColumns, previewData, rowCount, options = {}) {
   const candidateRuleIds = Array.isArray(options.candidateRuleIds) ? options.candidateRuleIds : [];
+  // projectId scopes the broad file-level rule lookup to project-specific rules in addition to
+  // global ones, so a project-scoped record_count rule (e.g. file_rec_count, project_id=N)
+  // is found even when vafs.quality_rule_ids is empty.
+  const projectId = options.projectId != null ? Number(options.projectId) : null;
 
   // Normalise: accept both legacy bare array and new {columns, file_quality_rules} object
   const { columns: normColumns, fileQualityRules } = normaliseSchema(schemaColumns);
@@ -595,7 +604,7 @@ async function enforceSchemaRules(db, fileId, schemaColumns, previewData, rowCou
 
       try {
         const rule = await findOrCreateSchemaRule(
-          db, normalized, columnName, 'warning', null, candidateRuleIds, ruleNameHint
+          db, normalized, columnName, 'warning', null, candidateRuleIds, ruleNameHint, projectId
         );
         if (!rule) {
           ruleErrors.push({ columnName, uiRuleType: normalized, error: 'rule row not created' });
@@ -654,7 +663,7 @@ async function enforceSchemaRules(db, fileId, schemaColumns, previewData, rowCou
     }
     try {
       const rule = await findOrCreateSchemaRule(
-        db, normalized, '__file__', 'warning', fileLevelEntry.config || null, candidateRuleIds, ruleNameHint
+        db, normalized, '__file__', 'warning', fileLevelEntry.config || null, candidateRuleIds, ruleNameHint, projectId
       );
       if (!rule) {
         // For record_count, null means no real rule exists in Quality Rules — intentionally

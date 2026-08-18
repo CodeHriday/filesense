@@ -2835,7 +2835,11 @@ print(json.dumps(result))
             fileName: filename,
             candidateRuleIds: Array.isArray(matchedSchema.quality_rule_ids)
               ? matchedSchema.quality_rule_ids
-              : []
+              : [],
+            // Pass the file's project so the enforcer can find project-scoped
+            // file-level rules (e.g. record_count with project_id = N) even
+            // when vafs.quality_rule_ids is empty.
+            projectId: projectId
           }
         );
         this.logger.info('Schema rule enforcement completed', {

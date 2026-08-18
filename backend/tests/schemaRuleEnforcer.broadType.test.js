@@ -90,25 +90,33 @@ function buildMockDb({ existingRules = [], insertedRules = [] } = {}) {
       // -----------------------------------------------------------------------
       // Record-count file-level lookup (step 0c) — WHERE rule_type = 'record_count'
       // AND (column_name = '__file__' OR column_name IS NULL)
-      // Distinguishing features: SQL contains "column_name = '__file__'" and params = [].
+      // Distinguishing features: SQL contains "column_name = '__file__'" and params.length <= 1
+      // (either [] for legacy or [null/projectId] for project-scoped lookup).
       // -----------------------------------------------------------------------
       if (
         normalised.includes("column_name = '__file__'") &&
         normalised.includes("not starts_with(rule_name, '__schema_default__')") &&
-        params.length === 0
+        params.length <= 1
       ) {
+        const projectId = params.length > 0 ? params[0] : null;
         let rows = existingRules.filter(r => {
           if (r.rule_type !== 'record_count') return false;
           if (!r.enabled) return false;
           if (r.rule_name.startsWith('__schema_default__')) return false;
-          if (r.project_id !== null && r.project_id !== undefined) return false;
+          // Allow global (project_id IS NULL) or matching project-scoped rule
+          if (r.project_id !== null && r.project_id !== undefined) {
+            if (projectId === null || r.project_id !== projectId) return false;
+          }
           if (r.column_name !== null && r.column_name !== '__file__') return false;
           return true;
         });
         rows.sort((a, b) => {
+          // Prefer project-specific over global, then __file__-scoped over null
+          const aProj = (a.project_id !== null && a.project_id !== undefined) ? 1 : 0;
+          const bProj = (b.project_id !== null && b.project_id !== undefined) ? 1 : 0;
           const aFile = a.column_name === '__file__' ? 1 : 0;
           const bFile = b.column_name === '__file__' ? 1 : 0;
-          return bFile - aFile || a.id - b.id;
+          return (bProj - aProj) || (bFile - aFile) || a.id - b.id;
         });
         return { rows: rows.slice(0, 1) };
       }
@@ -161,13 +169,22 @@ function buildMockDb({ existingRules = [], insertedRules = [] } = {}) {
       }
 
       // -----------------------------------------------------------------------
-      // Name-first lookup (step -1) — WHERE rule_name = $1 AND project_id IS NULL AND enabled = true
+      // Name-first lookup (step -1) — WHERE rule_name = $1 AND enabled = true
+      //   AND (project_id IS NULL OR ($2::int IS NOT NULL AND project_id = $2::int))
+      // Distinguishing feature: has "rule_name = $1" but NOT "column_name = $2".
       // -----------------------------------------------------------------------
-      if (normalised.includes('where rule_name = $1 and project_id is null and enabled = true')) {
-        const [namedRuleName] = params;
+      if (normalised.includes('where rule_name = $1') && !normalised.includes('column_name = $2')) {
+        const [namedRuleName, projectId] = params;
         const rows = existingRules.filter(
-          r => r.rule_name === namedRuleName && r.project_id == null && r.enabled
+          r => r.rule_name === namedRuleName && r.enabled &&
+               (r.project_id == null || (projectId != null && r.project_id === projectId))
         );
+        rows.sort((a, b) => {
+          // Prefer project-specific over global
+          const aProj = (a.project_id !== null && a.project_id !== undefined) ? 1 : 0;
+          const bProj = (b.project_id !== null && b.project_id !== undefined) ? 1 : 0;
+          return bProj - aProj || a.id - b.id;
+        });
         return { rows: rows.slice(0, 1) };
       }
 
@@ -682,6 +699,94 @@ describe('schemaRuleEnforcer — broad-type rule matching', () => {
       expect(inserted).toHaveLength(0);
     });
 
+    // -----------------------------------------------------------------------
+    // Project-scoped record_count rules (new behavior added for Fix 1)
+    // -----------------------------------------------------------------------
+
+    test('project-scoped record_count rule is matched when projectId is provided', async () => {
+      const PROJECT_RC = {
+        id: 28,
+        rule_name: 'file_rec_count',
+        rule_type: 'record_count',
+        column_name: '__file__',
+        rule_config: { operator: 'exactly', expected_count: 4 },
+        severity: 'warning',
+        enabled: true,
+        project_id: 1469
+      };
+      const inserted = [];
+      const db = buildMockDb({ existingRules: [PROJECT_RC], insertedRules: inserted });
+      const config = { operator: 'exactly', expected_count: 4 };
+
+      const result = await findOrCreateSchemaRule(
+        db, 'record_count', '__file__', 'warning', config, [], '', 1469
+      );
+
+      expect(result).not.toBeNull();
+      expect(result.id).toBe(28);
+      expect(result.rule_name).toBe('file_rec_count');
+      // configOverride applied
+      expect(result.rule_config).toEqual(config);
+      expect(inserted).toHaveLength(0);
+    });
+
+    test('project-scoped record_count rule is NOT matched when projectId is null', async () => {
+      const PROJECT_RC = {
+        id: 28,
+        rule_name: 'file_rec_count',
+        rule_type: 'record_count',
+        column_name: '__file__',
+        rule_config: { operator: 'exactly', expected_count: 4 },
+        severity: 'warning',
+        enabled: true,
+        project_id: 1469
+      };
+      const inserted = [];
+      const db = buildMockDb({ existingRules: [PROJECT_RC], insertedRules: inserted });
+
+      // No projectId supplied — project-scoped rule must NOT be returned
+      const result = await findOrCreateSchemaRule(
+        db, 'record_count', '__file__', 'warning', null, [], '', null
+      );
+
+      expect(result).toBeNull();
+      expect(inserted).toHaveLength(0);
+    });
+
+    test('project-scoped record_count rule takes priority over global rule when projectId matches', async () => {
+      const GLOBAL_RC = {
+        id: 10,
+        rule_name: 'global_rec_count',
+        rule_type: 'record_count',
+        column_name: '__file__',
+        rule_config: {},
+        severity: 'warning',
+        enabled: true,
+        project_id: null
+      };
+      const PROJECT_RC = {
+        id: 28,
+        rule_name: 'file_rec_count',
+        rule_type: 'record_count',
+        column_name: '__file__',
+        rule_config: {},
+        severity: 'warning',
+        enabled: true,
+        project_id: 1469
+      };
+      const inserted = [];
+      const db = buildMockDb({ existingRules: [GLOBAL_RC, PROJECT_RC], insertedRules: inserted });
+
+      const result = await findOrCreateSchemaRule(
+        db, 'record_count', '__file__', 'warning', null, [], '', 1469
+      );
+
+      // Project-specific rule must be preferred over global
+      expect(result).not.toBeNull();
+      expect(result.id).toBe(28);
+      expect(inserted).toHaveLength(0);
+    });
+
   });
 
   describe('Config-sensitive column-level rules (length_check) still create synthetic rows', () => {
@@ -853,6 +958,96 @@ describe('schemaRuleEnforcer — broad-type rule matching', () => {
 
       expect(result).not.toBeNull();
       expect(result.id).toBe(DATE_FORMAT_RULE.id);
+      expect(inserted).toHaveLength(0);
+    });
+
+    // -----------------------------------------------------------------------
+    // Project-scoped named-rule lookup (new behavior added for Fix 1)
+    // -----------------------------------------------------------------------
+
+    test('project-scoped named rule is found when projectId matches', async () => {
+      const PROJECT_RULE = {
+        id: 28,
+        rule_name: 'file_rec_count',
+        rule_type: 'record_count',
+        column_name: '__file__',
+        rule_config: { operator: 'exactly', expected_count: 4 },
+        severity: 'warning',
+        enabled: true,
+        project_id: 1469
+      };
+      const inserted = [];
+      const db = buildMockDb({ existingRules: [PROJECT_RULE], insertedRules: inserted });
+
+      const result = await findOrCreateSchemaRule(
+        db, 'record_count', '__file__', 'warning',
+        { operator: 'exactly', expected_count: 4 },
+        [], 'file_rec_count', 1469
+      );
+
+      expect(result).not.toBeNull();
+      expect(result.id).toBe(28);
+      expect(result.rule_name).toBe('file_rec_count');
+      expect(inserted).toHaveLength(0);
+    });
+
+    test('project-scoped named rule is NOT found when projectId is null', async () => {
+      const PROJECT_RULE = {
+        id: 28,
+        rule_name: 'file_rec_count',
+        rule_type: 'record_count',
+        column_name: '__file__',
+        rule_config: { operator: 'exactly', expected_count: 4 },
+        severity: 'warning',
+        enabled: true,
+        project_id: 1469
+      };
+      const inserted = [];
+      const db = buildMockDb({ existingRules: [PROJECT_RULE], insertedRules: inserted });
+
+      // No projectId → project-scoped rule is not visible → name-first misses
+      // → falls to broad lookup → also misses (project-scoped excluded) → null
+      const result = await findOrCreateSchemaRule(
+        db, 'record_count', '__file__', 'warning',
+        null, [], 'file_rec_count', null
+      );
+
+      expect(result).toBeNull();
+      expect(inserted).toHaveLength(0);
+    });
+
+    test('project-scoped named rule preferred over same-named global rule', async () => {
+      const GLOBAL_RULE = {
+        id: 10,
+        rule_name: 'file_rec_count',
+        rule_type: 'record_count',
+        column_name: '__file__',
+        rule_config: { operator: 'exactly', expected_count: 100 },
+        severity: 'warning',
+        enabled: true,
+        project_id: null
+      };
+      const PROJECT_RULE = {
+        id: 28,
+        rule_name: 'file_rec_count',
+        rule_type: 'record_count',
+        column_name: '__file__',
+        rule_config: { operator: 'exactly', expected_count: 4 },
+        severity: 'warning',
+        enabled: true,
+        project_id: 1469
+      };
+      const inserted = [];
+      const db = buildMockDb({ existingRules: [GLOBAL_RULE, PROJECT_RULE], insertedRules: inserted });
+
+      const result = await findOrCreateSchemaRule(
+        db, 'record_count', '__file__', 'warning',
+        null, [], 'file_rec_count', 1469
+      );
+
+      // Project-specific rule takes precedence over global one
+      expect(result).not.toBeNull();
+      expect(result.id).toBe(28);
       expect(inserted).toHaveLength(0);
     });
 

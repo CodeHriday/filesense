@@ -13,6 +13,84 @@ const PasswordVaultService = require('../services/passwordVaultService');
 const { userHasAdminAccess } = require('../utils/permissionHelpers');
 
 /**
+ * Resolve any file_quality_rules entries in a new-shape schema object
+ * ({columns, file_quality_rules}) to quality_rules IDs, and merge them into
+ * the provided existingRuleIds.  Returns the merged (deduped) array.
+ *
+ * This populates vafs.quality_rule_ids so the worker's direct ID-linking
+ * path also links file-level rules on upload, providing a fallback to the
+ * schema enforcer's project-scoped lookup (Fix 2 / defence-in-depth).
+ *
+ * Never throws — returns existingRuleIds unchanged on any error so a schema
+ * save is never blocked by this enhancement.
+ *
+ * @param {Object}   pool           - pg Pool
+ * @param {Object}   schemaObj      - The {columns, file_quality_rules} schema object
+ * @param {number[]} existingRuleIds
+ * @param {number|null} projectId   - The vendor agreement's project_id (for scoped lookup)
+ * @returns {Promise<number[]>}
+ */
+async function mergeFileQualityRuleIds(pool, schemaObj, existingRuleIds = [], projectId = null) {
+  try {
+    if (!schemaObj || typeof schemaObj !== 'object' || Array.isArray(schemaObj)) return existingRuleIds;
+    const fqr = schemaObj.file_quality_rules;
+    if (!Array.isArray(fqr) || fqr.length === 0) return existingRuleIds;
+
+    const resolvedSet = new Set(existingRuleIds);
+
+    for (const entry of fqr) {
+      const ruleType = ((typeof entry === 'string' ? entry : (entry && entry.rule_type)) || '').toLowerCase().trim();
+      const ruleName = (entry && typeof entry === 'object' && entry.rule_name) ? entry.rule_name.trim() : '';
+      if (!ruleType) continue;
+
+      let ruleId = null;
+
+      // 1. Name-first: when rule_name is specified, find that exact rule.
+      //    Mirrors enforcer step -1: prefer project-scoped over global, accept both.
+      if (ruleName) {
+        const namedRes = await pool.query(
+          `SELECT id FROM quality_rules
+           WHERE rule_name = $1
+             AND enabled = true
+             AND NOT starts_with(rule_name, '__schema_default__')
+             AND (project_id IS NULL OR ($2::int IS NOT NULL AND project_id = $2::int))
+           ORDER BY (project_id IS NULL) ASC NULLS LAST
+           LIMIT 1`,
+          [ruleName, projectId || null]
+        );
+        if (namedRes.rows.length > 0) ruleId = namedRes.rows[0].id;
+      }
+
+      // 2. Broad file-level lookup by rule_type (one rule per entry).
+      //    Mirrors enforcer step 0c: prefer project-scoped and __file__-scoped over global.
+      if (ruleId === null) {
+        const broadRes = await pool.query(
+          `SELECT id FROM quality_rules
+           WHERE rule_type = $1
+             AND enabled = true
+             AND NOT starts_with(rule_name, '__schema_default__')
+             AND (project_id IS NULL OR ($2::int IS NOT NULL AND project_id = $2::int))
+             AND (column_name = '__file__' OR column_name IS NULL)
+           ORDER BY (project_id IS NULL) ASC NULLS LAST,
+                    (column_name = '__file__') DESC NULLS LAST,
+                    id
+           LIMIT 1`,
+          [ruleType, projectId || null]
+        );
+        if (broadRes.rows.length > 0) ruleId = broadRes.rows[0].id;
+      }
+
+      if (ruleId !== null) resolvedSet.add(ruleId);
+    }
+
+    return Array.from(resolvedSet);
+  } catch (err) {
+    systemLogger.warn('[vendorAgreementFileSchema] Could not resolve file_quality_rules to IDs — skipping quality_rule_ids merge', { error: err.message });
+    return existingRuleIds;
+  }
+}
+
+/**
  * Check whether `user` has an explicit association with the given agreement.
  * Mirrors the logic in checkAgreementAccess in vendorAgreementRoutes.js.
  * Returns null if access is granted, or an error response object if denied.
@@ -270,7 +348,7 @@ router.post('/:agreementId/file-schemas', requirePermission('vendor_agreements:w
     
     // Verify vendor agreement exists
     const agreementCheck = await pool.query(
-      'SELECT id FROM vendor_agreements WHERE id = $1',
+      'SELECT id, project_id FROM vendor_agreements WHERE id = $1',
       [agreementId]
     );
     
@@ -280,6 +358,14 @@ router.post('/:agreementId/file-schemas', requirePermission('vendor_agreements:w
         error: 'Vendor agreement not found'
       });
     }
+
+    // Fix 2 (defence-in-depth): if the schema object carries file_quality_rules,
+    // resolve those rule types to quality_rules IDs and merge into quality_rule_ids
+    // so the worker's direct ID-linking path also links file-level rules on upload.
+    const agreementProjectId = agreementCheck.rows[0].project_id || null;
+    const effectiveQualityRuleIds = isNewSchemaObject
+      ? await mergeFileQualityRuleIds(pool, schema, quality_rule_ids, agreementProjectId)
+      : quality_rule_ids;
     
     // Insert file schema
     const result = await pool.query(
@@ -311,7 +397,7 @@ router.post('/:agreementId/file-schemas', requirePermission('vendor_agreements:w
         contains_pii,
         data_classification,
         file_type,
-        JSON.stringify(quality_rule_ids),
+        JSON.stringify(effectiveQualityRuleIds),
         JSON.stringify(column_metadata),
         has_header,
         header_definition ? JSON.stringify(header_definition) : null,
@@ -398,7 +484,7 @@ router.put('/:agreementId/file-schemas', requirePermission('vendor_agreements:wr
     
     // Verify vendor agreement exists
     const agreementCheck = await client.query(
-      'SELECT id FROM vendor_agreements WHERE id = $1',
+      'SELECT id, project_id FROM vendor_agreements WHERE id = $1',
       [agreementId]
     );
     
@@ -408,6 +494,8 @@ router.put('/:agreementId/file-schemas', requirePermission('vendor_agreements:wr
         error: 'Vendor agreement not found'
       });
     }
+
+    const bulkAgreementProjectId = agreementCheck.rows[0].project_id || null;
     
     await client.query('BEGIN');
     
@@ -508,6 +596,13 @@ router.put('/:agreementId/file-schemas', requirePermission('vendor_agreements:wr
           error: 'Each file schema must have a valid schema definition array or a schema reference token'
         });
       }
+
+      // Fix 2 (defence-in-depth): resolve file_quality_rules entries in the schema
+      // to quality_rules IDs and merge into quality_rule_ids so the worker's direct
+      // ID-linking path also links file-level rules on upload.
+      const effectiveBulkRuleIds = isColumnsObject
+        ? await mergeFileQualityRuleIds(client, schemaDefinition, quality_rule_ids, bulkAgreementProjectId)
+        : quality_rule_ids;
       
       const result = await client.query(
         `INSERT INTO vendor_agreement_file_schemas (
@@ -538,7 +633,7 @@ router.put('/:agreementId/file-schemas', requirePermission('vendor_agreements:wr
           contains_pii,
           data_classification,
           file_type,
-          JSON.stringify(quality_rule_ids),
+          JSON.stringify(effectiveBulkRuleIds),
           JSON.stringify(column_metadata),
           has_header,
           header_definition ? JSON.stringify(header_definition) : null,
