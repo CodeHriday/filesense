@@ -107,9 +107,13 @@ function VendorFileUpload() {
         headers: { Authorization: `Bearer ${token}` }
       });
       const agreements = response.data.agreements || [];
-      // Only show approved and locked agreements for file upload
+      // Show locked agreements that are fully approved — either via the legacy
+      // governance workflow ('governance_approved') or the newer chain-approval
+      // workflow ('fully_approved'). Both statuses indicate the contract has
+      // cleared all required approvals and is ready for file uploads.
       const approvedAgreements = agreements.filter(a => 
-        a.approval_status === 'governance_approved' && a.is_locked === true
+        (a.approval_status === 'governance_approved' || a.approval_status === 'fully_approved') &&
+        a.is_locked === true
       );
       setVendorAgreements(approvedAgreements);
     } catch (error) {

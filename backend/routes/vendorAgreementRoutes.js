@@ -274,28 +274,17 @@ router.get('/', async (req, res) => {
     const status = req.query.status || null;
     const filterByMyVendor = req.query.filterByMyVendor === 'true';
     
-    // If filterByMyVendor is true, get ALL vendor IDs where user is a contact
-    // This ensures vendor users see agreements for ALL their vendor organizations
+    // filterByMyVendor=true: show agreements for the user's own vendor AND any agreements
+    // where they are explicitly named (approval chain, contact email, etc.).
+    // The visibility SQL in getAllAgreements already covers vendor-user associations via
+    // v.vendor_user_id = userId, so we do NOT add a hard vendor_id restriction here —
+    // doing so would exclude agreements from other vendors where the user is a chain
+    // approver or contact (e.g. vendor 27 user appearing in vendor 29's approval chain).
     if (filterByMyVendor && !vendorId) {
-      const vendorResult = await dbQuery(
-        'SELECT id FROM vendors WHERE vendor_user_id = $1 AND status = $2',
-        [req.user.id, 'active']
-      );
-      if (vendorResult.rows.length > 0) {
-        vendorIds = vendorResult.rows.map(row => row.id);
-        systemLogger.info('Filtering agreements by user vendors', { 
-          userId: req.user.id, 
-          vendorIds,
-          vendorCount: vendorIds.length
-        });
-      } else {
-        // No direct vendor associations - fall back to legacy contact-based filtering
-        // Leave vendorIds as null so the role-based filtering (contact emails, project membership) still applies
-        systemLogger.info('No vendor associations found, using contact-based filtering', { 
-          userId: req.user.id,
-          filterByMyVendor: true 
-        });
-      }
+      systemLogger.info('filterByMyVendor=true: using visibility SQL (no vendor_id restriction)', {
+        userId: req.user.id
+      });
+      // vendorIds remains null; visibility SQL handles all access control
     }
     
     // Users with approve or read permission are internal staff with explicit access grants —
