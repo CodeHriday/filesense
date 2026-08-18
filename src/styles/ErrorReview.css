@@ -116,6 +116,124 @@
   margin-left: auto;
 }
 
+/* ── Sub-Project level ── */
+
+.qv-subproject-list {
+  display: flex;
+  flex-direction: column;
+  padding: 0.4rem 0.75rem 0.5rem 1.5rem;
+  gap: 0.35rem;
+  background: #f5f6f8;
+}
+
+.qv-subproject-group {
+  border: 1px solid #e2e4e8;
+  border-radius: 5px;
+  overflow: hidden;
+  background: #fff;
+}
+
+.qv-subproject-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background: #eef0f4;
+  cursor: pointer;
+  user-select: none;
+}
+
+.qv-subproject-header:hover {
+  background: #e5e7ed;
+}
+
+.qv-subproject-name {
+  flex: 1;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #374151;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.qv-no-subproject {
+  color: #9ca3af;
+  font-weight: 400;
+}
+
+/* ── Date level ── */
+
+.qv-date-list {
+  display: flex;
+  flex-direction: column;
+  padding: 0.35rem 0.6rem 0.5rem 0.6rem;
+  gap: 0.3rem;
+  background: #f9fafb;
+}
+
+.qv-date-group {
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  overflow: hidden;
+  background: #fff;
+}
+
+.qv-date-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.45rem 0.75rem;
+  background: #f3f4f6;
+  cursor: pointer;
+  user-select: none;
+}
+
+.qv-date-header:hover {
+  background: #ebebed;
+}
+
+.qv-date-label {
+  flex: 1;
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: #4b5563;
+  font-variant-numeric: tabular-nums;
+}
+
+.qv-date-count {
+  flex-shrink: 0;
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: #6b7280;
+  background: #e5e7eb;
+  padding: 0.15rem 0.55rem;
+  border-radius: 10px;
+  white-space: nowrap;
+}
+
+/* ── File/Job name block with inline timestamp ── */
+
+/* Wrapper that holds the filename + timestamp chip side-by-side */
+.qv-file-name-block {
+  flex: 1;
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  overflow: hidden;
+  min-width: 0;
+}
+
+/* Timestamp chip shown next to the filename */
+.qv-file-timestamp {
+  flex-shrink: 0;
+  font-size: 0.68rem;
+  font-weight: 400;
+  color: #9ca3af;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
 
 
 .download-dropdown {

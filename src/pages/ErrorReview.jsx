@@ -11,6 +11,28 @@ import '../styles/ErrorReview.css';
 const API_BASE = '/api/error-review';
 const INNER_PAGE_SIZE = 25;
 
+/* ── Date helpers ── */
+const formatDateLabel = (dateStr) => {
+  if (!dateStr) return 'Unknown Date';
+  // dateStr is a YYYY-MM-DD string from DATE() in Postgres
+  const d = new Date(dateStr + 'T00:00:00');
+  return d.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+};
+
+const formatTimestamp = (ts) => {
+  if (!ts) return null;
+  return new Date(ts).toLocaleString(undefined, {
+    day: '2-digit', month: 'short', year: 'numeric',
+    hour: '2-digit', minute: '2-digit'
+  });
+};
+
+const formatDateStr = (d) => d ? new Date(d).toLocaleString() : '-';
+
+/* ── Key builders for expand Sets ── */
+const spKey  = (proj, sp)       => `${proj}||${sp}`;
+const dateKey = (proj, sp, dt)  => `${proj}||${sp}||${dt}`;
+
 const ErrorReview = () => {
   const [activeTab, setActiveTab] = useState('file-upload');
 
@@ -21,34 +43,40 @@ const ErrorReview = () => {
   const [pagination, setPagination] = useState({ total: 0, page: 1, limit: 10, totalPages: 0 });
 
   // Inner tier: per-group violation rows, loaded lazily on expand
-  // { [groupKey]: { violations: [], loading: bool, page: int, hasMore: bool } }
   const [groupViolations, setGroupViolations] = useState({});
 
   const [projects, setProjects] = useState([]);
-  const [expandedProjects, setExpandedProjects] = useState(new Set());
-  const [expandedGroups, setExpandedGroups] = useState(new Set());
-  const [expandedRows, setExpandedRows] = useState(new Set());
+
+  // Expansion state — four levels
+  const [expandedProjects,    setExpandedProjects]    = useState(new Set());
+  const [expandedSubProjects, setExpandedSubProjects] = useState(new Set());
+  const [expandedDates,       setExpandedDates]       = useState(new Set());
+  const [expandedGroups,      setExpandedGroups]      = useState(new Set());
+  const [expandedRows,        setExpandedRows]        = useState(new Set());
+
   const [selectedIds, setSelectedIds] = useState([]);
-  const [isDeleting, setIsDeleting] = useState(false);
+  const [isDeleting,  setIsDeleting]  = useState(false);
   const [showFilters, setShowFilters] = useState(false);
 
   const [filters, setFilters] = useState({
     project_id: '',
-    rule_type: 'all',
-    severity: 'all',
-    status: 'all',
-    search: '',
-    page: 1,
-    limit: 10
+    rule_type:  'all',
+    severity:   'all',
+    status:     'all',
+    search:     '',
+    page:       1,
+    limit:      10
   });
 
   useEffect(() => { fetchProjects(); }, []);
 
-  // Re-fetch groups and clear inner cache whenever tab or filters change
+  // Re-fetch groups and clear all inner caches whenever tab or filters change
   useEffect(() => {
     fetchGroups();
     setSelectedIds([]);
     setGroupViolations({});
+    setExpandedSubProjects(new Set());
+    setExpandedDates(new Set());
     setExpandedGroups(new Set());
   }, [activeTab, filters]);
 
@@ -101,7 +129,7 @@ const ErrorReview = () => {
       params.append('limit', INNER_PAGE_SIZE);
       if (filters.rule_type && filters.rule_type !== 'all') params.append('rule_type', filters.rule_type);
       if (filters.severity && filters.severity !== 'all') params.append('severity', filters.severity);
-      if (filters.status && filters.status !== 'all') params.append('status', filters.status);
+      if (filters.status   && filters.status   !== 'all') params.append('status',   filters.status);
       if (filters.search) params.append('search', filters.search);
 
       const res = await fetch(`${endpoint}?${params}`, { headers: authHeaders() });
@@ -117,7 +145,7 @@ const ErrorReview = () => {
               ? [...(existing.violations || []), ...(data.violations || [])]
               : (data.violations || []),
             loading: false,
-            page: data.pagination.page,
+            page:    data.pagination.page,
             hasMore: data.pagination.page < data.pagination.totalPages
           }
         };
@@ -156,7 +184,7 @@ const ErrorReview = () => {
     } catch (err) { alert(`Download failed: ${err.message}`); }
   };
 
-  // Per-group download (all violations for one file or job, Excel only)
+  // Per-group download (one file or job → Excel)
   const handleGroupDownload = async (group) => {
     try {
       const isFileUpload = activeTab === 'file-upload';
@@ -166,7 +194,6 @@ const ErrorReview = () => {
       const params = new URLSearchParams();
       params.append('format', 'excel');
       params.append(isFileUpload ? 'file_id' : 'job_id', isFileUpload ? group.file_id : group.job_id);
-      // Pass label so the backend sets a descriptive Content-Disposition filename
       const rawLabel = isFileUpload ? group.filename : group.mapping_name;
       if (rawLabel) params.append('label', rawLabel.split('/').pop());
 
@@ -190,13 +217,12 @@ const ErrorReview = () => {
     document.body.removeChild(a);
   };
 
-  const toggleProjectExpansion = (key) => {
-    setExpandedProjects(prev => {
-      const next = new Set(prev);
-      next.has(key) ? next.delete(key) : next.add(key);
-      return next;
-    });
-  };
+  /* ── Toggle helpers ── */
+  const toggle = (setter, key) => setter(prev => {
+    const next = new Set(prev);
+    next.has(key) ? next.delete(key) : next.add(key);
+    return next;
+  });
 
   const toggleGroupExpansion = (groupKey) => {
     setExpandedGroups(prev => {
@@ -205,7 +231,6 @@ const ErrorReview = () => {
         next.delete(groupKey);
       } else {
         next.add(groupKey);
-        // Lazy-load on first expand
         if (!groupViolations[groupKey]?.violations) {
           fetchGroupViolations(groupKey, 1, false);
         }
@@ -214,17 +239,8 @@ const ErrorReview = () => {
     });
   };
 
-  const toggleRowExpansion = (id) => {
-    setExpandedRows(prev => {
-      const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
-      return next;
-    });
-  };
-
   const handleGroupSelectAll = (groupKey, checked) => {
-    const gv = groupViolations[groupKey];
-    const ids = (gv?.violations || []).map(v => v.id);
+    const ids = (groupViolations[groupKey]?.violations || []).map(v => v.id);
     if (checked) {
       setSelectedIds(prev => [...new Set([...prev, ...ids])]);
     } else {
@@ -256,21 +272,49 @@ const ErrorReview = () => {
     }
   };
 
-  // Derived: nest groups under their project name
+  /* ── Four-level nested grouping ──
+     Result shape:
+     {
+       projectName: {
+         violationTotal,
+         subProjects: {
+           subLabel: {
+             violationTotal,
+             dates: {
+               dateKey: { violationTotal, groups: [...] }
+             }
+           }
+         }
+       }
+     }
+  */
   const groupedByProject = useMemo(() => {
+    const isFileUpload = activeTab === 'file-upload';
     const result = {};
+
     groups.forEach(g => {
-      const key = g.project_name || 'Unknown Project';
-      if (!result[key]) result[key] = { violationTotal: 0, groups: [] };
-      result[key].violationTotal += parseInt(g.violation_count, 10) || 0;
-      result[key].groups.push(g);
+      const proj  = g.project_name    || 'Unknown Project';
+      const sub   = g.sub_project_name || '—';
+      const dt    = isFileUpload
+        ? (g.upload_date  ? String(g.upload_date).slice(0, 10)  : 'unknown-date')
+        : (g.job_date     ? String(g.job_date).slice(0, 10)     : 'unknown-date');
+      const count = parseInt(g.violation_count, 10) || 0;
+
+      if (!result[proj]) result[proj] = { violationTotal: 0, subProjects: {} };
+      result[proj].violationTotal += count;
+
+      if (!result[proj].subProjects[sub]) result[proj].subProjects[sub] = { violationTotal: 0, dates: {} };
+      result[proj].subProjects[sub].violationTotal += count;
+
+      if (!result[proj].subProjects[sub].dates[dt]) result[proj].subProjects[sub].dates[dt] = { violationTotal: 0, groups: [] };
+      result[proj].subProjects[sub].dates[dt].violationTotal += count;
+      result[proj].subProjects[sub].dates[dt].groups.push(g);
     });
+
     return result;
-  }, [groups]);
+  }, [groups, activeTab]);
 
   /* ── Helpers ── */
-  const formatDate = (d) => d ? new Date(d).toLocaleString() : '-';
-
   const getSeverityBadge = (severity) => {
     const cls = {
       critical: 'gps-badge-danger', high: 'gps-badge-warning',
@@ -305,17 +349,16 @@ const ErrorReview = () => {
     );
   };
 
-  /* ── Inner violation table for one file/job group ── */
+  /* ── Inner violation table ── */
   const renderGroupTable = (groupKey, totalCount) => {
     const gv = groupViolations[groupKey];
     if (!gv) return null;
 
-    const violations = gv.violations || [];
+    const violations  = gv.violations || [];
     const isFileUpload = activeTab === 'file-upload';
-    const groupIds = violations.map(v => v.id);
+    const groupIds    = violations.map(v => v.id);
     const allSelected = groupIds.length > 0 && groupIds.every(id => selectedIds.includes(id));
-    // colSpan: checkbox + expand + sub-proj + (filename for mapping) + rule + col + row + expected + actual + severity + date + (executed-by for mapping) + status
-    const colSpan = isFileUpload ? 11 : 13;
+    const colSpan     = isFileUpload ? 11 : 13;
 
     return (
       <div className="gps-table-container qv-inner-table">
@@ -329,11 +372,12 @@ const ErrorReview = () => {
               <thead>
                 <tr>
                   <th style={{ width: 40 }}>
-                    <input type="checkbox" checked={allSelected} onChange={(e) => handleGroupSelectAll(groupKey, e.target.checked)} title="Select all visible" />
+                    <input type="checkbox" checked={allSelected}
+                      onChange={(e) => handleGroupSelectAll(groupKey, e.target.checked)}
+                      title="Select all visible" />
                   </th>
                   <th style={{ width: 40 }}></th>
                   <th>Sub-Project</th>
-                  {/* For file-upload, filename is the group header — omit it from rows */}
                   {!isFileUpload && <th>Filename</th>}
                   <th>Rule</th>
                   <th>Column</th>
@@ -352,22 +396,25 @@ const ErrorReview = () => {
                     <tr className={selectedIds.includes(v.id) ? 'selected-row' : ''}>
                       <td>
                         <input type="checkbox" checked={selectedIds.includes(v.id)}
-                          onChange={(e) => handleSelectRow(v.id, e)} onClick={(e) => e.stopPropagation()} />
+                          onChange={(e) => handleSelectRow(v.id, e)}
+                          onClick={(e) => e.stopPropagation()} />
                       </td>
                       <td>
-                        <button className="gps-icon-btn" onClick={() => toggleRowExpansion(v.id)} title="View full record">
+                        <button className="gps-icon-btn"
+                          onClick={() => toggle(setExpandedRows, v.id)}
+                          title="View full record">
                           {expandedRows.has(v.id) ? <FiChevronUp /> : <FiChevronDown />}
                         </button>
                       </td>
                       <td>{v.sub_project_name || '-'}</td>
                       {!isFileUpload && <td className="filename-cell">{v.filename || '-'}</td>}
-                      <td>{v.rule_name || '-'}</td>
-                      <td>{v.column_name || '-'}</td>
-                      <td>{v.row_number ?? '-'}</td>
+                      <td>{v.rule_name      || '-'}</td>
+                      <td>{v.column_name    || '-'}</td>
+                      <td>{v.row_number     ?? '-'}</td>
                       <td>{v.expected_value || '-'}</td>
-                      <td>{v.actual_value || '-'}</td>
+                      <td>{v.actual_value   || '-'}</td>
                       <td>{getSeverityBadge(v.severity)}</td>
-                      <td>{formatDate(v.created_at)}</td>
+                      <td>{formatDateStr(v.created_at)}</td>
                       {!isFileUpload && <td>{v.executed_by_fullname || v.executed_by_username || '-'}</td>}
                       <td>{getStatusBadge(v.status)}</td>
                     </tr>
@@ -391,14 +438,14 @@ const ErrorReview = () => {
 
             {(gv.hasMore || gv.loading) && (
               <div className="qv-load-more">
-                <button
-                  className="gps-btn gps-btn-secondary"
+                <button className="gps-btn gps-btn-secondary"
                   onClick={() => fetchGroupViolations(groupKey, gv.page + 1, true)}
-                  disabled={gv.loading}
-                >
-                  {gv.loading ? 'Loading…' : `Load more`}
+                  disabled={gv.loading}>
+                  {gv.loading ? 'Loading…' : 'Load more'}
                 </button>
-                <span className="qv-load-more-hint">Showing {violations.length} of {/* total count not stored, just show progress */}many violations</span>
+                <span className="qv-load-more-hint">
+                  Showing {violations.length} of {totalCount?.toLocaleString() ?? '…'} violations
+                </span>
               </div>
             )}
           </>
@@ -407,21 +454,26 @@ const ErrorReview = () => {
     );
   };
 
-  /* ── Main content tree: Project → File/Job group → Rows ── */
+  /* ── Main content tree: Project → Sub-Project → Date → File/Job → Rows ── */
   const renderContent = () => {
     if (loading) return <div className="gps-empty-state">Loading…</div>;
-    if (error) return <div className="gps-alert gps-alert-danger">{error}</div>;
+    if (error)   return <div className="gps-alert gps-alert-danger">{error}</div>;
     if (!groups.length) return <div className="gps-empty-state"><p>No violations found</p></div>;
+
+    const isFileUpload = activeTab === 'file-upload';
 
     return Object.entries(groupedByProject)
       .sort(([a], [b]) => a.localeCompare(b))
-      .map(([projectName, { violationTotal, groups: projectGroups }]) => {
-        const isProjectExpanded = expandedProjects.has(projectName);
+      .map(([projectName, { violationTotal, subProjects }]) => {
+        const isProjExpanded = expandedProjects.has(projectName);
+
         return (
           <div key={projectName} className="quality-violations-project-group">
-            <div className="quality-violations-project-header" onClick={() => toggleProjectExpansion(projectName)}>
+            {/* ── Level 1: Project ── */}
+            <div className="quality-violations-project-header"
+              onClick={() => toggle(setExpandedProjects, projectName)}>
               <button className="gps-icon-btn" style={{ border: 'none', background: 'none' }}>
-                {isProjectExpanded ? <FiChevronDown /> : <FiChevronRight />}
+                {isProjExpanded ? <FiChevronDown /> : <FiChevronRight />}
               </button>
               <h3 className="project-name">{projectName}</h3>
               <span className="gps-badge gps-badge-info qv-project-count">
@@ -429,48 +481,105 @@ const ErrorReview = () => {
               </span>
             </div>
 
-            {isProjectExpanded && (
-              <div className="qv-file-groups">
-                {projectGroups.map(group => {
-                  const isFileUpload = activeTab === 'file-upload';
-                  const groupKey = isFileUpload ? group.file_id : group.job_id;
-                  const rawLabel = isFileUpload ? group.filename : group.mapping_name;
-                  const groupLabel = rawLabel ? rawLabel.split('/').pop() : (isFileUpload ? 'Unknown file' : 'Unknown job');
-                  const groupFullPath = rawLabel || '';
-                  const isGroupExpanded = expandedGroups.has(groupKey);
+            {isProjExpanded && (
+              <div className="qv-subproject-list">
+                {Object.entries(subProjects)
+                  .sort(([a], [b]) => a === '—' ? 1 : b === '—' ? -1 : a.localeCompare(b))
+                  .map(([subLabel, { violationTotal: spTotal, dates }]) => {
+                    const sk = spKey(projectName, subLabel);
+                    const isSpExpanded = expandedSubProjects.has(sk);
 
-                  return (
-                    <div key={groupKey} className="qv-file-group">
-                      <div className="qv-file-header">
-                        <button
-                          className="gps-icon-btn qv-toggle-btn"
-                          onClick={() => toggleGroupExpansion(groupKey)}
-                          title={isGroupExpanded ? 'Collapse' : 'Expand'}
-                        >
-                          {isGroupExpanded ? <FiChevronDown /> : <FiChevronRight />}
-                        </button>
+                    return (
+                      <div key={subLabel} className="qv-subproject-group">
+                        {/* ── Level 2: Sub-Project ── */}
+                        <div className="qv-subproject-header"
+                          onClick={() => toggle(setExpandedSubProjects, sk)}>
+                          <button className="gps-icon-btn qv-toggle-btn">
+                            {isSpExpanded ? <FiChevronDown /> : <FiChevronRight />}
+                          </button>
+                          <span className="qv-subproject-name">
+                            {subLabel === '—' ? <em className="qv-no-subproject">No Sub-Project</em> : subLabel}
+                          </span>
+                          <span className="qv-file-count">{spTotal.toLocaleString()} violations</span>
+                        </div>
 
-                        <span className="qv-file-label" title={groupFullPath}>
-                          {groupLabel}
-                        </span>
+                        {isSpExpanded && (
+                          <div className="qv-date-list">
+                            {Object.entries(dates)
+                              .sort(([a], [b]) => b.localeCompare(a)) /* newest date first */
+                              .map(([dt, { violationTotal: dtTotal, groups: dateGroups }]) => {
+                                const dk = dateKey(projectName, subLabel, dt);
+                                const isDtExpanded = expandedDates.has(dk);
 
-                        <span className="qv-file-count">
-                          {parseInt(group.violation_count, 10).toLocaleString()} violations
-                        </span>
+                                return (
+                                  <div key={dt} className="qv-date-group">
+                                    {/* ── Level 3: Date ── */}
+                                    <div className="qv-date-header"
+                                      onClick={() => toggle(setExpandedDates, dk)}>
+                                      <button className="gps-icon-btn qv-toggle-btn">
+                                        {isDtExpanded ? <FiChevronDown /> : <FiChevronRight />}
+                                      </button>
+                                      <span className="qv-date-label">
+                                        {dt === 'unknown-date' ? 'Date unknown' : formatDateLabel(dt)}
+                                      </span>
+                                      <span className="qv-date-count">
+                                        {dtTotal.toLocaleString()} violations
+                                      </span>
+                                    </div>
 
-                        <button
-                          className="gps-icon-btn qv-download-btn"
-                          onClick={(e) => { e.stopPropagation(); handleGroupDownload(group); }}
-                          title={`Download all violations for this ${isFileUpload ? 'file' : 'mapping job'} as Excel`}
-                        >
-                          <FiDownload />
-                        </button>
+                                    {isDtExpanded && (
+                                      <div className="qv-file-groups">
+                                        {/* ── Level 4: File / Job ── */}
+                                        {dateGroups.map(group => {
+                                          const groupKey  = isFileUpload ? group.file_id : group.job_id;
+                                          const rawLabel  = isFileUpload ? group.filename : group.mapping_name;
+                                          const groupLabel = rawLabel
+                                            ? rawLabel.split('/').pop()
+                                            : (isFileUpload ? 'Unknown file' : 'Unknown job');
+                                          const ts = isFileUpload
+                                            ? formatTimestamp(group.file_uploaded_at)
+                                            : formatTimestamp(group.job_start_time);
+                                          const isGroupExpanded = expandedGroups.has(groupKey);
+
+                                          return (
+                                            <div key={groupKey} className="qv-file-group">
+                                              <div className="qv-file-header">
+                                                <button className="gps-icon-btn qv-toggle-btn"
+                                                  onClick={() => toggleGroupExpansion(groupKey)}
+                                                  title={isGroupExpanded ? 'Collapse' : 'Expand'}>
+                                                  {isGroupExpanded ? <FiChevronDown /> : <FiChevronRight />}
+                                                </button>
+
+                                                <span className="qv-file-name-block" title={rawLabel || ''}>
+                                                  <span className="qv-file-label">{groupLabel}</span>
+                                                  {ts && <span className="qv-file-timestamp">{ts}</span>}
+                                                </span>
+
+                                                <span className="qv-file-count">
+                                                  {parseInt(group.violation_count, 10).toLocaleString()} violations
+                                                </span>
+
+                                                <button className="gps-icon-btn qv-download-btn"
+                                                  onClick={(e) => { e.stopPropagation(); handleGroupDownload(group); }}
+                                                  title={`Download all violations for this ${isFileUpload ? 'file' : 'mapping job'} as Excel`}>
+                                                  <FiDownload />
+                                                </button>
+                                              </div>
+
+                                              {isGroupExpanded && renderGroupTable(groupKey, parseInt(group.violation_count, 10))}
+                                            </div>
+                                          );
+                                        })}
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                          </div>
+                        )}
                       </div>
-
-                      {isGroupExpanded && renderGroupTable(groupKey, parseInt(group.violation_count, 10))}
-                    </div>
-                  );
-                })}
+                    );
+                  })}
               </div>
             )}
           </div>
@@ -496,8 +605,7 @@ const ErrorReview = () => {
           </div>
           <button
             className={`gps-btn gps-btn-secondary ${showFilters ? 'active' : ''}`}
-            onClick={() => setShowFilters(s => !s)}
-          >
+            onClick={() => setShowFilters(s => !s)}>
             <FiFilter /> {showFilters ? 'Hide Filters' : 'Show Filters'}
           </button>
         </div>
@@ -506,8 +614,7 @@ const ErrorReview = () => {
       <div className="gps-tabs">
         <button
           className={`gps-tab ${activeTab === 'file-upload' ? 'gps-tab--active' : ''}`}
-          onClick={() => { setActiveTab('file-upload'); setFilters(prev => ({ ...prev, page: 1 })); }}
-        >
+          onClick={() => { setActiveTab('file-upload'); setFilters(prev => ({ ...prev, page: 1 })); }}>
           File Upload Violations
           {activeTab === 'file-upload' && pagination.total > 0 && (
             <span className="gps-tab-count">{pagination.total}</span>
@@ -515,8 +622,7 @@ const ErrorReview = () => {
         </button>
         <button
           className={`gps-tab ${activeTab === 'mapping-job' ? 'gps-tab--active' : ''}`}
-          onClick={() => { setActiveTab('mapping-job'); setFilters(prev => ({ ...prev, page: 1 })); }}
-        >
+          onClick={() => { setActiveTab('mapping-job'); setFilters(prev => ({ ...prev, page: 1 })); }}>
           Mapping Job Violations
           {activeTab === 'mapping-job' && pagination.total > 0 && (
             <span className="gps-tab-count">{pagination.total}</span>
@@ -564,11 +670,13 @@ const ErrorReview = () => {
           <div className="gps-search-container">
             <FiSearch className="gps-search-icon" />
             <input type="text" className="gps-search-input" placeholder="Search violations…"
-              value={filters.search} onChange={(e) => handleFilterChange('search', e.target.value)} />
+              value={filters.search}
+              onChange={(e) => handleFilterChange('search', e.target.value)} />
           </div>
 
           <button className="gps-btn-danger" onClick={() => setFilters({
-            project_id: '', rule_type: 'all', severity: 'all', status: 'all', search: '', page: 1, limit: 10
+            project_id: '', rule_type: 'all', severity: 'all',
+            status: 'all', search: '', page: 1, limit: 10
           })}>
             <FiX /> Clear Filters
           </button>

@@ -498,6 +498,8 @@ router.get('/file-upload-violations/groups', async (req, res) => {
       SELECT
         qrv.file_id,
         f.filename,
+        f.created_at AS file_uploaded_at,
+        DATE(f.created_at) AS upload_date,
         p.id AS project_id,
         p.name AS project_name,
         sp.id AS sub_project_id,
@@ -507,8 +509,8 @@ router.get('/file-upload-violations/groups', async (req, res) => {
       FROM quality_rule_violations qrv
       ${joinClause}
       ${whereClause}
-      GROUP BY qrv.file_id, f.filename, p.id, p.name, sp.id, sp.name
-      ORDER BY MAX(qrv.created_at) DESC
+      GROUP BY qrv.file_id, f.filename, f.created_at, p.id, p.name, sp.id, sp.name
+      ORDER BY DATE(f.created_at) DESC, f.created_at DESC
       LIMIT $${++paramCount} OFFSET $${++paramCount}
     `;
 
@@ -608,6 +610,7 @@ router.get('/mapping-job-violations/groups', async (req, res) => {
       INNER JOIN quality_rules qr ON qrv.rule_id = qr.id
       LEFT JOIN files f ON qrv.file_id = f.file_id
       LEFT JOIN projects p ON f.project_id = p.id
+      LEFT JOIN projects sp ON f.sub_project_id = sp.id
       LEFT JOIN transformation_jobs tj ON qrv.job_id = tj.job_id
       LEFT JOIN projects tj_p ON tj.project_id = tj_p.id
     `;
@@ -623,15 +626,19 @@ router.get('/mapping-job-violations/groups', async (req, res) => {
       SELECT
         qrv.job_id,
         tj.mapping_name,
+        tj.start_time AS job_start_time,
+        DATE(tj.start_time) AS job_date,
         COALESCE(p.id, tj_p.id) AS project_id,
         COALESCE(p.name, tj_p.name) AS project_name,
+        MIN(sp.id) AS sub_project_id,
+        MIN(sp.name) AS sub_project_name,
         COUNT(*) AS violation_count,
         MAX(qrv.created_at) AS latest_violation_at
       FROM quality_rule_violations qrv
       ${joinClause}
       ${whereClause}
-      GROUP BY qrv.job_id, tj.mapping_name, COALESCE(p.id, tj_p.id), COALESCE(p.name, tj_p.name)
-      ORDER BY MAX(qrv.created_at) DESC
+      GROUP BY qrv.job_id, tj.mapping_name, tj.start_time, COALESCE(p.id, tj_p.id), COALESCE(p.name, tj_p.name)
+      ORDER BY DATE(tj.start_time) DESC NULLS LAST, tj.start_time DESC NULLS LAST
       LIMIT $${++paramCount} OFFSET $${++paramCount}
     `;
 
