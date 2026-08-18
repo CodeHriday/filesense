@@ -3422,24 +3422,30 @@ class VendorAgreementService {
         throw new Error('Only the file owner, creator, or an admin can submit this contract for approval');
       }
 
-      // Transition to pending_approval at step 1
+      // Transition to pending_approval at step 1.
+      // Always bump version so each approval round has a distinct agreement_version;
+      // this prevents step decisions from a previous (rejected) round from polluting
+      // the hasVoted / quorum logic in the current round.
       await client.query(
         `UPDATE vendor_agreements
            SET approval_status = 'pending_approval',
                current_approval_step = 1,
+               version = version + 1,
                updated_at = CURRENT_TIMESTAMP
          WHERE id = $1`,
         [agreementId]
       );
 
-      // Audit record
+      const newVersion = agreement.version + 1;
+
+      // Audit record (use newVersion so this entry belongs to the fresh round)
       await client.query(
         `INSERT INTO vendor_agreement_approvals (
            agreement_id, approver_type, approver_user_id, action, comments,
            agreement_version, approval_timestamp, approval_stage
          ) VALUES ($1, 'manager', $2, 'approved', 'Submitted for configurable approval chain',
                    $3, CURRENT_TIMESTAMP, 'chain_submission')`,
-        [agreementId, userId, agreement.version]
+        [agreementId, userId, newVersion]
       );
 
       // In-app notifications for step-1 approvers
