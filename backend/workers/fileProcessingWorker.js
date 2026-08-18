@@ -2539,6 +2539,7 @@ print(json.dumps(result))
       SELECT 
         va.id,
         va.agreement_code,
+        va.project_id AS agreement_project_id,
         vafs.id as schema_id,
         vafs.file_name_pattern,
         vafs.schema,
@@ -2839,7 +2840,11 @@ print(json.dumps(result))
             // Pass the file's project so the enforcer can find project-scoped
             // file-level rules (e.g. record_count with project_id = N) even
             // when vafs.quality_rule_ids is empty.
-            projectId: projectId
+            // Use the agreement's project_id (not the file's) so the enforcer
+            // can find project-scoped rules (e.g. file_rec_count) that were defined
+            // in the context of the vendor agreement's project — even when the file
+            // was dropped into a different project.
+            projectId: matchedSchema.agreement_project_id || projectId
           }
         );
         this.logger.info('Schema rule enforcement completed', {

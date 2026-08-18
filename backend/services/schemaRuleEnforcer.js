@@ -367,7 +367,7 @@ async function findOrCreateSchemaRule(db, uiRuleType, columnName, severity = 'wa
          AND enabled = true
          AND NOT starts_with(rule_name, '__schema_default__')
          AND (project_id IS NULL OR ($1::int IS NOT NULL AND project_id = $1::int))
-         AND (column_name = '__file__' OR column_name IS NULL)
+         AND (column_name = '__file__' OR NULLIF(column_name, '') IS NULL)
        ORDER BY (project_id IS NULL) ASC NULLS LAST,
                 (column_name = '__file__') DESC NULLS LAST,
                 id
