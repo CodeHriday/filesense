@@ -24,6 +24,7 @@ router.get('/file-upload-violations', async (req, res) => {
   try {
     const {
       project_id,
+      file_id,
       rule_type,
       severity,
       status = 'all',
@@ -59,6 +60,11 @@ router.get('/file-upload-violations', async (req, res) => {
     if (validProjectId) {
       whereConditions.push(`p.id = $${++paramCount}::integer`);
       params.push(validProjectId);
+    }
+
+    if (file_id) {
+      whereConditions.push(`qrv.file_id = $${++paramCount}`);
+      params.push(file_id);
     }
 
     if (rule_type && rule_type !== 'all') {
@@ -161,6 +167,7 @@ router.get('/mapping-job-violations', async (req, res) => {
   try {
     const {
       project_id,
+      job_id,
       rule_type,
       severity,
       status = 'all',
@@ -196,6 +203,11 @@ router.get('/mapping-job-violations', async (req, res) => {
     if (validProjectId) {
       whereConditions.push(`COALESCE(p.id, tj_p.id) = $${++paramCount}::integer`);
       params.push(validProjectId);
+    }
+
+    if (job_id) {
+      whereConditions.push(`qrv.job_id = $${++paramCount}`);
+      params.push(job_id);
     }
 
     if (rule_type && rule_type !== 'all') {
@@ -400,6 +412,252 @@ router.post('/violations/bulk-update', async (req, res) => {
 });
 
 /**
+ * GET /file-upload-violations/groups
+ * Return distinct files with violation counts — outer tier for collapsible UI
+ */
+router.get('/file-upload-violations/groups', async (req, res) => {
+  try {
+    const {
+      project_id,
+      rule_type,
+      severity,
+      status = 'all',
+      page = 1,
+      limit = 10,
+      search = ''
+    } = req.query;
+
+    const offset = (parseInt(page) - 1) * parseInt(limit);
+    const userId = parseInt(req.user.id);
+    const isAdmin = userHasAdminAccess(req.user);
+
+    let whereConditions = ['(qrv.job_id IS NULL OR qrv.job_id = \'\')'];
+    let params = [];
+    let paramCount = 0;
+
+    if (!isAdmin) {
+      whereConditions.push(`(
+        p.id IN (
+          SELECT project_id FROM project_members WHERE user_id = $${++paramCount}::integer
+          UNION
+          SELECT pag.project_id FROM project_access_groups pag
+          INNER JOIN user_groups ug ON pag.group_id = ug.group_id
+          WHERE ug.user_id = $${paramCount}::integer
+        )
+      )`);
+      params.push(userId);
+    }
+
+    const validProjectId = parseProjectId(project_id);
+    if (validProjectId) {
+      whereConditions.push(`p.id = $${++paramCount}::integer`);
+      params.push(validProjectId);
+    }
+
+    if (rule_type && rule_type !== 'all') {
+      whereConditions.push(`qr.rule_type = $${++paramCount}`);
+      params.push(rule_type);
+    }
+
+    if (severity && severity !== 'all') {
+      whereConditions.push(`qrv.severity = $${++paramCount}`);
+      params.push(severity);
+    }
+
+    if (status !== 'all') {
+      whereConditions.push(`qrv.status = $${++paramCount}`);
+      params.push(status);
+    }
+
+    if (search) {
+      whereConditions.push(`(
+        qr.rule_name ILIKE $${++paramCount} OR
+        f.filename ILIKE $${paramCount} OR
+        p.name ILIKE $${paramCount} OR
+        qrv.violation_details::text ILIKE $${paramCount}
+      )`);
+      params.push(`%${search}%`);
+    }
+
+    const whereClause = `WHERE ${whereConditions.join(' AND ')}`;
+    const joinClause = `
+      INNER JOIN quality_rules qr ON qrv.rule_id = qr.id
+      INNER JOIN files f ON qrv.file_id = f.file_id
+      LEFT JOIN projects p ON f.project_id = p.id
+      LEFT JOIN projects sp ON f.sub_project_id = sp.id
+    `;
+
+    const countQuery = `
+      SELECT COUNT(DISTINCT qrv.file_id) AS total
+      FROM quality_rule_violations qrv
+      ${joinClause}
+      ${whereClause}
+    `;
+
+    const dataQuery = `
+      SELECT
+        qrv.file_id,
+        f.filename,
+        p.id AS project_id,
+        p.name AS project_name,
+        sp.id AS sub_project_id,
+        sp.name AS sub_project_name,
+        COUNT(*) AS violation_count,
+        MAX(qrv.created_at) AS latest_violation_at
+      FROM quality_rule_violations qrv
+      ${joinClause}
+      ${whereClause}
+      GROUP BY qrv.file_id, f.filename, p.id, p.name, sp.id, sp.name
+      ORDER BY MAX(qrv.created_at) DESC
+      LIMIT $${++paramCount} OFFSET $${++paramCount}
+    `;
+
+    params.push(parseInt(limit), offset);
+
+    const [countResult, dataResult] = await Promise.all([
+      db.query(countQuery, params.slice(0, -2)),
+      db.query(dataQuery, params)
+    ]);
+
+    res.json({
+      groups: dataResult.rows,
+      pagination: {
+        total: parseInt(countResult.rows[0].total),
+        page: parseInt(page),
+        limit: parseInt(limit),
+        totalPages: Math.ceil(countResult.rows[0].total / parseInt(limit))
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching file upload violation groups:', error);
+    res.status(500).json({ error: 'Failed to fetch file upload violation groups', details: error.message });
+  }
+});
+
+/**
+ * GET /mapping-job-violations/groups
+ * Return distinct mapping jobs with violation counts — outer tier for collapsible UI
+ */
+router.get('/mapping-job-violations/groups', async (req, res) => {
+  try {
+    const {
+      project_id,
+      rule_type,
+      severity,
+      status = 'all',
+      page = 1,
+      limit = 10,
+      search = ''
+    } = req.query;
+
+    const offset = (parseInt(page) - 1) * parseInt(limit);
+    const userId = parseInt(req.user.id);
+    const isAdmin = userHasAdminAccess(req.user);
+
+    let whereConditions = ['qrv.job_id IS NOT NULL', 'qrv.job_id != \'\''];
+    let params = [];
+    let paramCount = 0;
+
+    if (!isAdmin) {
+      whereConditions.push(`(
+        COALESCE(p.id, tj_p.id) IN (
+          SELECT project_id FROM project_members WHERE user_id = $${++paramCount}::integer
+          UNION
+          SELECT pag.project_id FROM project_access_groups pag
+          INNER JOIN user_groups ug ON pag.group_id = ug.group_id
+          WHERE ug.user_id = $${paramCount}::integer
+        )
+      )`);
+      params.push(userId);
+    }
+
+    const validProjectId = parseProjectId(project_id);
+    if (validProjectId) {
+      whereConditions.push(`COALESCE(p.id, tj_p.id) = $${++paramCount}::integer`);
+      params.push(validProjectId);
+    }
+
+    if (rule_type && rule_type !== 'all') {
+      whereConditions.push(`qr.rule_type = $${++paramCount}`);
+      params.push(rule_type);
+    }
+
+    if (severity && severity !== 'all') {
+      whereConditions.push(`qrv.severity = $${++paramCount}`);
+      params.push(severity);
+    }
+
+    if (status !== 'all') {
+      whereConditions.push(`qrv.status = $${++paramCount}`);
+      params.push(status);
+    }
+
+    if (search) {
+      whereConditions.push(`(
+        qr.rule_name ILIKE $${++paramCount} OR
+        tj.mapping_name ILIKE $${paramCount} OR
+        p.name ILIKE $${paramCount} OR
+        tj_p.name ILIKE $${paramCount} OR
+        qrv.violation_details::text ILIKE $${paramCount}
+      )`);
+      params.push(`%${search}%`);
+    }
+
+    const whereClause = `WHERE ${whereConditions.join(' AND ')}`;
+    const joinClause = `
+      INNER JOIN quality_rules qr ON qrv.rule_id = qr.id
+      LEFT JOIN files f ON qrv.file_id = f.file_id
+      LEFT JOIN projects p ON f.project_id = p.id
+      LEFT JOIN transformation_jobs tj ON qrv.job_id = tj.job_id
+      LEFT JOIN projects tj_p ON tj.project_id = tj_p.id
+    `;
+
+    const countQuery = `
+      SELECT COUNT(DISTINCT qrv.job_id) AS total
+      FROM quality_rule_violations qrv
+      ${joinClause}
+      ${whereClause}
+    `;
+
+    const dataQuery = `
+      SELECT
+        qrv.job_id,
+        tj.mapping_name,
+        COALESCE(p.id, tj_p.id) AS project_id,
+        COALESCE(p.name, tj_p.name) AS project_name,
+        COUNT(*) AS violation_count,
+        MAX(qrv.created_at) AS latest_violation_at
+      FROM quality_rule_violations qrv
+      ${joinClause}
+      ${whereClause}
+      GROUP BY qrv.job_id, tj.mapping_name, COALESCE(p.id, tj_p.id), COALESCE(p.name, tj_p.name)
+      ORDER BY MAX(qrv.created_at) DESC
+      LIMIT $${++paramCount} OFFSET $${++paramCount}
+    `;
+
+    params.push(parseInt(limit), offset);
+
+    const [countResult, dataResult] = await Promise.all([
+      db.query(countQuery, params.slice(0, -2)),
+      db.query(dataQuery, params)
+    ]);
+
+    res.json({
+      groups: dataResult.rows,
+      pagination: {
+        total: parseInt(countResult.rows[0].total),
+        page: parseInt(page),
+        limit: parseInt(limit),
+        totalPages: Math.ceil(countResult.rows[0].total / parseInt(limit))
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching mapping job violation groups:', error);
+    res.status(500).json({ error: 'Failed to fetch mapping job violation groups', details: error.message });
+  }
+});
+
+/**
  * GET /file-upload-violations/download
  * Download file upload violations as CSV or Excel
  */
@@ -407,6 +665,8 @@ router.get('/file-upload-violations/download', async (req, res) => {
   try {
     const {
       project_id,
+      file_id,
+      label,
       rule_type,
       severity,
       status = 'all',
@@ -439,6 +699,11 @@ router.get('/file-upload-violations/download', async (req, res) => {
     if (validProjectId) {
       whereConditions.push(`p.id = $${++paramCount}::integer`);
       params.push(validProjectId);
+    }
+
+    if (file_id) {
+      whereConditions.push(`qrv.file_id = $${++paramCount}`);
+      params.push(file_id);
     }
 
     if (rule_type && rule_type !== 'all') {
@@ -499,8 +764,13 @@ router.get('/file-upload-violations/download', async (req, res) => {
     const result = await db.query(query, params);
     const violations = result.rows;
 
+    // Build a safe download filename: use label hint when scoped to one file
+    const safeLabel = label
+      ? label.split('/').pop().replace(/[^\w.\-]/g, '_')
+      : null;
+    const baseFilename = safeLabel || 'file-upload-violations';
+
     if (format === 'excel') {
-      // Create Excel workbook
       const ws = xlsx.utils.json_to_sheet(violations.map(v => ({
         Project: v.project || '',
         'Sub-Project': v.sub_project || '',
@@ -520,41 +790,25 @@ router.get('/file-upload-violations/download', async (req, res) => {
         'Source Path': v.source_path || '',
         'Target Path': v.target_path || ''
       })));
-      
       const wb = xlsx.utils.book_new();
       xlsx.utils.book_append_sheet(wb, ws, 'File Upload Violations');
-      
       const buffer = xlsx.write(wb, { type: 'buffer', bookType: 'xlsx' });
-      
-      res.setHeader('Content-Disposition', 'attachment; filename=file-upload-violations.xlsx');
+      res.setHeader('Content-Disposition', `attachment; filename="${baseFilename}-violations.xlsx"`);
       res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
       res.send(buffer);
     } else {
-      // Create CSV
       const csv = [
         ['Project', 'Sub-Project', 'File Name', 'Rule Type', 'Rule Name', 'Row Number', 'Column Name', 'Expected Value', 'Actual Value', 'Severity', 'Status', 'Record Snapshot', 'Created Date', 'Created By', 'File Owner', 'Source Path', 'Target Path'],
         ...violations.map(v => [
-          v.project || '',
-          v.sub_project || '',
-          v.file_name || '',
-          v.rule_type || '',
-          v.rule_name || '',
-          v.row_number || '',
-          v.column_name || '',
-          v.expected_value || '',
-          v.actual_value || '',
-          v.severity || '',
-          v.status || '',
+          v.project || '', v.sub_project || '', v.file_name || '', v.rule_type || '',
+          v.rule_name || '', v.row_number || '', v.column_name || '', v.expected_value || '',
+          v.actual_value || '', v.severity || '', v.status || '',
           v.record_snapshot ? JSON.stringify(v.record_snapshot) : '',
           v.created_at ? new Date(v.created_at).toISOString() : '',
-          v.created_by || '',
-          v.file_owner || '',
-          v.source_path || '',
-          v.target_path || ''
+          v.created_by || '', v.file_owner || '', v.source_path || '', v.target_path || ''
         ])
       ].map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')).join('\n');
-      
-      res.setHeader('Content-Disposition', 'attachment; filename=file-upload-violations.csv');
+      res.setHeader('Content-Disposition', `attachment; filename="${baseFilename}-violations.csv"`);
       res.setHeader('Content-Type', 'text/csv');
       res.send(csv);
     }
@@ -572,6 +826,8 @@ router.get('/mapping-job-violations/download', async (req, res) => {
   try {
     const {
       project_id,
+      job_id,
+      label,
       rule_type,
       severity,
       status = 'all',
@@ -621,6 +877,11 @@ router.get('/mapping-job-violations/download', async (req, res) => {
       params.push(status);
     }
 
+    if (job_id) {
+      whereConditions.push(`qrv.job_id = $${++paramCount}`);
+      params.push(job_id);
+    }
+
     if (search) {
       whereConditions.push(`(
         qr.rule_name ILIKE $${++paramCount} OR
@@ -640,6 +901,7 @@ router.get('/mapping-job-violations/download', async (req, res) => {
         COALESCE(p.name, tj_p.name) AS project,
         sp.name AS sub_project,
         COALESCE(f.filename, tj.mapping_name) AS file_name,
+        tj.mapping_name,
         qr.rule_type,
         qr.rule_name,
         qrv.row_number,
@@ -670,8 +932,13 @@ router.get('/mapping-job-violations/download', async (req, res) => {
     const result = await db.query(query, params);
     const violations = result.rows;
 
+    // Build a safe download filename: use label hint when scoped to one job
+    const safeLabel = label
+      ? label.replace(/[^\w.\-]/g, '_')
+      : null;
+    const baseFilename = safeLabel || 'mapping-job-violations';
+
     if (format === 'excel') {
-      // Create Excel workbook
       const ws = xlsx.utils.json_to_sheet(violations.map(v => ({
         Project: v.project || '',
         'Sub-Project': v.sub_project || '',
@@ -691,41 +958,25 @@ router.get('/mapping-job-violations/download', async (req, res) => {
         'Source Path': v.source_path || '',
         'Target Path': v.target_path || ''
       })));
-      
       const wb = xlsx.utils.book_new();
       xlsx.utils.book_append_sheet(wb, ws, 'Mapping Job Violations');
-      
       const buffer = xlsx.write(wb, { type: 'buffer', bookType: 'xlsx' });
-      
-      res.setHeader('Content-Disposition', 'attachment; filename=mapping-job-violations.xlsx');
+      res.setHeader('Content-Disposition', `attachment; filename="${baseFilename}-violations.xlsx"`);
       res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
       res.send(buffer);
     } else {
-      // Create CSV
       const csv = [
         ['Project', 'Sub-Project', 'File Name', 'Rule Type', 'Rule Name', 'Row Number', 'Column Name', 'Expected Value', 'Actual Value', 'Severity', 'Status', 'Record Snapshot', 'Created Date', 'Created By', 'File Owner', 'Source Path', 'Target Path'],
         ...violations.map(v => [
-          v.project || '',
-          v.sub_project || '',
-          v.file_name || '',
-          v.rule_type || '',
-          v.rule_name || '',
-          v.row_number || '',
-          v.column_name || '',
-          v.expected_value || '',
-          v.actual_value || '',
-          v.severity || '',
-          v.status || '',
+          v.project || '', v.sub_project || '', v.file_name || '', v.rule_type || '',
+          v.rule_name || '', v.row_number || '', v.column_name || '', v.expected_value || '',
+          v.actual_value || '', v.severity || '', v.status || '',
           v.record_snapshot ? JSON.stringify(v.record_snapshot) : '',
           v.created_at ? new Date(v.created_at).toISOString() : '',
-          v.created_by || '',
-          v.file_owner || '',
-          v.source_path || '',
-          v.target_path || ''
+          v.created_by || '', v.file_owner || '', v.source_path || '', v.target_path || ''
         ])
       ].map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')).join('\n');
-      
-      res.setHeader('Content-Disposition', 'attachment; filename=mapping-job-violations.csv');
+      res.setHeader('Content-Disposition', `attachment; filename="${baseFilename}-violations.csv"`);
       res.setHeader('Content-Type', 'text/csv');
       res.send(csv);
     }

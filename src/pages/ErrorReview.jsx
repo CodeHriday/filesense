@@ -1,25 +1,37 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { FiAlertTriangle, FiFilter, FiX, FiChevronDown, FiChevronUp, FiDownload, FiChevronRight, FiTrash2, FiSearch } from 'react-icons/fi';
+import {
+  FiFilter, FiX, FiChevronDown, FiChevronUp, FiDownload,
+  FiChevronRight, FiTrash2, FiSearch
+} from 'react-icons/fi';
 import { getProjects } from '../api/qualityRulesService';
 import { bulkDeleteViolations } from '../api/errorReviewService';
 import '../styles/global-page-styles.css';
 import '../styles/ErrorReview.css';
 
 const API_BASE = '/api/error-review';
+const INNER_PAGE_SIZE = 25;
 
 const ErrorReview = () => {
   const [activeTab, setActiveTab] = useState('file-upload');
-  const [violations, setViolations] = useState([]);
-  const [projects, setProjects] = useState([]);
+
+  // Outer tier: list of file/job groups (summary with violation counts)
+  const [groups, setGroups] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [expandedRows, setExpandedRows] = useState(new Set());
+  const [pagination, setPagination] = useState({ total: 0, page: 1, limit: 10, totalPages: 0 });
+
+  // Inner tier: per-group violation rows, loaded lazily on expand
+  // { [groupKey]: { violations: [], loading: bool, page: int, hasMore: bool } }
+  const [groupViolations, setGroupViolations] = useState({});
+
+  const [projects, setProjects] = useState([]);
   const [expandedProjects, setExpandedProjects] = useState(new Set());
+  const [expandedGroups, setExpandedGroups] = useState(new Set());
+  const [expandedRows, setExpandedRows] = useState(new Set());
   const [selectedIds, setSelectedIds] = useState([]);
   const [isDeleting, setIsDeleting] = useState(false);
-  
   const [showFilters, setShowFilters] = useState(false);
-  
+
   const [filters, setFilters] = useState({
     project_id: '',
     rule_type: 'all',
@@ -30,251 +42,262 @@ const ErrorReview = () => {
     limit: 10
   });
 
-  const [pagination, setPagination] = useState({
-    total: 0,
-    page: 1,
-    limit: 10,
-    totalPages: 0
-  });
+  useEffect(() => { fetchProjects(); }, []);
 
+  // Re-fetch groups and clear inner cache whenever tab or filters change
   useEffect(() => {
-    fetchProjects();
-  }, []);
-
-  useEffect(() => {
-    fetchViolations();
+    fetchGroups();
     setSelectedIds([]);
+    setGroupViolations({});
+    setExpandedGroups(new Set());
   }, [activeTab, filters]);
 
+  const authHeaders = () => ({ 'Authorization': `Bearer ${localStorage.getItem('token')}` });
+
   const fetchProjects = async () => {
-    try {
-      const data = await getProjects();
-      setProjects(data);
-    } catch (err) {
-      console.error('Error fetching projects:', err);
-    }
+    try { setProjects(await getProjects()); } catch { /* non-fatal */ }
   };
 
-  const fetchViolations = async () => {
+  const fetchGroups = async () => {
     setLoading(true);
     setError(null);
-    
     try {
-      const endpoint = activeTab === 'file-upload' 
-        ? `${API_BASE}/file-upload-violations` 
-        : `${API_BASE}/mapping-job-violations`;
-      
+      const endpoint = activeTab === 'file-upload'
+        ? `${API_BASE}/file-upload-violations/groups`
+        : `${API_BASE}/mapping-job-violations/groups`;
+
       const params = new URLSearchParams();
-      Object.entries(filters).forEach(([key, value]) => {
-        if (value && value !== 'all' && value !== '') {
-          params.append(key, value);
-        }
+      Object.entries(filters).forEach(([k, v]) => {
+        if (v && v !== 'all' && v !== '') params.append(k, v);
       });
 
-      const response = await fetch(`${endpoint}?${params}`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-
-      const data = await response.json();
-      setViolations(data.violations || []);
-      setPagination(data.pagination || { total: 0, page: 1, limit: 50, totalPages: 0 });
+      const res = await fetch(`${endpoint}?${params}`, { headers: authHeaders() });
+      if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+      const data = await res.json();
+      setGroups(data.groups || []);
+      setPagination(data.pagination || { total: 0, page: 1, limit: 10, totalPages: 0 });
     } catch (err) {
-      console.error('Error fetching violations:', err);
       setError(`Failed to load violations: ${err.message}`);
-      setViolations([]);
+      setGroups([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleFilterChange = (key, value) => {
-    setFilters(prev => ({
+  const fetchGroupViolations = async (groupKey, page = 1, append = false) => {
+    setGroupViolations(prev => ({
       ...prev,
-      [key]: value,
-      page: 1
+      [groupKey]: { ...(prev[groupKey] || {}), loading: true }
     }));
+    try {
+      const isFileUpload = activeTab === 'file-upload';
+      const endpoint = isFileUpload
+        ? `${API_BASE}/file-upload-violations`
+        : `${API_BASE}/mapping-job-violations`;
+
+      const params = new URLSearchParams();
+      params.append(isFileUpload ? 'file_id' : 'job_id', groupKey);
+      params.append('page', page);
+      params.append('limit', INNER_PAGE_SIZE);
+      if (filters.rule_type && filters.rule_type !== 'all') params.append('rule_type', filters.rule_type);
+      if (filters.severity && filters.severity !== 'all') params.append('severity', filters.severity);
+      if (filters.status && filters.status !== 'all') params.append('status', filters.status);
+      if (filters.search) params.append('search', filters.search);
+
+      const res = await fetch(`${endpoint}?${params}`, { headers: authHeaders() });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+
+      setGroupViolations(prev => {
+        const existing = prev[groupKey] || {};
+        return {
+          ...prev,
+          [groupKey]: {
+            violations: append
+              ? [...(existing.violations || []), ...(data.violations || [])]
+              : (data.violations || []),
+            loading: false,
+            page: data.pagination.page,
+            hasMore: data.pagination.page < data.pagination.totalPages
+          }
+        };
+      });
+    } catch (err) {
+      console.error('Error fetching group violations:', err);
+      setGroupViolations(prev => ({
+        ...prev,
+        [groupKey]: { ...(prev[groupKey] || {}), loading: false, error: err.message }
+      }));
+    }
+  };
+
+  const handleFilterChange = (key, value) => {
+    setFilters(prev => ({ ...prev, [key]: value, page: 1 }));
   };
 
   const handlePageChange = (newPage) => {
     setFilters(prev => ({ ...prev, page: newPage }));
   };
 
+  // Page-level download (all results, respects active filters)
   const handleDownload = async (format) => {
     try {
-      const endpoint = activeTab === 'file-upload' 
-        ? `${API_BASE}/file-upload-violations/download` 
+      const endpoint = activeTab === 'file-upload'
+        ? `${API_BASE}/file-upload-violations/download`
         : `${API_BASE}/mapping-job-violations/download`;
-      
       const params = new URLSearchParams();
       params.append('format', format);
-      
-      Object.entries(filters).forEach(([key, value]) => {
-        if (value && value !== 'all' && value !== '' && key !== 'page' && key !== 'limit') {
-          params.append(key, value);
-        }
+      Object.entries(filters).forEach(([k, v]) => {
+        if (v && v !== 'all' && v !== '' && k !== 'page' && k !== 'limit') params.append(k, v);
       });
-
-      const response = await fetch(`${endpoint}?${params}`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = format === 'excel' 
-        ? `${activeTab}-violations.xlsx` 
-        : `${activeTab}-violations.csv`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-    } catch (err) {
-      console.error('Error downloading violations:', err);
-      alert(`Failed to download violations: ${err.message}`);
-    }
+      const res = await fetch(`${endpoint}?${params}`, { headers: authHeaders() });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      triggerDownload(await res.blob(), format === 'excel' ? `${activeTab}-violations.xlsx` : `${activeTab}-violations.csv`);
+    } catch (err) { alert(`Download failed: ${err.message}`); }
   };
 
-  const toggleProjectExpansion = (projectName) => {
+  // Per-group download (all violations for one file or job, Excel only)
+  const handleGroupDownload = async (group) => {
+    try {
+      const isFileUpload = activeTab === 'file-upload';
+      const endpoint = isFileUpload
+        ? `${API_BASE}/file-upload-violations/download`
+        : `${API_BASE}/mapping-job-violations/download`;
+      const params = new URLSearchParams();
+      params.append('format', 'excel');
+      params.append(isFileUpload ? 'file_id' : 'job_id', isFileUpload ? group.file_id : group.job_id);
+      // Pass label so the backend sets a descriptive Content-Disposition filename
+      const rawLabel = isFileUpload ? group.filename : group.mapping_name;
+      if (rawLabel) params.append('label', rawLabel.split('/').pop());
+
+      const res = await fetch(`${endpoint}?${params}`, { headers: authHeaders() });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+      const rawName = (isFileUpload ? group.filename : group.mapping_name) || 'violations';
+      const baseName = rawName.split('/').pop().replace(/[^\w.\-]/g, '_');
+      triggerDownload(await res.blob(), `${baseName}-violations.xlsx`);
+    } catch (err) { alert(`Download failed: ${err.message}`); }
+  };
+
+  const triggerDownload = (blob, filename) => {
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+  };
+
+  const toggleProjectExpansion = (key) => {
     setExpandedProjects(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(projectName)) {
-        newSet.delete(projectName);
-      } else {
-        newSet.add(projectName);
-      }
-      return newSet;
+      const next = new Set(prev);
+      next.has(key) ? next.delete(key) : next.add(key);
+      return next;
     });
   };
 
-  const toggleRowExpansion = (violationId) => {
+  const toggleGroupExpansion = (groupKey) => {
+    setExpandedGroups(prev => {
+      const next = new Set(prev);
+      if (next.has(groupKey)) {
+        next.delete(groupKey);
+      } else {
+        next.add(groupKey);
+        // Lazy-load on first expand
+        if (!groupViolations[groupKey]?.violations) {
+          fetchGroupViolations(groupKey, 1, false);
+        }
+      }
+      return next;
+    });
+  };
+
+  const toggleRowExpansion = (id) => {
     setExpandedRows(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(violationId)) {
-        newSet.delete(violationId);
-      } else {
-        newSet.add(violationId);
-      }
-      return newSet;
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
     });
   };
 
-  const handleSelectAll = (e) => {
-    if (e.target.checked) {
-      const allIds = violations.map(v => v.id);
-      setSelectedIds(allIds);
+  const handleGroupSelectAll = (groupKey, checked) => {
+    const gv = groupViolations[groupKey];
+    const ids = (gv?.violations || []).map(v => v.id);
+    if (checked) {
+      setSelectedIds(prev => [...new Set([...prev, ...ids])]);
     } else {
-      setSelectedIds([]);
+      setSelectedIds(prev => prev.filter(id => !ids.includes(id)));
     }
   };
 
-  const handleSelectRow = (violationId, e) => {
+  const handleSelectRow = (id, e) => {
     e.stopPropagation();
-    if (selectedIds.includes(violationId)) {
-      setSelectedIds(selectedIds.filter(id => id !== violationId));
-    } else {
-      setSelectedIds([...selectedIds, violationId]);
-    }
+    setSelectedIds(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
   };
 
   const handleBulkDelete = async () => {
-    if (selectedIds.length === 0) return;
-    
-    const confirmMessage = `Are you sure you want to delete ${selectedIds.length} violation record(s)? This action cannot be undone.`;
-    if (!window.confirm(confirmMessage)) return;
-
+    if (!selectedIds.length) return;
+    if (!window.confirm(`Delete ${selectedIds.length} violation(s)? This cannot be undone.`)) return;
     setIsDeleting(true);
     try {
       const result = await bulkDeleteViolations(selectedIds);
-      
       if (result.success) {
-        alert(`Successfully deleted ${result.deleted} violation record(s)`);
+        alert(`Deleted ${result.deleted} violation record(s)`);
         setSelectedIds([]);
-        fetchViolations();
+        setGroupViolations({});
+        fetchGroups();
       }
-    } catch (error) {
-      console.error('Bulk delete failed:', error);
-      const errorMsg = error.response?.data?.error || 'Failed to delete violation records';
-      alert(`Error: ${errorMsg}`);
+    } catch (err) {
+      alert(`Delete failed: ${err.response?.data?.error || err.message}`);
     } finally {
       setIsDeleting(false);
     }
   };
 
-  const formatDate = (dateString) => {
-    if (!dateString) return '-';
-    const date = new Date(dateString);
-    return date.toLocaleString();
-  };
+  // Derived: nest groups under their project name
+  const groupedByProject = useMemo(() => {
+    const result = {};
+    groups.forEach(g => {
+      const key = g.project_name || 'Unknown Project';
+      if (!result[key]) result[key] = { violationTotal: 0, groups: [] };
+      result[key].violationTotal += parseInt(g.violation_count, 10) || 0;
+      result[key].groups.push(g);
+    });
+    return result;
+  }, [groups]);
+
+  /* ── Helpers ── */
+  const formatDate = (d) => d ? new Date(d).toLocaleString() : '-';
 
   const getSeverityBadge = (severity) => {
-    const severityClasses = {
-      critical: 'gps-badge gps-badge-danger',
-      high: 'gps-badge gps-badge-warning',
-      error: 'gps-badge gps-badge-warning',
-      warning: 'gps-badge gps-badge-info',
-      low: 'gps-badge gps-badge-secondary'
+    const cls = {
+      critical: 'gps-badge-danger', high: 'gps-badge-warning',
+      error: 'gps-badge-warning', warning: 'gps-badge-info', low: 'gps-badge-secondary'
     };
-    
-    return (
-      <span className={severityClasses[severity] || 'gps-badge gps-badge-secondary'}>
-        {severity?.toUpperCase() || 'UNKNOWN'}
-      </span>
-    );
+    return <span className={`gps-badge ${cls[severity] || 'gps-badge-secondary'}`}>{severity?.toUpperCase() || 'UNKNOWN'}</span>;
   };
 
   const getStatusBadge = (status) => {
-    const statusClasses = {
-      new: 'gps-badge gps-badge-info',
-      reviewed: 'gps-badge gps-badge-primary',
-      acknowledged: 'gps-badge gps-badge-warning',
-      resolved: 'gps-badge gps-badge-success'
+    const cls = {
+      new: 'gps-badge-info', reviewed: 'gps-badge-primary',
+      acknowledged: 'gps-badge-warning', resolved: 'gps-badge-success'
     };
-    
-    return (
-      <span className={statusClasses[status] || 'gps-badge gps-badge-secondary'}>
-        {status || 'new'}
-      </span>
-    );
+    return <span className={`gps-badge ${cls[status] || 'gps-badge-secondary'}`}>{status || 'new'}</span>;
   };
 
-  const groupedViolations = useMemo(() => {
-    const groups = {};
-    violations.forEach(violation => {
-      const projectKey = violation.project_name || 'Unknown Project';
-      if (!groups[projectKey]) {
-        groups[projectKey] = [];
-      }
-      groups[projectKey].push(violation);
-    });
-    return groups;
-  }, [violations]);
-
-  const renderFullRecord = (recordSnapshot) => {
-    if (!recordSnapshot || typeof recordSnapshot !== 'object') {
+  const renderFullRecord = (snap) => {
+    if (!snap || typeof snap !== 'object')
       return <div className="gps-text-muted" style={{ fontStyle: 'italic' }}>No record data available</div>;
-    }
-
     return (
       <div className="quality-violations-record-snapshot">
         <div className="quality-violations-record-header">Full Record Data:</div>
         <div className="quality-violations-record-content">
-          {Object.entries(recordSnapshot).map(([key, value]) => (
-            <div key={key} className="quality-violations-record-field">
-              <span className="quality-violations-record-field-key">{key}:</span>
-              <span className="quality-violations-record-field-value">{value !== null && value !== undefined ? String(value) : 'null'}</span>
+          {Object.entries(snap).map(([k, v]) => (
+            <div key={k} className="quality-violations-record-field">
+              <span className="quality-violations-record-field-key">{k}:</span>
+              <span className="quality-violations-record-field-value">{v != null ? String(v) : 'null'}</span>
             </div>
           ))}
         </div>
@@ -282,139 +305,180 @@ const ErrorReview = () => {
     );
   };
 
-  const renderViolationsTable = () => {
-    if (loading) {
-      return <div className="gps-empty-state">Loading violations...</div>;
-    }
+  /* ── Inner violation table for one file/job group ── */
+  const renderGroupTable = (groupKey, totalCount) => {
+    const gv = groupViolations[groupKey];
+    if (!gv) return null;
 
-    if (error) {
-      return <div className="gps-alert gps-alert-danger">{error}</div>;
-    }
-
-    if (violations.length === 0) {
-      return <div className="gps-empty-state"><p>No violations found</p></div>;
-    }
-
-    const projectNames = Object.keys(groupedViolations).sort();
+    const violations = gv.violations || [];
+    const isFileUpload = activeTab === 'file-upload';
+    const groupIds = violations.map(v => v.id);
+    const allSelected = groupIds.length > 0 && groupIds.every(id => selectedIds.includes(id));
+    // colSpan: checkbox + expand + sub-proj + (filename for mapping) + rule + col + row + expected + actual + severity + date + (executed-by for mapping) + status
+    const colSpan = isFileUpload ? 11 : 13;
 
     return (
-      <>
-        {selectedIds.length > 0 && (
-          <div className="quality-violations-bulk-actions-bar">
-            <span className="quality-violations-selected-count">{selectedIds.length} violation(s) selected</span>
-            <button
-              className="gps-btn gps-btn-danger"
-              onClick={handleBulkDelete}
-              disabled={isDeleting}
-            >
-              <FiTrash2 />
-              {isDeleting ? 'Deleting...' : `Delete Selected (${selectedIds.length})`}
-            </button>
-          </div>
-        )}
-        
-        {projectNames.map((projectName) => {
-          const projectViolations = groupedViolations[projectName];
-          const isExpanded = expandedProjects.has(projectName);
-          
-          return (
-            <div key={projectName} className="quality-violations-project-group">
-              <div className="quality-violations-project-header" onClick={() => toggleProjectExpansion(projectName)}>
-                <button className="gps-icon-btn" style={{ border: 'none', background: 'none' }}>
-                  {isExpanded ? <FiChevronDown /> : <FiChevronRight />}
-                </button>
-                <h3 className="project-name">{projectName}</h3>
-                <span className="gps-badge gps-badge-info">{projectViolations.length} violations</span>
-              </div>
-              
-              {isExpanded && (
-                <div className="gps-table-container">
-                  <table className="gps-table">
-                    <thead>
-                      <tr>
-                        <th style={{ width: '40px' }}>
-                          <input
-                            type="checkbox"
-                            onChange={handleSelectAll}
-                            checked={violations.length > 0 && selectedIds.length === violations.length}
-                            title="Select all"
-                          />
-                        </th>
-                        <th style={{ width: '40px' }}></th>
-                        <th>Sub-Project</th>
-                        <th>Filename</th>
-                        <th>Rule</th>
-                        <th>Column</th>
-                        <th>Row #</th>
-                        <th>Expected</th>
-                        <th>Actual</th>
-                        <th>Severity</th>
-                        <th>Created Date</th>
-                        {activeTab === 'mapping-job' && <th>Executed By</th>}
-                        <th>Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {projectViolations.map((violation) => (
-                        <React.Fragment key={violation.id}>
-                          <tr className={selectedIds.includes(violation.id) ? 'selected-row' : ''}>
-                            <td>
-                              <input
-                                type="checkbox"
-                                checked={selectedIds.includes(violation.id)}
-                                onChange={(e) => handleSelectRow(violation.id, e)}
-                                onClick={(e) => e.stopPropagation()}
-                              />
-                            </td>
-                            <td>
-                              <button 
-                                className="gps-icon-btn"
-                                onClick={() => toggleRowExpansion(violation.id)}
-                                title="View full record"
-                              >
-                                {expandedRows.has(violation.id) ? <FiChevronUp /> : <FiChevronDown />}
-                              </button>
-                            </td>
-                            <td>{violation.sub_project_name || '-'}</td>
-                            <td className="filename-cell">{violation.filename || '-'}</td>
-                            <td>{violation.rule_name || '-'}</td>
-                            <td>{violation.column_name || '-'}</td>
-                            <td>{violation.row_number || '-'}</td>
-                            <td>{violation.expected_value || '-'}</td>
-                            <td>{violation.actual_value || '-'}</td>
-                            <td>{getSeverityBadge(violation.severity)}</td>
-                            <td>{formatDate(violation.created_at)}</td>
-                            {activeTab === 'mapping-job' && (
-                              <td>{violation.executed_by_fullname || violation.executed_by_username || '-'}</td>
-                            )}
-                            <td>{getStatusBadge(violation.status)}</td>
-                          </tr>
-                          {expandedRows.has(violation.id) && (
-                            <tr className="expanded-row">
-                              <td></td>
-                              <td colSpan={activeTab === 'mapping-job' ? 12 : 11}>
-                                {renderFullRecord(violation.record_snapshot)}
-                                {activeTab === 'mapping-job' && violation.mapping_name && (
-                                  <div className="quality-violations-mapping-info">
-                                    <strong>Mapping:</strong> {violation.mapping_name}
-                                  </div>
-                                )}
-                              </td>
-                            </tr>
+      <div className="gps-table-container qv-inner-table">
+        {gv.loading && !violations.length ? (
+          <div className="gps-empty-state" style={{ padding: '1rem 1.5rem' }}>Loading violations…</div>
+        ) : !violations.length ? (
+          <div className="gps-empty-state" style={{ padding: '1rem 1.5rem' }}>No violations match the current filters</div>
+        ) : (
+          <>
+            <table className="gps-table">
+              <thead>
+                <tr>
+                  <th style={{ width: 40 }}>
+                    <input type="checkbox" checked={allSelected} onChange={(e) => handleGroupSelectAll(groupKey, e.target.checked)} title="Select all visible" />
+                  </th>
+                  <th style={{ width: 40 }}></th>
+                  <th>Sub-Project</th>
+                  {/* For file-upload, filename is the group header — omit it from rows */}
+                  {!isFileUpload && <th>Filename</th>}
+                  <th>Rule</th>
+                  <th>Column</th>
+                  <th>Row #</th>
+                  <th>Expected</th>
+                  <th>Actual</th>
+                  <th>Severity</th>
+                  <th>Created Date</th>
+                  {!isFileUpload && <th>Executed By</th>}
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {violations.map(v => (
+                  <React.Fragment key={v.id}>
+                    <tr className={selectedIds.includes(v.id) ? 'selected-row' : ''}>
+                      <td>
+                        <input type="checkbox" checked={selectedIds.includes(v.id)}
+                          onChange={(e) => handleSelectRow(v.id, e)} onClick={(e) => e.stopPropagation()} />
+                      </td>
+                      <td>
+                        <button className="gps-icon-btn" onClick={() => toggleRowExpansion(v.id)} title="View full record">
+                          {expandedRows.has(v.id) ? <FiChevronUp /> : <FiChevronDown />}
+                        </button>
+                      </td>
+                      <td>{v.sub_project_name || '-'}</td>
+                      {!isFileUpload && <td className="filename-cell">{v.filename || '-'}</td>}
+                      <td>{v.rule_name || '-'}</td>
+                      <td>{v.column_name || '-'}</td>
+                      <td>{v.row_number ?? '-'}</td>
+                      <td>{v.expected_value || '-'}</td>
+                      <td>{v.actual_value || '-'}</td>
+                      <td>{getSeverityBadge(v.severity)}</td>
+                      <td>{formatDate(v.created_at)}</td>
+                      {!isFileUpload && <td>{v.executed_by_fullname || v.executed_by_username || '-'}</td>}
+                      <td>{getStatusBadge(v.status)}</td>
+                    </tr>
+                    {expandedRows.has(v.id) && (
+                      <tr className="expanded-row">
+                        <td></td>
+                        <td colSpan={colSpan}>
+                          {renderFullRecord(v.record_snapshot)}
+                          {!isFileUpload && v.mapping_name && (
+                            <div className="quality-violations-mapping-info">
+                              <strong>Mapping:</strong> {v.mapping_name}
+                            </div>
                           )}
-                        </React.Fragment>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </>
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
+                ))}
+              </tbody>
+            </table>
+
+            {(gv.hasMore || gv.loading) && (
+              <div className="qv-load-more">
+                <button
+                  className="gps-btn gps-btn-secondary"
+                  onClick={() => fetchGroupViolations(groupKey, gv.page + 1, true)}
+                  disabled={gv.loading}
+                >
+                  {gv.loading ? 'Loading…' : `Load more`}
+                </button>
+                <span className="qv-load-more-hint">Showing {violations.length} of {/* total count not stored, just show progress */}many violations</span>
+              </div>
+            )}
+          </>
+        )}
+      </div>
     );
   };
 
+  /* ── Main content tree: Project → File/Job group → Rows ── */
+  const renderContent = () => {
+    if (loading) return <div className="gps-empty-state">Loading…</div>;
+    if (error) return <div className="gps-alert gps-alert-danger">{error}</div>;
+    if (!groups.length) return <div className="gps-empty-state"><p>No violations found</p></div>;
+
+    return Object.entries(groupedByProject)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([projectName, { violationTotal, groups: projectGroups }]) => {
+        const isProjectExpanded = expandedProjects.has(projectName);
+        return (
+          <div key={projectName} className="quality-violations-project-group">
+            <div className="quality-violations-project-header" onClick={() => toggleProjectExpansion(projectName)}>
+              <button className="gps-icon-btn" style={{ border: 'none', background: 'none' }}>
+                {isProjectExpanded ? <FiChevronDown /> : <FiChevronRight />}
+              </button>
+              <h3 className="project-name">{projectName}</h3>
+              <span className="gps-badge gps-badge-info qv-project-count">
+                {violationTotal.toLocaleString()} violations
+              </span>
+            </div>
+
+            {isProjectExpanded && (
+              <div className="qv-file-groups">
+                {projectGroups.map(group => {
+                  const isFileUpload = activeTab === 'file-upload';
+                  const groupKey = isFileUpload ? group.file_id : group.job_id;
+                  const rawLabel = isFileUpload ? group.filename : group.mapping_name;
+                  const groupLabel = rawLabel ? rawLabel.split('/').pop() : (isFileUpload ? 'Unknown file' : 'Unknown job');
+                  const groupFullPath = rawLabel || '';
+                  const isGroupExpanded = expandedGroups.has(groupKey);
+
+                  return (
+                    <div key={groupKey} className="qv-file-group">
+                      <div className="qv-file-header">
+                        <button
+                          className="gps-icon-btn qv-toggle-btn"
+                          onClick={() => toggleGroupExpansion(groupKey)}
+                          title={isGroupExpanded ? 'Collapse' : 'Expand'}
+                        >
+                          {isGroupExpanded ? <FiChevronDown /> : <FiChevronRight />}
+                        </button>
+
+                        <span className="qv-file-label" title={groupFullPath}>
+                          {groupLabel}
+                        </span>
+
+                        <span className="qv-file-count">
+                          {parseInt(group.violation_count, 10).toLocaleString()} violations
+                        </span>
+
+                        <button
+                          className="gps-icon-btn qv-download-btn"
+                          onClick={(e) => { e.stopPropagation(); handleGroupDownload(group); }}
+                          title={`Download all violations for this ${isFileUpload ? 'file' : 'mapping job'} as Excel`}
+                        >
+                          <FiDownload />
+                        </button>
+                      </div>
+
+                      {isGroupExpanded && renderGroupTable(groupKey, parseInt(group.violation_count, 10))}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        );
+      });
+  };
+
+  /* ── Page shell ── */
   return (
     <div className="gps-page-container">
       <div className="gps-page-header">
@@ -424,17 +488,15 @@ const ErrorReview = () => {
         </div>
         <div className="gps-page-header-right" style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
           <div className="download-dropdown">
-            <button className="gps-btn gps-btn-primary">
-              <FiDownload /> Download
-            </button>
+            <button className="gps-btn gps-btn-primary"><FiDownload /> Download</button>
             <div className="download-menu">
               <button onClick={() => handleDownload('csv')}>Download as CSV</button>
               <button onClick={() => handleDownload('excel')}>Download as Excel</button>
             </div>
           </div>
-          <button 
+          <button
             className={`gps-btn gps-btn-secondary ${showFilters ? 'active' : ''}`}
-            onClick={() => setShowFilters(!showFilters)}
+            onClick={() => setShowFilters(s => !s)}
           >
             <FiFilter /> {showFilters ? 'Hide Filters' : 'Show Filters'}
           </button>
@@ -442,52 +504,36 @@ const ErrorReview = () => {
       </div>
 
       <div className="gps-tabs">
-        <button 
+        <button
           className={`gps-tab ${activeTab === 'file-upload' ? 'gps-tab--active' : ''}`}
-          onClick={() => {
-            setActiveTab('file-upload');
-            setFilters(prev => ({ ...prev, page: 1 }));
-          }}
+          onClick={() => { setActiveTab('file-upload'); setFilters(prev => ({ ...prev, page: 1 })); }}
         >
           File Upload Violations
-          {activeTab === 'file-upload' && (
+          {activeTab === 'file-upload' && pagination.total > 0 && (
             <span className="gps-tab-count">{pagination.total}</span>
           )}
         </button>
-        <button 
+        <button
           className={`gps-tab ${activeTab === 'mapping-job' ? 'gps-tab--active' : ''}`}
-          onClick={() => {
-            setActiveTab('mapping-job');
-            setFilters(prev => ({ ...prev, page: 1 }));
-          }}
+          onClick={() => { setActiveTab('mapping-job'); setFilters(prev => ({ ...prev, page: 1 })); }}
         >
           Mapping Job Violations
-          {activeTab === 'mapping-job' && (
+          {activeTab === 'mapping-job' && pagination.total > 0 && (
             <span className="gps-tab-count">{pagination.total}</span>
           )}
         </button>
       </div>
-      
+
       {showFilters && (
         <div className="gps-filters">
-          <select 
-            className="gps-filter-select"
-            value={filters.project_id} 
-            onChange={(e) => handleFilterChange('project_id', e.target.value)}
-          >
+          <select className="gps-filter-select" value={filters.project_id}
+            onChange={(e) => handleFilterChange('project_id', e.target.value)}>
             <option value="">All Projects</option>
-            {projects.map(project => (
-              <option key={project.id} value={project.id}>
-                {project.name}
-              </option>
-            ))}
+            {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
           </select>
 
-          <select 
-            className="gps-filter-select"
-            value={filters.rule_type} 
-            onChange={(e) => handleFilterChange('rule_type', e.target.value)}
-          >
+          <select className="gps-filter-select" value={filters.rule_type}
+            onChange={(e) => handleFilterChange('rule_type', e.target.value)}>
             <option value="all">All Rule Types</option>
             <option value="completeness">Completeness</option>
             <option value="validity">Validity</option>
@@ -496,11 +542,8 @@ const ErrorReview = () => {
             <option value="freshness">Freshness</option>
           </select>
 
-          <select 
-            className="gps-filter-select"
-            value={filters.severity} 
-            onChange={(e) => handleFilterChange('severity', e.target.value)}
-          >
+          <select className="gps-filter-select" value={filters.severity}
+            onChange={(e) => handleFilterChange('severity', e.target.value)}>
             <option value="all">All Severities</option>
             <option value="critical">Critical</option>
             <option value="high">High</option>
@@ -509,11 +552,8 @@ const ErrorReview = () => {
             <option value="low">Low</option>
           </select>
 
-          <select 
-            className="gps-filter-select"
-            value={filters.status} 
-            onChange={(e) => handleFilterChange('status', e.target.value)}
-          >
+          <select className="gps-filter-select" value={filters.status}
+            onChange={(e) => handleFilterChange('status', e.target.value)}>
             <option value="all">All Statuses</option>
             <option value="new">New</option>
             <option value="reviewed">Reviewed</option>
@@ -523,73 +563,61 @@ const ErrorReview = () => {
 
           <div className="gps-search-container">
             <FiSearch className="gps-search-icon" />
-            <input
-              type="text"
-              className="gps-search-input"
-              placeholder="Search violations..."
-              value={filters.search}
-              onChange={(e) => handleFilterChange('search', e.target.value)}
-            />
+            <input type="text" className="gps-search-input" placeholder="Search violations…"
+              value={filters.search} onChange={(e) => handleFilterChange('search', e.target.value)} />
           </div>
 
-          <button 
-            className="gps-btn-danger"
-            onClick={() => setFilters({
-              project_id: '',
-              rule_type: 'all',
-              severity: 'all',
-              status: 'all',
-              search: '',
-              page: 1,
-              limit: 10
-            })}
-          >
+          <button className="gps-btn-danger" onClick={() => setFilters({
+            project_id: '', rule_type: 'all', severity: 'all', status: 'all', search: '', page: 1, limit: 10
+          })}>
             <FiX /> Clear Filters
           </button>
         </div>
       )}
 
       <div className="gps-results-info">
-        Showing {violations.length} violations (Page {pagination.page} of {pagination.totalPages || 1}, {pagination.total} total)
+        {loading
+          ? 'Loading…'
+          : `${pagination.total} ${activeTab === 'file-upload' ? 'file(s)' : 'mapping job(s)'} with violations` +
+            (pagination.totalPages > 1 ? ` — Page ${pagination.page} of ${pagination.totalPages}` : '')}
       </div>
 
-      {renderViolationsTable()}
+      {selectedIds.length > 0 && (
+        <div className="quality-violations-bulk-actions-bar">
+          <span className="quality-violations-selected-count">{selectedIds.length} violation(s) selected</span>
+          <button className="gps-btn gps-btn-danger" onClick={handleBulkDelete} disabled={isDeleting}>
+            <FiTrash2 /> {isDeleting ? 'Deleting…' : `Delete Selected (${selectedIds.length})`}
+          </button>
+        </div>
+      )}
 
-      {violations.length > 0 && (
+      {renderContent()}
+
+      {!loading && groups.length > 0 && pagination.totalPages > 1 && (
         <div className="gps-pagination">
           <div className="gps-pagination-controls">
             {filters.page > 1 && (
-              <button 
-                onClick={() => handlePageChange(filters.page - 1)}
-                className="gps-btn gps-btn-secondary"
-              >
+              <button onClick={() => handlePageChange(filters.page - 1)} className="gps-btn gps-btn-secondary">
                 Previous
               </button>
             )}
             <span className="gps-pagination-info">
-              Page {pagination.page} of {pagination.totalPages} ({pagination.total} total)
+              Page {pagination.page} of {pagination.totalPages} ({pagination.total} groups)
             </span>
             {filters.page < pagination.totalPages && (
-              <button 
-                onClick={() => handlePageChange(filters.page + 1)}
-                className="gps-btn gps-btn-secondary"
-              >
+              <button onClick={() => handlePageChange(filters.page + 1)} className="gps-btn gps-btn-secondary">
                 Next
               </button>
             )}
           </div>
           <div className="gps-pagination-size">
-            <label>Rows per page:</label>
-            <select 
-              value={filters.limit} 
-              onChange={(e) => handleFilterChange('limit', parseInt(e.target.value))}
-              className="gps-filter-select"
-            >
+            <label>Groups per page:</label>
+            <select value={filters.limit}
+              onChange={(e) => handleFilterChange('limit', parseInt(e.target.value, 10))}
+              className="gps-filter-select">
               <option value="10">10</option>
               <option value="25">25</option>
               <option value="50">50</option>
-              <option value="100">100</option>
-              <option value="200">200</option>
             </select>
           </div>
         </div>
