@@ -692,7 +692,7 @@ const ErrorReview = () => {
             onChange={(e) => handleFilterChange('date_to', e.target.value)}
           />
 
-          <button className="gps-btn-danger" onClick={() => setFilters({
+          <button className="gps-btn gps-btn-secondary" onClick={() => setFilters({
             project_id: '', rule_type: 'all', severity: 'all',
             status: 'all', search: '', date_from: '', date_to: '', page: 1, limit: 10
           })}>
