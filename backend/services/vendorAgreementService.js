@@ -3541,7 +3541,7 @@ class VendorAgreementService {
    * Evaluates quorum and either advances to the next step, finalises approval,
    * or cancels the chain on rejection.
    */
-  async recordStepDecision(agreementId, userId, action, comments = null, isAdmin = false) {
+  async recordStepDecision(agreementId, userId, action, comments = null, isAdmin = false, files = []) {
     if (!['approve', 'reject'].includes(action)) {
       throw new Error('Invalid action. Must be "approve" or "reject"');
     }
@@ -3647,14 +3647,39 @@ class VendorAgreementService {
         [agreementId, currentStep, userId, action, comments, agreement.version]
       );
 
-      // Audit trail in vendor_agreement_approvals
-      await client.query(
+      // Audit trail in vendor_agreement_approvals — RETURNING id so we can link documents
+      const auditInsert = await client.query(
         `INSERT INTO vendor_agreement_approvals (
            agreement_id, approver_type, approver_user_id, action, comments,
            agreement_version, approval_timestamp, approval_stage
-         ) VALUES ($1, 'manager', $2, $3, $4, $5, CURRENT_TIMESTAMP, $6)`,
+         ) VALUES ($1, 'manager', $2, $3, $4, $5, CURRENT_TIMESTAMP, $6)
+         RETURNING id`,
         [agreementId, userId, action === 'approve' ? 'approved' : 'rejected', comments, agreement.version, `chain_step_${currentStep}`]
       );
+      const approvalId = auditInsert.rows[0]?.id ?? null;
+
+      // Attach any uploaded documents to this audit record
+      if (approvalId && Array.isArray(files) && files.length > 0) {
+        for (const file of files) {
+          const base64Data = file.buffer.toString('base64');
+          await client.query(
+            `INSERT INTO vendor_agreement_documents
+               (agreement_id, approval_id, document_name, document_type,
+                file_path, file_size, mime_type, uploaded_by, approval_stage)
+             VALUES ($1, $2, $3, 'approval_document', $4, $5, $6, $7, $8)`,
+            [
+              agreementId,
+              approvalId,
+              file.originalname,
+              base64Data,
+              file.size,
+              file.mimetype,
+              userId,
+              `chain_step_${currentStep}`
+            ]
+          );
+        }
+      }
 
       const contractLabel = agreement.file_name || agreement.agreement_code;
 

@@ -3175,10 +3175,15 @@ const VendorAgreements = () => {
                                 <th>Approver</th>
                                 <th>Action</th>
                                 <th>Comments</th>
+                                <th>Documents</th>
                               </tr>
                             </thead>
                             <tbody>
-                              {stepDecisions.map((dec, index) => (
+                              {stepDecisions.map((dec, index) => {
+                                const decDocs = dec.approval_id
+                                  ? (approvalHistory.find(a => a.id === dec.approval_id)?.documents || [])
+                                  : [];
+                                return (
                                 <tr key={index}>
                                   <td>Step {dec.step_number}</td>
                                   <td>{dec.decided_at ? new Date(dec.decided_at).toLocaleString() : '-'}</td>
@@ -3189,8 +3194,54 @@ const VendorAgreements = () => {
                                     </span>
                                   </td>
                                   <td>{dec.comments || '-'}</td>
+                                  <td>
+                                    {decDocs.length > 0 ? (
+                                      <div className="document-list">
+                                        {decDocs.map((doc, docIndex) => (
+                                          <div key={docIndex} className="document-item">
+                                            📎 <a
+                                              href="#"
+                                              className="document-link"
+                                              onClick={(e) => {
+                                                e.preventDefault();
+                                                const token = localStorage.getItem('token');
+                                                if (!token) {
+                                                  setError('Session expired. Please log in again.');
+                                                  return;
+                                                }
+                                                fetch(`/api/vendor-agreements/${selectedAgreement.id}/documents/${doc.id}/download`, {
+                                                  headers: { 'Authorization': `Bearer ${token}` }
+                                                })
+                                                .then(res => {
+                                                  if (!res.ok) throw new Error(res.status === 401 ? 'Session expired. Please log in again.' : 'Failed to download document');
+                                                  return res.blob();
+                                                })
+                                                .then(blob => {
+                                                  const url = window.URL.createObjectURL(blob);
+                                                  const a = document.createElement('a');
+                                                  a.href = url;
+                                                  a.download = doc.document_name;
+                                                  document.body.appendChild(a);
+                                                  a.click();
+                                                  window.URL.revokeObjectURL(url);
+                                                  document.body.removeChild(a);
+                                                })
+                                                .catch(err => {
+                                                  console.error('Download error:', err);
+                                                  setError(err.message || 'Failed to download document');
+                                                });
+                                              }}
+                                            >
+                                              {doc.document_name}
+                                            </a> ({(doc.file_size / 1024).toFixed(1)} KB)
+                                          </div>
+                                        ))}
+                                      </div>
+                                    ) : '-'}
+                                  </td>
                                 </tr>
-                              ))}
+                                );
+                              })}
                             </tbody>
                           </table>
                         </>

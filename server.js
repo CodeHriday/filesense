@@ -5857,6 +5857,7 @@ const { up: addErrorActionToTransformationQualityRules } = require('./backend/mi
 const ensureFileUploadPermissions = require('./backend/migrations/ensureFileUploadPermissions');
 const { createDigestTables } = require('./backend/migrations/createDigestTables');
 const { up: addApprovalChainToVendorAgreements } = require('./backend/migrations/addApprovalChainToVendorAgreements');
+const { up: alterDocumentFilePathToText } = require('./backend/migrations/alterDocumentFilePathToText');
 
 // Run schema migrations asynchronously with tracking to prevent re-running
 (async () => {
@@ -5919,6 +5920,7 @@ const { up: addApprovalChainToVendorAgreements } = require('./backend/migrations
     await migrationTracker.runOnce('addErrorActionToTransformationQualityRules', () => addErrorActionToTransformationQualityRules(dbPool));
     await migrationTracker.runOnce('createDigestTables', () => createDigestTables(dbPool));
     await migrationTracker.runOnce('addApprovalChainToVendorAgreements', () => addApprovalChainToVendorAgreements(dbPool));
+    await migrationTracker.runOnce('alterDocumentFilePathToText', () => alterDocumentFilePathToText(dbPool));
     // Ensure file upload permissions exist in role_permissions table (idempotent).
     // This runs on every restart (not tracked) so new roles added in prod are always covered.
     await ensureFileUploadPermissions(dbPool);

@@ -22,6 +22,7 @@ const DynamicApprovalPanel = ({
   const [activeAction, setActiveAction] = useState(null); // 'approve' | 'reject'
   const [comments, setComments] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [selectedFiles, setSelectedFiles] = useState([]);
 
   const chainConfig = agreement?.approval_chain_config;
   const steps = chainConfig?.steps || [];
@@ -155,9 +156,15 @@ const DynamicApprovalPanel = ({
     }
     try {
       setSubmitting(true);
+      const formData = new FormData();
+      formData.append('action', action);
+      formData.append('comments', comments.trim());
+      selectedFiles.forEach((file) => formData.append('documents', file));
+
       const response = await axios.post(
         `/api/vendor-agreements/${agreement.id}/step-decision`,
-        { action, comments: comments.trim() }
+        formData,
+        { headers: { 'Content-Type': 'multipart/form-data' } }
       );
       onSuccess(
         response.data.message ||
@@ -165,6 +172,7 @@ const DynamicApprovalPanel = ({
       );
       setComments('');
       setActiveAction(null);
+      setSelectedFiles([]);
       if (onUpdate) await onUpdate();
     } catch (err) {
       onError(err.response?.data?.error || 'Failed to record decision');
@@ -336,6 +344,45 @@ const DynamicApprovalPanel = ({
                   rows={3}
                 />
               </div>
+
+              <div className="dap-form-group">
+                <label>Supporting Documents (optional, max 5):</label>
+                <label className="dap-file-btn">
+                  📎 Attach files
+                  <input
+                    type="file"
+                    multiple
+                    accept=".pdf,.doc,.docx,.xls,.xlsx,.zip"
+                    style={{ display: 'none' }}
+                    onChange={(e) => {
+                      setSelectedFiles(Array.from(e.target.files).slice(0, 5));
+                      // Reset input so re-selecting the same file fires onChange again
+                      e.target.value = '';
+                    }}
+                  />
+                </label>
+                {selectedFiles.length > 0 && (
+                  <ul className="dap-file-list">
+                    {selectedFiles.map((f, i) => (
+                      <li key={i}>
+                        {f.name}{' '}
+                        <span className="dap-file-size">
+                          ({(f.size / 1024).toFixed(1)} KB)
+                        </span>
+                        <button
+                          type="button"
+                          className="dap-file-remove"
+                          onClick={() =>
+                            setSelectedFiles((prev) => prev.filter((_, idx) => idx !== i))
+                          }
+                        >
+                          ✕
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
               <div className="action-buttons">
                 <button
                   className={
@@ -357,6 +404,7 @@ const DynamicApprovalPanel = ({
                   onClick={() => {
                     setActiveAction(null);
                     setComments('');
+                    setSelectedFiles([]);
                   }}
                   disabled={submitting}
                 >

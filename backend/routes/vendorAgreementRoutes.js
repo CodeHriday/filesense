@@ -82,17 +82,17 @@ const templateUpload = multer({
 const approvalDocUpload = multer({
   storage: multer.memoryStorage(),
   limits: {
-    fileSize: 10 * 1024 // 10 KB limit for efficient storage
+    fileSize: 10 * 1024 * 1024 // 10 MB per file
   },
   fileFilter: (req, file, cb) => {
-    // Accept compressed formats and PDFs
-    const allowedExtensions = ['.zip', '.gz', '.7z', '.pdf', '.txt'];
+    // Accept compressed formats, PDFs, Word and Excel documents
+    const allowedExtensions = ['.zip', '.gz', '.7z', '.pdf', '.txt', '.doc', '.docx', '.xls', '.xlsx'];
     const ext = path.extname(file.originalname).toLowerCase();
     
     if (allowedExtensions.includes(ext)) {
       cb(null, true);
     } else {
-      cb(new Error('Only compressed formats (.zip, .gz, .7z) and small documents (.pdf, .txt) under 10 KB are allowed'));
+      cb(new Error('Allowed types: PDF, Word (.doc/.docx), Excel (.xls/.xlsx), ZIP'));
     }
   }
 });
@@ -768,7 +768,16 @@ router.get('/:id/full', checkAgreementAccess, async (req, res) => {
         vasd.agreement_version,
         u.username,
         u.email as user_email,
-        COALESCE(u.first_name || ' ' || u.last_name, u.username) as display_name
+        COALESCE(u.first_name || ' ' || u.last_name, u.username) as display_name,
+        -- Match the audit record so the history tab can look up attached documents
+        (SELECT vaa.id
+         FROM vendor_agreement_approvals vaa
+         WHERE vaa.agreement_id = vasd.agreement_id
+           AND vaa.approver_user_id = vasd.approver_user_id
+           AND vaa.approval_stage = 'chain_step_' || vasd.step_number
+           AND ABS(EXTRACT(EPOCH FROM (vaa.approval_timestamp - vasd.decided_at))) < 10
+         ORDER BY ABS(EXTRACT(EPOCH FROM (vaa.approval_timestamp - vasd.decided_at)))
+         LIMIT 1) AS approval_id
       FROM vendor_approval_step_decisions vasd
       LEFT JOIN users u ON vasd.approver_user_id = u.id
       WHERE vasd.agreement_id = $1
@@ -1083,9 +1092,9 @@ router.post('/:id/submit-for-approval', checkAgreementAccess, async (req, res) =
  * Record an approver's approve/reject decision for the current step.
  * Evaluates quorum and automatically advances or finalises the chain.
  *
- * Body: { action: 'approve'|'reject', comments?: string }
+ * Body (multipart/form-data): action, comments, documents[] (optional, max 5 files)
  */
-router.post('/:id/step-decision', checkAgreementAccess, async (req, res) => {
+router.post('/:id/step-decision', checkAgreementAccess, approvalDocUpload.array('documents', 5), async (req, res) => {
   try {
     const agreementId = parseInt(req.params.id);
     const { action, comments } = req.body;
@@ -1099,7 +1108,8 @@ router.post('/:id/step-decision', checkAgreementAccess, async (req, res) => {
       req.user.id,
       action,
       comments || null,
-      req.isAdmin || false
+      req.isAdmin || false,
+      req.files || []
     );
     res.json(result);
   } catch (error) {
