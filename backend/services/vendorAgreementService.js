@@ -3580,8 +3580,13 @@ class VendorAgreementService {
         throw new Error(`Invalid current step: ${currentStep}`);
       }
 
-      // Authorization: caller must be a configured approver or an admin
-      if (!isAdmin && !stepConfig.approver_user_ids.includes(userId)) {
+      // Authorization: caller must be a configured approver or an admin.
+      // approver_user_ids may contain strings or numbers — use parseInt comparison to avoid
+      // strict-equality mismatches (e.g. "56" !== 56).
+      const isConfiguredApprover = stepConfig.approver_user_ids.some(
+        (id) => parseInt(id, 10) === parseInt(userId, 10)
+      );
+      if (!isAdmin && !isConfiguredApprover) {
         throw new Error(`You are not a configured approver for Step ${currentStep} (${stepConfig.name})`);
       }
 
@@ -3596,10 +3601,31 @@ class VendorAgreementService {
       );
       const chainSubmittedAt = lastSubmissionResult.rows[0]?.chain_submitted_at ?? null;
 
+      // Lazy version bump: if stale decisions from a previous round exist under the
+      // current version (i.e. the agreement was resubmitted before the per-round version
+      // increment was introduced), bump the version now so the DB unique constraint
+      // (agreement_id, step_number, approver_user_id, agreement_version) doesn't block
+      // the new decision. This is a one-time catch-up per affected agreement.
+      if (chainSubmittedAt) {
+        const staleForCurrentVersion = await client.query(
+          `SELECT id FROM vendor_approval_step_decisions
+           WHERE agreement_id = $1
+             AND agreement_version = $2
+             AND decided_at < $3::timestamptz`,
+          [agreementId, agreement.version, chainSubmittedAt]
+        );
+        if (staleForCurrentVersion.rows.length > 0) {
+          await client.query(
+            `UPDATE vendor_agreements SET version = version + 1 WHERE id = $1`,
+            [agreementId]
+          );
+          agreement.version = agreement.version + 1;
+        }
+      }
+
       // Prevent duplicate votes within the current round only.
       // Filter by decided_at >= chain_submitted_at so that votes from earlier rounds
-      // (which share the same agreement_version when the version was not bumped on
-      // resubmission) do not falsely block the voter in the new round.
+      // do not falsely block the voter in the new round.
       const existingVote = await client.query(
         `SELECT id FROM vendor_approval_step_decisions
          WHERE agreement_id = $1
@@ -3706,13 +3732,22 @@ class VendorAgreementService {
       }
 
       // ── APPROVE: evaluate quorum ──
+      // Only count approvals from the current round (decided_at >= chainSubmittedAt).
+      // Also filter to the current version so we don't mix rounds for agreements where
+      // the version was correctly bumped on resubmission.
       const approvalsResult = await client.query(
         `SELECT approver_user_id FROM vendor_approval_step_decisions
-         WHERE agreement_id = $1 AND step_number = $2 AND agreement_version = $3 AND action = 'approve'`,
-        [agreementId, currentStep, agreement.version]
+         WHERE agreement_id = $1
+           AND step_number = $2
+           AND agreement_version = $3
+           AND action = 'approve'
+           AND ($4::timestamptz IS NULL OR decided_at >= $4::timestamptz)`,
+        [agreementId, currentStep, agreement.version, chainSubmittedAt]
       );
-      const approvedUserIds = approvalsResult.rows.map(r => r.approver_user_id);
-      const configuredApprovers = stepConfig.approver_user_ids;
+      // Normalise all IDs to integers for consistent comparison regardless of how
+      // approver_user_ids are stored in the JSONB config (strings vs numbers).
+      const approvedUserIds = approvalsResult.rows.map(r => parseInt(r.approver_user_id, 10));
+      const configuredApprovers = stepConfig.approver_user_ids.map(id => parseInt(id, 10));
       const requireAll = stepConfig.require_all;
 
       const quorumMet = requireAll
