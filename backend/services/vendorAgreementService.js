@@ -3585,11 +3585,29 @@ class VendorAgreementService {
         throw new Error(`You are not a configured approver for Step ${currentStep} (${stepConfig.name})`);
       }
 
-      // Prevent duplicate votes
+      // Determine when the current approval round started (most recent chain submission).
+      // This is used to exclude decisions from previous (rejected) rounds when checking
+      // for duplicate votes — a voter who voted in round 1 may vote again in round 2.
+      const lastSubmissionResult = await client.query(
+        `SELECT MAX(approval_timestamp) AS chain_submitted_at
+         FROM vendor_agreement_approvals
+         WHERE agreement_id = $1 AND approval_stage = 'chain_submission'`,
+        [agreementId]
+      );
+      const chainSubmittedAt = lastSubmissionResult.rows[0]?.chain_submitted_at ?? null;
+
+      // Prevent duplicate votes within the current round only.
+      // Filter by decided_at >= chain_submitted_at so that votes from earlier rounds
+      // (which share the same agreement_version when the version was not bumped on
+      // resubmission) do not falsely block the voter in the new round.
       const existingVote = await client.query(
         `SELECT id FROM vendor_approval_step_decisions
-         WHERE agreement_id = $1 AND step_number = $2 AND approver_user_id = $3 AND agreement_version = $4`,
-        [agreementId, currentStep, userId, agreement.version]
+         WHERE agreement_id = $1
+           AND step_number = $2
+           AND approver_user_id = $3
+           AND agreement_version = $4
+           AND ($5::timestamptz IS NULL OR decided_at >= $5::timestamptz)`,
+        [agreementId, currentStep, userId, agreement.version, chainSubmittedAt]
       );
       if (existingVote.rows.length > 0) {
         throw new Error('You have already submitted your decision for this step');
