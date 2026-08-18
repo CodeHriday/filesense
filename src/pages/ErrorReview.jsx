@@ -64,6 +64,8 @@ const ErrorReview = () => {
     severity:   'all',
     status:     'all',
     search:     '',
+    date_from:  '',
+    date_to:    '',
     page:       1,
     limit:      10
   });
@@ -674,9 +676,25 @@ const ErrorReview = () => {
               onChange={(e) => handleFilterChange('search', e.target.value)} />
           </div>
 
+          <input
+            type="date"
+            className="gps-filter-select"
+            title="From date"
+            value={filters.date_from}
+            onChange={(e) => handleFilterChange('date_from', e.target.value)}
+          />
+
+          <input
+            type="date"
+            className="gps-filter-select"
+            title="To date"
+            value={filters.date_to}
+            onChange={(e) => handleFilterChange('date_to', e.target.value)}
+          />
+
           <button className="gps-btn-danger" onClick={() => setFilters({
             project_id: '', rule_type: 'all', severity: 'all',
-            status: 'all', search: '', page: 1, limit: 10
+            status: 'all', search: '', date_from: '', date_to: '', page: 1, limit: 10
           })}>
             <FiX /> Clear Filters
           </button>
@@ -686,8 +704,15 @@ const ErrorReview = () => {
       <div className="gps-results-info">
         {loading
           ? 'Loading…'
-          : `${pagination.total} ${activeTab === 'file-upload' ? 'file(s)' : 'mapping job(s)'} with violations` +
-            (pagination.totalPages > 1 ? ` — Page ${pagination.page} of ${pagination.totalPages}` : '')}
+          : (() => {
+              let info = `${pagination.total} ${activeTab === 'file-upload' ? 'file(s)' : 'mapping job(s)'} with violations`;
+              if (filters.date_from || filters.date_to) {
+                const fmt = (d) => d ? new Date(d + 'T00:00:00').toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : '…';
+                info += ` — ${fmt(filters.date_from)} – ${fmt(filters.date_to)}`;
+              }
+              if (pagination.totalPages > 1) info += ` — Page ${pagination.page} of ${pagination.totalPages}`;
+              return info;
+            })()}
       </div>
 
       {selectedIds.length > 0 && (

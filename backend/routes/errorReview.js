@@ -424,7 +424,9 @@ router.get('/file-upload-violations/groups', async (req, res) => {
       status = 'all',
       page = 1,
       limit = 10,
-      search = ''
+      search = '',
+      date_from = '',
+      date_to = ''
     } = req.query;
 
     const offset = (parseInt(page) - 1) * parseInt(limit);
@@ -477,6 +479,16 @@ router.get('/file-upload-violations/groups', async (req, res) => {
         qrv.violation_details::text ILIKE $${paramCount}
       )`);
       params.push(`%${search}%`);
+    }
+
+    if (date_from) {
+      whereConditions.push(`DATE(f.created_at) >= $${++paramCount}::date`);
+      params.push(date_from);
+    }
+
+    if (date_to) {
+      whereConditions.push(`DATE(f.created_at) <= $${++paramCount}::date`);
+      params.push(date_to);
     }
 
     const whereClause = `WHERE ${whereConditions.join(' AND ')}`;
@@ -549,7 +561,9 @@ router.get('/mapping-job-violations/groups', async (req, res) => {
       status = 'all',
       page = 1,
       limit = 10,
-      search = ''
+      search = '',
+      date_from = '',
+      date_to = ''
     } = req.query;
 
     const offset = (parseInt(page) - 1) * parseInt(limit);
@@ -603,6 +617,16 @@ router.get('/mapping-job-violations/groups', async (req, res) => {
         qrv.violation_details::text ILIKE $${paramCount}
       )`);
       params.push(`%${search}%`);
+    }
+
+    if (date_from) {
+      whereConditions.push(`DATE(tj.start_time) >= $${++paramCount}::date`);
+      params.push(date_from);
+    }
+
+    if (date_to) {
+      whereConditions.push(`DATE(tj.start_time) <= $${++paramCount}::date`);
+      params.push(date_to);
     }
 
     const whereClause = `WHERE ${whereConditions.join(' AND ')}`;
@@ -678,7 +702,9 @@ router.get('/file-upload-violations/download', async (req, res) => {
       severity,
       status = 'all',
       format = 'csv',
-      search = ''
+      search = '',
+      date_from = '',
+      date_to = ''
     } = req.query;
 
     const userId = parseInt(req.user.id);
@@ -736,6 +762,16 @@ router.get('/file-upload-violations/download', async (req, res) => {
         qrv.violation_details::text ILIKE $${paramCount}
       )`);
       params.push(`%${search}%`);
+    }
+
+    if (date_from) {
+      whereConditions.push(`DATE(f.created_at) >= $${++paramCount}::date`);
+      params.push(date_from);
+    }
+
+    if (date_to) {
+      whereConditions.push(`DATE(f.created_at) <= $${++paramCount}::date`);
+      params.push(date_to);
     }
 
     const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
@@ -839,7 +875,9 @@ router.get('/mapping-job-violations/download', async (req, res) => {
       severity,
       status = 'all',
       format = 'csv',
-      search = ''
+      search = '',
+      date_from = '',
+      date_to = ''
     } = req.query;
 
     const userId = parseInt(req.user.id);
@@ -899,6 +937,16 @@ router.get('/mapping-job-violations/download', async (req, res) => {
         qrv.violation_details::text ILIKE $${paramCount}
       )`);
       params.push(`%${search}%`);
+    }
+
+    if (date_from) {
+      whereConditions.push(`DATE(tj.start_time) >= $${++paramCount}::date`);
+      params.push(date_from);
+    }
+
+    if (date_to) {
+      whereConditions.push(`DATE(tj.start_time) <= $${++paramCount}::date`);
+      params.push(date_to);
     }
 
     const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
