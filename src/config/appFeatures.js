@@ -288,7 +288,7 @@ export const APP_FEATURES = [
   },
   { 
     id: 'vendor_management', 
-    name: 'Vendor Management', 
+    name: 'Data Provider Management',
     category: 'Administration',
     icon: FiTruck,
     route: null,
