@@ -298,7 +298,7 @@ export const APP_FEATURES = [
     children: [
       {
         id: 'vendor_details',
-        name: 'Create/Edit Vendors',
+        name: 'Manage Data Providers',
         parentId: 'vendor_management',
         category: 'Administration',
         icon: null,
@@ -307,7 +307,7 @@ export const APP_FEATURES = [
       },
       {
         id: 'vendor_agreements',
-        name: 'Data Sharing Agreements',
+        name: 'Manage Data Sharing Agreements',
         parentId: 'vendor_management',
         category: 'Administration',
         icon: null,
@@ -318,7 +318,7 @@ export const APP_FEATURES = [
   },
   {
     id: 'vendor_details',
-    name: 'Create/Edit Vendors',
+    name: 'Manage Data Providers',
     category: 'Vendor Management',
     parentId: 'vendor_management',
     icon: null,
@@ -328,7 +328,7 @@ export const APP_FEATURES = [
   },
   {
     id: 'vendor_agreements',
-    name: 'Data Sharing Agreements',
+    name: 'Manage Data Sharing Agreements',
     category: 'Vendor Management',
     parentId: 'vendor_management',
     icon: null,
