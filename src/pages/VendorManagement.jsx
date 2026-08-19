@@ -404,7 +404,7 @@ const VendorManagement = () => {
         <>
           <div className="gps-page-header">
             <div className="gps-page-header-left">
-              <h1 className="gps-page-title">Vendor Management</h1>
+              <h1 className="gps-page-title">Data Provider (DP) Management</h1>
               <p className="gps-page-subtitle">Manage vendor organizations and contacts</p>
             </div>
             <div className="gps-header-actions">
@@ -422,7 +422,7 @@ const VendorManagement = () => {
                 className="gps-btn gps-btn--primary"
                 onClick={openCreateModal}
               >
-                <FiPlus /> Add New Vendor
+                <FiPlus /> Add New DP
               </button>
             </div>
           </div>
@@ -443,8 +443,8 @@ const VendorManagement = () => {
         <table className="gps-table">
           <thead>
             <tr>
-              <th>Vendor Code</th>
-              <th>Vendor Name</th>
+              <th>DP Code</th>
+              <th>DP Name</th>
               <th>Contact Email</th>
               <th>Project</th>
               <th>Status</th>
@@ -518,7 +518,7 @@ const VendorManagement = () => {
       <ThreeSectionModal
         isOpen={modalOpen}
         onClose={closeModal}
-        title={modalMode === 'create' ? 'Add New Vendor' : 'Edit Vendor'}
+        title={modalMode === 'create' ? 'Add New DP' : 'Edit Vendor'}
         size="large"
         footer={
           <>
