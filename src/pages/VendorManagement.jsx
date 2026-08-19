@@ -405,7 +405,7 @@ const VendorManagement = () => {
           <div className="gps-page-header">
             <div className="gps-page-header-left">
               <h1 className="gps-page-title">Data Provider (DP) Management</h1>
-              <p className="gps-page-subtitle">Manage vendor organizations and contacts</p>
+              <p className="gps-page-subtitle">Manage data providers and contacts</p>
             </div>
             <div className="gps-header-actions">
               <div className="gps-search-wrapper">
