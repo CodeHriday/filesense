@@ -98,6 +98,10 @@ const columnAccessControl = require('./backend/services/columnAccessControl');
 
 // Initialize Express app
 const app = express();
+app.locals.databasePrerequisites = {
+  ready: false,
+  error: null
+};
 // Use PORT from environment (Replit provides this), fallback to 5000 in production or 3000 in development
 const port = process.env.PORT || (process.env.NODE_ENV === 'production' ? 5000 : 3000);
 
@@ -1169,6 +1173,14 @@ function formatUptime(seconds) {
 // Readiness probe for load balancers (minimal check)
 app.get('/api/health/ready', async (req, res) => {
   try {
+    const prerequisites = app.locals.databasePrerequisites;
+    if (!prerequisites.ready) {
+      return res.status(503).json({
+        ready: false,
+        reason: prerequisites.error || 'database prerequisites are still initializing'
+      });
+    }
+
     const database = diContainer.get('database');
     const health = await database.getHealthStatus();
     if (health.healthy) {
@@ -5860,6 +5872,10 @@ const { up: addApprovalChainToVendorAgreements } = require('./backend/migrations
 const { up: repairApprovalStatusConstraintForApprovalChain } = require('./backend/migrations/repairApprovalStatusConstraintForApprovalChain');
 const { up: alterDocumentFilePathToText } = require('./backend/migrations/alterDocumentFilePathToText');
 const { bridgeVendorAdministrationPermissions } = require('./backend/migrations/bridgeVendorAdministrationPermissions');
+const {
+  repairBootstrapAdminRoles,
+  getPrerequisiteStatus: getDashboardPrerequisiteStatus
+} = require('./backend/migrations/repairCleanPublishDashboardPrerequisites');
 
 // Run schema migrations asynchronously with tracking to prevent re-running
 (async () => {
@@ -14047,6 +14063,24 @@ async function startServer() {
     logger.info('Initializing database connection...');
     await initializeDatabase();
     logger.info('Database connection established successfully');
+
+    // Schema changes are applied by Publish. At application startup, repair
+    // only the known bootstrap account's missing role links and verify the
+    // schema prerequisite before allowing the API to report readiness.
+    logger.info('Verifying dashboard database prerequisites...');
+    await repairBootstrapAdminRoles(dbPool);
+    const dashboardPrerequisites = await getDashboardPrerequisiteStatus(dbPool);
+
+    if (!dashboardPrerequisites.ready) {
+      throw new Error('Dashboard database prerequisites could not be verified');
+    }
+
+    app.locals.databasePrerequisites = {
+      ready: true,
+      error: null,
+      verifiedAt: new Date().toISOString()
+    };
+    logger.info('Dashboard database prerequisites verified', dashboardPrerequisites);
     
     // Initialize business process tables after database is ready
     try {

@@ -18,6 +18,22 @@ const dashboardCacheMiddleware = createCacheMiddleware({
   shouldCache: (req, res) => res.statusCode === 200
 });
 
+// Dashboard queries depend on the project-access database function. During
+// startup, return a retryable response until that prerequisite is verified
+// instead of surfacing a PostgreSQL 42883 error to users.
+router.use((req, res, next) => {
+  const prerequisites = req.app.locals.databasePrerequisites;
+
+  if (prerequisites?.ready) {
+    return next();
+  }
+
+  return res.status(503).json({
+    error: 'Dashboard is initializing. Please retry shortly.',
+    retryable: true
+  });
+});
+
 /**
  * GET /api/dashboard/metrics
  * Get dashboard metrics for the current user

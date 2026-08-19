@@ -21,25 +21,25 @@ async function createGetUserProjectsFunction(dbPool) {
     systemLogger.info('Creating get_user_projects function...');
 
     // DROP first to allow parameter rename — CREATE OR REPLACE cannot rename params
-    await client.query(`DROP FUNCTION IF EXISTS get_user_projects(INTEGER);`);
+    await client.query(`DROP FUNCTION IF EXISTS public.get_user_projects(INTEGER);`);
 
     await client.query(`
-      CREATE FUNCTION get_user_projects(p_user_id INTEGER)
+      CREATE FUNCTION public.get_user_projects(p_user_id INTEGER)
       RETURNS TABLE(project_id INTEGER)
       LANGUAGE sql
       STABLE
       AS $$
         -- Direct project membership
         SELECT pm.project_id
-        FROM project_members pm
+        FROM public.project_members pm
         WHERE pm.user_id = p_user_id
 
         UNION
 
         -- Access-group membership linked to a project
         SELECT pag.project_id
-        FROM access_group_members agm
-        JOIN project_access_groups pag ON agm.group_id = pag.group_id
+        FROM public.access_group_members agm
+        JOIN public.project_access_groups pag ON agm.group_id = pag.group_id
         WHERE agm.user_id = p_user_id
       $$;
     `);
