@@ -8,9 +8,6 @@
  *  2. Find matching alert_policies (entity_type='job', enabled=true) and for each
  *     active policy whose trigger_type matches the job outcome, load recipients
  *     from alert_policy_recipients and send email via NotificationService.
- *  3. If the job came from a VM canvas, read graph_data to find any
- *     emailNotification nodes and send to those recipients too.
- *
  * Never throws — all failures are caught and logged so the job result is unaffected.
  */
 
@@ -195,7 +192,6 @@ async function _send(connRow, recipients, subject, html, text, context) {
  * @param {string}        [params.jobName]
  * @param {string}        params.status            - 'completed'|'completed_with_warnings'|'failed'|'cancelled'
  * @param {Object}        [params.metadata]
- * @param {string}        [params.visualMappingId]
  */
 async function fireJobNotification(pool, {
   userId,
@@ -203,8 +199,7 @@ async function fireJobNotification(pool, {
   jobDbId,
   jobName,
   status,
-  metadata = {},
-  visualMappingId = null
+  metadata = {}
 }) {
   try {
     if (!userId) {
@@ -297,55 +292,6 @@ async function fireJobNotification(pool, {
       }
     } catch (policyErr) {
       systemLogger.warn('JobNotificationService: policy query failed', { jobId, error: policyErr.message });
-    }
-
-    // ── 3. VM canvas emailNotification nodes ─────────────────────────────────
-    if (visualMappingId) {
-      try {
-        const vmRes = await pool.query(
-          'SELECT graph_data FROM visual_mapping_defs WHERE id = $1',
-          [visualMappingId]
-        );
-        if (vmRes.rows.length > 0) {
-          const graphData = typeof vmRes.rows[0].graph_data === 'string'
-            ? JSON.parse(vmRes.rows[0].graph_data)
-            : vmRes.rows[0].graph_data;
-
-          const emailNodes = (graphData?.nodes || []).filter(n => n.type === 'emailNotification');
-          for (const emailNode of emailNodes) {
-            const cfg = emailNode.data?.config || {};
-            if (!cfg.emailConnectionId) continue;
-
-            const isSuccess = status === 'completed' || status === 'completed_with_warnings';
-            if (isSuccess && cfg.notifyOnSuccess === false) continue;
-            if (!isSuccess && cfg.notifyOnFailure === false) continue;
-
-            const recipients = (cfg.recipients || '')
-              .split(/[,;\s]+/)
-              .map(e => e.trim())
-              .filter(e => e.includes('@'));
-            if (!recipients.length) continue;
-
-            const subject = (cfg.subject || title)
-              .replace('{status}', statusLabel(status))
-              .replace('{jobName}', jobName || '');
-
-            try {
-              // cfg.emailConnectionId is the string connection_id stored in node config
-              const connFull = await ConnectionService.getConnectionById(cfg.emailConnectionId);
-              await _send(connFull, recipients, subject, html, message, { jobId, vmNodeId: emailNode.id });
-            } catch (vmConnErr) {
-              systemLogger.warn('JobNotificationService: VM email node connection load failed', {
-                jobId, vmNodeId: emailNode.id, error: vmConnErr.message
-              });
-            }
-          }
-        }
-      } catch (vmErr) {
-        systemLogger.warn('JobNotificationService: VM email node processing failed', {
-          jobId, visualMappingId, error: vmErr.message
-        });
-      }
     }
 
   } catch (outerErr) {

@@ -4,145 +4,23 @@ const pool = require('../db');
 const { systemLogger } = require('../utils/logger');
 const visualMappingCompiler = require('../services/visualMappingCompiler');
 const { v4: uuidv4 } = require('uuid');
-const EmailProviderFactory = require('../services/email/EmailProviderFactory');
-const emailComposer = require('../services/EmailComposer');
 const { userHasAdminAccess } = require('../utils/permissionHelpers');
 const authorize = require('../middleware/authorize');
 
-/**
- * Send email notification for visual mapping execution
- * @param {Object} mapping - Visual mapping with notification_settings
- * @param {Object} jobResult - Execution result { status, jobId, message, rowsWritten, etc }
- * @param {string} executionId - Execution ID for tracking
- */
-async function sendVisualMappingNotification(mapping, jobResult, executionId) {
-  try {
-    // Parse notification settings if needed
-    let notificationSettings = mapping.notification_settings;
-    if (typeof notificationSettings === 'string') {
-      notificationSettings = JSON.parse(notificationSettings);
-    }
-    
-    // Check if notifications are enabled
-    if (!notificationSettings?.enabled) {
-      return;
-    }
-    
-    const isSuccess = jobResult.status === 'completed' || jobResult.status === 'completed_with_warnings';
-    const shouldNotify = (isSuccess && notificationSettings.notifyOnSuccess) || 
-                         (!isSuccess && notificationSettings.notifyOnFailure);
-    
-    if (!shouldNotify) {
-      systemLogger.debug('Skipping notification - condition not met', {
-        isSuccess,
-        notifyOnSuccess: notificationSettings.notifyOnSuccess,
-        notifyOnFailure: notificationSettings.notifyOnFailure
-      });
-      return;
-    }
-    
-    // Get email connection details
-    const emailConnectionId = notificationSettings.emailConnectionId;
-    if (!emailConnectionId) {
-      systemLogger.warn('No email connection configured for visual mapping notification', {
-        mappingId: mapping.id
-      });
-      return;
-    }
-    
-    // Fetch email connection from storage_connections table (email connections are stored there)
-    const connectionResult = await pool.query(
-      `SELECT connection_id, type, name, config, status FROM storage_connections WHERE connection_id = $1`,
-      [emailConnectionId]
-    );
-    
-    if (connectionResult.rows.length === 0) {
-      systemLogger.error('Email connection not found for visual mapping notification', {
-        emailConnectionId,
-        mappingId: mapping.id
-      });
-      return;
-    }
-    
-    const emailConnection = connectionResult.rows[0];
-    
-    // Check if connection is active
-    if (emailConnection.status !== 'active') {
-      systemLogger.warn('Email connection is not active for visual mapping notification', {
-        emailConnectionId,
-        status: emailConnection.status,
-        mappingId: mapping.id
-      });
-      return;
-    }
-    
-    // Parse config (credentials are stored in config column)
-    let config = emailConnection.config;
-    if (typeof config === 'string') {
-      config = JSON.parse(config);
-    }
-    
-    systemLogger.debug('Sending visual mapping notification', {
-      mappingId: mapping.id,
-      emailConnectionId,
-      providerType: emailConnection.type,
-      recipientCount: notificationSettings.recipients?.split(',').length || 0
-    });
-    
-    // Create email adapter using the connection type and config
-    const adapter = EmailProviderFactory.createAdapter(emailConnection.type, config);
-    
-    // Compose email using EmailComposer
-    const emailContent = await emailComposer.composeJobAlert({
-      job: {
-        name: mapping.name,
-        id: executionId,
-        project_name: mapping.project_name || 'Visual Mapping'
-      },
-      status: jobResult.status,
-      error: jobResult.message || jobResult.error_message,
-      duration: jobResult.duration || null,
-      recordsProcessed: jobResult.rowsWritten || 0,
-      qualityViolations: 0
-    });
-    
-    // Parse recipients
-    const recipients = notificationSettings.recipients
-      ? notificationSettings.recipients.split(',').map(r => r.trim()).filter(r => r)
-      : [];
-    
-    if (recipients.length === 0) {
-      systemLogger.warn('No recipients configured for visual mapping notification', {
-        mappingId: mapping.id
-      });
-      return;
-    }
-    
-    // Send email (config may have 'from', 'from_email', or 'sender_email' depending on provider)
-    const fromEmail = config.from || config.from_email || config.sender_email || 'noreply@filesense.app';
-    const result = await adapter.send({
-      from: fromEmail,
-      to: recipients,
-      subject: emailContent.subject,
-      html: emailContent.html,
-      text: emailContent.text
-    });
-    
-    systemLogger.info('Visual mapping notification sent', {
-      mappingId: mapping.id,
-      executionId,
-      status: jobResult.status,
-      recipients: recipients.length,
-      success: result.success
-    });
-    
-  } catch (error) {
-    systemLogger.error('Failed to send visual mapping notification', {
-      mappingId: mapping.id,
-      executionId,
-      error: error.message
-    });
-  }
+function removeEmailNotificationNodes(graphData) {
+  const emailNodeIds = new Set(
+    (graphData?.nodes || [])
+      .filter(node => node.type === 'emailNotification')
+      .map(node => node.id)
+  );
+
+  return {
+    ...graphData,
+    nodes: (graphData?.nodes || []).filter(node => node.type !== 'emailNotification'),
+    edges: (graphData?.edges || []).filter(
+      edge => !emailNodeIds.has(edge.source) && !emailNodeIds.has(edge.target)
+    )
+  };
 }
 
 /**
@@ -263,9 +141,6 @@ router.get('/:id', async (req, res) => {
     if (typeof mapping.canvas_state === 'string') {
       mapping.canvas_state = JSON.parse(mapping.canvas_state);
     }
-    if (typeof mapping.notification_settings === 'string') {
-      mapping.notification_settings = JSON.parse(mapping.notification_settings);
-    }
     if (mapping.project_id) {
       const { getUserProjects } = require('../middleware/requireProjectAccess');
       const userProjects = await getUserProjects(req.user.id);
@@ -293,7 +168,7 @@ router.get('/:id', async (req, res) => {
  */
 router.post('/', authorize('visual_mapping_orchestrator:write'), async (req, res) => {
   try {
-    const { name, description, graph_data, canvas_state, project_id, sub_project_id, notification_settings } = req.body;
+    const { name, description, graph_data, canvas_state, project_id, sub_project_id } = req.body;
 
     if (!name || !graph_data) {
       return res.status(400).json({ error: 'Name and graph_data are required' });
@@ -306,6 +181,7 @@ router.post('/', authorize('visual_mapping_orchestrator:write'), async (req, res
     if (!graph_data.edges || !Array.isArray(graph_data.edges)) {
       return res.status(400).json({ error: 'graph_data must contain an edges array' });
     }
+    const sanitizedGraphData = removeEmailNotificationNodes(graph_data);
 
     const result = await pool.query(
       `INSERT INTO visual_mapping_defs (name, description, graph_data, canvas_state, project_id, sub_project_id, created_by, notification_settings)
@@ -314,12 +190,12 @@ router.post('/', authorize('visual_mapping_orchestrator:write'), async (req, res
       [
         name, 
         description || '', 
-        JSON.stringify(graph_data), 
+        JSON.stringify(sanitizedGraphData),
         JSON.stringify(canvas_state || { zoom: 1, position: [0, 0] }), 
         project_id || null, 
         sub_project_id || null, 
         req.user.id,
-        notification_settings ? JSON.stringify(notification_settings) : null
+        null
       ]
     );
 
@@ -347,7 +223,7 @@ router.post('/', authorize('visual_mapping_orchestrator:write'), async (req, res
 router.put('/:id', authorize('visual_mapping_orchestrator:write'), async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, description, graph_data, canvas_state, project_id, sub_project_id, notification_settings } = req.body;
+    const { name, description, graph_data, canvas_state, project_id, sub_project_id } = req.body;
 
     if (!name || !graph_data) {
       return res.status(400).json({ error: 'Name and graph_data are required' });
@@ -360,6 +236,7 @@ router.put('/:id', authorize('visual_mapping_orchestrator:write'), async (req, r
     if (!graph_data.edges || !Array.isArray(graph_data.edges)) {
       return res.status(400).json({ error: 'graph_data must contain an edges array' });
     }
+    const sanitizedGraphData = removeEmailNotificationNodes(graph_data);
 
     const result = await pool.query(
       `UPDATE visual_mapping_defs
@@ -370,11 +247,11 @@ router.put('/:id', authorize('visual_mapping_orchestrator:write'), async (req, r
       [
         name, 
         description || '', 
-        JSON.stringify(graph_data), 
+        JSON.stringify(sanitizedGraphData),
         JSON.stringify(canvas_state || { zoom: 1, position: [0, 0] }),
         project_id || null, 
         sub_project_id || null, 
-        notification_settings ? JSON.stringify(notification_settings) : null,
+        null,
         id
       ]
     );
@@ -528,12 +405,6 @@ router.post('/:id/clone', authorize('visual_mapping_orchestrator:write'), async 
       canvasState = JSON.parse(canvasState);
     }
     
-    // Parse notification_settings if stored as string
-    let notificationSettings = original.notification_settings;
-    if (typeof notificationSettings === 'string') {
-      notificationSettings = JSON.parse(notificationSettings);
-    }
-    
     // Insert the cloned mapping
     const result = await pool.query(
       `INSERT INTO visual_mapping_defs (
@@ -545,12 +416,12 @@ router.post('/:id/clone', authorize('visual_mapping_orchestrator:write'), async 
       [
         newName,
         original.description || '',
-        JSON.stringify(fullyRemappedGraphData),
+        JSON.stringify(removeEmailNotificationNodes(fullyRemappedGraphData)),
         JSON.stringify(canvasState || { zoom: 1, position: [0, 0] }),
         original.project_id,
         original.sub_project_id,
         req.user.id,
-        notificationSettings ? JSON.stringify(notificationSettings) : null
+        null
       ]
     );
     
@@ -587,7 +458,7 @@ router.post('/:id/execute', authorize('visual_mapping_orchestrator:execute'), as
     
     console.log(`[VISUAL-MAPPING-EXECUTE] Starting execution for mapping ${id}`);
     
-    // Get the mapping with project and subproject names for notification emails and validation
+    // Get the mapping with project and subproject names for validation
     const mappingResult = await pool.query(
       `SELECT vm.*, p.name as project_name, p.is_active as project_is_active, p.parent_id as project_parent_id,
               sp.name as sub_project_name, sp.is_active as sub_project_is_active
@@ -641,6 +512,9 @@ router.post('/:id/execute', authorize('visual_mapping_orchestrator:execute'), as
     if (typeof mapping.graph_data === 'string') {
       mapping.graph_data = JSON.parse(mapping.graph_data);
     }
+    // Email notification nodes belong to Visual Workflows, not the Visual
+    // Mapping Designer. Ignore any legacy nodes that may still be stored.
+    mapping.graph_data = removeEmailNotificationNodes(mapping.graph_data);
     
     // Compile the visual mapping into transformation mapping
     const compilationResult = visualMappingCompiler.compile(mapping);
@@ -871,11 +745,6 @@ router.post('/:id/execute', authorize('visual_mapping_orchestrator:execute'), as
           [tempMappingId]
         );
         
-        // Send email notification (non-blocking)
-        sendVisualMappingNotification(mapping, jobResult, executionId).catch(err => {
-          systemLogger.error('Failed to send notification', { error: err.message });
-        });
-        
         systemLogger.info('Background visual mapping execution completed', {
           mappingId: id,
           executionId,
@@ -916,15 +785,6 @@ router.post('/:id/execute', authorize('visual_mapping_orchestrator:execute'), as
           ).catch(() => {});
         }
         
-        // Send failure notification (non-blocking)
-        sendVisualMappingNotification(mapping, { 
-          status: 'failed', 
-          message: execError.message,
-          jobId: null,
-          rowsWritten: 0 
-        }, executionId).catch(err => {
-          systemLogger.error('Failed to send failure notification', { error: err.message });
-        });
       }
     });
     
