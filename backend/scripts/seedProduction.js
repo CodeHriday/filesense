@@ -324,7 +324,7 @@ class ProductionSeeder {
         if (role.permissions && role.permissions.length > 0) {
           await this.pool.query(
             'INSERT INTO roles (name, permissions, created_at, updated_at) VALUES ($1, $2, NOW(), NOW())',
-            [role.name, JSON.stringify(role.permissions)]
+            [role.name, role.permissions]
           );
         } else {
           await this.pool.query(
