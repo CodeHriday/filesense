@@ -2,3 +2,4 @@
 - [GroupedNode must cover all lineage node types](groupednode-node-types.md) — PropTypes.oneOf mismatch in GroupedNode fires alongside a React "Invalid hook call" warning, which can escalate to an unhandlederror crash; always add new node types to GroupedNode's propTypes, getTypeColor, and getTypeName.
 - [VM lineage fallback](vm-lineage-fallback.md) — Visual mapping jobs delete their transformation_mappings row after execution; lineage must fall back to file_audit_details + visual_mapping_defs to discover them.
 - [Role permission storage](role-permission-storage.md) — The roles permission list is a PostgreSQL text array, not JSON; migrations must pass a JavaScript string array to update it.
+- [Approval-status constraint compatibility](approval-status-constraint.md) — Any rebuild of the agreement approval-status constraint must retain `pending_approval` alongside legacy workflow states.

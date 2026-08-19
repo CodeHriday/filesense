@@ -5857,6 +5857,7 @@ const { up: addErrorActionToTransformationQualityRules } = require('./backend/mi
 const ensureFileUploadPermissions = require('./backend/migrations/ensureFileUploadPermissions');
 const { createDigestTables } = require('./backend/migrations/createDigestTables');
 const { up: addApprovalChainToVendorAgreements } = require('./backend/migrations/addApprovalChainToVendorAgreements');
+const { up: repairApprovalStatusConstraintForApprovalChain } = require('./backend/migrations/repairApprovalStatusConstraintForApprovalChain');
 const { up: alterDocumentFilePathToText } = require('./backend/migrations/alterDocumentFilePathToText');
 const { bridgeVendorAdministrationPermissions } = require('./backend/migrations/bridgeVendorAdministrationPermissions');
 
@@ -5921,6 +5922,7 @@ const { bridgeVendorAdministrationPermissions } = require('./backend/migrations/
     await migrationTracker.runOnce('addErrorActionToTransformationQualityRules', () => addErrorActionToTransformationQualityRules(dbPool));
     await migrationTracker.runOnce('createDigestTables', () => createDigestTables(dbPool));
     await migrationTracker.runOnce('addApprovalChainToVendorAgreements', () => addApprovalChainToVendorAgreements(dbPool));
+    await migrationTracker.runOnce('repairApprovalStatusConstraintForApprovalChain', () => repairApprovalStatusConstraintForApprovalChain(dbPool));
     await migrationTracker.runOnce('alterDocumentFilePathToText', () => alterDocumentFilePathToText(dbPool));
     await migrationTracker.runOnce('bridgeVendorAdministrationPermissions', () => bridgeVendorAdministrationPermissions());
     // Ensure file upload permissions exist in role_permissions table (idempotent).
