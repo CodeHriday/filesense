@@ -2190,11 +2190,11 @@ const VendorAgreements = () => {
                 <div className="form-section">
                   <h3 className="section-title">Agreement Information</h3>
                   
-                  {/* Row 1: Vendor and Description */}
+                  {/* Row 1: DP and Description */}
                   <div className="form-row-grid">
                     <div className="form-group">
                       <label htmlFor="vendor_id">
-                        Vendor Name {isAdmin && <span className="required-field">*</span>}
+                        DP Name {isAdmin && <span className="required-field">*</span>}
                       </label>
                       {isAdmin ? (
                         <select
@@ -2204,7 +2204,7 @@ const VendorAgreements = () => {
                           onChange={handleInputChange}
                           required
                         >
-                          <option value="">Select a vendor</option>
+                          <option value="">Select a DP</option>
                           {Array.isArray(vendors) && vendors.map(vendor => (
                             <option key={vendor.id} value={vendor.id}>
                               {vendor.vendor_name} ({vendor.vendor_code})
@@ -2248,9 +2248,9 @@ const VendorAgreements = () => {
                           id="project_name"
                           value={formData.project_name || ''}
                           readOnly
-                          placeholder={formData.project_name ? "" : "No project assigned to vendor"}
+                           placeholder={formData.project_name ? "" : "No project assigned to DP"}
                         />
-                        <span className="form-helper-text">Automatically assigned from the vendor's project</span>
+                         <span className="form-helper-text">Automatically assigned from the DP's project</span>
                       </div>
                       
                       {formData.project_id && (
@@ -2281,11 +2281,11 @@ const VendorAgreements = () => {
                     </div>
                   )}
                   
-                  {/* Row 2: Vendor Manager and Manager Contact */}
+                   {/* Row 2: DP Manager and Manager Contact */}
                   <div className="form-row-grid">
                     <div className="form-group">
                       <label htmlFor="file_owner_user_id">
-                        Vendor Manager/File Owner <span className="required-field">*</span>
+                         DP Manager/File Owner <span className="required-field">*</span>
                       </label>
                       <select
                         id="file_owner_user_id"
@@ -2315,9 +2315,9 @@ const VendorAgreements = () => {
                           value={formData.manager_contact}
                           onChange={handleInputChange}
                           readOnly
-                          placeholder="Auto-populated from vendor manager"
+                           placeholder="Auto-populated from DP manager"
                         />
-                        <span className="form-helper-text">Automatically populated from vendor manager's email</span>
+                         <span className="form-helper-text">Automatically populated from DP manager's email</span>
                       </div>
                     )}
                   </div>
@@ -2344,7 +2344,7 @@ const VendorAgreements = () => {
                             </option>
                           ))}
                       </select>
-                      <span className="form-helper-text">Responsible for final approval of the vendor contract</span>
+                       <span className="form-helper-text">Responsible for final approval of the DP contract</span>
                     </div>
                     
                     {formData.governance_manager_user_id && (
@@ -2370,34 +2370,34 @@ const VendorAgreements = () => {
                     
                     <div className="form-row-grid">
                       <div className="form-group">
-                        <label htmlFor="vendor_code">Vendor ID</label>
+                         <label htmlFor="vendor_code">DP ID</label>
                         <input
                           type="text"
                           id="vendor_code"
                           name="vendor_code"
                           value={formData.vendor_code}
                           readOnly
-                          placeholder="Auto from vendor"
+                           placeholder="Auto from DP"
                         />
-                        <span className="form-helper-text">Automatically assigned when vendor is selected</span>
+                         <span className="form-helper-text">Automatically assigned when DP is selected</span>
                       </div>
                       
                       <div className="form-group">
-                        <label htmlFor="vendor_type">Vendor Type</label>
+                         <label htmlFor="vendor_type">DP Type</label>
                         <input
                           type="text"
                           id="vendor_type"
                           name="vendor_type"
                           value={formData.vendor_type}
                           readOnly
-                          placeholder="Auto from vendor"
+                           placeholder="Auto from DP"
                         />
-                        <span className="form-helper-text">Automatically assigned when vendor is selected</span>
+                         <span className="form-helper-text">Automatically assigned when DP is selected</span>
                       </div>
                     </div>
                     
                     <div className="form-group">
-                      <label htmlFor="vendor_onboarding_date">Vendor Onboarding Date <span className="required-field">*</span></label>
+                       <label htmlFor="vendor_onboarding_date">DP Onboarding Date <span className="required-field">*</span></label>
                       <input
                         type="date"
                         id="vendor_onboarding_date"
@@ -2444,7 +2444,7 @@ const VendorAgreements = () => {
                   
                   <div className="form-row-grid">
                     <div className="form-group">
-                      <label htmlFor="vendor_department_team">Vendor Department/Team <span className="required-field">*</span></label>
+                       <label htmlFor="vendor_department_team">DP Department/Team <span className="required-field">*</span></label>
                       <input
                         type="text"
                         id="vendor_department_team"
@@ -2457,14 +2457,14 @@ const VendorAgreements = () => {
                     </div>
                     
                     <div className="form-group">
-                      <label htmlFor="vendor_department_email">Vendor Department Email <span className="required-field">*</span></label>
+                       <label htmlFor="vendor_department_email">DP Department Email <span className="required-field">*</span></label>
                       <input
                         type="email"
                         id="vendor_department_email"
                         name="vendor_department_email"
                         value={formData.vendor_department_email}
                         onChange={handleInputChange}
-                        placeholder="department@vendor.com"
+                         placeholder="department@dp.com"
                         required
                       />
                     </div>
@@ -2569,7 +2569,7 @@ const VendorAgreements = () => {
                   <h3 className="section-title">Additional Stakeholders</h3>
                   <p className="section-description" style={{ fontSize: '12px', color: '#666', marginBottom: '16px' }}>
                     Add internal users or groups who should receive notifications when this agreement is updated.
-                    These stakeholders will be notified in addition to the primary contacts, vendor manager, and governance manager.
+                     These stakeholders will be notified in addition to the primary contacts, DP manager, and governance manager.
                   </p>
                   
                   <div className="form-row-grid">
@@ -2939,7 +2939,7 @@ const VendorAgreements = () => {
                     
                     <div className="form-group">
                       <label htmlFor="vendor_connection_id">
-                        Vendor File Drop Connection <span className="required-field">*</span>
+                         DP File Drop Connection <span className="required-field">*</span>
                       </label>
                       <select
                         id="vendor_connection_id"
@@ -2948,14 +2948,14 @@ const VendorAgreements = () => {
                         onChange={handleInputChange}
                         required
                       >
-                        <option value="">Select a vendor connection</option>
+                         <option value="">Select a DP connection</option>
                         {filteredConnections.map(conn => (
                           <option key={conn.connection_id} value={conn.connection_id}>
                             {conn.name} ({conn.connection_type?.toUpperCase() || conn.storage_type?.toUpperCase() || 'AWS'})
                           </option>
                         ))}
                       </select>
-                      <span className="form-helper-text">Where vendor will drop files</span>
+                       <span className="form-helper-text">Where DP will drop files</span>
                     </div>
                     
                     <div className="form-group">
