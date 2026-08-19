@@ -443,38 +443,52 @@ class VendorAgreementTemplateService {
 
       const agreementHeaders = agreementData[0];
       
-      // Smart row detection: skip example rows if present (rows starting with "e.g." or containing example markers)
-      // Check if row 2 looks like an example row
+      // Smart row detection: skip the built-in example row when present.
+      // The generated template uses usable-looking sample values (AGR001), not an
+      // "Example" prefix, so recognize that complete generated sample explicitly.
       const isAgreementExampleRow = (row) => {
         if (!row || row.length === 0) return false;
         const firstCell = String(row[0] || '').toLowerCase().trim();
-        return firstCell.startsWith('e.g.') || firstCell.startsWith('example') || firstCell === '';
+        const description = String(row[1] || '').trim();
+        return firstCell.startsWith('e.g.') ||
+          firstCell.startsWith('example') ||
+          (firstCell === 'agr001' && description === 'Customer data export agreement');
       };
       
-      // Skip example row if present (row index 1), otherwise start from row 1
+      // Skip every consecutive generated/example row; blank rows are handled by
+      // the normal row loop and must not alter the source-row calculation.
       let agreementStartRow = 1;
-      if (agreementData.length > 2 && isAgreementExampleRow(agreementData[1])) {
-        agreementStartRow = 2;
+      while (
+        agreementStartRow < agreementData.length &&
+        isAgreementExampleRow(agreementData[agreementStartRow])
+      ) {
+        agreementStartRow++;
       }
       const agreementRows = agreementData.slice(agreementStartRow);
       
       const fileConfigHeaders = fileConfigData[0];
       
-      // For file configurations, check if rows 1-2 are example rows
+      // For file configurations, recognize both legacy "Example" rows and the
+      // two concrete samples emitted by generateTemplate().
       const isFileConfigExampleRow = (row) => {
         if (!row || row.length === 0) return false;
         const firstCell = String(row[0] || '').toLowerCase().trim();
-        return firstCell.startsWith('e.g.') || firstCell.startsWith('example') || 
-               firstCell.includes('acme') || firstCell === '' || firstCell.startsWith('agr-');
+        const filePattern = String(row[1] || '').toLowerCase().trim();
+        return firstCell.startsWith('e.g.') ||
+          firstCell.startsWith('example') ||
+          firstCell.includes('acme') ||
+          firstCell.startsWith('agr-') ||
+          (firstCell === 'agr001' &&
+            ['customer_data', 'legacy_transactions'].includes(filePattern));
       };
       
-      // Determine where data rows start by checking for example rows
+      // Determine where data rows start by checking for actual example rows.
       let fileConfigStartRow = 1;
-      if (fileConfigData.length > 2 && isFileConfigExampleRow(fileConfigData[1])) {
-        fileConfigStartRow = 2;
-        if (fileConfigData.length > 3 && isFileConfigExampleRow(fileConfigData[2])) {
-          fileConfigStartRow = 3;
-        }
+      while (
+        fileConfigStartRow < fileConfigData.length &&
+        isFileConfigExampleRow(fileConfigData[fileConfigStartRow])
+      ) {
+        fileConfigStartRow++;
       }
       const fileConfigRows = fileConfigData.slice(fileConfigStartRow);
 
@@ -511,7 +525,7 @@ class VendorAgreementTemplateService {
         if (rowErrors.length > 0) {
           errors.push({
             sheet: 'Agreement Info',
-            row: i + 3,
+            row: agreementStartRow + i + 1,
             errors: rowErrors
           });
         } else if (agreement.agreement_id) {
@@ -587,7 +601,7 @@ class VendorAgreementTemplateService {
         if (rowErrors.length > 0) {
           errors.push({
             sheet: 'File Configurations',
-            row: i + 4,
+            row: fileConfigStartRow + i + 1,
             errors: rowErrors
           });
         } else if (agreementId && agreements[agreementId]) {
