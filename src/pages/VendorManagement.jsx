@@ -770,10 +770,10 @@ const VendorManagement = () => {
                 </svg>
               </div>
               
-              <h2 className="gps-modal-title">Vendor Created Successfully</h2>
+              <h2 className="gps-modal-title">Data Provider Created Successfully</h2>
               
               <p className="gps-modal-text">
-                Vendor <strong>"{createdVendorInfo.vendorName}"</strong> has been created.<br />
+                Data Provider <strong>"{createdVendorInfo.vendorName}"</strong> has been created.<br />
                 A default project <strong>"{createdVendorInfo.projectName}"</strong> has been created.
               </p>
               
