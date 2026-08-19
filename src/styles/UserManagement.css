@@ -738,7 +738,7 @@ body.high-contrast .delete-confirm-btn {
   color: #000;
 }
 
-/* Vendor User Management icon button styles */
+/* Reusable icon button styles */
 .icon-button {
   background: transparent;
   border: none;

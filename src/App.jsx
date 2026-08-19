@@ -68,8 +68,6 @@ const RoleManagement = lazy(() => import('./pages/RoleManagement'));
 const AuditTrail = lazy(() => import('./pages/AuditTrail'));
 const Notifications = lazy(() => import('./pages/Notifications'));
 const VendorManagement = lazy(() => import('./pages/VendorManagement'));
-const VendorUserManagement = lazy(() => import('./pages/VendorUserManagement'));
-const VendorRoleManagement = lazy(() => import('./pages/VendorRoleManagement'));
 const VendorAgreements = lazy(() => import('./pages/VendorAgreements'));
 const VendorFileUpload = lazy(() => import('./pages/VendorFileUpload'));
 const VendorFileQuality = lazy(() => import('./pages/VendorFileQuality'));
@@ -407,8 +405,6 @@ function AppContent({ showOnboarding, setShowOnboarding }) {
                 <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
                 <Route path="/vendor-management" element={<ProtectedRoute><VendorManagement /></ProtectedRoute>} />
                 <Route path="/vendors" element={<ProtectedRoute><VendorManagement /></ProtectedRoute>} />
-                <Route path="/vendor-users" element={<ProtectedRoute><VendorUserManagement /></ProtectedRoute>} />
-                <Route path="/vendor-roles" element={<ProtectedRoute><VendorRoleManagement /></ProtectedRoute>} />
                 <Route path="/vendor-agreements" element={<ProtectedRoute><VendorAgreements /></ProtectedRoute>} />
                 <Route path="/vendor-file-upload" element={<ProtectedRoute><VendorFileUpload /></ProtectedRoute>} />
                 <Route path="/vendor-file-quality" element={<ProtectedRoute><VendorFileQuality /></ProtectedRoute>} />

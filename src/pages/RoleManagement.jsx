@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, Link, useSearchParams } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { FiEdit2, FiTrash2, FiSearch } from 'react-icons/fi';
 import { useAuth } from '../context/AuthContext';
 import { useDeletePermission } from '../hooks/useDeletePermission';
@@ -51,7 +51,6 @@ const RoleManagement = () => {
   const { currentUser, hasPermission } = useAuth();
   const { canDelete } = useDeletePermission('roles');
   const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
   
   const togglePermissionsExpand = (roleId) => {
     setExpandedRoles(prev => ({
@@ -197,38 +196,6 @@ const RoleManagement = () => {
     setModalMode('edit');
     setModalOpen(true);
   };
-
-  // Handle URL parameters for opening edit modal from vendor role management page
-  useEffect(() => {
-    if (loading) return;
-    
-    const action = searchParams.get('action');
-    const roleId = searchParams.get('roleId');
-    
-    if (action === 'edit' && roleId) {
-      // Fetch the specific role by ID
-      const fetchRoleById = async () => {
-        try {
-          const response = await axios.get(`/api/users/roles/${roleId}`);
-          const role = response.data;
-          
-          if (role) {
-            openEditModal(role);
-          } else {
-            setError('Role not found');
-          }
-        } catch (error) {
-          console.error('Error fetching role:', error);
-          setError('Failed to load role for editing');
-        } finally {
-          // Clear URL parameters regardless of outcome
-          setSearchParams({});
-        }
-      };
-      
-      fetchRoleById();
-    }
-  }, [loading, searchParams, setSearchParams]);
 
   const closeModal = () => {
     setModalOpen(false);

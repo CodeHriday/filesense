@@ -58,11 +58,12 @@ const DEFAULT_ROLES = [
     permissions: [
       'dashboard:read',
       'vendor_agreements:read', 'vendor_agreements:write', 'vendor_agreements:approve',
-      'vendor_connections:read', 'vendor_connections:write',
+      'connection:read', 'connection:write',
+      'users:read', 'users:write',
+      'sla_monitoring:read',
       'vendor_file_upload:read', 'vendor_file_upload:write',
       'vendor_file_quality:read',
       'vendor_details:read', 'vendor_details:write',
-      'vendor_users:read',
       'file_catalog:read',
       'file_drop:read', 'file_drop:write'
     ]
@@ -74,8 +75,9 @@ const DEFAULT_ROLES = [
     permissions: [
       'dashboard:read',
       'vendor_agreements:read', 'vendor_agreements:approve',
+      'connection:read',
+      'sla_monitoring:read',
       'vendor_details:read',
-      'vendor_connections:read',
       'vendor_file_quality:read'
     ]
   }

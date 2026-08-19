@@ -21,7 +21,6 @@ const DELETE_PERMISSION_MAP = {
   scheduler: 'schedule',
   schedule: 'schedule',
   vendors: 'vendors',
-  vendor_connections: 'vendors',
   vendor_agreements: 'vendors',
   policies: 'policies',
   tags: 'tags',

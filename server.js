@@ -5858,6 +5858,7 @@ const ensureFileUploadPermissions = require('./backend/migrations/ensureFileUplo
 const { createDigestTables } = require('./backend/migrations/createDigestTables');
 const { up: addApprovalChainToVendorAgreements } = require('./backend/migrations/addApprovalChainToVendorAgreements');
 const { up: alterDocumentFilePathToText } = require('./backend/migrations/alterDocumentFilePathToText');
+const { bridgeVendorAdministrationPermissions } = require('./backend/migrations/bridgeVendorAdministrationPermissions');
 
 // Run schema migrations asynchronously with tracking to prevent re-running
 (async () => {
@@ -5921,6 +5922,7 @@ const { up: alterDocumentFilePathToText } = require('./backend/migrations/alterD
     await migrationTracker.runOnce('createDigestTables', () => createDigestTables(dbPool));
     await migrationTracker.runOnce('addApprovalChainToVendorAgreements', () => addApprovalChainToVendorAgreements(dbPool));
     await migrationTracker.runOnce('alterDocumentFilePathToText', () => alterDocumentFilePathToText(dbPool));
+    await migrationTracker.runOnce('bridgeVendorAdministrationPermissions', () => bridgeVendorAdministrationPermissions());
     // Ensure file upload permissions exist in role_permissions table (idempotent).
     // This runs on every restart (not tracked) so new roles added in prod are always covered.
     await ensureFileUploadPermissions(dbPool);
@@ -13873,16 +13875,6 @@ console.log('Added vendor SLA monitoring routes');
 const vendorAgreementFileSchemaRoutes = require('./backend/routes/vendorAgreementFileSchemaRoutes');
 app.use('/api/vendor-agreements', authenticateToken, vendorAgreementFileSchemaRoutes);
 console.log('Added vendor agreement file schema routes');
-
-// Vendor connections routes (admin-only)
-const vendorConnectionRoutes = require('./backend/routes/vendorConnectionRoutes');
-app.use('/api/vendor-connections', authenticateToken, vendorConnectionRoutes);
-console.log('Added vendor connections routes');
-
-// Vendor user routes
-const vendorUserRoutes = require('./backend/routes/vendorUserRoutes');
-app.use('/api', vendorUserRoutes);
-console.log('Added vendor user routes');
 
 // Vendor access routes (for vendor file upload)
 const vendorAccessRoutes = require('./backend/routes/vendorAccessRoutes');

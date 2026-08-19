@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
 import { FiPlus, FiTrash2, FiEdit2, FiFolder, FiMail, FiLink, FiDatabase, FiCloud, FiCheckCircle, FiAlertCircle, FiSearch, FiActivity, FiServer } from 'react-icons/fi';
 import Card from '../components/Card';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -16,8 +15,6 @@ import { getConnections, createConnection, updateConnection, deleteConnection, t
 
 const Connections = () => {
   const { hasWritePermission, hasExecutePermission, currentUser } = useAuth();
-  const [searchParams] = useSearchParams();
-  const isVendorView = searchParams.get('type') === 'vendor';
   const [connections, setConnections] = useState([]);
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -199,7 +196,7 @@ const Connections = () => {
     connection_name: '',
     connection_type: 'aws',
     connection_direction: 'source',
-    connection_user: isVendorView ? 'External' : 'Internal',
+    connection_user: 'Internal',
     authentication_method: 'key-based',
     description: '',
     region: '',
@@ -297,7 +294,7 @@ const Connections = () => {
       connection_name: '',
       connection_type: 'aws',
       connection_direction: activeTab,
-      connection_user: isVendorView ? 'External' : 'Internal',
+      connection_user: 'Internal',
       authentication_method: 'key-based',
       description: '',
       region: '',
@@ -819,7 +816,7 @@ const Connections = () => {
               required
               style={compactStyles.select}
             >
-              {!isVendorView && <option value="Internal">Internal</option>}
+              <option value="Internal">Internal</option>
               <option value="External">External</option>
             </select>
           </div>
@@ -1607,10 +1604,7 @@ const Connections = () => {
     );
   });
 
-  // In vendor view, show only External connections; otherwise show all.
-  const filteredConnections = isVendorView
-    ? searchedConnections.filter(conn => conn.connection_user === 'External')
-    : searchedConnections;
+  const filteredConnections = searchedConnections;
 
   // Pagination logic
   const indexOfLastItem = currentPage * itemsPerPage;
