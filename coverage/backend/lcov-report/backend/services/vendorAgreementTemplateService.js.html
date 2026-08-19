@@ -32,7 +32,7 @@
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>0/289</span>
+                <span class='fraction'>0/287</span>
             </div>
         
             
@@ -1053,7 +1053,21 @@
 <a name='L988'></a><a href='#L988'>988</a>
 <a name='L989'></a><a href='#L989'>989</a>
 <a name='L990'></a><a href='#L990'>990</a>
-<a name='L991'></a><a href='#L991'>991</a></td><td class="line-coverage quiet"><span class="cline-any cline-no">&nbsp;</span>
+<a name='L991'></a><a href='#L991'>991</a>
+<a name='L992'></a><a href='#L992'>992</a>
+<a name='L993'></a><a href='#L993'>993</a>
+<a name='L994'></a><a href='#L994'>994</a>
+<a name='L995'></a><a href='#L995'>995</a>
+<a name='L996'></a><a href='#L996'>996</a>
+<a name='L997'></a><a href='#L997'>997</a>
+<a name='L998'></a><a href='#L998'>998</a>
+<a name='L999'></a><a href='#L999'>999</a>
+<a name='L1000'></a><a href='#L1000'>1000</a>
+<a name='L1001'></a><a href='#L1001'>1001</a>
+<a name='L1002'></a><a href='#L1002'>1002</a>
+<a name='L1003'></a><a href='#L1003'>1003</a>
+<a name='L1004'></a><a href='#L1004'>1004</a>
+<a name='L1005'></a><a href='#L1005'>1005</a></td><td class="line-coverage quiet"><span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
@@ -1500,15 +1514,23 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
@@ -1516,6 +1538,8 @@
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
@@ -1524,12 +1548,16 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -2488,38 +2516,52 @@ class VendorAgreementTemplateService {
 &nbsp;
       const agreementHeaders = <span class="cstat-no" title="statement not covered" >agreementData[0];</span>
       
-      // Smart row detection: skip example rows if present (rows starting with "e.g." or containing example markers)
-      // Check if row 2 looks like an example row
+      // Smart row detection: skip the built-in example row when present.
+      // The generated template uses usable-looking sample values (AGR001), not an
+      // "Example" prefix, so recognize that complete generated sample explicitly.
       const isAgreementExampleRow = <span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >(r</span>ow) =&gt; {</span>
 <span class="cstat-no" title="statement not covered" >        if (!row || row.length === 0) <span class="cstat-no" title="statement not covered" >return false;</span></span>
         const firstCell = <span class="cstat-no" title="statement not covered" >String(row[0] || '').toLowerCase().trim();</span>
-<span class="cstat-no" title="statement not covered" >        return firstCell.startsWith('e.g.') || firstCell.startsWith('example') || firstCell === '';</span>
+        const description = <span class="cstat-no" title="statement not covered" >String(row[1] || '').trim();</span>
+<span class="cstat-no" title="statement not covered" >        return firstCell.startsWith('e.g.') ||</span>
+          firstCell.startsWith('example') ||
+          (firstCell === 'agr001' &amp;&amp; description === 'Customer data export agreement');
       };
       
-      // Skip example row if present (row index 1), otherwise start from row 1
+      // Skip every consecutive generated/example row; blank rows are handled by
+      // the normal row loop and must not alter the source-row calculation.
       let agreementStartRow = <span class="cstat-no" title="statement not covered" >1;</span>
-<span class="cstat-no" title="statement not covered" >      if (agreementData.length &gt; 2 &amp;&amp; isAgreementExampleRow(agreementData[1])) {</span>
-<span class="cstat-no" title="statement not covered" >        agreementStartRow = 2;</span>
+<span class="cstat-no" title="statement not covered" >      while (</span>
+        agreementStartRow &lt; agreementData.length &amp;&amp;
+        isAgreementExampleRow(agreementData[agreementStartRow])
+      ) {
+<span class="cstat-no" title="statement not covered" >        agreementStartRow++;</span>
       }
       const agreementRows = <span class="cstat-no" title="statement not covered" >agreementData.slice(agreementStartRow);</span>
       
       const fileConfigHeaders = <span class="cstat-no" title="statement not covered" >fileConfigData[0];</span>
       
-      // For file configurations, check if rows 1-2 are example rows
+      // For file configurations, recognize both legacy "Example" rows and the
+      // two concrete samples emitted by generateTemplate().
       const isFileConfigExampleRow = <span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >(r</span>ow) =&gt; {</span>
 <span class="cstat-no" title="statement not covered" >        if (!row || row.length === 0) <span class="cstat-no" title="statement not covered" >return false;</span></span>
         const firstCell = <span class="cstat-no" title="statement not covered" >String(row[0] || '').toLowerCase().trim();</span>
-<span class="cstat-no" title="statement not covered" >        return firstCell.startsWith('e.g.') || firstCell.startsWith('example') || </span>
-               firstCell.includes('acme') || firstCell === '' || firstCell.startsWith('agr-');
+        const filePattern = <span class="cstat-no" title="statement not covered" >String(row[1] || '').toLowerCase().trim();</span>
+<span class="cstat-no" title="statement not covered" >        return firstCell.startsWith('e.g.') ||</span>
+          firstCell.startsWith('example') ||
+          firstCell.includes('acme') ||
+          firstCell.startsWith('agr-') ||
+          (firstCell === 'agr001' &amp;&amp;
+            ['customer_data', 'legacy_transactions'].includes(filePattern));
       };
       
-      // Determine where data rows start by checking for example rows
+      // Determine where data rows start by checking for actual example rows.
       let fileConfigStartRow = <span class="cstat-no" title="statement not covered" >1;</span>
-<span class="cstat-no" title="statement not covered" >      if (fileConfigData.length &gt; 2 &amp;&amp; isFileConfigExampleRow(fileConfigData[1])) {</span>
-<span class="cstat-no" title="statement not covered" >        fileConfigStartRow = 2;</span>
-<span class="cstat-no" title="statement not covered" >        if (fileConfigData.length &gt; 3 &amp;&amp; isFileConfigExampleRow(fileConfigData[2])) {</span>
-<span class="cstat-no" title="statement not covered" >          fileConfigStartRow = 3;</span>
-        }
+<span class="cstat-no" title="statement not covered" >      while (</span>
+        fileConfigStartRow &lt; fileConfigData.length &amp;&amp;
+        isFileConfigExampleRow(fileConfigData[fileConfigStartRow])
+      ) {
+<span class="cstat-no" title="statement not covered" >        fileConfigStartRow++;</span>
       }
       const fileConfigRows = <span class="cstat-no" title="statement not covered" >fileConfigData.slice(fileConfigStartRow);</span>
 &nbsp;
@@ -2556,7 +2598,7 @@ class VendorAgreementTemplateService {
 <span class="cstat-no" title="statement not covered" >        if (rowErrors.length &gt; 0) {</span>
 <span class="cstat-no" title="statement not covered" >          errors.push({</span>
             sheet: 'Agreement Info',
-            row: i + 3,
+            row: agreementStartRow + i + 1,
             errors: rowErrors
           });
         } else <span class="cstat-no" title="statement not covered" >if (agreement.agreement_id) {</span>
@@ -2632,7 +2674,7 @@ class VendorAgreementTemplateService {
 <span class="cstat-no" title="statement not covered" >        if (rowErrors.length &gt; 0) {</span>
 <span class="cstat-no" title="statement not covered" >          errors.push({</span>
             sheet: 'File Configurations',
-            row: i + 4,
+            row: fileConfigStartRow + i + 1,
             errors: rowErrors
           });
         } else <span class="cstat-no" title="statement not covered" >if (agreementId &amp;&amp; agreements[agreementId]) {</span>
@@ -3040,7 +3082,7 @@ class VendorAgreementTemplateService {
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-08-18T10:06:40.453Z
+                at 2026-08-19T18:24:48.492Z
             </div>
         <script src="../../prettify.js"></script>
         <script>

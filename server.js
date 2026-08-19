@@ -14072,15 +14072,24 @@ async function startServer() {
     const dashboardPrerequisites = await getDashboardPrerequisiteStatus(dbPool);
 
     if (!dashboardPrerequisites.ready) {
-      throw new Error('Dashboard database prerequisites could not be verified');
+      const error = 'The project-access database function is unavailable. Dashboard requests will retry when the production schema is updated.';
+      app.locals.databasePrerequisites = {
+        ready: false,
+        error,
+        verifiedAt: new Date().toISOString()
+      };
+      logger.warn('Dashboard database prerequisites are unavailable; keeping the API online in a not-ready state', {
+        ...dashboardPrerequisites,
+        error
+      });
+    } else {
+      app.locals.databasePrerequisites = {
+        ready: true,
+        error: null,
+        verifiedAt: new Date().toISOString()
+      };
+      logger.info('Dashboard database prerequisites verified', dashboardPrerequisites);
     }
-
-    app.locals.databasePrerequisites = {
-      ready: true,
-      error: null,
-      verifiedAt: new Date().toISOString()
-    };
-    logger.info('Dashboard database prerequisites verified', dashboardPrerequisites);
     
     // Initialize business process tables after database is ready
     try {

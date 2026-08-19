@@ -18,6 +18,7 @@ const apiTarget = `http://127.0.0.1:${apiPort}`;
 const proxy = httpProxy.createProxyServer({ ws: true, xfwd: true });
 
 let apiReady = false;
+let apiLive = false;
 let profileApiStarted = false;
 let shuttingDown = false;
 let apiProcess = null;
@@ -73,8 +74,20 @@ async function checkApiReadiness() {
   });
 }
 
+async function checkApiLiveness() {
+  return new Promise((resolve) => {
+    const request = http.get(`${apiTarget}/api/health/live`, { timeout: 2000 }, (response) => {
+      response.resume();
+      resolve(response.statusCode === 200);
+    });
+
+    request.on('timeout', () => request.destroy());
+    request.on('error', () => resolve(false));
+  });
+}
+
 const server = http.createServer((req, res) => {
-  if (!apiReady) {
+  if (!apiLive) {
     if (req.url === '/' || req.url === '/api/health/live') {
       res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
       res.end('Application is starting');
@@ -114,6 +127,11 @@ server.listen(publicPort, '0.0.0.0', () => {
 });
 
 const readinessTimer = setInterval(async () => {
+  if (!apiLive && await checkApiLiveness()) {
+    apiLive = true;
+    console.log(`Internal API is live on port ${apiPort}; waiting for readiness checks.`);
+  }
+
   if (apiReady || !(await checkApiReadiness())) return;
 
   apiReady = true;
