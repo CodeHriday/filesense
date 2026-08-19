@@ -518,7 +518,7 @@ const VendorManagement = () => {
       <ThreeSectionModal
         isOpen={modalOpen}
         onClose={closeModal}
-        title={modalMode === 'create' ? 'Add New DP' : 'Edit Vendor'}
+        title={modalMode === 'create' ? 'Add New DP' : 'Edit DP'}
         size="large"
         footer={
           <>
@@ -529,7 +529,7 @@ const VendorManagement = () => {
               type="submit" 
               form="vendor-form"
             >
-              {modalMode === 'create' ? 'Create Vendor' : 'Update Vendor'}
+              {modalMode === 'create' ? 'Create DP' : 'Update DP'}
             </button>
           </>
         }
@@ -542,14 +542,14 @@ const VendorManagement = () => {
             </div>
           )}
           
-          {/* Section 1: Vendor Information */}
+          {/* Section 1: Data Provider information */}
           <div className="form-section">
-            <h3 className="section-title">Vendor Information</h3>
+            <h3 className="section-title">Data Provider (DP) information</h3>
             
             <div className="form-row-2col">
               <div className="form-group">
                 <label htmlFor="vendor_name">
-                  Vendor Name <span className="required-field">*</span>
+                  DP Name <span className="required-field">*</span>
                 </label>
                 <input
                   type="text"
@@ -563,7 +563,7 @@ const VendorManagement = () => {
               
               <div className="form-group">
                 <label htmlFor="vendor_type">
-                  Vendor Type <span className="required-field">*</span>
+                  DP Type <span className="required-field">*</span>
                 </label>
                 <select
                   id="vendor_type"
@@ -572,7 +572,7 @@ const VendorManagement = () => {
                   onChange={handleInputChange}
                   required
                 >
-                  <option value="">Select vendor type</option>
+                  <option value="">Select DP type</option>
                   <option value="Data Provider">Data Provider</option>
                   <option value="Service Provider">Service Provider</option>
                   <option value="Technology Partner">Technology Partner</option>
@@ -595,22 +595,22 @@ const VendorManagement = () => {
             </div>
             
             <div className="form-group">
-              <label htmlFor="address">Vendor Local Address</label>
+              <label htmlFor="address">DP Local Address</label>
               <textarea
                 id="address"
                 name="address"
                 value={formData.address}
                 onChange={handleInputChange}
                 rows="2"
-                placeholder="Enter vendor's local address"
+                placeholder="Enter DP's local address"
               />
             </div>
             
             {/* Two-column layout for Primary and Backup Contact */}
             <div className="contact-panels-container">
-              {/* Vendor Primary Contact Panel */}
+              {/* DP Primary Contact Panel */}
               <div className="contact-panel">
-                <h4 className="contact-panel-title">Vendor Primary Contact</h4>
+                <h4 className="contact-panel-title">DP Primary Contact</h4>
                 
                 <div className="form-group">
                   <label htmlFor="contact_user">
@@ -623,7 +623,7 @@ const VendorManagement = () => {
                     onChange={handleContactUserChange}
                     required
                   >
-                    <option value="">Select a vendor user</option>
+                    <option value="">Select a DP user</option>
                     {vendorUsers.map(user => (
                       <option key={user.id} value={user.id}>
                         {user.full_name || user.username} ({user.email})
@@ -675,9 +675,9 @@ const VendorManagement = () => {
                 </div>
               </div>
               
-              {/* Vendor Backup Contact Panel */}
+              {/* DP Backup Contact Panel */}
               <div className="contact-panel">
-                <h4 className="contact-panel-title">Vendor Backup Contact</h4>
+                <h4 className="contact-panel-title">DP Backup Contact</h4>
                 
                 <div className="form-group">
                   <label htmlFor="backup_contact_user">Select Contact</label>
@@ -687,7 +687,7 @@ const VendorManagement = () => {
                     value={formData.backup_contact_user_id}
                     onChange={handleBackupContactUserChange}
                   >
-                    <option value="">Select a vendor user (optional)</option>
+                    <option value="">Select a DP user (optional)</option>
                     {vendorUsers.map(user => (
                       <option key={user.id} value={user.id}>
                         {user.full_name || user.username} ({user.email})
