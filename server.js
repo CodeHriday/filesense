@@ -645,6 +645,11 @@ const generalLimiter = rateLimit({
   message: 'Too many requests from this IP, please try again later',
   standardHeaders: true, // Return rate limit info in `RateLimit-*` headers
   legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+  // This limiter is mounted at /api, so req.path is relative (for example,
+  // /health/ready). Bootstrap and platform health probes must not consume the
+  // public API request allowance or they can prevent the application from
+  // ever becoming ready.
+  skip: (req) => req.path === '/health/ready' || req.path === '/health/live',
   handler: (req, res) => {
     logger.warn('Rate limit exceeded', {
       ip: req.ip,
