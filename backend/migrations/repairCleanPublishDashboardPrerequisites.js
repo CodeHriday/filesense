@@ -28,6 +28,9 @@ async function getPrerequisiteStatus(dbPool) {
   const result = await dbPool.query(`
     SELECT
       to_regprocedure('public.get_user_projects(integer)') IS NOT NULL AS project_access_function_exists,
+      to_regclass('public.project_members') IS NOT NULL AS project_members_table_exists,
+      to_regclass('public.access_group_members') IS NOT NULL AS access_group_members_table_exists,
+      to_regclass('public.project_access_groups') IS NOT NULL AS project_access_groups_table_exists,
       EXISTS (
         SELECT 1
         FROM users u
@@ -46,8 +49,10 @@ async function getPrerequisiteStatus(dbPool) {
   const status = result.rows[0];
   return {
     ...status,
-    ready: status.project_access_function_exists
-      && (!status.bootstrap_admin_exists || status.bootstrap_admin_has_admin_role)
+    uses_project_access_fallback: !status.project_access_function_exists,
+    ready: status.project_members_table_exists
+      && status.access_group_members_table_exists
+      && status.project_access_groups_table_exists
   };
 }
 

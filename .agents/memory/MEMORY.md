@@ -4,3 +4,4 @@
 - [Role permission storage](role-permission-storage.md) — The roles permission list is a PostgreSQL text array, not JSON; migrations must pass a JavaScript string array to update it.
 - [Approval-status constraint compatibility](approval-status-constraint.md) — Any rebuild of the agreement approval-status constraint must retain `pending_approval` alongside legacy workflow states.
 - [Production seed targeting](production-seed-targeting.md) — Manual seed runs must verify the database target; a shell’s DATABASE_URL can point at development while production stays empty.
+- [Dashboard project-access parity](dashboard-project-access-parity.md) — Publish schema diffs do not reliably include routines; dashboard project scoping needs an application-level fallback.

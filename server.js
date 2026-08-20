@@ -5866,7 +5866,6 @@ const enterprisePerformanceOptimizations = require('./backend/migrations/enterpr
 const { addProjectToVisualWorkflows } = require('./backend/migrations/addProjectToVisualWorkflows');
 const { createAllowedEmailDomains } = require('./backend/migrations/createAllowedEmailDomains');
 const { up: addDQValidationColumns } = require('./backend/migrations/addDQValidationColumns');
-const createGetUserProjectsFunction = require('./backend/migrations/createGetUserProjectsFunction');
 const { up: addLastRunAtToFileQualityRules } = require('./backend/migrations/addLastRunAtToFileQualityRules');
 const { up: addIsSchemaEnforcedToFileQualityRules } = require('./backend/migrations/addIsSchemaEnforcedToFileQualityRules');
 const { patchEnrollmentSchemaRuleNames } = require('./backend/migrations/patchEnrollmentSchemaRuleNames');
@@ -5936,7 +5935,6 @@ const {
     await migrationTracker.runOnce('enterprisePerformanceOptimizations', () => enterprisePerformanceOptimizations(dbPool));
     await migrationTracker.runOnce('createAllowedEmailDomains', () => createAllowedEmailDomains(dbPool));
     await migrationTracker.runOnce('addDQValidationColumns', () => addDQValidationColumns(dbPool));
-    await migrationTracker.runOnce('createGetUserProjectsFunction', () => createGetUserProjectsFunction(dbPool));
     await migrationTracker.runOnce('addLastRunAtToFileQualityRules', () => addLastRunAtToFileQualityRules(dbPool));
     await migrationTracker.runOnce('addIsSchemaEnforcedToFileQualityRules', () => addIsSchemaEnforcedToFileQualityRules(dbPool));
     await migrationTracker.runOnce('patchEnrollmentSchemaRuleNames', () => patchEnrollmentSchemaRuleNames(dbPool));
@@ -14070,14 +14068,14 @@ async function startServer() {
     logger.info('Database connection established successfully');
 
     // Schema changes are applied by Publish. At application startup, repair
-    // only the known bootstrap account's missing role links and verify the
-    // schema prerequisite before allowing the API to report readiness.
+    // the known bootstrap account's missing role links and independently
+    // verify the dashboard's required data-access prerequisites.
     logger.info('Verifying dashboard database prerequisites...');
     await repairBootstrapAdminRoles(dbPool);
     const dashboardPrerequisites = await getDashboardPrerequisiteStatus(dbPool);
 
     if (!dashboardPrerequisites.ready) {
-      const error = 'The project-access database function is unavailable. Dashboard requests will retry when the production schema is updated.';
+      const error = 'The dashboard project-access tables are unavailable. Dashboard requests will retry when access is repaired.';
       app.locals.databasePrerequisites = {
         ready: false,
         error,
@@ -14094,6 +14092,9 @@ async function startServer() {
         verifiedAt: new Date().toISOString()
       };
       logger.info('Dashboard database prerequisites verified', dashboardPrerequisites);
+      if (dashboardPrerequisites.uses_project_access_fallback) {
+        logger.warn('Project-access database function is unavailable; dashboard is using the built-in access-query fallback');
+      }
     }
     
     // Initialize business process tables after database is ready

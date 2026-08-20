@@ -9,7 +9,6 @@ const {
   repairBootstrapAdminRoles,
   getPrerequisiteStatus
 } = require('../migrations/repairCleanPublishDashboardPrerequisites');
-const createGetUserProjectsFunction = require('../migrations/createGetUserProjectsFunction');
 
 function makeDashboardApp({ ready, user }) {
   const app = express();
@@ -60,7 +59,7 @@ describe('dashboard database prerequisites', () => {
     expect(query.mock.calls.some(([sql]) => sql.includes('get_user_projects'))).toBe(false);
   });
 
-  test('returns zero-valued empty metrics for a project-scoped user through the access function', async () => {
+  test('returns zero-valued empty metrics for a project-scoped user without a database routine', async () => {
     const { app, query } = makeDashboardApp({
       ready: true,
       user: { id: 42, roles: [] }
@@ -78,26 +77,12 @@ describe('dashboard database prerequisites', () => {
     });
     expect(query).toHaveBeenCalledTimes(5);
     expect(query.mock.calls.every(([sql, params]) => {
-      return sql.includes('get_user_projects') && params[0] === 42;
-    })).toBe(true);
-  });
-
-  test('creates the public project-access routine in the schema migration source', async () => {
-    const client = {
-      query: jest.fn().mockResolvedValue({}),
-      release: jest.fn()
-    };
-
-    await createGetUserProjectsFunction({ connect: jest.fn().mockResolvedValue(client) });
-
-    expect(client.query.mock.calls.some(([sql]) => (
-      sql.includes('CREATE FUNCTION public.get_user_projects')
-    ))).toBe(true);
-    expect(client.query.mock.calls.some(([sql]) => (
-      sql.includes('public.project_members')
+      return sql.includes('public.project_members')
         && sql.includes('public.access_group_members')
         && sql.includes('public.project_access_groups')
-    ))).toBe(true);
+        && !sql.includes('get_user_projects')
+        && params[0] === 42;
+    })).toBe(true);
   });
 
   test('only repairs roleless bootstrap admins', async () => {
@@ -118,27 +103,70 @@ describe('dashboard database prerequisites', () => {
     expect(client.release).toHaveBeenCalled();
   });
 
-  test('reports missing routine or a roleless bootstrap account as not ready', async () => {
+  test('uses the access-query fallback when the routine is missing', async () => {
     const dbPool = {
-      query: jest
-        .fn()
-        .mockResolvedValueOnce({
+      query: jest.fn().mockResolvedValue({
           rows: [{
             project_access_function_exists: false,
+            project_members_table_exists: true,
+            access_group_members_table_exists: true,
+            project_access_groups_table_exists: true,
             bootstrap_admin_has_admin_role: true,
-            bootstrap_admin_exists: true
-          }]
-        })
-        .mockResolvedValueOnce({
-          rows: [{
-            project_access_function_exists: true,
-            bootstrap_admin_has_admin_role: false,
             bootstrap_admin_exists: true
           }]
         })
     };
 
-    await expect(getPrerequisiteStatus(dbPool)).resolves.toMatchObject({ ready: false });
-    await expect(getPrerequisiteStatus(dbPool)).resolves.toMatchObject({ ready: false });
+    await expect(getPrerequisiteStatus(dbPool)).resolves.toMatchObject({
+      ready: true,
+      uses_project_access_fallback: true
+    });
+  });
+
+  test('keeps project-scoped dashboards available when the legacy admin is not an administrator', async () => {
+    const status = await getPrerequisiteStatus({
+      query: jest.fn().mockResolvedValue({
+        rows: [{
+          project_access_function_exists: false,
+          project_members_table_exists: true,
+          access_group_members_table_exists: true,
+          project_access_groups_table_exists: true,
+          bootstrap_admin_has_admin_role: false,
+          bootstrap_admin_exists: true
+        }]
+      })
+    });
+    const { app, query } = makeDashboardApp({
+      ready: status.ready,
+      user: { id: 42, roles: [] }
+    });
+
+    const response = await request(app).get('/api/dashboard/metrics');
+
+    expect(status).toMatchObject({
+      ready: true,
+      uses_project_access_fallback: true
+    });
+    expect(response.status).toBe(200);
+    expect(query.mock.calls.every(([sql]) => (
+      sql.includes('public.project_members') && !sql.includes('get_user_projects')
+    ))).toBe(true);
+  });
+
+  test('reports a missing fallback access table as not ready', async () => {
+    const status = await getPrerequisiteStatus({
+      query: jest.fn().mockResolvedValue({
+        rows: [{
+          project_access_function_exists: false,
+          project_members_table_exists: true,
+          access_group_members_table_exists: false,
+          project_access_groups_table_exists: true,
+          bootstrap_admin_has_admin_role: true,
+          bootstrap_admin_exists: true
+        }]
+      })
+    });
+
+    expect(status).toMatchObject({ ready: false });
   });
 });

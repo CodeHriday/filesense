@@ -23,6 +23,8 @@ let profileApiStarted = false;
 let shuttingDown = false;
 let apiProcess = null;
 let profileApiProcess = null;
+let server = null;
+let readinessTimer = null;
 
 function startProfileApi() {
   if (profileApiStarted) return;
@@ -86,8 +88,12 @@ async function checkApiLiveness() {
   });
 }
 
-const server = http.createServer((req, res) => {
-  if (!apiLive) {
+function createPublicServer({
+  isApiReady = () => apiReady,
+  proxyServer = proxy
+} = {}) {
+  return http.createServer((req, res) => {
+    if (!isApiReady()) {
     if (req.url === '/' || req.url === '/api/health/live') {
       res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
       res.end('Application is starting');
@@ -102,8 +108,9 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  proxy.web(req, res, { target: apiTarget });
-});
+    proxyServer.web(req, res, { target: apiTarget });
+  });
+}
 
 proxy.on('error', (error, _req, res) => {
   console.error(`Internal API proxy error: ${error.message}`);
@@ -113,32 +120,38 @@ proxy.on('error', (error, _req, res) => {
   }
 });
 
-server.on('upgrade', (req, socket, head) => {
+function handleUpgrade(req, socket, head) {
   if (!apiReady) {
     socket.destroy();
     return;
   }
   proxy.ws(req, socket, head, { target: apiTarget });
-});
+}
 
-server.listen(publicPort, '0.0.0.0', () => {
-  console.log(`Production bootstrap listening on port ${publicPort}`);
-  startApi();
-});
+function startBootstrap() {
+  server = createPublicServer();
+  server.on('upgrade', handleUpgrade);
+  server.listen(publicPort, '0.0.0.0', () => {
+    console.log(`Production bootstrap listening on port ${publicPort}`);
+    startApi();
+  });
 
-const readinessTimer = setInterval(async () => {
-  if (!apiLive && await checkApiLiveness()) {
-    apiLive = true;
-    console.log(`Internal API is live on port ${apiPort}; waiting for readiness checks.`);
-  }
+  readinessTimer = setInterval(async () => {
+    if (!apiLive && await checkApiLiveness()) {
+      apiLive = true;
+      console.log(`Internal API is live on port ${apiPort}; waiting for readiness checks.`);
+    }
 
-  if (apiReady || !(await checkApiReadiness())) return;
+    if (apiReady || !(await checkApiReadiness())) return;
 
-  apiReady = true;
-  startProfileApi();
-  console.log(`Internal API ready on port ${apiPort}; production traffic is now proxied.`);
-  clearInterval(readinessTimer);
-}, 500);
+    apiReady = true;
+    startProfileApi();
+    console.log(`Internal API ready on port ${apiPort}; production traffic is now proxied.`);
+    clearInterval(readinessTimer);
+  }, 500);
+
+  return server;
+}
 
 function shutdown(signal) {
   if (shuttingDown) return;
@@ -150,5 +163,13 @@ function shutdown(signal) {
   server.close(() => process.exit(0));
 }
 
-process.on('SIGTERM', () => shutdown('SIGTERM'));
-process.on('SIGINT', () => shutdown('SIGINT'));
+if (require.main === module) {
+  startBootstrap();
+  process.on('SIGTERM', () => shutdown('SIGTERM'));
+  process.on('SIGINT', () => shutdown('SIGINT'));
+}
+
+module.exports = {
+  createPublicServer,
+  startBootstrap
+};
