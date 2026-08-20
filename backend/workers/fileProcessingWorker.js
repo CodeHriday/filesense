@@ -25,6 +25,7 @@ const PasswordVaultService = require('../services/passwordVaultService');
 const ArchiveDetectionService = require('../services/archiveDetectionService');
 const ArchiveExtractionService = require('../services/archiveExtractionService');
 const DLQService = require('../services/dlqService');
+const { FINAL_APPROVED_AGREEMENT_STATUSES } = require('../utils/vendorAgreementApprovalStatus');
 
 // Archive and special format file extensions
 const ARCHIVE_EXTENSIONS = ['.zip', '.tar', '.tar.gz', '.tar.bz2', '.tgz', '.tbz2'];
@@ -2917,12 +2918,12 @@ print(json.dumps(result))
       FROM vendor_agreement_file_schemas vafs
       INNER JOIN vendor_agreements va ON vafs.vendor_agreement_id = va.id
       WHERE va.vendor_connection_id = $1
-        AND va.approval_status = 'governance_approved'
+        AND va.approval_status = ANY($2::text[])
         AND va.is_locked = true
         AND va.status = 'active'
         AND vafs.is_active = true
       ORDER BY vafs.priority ASC NULLS LAST
-    `, [connectionId]);
+    `, [connectionId, FINAL_APPROVED_AGREEMENT_STATUSES]);
     
     this.logger.info('Fetched vendor agreement file schemas', {
       fileId,

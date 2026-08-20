@@ -16,6 +16,7 @@ const compression = require('compression');
 const session = require('express-session');
 const axios = require('axios');
 const { v4: uuidv4 } = require('uuid');
+const { FINAL_APPROVED_AGREEMENT_STATUSES } = require('./backend/utils/vendorAgreementApprovalStatus');
 
 // Initialize dependency injection container
 const { initialize: initializeDI, initializeDatabase } = require('./backend/di/bootstrapper');
@@ -2763,10 +2764,10 @@ app.post('/api/files/upload', authenticateToken, invalidateCache('cache:*:*files
         JOIN vendor_agreements va ON vafs.vendor_agreement_id = va.id
         WHERE va.id = $1
           AND va.status = 'active'
-          AND va.approval_status = 'governance_approved'
+          AND va.approval_status = ANY($2::text[])
           AND va.is_locked = true
         ORDER BY vafs.file_name_pattern
-      `, [agreementId]);
+      `, [agreementId, FINAL_APPROVED_AGREEMENT_STATUSES]);
       
       if (schemaResult.rows.length > 0) {
         // Validate each uploaded file against expected patterns and schemas
@@ -3662,10 +3663,10 @@ app.post('/api/files/drop', authenticateToken, uploadLimiter, upload.single('fil
         JOIN vendor_agreements va ON vafs.vendor_agreement_id = va.id
         WHERE va.id = $1
           AND va.status = 'active'
-          AND va.approval_status = 'governance_approved'
+          AND va.approval_status = ANY($2::text[])
           AND va.is_locked = true
         ORDER BY vafs.file_name_pattern
-      `, [agreementId]);
+      `, [agreementId, FINAL_APPROVED_AGREEMENT_STATUSES]);
       
       if (schemaResult.rows.length > 0) {
         // Check if filename matches any expected pattern
@@ -3914,7 +3915,7 @@ app.post('/api/files/drop', authenticateToken, uploadLimiter, upload.single('fil
           WHERE sc.connection_id = $1
             AND sc.status = 'active'
             AND va.vendor_id = ANY($2::integer[])
-            AND va.approval_status = 'governance_approved'
+              AND va.approval_status = ANY($4::text[])
             AND va.is_locked = true
             AND va.status = 'active'
             AND (
@@ -3922,7 +3923,7 @@ app.post('/api/files/drop', authenticateToken, uploadLimiter, upload.single('fil
               OR va.secondary_contact_email = $3
             )
           LIMIT 1
-        `, [connectionId, vendorIds, userEmail]);
+        `, [connectionId, vendorIds, userEmail, FINAL_APPROVED_AGREEMENT_STATUSES]);
         
         if (authResult.rows.length === 0) {
           try { fs.unlinkSync(file.path); } catch (e) {}
@@ -3935,10 +3936,10 @@ app.post('/api/files/drop', authenticateToken, uploadLimiter, upload.single('fil
             FROM vendor_agreements va
             JOIN vendors v ON v.id = va.vendor_id
             WHERE va.vendor_connection_id = $1
-              AND va.approval_status = 'governance_approved'
+              AND va.approval_status = ANY($2::text[])
               AND va.is_locked = true
               AND va.status = 'active'
-          `, [connectionId]);
+          `, [connectionId, FINAL_APPROVED_AGREEMENT_STATUSES]);
           
           let errorDetail = 'No matching authorized agreement found';
           if (agreementCheck.rows.length > 0) {
