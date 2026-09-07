@@ -5178,9 +5178,7 @@ app.use('/api/connections', authenticateToken, connectionBrowseRoutes);
 const cacheRoutes = require('./backend/routes/cacheRoutes');
 app.use('/api/cache', cacheRoutes);
 
-// DBT routes
-const dbtRoutes = require('./backend/routes/dbt');
-app.use('/api/dbt', authenticateToken, dbtRoutes);
+
 
 // Drop location routes (admin only)
 const dropLocationRoutes = require('./backend/routes/dropLocation');
