@@ -9,7 +9,8 @@
  * - Alert run tracking and logging
  */
 
-const { pool, query } = require('../config/database');
+const pool = require('../db');
+const { query } = require('../config/database');
 const EmailProviderFactory = require('./email/EmailProviderFactory');
 const ConnectionService = require('./ConnectionService');
 const EmailDomainValidationService = require('./EmailDomainValidationService');

@@ -92,6 +92,7 @@ class EmailComposer {
       const colors = {
         success: '#10b981',
         completed: '#10b981',
+        completed_with_warnings: '#d97706',
         failed: '#ef4444',
         error: '#ef4444',
         warning: '#f59e0b',
@@ -110,10 +111,15 @@ class EmailComposer {
       return a > b;
     });
 
-    // Check if status is successful (success or completed)
+    // Check if status is successful (success, completed, or completed_with_warnings)
     Handlebars.registerHelper('isSuccess', function(status) {
-      const successStatuses = ['success', 'completed'];
+      const successStatuses = ['success', 'completed', 'completed_with_warnings'];
       return successStatuses.includes(status?.toLowerCase());
+    });
+
+    // Check if status is completed with warnings
+    Handlebars.registerHelper('isWarning', function(status) {
+      return status?.toLowerCase() === 'completed_with_warnings';
     });
   }
 
@@ -127,14 +133,17 @@ class EmailComposer {
 
     const { job, status, error, duration, recordsProcessed, qualityViolations } = data;
     
-    const successStatuses = ['success', 'completed'];
+    const successStatuses = ['success', 'completed', 'completed_with_warnings'];
     const isSuccess = successStatuses.includes(status?.toLowerCase());
-    const subject = `[${status.toUpperCase()}] Job "${job.name}" ${isSuccess ? 'Completed' : 'Failed'}`;
+    const isWarning = status?.toLowerCase() === 'completed_with_warnings';
+    const outcomeLabel = isWarning ? 'Completed with warnings' : isSuccess ? 'Completed' : 'Failed';
+    const subject = `[${isWarning ? 'WARNING' : status.toUpperCase()}] Job "${job.name}" ${outcomeLabel}`;
     
     const templateData = {
       jobName: job.name,
       jobId: job.id,
       status,
+      isWarning,
       error,
       duration,
       recordsProcessed: recordsProcessed || 0,

@@ -5,7 +5,8 @@
  */
 
 const { systemLogger } = require('../utils/logger');
-const { pool, query: dbQuery } = require('../config/database');
+const pool = require('../db');
+const { query: dbQuery } = require('../config/database');
 const AWS = require('aws-sdk');
 const xlsx = require('xlsx');
 const fs = require('fs');
@@ -20,6 +21,7 @@ const { XMLParser } = require('fast-xml-parser');
 const axios = require('axios');
 const ArchiveDetectionService = require('./archiveDetectionService');
 const PasswordVaultService = require('./passwordVaultService');
+const { validateSchemaRulesInline } = require('./schemaRuleEnforcer');
 
 // Archive file extensions
 const ARCHIVE_EXTENSIONS = ['.zip', '.7z', '.tar', '.tar.gz', '.tar.bz2', '.tgz', '.tbz2'];
@@ -566,9 +568,12 @@ class FastSchemaValidationService {
                   p => p.file_name_pattern === validationResult.matchedPattern
                 );
                 
+                // Shared sample data for both legacy DQ rules and schema column rules
+                let sampleData = null;
+
                 if (matchedPatternObj?.qualityRules?.length > 0) {
                   // Extract sample data for DQ validation
-                  const sampleData = await this.extractSampleData(
+                  sampleData = await this.extractSampleData(
                     s3,
                     connectionCredentials.bucket,
                     filePath,
@@ -576,13 +581,77 @@ class FastSchemaValidationService {
                     100, // Limit to 100 rows for performance
                     isExtracted
                   );
-                  
+
                   if (sampleData && sampleData.length > 0) {
                     dqResult = await this.executeDQValidation(
                       sampleData,
                       matchedPatternObj.qualityRules,
                       { filePath, fileType: fileMetadata.fileType }
                     );
+                  }
+                }
+
+                // Also run schema-defined quality rules inline (per-column and file-level)
+                const parsedSchemaForRules = (() => {
+                  try {
+                    const raw = matchedPatternObj?.schema;
+                    if (!raw) return null;
+                    return Array.isArray(raw) ? raw : (typeof raw === 'string' ? JSON.parse(raw) : raw);
+                  } catch (e) { return null; }
+                })();
+                const schemaColumnsForRules = Array.isArray(parsedSchemaForRules)
+                  ? parsedSchemaForRules
+                  : (Array.isArray(parsedSchemaForRules?.columns) ? parsedSchemaForRules.columns : []);
+                const hasSchemaColumnRules = schemaColumnsForRules.some(
+                  c => c.quality_rules && Array.isArray(c.quality_rules) && c.quality_rules.length > 0
+                );
+                const hasSchemaFileLevelRules = !Array.isArray(parsedSchemaForRules) &&
+                  Array.isArray(parsedSchemaForRules?.file_quality_rules) &&
+                  parsedSchemaForRules.file_quality_rules.length > 0;
+                if (hasSchemaColumnRules || hasSchemaFileLevelRules) {
+                  let schemaRuleSampleData = sampleData;
+                  if (!schemaRuleSampleData || schemaRuleSampleData.length === 0) {
+                    try {
+                      schemaRuleSampleData = await this.extractSampleData(
+                        s3,
+                        connectionCredentials.bucket,
+                        filePath,
+                        fileMetadata.fileType,
+                        100,
+                        isExtracted
+                      );
+                    } catch (_) { schemaRuleSampleData = []; }
+                  }
+                  // Allow the call even when sample data is empty: file-level rules
+                  // (e.g. record_count) use metadata.actual_row_count, not row data.
+                  // validateSchemaRulesInline will safely skip record_count when no
+                  // authoritative row count is available in metadata.
+                  if (parsedSchemaForRules) {
+                    try {
+                      const schemaRuleResult = await validateSchemaRulesInline(
+                        parsedSchemaForRules,
+                        schemaRuleSampleData || [],
+                        {
+                          filePath,
+                          fileType: fileMetadata.fileType,
+                          // Supply the full record count so record_count rules evaluate
+                          // against the real file total, not the 100-row sample window.
+                          actual_row_count: (validationResult.recordCount != null)
+                            ? Number(validationResult.recordCount)
+                            : null
+                        }
+                      );
+                      result.schemaRuleValidation = schemaRuleResult;
+                      systemLogger.info('Schema rule validation completed', {
+                        filePath,
+                        rulesValidated: schemaRuleResult.rulesValidated,
+                        violationCount: schemaRuleResult.violationCount
+                      });
+                    } catch (schemaRuleErr) {
+                      systemLogger.warn('Schema column rule validation failed', {
+                        filePath, error: schemaRuleErr.message
+                      });
+                    }
                   }
                 }
               } catch (dqError) {

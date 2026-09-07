@@ -10,6 +10,7 @@
  */
 
 const { processDueSchedules } = require('../services/cronSchedulerService');
+const { processDigests } = require('../services/DigestService');
 
 class SchedulerWorker {
   constructor(logger, intervalMs = 60000) { // Default: check every minute
@@ -50,17 +51,37 @@ class SchedulerWorker {
     this.isProcessing = true;
 
     try {
-      const result = await processDueSchedules();
-      
-      if (result.processed > 0) {
+      const [scheduleResult, digestResult] = await Promise.allSettled([
+        processDueSchedules(),
+        processDigests(),
+      ]);
+
+      if (scheduleResult.status === 'fulfilled' && scheduleResult.value.processed > 0) {
         this.logger.info('Scheduler processed due schedules', {
-          processed: result.processed,
-          schedules: result.schedules.map(s => ({
+          processed: scheduleResult.value.processed,
+          schedules: (scheduleResult.value.schedules || []).map(s => ({
             id: s.scheduleId,
             entityType: s.entityType,
             entityId: s.entityId,
             success: s.success
           }))
+        });
+      }
+      if (scheduleResult.status === 'rejected') {
+        this.logger.error('Error in processDueSchedules', {
+          error: scheduleResult.reason?.message,
+          stack: scheduleResult.reason?.stack
+        });
+      }
+
+      if (digestResult.status === 'fulfilled' && digestResult.value.processed > 0) {
+        this.logger.info('Digest worker processed due digests', {
+          processed: digestResult.value.processed,
+        });
+      }
+      if (digestResult.status === 'rejected') {
+        this.logger.error('Error in processDigests', {
+          error: digestResult.reason?.message,
         });
       }
     } catch (error) {

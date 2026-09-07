@@ -12,14 +12,16 @@
     .value { color: #111827; font-size: 16px; margin-top: 4px; }
     .badge { display: inline-block; padding: 4px 12px; border-radius: 12px; font-size: 14px; font-weight: 500; }
     .badge-success { background: #d1fae5; color: #065f46; }
+    .badge-warning { background: #fef3c7; color: #92400e; }
     .badge-error { background: #fee2e2; color: #991b1b; }
     .error-box { background: #fef2f2; border: 1px solid #fecaca; padding: 12px; border-radius: 6px; color: #991b1b; margin-top: 10px; }
+    .warning-box { background: #fffbeb; border: 1px solid #fde68a; padding: 12px; border-radius: 6px; color: #92400e; margin-top: 10px; }
     .footer { text-align: center; margin-top: 20px; color: #6b7280; font-size: 14px; }
   </style>
 </head>
 <body>
   <div class="header">
-    <h1 style="margin: 0; font-size: 24px;">Job {{#if (isSuccess status)}}Completed{{else}}Failed{{/if}}</h1>
+    <h1 style="margin: 0; font-size: 24px;">Job {{#if (isWarning status)}}Completed with Warnings{{else if (isSuccess status)}}Completed{{else}}Failed{{/if}}</h1>
     <p style="margin: 8px 0 0 0; opacity: 0.9;">{{jobName}}</p>
   </div>
   
@@ -27,8 +29,8 @@
     <div class="section">
       <div class="label">Status</div>
       <div class="value">
-        <span class="badge {{#if (isSuccess status)}}badge-success{{else}}badge-error{{/if}}">
-          {{status}}
+        <span class="badge {{#if (isWarning status)}}badge-warning{{else if (isSuccess status)}}badge-success{{else}}badge-error{{/if}}">
+          {{#if (isWarning status)}}Completed with warnings{{else}}{{status}}{{/if}}
         </span>
       </div>
     </div>
@@ -48,10 +50,19 @@
         <strong>Duration:</strong> {{formatDuration duration}}<br>
         <strong>Records Processed:</strong> {{formatNumber recordsProcessed}}
         {{#if hasViolations}}
-          <br><strong>Quality Violations:</strong> <span style="color: #dc2626;">{{formatNumber qualityViolations}}</span>
+          <br><strong>Quality Violations:</strong> <span style="color: #d97706;">{{formatNumber qualityViolations}}</span>
         {{/if}}
       </div>
     </div>
+
+    {{#if (isWarning status)}}
+    <div class="section">
+      <div class="label">Quality Warnings</div>
+      <div class="warning-box">
+        This job completed successfully but encountered {{formatNumber qualityViolations}} quality violation(s). Please review the Quality Violations tab for details.
+      </div>
+    </div>
+    {{/if}}
 
     {{#if error}}
     <div class="section">
@@ -63,12 +74,14 @@
     {{/if}}
 
     {{#if hasViolations}}
+    {{#unless (isWarning status)}}
     <div class="section">
       <div class="label">Quality Violations</div>
       <div class="value">
         <p style="margin: 0;">This job encountered {{formatNumber qualityViolations}} quality violations. Please review the attached report for details.</p>
       </div>
     </div>
+    {{/unless}}
     {{/if}}
   </div>
 

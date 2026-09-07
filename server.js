@@ -16,6 +16,7 @@ const compression = require('compression');
 const session = require('express-session');
 const axios = require('axios');
 const { v4: uuidv4 } = require('uuid');
+const { FINAL_APPROVED_AGREEMENT_STATUSES } = require('./backend/utils/vendorAgreementApprovalStatus');
 
 // Initialize dependency injection container
 const { initialize: initializeDI, initializeDatabase } = require('./backend/di/bootstrapper');
@@ -98,6 +99,10 @@ const columnAccessControl = require('./backend/services/columnAccessControl');
 
 // Initialize Express app
 const app = express();
+app.locals.databasePrerequisites = {
+  ready: false,
+  error: null
+};
 // Use PORT from environment (Replit provides this), fallback to 5000 in production or 3000 in development
 const port = process.env.PORT || (process.env.NODE_ENV === 'production' ? 5000 : 3000);
 
@@ -135,21 +140,81 @@ const sanitizeError = (error, genericMessage = 'An error occurred') => {
 };
 
 // Comprehensive date validation helper with detailed error messages
-const validateDateFormat = (dateString) => {
+// All named date formats — used for both auto-detection and strict single-format validation.
+// Formats with ambiguous patterns (MM/DD vs DD/MM, MM-DD vs DD-MM) are disambiguated only
+// when the caller passes an explicit expectedFormat; in auto-detect mode the first match wins.
+const ALL_DATE_FORMATS = [
+  { pattern: /^(\d{4})-(\d{2})-(\d{2})$/, name: 'YYYY-MM-DD',  yearIdx: 1, monthIdx: 2, dayIdx: 3 },
+  { pattern: /^(\d{2})\/(\d{2})\/(\d{4})$/, name: 'MM/DD/YYYY', yearIdx: 3, monthIdx: 1, dayIdx: 2 },
+  { pattern: /^(\d{2})\/(\d{2})\/(\d{4})$/, name: 'DD/MM/YYYY', yearIdx: 3, monthIdx: 2, dayIdx: 1 },
+  { pattern: /^(\d{2})-(\d{2})-(\d{4})$/,  name: 'MM-DD-YYYY', yearIdx: 3, monthIdx: 1, dayIdx: 2 },
+  { pattern: /^(\d{2})-(\d{2})-(\d{4})$/,  name: 'DD-MM-YYYY', yearIdx: 3, monthIdx: 2, dayIdx: 1 },
+  { pattern: /^(\d{4})\/(\d{2})\/(\d{2})$/, name: 'YYYY/MM/DD', yearIdx: 1, monthIdx: 2, dayIdx: 3 },
+  { pattern: /^(\d{2})\.(\d{2})\.(\d{4})$/, name: 'DD.MM.YYYY', yearIdx: 3, monthIdx: 2, dayIdx: 1 },
+];
+
+// Subset used for auto-detection when no format is specified — avoids ambiguous patterns.
+const AUTO_DETECT_FORMAT_NAMES = new Set(['YYYY-MM-DD', 'MM/DD/YYYY', 'MM-DD-YYYY', 'YYYY/MM/DD', 'DD.MM.YYYY']);
+
+/**
+ * Build a single-format validator from a custom format token string such as
+ * "YYYY/DD/MM".  Tokens: YYYY (4-digit year), MM (2-digit month), DD (2-digit day).
+ * Returns null when the format string contains none of the required tokens.
+ */
+const buildCustomDateFormat = (formatStr) => {
+  if (!formatStr || typeof formatStr !== 'string') return null;
+  const tokenOrder = [];
+  // Find token positions so we know which capture group maps to what
+  const positions = [
+    { token: 'YYYY', idx: formatStr.indexOf('YYYY') },
+    { token: 'MM',   idx: formatStr.indexOf('MM')   },
+    { token: 'DD',   idx: formatStr.indexOf('DD')   },
+  ].filter(t => t.idx >= 0).sort((a, b) => a.idx - b.idx);
+  if (positions.length < 3) return null; // Must have all three tokens
+  // Escape separator chars and replace tokens with capture groups
+  const regexStr = formatStr
+    .replace(/[.*+?^${}()|[\]\\]/g, c => `\\${c}`)
+    .replace('YYYY', '(\\d{4})')
+    .replace('MM',   '(\\d{2})')
+    .replace('DD',   '(\\d{2})');
+  const yearIdx  = positions.findIndex(p => p.token === 'YYYY') + 1;
+  const monthIdx = positions.findIndex(p => p.token === 'MM')   + 1;
+  const dayIdx   = positions.findIndex(p => p.token === 'DD')   + 1;
+  return { pattern: new RegExp(`^${regexStr}$`), name: formatStr, yearIdx, monthIdx, dayIdx };
+};
+
+/**
+ * Validate a date string.
+ * @param {string} dateString   - The value to validate.
+ * @param {string|null} expectedFormat - Named format (e.g. 'YYYY-MM-DD', 'DD/MM/YYYY') or a
+ *   custom token string (e.g. 'YYYY/DD/MM').  When null, any recognised format is accepted.
+ */
+const validateDateFormat = (dateString, expectedFormat = null) => {
   if (!dateString || typeof dateString !== 'string') {
-    return { valid: false, expectedFormat: 'YYYY-MM-DD', reason: 'Empty or invalid value' };
+    return { valid: false, expectedFormat: expectedFormat || 'YYYY-MM-DD', reason: 'Empty or invalid value' };
   }
   
   const trimmedValue = dateString.trim();
   
-  // Common date format patterns to check
-  const formats = [
-    { pattern: /^(\d{4})-(\d{2})-(\d{2})$/, name: 'YYYY-MM-DD', yearIdx: 1, monthIdx: 2, dayIdx: 3 },
-    { pattern: /^(\d{2})\/(\d{2})\/(\d{4})$/, name: 'MM/DD/YYYY', yearIdx: 3, monthIdx: 1, dayIdx: 2 },
-    { pattern: /^(\d{2})-(\d{2})-(\d{4})$/, name: 'MM-DD-YYYY', yearIdx: 3, monthIdx: 1, dayIdx: 2 },
-    { pattern: /^(\d{4})\/(\d{2})\/(\d{2})$/, name: 'YYYY/MM/DD', yearIdx: 1, monthIdx: 2, dayIdx: 3 },
-    { pattern: /^(\d{2})\.(\d{2})\.(\d{4})$/, name: 'DD.MM.YYYY', yearIdx: 3, monthIdx: 2, dayIdx: 1 },
-  ];
+  // Determine which formats to try
+  let formatsToTry;
+  if (expectedFormat) {
+    // Try named formats first
+    formatsToTry = ALL_DATE_FORMATS.filter(f => f.name === expectedFormat);
+    // Fall back to custom token parsing
+    if (formatsToTry.length === 0) {
+      const custom = buildCustomDateFormat(expectedFormat);
+      formatsToTry = custom ? [custom] : [];
+    }
+    if (formatsToTry.length === 0) {
+      return { valid: false, expectedFormat, reason: `Unrecognised date format: ${expectedFormat}` };
+    }
+  } else {
+    formatsToTry = ALL_DATE_FORMATS.filter(f => AUTO_DETECT_FORMAT_NAMES.has(f.name));
+  }
+
+  // Legacy alias — keep the same local variable name used below
+  const formats = formatsToTry;
   
   let matchedFormat = null;
   let year, month, day;
@@ -498,6 +563,32 @@ app.use((req, res, next) => {
 });
 
 
+// ─── Production health-probe route ───────────────────────────────────────────
+// Registered BEFORE the session and audit middleware so Replit's GCE deploy
+// probe (GET /) always gets HTTP 200 without touching the database.
+// In production the build step creates dist/index.html; if for any reason it
+// is absent we return a minimal loading shell (still 200) so the probe passes
+// while the app is warming up. Deep-link routes (/dashboard, /connections …)
+// are handled by the catch-all further down, after the normal middleware chain.
+if (process.env.NODE_ENV === 'production') {
+  const _distIndex = path.join(__dirname, 'dist', 'index.html');
+  app.get('/', (req, res) => {
+    if (fs.existsSync(_distIndex)) {
+      res.sendFile(_distIndex);
+    } else {
+      res.status(200).send([
+        '<!DOCTYPE html><html lang="en">',
+        '<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">',
+        '<title>Starting</title></head>',
+        '<body style="font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0">',
+        '<p>Application is starting, please wait\u2026</p>',
+        '</body></html>'
+      ].join(''));
+    }
+  });
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
 // Session middleware (required for Okta SSO)
 app.use(session({
   secret: process.env.SESSION_SECRET || SECURITY_CONFIG.JWT_SECRET,
@@ -530,12 +621,19 @@ app.use((req, res, next) => {
   });
   
   // Set timeout for response (35 seconds - slightly longer than request timeout)
+  // If no data has been sent after 35 s, send a 408 and tear down the socket so the
+  // browser's fetch() rejects instead of hanging indefinitely.
   res.setTimeout(35000, () => {
     logger.warn('Response timeout', { 
       method: req.method, 
       path: req.path,
       ip: req.ip 
     });
+    if (!res.headersSent) {
+      res.status(408).json({ error: 'Request timeout' });
+    }
+    // Destroy the socket so any in-flight proxy connection is also torn down
+    req.socket.destroy();
   });
   
   next();
@@ -548,6 +646,11 @@ const generalLimiter = rateLimit({
   message: 'Too many requests from this IP, please try again later',
   standardHeaders: true, // Return rate limit info in `RateLimit-*` headers
   legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+  // This limiter is mounted at /api, so req.path is relative (for example,
+  // /health/ready). Bootstrap and platform health probes must not consume the
+  // public API request allowance or they can prevent the application from
+  // ever becoming ready.
+  skip: (req) => req.path === '/health/ready' || req.path === '/health/live',
   handler: (req, res) => {
     logger.warn('Rate limit exceeded', {
       ip: req.ip,
@@ -825,6 +928,32 @@ const upload = multer({
   }
 })();
 
+// Initialize file assignment versions table — used for optimistic concurrency control
+// on POST /api/files/:fileId/quality-rules so stale auto-save or pagehide keepalive
+// requests cannot overwrite newer manual-save assignments.
+// write_nonce: opaque UUID generated by the coordinator before each write and stored
+// with the committed version.  The pagehide keepalive includes the same nonce to prove
+// it belongs to the same write session, enabling the 1-hop lookahead on the server.
+(async () => {
+  try {
+    await dbPool.query(`
+      CREATE TABLE IF NOT EXISTS file_assignment_versions (
+        file_id TEXT PRIMARY KEY,
+        version BIGINT NOT NULL DEFAULT 0,
+        write_nonce TEXT
+      );
+    `);
+    // Backfill the column for tables created before write_nonce was introduced.
+    await dbPool.query(`
+      ALTER TABLE file_assignment_versions
+        ADD COLUMN IF NOT EXISTS write_nonce TEXT;
+    `);
+    console.log('File assignment versions table initialized');
+  } catch (err) {
+    console.error('Error initializing file assignment versions table:', err);
+  }
+})();
+
 // Import our improved implementation
 const initBusinessProcessTables = require('./initBusinessProcessTables');
 
@@ -891,6 +1020,13 @@ async function getQualityRulesFromAgreement(agreementId, filename) {
     return [];
   }
 }
+
+// Startup-safe health probe — responds immediately, no database dependency.
+// Replit's GCE deployment probes GET / but this endpoint is available for
+// explicit health monitoring outside the deploy pipeline.
+app.get('/health-check', (req, res) => {
+  res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
+});
 
 // API Routes
 // Health Check
@@ -1043,6 +1179,14 @@ function formatUptime(seconds) {
 // Readiness probe for load balancers (minimal check)
 app.get('/api/health/ready', async (req, res) => {
   try {
+    const prerequisites = app.locals.databasePrerequisites;
+    if (!prerequisites.ready) {
+      return res.status(503).json({
+        ready: false,
+        reason: prerequisites.error || 'database prerequisites are still initializing'
+      });
+    }
+
     const database = diContainer.get('database');
     const health = await database.getHealthStatus();
     if (health.healthy) {
@@ -1336,6 +1480,7 @@ app.get('/api/files/init-data', authenticateToken, attachVendorProfile, async (r
     const filterOptions = {
       sortBy: 'created_at',
       sortOrder: 'DESC',
+      limit: null,  // no cap — client-side pagination handles display; capping at 50 hides files after deletion
       projectIds: isAdmin ? null : accessibleProjectIds
     };
     
@@ -1984,10 +2129,60 @@ app.post('/api/files/bulk-delete',
   authenticateToken,
   invalidateCache('cache:*:*files*'), 
   async (req, res) => {
-  const { fileIds } = req.body;
+  let { fileIds, logicalFileId, projectId, filename } = req.body;
   const client = await dbPool.connect();
-  
+
+  // Support "delete all copies" mode: resolve fileIds from logical group
+  if (!fileIds && (logicalFileId || (projectId && filename))) {
+    try {
+      const { getUserProjects } = require('./backend/middleware/requireProjectAccess');
+      const isAdmin = userHasAllProjectAccess(req.user);
+
+      let copyRows;
+      if (logicalFileId && logicalFileId !== 'null') {
+        if (isAdmin) {
+          const result = await client.query(
+            `SELECT file_id FROM files WHERE logical_file_id = $1`,
+            [logicalFileId]
+          );
+          copyRows = result.rows;
+        } else {
+          const userProjects = await getUserProjects(req.user.id);
+          const accessibleProjectIds = userProjects.map(p => p.id);
+          const result = await client.query(
+            `SELECT file_id FROM files WHERE logical_file_id = $1 AND project_id = ANY($2::int[])`,
+            [logicalFileId, accessibleProjectIds]
+          );
+          copyRows = result.rows;
+        }
+      } else if (projectId && filename) {
+        // Fallback: resolve via filename+project when no logical_file_id
+        if (isAdmin) {
+          const result = await client.query(
+            `SELECT file_id FROM files WHERE filename = $1 AND project_id = $2`,
+            [filename, projectId]
+          );
+          copyRows = result.rows;
+        } else {
+          const userProjects = await getUserProjects(req.user.id);
+          const accessibleProjectIds = userProjects.map(p => p.id);
+          const result = await client.query(
+            `SELECT file_id FROM files WHERE filename = $1 AND project_id = $2 AND project_id = ANY($3::int[])`,
+            [filename, projectId, accessibleProjectIds]
+          );
+          copyRows = result.rows;
+        }
+      }
+      fileIds = (copyRows || []).map(r => r.file_id);
+    } catch (err) {
+      client.release();
+      logger.error('Error resolving logical file group for bulk delete', { error: err.message });
+      return res.status(500).json({ error: 'Failed to resolve file group' });
+    }
+  }
+
   if (!fileIds || !Array.isArray(fileIds) || fileIds.length === 0) {
+    client.release();
     return res.status(400).json({ error: 'No file IDs provided' });
   }
   
@@ -2064,6 +2259,74 @@ app.post('/api/files/bulk-delete',
   } finally {
     // Always release the client back to the pool
     client.release();
+  }
+});
+
+// Get all copies of a file (same logical group or same filename+project)
+app.get('/api/files/:fileId/copies', authenticateToken, async (req, res) => {
+  const { fileId } = req.params;
+  try {
+    const { getUserProjects } = require('./backend/middleware/requireProjectAccess');
+    const isAdmin = userHasAllProjectAccess(req.user);
+
+    // Look up the reference file (no project filter yet — check access after)
+    const refResult = await dbPool.query(
+      `SELECT file_id, filename, project_id, logical_file_id FROM files WHERE file_id = $1`,
+      [fileId]
+    );
+    if (refResult.rows.length === 0) {
+      return res.status(404).json({ error: 'File not found' });
+    }
+    const ref = refResult.rows[0];
+
+    // Access check for non-admins
+    if (!isAdmin) {
+      const userProjects = await getUserProjects(req.user.id);
+      const accessibleProjectIds = userProjects.map(p => p.id);
+      if (!accessibleProjectIds.includes(parseInt(ref.project_id))) {
+        return res.status(403).json({ error: 'Access denied' });
+      }
+
+      // Find siblings restricted to accessible projects
+      let copyRows;
+      if (ref.logical_file_id) {
+        const result = await dbPool.query(
+          `SELECT file_id FROM files WHERE logical_file_id = $1 AND project_id = ANY($2::int[])`,
+          [ref.logical_file_id, accessibleProjectIds]
+        );
+        copyRows = result.rows;
+      } else {
+        const result = await dbPool.query(
+          `SELECT file_id FROM files WHERE filename = $1 AND project_id = $2`,
+          [ref.filename, ref.project_id]
+        );
+        copyRows = result.rows;
+      }
+      const copies = copyRows.map(r => r.file_id);
+      return res.json({ copies, count: copies.length, logicalFileId: ref.logical_file_id || null, filename: ref.filename });
+    }
+
+    // Admin: no project restriction
+    let copyRows;
+    if (ref.logical_file_id) {
+      const result = await dbPool.query(
+        `SELECT file_id FROM files WHERE logical_file_id = $1`,
+        [ref.logical_file_id]
+      );
+      copyRows = result.rows;
+    } else {
+      const result = await dbPool.query(
+        `SELECT file_id FROM files WHERE filename = $1 AND project_id = $2`,
+        [ref.filename, ref.project_id]
+      );
+      copyRows = result.rows;
+    }
+
+    const copies = copyRows.map(r => r.file_id);
+    res.json({ copies, count: copies.length, logicalFileId: ref.logical_file_id || null, filename: ref.filename });
+  } catch (err) {
+    logger.error('Error fetching file copies', { error: err.message, fileId });
+    res.status(500).json({ error: 'Failed to fetch file copies' });
   }
 });
 
@@ -2297,16 +2560,63 @@ app.post('/api/files/upload', authenticateToken, invalidateCache('cache:*:*files
   console.log('req.body.archive_password:', req.body.archive_password);
   console.log('req.files count:', req.files?.length);
   try {
-    // Check if user has file_upload:write permission
-    if (!req.user || !req.user.permissions || !req.user.permissions.includes('file_upload:write')) {
+    // Check if user has file upload permission.
+    // The JWT payload never embeds permissions (only roles), so we check via the DB.
+    // Effective roles include BOTH direct user_roles AND roles inherited through
+    // access_group_roles memberships — same model used by authenticateToken middleware.
+    // Allowed if an effective role is upload-capable, OR if a role_permissions link
+    // grants file_upload:write to any effective role.
+    let isAllowedToUpload = false;
+    if (req.user && req.user.id) {
+      try {
+        // Single query: effective role names (direct + group-inherited)
+        const effectiveRolesResult = await dbPool.query(`
+          SELECT DISTINCT r.name
+          FROM roles r
+          JOIN user_roles ur ON r.id = ur.role_id
+          WHERE ur.user_id = $1
+          UNION
+          SELECT DISTINCT r.name
+          FROM roles r
+          JOIN access_group_roles agr ON r.id = agr.role_id
+          JOIN user_groups ug ON agr.group_id = ug.group_id
+          WHERE ug.user_id = $1
+        `, [req.user.id]);
+
+        const effectiveRoleNames = effectiveRolesResult.rows.map(r => r.name);
+
+        const uploadCapableRoles = ['Admin', 'Data Engineer', 'Creator'];
+        if (effectiveRoleNames.some(name => uploadCapableRoles.includes(name))) {
+          isAllowedToUpload = true;
+        } else {
+          // Fallback: check the role_permissions junction table for an explicit
+          // file_upload:write grant on any effective role (direct or group-inherited).
+          const uploadPermCheck = await dbPool.query(`
+            SELECT 1
+            FROM permissions p
+            JOIN role_permissions rp ON p.id = rp.permission_id
+            JOIN roles r ON r.id = rp.role_id
+            WHERE r.name = ANY($1::varchar[])
+              AND p.name = ANY($2::varchar[])
+            LIMIT 1
+          `, [effectiveRoleNames, ['file_upload:write', 'file:write']]);
+          isAllowedToUpload = uploadPermCheck.rows.length > 0;
+        }
+      } catch (permCheckErr) {
+        logger.error('Upload permission check failed', { error: permCheckErr.message, userId: req.user.id });
+        // Fail closed — deny upload if the permission check itself errors
+        isAllowedToUpload = false;
+      }
+    }
+
+    if (!isAllowedToUpload) {
       // Clean up temp files if they exist
       if (req.files && req.files.length > 0) {
         req.files.forEach(file => {
           try { fs.unlinkSync(file.path); } catch (e) {}
         });
       }
-      
-      return res.status(403).json({ 
+      return res.status(403).json({
         error: 'Access denied',
         message: 'You do not have permission to upload files. Contact your administrator.'
       });
@@ -2454,10 +2764,10 @@ app.post('/api/files/upload', authenticateToken, invalidateCache('cache:*:*files
         JOIN vendor_agreements va ON vafs.vendor_agreement_id = va.id
         WHERE va.id = $1
           AND va.status = 'active'
-          AND va.approval_status = 'governance_approved'
+          AND va.approval_status = ANY($2::text[])
           AND va.is_locked = true
         ORDER BY vafs.file_name_pattern
-      `, [agreementId]);
+      `, [agreementId, FINAL_APPROVED_AGREEMENT_STATUSES]);
       
       if (schemaResult.rows.length > 0) {
         // Validate each uploaded file against expected patterns and schemas
@@ -3353,10 +3663,10 @@ app.post('/api/files/drop', authenticateToken, uploadLimiter, upload.single('fil
         JOIN vendor_agreements va ON vafs.vendor_agreement_id = va.id
         WHERE va.id = $1
           AND va.status = 'active'
-          AND va.approval_status = 'governance_approved'
+          AND va.approval_status = ANY($2::text[])
           AND va.is_locked = true
         ORDER BY vafs.file_name_pattern
-      `, [agreementId]);
+      `, [agreementId, FINAL_APPROVED_AGREEMENT_STATUSES]);
       
       if (schemaResult.rows.length > 0) {
         // Check if filename matches any expected pattern
@@ -3605,7 +3915,7 @@ app.post('/api/files/drop', authenticateToken, uploadLimiter, upload.single('fil
           WHERE sc.connection_id = $1
             AND sc.status = 'active'
             AND va.vendor_id = ANY($2::integer[])
-            AND va.approval_status = 'governance_approved'
+              AND va.approval_status = ANY($4::text[])
             AND va.is_locked = true
             AND va.status = 'active'
             AND (
@@ -3613,7 +3923,7 @@ app.post('/api/files/drop', authenticateToken, uploadLimiter, upload.single('fil
               OR va.secondary_contact_email = $3
             )
           LIMIT 1
-        `, [connectionId, vendorIds, userEmail]);
+        `, [connectionId, vendorIds, userEmail, FINAL_APPROVED_AGREEMENT_STATUSES]);
         
         if (authResult.rows.length === 0) {
           try { fs.unlinkSync(file.path); } catch (e) {}
@@ -3626,10 +3936,10 @@ app.post('/api/files/drop', authenticateToken, uploadLimiter, upload.single('fil
             FROM vendor_agreements va
             JOIN vendors v ON v.id = va.vendor_id
             WHERE va.vendor_connection_id = $1
-              AND va.approval_status = 'governance_approved'
+              AND va.approval_status = ANY($2::text[])
               AND va.is_locked = true
               AND va.status = 'active'
-          `, [connectionId]);
+          `, [connectionId, FINAL_APPROVED_AGREEMENT_STATUSES]);
           
           let errorDetail = 'No matching authorized agreement found';
           if (agreementCheck.rows.length > 0) {
@@ -4868,9 +5178,7 @@ app.use('/api/connections', authenticateToken, connectionBrowseRoutes);
 const cacheRoutes = require('./backend/routes/cacheRoutes');
 app.use('/api/cache', cacheRoutes);
 
-// DBT routes
-const dbtRoutes = require('./backend/routes/dbt');
-app.use('/api/dbt', authenticateToken, dbtRoutes);
+
 
 // Drop location routes (admin only)
 const dropLocationRoutes = require('./backend/routes/dropLocation');
@@ -5550,18 +5858,33 @@ const { up: migrateVendorAgreementSchemasToFileSchemas } = require('./backend/mi
 const { addPrimaryKeyColumnsToQualityRuleViolations } = require('./backend/migrations/addPrimaryKeyColumnsToQualityRuleViolations');
 const seedGovernanceTags = require('./backend/migrations/seedGovernanceTags');
 const migrateColumnSensitivityToGovernance = require('./backend/migrations/migrateColumnSensitivityToGovernance');
+const removePhantomSchemaDefaultRules = require('./backend/migrations/removePhantomSchemaDefaultRules');
 const { up: addSLAMonitoringToVendorAgreements } = require('./backend/migrations/addSLAMonitoringToVendorAgreements');
 const { addVendorSLAToAlertScope } = require('./backend/migrations/addVendorSLAToAlertScope');
 const enterprisePerformanceOptimizations = require('./backend/migrations/enterprisePerformanceOptimizations');
 const { addProjectToVisualWorkflows } = require('./backend/migrations/addProjectToVisualWorkflows');
 const { createAllowedEmailDomains } = require('./backend/migrations/createAllowedEmailDomains');
 const { up: addDQValidationColumns } = require('./backend/migrations/addDQValidationColumns');
+const { up: addLastRunAtToFileQualityRules } = require('./backend/migrations/addLastRunAtToFileQualityRules');
+const { up: addIsSchemaEnforcedToFileQualityRules } = require('./backend/migrations/addIsSchemaEnforcedToFileQualityRules');
+const { patchEnrollmentSchemaRuleNames } = require('./backend/migrations/patchEnrollmentSchemaRuleNames');
+const { up: addErrorActionToTransformationQualityRules } = require('./backend/migrations/addErrorActionToTransformationQualityRules');
+const ensureFileUploadPermissions = require('./backend/migrations/ensureFileUploadPermissions');
+const { createDigestTables } = require('./backend/migrations/createDigestTables');
+const { up: addApprovalChainToVendorAgreements } = require('./backend/migrations/addApprovalChainToVendorAgreements');
+const { up: repairApprovalStatusConstraintForApprovalChain } = require('./backend/migrations/repairApprovalStatusConstraintForApprovalChain');
+const { up: alterDocumentFilePathToText } = require('./backend/migrations/alterDocumentFilePathToText');
+const { bridgeVendorAdministrationPermissions } = require('./backend/migrations/bridgeVendorAdministrationPermissions');
+const {
+  repairBootstrapAdminRoles,
+  getPrerequisiteStatus: getDashboardPrerequisiteStatus
+} = require('./backend/migrations/repairCleanPublishDashboardPrerequisites');
 
 // Run schema migrations asynchronously with tracking to prevent re-running
 (async () => {
   try {
     await migrationTracker.runOnce('createSharedConnectionsTable', () => migrateConnectionsSchema());
-    await migrationTracker.runOnce('migrateTransformConnections', () => migrateTransformConnections());
+    await migrationTracker.runOnce('migrateTransformConnections', () => migrateTransformConnections(dbPool));
     await migrationTracker.runOnce('addPerformanceIndexes', () => addPerformanceIndexes(dbPool));
     await migrationTracker.runOnce('addProfilingColumns', () => addProfilingColumns(dbPool));
     await migrationTracker.runOnce('expandNumericColumns', () => expandNumericColumns(dbPool));
@@ -5600,12 +5923,31 @@ const { up: addDQValidationColumns } = require('./backend/migrations/addDQValida
     await migrationTracker.runOnce('addPrimaryKeyColumnsToQualityRuleViolations', () => addPrimaryKeyColumnsToQualityRuleViolations(dbPool));
     await migrationTracker.runOnce('seedGovernanceTags', () => seedGovernanceTags(dbPool));
     await migrationTracker.runOnce('migrateColumnSensitivityToGovernance', () => migrateColumnSensitivityToGovernance(dbPool));
+    // NOTE: 'removePhantomSchemaDefaultRules' (V1) used LIKE '__schema_default__%' which is
+    // unsafe — '_' is a SQL wildcard. That call is intentionally omitted here so it never
+    // runs on fresh databases. Environments where V1 already ran are covered by schema_migrations.
+    // V2 uses starts_with() for a safe literal-prefix match on all environments.
+    await migrationTracker.runOnce('removePhantomSchemaDefaultRulesV2', () => removePhantomSchemaDefaultRules(dbPool));
     await migrationTracker.runOnce('addSLAMonitoringToVendorAgreements', () => addSLAMonitoringToVendorAgreements());
     await migrationTracker.runOnce('addVendorSLAToAlertScope', () => addVendorSLAToAlertScope(dbPool));
     await migrationTracker.runOnce('addProjectToVisualWorkflows', () => addProjectToVisualWorkflows(dbPool));
     await migrationTracker.runOnce('enterprisePerformanceOptimizations', () => enterprisePerformanceOptimizations(dbPool));
     await migrationTracker.runOnce('createAllowedEmailDomains', () => createAllowedEmailDomains(dbPool));
     await migrationTracker.runOnce('addDQValidationColumns', () => addDQValidationColumns(dbPool));
+    await migrationTracker.runOnce('addLastRunAtToFileQualityRules', () => addLastRunAtToFileQualityRules(dbPool));
+    await migrationTracker.runOnce('addIsSchemaEnforcedToFileQualityRules', () => addIsSchemaEnforcedToFileQualityRules(dbPool));
+    await migrationTracker.runOnce('patchEnrollmentSchemaRuleNames', () => patchEnrollmentSchemaRuleNames(dbPool));
+    await migrationTracker.runOnce('addErrorActionToTransformationQualityRules', () => addErrorActionToTransformationQualityRules(dbPool));
+    await migrationTracker.runOnce('createDigestTables', () => createDigestTables(dbPool));
+    await migrationTracker.runOnce('addApprovalChainToVendorAgreements', () => addApprovalChainToVendorAgreements(dbPool));
+    await migrationTracker.runOnce('repairApprovalStatusConstraintForApprovalChain', () => repairApprovalStatusConstraintForApprovalChain(dbPool));
+    await migrationTracker.runOnce('alterDocumentFilePathToText', () => alterDocumentFilePathToText(dbPool));
+    await migrationTracker.runOnce('bridgeVendorAdministrationPermissions', () => bridgeVendorAdministrationPermissions());
+    // Ensure file upload permissions exist in role_permissions table (idempotent).
+    // This runs on every restart (not tracked) so new roles added in prod are always covered.
+    await ensureFileUploadPermissions(dbPool);
+    // Add jira_issue_key to transformation_jobs (idempotent, no tracker needed).
+    await dbPool.query('ALTER TABLE transformation_jobs ADD COLUMN IF NOT EXISTS jira_issue_key VARCHAR(50)');
     
     console.log('🎉 All migrations completed successfully');
   } catch (err) {
@@ -6508,7 +6850,8 @@ app.get('/api/files/:fileId/quality-violations', async (req, res) => {
     // Each file-rule pair should have one row, select target_columns directly with COALESCE
     const appliedRulesResult = await dbPool.query(`
       SELECT qr.id, qr.rule_name, qr.rule_type, qr.severity, qr.enabled, 
-             COALESCE(fqr.target_columns, ARRAY[]::text[]) as target_columns
+             COALESCE(fqr.target_columns, ARRAY[]::text[]) as target_columns,
+             fqr.last_run_at
       FROM file_quality_rules fqr
       JOIN quality_rules qr ON fqr.quality_rule_id = qr.id
       WHERE fqr.file_id = $1
@@ -6552,17 +6895,27 @@ app.get('/api/files/:fileId/quality-violations', async (req, res) => {
       ruleViolationCounts[v.rule_id] = (ruleViolationCounts[v.rule_id] || 0) + 1;
     });
     
-    // Add status field to each applied rule
+    // Add status field to each applied rule.
+    // Status logic:
+    //   - violations exist (regardless of last_run_at) → 'failed'  (covers pre-migration rows
+    //     that have violations but NULL last_run_at after the column was added)
+    //   - last_run_at IS NULL and no violations → null  (never executed, "Not Run")
+    //   - last_run_at set and no violations → 'passed'
     const appliedRulesWithStatus = appliedRules.map(rule => {
       const violationCount = ruleViolationCounts[rule.id] || 0;
+      let status;
       if (violationCount > 0) {
+        status = 'failed';
         summary.rules_failed++;
+      } else if (!rule.last_run_at) {
+        status = null; // Never executed — frontend shows "Not Run"
       } else {
+        status = 'passed';
         summary.rules_passed++;
       }
       return {
         ...rule,
-        status: violationCount > 0 ? 'failed' : 'passed',
+        status,
         violation_count: violationCount
       };
     });
@@ -6587,10 +6940,11 @@ app.post('/api/files/:fileId/quality-rules/run', authenticateToken, async (req, 
     const userId = req.user?.id || req.user?.userId;
     
     // Get file info
-    const fileResult = await dbPool.query('SELECT file_id, filename FROM files WHERE file_id = $1', [fileId]);
+    const fileResult = await dbPool.query('SELECT file_id, filename, row_count FROM files WHERE file_id = $1', [fileId]);
     if (fileResult.rows.length === 0) {
       return res.status(404).json({ error: 'File not found' });
     }
+    const fileRowCount = fileResult.rows[0].row_count;
     
     // Get assigned quality rules with target columns
     const rulesResult = await dbPool.query(`
@@ -6619,11 +6973,20 @@ app.post('/api/files/:fileId/quality-rules/run', authenticateToken, async (req, 
       ORDER BY row_number
     `, [fileId]);
     
-    if (previewResult.rows.length === 0) {
-      return res.status(400).json({ 
-        error: 'No file data available',
-        message: 'Please re-profile the file to run quality checks'
-      });
+    // When there is no preview data, column-level rules cannot run but record_count rules
+    // CAN always be evaluated using the stored row_count from the files table.
+    // Count skipped column-level rules and include the count in the response so the UI
+    // can show a banner prompting the user to re-profile rather than auto-triggering it.
+    const hasColumnLevelRulesAssigned = rulesResult.rows.some(
+      r => r.rule_type !== 'record_count' && (r.target_columns || []).length > 0
+    );
+    let columnRulesSkippedNoPreview = 0;
+    if (previewResult.rows.length === 0 && hasColumnLevelRulesAssigned) {
+      // Count column-level rules that cannot be evaluated without preview data.
+      // They remain "Not Run" (not stamped) and the UI will show a banner.
+      columnRulesSkippedNoPreview = rulesResult.rows.filter(
+        r => r.rule_type !== 'record_count' && (r.target_columns || []).length > 0
+      ).length;
     }
     
     const rows = previewResult.rows;
@@ -6667,15 +7030,36 @@ app.post('/api/files/:fileId/quality-rules/run', authenticateToken, async (req, 
       return null; // Column not found
     };
     
+    // Track which rule IDs were actually evaluated (not skipped due to missing targets).
+    // Only these will have last_run_at stamped — rules that had no resolvable target
+    // columns remain "Not Run" rather than being falsely promoted to Passed.
+    const evaluatedRuleIds = new Set();
+
+    // Track column-level rules where every target column failed to resolve while
+    // preview rows exist. Surfaced to the UI so users understand why a rule stayed
+    // "Not Run" despite preview data being present.
+    const columnNotFoundRuleIds = new Set();
+
+    // Rule types this switch handles — defined once, outside all loops, for efficiency.
+    // Rule types not listed here have no case and must remain "Not Run".
+    const COLUMN_SWITCH_TYPES = new Set([
+      'null_check', 'column_completeness', 'email_validity', 'phone_validity',
+      'date_format', 'timestamp_format', 'isna_check', 'numeric_only_string',
+      'special_character_presence',
+      'validity', // engine-type alias — routes internally via rule_config.validity_type
+    ]);
+
     // Execute each rule against its target columns (collect violations first)
     for (const rule of rulesResult.rows) {
       const targetColumns = rule.target_columns || [];
       
-      // If no specific columns assigned, skip this rule
-      if (targetColumns.length === 0) {
+      // If no specific columns assigned, skip column-level rules
+      // (record_count is file-level and has no target columns — do not skip it)
+      if (targetColumns.length === 0 && rule.rule_type !== 'record_count') {
         continue;
       }
-      
+
+      let anyColumnResolved = false;
       for (const columnName of targetColumns) {
         // Resolve the target column name to the actual header name
         const actualColumnName = resolveColumnName(columnName);
@@ -6691,7 +7075,15 @@ app.post('/api/files/:fileId/quality-rules/run', authenticateToken, async (req, 
           });
           continue;
         }
-        
+
+        // Mark as evaluated as soon as any target column resolves — BEFORE the row
+        // loop so a zero-row file (empty CSV with valid headers) still stamps
+        // last_run_at rather than remaining perpetually "Not Run".
+        anyColumnResolved = true;
+        if (COLUMN_SWITCH_TYPES.has(rule.rule_type)) {
+          evaluatedRuleIds.add(rule.id);
+        }
+
         for (const row of rows) {
           const rowData = row.row_data;
           const cellValue = rowData[actualColumnName];
@@ -6856,6 +7248,109 @@ app.post('/api/files/:fileId/quality-rules/run', authenticateToken, async (req, 
                 }
               }
               break;
+
+            case 'validity': {
+              // Engine-type alias used when rules are saved via the UI as rule_type='validity'.
+              // Routes to the appropriate sub-check based on rule_config.validity_type.
+              const rcCfg = (typeof rule.rule_config === 'string' ? JSON.parse(rule.rule_config) : rule.rule_config) || {};
+              const vType = rcCfg.validity_type;
+
+              if (vType === 'datatype') {
+                const dt = rcCfg.datatype;
+                if (dt === 'date') {
+                  if (cellValue && typeof cellValue === 'string') {
+                    const dv = validateDateFormat(cellValue, rcCfg.date_format || null);
+                    if (!dv.valid) {
+                      isViolation = true;
+                      expectedValue = `Format: ${rcCfg.date_format || dv.expectedFormat}`;
+                      violationDetails = { reason: dv.reason, value: cellValue, expectedFormat: rcCfg.date_format || dv.expectedFormat };
+                    }
+                  }
+                } else if (dt === 'datetime') {
+                  if (cellValue && typeof cellValue === 'string') {
+                    const datePart = cellValue.split(/[T\s]/)[0];
+                    const dv = validateDateFormat(datePart);
+                    if (!dv.valid) {
+                      isViolation = true;
+                      expectedValue = 'Format: YYYY-MM-DDTHH:mm:ss or YYYY-MM-DD HH:mm:ss';
+                      violationDetails = { reason: `Date portion invalid: ${dv.reason}`, value: cellValue };
+                    } else if (isNaN(new Date(cellValue).getTime())) {
+                      isViolation = true;
+                      expectedValue = 'Format: YYYY-MM-DDTHH:mm:ss';
+                      violationDetails = { reason: 'Invalid time portion', value: cellValue };
+                    }
+                  }
+                } else if (dt === 'email') {
+                  if (cellValue && typeof cellValue === 'string') {
+                    if (!/^[^\s@]{1,64}@[^\s@]{1,253}\.[^\s@]{1,63}$/.test(cellValue)) {
+                      isViolation = true; expectedValue = 'Valid email format';
+                      violationDetails = { reason: 'Invalid email format', value: cellValue };
+                    }
+                  }
+                } else if (dt === 'phone') {
+                  if (cellValue && typeof cellValue === 'string') {
+                    if (cellValue.replace(/\D/g, '').length < 10) {
+                      isViolation = true; expectedValue = 'Valid phone number (10+ digits)';
+                      violationDetails = { reason: 'Invalid phone format', value: cellValue };
+                    }
+                  }
+                } else if (dt === 'integer') {
+                  if (cellValue !== null && cellValue !== undefined && cellValue !== '') {
+                    const n = Number(cellValue);
+                    if (isNaN(n) || !Number.isInteger(n)) {
+                      isViolation = true; expectedValue = 'Whole number (integer)';
+                      violationDetails = { reason: 'Value is not an integer', value: cellValue };
+                    }
+                  }
+                } else if (dt === 'float' || dt === 'number') {
+                  if (cellValue !== null && cellValue !== undefined && cellValue !== '') {
+                    if (isNaN(Number(cellValue))) {
+                      isViolation = true; expectedValue = 'Numeric value';
+                      violationDetails = { reason: 'Value is not a number', value: cellValue };
+                    }
+                  }
+                } else if (dt === 'boolean') {
+                  if (cellValue !== null && cellValue !== undefined && cellValue !== '') {
+                    if (!['true','false','1','0','yes','no'].includes(String(cellValue).toLowerCase().trim())) {
+                      isViolation = true; expectedValue = 'Boolean value (true/false, 1/0, yes/no)';
+                      violationDetails = { reason: 'Value is not a boolean', value: cellValue };
+                    }
+                  }
+                }
+                // 'string' datatype — always passes
+              } else if (vType === 'pattern') {
+                if (cellValue !== null && cellValue !== undefined && cellValue !== '') {
+                  try {
+                    if (!new RegExp(rcCfg.pattern || '').test(String(cellValue))) {
+                      isViolation = true; expectedValue = `Matches pattern: ${rcCfg.pattern}`;
+                      violationDetails = { reason: 'Value does not match required pattern', value: cellValue, pattern: rcCfg.pattern };
+                    }
+                  } catch (_re) { /* invalid regex — skip */ }
+                }
+              } else if (vType === 'range') {
+                if (cellValue !== null && cellValue !== undefined && cellValue !== '') {
+                  const n = Number(cellValue);
+                  if (!isNaN(n)) {
+                    if (rcCfg.min !== undefined && n < Number(rcCfg.min)) {
+                      isViolation = true; expectedValue = `Value ≥ ${rcCfg.min}`;
+                      violationDetails = { reason: `Value ${n} is below minimum ${rcCfg.min}`, value: cellValue };
+                    } else if (rcCfg.max !== undefined && n > Number(rcCfg.max)) {
+                      isViolation = true; expectedValue = `Value ≤ ${rcCfg.max}`;
+                      violationDetails = { reason: `Value ${n} exceeds maximum ${rcCfg.max}`, value: cellValue };
+                    }
+                  }
+                }
+              } else if (vType === 'enum') {
+                if (cellValue !== null && cellValue !== undefined && cellValue !== '') {
+                  const allowed = (rcCfg.allowed_values || []).map(v => String(v).toLowerCase());
+                  if (allowed.length > 0 && !allowed.includes(String(cellValue).toLowerCase())) {
+                    isViolation = true; expectedValue = `One of: ${rcCfg.allowed_values?.join(', ')}`;
+                    violationDetails = { reason: 'Value not in allowed list', value: cellValue, allowed: rcCfg.allowed_values };
+                  }
+                }
+              }
+              break;
+            }
           }
           
           if (isViolation) {
@@ -6872,11 +7367,18 @@ app.post('/api/files/:fileId/quality-rules/run', authenticateToken, async (req, 
           }
         }
       }
+
+      // Track rules where no target column could be resolved despite rows being present.
+      if (!anyColumnResolved && targetColumns.length > 0 && rows.length > 0) {
+        columnNotFoundRuleIds.add(rule.id);
+      }
       
       // Handle duplicate check separately - check EACH target column independently
       if (rule.rule_type === 'duplicate_check' && targetColumns.length > 0) {
         // Resolve all target columns to actual header names
         const resolvedColumns = targetColumns.map(col => resolveColumnName(col)).filter(Boolean);
+        // Mark as evaluated only when at least one target column resolved
+        if (resolvedColumns.length > 0) evaluatedRuleIds.add(rule.id);
         
         // Check each column independently for duplicates
         for (const columnName of resolvedColumns) {
@@ -6913,6 +7415,83 @@ app.post('/api/files/:fileId/quality-rules/run', authenticateToken, async (req, 
           }
         }
       }
+
+      // Handle record_count check — file-level, always evaluated when reached
+      if (rule.rule_type === 'record_count') {
+        evaluatedRuleIds.add(rule.id);
+        const rcConfig = (typeof rule.rule_config === 'string' ? JSON.parse(rule.rule_config) : rule.rule_config) || {};
+        const operator = rcConfig.operator || 'exactly';
+        const expectedCount = rcConfig.expected_count;
+        const minCount = rcConfig.min_count;
+        const maxCount = rcConfig.max_count;
+        const tolerancePercent = rcConfig.tolerance_percent || 0;
+
+        // Use the actual stored row_count from the files table; fall back to preview row count
+        const actualCount = fileRowCount !== null && fileRowCount !== undefined
+          ? fileRowCount
+          : rows.length;
+
+        let isViolation = false;
+        let expectedValue = '';
+        const actualValue = `${actualCount} records`;
+
+        switch (operator) {
+          case 'exactly': {
+            const tolerance = tolerancePercent > 0 ? Math.ceil(expectedCount * tolerancePercent / 100) : 0;
+            isViolation = Math.abs(actualCount - expectedCount) > tolerance;
+            expectedValue = tolerancePercent > 0
+              ? `Exactly ${expectedCount} records (±${tolerancePercent}%)`
+              : `Exactly ${expectedCount} records`;
+            break;
+          }
+          case 'at_least': {
+            const threshold = tolerancePercent > 0
+              ? Math.floor(expectedCount * (1 - tolerancePercent / 100))
+              : expectedCount;
+            isViolation = actualCount < threshold;
+            expectedValue = tolerancePercent > 0
+              ? `At least ${expectedCount} records (−${tolerancePercent}% tolerance)`
+              : `At least ${expectedCount} records`;
+            break;
+          }
+          case 'at_most': {
+            const threshold = tolerancePercent > 0
+              ? Math.ceil(expectedCount * (1 + tolerancePercent / 100))
+              : expectedCount;
+            isViolation = actualCount > threshold;
+            expectedValue = tolerancePercent > 0
+              ? `At most ${expectedCount} records (+${tolerancePercent}% tolerance)`
+              : `At most ${expectedCount} records`;
+            break;
+          }
+          case 'between': {
+            isViolation = actualCount < minCount || actualCount > maxCount;
+            expectedValue = `Between ${minCount} and ${maxCount} records`;
+            break;
+          }
+        }
+
+        if (isViolation) {
+          violations.push({
+            rule_id: rule.id,
+            file_id: fileId,
+            row_number: null,
+            column_name: null,
+            expected_value: expectedValue,
+            actual_value: actualValue,
+            violation_details: {
+              rule_type: 'record_count',
+              operator,
+              expected_count: expectedCount,
+              min_count: minCount,
+              max_count: maxCount,
+              actual_count: actualCount,
+              tolerance_percent: tolerancePercent
+            },
+            severity: rule.severity || 'warning'
+          });
+        }
+      }
       
       // Handle uniqueness check
       if (rule.rule_type === 'uniqueness' && targetColumns.length > 0) {
@@ -6921,6 +7500,7 @@ app.post('/api/files/:fileId/quality-rules/run', authenticateToken, async (req, 
         const resolvedColumns = targetColumns.map(col => resolveColumnName(col)).filter(Boolean);
         
         if (resolvedColumns.length > 0) {
+          evaluatedRuleIds.add(rule.id);
           for (const row of rows) {
             const keyParts = resolvedColumns.map(col => row.row_data[col] ?? '');
             const compositeKey = keyParts.join('||');
@@ -6948,12 +7528,21 @@ app.post('/api/files/:fileId/quality-rules/run', authenticateToken, async (req, 
     }
     
     // Use transaction to atomically replace violations (delete old, insert new)
+    // Deletion is scoped to rules that were actually evaluated so that violations
+    // for rules that were not evaluated (e.g. had no resolvable target column) are
+    // preserved rather than wiped — which would incorrectly make them appear as Passed.
+    const evaluatedIds = [...evaluatedRuleIds];
     const client = await dbPool.connect();
     try {
       await client.query('BEGIN');
       
-      // Clear existing violations for this file
-      await client.query('DELETE FROM quality_rule_violations WHERE file_id = $1', [fileId]);
+      // Clear existing violations only for rules that were just evaluated.
+      if (evaluatedIds.length > 0) {
+        await client.query(
+          'DELETE FROM quality_rule_violations WHERE file_id = $1 AND rule_id = ANY($2)',
+          [fileId, evaluatedIds]
+        );
+      }
       
       // Insert new violations in batches
       if (violations.length > 0) {
@@ -6978,6 +7567,16 @@ app.post('/api/files/:fileId/quality-rules/run', authenticateToken, async (req, 
         }
       }
       
+      // Stamp last_run_at only for rules that were actually evaluated.
+      if (evaluatedIds.length > 0) {
+        await client.query(
+          `UPDATE file_quality_rules
+           SET last_run_at = NOW()
+           WHERE file_id = $1 AND quality_rule_id = ANY($2)`,
+          [fileId, evaluatedIds]
+        );
+      }
+
       await client.query('COMMIT');
     } catch (txErr) {
       await client.query('ROLLBACK');
@@ -6999,6 +7598,8 @@ app.post('/api/files/:fileId/quality-rules/run', authenticateToken, async (req, 
       message: `Quality rules executed successfully`,
       rules_executed: rulesResult.rows.length,
       violations_found: violations.length,
+      column_rules_skipped_no_preview: columnRulesSkippedNoPreview,
+      column_rules_column_not_found: columnNotFoundRuleIds.size,
       violations_by_rule: rulesResult.rows.map(rule => ({
         rule_id: rule.id,
         rule_name: rule.rule_name,
@@ -7065,6 +7666,10 @@ app.post('/api/files/:fileId/quality-rules/revalidate', authenticateToken, uploa
     
     const fileExtension = path.extname(uploadedFile.originalname).toLowerCase();
     
+    // totalRowCount tracks the actual number of rows in the file (no cap) for record_count rules.
+    // parsedRows is capped at 10,000 for column-level validation to limit memory.
+    let totalRowCount = 0;
+
     if (fileExtension === '.csv') {
       // Parse CSV using csv-parser for proper handling of quoted values, commas, and escapes
       const csvParser = require('csv-parser');
@@ -7077,6 +7682,7 @@ app.post('/api/files/:fileId/quality-rules/revalidate', authenticateToken, uploa
             columnNames = headers.map(h => h.trim());
           })
           .on('data', (data) => {
+            totalRowCount++;
             if (results.length < 10000) {
               results.push(data);
             }
@@ -7113,6 +7719,8 @@ app.post('/api/files/:fileId/quality-rules/revalidate', authenticateToken, uploa
       const jsonData = JSON.parse(fileContent);
       const dataArray = Array.isArray(jsonData) ? jsonData : [jsonData];
       
+      totalRowCount = dataArray.length; // full count, no cap
+      
       if (dataArray.length > 0 && typeof dataArray[0] === 'object') {
         columnNames = Object.keys(dataArray[0]);
       }
@@ -7131,13 +7739,6 @@ app.post('/api/files/:fileId/quality-rules/revalidate', authenticateToken, uploa
     
     // Clean up uploaded file after parsing
     try { fs.unlinkSync(uploadedFile.path); } catch (e) {}
-    
-    if (parsedRows.length === 0) {
-      return res.status(400).json({
-        error: 'Empty file',
-        message: 'The uploaded file contains no data rows'
-      });
-    }
     
     // Update file_preview_data with new content using transaction
     const client = await dbPool.connect();
@@ -7166,14 +7767,14 @@ app.post('/api/files/:fileId/quality-rules/revalidate', authenticateToken, uploa
         `, params);
       }
       
-      // Update file metadata
+      // Update file metadata — use totalRowCount (full count, not preview-capped)
       await client.query(`
         UPDATE files 
         SET row_count = $1, 
             column_count = $2,
             updated_at = NOW()
         WHERE file_id = $3
-      `, [parsedRows.length, columnNames.length, fileId]);
+      `, [totalRowCount, columnNames.length, fileId]);
       
       await client.query('COMMIT');
     } catch (txErr) {
@@ -7197,9 +7798,19 @@ app.post('/api/files/:fileId/quality-rules/revalidate', authenticateToken, uploa
       return res.json({
         success: true,
         message: 'File uploaded but no quality rules assigned',
-        rows_processed: parsedRows.length,
+        rows_processed: totalRowCount,
         rules_executed: 0,
         violations_found: 0
+      });
+    }
+
+    // Defer the empty-file check to here (after rules are known) so record_count rules
+    // can still run on empty uploads — they only need totalRowCount, not row data.
+    const revalidateHasRecordCountRules = rulesResult.rows.some(r => r.rule_type === 'record_count');
+    if (parsedRows.length === 0 && !revalidateHasRecordCountRules) {
+      return res.status(400).json({
+        error: 'Empty file',
+        message: 'The uploaded file contains no data rows'
       });
     }
     
@@ -7243,12 +7854,25 @@ app.post('/api/files/:fileId/quality-rules/revalidate', authenticateToken, uploa
     
     const violations = [];
     
+    // Track which rule IDs were actually evaluated (not skipped).
+    const revalidatedEvaluatedRuleIds = new Set();
+
+    // Rule types the revalidation endpoint handles — defined once, outside all loops.
+    const REVALIDATE_COLUMN_SWITCH_TYPES = new Set([
+      'null_check', 'column_completeness', 'email_validity', 'phone_validity',
+      'date_format', 'timestamp_format', 'isna_check', 'numeric_only_string',
+      'special_character_presence',
+      'validity', // engine-type alias — routes internally via rule_config.validity_type
+    ]);
+
     // Execute each rule against its target columns
     for (const rule of rulesResult.rows) {
       const targetColumns = rule.target_columns || [];
       
-      if (targetColumns.length === 0) continue;
-      
+      // record_count is file-level — allow it through even with no target columns
+      if (targetColumns.length === 0 && rule.rule_type !== 'record_count') continue;
+
+      let anyColumnResolved = false;
       for (const columnName of targetColumns) {
         // Resolve the target column name to the actual header name
         const actualColumnName = resolveColumnName(columnName);
@@ -7264,7 +7888,13 @@ app.post('/api/files/:fileId/quality-rules/revalidate', authenticateToken, uploa
           });
           continue;
         }
-        
+
+        // Mark as evaluated before the row loop so zero-row files still stamp correctly.
+        anyColumnResolved = true;
+        if (REVALIDATE_COLUMN_SWITCH_TYPES.has(rule.rule_type)) {
+          revalidatedEvaluatedRuleIds.add(rule.id);
+        }
+
         for (const row of parsedRows) {
           const rowData = row.row_data;
           // Use the resolved actual column name for lookup
@@ -7424,6 +8054,107 @@ app.post('/api/files/:fileId/quality-rules/revalidate', authenticateToken, uploa
                 }
               }
               break;
+
+            case 'validity': {
+              // Engine-type alias — routes via rule_config.validity_type (revalidation path)
+              const rcCfgRv = (typeof rule.rule_config === 'string' ? JSON.parse(rule.rule_config) : rule.rule_config) || {};
+              const vTypeRv = rcCfgRv.validity_type;
+
+              if (vTypeRv === 'datatype') {
+                const dt = rcCfgRv.datatype;
+                if (dt === 'date') {
+                  if (cellValue && typeof cellValue === 'string') {
+                    const dv = validateDateFormat(cellValue, rcCfgRv.date_format || null);
+                    if (!dv.valid) {
+                      isViolation = true;
+                      expectedValue = `Format: ${rcCfgRv.date_format || dv.expectedFormat}`;
+                      violationDetails = { reason: dv.reason, value: cellValue, expectedFormat: rcCfgRv.date_format || dv.expectedFormat };
+                    }
+                  }
+                } else if (dt === 'datetime') {
+                  if (cellValue && typeof cellValue === 'string') {
+                    const datePart = cellValue.split(/[T\s]/)[0];
+                    const dv = validateDateFormat(datePart);
+                    if (!dv.valid) {
+                      isViolation = true;
+                      expectedValue = 'Format: YYYY-MM-DDTHH:mm:ss or YYYY-MM-DD HH:mm:ss';
+                      violationDetails = { reason: `Date portion invalid: ${dv.reason}`, value: cellValue };
+                    } else if (isNaN(new Date(cellValue).getTime())) {
+                      isViolation = true;
+                      expectedValue = 'Format: YYYY-MM-DDTHH:mm:ss';
+                      violationDetails = { reason: 'Invalid time portion', value: cellValue };
+                    }
+                  }
+                } else if (dt === 'email') {
+                  if (cellValue && typeof cellValue === 'string') {
+                    if (!/^[^\s@]{1,64}@[^\s@]{1,253}\.[^\s@]{1,63}$/.test(cellValue)) {
+                      isViolation = true; expectedValue = 'Valid email format';
+                      violationDetails = { reason: 'Invalid email format', value: cellValue };
+                    }
+                  }
+                } else if (dt === 'phone') {
+                  if (cellValue && typeof cellValue === 'string') {
+                    if (cellValue.replace(/\D/g, '').length < 10) {
+                      isViolation = true; expectedValue = 'Valid phone number (10+ digits)';
+                      violationDetails = { reason: 'Invalid phone format', value: cellValue };
+                    }
+                  }
+                } else if (dt === 'integer') {
+                  if (cellValue !== null && cellValue !== undefined && cellValue !== '') {
+                    const n = Number(cellValue);
+                    if (isNaN(n) || !Number.isInteger(n)) {
+                      isViolation = true; expectedValue = 'Whole number (integer)';
+                      violationDetails = { reason: 'Value is not an integer', value: cellValue };
+                    }
+                  }
+                } else if (dt === 'float' || dt === 'number') {
+                  if (cellValue !== null && cellValue !== undefined && cellValue !== '') {
+                    if (isNaN(Number(cellValue))) {
+                      isViolation = true; expectedValue = 'Numeric value';
+                      violationDetails = { reason: 'Value is not a number', value: cellValue };
+                    }
+                  }
+                } else if (dt === 'boolean') {
+                  if (cellValue !== null && cellValue !== undefined && cellValue !== '') {
+                    if (!['true','false','1','0','yes','no'].includes(String(cellValue).toLowerCase().trim())) {
+                      isViolation = true; expectedValue = 'Boolean value (true/false, 1/0, yes/no)';
+                      violationDetails = { reason: 'Value is not a boolean', value: cellValue };
+                    }
+                  }
+                }
+              } else if (vTypeRv === 'pattern') {
+                if (cellValue !== null && cellValue !== undefined && cellValue !== '') {
+                  try {
+                    if (!new RegExp(rcCfgRv.pattern || '').test(String(cellValue))) {
+                      isViolation = true; expectedValue = `Matches pattern: ${rcCfgRv.pattern}`;
+                      violationDetails = { reason: 'Value does not match required pattern', value: cellValue, pattern: rcCfgRv.pattern };
+                    }
+                  } catch (_re) { /* invalid regex — skip */ }
+                }
+              } else if (vTypeRv === 'range') {
+                if (cellValue !== null && cellValue !== undefined && cellValue !== '') {
+                  const n = Number(cellValue);
+                  if (!isNaN(n)) {
+                    if (rcCfgRv.min !== undefined && n < Number(rcCfgRv.min)) {
+                      isViolation = true; expectedValue = `Value ≥ ${rcCfgRv.min}`;
+                      violationDetails = { reason: `Value ${n} is below minimum ${rcCfgRv.min}`, value: cellValue };
+                    } else if (rcCfgRv.max !== undefined && n > Number(rcCfgRv.max)) {
+                      isViolation = true; expectedValue = `Value ≤ ${rcCfgRv.max}`;
+                      violationDetails = { reason: `Value ${n} exceeds maximum ${rcCfgRv.max}`, value: cellValue };
+                    }
+                  }
+                }
+              } else if (vTypeRv === 'enum') {
+                if (cellValue !== null && cellValue !== undefined && cellValue !== '') {
+                  const allowed = (rcCfgRv.allowed_values || []).map(v => String(v).toLowerCase());
+                  if (allowed.length > 0 && !allowed.includes(String(cellValue).toLowerCase())) {
+                    isViolation = true; expectedValue = `One of: ${rcCfgRv.allowed_values?.join(', ')}`;
+                    violationDetails = { reason: 'Value not in allowed list', value: cellValue, allowed: rcCfgRv.allowed_values };
+                  }
+                }
+              }
+              break;
+            }
           }
           
           if (isViolation) {
@@ -7445,6 +8176,7 @@ app.post('/api/files/:fileId/quality-rules/revalidate', authenticateToken, uploa
       if (rule.rule_type === 'duplicate_check' && targetColumns.length > 0) {
         // Resolve all target columns to actual header names
         const resolvedColumns = targetColumns.map(col => resolveColumnName(col)).filter(Boolean);
+        if (resolvedColumns.length > 0) revalidatedEvaluatedRuleIds.add(rule.id);
         
         // Check each column independently for duplicates
         for (const columnName of resolvedColumns) {
@@ -7489,6 +8221,7 @@ app.post('/api/files/:fileId/quality-rules/revalidate', authenticateToken, uploa
         const resolvedColumns = targetColumns.map(col => resolveColumnName(col)).filter(Boolean);
         
         if (resolvedColumns.length > 0) {
+          revalidatedEvaluatedRuleIds.add(rule.id);
           for (const row of parsedRows) {
             const keyParts = resolvedColumns.map(col => row.row_data[col] ?? '');
             const compositeKey = keyParts.join('||');
@@ -7511,6 +8244,79 @@ app.post('/api/files/:fileId/quality-rules/revalidate', authenticateToken, uploa
               valueMap.set(compositeKey, row.row_number);
             }
           }
+        }
+      }
+
+      // Handle record_count check — file-level, always evaluated when reached
+      if (rule.rule_type === 'record_count') {
+        revalidatedEvaluatedRuleIds.add(rule.id);
+        const rcConfig = (typeof rule.rule_config === 'string' ? JSON.parse(rule.rule_config) : rule.rule_config) || {};
+        const operator = rcConfig.operator || 'exactly';
+        const expectedCount = rcConfig.expected_count;
+        const minCount = rcConfig.min_count;
+        const maxCount = rcConfig.max_count;
+        const tolerancePercent = rcConfig.tolerance_percent || 0;
+        const actualCount = totalRowCount;
+
+        let isViolation = false;
+        let expectedValue = '';
+        const actualValue = `${actualCount} records`;
+
+        switch (operator) {
+          case 'exactly': {
+            const tolerance = tolerancePercent > 0 ? Math.ceil(expectedCount * tolerancePercent / 100) : 0;
+            isViolation = Math.abs(actualCount - expectedCount) > tolerance;
+            expectedValue = tolerancePercent > 0
+              ? `Exactly ${expectedCount} records (±${tolerancePercent}%)`
+              : `Exactly ${expectedCount} records`;
+            break;
+          }
+          case 'at_least': {
+            const threshold = tolerancePercent > 0
+              ? Math.floor(expectedCount * (1 - tolerancePercent / 100))
+              : expectedCount;
+            isViolation = actualCount < threshold;
+            expectedValue = tolerancePercent > 0
+              ? `At least ${expectedCount} records (−${tolerancePercent}% tolerance)`
+              : `At least ${expectedCount} records`;
+            break;
+          }
+          case 'at_most': {
+            const threshold = tolerancePercent > 0
+              ? Math.ceil(expectedCount * (1 + tolerancePercent / 100))
+              : expectedCount;
+            isViolation = actualCount > threshold;
+            expectedValue = tolerancePercent > 0
+              ? `At most ${expectedCount} records (+${tolerancePercent}% tolerance)`
+              : `At most ${expectedCount} records`;
+            break;
+          }
+          case 'between': {
+            isViolation = actualCount < minCount || actualCount > maxCount;
+            expectedValue = `Between ${minCount} and ${maxCount} records`;
+            break;
+          }
+        }
+
+        if (isViolation) {
+          violations.push({
+            rule_id: rule.id,
+            file_id: fileId,
+            row_number: null,
+            column_name: null,
+            expected_value: expectedValue,
+            actual_value: actualValue,
+            violation_details: {
+              rule_type: 'record_count',
+              operator,
+              expected_count: expectedCount,
+              min_count: minCount,
+              max_count: maxCount,
+              actual_count: actualCount,
+              tolerance_percent: tolerancePercent
+            },
+            severity: rule.severity || 'warning'
+          });
         }
       }
     }
@@ -7546,6 +8352,17 @@ app.post('/api/files/:fileId/quality-rules/revalidate', authenticateToken, uploa
         }
       }
       
+      // Stamp last_run_at only for rules that were actually evaluated.
+      const revalidatedEvaluatedIds = [...revalidatedEvaluatedRuleIds];
+      if (revalidatedEvaluatedIds.length > 0) {
+        await violationClient.query(
+          `UPDATE file_quality_rules
+           SET last_run_at = NOW()
+           WHERE file_id = $1 AND quality_rule_id = ANY($2)`,
+          [fileId, revalidatedEvaluatedIds]
+        );
+      }
+
       await violationClient.query('COMMIT');
     } catch (txErr) {
       await violationClient.query('ROLLBACK');
@@ -7566,7 +8383,7 @@ app.post('/api/files/:fileId/quality-rules/revalidate', authenticateToken, uploa
     res.json({
       success: true,
       message: 'File uploaded and quality rules executed successfully',
-      rows_processed: parsedRows.length,
+      rows_processed: totalRowCount,
       rules_executed: rulesResult.rows.length,
       violations_found: violations.length,
       violations_by_rule: rulesResult.rows.map(rule => ({
@@ -7608,7 +8425,7 @@ app.get('/api/files/:fileId/quality-rules', authenticateToken, async (req, res) 
     // Get assigned rules with target columns
     const assignedResult = await dbPool.query(`
       SELECT qr.id, qr.rule_name, qr.rule_type, qr.severity, qr.description, qr.enabled, 
-             fqr.created_at as assigned_at, fqr.target_columns
+             fqr.created_at as assigned_at, fqr.target_columns, fqr.is_schema_enforced
       FROM file_quality_rules fqr
       JOIN quality_rules qr ON fqr.quality_rule_id = qr.id
       WHERE fqr.file_id = $1
@@ -7623,10 +8440,19 @@ app.get('/api/files/:fileId/quality-rules', authenticateToken, async (req, res) 
         AND enabled = true
       ORDER BY rule_name
     `, [fileResult.rows[0].project_id]);
+
+    // Fetch the current assignment version so the client can seed its monotonic
+    // counter and avoid submitting a stale client_version on first save after load.
+    const versionResult = await dbPool.query(
+      'SELECT version FROM file_assignment_versions WHERE file_id = $1',
+      [fileId]
+    );
+    const assignmentVersion = Number(versionResult.rows[0]?.version ?? 0);
     
     res.json({
       assigned: assignedResult.rows,
-      available: availableResult.rows
+      available: availableResult.rows,
+      assignment_version: assignmentVersion
     });
   } catch (err) {
     console.error('Error fetching file quality rules:', err);
@@ -7638,7 +8464,7 @@ app.get('/api/files/:fileId/quality-rules', authenticateToken, async (req, res) 
 app.post('/api/files/:fileId/quality-rules', authenticateToken, async (req, res) => {
   try {
     const { fileId } = req.params;
-    const { rule_ids, column_assignments = {} } = req.body;
+    const { rule_ids, column_assignments = {}, client_base_version, write_nonce, is_pagehide } = req.body;
     
     if (!Array.isArray(rule_ids)) {
       return res.status(400).json({ error: 'rule_ids must be an array' });
@@ -7654,7 +8480,67 @@ app.post('/api/files/:fileId/quality-rules', authenticateToken, async (req, res)
     const client = await dbPool.connect();
     try {
       await client.query('BEGIN');
-      
+
+      // Optimistic concurrency (compare-and-swap): when the client sends
+      // client_base_version, it asserts "I am updating from this exact version".
+      // The server locks the version row and only applies the write when the
+      // stored version matches.  On mismatch it rolls back and returns 409 so
+      // the client can reconcile without silently losing assignments.
+      let newVersion = null;
+      if (client_base_version !== undefined) {
+        // Ensure the metadata row exists, then lock it for the transaction.
+        await client.query(
+          `INSERT INTO file_assignment_versions (file_id, version) VALUES ($1, 0)
+           ON CONFLICT (file_id) DO NOTHING`,
+          [fileId]
+        );
+        const versionResult = await client.query(
+          'SELECT version FROM file_assignment_versions WHERE file_id = $1 FOR UPDATE',
+          [fileId]
+        );
+        const storedVersion = Number(versionResult.rows[0]?.version ?? 0);
+        const storedNonce = versionResult.rows[0]?.write_nonce ?? null;
+
+        const clientBaseNum = Number(client_base_version);
+
+        if (clientBaseNum === storedVersion) {
+          // Exact CAS match — normal single-writer path.
+          newVersion = storedVersion + 1;
+        } else if (
+          is_pagehide === true &&
+          clientBaseNum + 1 === storedVersion &&
+          write_nonce !== undefined && write_nonce !== null &&
+          write_nonce === storedNonce
+        ) {
+          // Pagehide 1-hop lookahead (nonce-gated): the coordinator's in-flight
+          // axios request committed at the server just before the browser cancelled
+          // it on page unload.  The client never received the response, so
+          // serverVersionRef is one behind.  We accept the keepalive because:
+          //   1. storedVersion is exactly one ahead (only one write could have slipped by)
+          //   2. write_nonce matches the nonce stored by that write, proving this
+          //      keepalive originated from the same tab/write session — a different
+          //      session would not know the nonce and therefore cannot spoof this path.
+          newVersion = storedVersion + 1;
+        } else {
+          // CAS mismatch — a concurrent write advanced the version more than
+          // expected.  Roll back and return the current state so the client
+          // can reconcile.
+          await client.query('ROLLBACK');
+          const currentResult = await dbPool.query(`
+            SELECT qr.id, qr.rule_name, qr.rule_type, qr.severity, qr.description, fqr.target_columns
+            FROM file_quality_rules fqr
+            JOIN quality_rules qr ON fqr.quality_rule_id = qr.id
+            WHERE fqr.file_id = $1
+            ORDER BY qr.rule_name
+          `, [fileId]);
+          return res.status(409).json({
+            error: 'Conflict: assignments were modified by a concurrent write',
+            current_version: storedVersion,
+            assigned: currentResult.rows
+          });
+        }
+      }
+
       // Remove existing rule assignments
       await client.query('DELETE FROM file_quality_rules WHERE file_id = $1', [fileId]);
       
@@ -7669,6 +8555,16 @@ app.post('/api/files/:fileId/quality-rules', authenticateToken, async (req, res)
             [fileId, ruleId, targetColumns]
           );
         }
+      }
+
+      // Atomically advance the server-owned version and store the write nonce
+      // so subsequent pagehide lookahead checks can validate provenance.
+      if (newVersion !== null) {
+        await client.query(
+          `INSERT INTO file_assignment_versions (file_id, version, write_nonce) VALUES ($1, $2, $3)
+           ON CONFLICT (file_id) DO UPDATE SET version = EXCLUDED.version, write_nonce = EXCLUDED.write_nonce`,
+          [fileId, newVersion, write_nonce ?? null]
+        );
       }
       
       await client.query('COMMIT');
@@ -7685,7 +8581,8 @@ app.post('/api/files/:fileId/quality-rules', authenticateToken, async (req, res)
       res.json({
         success: true,
         message: `${rule_ids.length} quality rule(s) assigned to file`,
-        assigned: assignedResult.rows
+        assigned: assignedResult.rows,
+        ...(newVersion !== null ? { new_version: newVersion } : {})
       });
     } catch (err) {
       await client.query('ROLLBACK');
@@ -9691,9 +10588,24 @@ app.get('/api/auth/me', authenticateToken, async (req, res) => {
     
     console.log('User found in database');
     
-    // Get the complete role information from the database
-    const userRoles = req.user.roles || [];
-    console.log('User roles from token:', userRoles);
+    // Always fetch roles fresh from the database so role changes take effect
+    // without requiring the user to re-login. Includes BOTH direct user_roles
+    // assignments AND roles inherited through access_group_roles memberships,
+    // matching the same logic used by the authenticateToken middleware.
+    const freshRolesResult = await dbPool.query(`
+      SELECT DISTINCT r.name
+      FROM roles r
+      JOIN user_roles ur ON r.id = ur.role_id
+      WHERE ur.user_id = $1
+      UNION
+      SELECT DISTINCT r.name
+      FROM roles r
+      JOIN access_group_roles agr ON r.id = agr.role_id
+      JOIN user_groups ug ON agr.group_id = ug.group_id
+      WHERE ug.user_id = $1
+    `, [userId]);
+    const userRoles = freshRolesResult.rows.map(row => row.name);
+    console.log('User roles from database (fresh, direct + group-inherited):', userRoles);
     
     let permissions = [];
     let roleDetails = []; // Initialize roleDetails here
@@ -9861,12 +10773,26 @@ app.get('/api/secrets', async (req, res) => {
   });
 
 // Database URL endpoint for profile_api.py
+// Returns the already-resolved DATABASE_URL from process.env (set by initializeSecrets()
+// which correctly handles both full-URL and individual-field AWS secret formats).
+// Do NOT reconstruct the URL from getAllSecretData() fields — the AWS secret stores a
+// complete database_url field, so secrets.port etc. are undefined.
 app.get('/api/db_url', async (req, res) => {
   try {
-    const secrets = await getAllSecretData();
-    res.json({
-      DATABASE_URL: `postgres://${secrets.username}:${secrets.password}@${secrets.host}:${secrets.port}/${secrets.dbname}`,
-    });
+    const dbUrl = process.env.DATABASE_URL;
+    if (!dbUrl) {
+      // Fallback: try to build from AWS secret fields if DATABASE_URL wasn't seeded
+      const secrets = await getAllSecretData();
+      const built = secrets.database_url || secrets.DATABASE_URL ||
+        (secrets.username && secrets.host && secrets.dbname
+          ? `postgres://${secrets.username}:${encodeURIComponent(secrets.password || '')}@${secrets.host}:${secrets.port || 5432}/${secrets.dbname}`
+          : null);
+      if (!built) {
+        return res.status(500).json({ error: 'DATABASE_URL not available' });
+      }
+      return res.json({ DATABASE_URL: built });
+    }
+    res.json({ DATABASE_URL: dbUrl });
   } catch (err) {
     console.error('Error fetching secrets:', err);
     res.status(500).json({ error: 'Failed to fetch secrets' });
@@ -12970,16 +13896,6 @@ const vendorAgreementFileSchemaRoutes = require('./backend/routes/vendorAgreemen
 app.use('/api/vendor-agreements', authenticateToken, vendorAgreementFileSchemaRoutes);
 console.log('Added vendor agreement file schema routes');
 
-// Vendor connections routes (admin-only)
-const vendorConnectionRoutes = require('./backend/routes/vendorConnectionRoutes');
-app.use('/api/vendor-connections', authenticateToken, vendorConnectionRoutes);
-console.log('Added vendor connections routes');
-
-// Vendor user routes
-const vendorUserRoutes = require('./backend/routes/vendorUserRoutes');
-app.use('/api', vendorUserRoutes);
-console.log('Added vendor user routes');
-
 // Vendor access routes (for vendor file upload)
 const vendorAccessRoutes = require('./backend/routes/vendorAccessRoutes');
 app.use('/api/vendor-access', authenticateToken, vendorAccessRoutes);
@@ -12995,6 +13911,11 @@ const notificationRoutes = require('./backend/routes/notifications');
 app.use('/api/notifications', notificationRoutes);
 console.log('Added notifications routes');
 
+// Digest subscription routes
+const digestRoutes = require('./backend/routes/digestRoutes');
+app.use('/api/digest-subscriptions', digestRoutes);
+console.log('Added digest subscription routes');
+
 // RDM routes
 const rdmRoutes = require('./backend/routes/rdm');
 app.use('/api/rdm', authenticateToken, rdmRoutes);
@@ -13009,6 +13930,11 @@ console.log('Added alert policy routes');
 const emailConnectionRoutes = require('./backend/routes/emailConnectionRoutes');
 app.use('/api/email-connections', authenticateToken, emailConnectionRoutes);
 console.log('Added email connection routes');
+
+// Jira integration routes
+const jiraRoutes = require('./backend/routes/jiraRoutes');
+app.use('/api/jira', authenticateToken, jiraRoutes);
+console.log('Added Jira integration routes');
 
 // Allowed email domains routes (admin only)
 const allowedEmailDomainsRoutes = require('./backend/routes/allowedEmailDomainsRoutes');
@@ -13043,7 +13969,40 @@ if (process.env.NODE_ENV === 'production') {
   const distPath = path.join(__dirname, 'dist');
   
   console.log('📦 Production mode: Serving static files from', distPath);
-  
+
+  // Proxy /profile-api/* → Flask profile_api.py on port 8000 (mirrors Vite's dev proxy)
+  // Disable the generic 30/35-second timeouts for proxy routes — AI calls can take 60-90 s.
+  // The proxy's own proxyTimeout (2 minutes) will kill stalled Flask requests instead.
+  const { createProxyMiddleware } = require('http-proxy-middleware');
+  const profileApiPort = process.env.PROFILE_API_PORT || 8000;
+  app.use('/profile-api', (req, _res, next) => {
+    req.setTimeout(0);
+    _res.setTimeout(0);
+    next();
+  });
+  app.use('/profile-api', createProxyMiddleware({
+    target: `http://localhost:${profileApiPort}`,
+    changeOrigin: true,
+    proxyTimeout: 120000, // 2 minutes — covers OpenAI generation calls
+    pathRewrite: { '^/profile-api': '' },
+    on: {
+      proxyReq: (proxyReq, req) => {
+        // Express bodyParser.json() consumes the body stream before the proxy sees it.
+        // Re-attach the already-parsed body so Flask receives it correctly.
+        if (req.body && ['POST', 'PUT', 'PATCH'].includes(req.method)) {
+          const bodyData = JSON.stringify(req.body);
+          proxyReq.setHeader('Content-Type', 'application/json');
+          proxyReq.setHeader('Content-Length', Buffer.byteLength(bodyData));
+          proxyReq.write(bodyData);
+        }
+      },
+      error: (err, req, res) => {
+        logger.error('profile-api proxy error', { error: err.message, path: req.url });
+        if (!res.headersSent) res.status(502).json({ error: 'Profile API unavailable' });
+      }
+    }
+  }));
+
   // Serve static files
   app.use(express.static(distPath));
   
@@ -13054,7 +14013,12 @@ if (process.env.NODE_ENV === 'production') {
     if (req.path.startsWith('/api')) {
       return next();
     }
-    // Send all other routes to React's index.html for client-side routing
+    // Send all other routes to React's index.html for client-side routing.
+    // GET / is already handled by the early probe route above, so this
+    // catch-all covers deep links (/dashboard, /connections, etc.).
+    // If dist/index.html is missing on a deep-link request it propagates
+    // to the error handler — preserving a visible error rather than a
+    // silent 200 that hides a broken build.
     res.sendFile(path.join(distPath, 'index.html'));
   });
 }
@@ -13074,7 +14038,6 @@ app.use((req, res, next) => {
 
 // Import and use global error handler middleware (must be after all routes)
 const errorHandler = require('./backend/middleware/errorHandler');
-const { frame } = require("framer-motion");
 app.use(errorHandler);
 
 // Initialize database and start the server
@@ -13083,11 +14046,55 @@ let uploadWorker = null;
 async function startServer() {
   try {
     logger.info('Starting server initialization...');
-    
+
+    // Bind the HTTP server immediately so Replit's health probe (GET /) gets a
+    // response right away, before the ~20 s async database init that follows.
+    // Socket.IO is attached later — it works fine on an already-listening server.
+    const httpServer = http.createServer(app);
+    httpServer.listen(port, '0.0.0.0', () => {
+      logger.info(`🚀 Server listening on port ${port}`, {
+        environment: process.env.NODE_ENV || 'development',
+        port: port,
+        host: '0.0.0.0',
+        note: 'database initializing in background'
+      });
+      console.log(`Server listening on port ${port} (host: 0.0.0.0) — database initializing…`);
+    });
+
     // Initialize database with retry logic
     logger.info('Initializing database connection...');
     await initializeDatabase();
     logger.info('Database connection established successfully');
+
+    // Schema changes are applied by Publish. At application startup, repair
+    // the known bootstrap account's missing role links and independently
+    // verify the dashboard's required data-access prerequisites.
+    logger.info('Verifying dashboard database prerequisites...');
+    await repairBootstrapAdminRoles(dbPool);
+    const dashboardPrerequisites = await getDashboardPrerequisiteStatus(dbPool);
+
+    if (!dashboardPrerequisites.ready) {
+      const error = 'The dashboard project-access tables are unavailable. Dashboard requests will retry when access is repaired.';
+      app.locals.databasePrerequisites = {
+        ready: false,
+        error,
+        verifiedAt: new Date().toISOString()
+      };
+      logger.warn('Dashboard database prerequisites are unavailable; keeping the API online in a not-ready state', {
+        ...dashboardPrerequisites,
+        error
+      });
+    } else {
+      app.locals.databasePrerequisites = {
+        ready: true,
+        error: null,
+        verifiedAt: new Date().toISOString()
+      };
+      logger.info('Dashboard database prerequisites verified', dashboardPrerequisites);
+      if (dashboardPrerequisites.uses_project_access_fallback) {
+        logger.warn('Project-access database function is unavailable; dashboard is using the built-in access-query fallback');
+      }
+    }
     
     // Initialize business process tables after database is ready
     try {
@@ -13136,10 +14143,8 @@ async function startServer() {
       });
     }
     
-    // Create HTTP server for both Express and Socket.IO
-    const httpServer = http.createServer(app);
-    
     // Initialize Socket.IO with CORS settings (using same allowedOrigins as Express CORS)
+    // httpServer is already listening — attaching Socket.IO after listen() is supported.
     const io = new Server(httpServer, {
       cors: {
         origin: function (origin, callback) {
@@ -13186,17 +14191,8 @@ async function startServer() {
       logger.warn('Could not trigger orphan recovery', { error: error.message });
     }
     
-    // Start the HTTP server - bind to 0.0.0.0 for Replit
-    httpServer.listen(port, '0.0.0.0', () => {
-      logger.info(`🚀 Server running on port ${port}`, {
-        environment: process.env.NODE_ENV || 'development',
-        port: port,
-        host: '0.0.0.0',
-        websocket: 'enabled'
-      });
-      console.log(`Server running on port ${port} (host: 0.0.0.0)`);
-      console.log(`WebSocket server enabled for real-time updates`);
-    });
+    logger.info(`✅ Server fully initialized on port ${port} — WebSocket and all workers ready`);
+    console.log(`Server fully initialized on port ${port} — WebSocket enabled`);
   } catch (err) {
     logger.error('Failed to start server', {
       error: err.message,

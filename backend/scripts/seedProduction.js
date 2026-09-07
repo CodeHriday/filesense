@@ -50,6 +50,36 @@ const DEFAULT_ROLES = [
   {
     name: 'Viewer',
     description: 'Read-only access to data'
+  },
+  {
+    name: 'Vendor Manager',
+    description: 'Manages vendor relationships, file drops, and vendor contracts',
+    // Feature-level permission strings read by the auth middleware from roles.permissions
+    permissions: [
+      'dashboard:read',
+      'vendor_agreements:read', 'vendor_agreements:write', 'vendor_agreements:approve',
+      'connection:read', 'connection:write',
+      'users:read', 'users:write',
+      'sla_monitoring:read',
+      'vendor_file_upload:read', 'vendor_file_upload:write',
+      'vendor_file_quality:read',
+      'vendor_details:read', 'vendor_details:write',
+      'file_catalog:read',
+      'file_drop:read', 'file_drop:write'
+    ]
+  },
+  {
+    name: 'Governance Manager',
+    description: 'Responsible for final approval of vendor contracts and governance oversight',
+    // Feature-level permission strings read by the auth middleware from roles.permissions
+    permissions: [
+      'dashboard:read',
+      'vendor_agreements:read', 'vendor_agreements:approve',
+      'connection:read',
+      'sla_monitoring:read',
+      'vendor_details:read',
+      'vendor_file_quality:read'
+    ]
   }
 ];
 
@@ -180,6 +210,8 @@ const ROLE_PERMISSIONS = {
     'connection:create', 'connection:read', 'connection:update', 'connection:delete',
     // File management
     'file:create', 'file:read', 'file:update', 'file:delete',
+    // Vendor contract read access (needed for visual mapping source configuration)
+    'vendor_agreements:read',
     // Can apply existing tags (not create new ones)
     'tag:read', 'tag:assign',
     'policy:read', 'policy:assign',
@@ -225,6 +257,20 @@ const ROLE_PERMISSIONS = {
     'policy:read',
     // Dashboard and insights
     'dashboard:read', 'insights:read', 'recommendations:read', 'badges:read', 'stories:read'
+  ],
+
+  'Vendor Manager': [
+    // Dashboard
+    'dashboard:read',
+    // File access
+    'file:read'
+  ],
+
+  'Governance Manager': [
+    // Dashboard
+    'dashboard:read',
+    // File access (read-only)
+    'file:read'
   ]
 };
 
@@ -274,11 +320,18 @@ class ProductionSeeder {
           continue;
         }
         
-        // Create role
-        await this.pool.query(
-          'INSERT INTO roles (name, created_at, updated_at) VALUES ($1, NOW(), NOW())',
-          [role.name]
-        );
+        // Create role — include feature-level permissions JSON when defined
+        if (role.permissions && role.permissions.length > 0) {
+          await this.pool.query(
+            'INSERT INTO roles (name, permissions, created_at, updated_at) VALUES ($1, $2, NOW(), NOW())',
+            [role.name, role.permissions]
+          );
+        } else {
+          await this.pool.query(
+            'INSERT INTO roles (name, created_at, updated_at) VALUES ($1, NOW(), NOW())',
+            [role.name]
+          );
+        }
         
         console.log(`  ✅ Created role: ${role.name}`);
         this.stats.rolesCreated++;
@@ -457,6 +510,23 @@ class ProductionSeeder {
           'INSERT INTO user_roles (user_id, role_id, created_at) VALUES ($1, $2, NOW())',
           [userId, roleId]
         );
+      }
+
+      // Assign Vendor Manager and Governance Manager roles so the vendor
+      // contract dropdowns are usable immediately on a fresh database.
+      for (const roleName of ['Vendor Manager', 'Governance Manager']) {
+        const vmResult = await client.query(
+          'SELECT id FROM roles WHERE name = $1',
+          [roleName]
+        );
+        if (vmResult.rows.length > 0) {
+          await client.query(
+            `INSERT INTO user_roles (user_id, role_id, created_at)
+             VALUES ($1, $2, NOW())
+             ON CONFLICT DO NOTHING`,
+            [userId, vmResult.rows[0].id]
+          );
+        }
       }
       
       await client.query('COMMIT');

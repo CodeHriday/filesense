@@ -6,6 +6,26 @@ import ConfirmationModal from './ConfirmationModal';
 import './FileConfigurationsSection.css';
 import PropTypes from 'prop-types';
 
+/**
+ * Normalise any schema shape to a plain array of field objects.
+ * Handles: bare array, { fields: [...] } object, JSON string of either, or null/undefined.
+ */
+export function normaliseSchema(schema) {
+  if (!schema) return [];
+  // Unwrap JSON strings
+  if (typeof schema === 'string') {
+    try {
+      schema = JSON.parse(schema);
+    } catch (e) {
+      return [];
+    }
+  }
+  if (Array.isArray(schema)) return schema;
+  if (schema && Array.isArray(schema.fields)) return schema.fields;
+  if (schema && Array.isArray(schema.columns)) return schema.columns;
+  return [];
+}
+
 function FileConfigurationsSection({ fileConfigurations, onChange }) {
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingIndex, setEditingIndex] = useState(null);
@@ -42,16 +62,10 @@ function FileConfigurationsSection({ fileConfigurations, onChange }) {
 
   const getSchemaColumns = () => {
     if (!formData.schema || formData.schema.trim() === '') return [];
-    try {
-      const parsed = JSON.parse(formData.schema);
-      if (Array.isArray(parsed)) {
-        return parsed.map(field => ({
-          name: field.name || '',
-          type: field.type || 'string'
-        })).filter(f => f.name);
-      }
-    } catch (e) {}
-    return [];
+    return normaliseSchema(formData.schema).map(field => ({
+      name: field.name || '',
+      type: field.type || 'string'
+    })).filter(f => f.name);
   };
 
   const parseSchemaQualityRules = (schemaText, availableRules) => {
@@ -976,7 +990,7 @@ function FileConfigurationsSection({ fileConfigurations, onChange }) {
                       ) : (
                         <div className="schema-view-row">
                           <details>
-                            <summary>View Schema ({Array.isArray(config.schema) ? config.schema.length : 0} fields)</summary>
+                            <summary>View Schema ({normaliseSchema(config.schema).length} fields)</summary>
                             <pre>{JSON.stringify(config.schema, null, 2)}</pre>
                           </details>
                           <div className="schema-update-controls">

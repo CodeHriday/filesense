@@ -240,6 +240,32 @@
   color: #1a73e8;
 }
 
+.approval-badge-chain {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.approval-chain-step {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.approval-chain-approvers {
+  font-size: 10px;
+  font-weight: 400;
+  opacity: 0.85;
+  white-space: normal;
+  line-height: 1.3;
+}
+
+.approval-chain-votes {
+  font-size: 10px;
+  font-weight: 600;
+  opacity: 0.9;
+  white-space: nowrap;
+}
+
 .approval-pending {
   background-color: #f1f3f4;
   color: #5f6368;

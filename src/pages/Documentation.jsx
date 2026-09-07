@@ -18,7 +18,7 @@ FileSense is an enterprise-grade data management platform designed for monitorin
 - **File Processing**: Support for 15+ file formats including CSV, JSON, XLSX, XML, Parquet, DAT, and password-protected archives
 - **Data Quality**: Automated quality checks for completeness, consistency, validity, and uniqueness
 - **ETL Workflows**: Visual workflow designer for data transformations with 27+ field transformation types
-- **Vendor Management**: Complete vendor onboarding with data contracts and SLA monitoring
+- **Vendor Management**: Complete vendor onboarding with data contracts
 - **Governance**: Enterprise-grade audit logging, role-based access control, and data lineage tracking
 
 ### Quick Start
@@ -301,10 +301,10 @@ Complete vendor lifecycle management for external data providers.
 ### Vendor Onboarding
 
 1. **Create Vendor**: Add vendor details and contact information
-2. **Create Connection**: Configure vendor's file source (S3, SFTP, etc.)
+2. **Create Connection**: Configure the vendor's external file source in Connections
 3. **Define Data Contracts**: Specify expected file schemas and quality rules
-4. **Create Vendor Users**: Provide vendor access for file uploads
-5. **Monitor SLAs**: Track vendor compliance with delivery schedules
+4. **Create Vendor Users**: Create and assign vendor contacts in User Management
+5. **Monitor SLAs**: Track vendor compliance with delivery schedules in Jobs and Monitoring
 
 ### Vendor Data Contracts
 
@@ -322,7 +322,7 @@ Uploaded files are validated against vendor agreement schemas:
 - Required field checks
 - Quality rule enforcement
 
-### SLA Monitoring
+### SLA Monitoring (Jobs and Monitoring)
 
 Track vendor performance against agreed SLAs:
 - File delivery timeliness

@@ -10,7 +10,7 @@ import { QueryKeys } from '../lib/react-query';
 import { QualityTooltip } from '../components/QualityTooltip';
 import { DLQBadge } from '../components/DLQBadge';
 import { PasswordInputModal } from '../components/PasswordInputModal';
-import { bulkDeleteFiles, submitFilePassword } from '../api/fileService';
+import { bulkDeleteFiles, submitFilePassword, getFileCopies } from '../api/fileService';
 import '../styles/global-page-styles.css';
 import './FileCatalog.css';
 import PropTypes from 'prop-types';
@@ -39,6 +39,9 @@ export const FileCatalog = ({ onFileSelect }) => {
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [passwordModalFile, setPasswordModalFile] = useState(null);
   const [isSubmittingPassword, setIsSubmittingPassword] = useState(false);
+  const [deleteAllCopies, setDeleteAllCopies] = useState(false);
+  const [fileCopiesCount, setFileCopiesCount] = useState(0);
+  const [fileCopiesLoading, setFileCopiesLoading] = useState(false);
   
   // Using React Query to fetch file catalog with batch endpoint
   // Consolidates files, projects, and sub-projects into a single API call
@@ -144,18 +147,39 @@ export const FileCatalog = ({ onFileSelect }) => {
     setSelectedType(e.target.value);
   };
 
-  const handleDelete = (file) => {
+  const handleDelete = async (file) => {
     console.log('[DELETE BUTTON CLICKED] File:', file);
     setFileToDelete(file);
+    setDeleteAllCopies(false);
+    setFileCopiesCount(0);
+    setFileCopiesLoading(true);
+    // Fetch copy count BEFORE opening modal so checkbox is present immediately
+    try {
+      const data = await getFileCopies(file.file_id);
+      setFileCopiesCount(data.count || 0);
+    } catch {
+      setFileCopiesCount(0);
+    } finally {
+      setFileCopiesLoading(false);
+    }
     setShowDeleteModal(true);
   };
 
   const confirmDelete = () => {
     if (fileToDelete) {
-      setDeletingFileId(fileToDelete.file_id);
-      deleteFileMutation.mutate(fileToDelete.file_id);
+      if (deleteAllCopies && fileCopiesCount > 1) {
+        // Delete all copies in the logical group via bulk-delete endpoint
+        bulkDeleteMutation.mutate({
+          logicalFileId: fileToDelete.logical_file_id || null,
+          projectId: fileToDelete.project_id,
+          filename: fileToDelete.filename
+        });
+      } else {
+        setDeletingFileId(fileToDelete.file_id);
+        deleteFileMutation.mutate(fileToDelete.file_id);
+      }
     } else if (selectedFiles.length > 0) {
-      // Bulk delete
+      // Bulk delete via selection
       bulkDeleteMutation.mutate(selectedFiles);
     }
   };
@@ -163,6 +187,8 @@ export const FileCatalog = ({ onFileSelect }) => {
   const closeDeleteModal = () => {
     setShowDeleteModal(false);
     setFileToDelete(null);
+    setDeleteAllCopies(false);
+    setFileCopiesCount(0);
   };
   
   const handleSelectFile = (fileId) => {
@@ -465,26 +491,30 @@ export const FileCatalog = ({ onFileSelect }) => {
         </td>
         <td>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <QualityTooltip 
-              score={parseFloat(file.quality_score)}
-              components={{
-                completeness: file.quality_components?.completeness || 95,
-                consistency: file.quality_components?.consistency || 85,
-                validity: file.quality_components?.validity || 80,
-                uniqueness: file.quality_components?.uniqueness || 75,
-                timeliness: file.quality_components?.timeliness || 90
-              }}
-              position={rowIndex < 4 ? 'bottom' : 'top'}
-              animated={true}
-            >
-              <span style={{ 
-                fontWeight: 600, 
-                fontSize: '10px',
-                color: parseFloat(file.quality_score) >= 90 ? '#16a34a' : parseFloat(file.quality_score) >= 70 ? '#d97706' : '#dc2626'
-              }}>
-                {parseFloat(file.quality_score).toFixed(1)}%
-              </span>
-            </QualityTooltip>
+            {file.quality_score != null && !isNaN(parseFloat(file.quality_score)) ? (
+              <QualityTooltip 
+                score={parseFloat(file.quality_score)}
+                components={{
+                  completeness: file.quality_components?.completeness || 95,
+                  consistency: file.quality_components?.consistency || 85,
+                  validity: file.quality_components?.validity || 80,
+                  uniqueness: file.quality_components?.uniqueness || 75,
+                  timeliness: file.quality_components?.timeliness || 90
+                }}
+                position={rowIndex < 4 ? 'bottom' : 'top'}
+                animated={true}
+              >
+                <span style={{ 
+                  fontWeight: 600, 
+                  fontSize: '10px',
+                  color: parseFloat(file.quality_score) >= 90 ? '#16a34a' : parseFloat(file.quality_score) >= 70 ? '#d97706' : '#dc2626'
+                }}>
+                  {parseFloat(file.quality_score).toFixed(1)}%
+                </span>
+              </QualityTooltip>
+            ) : (
+              <span style={{ fontWeight: 600, fontSize: '10px', color: '#6b7280' }}>N/A</span>
+            )}
             {headerInfo && (
               <span 
                 className={`gps-badge ${headerInfo.status === 'critical' ? 'gps-badge--danger' : 'gps-badge--warning'}`}
@@ -826,10 +856,22 @@ export const FileCatalog = ({ onFileSelect }) => {
         onConfirm={confirmDelete}
         title="Delete File"
         message={`Are you sure you want to delete ${fileToDelete ? fileToDelete.filename : `${selectedFiles.length} files`}? This action cannot be undone.`}
-        confirmText={fileToDelete ? (deletingFileId === fileToDelete.file_id ? 'Deleting...' : 'Delete') : (bulkDeleteMutation.isPending ? 'Deleting...' : 'Delete')}
+        confirmText={fileToDelete ? (deletingFileId === fileToDelete.file_id || bulkDeleteMutation.isPending ? 'Deleting...' : 'Delete') : (bulkDeleteMutation.isPending ? 'Deleting...' : 'Delete')}
         cancelText="Cancel"
         confirmButtonStyle={{ background: '#dc2626' }}
-      />
+      >
+        {fileToDelete && !fileCopiesLoading && fileCopiesCount > 1 && (
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#374151', cursor: 'pointer' }}>
+            <input
+              type="checkbox"
+              checked={deleteAllCopies}
+              onChange={e => setDeleteAllCopies(e.target.checked)}
+              style={{ width: 15, height: 15, cursor: 'pointer' }}
+            />
+            Also delete all {fileCopiesCount} copies of this file
+          </label>
+        )}
+      </ConfirmationModal>
       
       <SimpleSuccessModal
         isOpen={showSuccessModal}

@@ -6,7 +6,7 @@ packages = ["arrow-cpp", "freetype", "glibcLocales", "lcms2", "libiconv", "libim
 
 [deployment]
 deploymentTarget = "gce"
-run = ["sh", "-c", "python profile_api.py & NODE_ENV=production node server.js"]
+run = ["node", "productionBootstrap.js"]
 build = ["sh", "-c", "npm run build"]
 
 [workflows]
@@ -71,6 +71,18 @@ externalPort = 3000
 [[ports]]
 localPort = 5000
 externalPort = 80
+
+[[ports]]
+localPort = 5100
+externalPort = 3003
+
+[[ports]]
+localPort = 5998
+externalPort = 3002
+
+[[ports]]
+localPort = 5999
+externalPort = 3001
 
 [[ports]]
 localPort = 8000

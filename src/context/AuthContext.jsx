@@ -611,27 +611,45 @@ export const AuthProvider = ({ children }) => {
         resource.replace(/-/g, '_')  // Replace dash with underscore
       ];
       
+      // For 'file' resource: also accept 'file_upload' permissions stored in the roles
+      // table JSON column (e.g. 'file_upload:write') since both grant upload access.
+      if (resource === 'file' || resource === 'files') {
+        resourceVariations.push('file_upload');
+        resourceVariations.push('file-upload');
+      }
+      // For 'file_upload' resource: also accept 'file' permissions
+      if (resource === 'file_upload' || resource === 'file-upload') {
+        resourceVariations.push('file');
+        resourceVariations.push('files');
+      }
+      
+      const isWriteAction = (action) =>
+        action === 'write' || action === 'create' || action === 'update' ||
+        action === 'delete' || action === 'edit' || action === '*';
+      
       return currentUser.permissions.some(p => {
-        // Only check string format permissions from the database
+        // String format: 'resource:action' (e.g. 'file:create', 'file_upload:write')
         if (typeof p === 'string') {
-          // Split into resource and action parts
           const parts = p.split(':');
           if (parts.length !== 2) return false;
-          
           const [permResource, permAction] = parts;
-          
-          // Check if any variation of the resource matches
-          // Write permission means any of: write, create, update, delete, edit, or *
-          return resourceVariations.includes(permResource) && 
-                 (permAction === 'write' || permAction === 'create' || permAction === 'update' || 
-                  permAction === 'delete' || permAction === 'edit' || permAction === '*');
+          return resourceVariations.includes(permResource) && isWriteAction(permAction);
         }
         
-        // For object format permissions (older format)
-        if (typeof p === 'object' && p.resource && p.action) {
-          return resourceVariations.includes(p.resource) && 
-                 (p.action === 'write' || p.action === 'create' || p.action === 'update' || 
-                  p.action === 'delete' || p.action === 'edit' || p.action === '*');
+        // Object format: { name, resource, action } from role_permissions junction table
+        if (typeof p === 'object') {
+          // Prefer explicit resource/action fields when present
+          if (p.resource && p.action) {
+            return resourceVariations.includes(p.resource) && isWriteAction(p.action);
+          }
+          // Fallback: parse from the name field (e.g. {name: 'file:create', resource: null})
+          if (p.name && typeof p.name === 'string') {
+            const parts = p.name.split(':');
+            if (parts.length === 2) {
+              const [permResource, permAction] = parts;
+              return resourceVariations.includes(permResource) && isWriteAction(permAction);
+            }
+          }
         }
         
         return false;

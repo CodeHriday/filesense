@@ -98,6 +98,24 @@ function AssetPalette() {
     );
   };
 
+  // Static action nodes that don't come from the DB
+  const ACTION_NODES = [
+    {
+      id: 'email_notification_static',
+      name: 'Email Notification',
+      description: 'Send an email summary of upstream execution results',
+      assetType: 'email_notification',
+      icon: '📧'
+    },
+    {
+      id: 'jira_ticket_static',
+      name: 'Jira Ticket',
+      description: 'Create a Jira issue from upstream execution context',
+      assetType: 'jira_ticket',
+      icon: '🎫'
+    }
+  ];
+
   const getAssetIcon = (type) => {
     switch (type) {
       case 'visual_mapping':
@@ -106,9 +124,43 @@ function AssetPalette() {
         return '📦';
       case 'workflow':
         return '⚙️';
+      case 'email_notification':
+        return '📧';
       default:
         return '📄';
     }
+  };
+
+  const renderActionNodes = () => {
+    return (
+      <div className="asset-list">
+        {ACTION_NODES.map((node) => (
+          <div
+            key={node.id}
+            className="asset-item"
+            draggable
+            onDragStart={(e) => {
+              const dragData = {
+                type: node.assetType,
+                assetId: node.id,
+                assetName: node.name,
+                config: {}
+              };
+              e.dataTransfer.setData('application/reactflow', JSON.stringify(dragData));
+              e.dataTransfer.effectAllowed = 'move';
+            }}
+          >
+            <div className="asset-icon">{node.icon}</div>
+            <div className="asset-info">
+              <div className="asset-name">{node.name}</div>
+              {node.description && (
+                <div className="asset-description">{node.description}</div>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    );
   };
 
   return (
@@ -143,12 +195,19 @@ function AssetPalette() {
         >
           Workflows ({workflows.length})
         </button>
+        <button
+          className={`tab ${activeTab === 'actions' ? 'active' : ''}`}
+          onClick={() => setActiveTab('actions')}
+        >
+          Actions
+        </button>
       </div>
 
       <div className="palette-content">
         {activeTab === 'mappings' && renderAssetList(visualMappings, 'visual_mapping')}
         {activeTab === 'groups' && renderAssetList(mappingGroups, 'mapping_group')}
         {activeTab === 'workflows' && renderAssetList(workflows, 'workflow')}
+        {activeTab === 'actions' && renderActionNodes()}
       </div>
 
       <div className="palette-footer">

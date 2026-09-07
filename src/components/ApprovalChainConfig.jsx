@@ -1,0 +1,384 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { FaPlus, FaTimes, FaChevronDown, FaChevronUp, FaSave } from 'react-icons/fa';
+import axios from 'axios';
+import './ApprovalChainConfig.css';
+import PropTypes from 'prop-types';
+
+const MAX_STEPS = 5;
+
+const emptyStep = (stepNumber) => ({
+  step_number: stepNumber,
+  name: `Step ${stepNumber}`,
+  approver_user_ids: [],
+  require_all: false,
+});
+
+/**
+ * ApprovalChainConfig
+ * Collapsible editor for configuring the N-step approval chain on a vendor contract.
+ *
+ * Edit mode  — pass `agreement` with an id; saves via PUT /:id/approval-chain.
+ * Create mode — pass `onChange(steps)`; no API call is made. The parent holds
+ *               the chain in state and POSTs it after the agreement is created.
+ */
+const ApprovalChainConfig = ({
+  agreement = null,
+  users = [],
+  onSave = null,
+  onError,
+  onSuccess,
+  onChange = null,
+  initialSteps = null,
+}) => {
+  const [expanded, setExpanded] = useState(false);
+  const [steps, setSteps] = useState([emptyStep(1)]);
+  const [saving, setSaving] = useState(false);
+  const [dirty, setDirty] = useState(false);
+  const [searchTerms, setSearchTerms] = useState({});
+
+  // Set to true the first time the user interacts with any field so that
+  // parent-driven initialSteps changes no longer overwrite local state.
+  const userModified = useRef(false);
+
+  /* ── Seed from initialSteps (create/draft mode only) ────── */
+  useEffect(() => {
+    if (!onChange) return;                  // edit mode — not applicable
+    if (userModified.current) return;       // user has taken ownership
+    if (!initialSteps?.length) return;
+
+    setSteps(
+      initialSteps.map((s) => ({
+        ...s,
+        approver_user_ids: Array.isArray(s.approver_user_ids)
+          ? s.approver_user_ids
+          : [],
+      }))
+    );
+    // Enable Apply so the user can confirm or adjust the pre-filled chain.
+    setDirty(true);
+  }, [initialSteps, onChange]);
+
+  /* ── Load existing config when expanded ──────────────────── */
+  useEffect(() => {
+    if (!expanded) return;
+    // In create/draft mode the parent owns the applied state; local steps are
+    // the source of truth — never reset them on expand.
+    if (onChange) return;
+
+    const existing = agreement?.approval_chain_config?.steps;
+    if (existing?.length) {
+      setSteps(
+        existing.map((s) => ({
+          ...s,
+          approver_user_ids: Array.isArray(s.approver_user_ids)
+            ? s.approver_user_ids
+            : [],
+        }))
+      );
+    } else {
+      setSteps([emptyStep(1)]);
+    }
+    setDirty(false);
+    setSearchTerms({});
+  }, [expanded, agreement?.id]);
+
+  /* ── Step mutations ─────────────────────────────────────── */
+
+  const addStep = () => {
+    if (steps.length >= MAX_STEPS) return;
+    userModified.current = true;
+    setSteps((prev) => [...prev, emptyStep(prev.length + 1)]);
+    setDirty(true);
+  };
+
+  const removeStep = (idx) => {
+    userModified.current = true;
+    setSteps((prev) =>
+      prev
+        .filter((_, i) => i !== idx)
+        .map((s, i) => ({ ...s, step_number: i + 1 }))
+    );
+    setDirty(true);
+  };
+
+  const updateStep = (idx, field, value) => {
+    userModified.current = true;
+    setSteps((prev) =>
+      prev.map((s, i) => (i === idx ? { ...s, [field]: value } : s))
+    );
+    setDirty(true);
+  };
+
+  const toggleApprover = (stepIdx, userId) => {
+    userModified.current = true;
+    setSteps((prev) =>
+      prev.map((s, i) => {
+        if (i !== stepIdx) return s;
+        const ids = s.approver_user_ids || [];
+        const already = ids.includes(userId);
+        return {
+          ...s,
+          approver_user_ids: already
+            ? ids.filter((id) => id !== userId)
+            : [...ids, userId],
+        };
+      })
+    );
+    setDirty(true);
+  };
+
+  /* ── Save ───────────────────────────────────────────────── */
+
+  const handleSave = async () => {
+    for (const step of steps) {
+      if (!step.name.trim()) {
+        onError(`Step ${step.step_number} needs a name`);
+        return;
+      }
+      if (!step.approver_user_ids?.length) {
+        onError(`Step ${step.step_number} needs at least one approver`);
+        return;
+      }
+    }
+
+    // Draft/create mode — hand steps back to the parent, no API call
+    if (onChange) {
+      userModified.current = true;
+      onChange(steps);
+      onSuccess('Approval chain applied');
+      setDirty(false);
+      return;
+    }
+
+    try {
+      setSaving(true);
+      await axios.put(
+        `/api/vendor-agreements/${agreement.id}/approval-chain`,
+        { steps }
+      );
+      onSuccess('Approval chain saved');
+      setDirty(false);
+      if (onSave) onSave({ steps });
+    } catch (err) {
+      onError(err.response?.data?.error || 'Failed to save approval chain');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  /* ── Filtered user list per step ────────────────────────── */
+
+  const getFilteredUsers = (stepIdx) => {
+    const q = (searchTerms[stepIdx] || '').toLowerCase();
+    if (!q) return users;
+    return users.filter((u) => {
+      const name =
+        u.first_name && u.last_name
+          ? `${u.first_name} ${u.last_name}`
+          : u.fullName || u.username || '';
+      return (
+        name.toLowerCase().includes(q) ||
+        (u.email || '').toLowerCase().includes(q)
+      );
+    });
+  };
+
+  const getUserLabel = (u) => {
+    const name =
+      u.first_name && u.last_name
+        ? `${u.first_name} ${u.last_name}`
+        : u.fullName || u.username || '';
+    const detail = u.email || u.username || '';
+    return name ? `${name} (${detail})` : detail || `User #${u.id}`;
+  };
+
+  /* ── Configured badge ───────────────────────────────────── */
+  // In edit mode, read from the persisted config; in create/draft mode count local steps with approvers.
+  const configuredSteps = agreement?.approval_chain_config?.steps?.length
+    ?? (onChange && steps.some(s => s.approver_user_ids?.length) ? steps.length : 0);
+
+  /* ── Render ─────────────────────────────────────────────── */
+  return (
+    <div className="approval-chain-config">
+      {/* Collapsible header */}
+      <div
+        className="acc-header"
+        onClick={() => setExpanded((v) => !v)}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => e.key === 'Enter' && setExpanded((v) => !v)}
+        aria-expanded={expanded}
+      >
+        <div className="acc-title-row">
+          <span className="acc-title">Approval Chain</span>
+          {configuredSteps > 0 && !expanded && (
+            <span className="acc-configured-badge">
+              {configuredSteps} step{configuredSteps !== 1 ? 's' : ''} configured
+            </span>
+          )}
+        </div>
+        <div className="acc-chevron">
+          {expanded ? <FaChevronUp /> : <FaChevronDown />}
+        </div>
+      </div>
+
+      {expanded && (
+        <div className="acc-body">
+          <p className="acc-description">
+            Configure up to {MAX_STEPS} sequential approval steps. Each step can
+            require <strong>any one</strong> approver or <strong>all</strong>{' '}
+            approvers to vote before the chain advances.
+          </p>
+
+          {/* Horizontally scrollable step rail */}
+          <div className="acc-steps">
+            {steps.map((step, idx) => (
+              <React.Fragment key={idx}>
+                {idx > 0 && (
+                  <div className="acc-step-arrow" aria-hidden="true">→</div>
+                )}
+                <div className="acc-step-card">
+                  {/* Step card header */}
+                  <div className="acc-step-top">
+                    <span className="acc-step-num-label">Step {step.step_number}</span>
+                    {steps.length > 1 && (
+                      <button
+                        type="button"
+                        className="acc-remove-step"
+                        onClick={() => removeStep(idx)}
+                        title="Remove this step"
+                      >
+                        <FaTimes />
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Step name */}
+                  <div className="acc-field">
+                    <label htmlFor={`acc-name-${idx}`}>Step Name</label>
+                    <input
+                      id={`acc-name-${idx}`}
+                      type="text"
+                      value={step.name}
+                      onChange={(e) => updateStep(idx, 'name', e.target.value)}
+                      placeholder="e.g., Manager Review"
+                      maxLength={100}
+                    />
+                  </div>
+
+                  {/* Quorum toggle */}
+                  <div className="acc-field">
+                    <label>Quorum</label>
+                    <div className="acc-quorum-toggle">
+                      <button
+                        type="button"
+                        className={`acc-quorum-btn${!step.require_all ? ' active' : ''}`}
+                        onClick={() => updateStep(idx, 'require_all', false)}
+                      >
+                        Any one
+                      </button>
+                      <button
+                        type="button"
+                        className={`acc-quorum-btn${step.require_all ? ' active' : ''}`}
+                        onClick={() => updateStep(idx, 'require_all', true)}
+                      >
+                        All must
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Approver picker — grows to fill remaining card height */}
+                  <div className="acc-field acc-field-approvers">
+                    <label>
+                      Approvers{' '}
+                      <span className="acc-count">
+                        ({step.approver_user_ids?.length || 0} selected)
+                      </span>
+                    </label>
+                    <input
+                      type="text"
+                      className="acc-search"
+                      placeholder="Search by name or email…"
+                      value={searchTerms[idx] || ''}
+                      onChange={(e) =>
+                        setSearchTerms((prev) => ({ ...prev, [idx]: e.target.value }))
+                      }
+                    />
+                    <div className="acc-approver-list">
+                      {getFilteredUsers(idx).map((u) => {
+                        const selected =
+                          step.approver_user_ids?.includes(u.id) || false;
+                        return (
+                          <label
+                            key={u.id}
+                            className={`acc-approver-option${selected ? ' selected' : ''}`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={selected}
+                              onChange={() => toggleApprover(idx, u.id)}
+                            />
+                            <span>{getUserLabel(u)}</span>
+                          </label>
+                        );
+                      })}
+                      {getFilteredUsers(idx).length === 0 && (
+                        <span className="acc-no-results">No users match</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </React.Fragment>
+            ))}
+          </div>
+
+          {/* Footer actions — below the rail */}
+          <div className="acc-footer">
+            {steps.length < MAX_STEPS && (
+              <button
+                type="button"
+                className="acc-add-step-btn"
+                onClick={addStep}
+              >
+                <FaPlus /> Add Step
+              </button>
+            )}
+            <button
+              type="button"
+              className="acc-save-btn"
+              onClick={handleSave}
+              disabled={saving || !dirty}
+            >
+              {saving ? (
+                'Saving…'
+              ) : (
+                <>
+                  <FaSave /> {onChange ? 'Apply' : 'Save Chain'}
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+ApprovalChainConfig.propTypes = {
+  // Required in edit mode; omitted in create/draft mode (onChange provided instead)
+  agreement: PropTypes.shape({
+    id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    approval_chain_config: PropTypes.object,
+  }),
+  users: PropTypes.array,
+  onSave: PropTypes.func,
+  onError: PropTypes.func.isRequired,
+  onSuccess: PropTypes.func.isRequired,
+  // Create/draft mode: called with the steps array instead of hitting the API
+  onChange: PropTypes.func,
+  // Auto-populate: pre-built steps driven by the parent (create mode only).
+  // Ignored once the user has interacted with any field.
+  initialSteps: PropTypes.array,
+};
+
+export default ApprovalChainConfig;

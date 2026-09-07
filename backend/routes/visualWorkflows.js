@@ -3,23 +3,60 @@ const router = express.Router();
 const pool = require('../db');
 const { systemLogger } = require('../utils/logger');
 const { executeVisualWorkflow } = require('../services/visualWorkflowExecutor');
+const { userHasAdminAccess } = require('../utils/permissionHelpers');
+
+// Project-membership subquery used by non-admin scoping
+const PROJECT_ACCESS_SUBQUERY = `(
+  SELECT pm.project_id FROM project_members pm WHERE pm.user_id = $1
+  UNION
+  SELECT pag.project_id FROM access_group_members agm
+  JOIN project_access_groups pag ON agm.group_id = pag.group_id
+  WHERE agm.user_id = $1
+)`;
 
 router.get('/', async (req, res) => {
   try {
-    const result = await pool.query(
-      `SELECT 
-        vw.id, vw.name, vw.description, vw.graph_data, 
-        vw.created_at, vw.updated_at, vw.is_active,
-        vw.project_id, vw.sub_project_id,
-        p.name as project_name,
-        sp.name as sub_project_name
-       FROM visual_workflows vw
-       LEFT JOIN projects p ON vw.project_id = p.id
-       LEFT JOIN projects sp ON vw.sub_project_id = sp.id
-       WHERE vw.created_by = $1 AND vw.is_active = true
-       ORDER BY vw.created_at DESC`,
-      [req.user.id]
-    );
+    const isAdmin = userHasAdminAccess(req.user);
+    let result;
+
+    if (isAdmin) {
+      // Admins see all active workflows across all projects
+      result = await pool.query(
+        `SELECT 
+          vw.id, vw.name, vw.description, vw.graph_data, 
+          vw.created_at, vw.updated_at, vw.is_active,
+          vw.project_id, vw.sub_project_id,
+          p.name as project_name,
+          sp.name as sub_project_name
+         FROM visual_workflows vw
+         LEFT JOIN projects p ON vw.project_id = p.id
+         LEFT JOIN projects sp ON vw.sub_project_id = sp.id
+         WHERE vw.is_active = true
+         ORDER BY vw.created_at DESC`
+      );
+    } else {
+      // Non-admins see workflows in projects they are a member of
+      // (direct project_members or via access_group_members → project_access_groups)
+      // plus any workflows they personally created (in case project_id is null)
+      result = await pool.query(
+        `SELECT 
+          vw.id, vw.name, vw.description, vw.graph_data, 
+          vw.created_at, vw.updated_at, vw.is_active,
+          vw.project_id, vw.sub_project_id,
+          p.name as project_name,
+          sp.name as sub_project_name
+         FROM visual_workflows vw
+         LEFT JOIN projects p ON vw.project_id = p.id
+         LEFT JOIN projects sp ON vw.sub_project_id = sp.id
+         WHERE vw.is_active = true
+         AND (
+           vw.created_by = $1
+           OR vw.project_id IN ${PROJECT_ACCESS_SUBQUERY}
+         )
+         ORDER BY vw.created_at DESC`,
+        [req.user.id]
+      );
+    }
 
     res.json(result.rows);
   } catch (error) {
@@ -34,18 +71,45 @@ router.get('/', async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    
-    const result = await pool.query(
-      `SELECT 
-        vw.*,
-        p.name as project_name,
-        sp.name as sub_project_name
-       FROM visual_workflows vw
-       LEFT JOIN projects p ON vw.project_id = p.id
-       LEFT JOIN projects sp ON vw.sub_project_id = sp.id
-       WHERE vw.id = $1 AND vw.created_by = $2 AND vw.is_active = true`,
-      [id, req.user.id]
-    );
+    const isAdmin = userHasAdminAccess(req.user);
+    let result;
+
+    if (isAdmin) {
+      result = await pool.query(
+        `SELECT 
+          vw.*,
+          p.name as project_name,
+          sp.name as sub_project_name
+         FROM visual_workflows vw
+         LEFT JOIN projects p ON vw.project_id = p.id
+         LEFT JOIN projects sp ON vw.sub_project_id = sp.id
+         WHERE vw.id = $1 AND vw.is_active = true`,
+        [id]
+      );
+    } else {
+      // Non-admins can open a workflow if they created it or belong to its project
+      result = await pool.query(
+        `SELECT 
+          vw.*,
+          p.name as project_name,
+          sp.name as sub_project_name
+         FROM visual_workflows vw
+         LEFT JOIN projects p ON vw.project_id = p.id
+         LEFT JOIN projects sp ON vw.sub_project_id = sp.id
+         WHERE vw.id = $1 AND vw.is_active = true
+         AND (
+           vw.created_by = $2
+           OR vw.project_id IN (
+             SELECT pm.project_id FROM project_members pm WHERE pm.user_id = $2
+             UNION
+             SELECT pag.project_id FROM access_group_members agm
+             JOIN project_access_groups pag ON agm.group_id = pag.group_id
+             WHERE agm.user_id = $2
+           )
+         )`,
+        [id, req.user.id]
+      );
+    }
 
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Visual workflow not found' });

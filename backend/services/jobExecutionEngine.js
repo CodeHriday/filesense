@@ -16,9 +16,12 @@ const { captureFileAudit, captureFileSchema } = require('./fileAuditService');
 const { profileETLOutputFile, profileETLFile } = require('./etlProfilingService');
 const { profileFileBuffer, downloadAndProfileFile } = require('./transformationProfilingService');
 const { persistGovernanceMetadata } = require('./governanceService');
+const { enforceSchemaRulesForJob } = require('./schemaRuleEnforcer');
 const { loadRDMContext } = require('./rdmContextLoader');
 const alertAggregationWorker = require('./AlertAggregationWorker');
 const visualMappingWS = require('./visualMappingWebSocket');
+const { fireJobNotification } = require('./JobNotificationService');
+const JiraService = require('./JiraService');
 const crypto = require('crypto');
 const ArchiveExtractionService = require('./archiveExtractionService');
 const ImmutableAuditLedgerService = require('./ImmutableAuditLedgerService');
@@ -696,14 +699,16 @@ async function getFixedWidthSchemaFromAgreement(pool, vendorAgreementId, filenam
     // Fallback: Use schema column if header_definition is empty/null
     // The schema column contains the column definitions with width and start_position
     if (!headerDef || (Array.isArray(headerDef) && headerDef.length === 0)) {
-      let schemaDef = matchedSchema.schema;
-      if (typeof schemaDef === 'string') {
+      let rawSchemaDef = matchedSchema.schema;
+      if (typeof rawSchemaDef === 'string') {
         try {
-          schemaDef = JSON.parse(schemaDef);
+          rawSchemaDef = JSON.parse(rawSchemaDef);
         } catch (e) {
-          schemaDef = null;
+          rawSchemaDef = null;
         }
       }
+      // Support both legacy bare array and new { columns, file_quality_rules } shape
+      let schemaDef = Array.isArray(rawSchemaDef) ? rawSchemaDef : (Array.isArray(rawSchemaDef?.columns) ? rawSchemaDef.columns : rawSchemaDef);
       // Use schema as header definition if it has column definitions with width/start_position
       if (Array.isArray(schemaDef) && schemaDef.length > 0) {
         // Check if schema contains fixed-width column definitions
@@ -1638,6 +1643,18 @@ async function executeTransformationJob(pool, mappingId, userId, options = {}) {
                 actualSchema: validationResult.actualSchema,
                 expectedSchema: validationResult.expectedSchema
               });
+
+              // Fire-and-forget Jira ticket creation for schema-drift abort (non-blocking)
+              setImmediate(() => {
+                JiraService.createIssueForAbortedJob(pool, {
+                  jobId,
+                  jobName: mapping?.mapping_name || 'Unknown',
+                  mappingName: mapping?.mapping_name,
+                  abortReason: 'schema_drift',
+                  violatedRuleNames: [],
+                  violationCount: 0
+                }).catch(() => {});
+              });
               
               return { 
                 jobId, 
@@ -1930,6 +1947,7 @@ async function executeTransformationJob(pool, mappingId, userId, options = {}) {
     let totalRowsWritten = 0;
     let totalRowsFailed = 0;
     let filesProcessedSoFar = 0;
+    let hasWarnViolations = false; // Aggregated from per-file processFile results
     
     for (const file of matchingFiles) {
       await logJobExecution(pool, jobId, 'info', `Processing file: ${file.filename}`, {
@@ -2094,6 +2112,7 @@ async function executeTransformationJob(pool, mappingId, userId, options = {}) {
         totalRowsRead += fileResult.rowsRead;
         totalRowsWritten += fileResult.rowsWritten;
         totalRowsFailed += fileResult.rowsFailed;
+        if (fileResult.hasWarnViolations) hasWarnViolations = true;
         filesProcessedSoFar++;
         
         // Update job progress immediately after each file for real-time tracking
@@ -2177,13 +2196,32 @@ async function executeTransformationJob(pool, mappingId, userId, options = {}) {
     }
     
     // Update job with final statistics
+    const finalStatus = hasWarnViolations ? 'completed_with_warnings' : 'completed';
     await updateJob(pool, jobId, {
-      status: 'completed',
+      status: finalStatus,
       files_processed: matchingFiles.length,
       rows_read: totalRowsRead,
       rows_written: totalRowsWritten,
       rows_failed: totalRowsFailed,
       end_time: new Date()
+    });
+
+    // Fire-and-forget job completion notification (non-blocking)
+    setImmediate(() => {
+      fireJobNotification(pool, {
+        userId,
+        jobId,
+        jobDbId: job?.id,
+        jobName: mapping?.mapping_name,
+        status: finalStatus,
+        metadata: {
+          filesProcessed: matchingFiles.length,
+          rowsRead: totalRowsRead,
+          rowsWritten: totalRowsWritten,
+          rowsFailed: totalRowsFailed
+        },
+        visualMappingId: mapping?.visual_mapping_id || null
+      }).catch(() => {}); // Already swallows internally; belt-and-suspenders
     });
     
     // Update transformation_executions if tracking
@@ -2267,7 +2305,7 @@ async function executeTransformationJob(pool, mappingId, userId, options = {}) {
     // Emit alert event (fire-and-forget, non-blocking)
     setImmediate(() => {
       try {
-        alertAggregationWorker.onJobCompleted(jobId, 'completed').catch(err => {
+        alertAggregationWorker.onJobCompleted(jobId, finalStatus).catch(err => {
           systemLogger.warn('Failed to emit job completion alert event', {
             jobId,
             error: err.message
@@ -2283,7 +2321,7 @@ async function executeTransformationJob(pool, mappingId, userId, options = {}) {
     
     return {
       jobId,
-      status: 'completed',
+      status: finalStatus,
       filesProcessed: matchingFiles.length,
       rowsRead: totalRowsRead,
       rowsWritten: totalRowsWritten,
@@ -2299,6 +2337,36 @@ async function executeTransformationJob(pool, mappingId, userId, options = {}) {
         error_message: error.message,
         end_time: new Date()
       });
+
+      // Fire-and-forget failure notification (non-blocking)
+      const _failMeta = error.code === 'DQ_ABORT' && error.notificationMetadata
+        ? error.notificationMetadata
+        : {};
+      setImmediate(() => {
+        fireJobNotification(pool, {
+          userId,
+          jobId: job.job_id,
+          jobDbId: job?.id,
+          jobName: mapping?.mapping_name || 'Unknown',
+          status: 'failed',
+          metadata: { errorMessage: error.message, ..._failMeta },
+          visualMappingId: mapping?.visual_mapping_id || null
+        }).catch(() => {});
+      });
+
+      // Fire-and-forget Jira ticket creation for DQ abort (non-blocking)
+      if (error.code === 'DQ_ABORT') {
+        setImmediate(() => {
+          JiraService.createIssueForAbortedJob(pool, {
+            jobId: job.job_id,
+            jobName: mapping?.mapping_name || 'Unknown',
+            mappingName: mapping?.mapping_name,
+            abortReason: 'dq_abort',
+            violatedRuleNames: error.notificationMetadata?.violatedRuleNames || [],
+            violationCount: error.notificationMetadata?.dqViolationCount || 0
+          }).catch(() => {});
+        });
+      }
       
       await logJobExecution(pool, job.job_id, 'error', 'Job execution failed', {
         error: error.message,
@@ -2583,9 +2651,11 @@ async function fetchGovernanceForMapping(pool, mapping, sourceFilename, projectI
     }
     
     // Extract PII columns from schema (same logic as Contract Validation)
-    const schemaObj = typeof matchedSchema.schema === 'string' 
+    const rawSchemaObj = typeof matchedSchema.schema === 'string' 
       ? JSON.parse(matchedSchema.schema) 
       : matchedSchema.schema;
+    // Support both legacy bare array and new { columns, file_quality_rules } shape
+    const schemaObj = Array.isArray(rawSchemaObj) ? rawSchemaObj : (Array.isArray(rawSchemaObj?.columns) ? rawSchemaObj.columns : rawSchemaObj);
     
     const piiColumns = [];
     if (Array.isArray(schemaObj) && schemaObj.length > 0) {
@@ -2639,7 +2709,12 @@ async function fetchGovernanceForMapping(pool, mapping, sourceFilename, projectI
       containsPii: matchedSchema.contains_pii || false,
       dataClassification: matchedSchema.data_classification || null,
       piiColumns: piiColumns,
-      fileTags: fileTags
+      fileTags: fileTags,
+      // Parsed schema columns — used by DQ enforcement step for all file types
+      schemaColumns: Array.isArray(schemaObj) && schemaObj.length > 0 ? schemaObj : null,
+      // Full raw schema (may be bare array or {columns, file_quality_rules} object) — preserves
+      // file_quality_rules so enforceSchemaRulesForJob can enforce them alongside per-column rules
+      schemaRaw: rawSchemaObj || null
     };
     
   } catch (error) {
@@ -2780,6 +2855,7 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
   let rowsRead = 0;
   let rowsWritten = 0;
   let rowsFailed = 0;
+  let hasWarnViolations = false; // Set to true if log_warn violations are detected
   const transformedRows = [];
   
   // Get correlation_id from job record for source/target file linking
@@ -3359,7 +3435,80 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
       rows_transformed: transformedRows.length,
       rows_failed: rowsFailed
     });
-    
+
+    // Step 3.1.0: Enforce contract schema DQ rules (if vendor agreement schema has quality_rules)
+    // Uses governance.schemaColumns — already pattern-matched to this file — so this fires for
+    // every file type (CSV, JSON, XLSX, XML, Parquet, fixed-width) when a contract schema exists.
+    // Runs against source/parsed rows to validate incoming data, not the transformed output.
+    if (mapping.vendor_agreement_id && governance && (governance.schemaColumns || governance.schemaRaw)) {
+      try {
+        // Use schemaRaw (full schema object) when available so file-level rules are not lost.
+        // Fall back to schemaColumns (bare column array) for legacy governance objects.
+        const schemaForDQ = governance.schemaRaw || governance.schemaColumns;
+        const schemaColumnList = governance.schemaColumns || [];
+        const hasColumnRules = schemaColumnList.some(
+          col => col.quality_rules && Array.isArray(col.quality_rules) && col.quality_rules.length > 0
+        );
+        const rawForDQ = governance.schemaRaw;
+        const hasFileLevelRules = rawForDQ && !Array.isArray(rawForDQ) &&
+          Array.isArray(rawForDQ.file_quality_rules) && rawForDQ.file_quality_rules.length > 0;
+        const hasQualityRules = hasColumnRules || hasFileLevelRules;
+
+        if (hasQualityRules) {
+          // Use source rows captured during parsing (available for all parser types) or
+          // fall back to transformed rows when source rows are not separately retained.
+          const sampleRows = (parseResult.sourceRows && parseResult.sourceRows.length > 0)
+            ? parseResult.sourceRows.slice(0, 100)
+            : transformedRows.slice(0, 100);
+
+          const dqResult = await enforceSchemaRulesForJob(
+            pool,
+            jobId,
+            file.file_id || null,
+            schemaForDQ,
+            sampleRows,
+            rowsRead
+          );
+
+          if (dqResult.executed) {
+            const headerLevel = dqResult.totalFailed > 0 ? 'warning' : 'info';
+            await logJobExecution(pool, jobId, headerLevel,
+              `DQ checks: ${dqResult.totalPassed} passed, ${dqResult.totalFailed} failed (${dqResult.violationCount} violation(s) on ${sampleRows.length} sample rows)`
+            );
+
+            for (const r of dqResult.ruleResults) {
+              if (r.passed) {
+                await logJobExecution(pool, jobId, 'info',
+                  `DQ PASSED — column: ${r.columnName}, rule: ${r.uiRuleType}`
+                );
+              } else {
+                await logJobExecution(pool, jobId, 'warning',
+                  `DQ FAILED — column: ${r.columnName}, rule: ${r.uiRuleType}, ` +
+                  `${r.violationCount} violation(s)` +
+                  (r.expectedValue ? ` (expected: ${r.expectedValue}, got: ${r.actualValue})` : '')
+                );
+              }
+            }
+          } else {
+            systemLogger.info('[jobExecutionEngine] Contract DQ step skipped', {
+              jobId,
+              reason: dqResult.reason
+            });
+          }
+        }
+      } catch (dqErr) {
+        // DQ enforcement is non-fatal — log a warning and continue job execution
+        await logJobExecution(pool, jobId, 'warning',
+          `Contract DQ enforcement encountered an error and was skipped: ${dqErr.message}`
+        );
+        systemLogger.error('[jobExecutionEngine] Contract DQ enforcement error', {
+          jobId,
+          error: dqErr.message,
+          stack: dqErr.stack
+        });
+      }
+    }
+
     // Step 3.1.5: Apply multi-source join enrichment if configured
     if (joinLookupTables && joinSpecs && joinSpecs.length > 0) {
       await logJobExecution(pool, jobId, 'info', `Applying multi-source join enrichment`, {
@@ -3557,20 +3706,62 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
       }
     }
 
+    // DQ quality score for the VM target file — computed from transformation quality rules and
+    // written to the files table (with the target's synthetic file_id) inside step 4, where
+    // outputFilename / outputBuffer / outputSchema are all in scope.
+    let dqQualityScore = null;
+
     // Step 3.3: Run quality validation on transformed data (if quality rules are defined)
     try {
       const qualityRulesResult = await pool.query(`
-        SELECT qr.* 
+        SELECT qr.*, tqr.error_action AS per_rule_error_action
         FROM transformation_quality_rules tqr
         INNER JOIN quality_rules qr ON tqr.quality_rule_id = qr.id
         WHERE tqr.mapping_id = $1 AND qr.enabled = true
         ORDER BY qr.id
       `, [mapping.mapping_id]);
       
-      if (qualityRulesResult.rows.length > 0 && transformedRows.length > 0) {
-        await logJobExecution(pool, jobId, 'info', `Running quality validation with ${qualityRulesResult.rows.length} rules`, {
+      // record_count and record_count_match are both valid type strings for aggregate count rules.
+      const hasRecordCountRules = qualityRulesResult.rows.some(
+        r => r.rule_type === 'record_count' || r.rule_type === 'record_count_match'
+      );
+
+      // Attribute-level DQ rules (validity, completeness, etc.) carry column_name values that
+      // match the SOURCE file's column names, not the transformed-output column names.
+      // When transformedRows is empty (e.g. the target format drops/renames every column) or
+      // simply when source rows are available, validate against source rows so that rules
+      // like date_format, pattern, and completeness can inspect the original field values.
+      const dqSourceRows = parseResult.sourceRows && parseResult.sourceRows.length > 0
+        ? parseResult.sourceRows
+        : [];
+      // Attribute-level rules (date_format, validity, completeness) reference SOURCE column
+      // names (via dqRuleAssignments in the VM expression node). Always prefer source rows so
+      // those rules can look up column values by their original header names. Aggregate rules
+      // (record_count) use metadata.actual_row_count and don't iterate rows at all, so this
+      // choice does not affect them. Fall back to transformedRows only when source rows are
+      // unavailable (e.g. non-VM mappings that don't capture parseResult.sourceRows).
+      const rowsForDQ = dqSourceRows.length > 0 ? dqSourceRows : transformedRows;
+
+      const shouldRunValidation = qualityRulesResult.rows.length > 0 &&
+        (rowsForDQ.length > 0 || hasRecordCountRules);
+
+      // Always emit a diagnostic line so operators can confirm rules were (or were not) linked.
+      await logJobExecution(pool, jobId, 'info',
+        qualityRulesResult.rows.length > 0
+          ? `[DQ] Found ${qualityRulesResult.rows.length} quality rule(s) for mapping ${mapping.mapping_id}`
+          : `[DQ] No quality rules linked to this mapping — skipping DQ validation`,
+        { mapping_id: mapping.mapping_id, rule_count: qualityRulesResult.rows.length },
+        visualExecutionId
+      );
+
+      if (shouldRunValidation) {
+        const dqDatasetLabel = dqSourceRows.length > 0 ? 'source rows' : 'transformed rows (source rows unavailable)';
+        await logJobExecution(pool, jobId, 'info', `Running quality validation with ${qualityRulesResult.rows.length} rules against ${dqDatasetLabel}`, {
           rule_count: qualityRulesResult.rows.length,
-          row_count: transformedRows.length
+          row_count: rowsForDQ.length,
+          transformed_row_count: transformedRows.length,
+          source_row_count: dqSourceRows.length,
+          dataset_used: dqSourceRows.length > 0 ? 'source' : 'transformed'
         });
         
         const QualityValidationEngine = require('./qualityValidationEngine');
@@ -3581,12 +3772,42 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
           file_id: file.file_id || null,
           file_name: file.filename,
           mapping_id: mapping.mapping_id,
-          upload_date: new Date()
+          upload_date: new Date(),
+          // record_count rules validate the SOURCE file's row count, not the transformed output.
+          // rowsRead reflects how many rows were parsed from the incoming file; fall back to
+          // rowsForDQ length only when the source count is unavailable.
+          actual_row_count: (rowsRead > 0 ? rowsRead : null) ?? rowsForDQ.length,
+          transformed_row_count: transformedRows.length
         };
         
+        // Apply per-mapping column overrides: VM expression nodes assign quality rules
+        // to specific columns (e.g. date_format on "enrollment_date") but the global
+        // quality_rules row may have column_name = null. Merge the override here so
+        // the validation engine knows which column to check.
+        const qualityRuleColumnOverrides =
+          (typeof mapping.quality_rule_columns === 'object' && mapping.quality_rule_columns !== null)
+            ? mapping.quality_rule_columns
+            : {};
+        const rulesForValidation = qualityRulesResult.rows.map(rule => {
+          if (!rule.column_name && qualityRuleColumnOverrides[rule.id]) {
+            return { ...rule, column_name: qualityRuleColumnOverrides[rule.id] };
+          }
+          return rule;
+        });
+
+        // Debug: log what the DQ step will actually validate (remove once confirmed working)
+        systemLogger.info('[DQ-DEBUG] Rules after column override', {
+          qualityRuleColumnOverrides,
+          rules: rulesForValidation.map(r => ({ id: r.id, name: r.rule_name, type: r.rule_type, column_name: r.column_name, rule_config: r.rule_config })),
+          sourceRowKeys: dqSourceRows[0] ? Object.keys(dqSourceRows[0]) : [],
+          transformedRowKeys: transformedRows[0] ? Object.keys(transformedRows[0]) : [],
+          rowsForDQKeys: rowsForDQ[0] ? Object.keys(rowsForDQ[0]) : [],
+          rowCount: rowsForDQ.length
+        });
+
         const validationResult = await qualityEngine.validateData(
-          qualityRulesResult.rows,
-          transformedRows,
+          rulesForValidation,
+          rowsForDQ,
           validationMetadata
         );
         
@@ -3596,50 +3817,135 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
           error_count: validationResult.summary.error_count,
           warning_count: validationResult.summary.warning_count
         });
-        
+
+        // Compute quality_score for the VM target file from the DQ rule pass/fail rate.
+        // Stored in dqQualityScore and written to the files table inside step 4 once
+        // outputFilename / outputBuffer / outputSchema are in scope.
+        {
+          const totalRules = qualityRulesResult.rows.length;
+          if (totalRules > 0) {
+            const violatedRuleIds = new Set(validationResult.violations.map(v => v.rule_id));
+            const passedRules = totalRules - violatedRuleIds.size;
+            dqQualityScore = Math.round((passedRules / totalRules) * 1000) / 10; // 0.0–100.0
+          }
+        }
+
         // Persist violations to database
         if (validationResult.violations.length > 0) {
+          // Embed source metadata into violation_details so the violations review page
+          // can display filename and sub-project even when join paths are unavailable
+          // (e.g. temp mapping deleted, synthetic file_id not in files table).
+          for (const v of validationResult.violations) {
+            if (!v.violation_details || typeof v.violation_details !== 'object') {
+              v.violation_details = {};
+            }
+            v.violation_details._file_name = file.filename || null;
+            if (mapping.sub_project_id) v.violation_details._sub_project_id = mapping.sub_project_id;
+            if (mapping.project_id) v.violation_details._project_id = mapping.project_id;
+          }
+
           const violationsPersisted = await persistViolations(pool, jobId, file.file_id, validationResult.violations);
           
           await logJobExecution(pool, jobId, 'info', `Quality violations persisted`, {
             violations_count: violationsPersisted
           });
           
-          // Handle violations based on violation_handling policy
-          const violationHandling = mapping.violation_handling || 'log_continue';
-          
-          if (violationHandling === 'log_abort') {
-            const abortMessage = `Quality violations detected (${validationResult.summary.violations_found} total). Aborting job per violation_handling policy.`;
-            
+          // Build a per-rule action map and name map from the loaded quality rules.
+          // Each row has per_rule_error_action (from tqr.error_action) with a
+          // fallback to the global mapping.violation_handling setting.
+          const globalViolationHandling = mapping.violation_handling || 'log_continue';
+          const ruleActionMap = {};
+          const ruleNameMap = {};
+          for (const row of qualityRulesResult.rows) {
+            ruleActionMap[row.id] = row.per_rule_error_action || globalViolationHandling;
+            ruleNameMap[row.id] = row.rule_name || `Rule #${row.id}`;
+          }
+
+          // Determine the most severe action required across all fired violations.
+          // Priority: log_abort > log_warn > log_continue
+          const actionRank = { log_abort: 2, log_warn: 1, log_continue: 0 };
+          let worstAction = 'log_continue';
+          const abortRuleIds = [];
+          const warnRuleIds = [];
+          // Track unique rule IDs to avoid duplicates in the name lists
+          const seenAbortIds = new Set();
+          const seenWarnIds = new Set();
+
+          for (const violation of validationResult.violations) {
+            const ruleId = violation.rule_id;
+            const action = ruleActionMap[ruleId] || globalViolationHandling;
+            if ((actionRank[action] || 0) > (actionRank[worstAction] || 0)) {
+              worstAction = action;
+            }
+            if (action === 'log_abort' && !seenAbortIds.has(ruleId)) {
+              abortRuleIds.push(ruleId);
+              seenAbortIds.add(ruleId);
+            } else if (action === 'log_warn' && !seenWarnIds.has(ruleId)) {
+              warnRuleIds.push(ruleId);
+              seenWarnIds.add(ruleId);
+            }
+          }
+
+          // Build human-readable rule name lists for log messages
+          const abortRuleNames = abortRuleIds.map(id => ruleNameMap[id] || `Rule #${id}`);
+          const warnRuleNames = warnRuleIds.map(id => ruleNameMap[id] || `Rule #${id}`);
+
+          if (worstAction === 'log_abort') {
+            const ruleNamesStr = abortRuleNames.length > 0
+              ? `: ${abortRuleNames.map(n => `"${n}"`).join(', ')}`
+              : '';
+            const abortMessage = `Quality violations detected (${validationResult.summary.violations_found} total). Aborting due to Abort-action rule(s)${ruleNamesStr}.`;
+
             await updateJob(pool, jobId, {
               status: 'failed',
               error_message: abortMessage,
               end_time: new Date()
             });
-            
+
             await logJobExecution(pool, jobId, 'error', abortMessage, {
               violations_summary: validationResult.summary,
-              violation_handling: violationHandling
-            });
-            
-            throw new Error(abortMessage);
-          } else {
-            // log_continue - just log and proceed
-            await logJobExecution(pool, jobId, 'warn', `Quality violations detected but continuing per violation_handling policy`, {
+              abort_rule_ids: abortRuleIds,
+              abort_rule_names: abortRuleNames,
+              worst_action: worstAction
+            }, visualExecutionId);
+
+            const abortError = new Error(abortMessage);
+            abortError.code = 'DQ_ABORT';
+            // Carry DQ metadata so the outer catch can pass it to the notification service
+            abortError.notificationMetadata = {
+              dqViolationCount: validationResult.summary.violations_found,
+              violatedRuleNames: abortRuleNames
+            };
+            throw abortError;
+          } else if (worstAction === 'log_warn') {
+            // Warn: violations are persisted and surfaced as warnings; job completes with warnings status
+            hasWarnViolations = true;
+            const ruleNamesStr = warnRuleNames.length > 0
+              ? `: ${warnRuleNames.map(n => `"${n}"`).join(', ')}`
+              : '';
+            await logJobExecution(pool, jobId, 'warn', `Quality violations detected — job completed with warnings (${validationResult.summary.violations_found} violation(s)) from Warn-action rule(s)${ruleNamesStr}.`, {
               violations_summary: validationResult.summary,
-              violation_handling: violationHandling
-            });
+              warn_rule_ids: warnRuleIds,
+              warn_rule_names: warnRuleNames,
+              worst_action: worstAction
+            }, visualExecutionId);
+          } else {
+            // log_continue — log at info level and proceed silently
+            await logJobExecution(pool, jobId, 'info', `Quality violations detected but continuing per per-rule error action`, {
+              violations_summary: validationResult.summary,
+              worst_action: worstAction
+            }, visualExecutionId);
           }
         }
-      } else if (qualityRulesResult.rows.length > 0 && transformedRows.length === 0) {
-        await logJobExecution(pool, jobId, 'info', `Skipping quality validation - no data to validate`);
+      } else if (qualityRulesResult.rows.length > 0) {
+        await logJobExecution(pool, jobId, 'info', `Skipping quality validation - no data to validate and no record_count rules`);
       }
     } catch (qualityValidationError) {
       await logJobExecution(pool, jobId, 'error', `Quality validation failed: ${qualityValidationError.message}`, {
         error: qualityValidationError.stack
-      });
-      // Re-throw if this was an abort due to violations
-      if (qualityValidationError.message.includes('Aborting job per violation_handling policy')) {
+      }, visualExecutionId);
+      // Re-throw if this was an abort due to DQ violations (identified by error code, not message text)
+      if (qualityValidationError.code === 'DQ_ABORT') {
         throw qualityValidationError;
       }
       // Otherwise, log error but continue processing
@@ -3816,6 +4122,74 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
             }))
           : [];
         
+        // Write quality_score from the DQ rule run (step 3.3) to the files table for
+        // the VM target synthetic file_id.  This must happen here (after outputBuffer /
+        // outputFilename / outputSchema are defined) so the INSERT has all required fields.
+        // profileFileBuffer (step 6) may later overwrite quality_score with a profiling-based
+        // value; the DQ score takes effect immediately and persists if profiling is unavailable.
+        const targetFileIdForDQ = `transformed_${jobId}_${file.filename}`;
+        if (dqQualityScore !== null) {
+          try {
+            await pool.query(`
+              INSERT INTO files (
+                file_id, filename, file_type, file_size, row_count, column_count,
+                file_role, correlation_id, project_id, processing_step, quality_score,
+                created_at, updated_at
+              ) VALUES ($1, $2, $3, $4, $5, $6, 'target', $7, $8, 'complete', $9, NOW(), NOW())
+              ON CONFLICT (file_id) DO UPDATE SET
+                quality_score = EXCLUDED.quality_score,
+                updated_at = NOW()
+            `, [
+              targetFileIdForDQ,
+              outputFilename,
+              outputFormat,
+              outputBuffer.length,
+              transformedRows.length,
+              outputSchema.length,
+              correlationId,
+              mapping.project_id || null,
+              dqQualityScore
+            ]);
+            await logJobExecution(pool, jobId, 'info',
+              `VM target quality_score persisted from DQ rule run (${dqQualityScore}%)`, {
+              fileId: targetFileIdForDQ,
+              dqQualityScore
+            });
+          } catch (qsErr) {
+            await logJobExecution(pool, jobId, 'warn',
+              `Failed to persist VM target DQ quality_score: ${qsErr.message}`, {
+              error: qsErr.stack
+            });
+          }
+        } else {
+          // No DQ rules ran — ensure a minimal files row still exists so that profiling
+          // and any subsequent DQ rule run can write quality_score against this file_id.
+          try {
+            await pool.query(`
+              INSERT INTO files (
+                file_id, filename, file_type, file_size, row_count, column_count,
+                file_role, correlation_id, project_id, processing_step,
+                created_at, updated_at
+              ) VALUES ($1, $2, $3, $4, $5, $6, 'target', $7, $8, 'complete', NOW(), NOW())
+              ON CONFLICT (file_id) DO NOTHING
+            `, [
+              targetFileIdForDQ,
+              outputFilename,
+              outputFormat,
+              outputBuffer.length,
+              transformedRows.length,
+              outputSchema.length,
+              correlationId,
+              mapping.project_id || null
+            ]);
+          } catch (minimalInsertErr) {
+            await logJobExecution(pool, jobId, 'warn',
+              `Failed to upsert minimal files row for VM target: ${minimalInsertErr.message}`, {
+              error: minimalInsertErr.stack
+            });
+          }
+        }
+
         // Capture schema for output file
         const schemaResult = await captureFileSchema(pool, {
           fileId: `transformed_${jobId}_${file.filename}`,
@@ -4359,6 +4733,36 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
               `TARGET file profiling failed: ${targetProfilingResult.error}`, {
               fileRole: 'target'
             });
+            // Profiling failed — ensure a minimal files row exists for this synthetic file_id
+            // so that subsequent DQ rule runs can write quality_score back to it and the
+            // catalog COALESCE fallback (f.quality_score) has a row to join against.
+            try {
+              const targetFileId = `transformed_${jobId}_${file.filename}`;
+              await pool.query(`
+                INSERT INTO files (file_id, filename, file_type, file_size, row_count, column_count,
+                  file_role, correlation_id, project_id, processing_step, created_at, updated_at)
+                VALUES ($1, $2, $3, $4, $5, $6, 'target', $7, $8, 'complete', NOW(), NOW())
+                ON CONFLICT (file_id) DO NOTHING
+              `, [
+                targetFileId,
+                outputFilename,
+                outputFormat,
+                outputBuffer.length,
+                rowsWritten,
+                outputSchema.length,
+                correlationId,
+                mapping.project_id || null
+              ]);
+              await logJobExecution(pool, jobId, 'info',
+                'Minimal files row upserted for VM target file (profiling failed)', {
+                fileId: targetFileId
+              });
+            } catch (fallbackErr) {
+              await logJobExecution(pool, jobId, 'warn',
+                `Failed to upsert minimal files row for VM target: ${fallbackErr.message}`, {
+                error: fallbackErr.stack
+              });
+            }
           }
         } catch (profilingError) {
           // Log but don't fail the job if profiling fails
@@ -4366,6 +4770,35 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
             `TARGET file profiling failed: ${profilingError.message}`, {
             error: profilingError.stack
           });
+          // Ensure a minimal files row exists so DQ rule runs can store quality_score
+          // for this VM target file even when the Python profiler is unavailable.
+          try {
+            const targetFileId = `transformed_${jobId}_${file.filename}`;
+            await pool.query(`
+              INSERT INTO files (file_id, filename, file_type, file_size, row_count, column_count,
+                file_role, correlation_id, project_id, processing_step, created_at, updated_at)
+              VALUES ($1, $2, $3, $4, $5, $6, 'target', $7, $8, 'complete', NOW(), NOW())
+              ON CONFLICT (file_id) DO NOTHING
+            `, [
+              targetFileId,
+              outputFilename,
+              outputFormat,
+              outputBuffer.length,
+              rowsWritten,
+              outputSchema.length,
+              correlationId,
+              mapping.project_id || null
+            ]);
+            await logJobExecution(pool, jobId, 'info',
+              'Minimal files row upserted for VM target file (profiling exception)', {
+              fileId: targetFileId
+            });
+          } catch (fallbackErr) {
+            await logJobExecution(pool, jobId, 'warn',
+              `Failed to upsert minimal files row for VM target: ${fallbackErr.message}`, {
+              error: fallbackErr.stack
+            });
+          }
         }
       } catch (auditError) {
         // Log but don't fail the job if audit fails
@@ -4379,7 +4812,8 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
     return {
       rowsRead,
       rowsWritten,
-      rowsFailed
+      rowsFailed,
+      hasWarnViolations
     };
     
   } catch (error) {
@@ -5433,6 +5867,20 @@ async function cancelJob(pool, jobId) {
     await logJobExecution(pool, jobId, 'info', 'Job cancelled by user');
     
     systemLogger.info('Job cancelled', { jobId, previousStatus: currentStatus });
+
+    // Fire-and-forget cancellation notification (non-blocking)
+    const _cancelledJob = jobResult.rows[0];
+    setImmediate(() => {
+      fireJobNotification(pool, {
+        userId: _cancelledJob.user_id,
+        jobId: _cancelledJob.job_id,
+        jobDbId: _cancelledJob.id,
+        jobName: _cancelledJob.mapping_name || jobId,
+        status: 'cancelled',
+        metadata: {},
+        visualMappingId: null
+      }).catch(() => {});
+    });
     
     return result;
     

@@ -487,7 +487,7 @@
 
 .column-table-header {
   display: grid;
-  grid-template-columns: 2fr 1fr 1.5fr 1fr 2fr 0.5fr;
+  grid-template-columns: 2fr 1fr 1.5fr 1fr 2fr 2fr 0.5fr;
   gap: 0.5rem;
   padding: 0.5rem;
   background: #e5e7eb;
@@ -500,9 +500,9 @@
 
 .column-table-row {
   display: grid;
-  grid-template-columns: 2fr 1fr 1.5fr 1fr 2fr 0.5fr;
+  grid-template-columns: 2fr 1fr 1.5fr 1fr 2fr 2fr 0.5fr;
   gap: 0.5rem;
-  align-items: center;
+  align-items: start;
   padding: 0.5rem;
   background: white;
   border: 1px solid #e5e7eb;
@@ -604,12 +604,81 @@
   font-size: 0.875rem;
 }
 
+/* Quality rule tags per column */
+.column-rules-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-top: 2px;
+}
+
+.column-rules-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  min-height: 0;
+}
+
+.column-rule-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 0.68rem;
+  font-weight: 500;
+  background: #ede9fe;
+  color: #5b21b6;
+  padding: 2px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.column-rule-tag-remove {
+  background: none;
+  border: none;
+  color: #7c3aed;
+  cursor: pointer;
+  font-size: 0.75rem;
+  padding: 0;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+}
+
+.column-rule-tag-remove:hover {
+  color: #dc2626;
+}
+
+.column-rule-add-select {
+  font-size: 0.72rem;
+  padding: 3px 4px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  background: white;
+  cursor: pointer;
+  color: #6b7280;
+  width: 100%;
+}
+
+.column-rule-add-select:focus {
+  outline: none;
+  border-color: #7c3aed;
+  box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.1);
+}
+
 /* Responsive adjustments for column governance */
+@media (max-width: 1400px) {
+  .column-table-header,
+  .column-table-row {
+    grid-template-columns: 1.5fr 0.8fr 1.2fr 0.8fr 1.5fr 1.5fr 0.4fr;
+    font-size: 0.7rem;
+  }
+}
+
 @media (max-width: 1200px) {
   .column-table-header,
   .column-table-row {
-    grid-template-columns: 1.5fr 0.8fr 1.2fr 0.8fr 1.5fr 0.4fr;
-    font-size: 0.7rem;
+    grid-template-columns: 1.2fr 0.7fr 1fr 0.7fr 1.2fr 1.2fr 0.4fr;
+    font-size: 0.68rem;
   }
   
   .column-input,

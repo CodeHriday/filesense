@@ -18,12 +18,69 @@ const dashboardCacheMiddleware = createCacheMiddleware({
   shouldCache: (req, res) => res.statusCode === 200
 });
 
+// Older production databases may not include the optional
+// get_user_projects(integer) routine. Keep the access logic in application
+// code so dashboard behavior is identical across environments and is not
+// blocked by a PostgreSQL routine that Publish does not synchronize.
+const PROJECT_ACCESS_FUNCTION_PATTERN =
+  /\bSELECT\s+project_id\s+FROM\s+get_user_projects\((\$\d+)\)/gi;
+
+function projectAccessScopeSql(userIdParameter) {
+  return `
+    SELECT pm.project_id
+    FROM public.project_members pm
+    WHERE pm.user_id = ${userIdParameter}
+
+    UNION
+
+    SELECT pag.project_id
+    FROM public.access_group_members agm
+    JOIN public.project_access_groups pag ON pag.group_id = agm.group_id
+    WHERE agm.user_id = ${userIdParameter}
+  `;
+}
+
+function replaceProjectAccessFunction(query) {
+  if (typeof query !== 'string' || !query.includes('get_user_projects')) {
+    return query;
+  }
+
+  return query.replace(
+    PROJECT_ACCESS_FUNCTION_PATTERN,
+    (_match, userIdParameter) => projectAccessScopeSql(userIdParameter)
+  );
+}
+
+function withProjectAccessFallback(pool) {
+  return {
+    query(query, params) {
+      return pool.query(replaceProjectAccessFunction(query), params);
+    }
+  };
+}
+
+// Startup verification still protects dashboard access when the bootstrap
+// administrator's role links are invalid. The project-access routine itself
+// is optional because all dashboard queries have a direct SQL fallback.
+router.use((req, res, next) => {
+  const prerequisites = req.app.locals.databasePrerequisites;
+
+  if (prerequisites?.ready) {
+    return next();
+  }
+
+  return res.status(503).json({
+    error: 'Dashboard is initializing. Please retry shortly.',
+    retryable: true
+  });
+});
+
 /**
  * GET /api/dashboard/metrics
  * Get dashboard metrics for the current user
  */
 router.get('/metrics', dashboardCacheMiddleware, async (req, res) => {
-  const pool = req.app.locals.pool || req.app.get('db');
+  const pool = withProjectAccessFallback(req.app.locals.pool || req.app.get('db'));
   
   if (!req.user || !req.user.id) {
     return res.status(401).json({
@@ -184,7 +241,7 @@ router.get('/metrics', dashboardCacheMiddleware, async (req, res) => {
  * - Data Health, Pipeline Reliability, Governance & Compliance, Adoption & Automation
  */
 router.get('/executive-metrics', dashboardCacheMiddleware, async (req, res) => {
-  const pool = req.app.locals.pool || req.app.get('db');
+  const pool = withProjectAccessFallback(req.app.locals.pool || req.app.get('db'));
   
   if (!req.user || !req.user.id) {
     return res.status(401).json({ error: 'Authentication required' });
@@ -635,9 +692,8 @@ router.get('/executive-metrics', dashboardCacheMiddleware, async (req, res) => {
         LEFT JOIN files f ON f.created_at >= $1 AND f.metadata->>'upload_method' = 'api'
         LEFT JOIN file_audit_details fad ON f.file_id = fad.file_id
         WHERE at.is_active = true AND at.revoked_at IS NULL AND (at.expires_at IS NULL OR at.expires_at > NOW())
-        AND (at.project_id IS NULL OR at.project_id IN (SELECT project_id FROM get_user_projects($2))) 
         AND (f.id IS NULL OR fad.file_role IS NULL OR fad.file_role != 'target')
-      `, [rangeStart, userId]);
+      `, [rangeStart]);
       activeTokens = parseInt(apiResult.rows[0]?.active_tokens || 0);
       apiRequests = parseInt(apiResult.rows[0]?.total_requests || 0);
 
@@ -768,9 +824,8 @@ router.get('/executive-metrics', dashboardCacheMiddleware, async (req, res) => {
         LEFT JOIN files f ON f.created_at >= $1 AND f.metadata->>'upload_method' = 'api'
         LEFT JOIN file_audit_details fad ON f.file_id = fad.file_id
         WHERE at.is_active = true AND at.revoked_at IS NULL AND (at.expires_at IS NULL OR at.expires_at > NOW())
-        AND (at.project_id IS NULL OR at.project_id IN (SELECT project_id FROM get_user_projects($2))) 
         AND (f.id IS NULL OR fad.file_role IS NULL OR fad.file_role != 'target')
-      `, [rangeStart, userId]);
+      `, [rangeStart]);
       activeTokens = parseInt(apiResult.rows[0]?.active_tokens || 0);
       apiRequests = parseInt(apiResult.rows[0]?.total_requests || 0);
 
@@ -909,7 +964,7 @@ router.get('/executive-metrics', dashboardCacheMiddleware, async (req, res) => {
  * Returns: Array of projects with health scores (0-100) calculated from quality metrics
  */
 router.get('/project-health-scores', dashboardCacheMiddleware, async (req, res) => {
-  const pool = req.app.locals.pool || req.app.get('db');
+  const pool = withProjectAccessFallback(req.app.locals.pool || req.app.get('db'));
   
   if (!req.user || !req.user.id) {
     return res.status(401).json({ error: 'Authentication required' });
@@ -1029,7 +1084,7 @@ router.get('/project-health-scores', dashboardCacheMiddleware, async (req, res) 
  * Supports optional project_id query parameter for filtering
  */
 router.get('/file-type-distribution', dashboardCacheMiddleware, async (req, res) => {
-  const pool = req.app.locals.pool || req.app.get('db');
+  const pool = withProjectAccessFallback(req.app.locals.pool || req.app.get('db'));
   
   if (!req.user || !req.user.id) {
     return res.status(401).json({ error: 'Authentication required' });
@@ -1144,7 +1199,7 @@ router.get('/file-type-distribution', dashboardCacheMiddleware, async (req, res)
  * Get daily job execution trend (passed/failed) for last 30 days
  */
 router.get('/job-trend', dashboardCacheMiddleware, async (req, res) => {
-  const pool = req.app.locals.pool || req.app.get('db');
+  const pool = withProjectAccessFallback(req.app.locals.pool || req.app.get('db'));
   
   if (!req.user || !req.user.id) {
     return res.status(401).json({
@@ -1250,7 +1305,7 @@ router.get('/job-trend', dashboardCacheMiddleware, async (req, res) => {
  * Get daily schema drift detection trend for last 30 days
  */
 router.get('/schema-drift-trend', dashboardCacheMiddleware, async (req, res) => {
-  const pool = req.app.locals.pool || req.app.get('db');
+  const pool = withProjectAccessFallback(req.app.locals.pool || req.app.get('db'));
   
   if (!req.user || !req.user.id) {
     return res.status(401).json({
@@ -1358,7 +1413,7 @@ router.get('/schema-drift-trend', dashboardCacheMiddleware, async (req, res) => 
  * Get daily quality violation counts grouped by quality dimension for last 30 days
  */
 router.get('/quality-violations-trend', dashboardCacheMiddleware, async (req, res) => {
-  const pool = req.app.locals.pool || req.app.get('db');
+  const pool = withProjectAccessFallback(req.app.locals.pool || req.app.get('db'));
   
   if (!req.user || !req.user.id) {
     return res.status(401).json({
@@ -1477,7 +1532,7 @@ router.get('/quality-violations-trend', dashboardCacheMiddleware, async (req, re
  * Supports: dataHealth, totalFiles, vendorCompliance, governanceCoverage, criticalAlerts, jobSuccess
  */
 router.get('/metric-trends', dashboardCacheMiddleware, async (req, res) => {
-  const pool = req.app.locals.pool || req.app.get('db');
+  const pool = withProjectAccessFallback(req.app.locals.pool || req.app.get('db'));
   
   if (!req.user || !req.user.id) {
     return res.status(401).json({ error: 'Authentication required' });

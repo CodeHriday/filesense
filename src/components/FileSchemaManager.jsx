@@ -51,11 +51,18 @@ function FileSchemaManager({ agreementId }) {
     }
   };
 
-  // Parse schema JSON to extract column names
+  // Parse schema JSON to extract column names.
+  // Handles both the array format [{name, data_type}] used by contract schemas
+  // and the legacy {fields: [{name}]} object format.
   const parseSchemaColumns = (schemaText) => {
-    if (!schemaText.trim()) return [];
+    if (!schemaText || !schemaText.trim()) return [];
     try {
       const parsed = JSON.parse(schemaText);
+      // Array format: [{name: 'col', ...}] or [{column_name: 'col', ...}]
+      if (Array.isArray(parsed)) {
+        return parsed.map(f => f.name || f.column_name).filter(Boolean);
+      }
+      // Legacy object format: {fields: [{name: 'col'}]}
       if (parsed.fields && Array.isArray(parsed.fields)) {
         return parsed.fields.map(f => f.name).filter(Boolean);
       }
@@ -65,11 +72,41 @@ function FileSchemaManager({ agreementId }) {
     }
   };
 
+  const SCHEMA_RULE_TYPES = [
+    { value: 'null_check', label: 'Null Check' },
+    { value: 'duplicate_check', label: 'Duplicate' },
+    { value: 'email_validity', label: 'Email' },
+    { value: 'phone_validity', label: 'Phone' },
+    { value: 'column_completeness', label: 'Completeness' },
+    { value: 'date_format', label: 'Date Format' },
+    { value: 'timestamp_format', label: 'Timestamp' },
+    { value: 'uniqueness', label: 'Uniqueness' },
+    { value: 'isna_check', label: 'N/A Check' },
+    { value: 'numeric_only_string', label: 'Numeric Only' },
+    { value: 'special_character_presence', label: 'Special Chars' }
+  ];
+  // Note: length_check and range_check require column-specific bounds that cannot
+  // yet be configured in this UI.  They remain in the enforcement engine and can
+  // be present in schema JSON saved via the Data Profile builder, but are not
+  // offered as selectable options here to prevent false violations from generic defaults.
+
+  // Toggle a quality rule on/off for a column
+  const toggleColumnRule = (colIdx, ruleValue) => {
+    const updated = [...columnList];
+    const col = { ...updated[colIdx] };
+    const current = col.quality_rules || [];
+    col.quality_rules = current.includes(ruleValue)
+      ? current.filter(r => r !== ruleValue)
+      : [...current, ruleValue];
+    updated[colIdx] = col;
+    setColumnList(updated);
+  };
+
   // Sync column list when schema changes
   useEffect(() => {
     const schemaColumns = parseSchemaColumns(formData.schema);
     const existingColumns = columnList.map(c => c.name);
-    
+
     // Add new schema columns not in list
     const newColumns = schemaColumns
       .filter(name => !existingColumns.includes(name))
@@ -78,9 +115,10 @@ function FileSchemaManager({ agreementId }) {
         contains_pii: false,
         pii_type: '',
         data_type: '',
-        description: ''
+        description: '',
+        quality_rules: []
       }));
-    
+
     if (newColumns.length > 0) {
       setColumnList([...columnList, ...newColumns]);
     }
@@ -95,7 +133,8 @@ function FileSchemaManager({ agreementId }) {
           contains_pii: col.contains_pii,
           pii_type: col.pii_type || null,
           data_type: col.data_type || null,
-          description: col.description || null
+          description: col.description || null,
+          quality_rules: col.quality_rules || []
         };
       }
     });
@@ -109,8 +148,31 @@ function FileSchemaManager({ agreementId }) {
       contains_pii: false,
       pii_type: '',
       data_type: '',
-      description: ''
+      description: '',
+      quality_rules: []
     }]);
+  };
+
+  // Build schema JSON array with quality_rules injected from columnList
+  const buildSchemaWithRules = (schemaText) => {
+    if (!schemaText || !schemaText.trim()) return null;
+    try {
+      const parsed = JSON.parse(schemaText);
+      if (!Array.isArray(parsed)) return parsed;
+      return parsed.map(col => {
+        const colName = col.name || col.column_name;
+        const colData = columnList.find(c => c.name === colName);
+        if (colData && colData.quality_rules && colData.quality_rules.length > 0) {
+          return { ...col, quality_rules: colData.quality_rules };
+        }
+        // Strip stale quality_rules if none selected
+        // eslint-disable-next-line no-unused-vars
+        const { quality_rules: _qr, ...rest } = col;
+        return rest;
+      });
+    } catch (e) {
+      return null;
+    }
   };
 
   // Remove a column from the list
@@ -139,9 +201,10 @@ function FileSchemaManager({ agreementId }) {
 
     try {
       setSubmitting(true);
+      const builtSchema = buildSchemaWithRules(formData.schema);
       const payload = {
         ...formData,
-        schema: formData.schema ? JSON.parse(formData.schema) : null
+        schema: builtSchema !== null ? builtSchema : (formData.schema ? JSON.parse(formData.schema) : null)
       };
       await axios.post(`/api/vendor-agreements/${agreementId}/file-schemas`, payload);
       setShowCreateForm(false);
@@ -175,9 +238,10 @@ function FileSchemaManager({ agreementId }) {
 
     try {
       setSubmitting(true);
+      const builtSchema = buildSchemaWithRules(formData.schema);
       const payload = {
         ...formData,
-        schema: formData.schema ? JSON.parse(formData.schema) : null
+        schema: builtSchema !== null ? builtSchema : (formData.schema ? JSON.parse(formData.schema) : null)
       };
       await axios.put(`/api/vendor-agreements/${agreementId}/file-schemas/${schemaId}`, payload);
       setEditingId(null);
@@ -221,18 +285,48 @@ function FileSchemaManager({ agreementId }) {
       is_active: schema.is_active !== false,
       column_metadata: schema.column_metadata || {}
     });
-    
-    // Load column metadata into editable list
+
+    // Extract quality_rules from schema JSON (set by schema builder / previous save)
+    const schemaJson = (() => {
+      try {
+        const raw = schema.schema;
+        if (!raw) return [];
+        return Array.isArray(raw) ? raw : (typeof raw === 'string' ? JSON.parse(raw) : []);
+      } catch (e) { return []; }
+    })();
+    const schemaQualityRules = {};
+    schemaJson.forEach(col => {
+      const colName = col.name || col.column_name;
+      if (colName && col.quality_rules) schemaQualityRules[colName] = col.quality_rules;
+    });
+
+    // Load column list by merging schema-array columns with column_metadata.
+    // The schema array is the source of truth for which columns exist; metadata
+    // supplements with PII flags, descriptions, and quality_rules.
     const metadata = schema.column_metadata || {};
-    const columns = Object.keys(metadata).map(name => ({
-      name,
-      contains_pii: metadata[name].contains_pii || false,
-      pii_type: metadata[name].pii_type || '',
-      data_type: metadata[name].data_type || '',
-      description: metadata[name].description || ''
-    }));
+
+    // Collect all column names from the schema array first (preserves order)
+    const schemaColNames = schemaJson.map(col => col.name || col.column_name).filter(Boolean);
+
+    // Then add any names present only in metadata (legacy schemas)
+    const metaOnlyNames = Object.keys(metadata).filter(n => !schemaColNames.includes(n));
+    const allColNames = [...schemaColNames, ...metaOnlyNames];
+
+    const columns = allColNames.map(name => {
+      const schemaCol = schemaJson.find(c => (c.name || c.column_name) === name) || {};
+      const meta = metadata[name] || {};
+      return {
+        name,
+        contains_pii: meta.contains_pii || schemaCol.contains_pii || false,
+        pii_type: meta.pii_type || schemaCol.pii_type || '',
+        data_type: meta.data_type || schemaCol.data_type || schemaCol.type || '',
+        description: meta.description || schemaCol.description || '',
+        // quality_rules: prefer schema JSON (most recently saved) over metadata fallback
+        quality_rules: schemaQualityRules[name] || meta.quality_rules || []
+      };
+    });
     setColumnList(columns);
-    
+
     setShowCreateForm(false);
   };
 
@@ -360,6 +454,7 @@ function FileSchemaManager({ agreementId }) {
                         <span>PII Type</span>
                         <span>Data Type</span>
                         <span>Description</span>
+                        <span>Quality Rules</span>
                         <span>Action</span>
                       </div>
                       {columnList.map((col, idx) => (
@@ -407,6 +502,27 @@ function FileSchemaManager({ agreementId }) {
                             placeholder="Optional description"
                             className="column-input"
                           />
+                          <div className="column-rules-cell">
+                            <div className="column-rules-tags">
+                              {(col.quality_rules || []).map(r => (
+                                <span key={r} className="column-rule-tag" title={r}>
+                                  {SCHEMA_RULE_TYPES.find(rt => rt.value === r)?.label || r}
+                                  <button type="button" onClick={() => toggleColumnRule(idx, r)} className="column-rule-tag-remove">×</button>
+                                </span>
+                              ))}
+                            </div>
+                            <select
+                              className="column-rule-add-select"
+                              value=""
+                              onChange={(e) => { if (e.target.value) toggleColumnRule(idx, e.target.value); }}
+                              title="Add quality rule"
+                            >
+                              <option value="">+ Add rule</option>
+                              {SCHEMA_RULE_TYPES.filter(rt => !(col.quality_rules || []).includes(rt.value)).map(rt => (
+                                <option key={rt.value} value={rt.value}>{rt.label}</option>
+                              ))}
+                            </select>
+                          </div>
                           <button
                             type="button"
                             onClick={() => removeColumn(idx)}
@@ -519,6 +635,7 @@ function FileSchemaManager({ agreementId }) {
                                 <span>PII Type</span>
                                 <span>Data Type</span>
                                 <span>Description</span>
+                                <span>Quality Rules</span>
                                 <span>Action</span>
                               </div>
                               {columnList.map((col, idx) => (
@@ -566,6 +683,27 @@ function FileSchemaManager({ agreementId }) {
                                     placeholder="Optional description"
                                     className="column-input"
                                   />
+                                  <div className="column-rules-cell">
+                                    <div className="column-rules-tags">
+                                      {(col.quality_rules || []).map(r => (
+                                        <span key={r} className="column-rule-tag" title={r}>
+                                          {SCHEMA_RULE_TYPES.find(rt => rt.value === r)?.label || r}
+                                          <button type="button" onClick={() => toggleColumnRule(idx, r)} className="column-rule-tag-remove">×</button>
+                                        </span>
+                                      ))}
+                                    </div>
+                                    <select
+                                      className="column-rule-add-select"
+                                      value=""
+                                      onChange={(e) => { if (e.target.value) toggleColumnRule(idx, e.target.value); }}
+                                      title="Add quality rule"
+                                    >
+                                      <option value="">+ Add rule</option>
+                                      {SCHEMA_RULE_TYPES.filter(rt => !(col.quality_rules || []).includes(rt.value)).map(rt => (
+                                        <option key={rt.value} value={rt.value}>{rt.label}</option>
+                                      ))}
+                                    </select>
+                                  </div>
                                   <button
                                     type="button"
                                     onClick={() => removeColumn(idx)}

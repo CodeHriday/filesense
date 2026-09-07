@@ -82,17 +82,17 @@ const templateUpload = multer({
 const approvalDocUpload = multer({
   storage: multer.memoryStorage(),
   limits: {
-    fileSize: 10 * 1024 // 10 KB limit for efficient storage
+    fileSize: 10 * 1024 * 1024 // 10 MB per file
   },
   fileFilter: (req, file, cb) => {
-    // Accept compressed formats and PDFs
-    const allowedExtensions = ['.zip', '.gz', '.7z', '.pdf', '.txt'];
+    // Accept compressed formats, PDFs, Word and Excel documents
+    const allowedExtensions = ['.zip', '.gz', '.7z', '.pdf', '.txt', '.doc', '.docx', '.xls', '.xlsx'];
     const ext = path.extname(file.originalname).toLowerCase();
     
     if (allowedExtensions.includes(ext)) {
       cb(null, true);
     } else {
-      cb(new Error('Only compressed formats (.zip, .gz, .7z) and small documents (.pdf, .txt) under 10 KB are allowed'));
+      cb(new Error('Allowed types: PDF, Word (.doc/.docx), Excel (.xls/.xlsx), ZIP'));
     }
   }
 });
@@ -117,64 +117,57 @@ const checkAgreementAccess = async (req, res, next) => {
     }
     
     const agreement = result.agreement;
-    
-    // Check if user has vendor_agreements:approve permission
-    // This allows access regardless of relationship to the agreement
-    if (hasPermission(req.user, 'vendor_agreements:approve')) {
+
+    // Compute permission flags upfront. These describe what actions the user may perform
+    // AFTER access is established — they do not grant access on their own.
+    // vendor_agreements:approve means "can vote when listed as an assignee"; it must not
+    // bypass relationship checks or a user could read any agreement by guessing its ID.
+    const approvePermission = hasPermission(req.user, 'vendor_agreements:approve');
+    const readPermission = hasPermission(req.user, 'vendor_agreements:read');
+
+    // Helper: stamp the request with the agreement and computed flags, then continue.
+    const grant = (roleFlags = {}) => {
       req.agreement = agreement;
-      req.hasApprovePermission = true;
-      // Note: Do NOT set req.isAdmin here - permission holders are NOT admins
+      req.hasApprovePermission = approvePermission;
+      req.hasReadPermission = readPermission;
+      Object.assign(req, roleFlags);
       return next();
-    }
-    
-    // Check if user has vendor_agreements:read permission
-    // This allows viewing but not necessarily approving
-    if (hasPermission(req.user, 'vendor_agreements:read')) {
-      req.agreement = agreement;
-      req.hasReadPermission = true;
-    }
-    
-    // Admin-level access has access to everything (uses permission-based check)
-    if (userHasAdminAccess(req.user)) {
-      req.agreement = agreement;
-      req.isAdmin = true;
-      return next();
-    }
-    
-    // Check if user is the vendor user
-    if (agreement.vendor_user_id === req.user.id) {
-      req.agreement = agreement;
-      req.isVendor = true;
-      return next();
-    }
-    
-    // Check if user is the file owner
-    if (agreement.file_owner_user_id === req.user.id) {
-      req.agreement = agreement;
-      req.isOwner = true;
-      return next();
-    }
-    
-    // Check if user is the primary or secondary contact (by email)
+    };
+
+    // Admin-level access sees everything.
+    if (userHasAdminAccess(req.user)) return grant({ isAdmin: true });
+
+    // Permissions (read/approve/write) control what operations are allowed on accessible
+    // agreements; they do not grant access to agreements the user has no association with.
+    // Only admin-level access bypasses association checks.
+
+    // From here: the user must have an explicit relationship with this agreement.
+
+    // Vendor user linked to the agreement's vendor
+    if (agreement.vendor_user_id === req.user.id) return grant({ isVendor: true });
+
+    // File owner
+    if (agreement.file_owner_user_id === req.user.id) return grant({ isOwner: true });
+
+    // Primary or secondary contact (by email)
     if (req.user.email) {
-      if (agreement.primary_contact_email === req.user.email) {
-        req.agreement = agreement;
-        req.isVendor = true; // Treat primary contact as vendor role
-        return next();
-      }
-      
-      if (agreement.secondary_contact_email === req.user.email) {
-        req.agreement = agreement;
-        req.isVendor = true; // Treat secondary contact as vendor role
-        return next();
-      }
+      if (agreement.primary_contact_email === req.user.email) return grant({ isVendor: true });
+      if (agreement.secondary_contact_email === req.user.email) return grant({ isVendor: true });
     }
-    
-    // If user has read permission set earlier, allow access for viewing
-    if (req.hasReadPermission) {
-      return next();
+
+    // Configured approver in any step of the approval chain
+    if (agreement.approval_chain_config?.steps?.length) {
+      const isChainApprover = agreement.approval_chain_config.steps.some(
+        (step) =>
+          Array.isArray(step.approver_user_ids) &&
+          step.approver_user_ids.some((id) => parseInt(id, 10) === req.user.id)
+      );
+      if (isChainApprover) return grant({ isChainApprover: true });
     }
-    
+
+    // Agreement creator (allowed to submit/re-submit for chain approval)
+    if (agreement.created_by && agreement.created_by === req.user.id) return grant({ isCreator: true });
+
     return res.status(403).json({ error: 'Access denied' });
     
   } catch (error) {
@@ -192,7 +185,29 @@ router.post('/', requirePermission('vendor_agreements:write'), upload.single('sc
   
   try {
     const agreementData = JSON.parse(req.body.agreementData || '{}');
-    
+
+    // Non-admin users with write permission (Vendor Managers) may only create agreements
+    // for vendors they are already linked to — i.e. they must be the file_owner on at
+    // least one existing agreement for the target vendor.
+    // Admins bypass this check and can create for any vendor.
+    if (!userHasAdminAccess(req.user)) {
+      const targetVendorId = parseInt(agreementData.vendor_id, 10);
+      if (!targetVendorId || isNaN(targetVendorId)) {
+        return res.status(400).json({ error: 'vendor_id is required' });
+      }
+      const linkedCheck = await dbQuery(
+        `SELECT 1 FROM vendor_agreements
+         WHERE vendor_id = $1 AND file_owner_user_id = $2
+         LIMIT 1`,
+        [targetVendorId, req.user.id]
+      );
+      if (linkedCheck.rows.length === 0) {
+        return res.status(403).json({
+          error: 'Access denied. You may only create agreements for vendors you are linked to as file owner.'
+        });
+      }
+    }
+
     // Validate file configurations are required for non-draft contracts
     if (agreementData.status !== 'draft') {
       const fileConfigCount = parseInt(agreementData.file_configurations_count) || 0;
@@ -259,33 +274,24 @@ router.get('/', async (req, res) => {
     const status = req.query.status || null;
     const filterByMyVendor = req.query.filterByMyVendor === 'true';
     
-    // If filterByMyVendor is true, get ALL vendor IDs where user is a contact
-    // This ensures vendor users see agreements for ALL their vendor organizations
+    // filterByMyVendor=true: show agreements for the user's own vendor AND any agreements
+    // where they are explicitly named (approval chain, contact email, etc.).
+    // The visibility SQL in getAllAgreements already covers vendor-user associations via
+    // v.vendor_user_id = userId, so we do NOT add a hard vendor_id restriction here —
+    // doing so would exclude agreements from other vendors where the user is a chain
+    // approver or contact (e.g. vendor 27 user appearing in vendor 29's approval chain).
     if (filterByMyVendor && !vendorId) {
-      const vendorResult = await dbQuery(
-        'SELECT id FROM vendors WHERE vendor_user_id = $1 AND status = $2',
-        [req.user.id, 'active']
-      );
-      if (vendorResult.rows.length > 0) {
-        vendorIds = vendorResult.rows.map(row => row.id);
-        systemLogger.info('Filtering agreements by user vendors', { 
-          userId: req.user.id, 
-          vendorIds,
-          vendorCount: vendorIds.length
-        });
-      } else {
-        // No direct vendor associations - fall back to legacy contact-based filtering
-        // Leave vendorIds as null so the role-based filtering (contact emails, project membership) still applies
-        systemLogger.info('No vendor associations found, using contact-based filtering', { 
-          userId: req.user.id,
-          filterByMyVendor: true 
-        });
-      }
+      systemLogger.info('filterByMyVendor=true: using visibility SQL (no vendor_id restriction)', {
+        userId: req.user.id
+      });
+      // vendorIds remains null; visibility SQL handles all access control
     }
     
-    // Only users with approve permission can see ALL agreements (bypassing contact filtering)
-    // Regular vendor users with just read permission still get filtered by their contact emails
+    // Users with approve or read permission are internal staff with explicit access grants —
+    // they bypass contact-relationship filtering and see all active agreements.
+    // External/vendor-role users without these permissions are filtered to their own agreements.
     const hasApprovePermission = hasPermission(req.user, 'vendor_agreements:approve');
+    const hasReadPermission = hasPermission(req.user, 'vendor_agreements:read');
     
     // DEBUG: Log permission check for troubleshooting
     systemLogger.info('Vendor agreements permission check', {
@@ -293,6 +299,7 @@ router.get('/', async (req, res) => {
       userId: req.user.id,
       roles: req.user.roles,
       hasApprovePermission,
+      hasReadPermission,
       permissionsCount: req.user.permissions?.length || 0,
       permissions: req.user.permissions?.map(p => typeof p === 'string' ? p : (p.name || `${p.resource}:${p.action}`))
     });
@@ -307,7 +314,8 @@ router.get('/', async (req, res) => {
       userId: req.user.id,
       userRoles: req.user.roles,
       userEmail: req.user.email,
-      hasApprovePermission
+      hasApprovePermission,
+      hasReadPermission
     });
     
     // Include hasApprovePermission flag in response so frontend can filter agreements for mapping wizard
@@ -395,6 +403,7 @@ router.get('/stakeholder-options', requirePermission('vendor_agreements:read'), 
 router.get('/init-data', async (req, res) => {
   try {
     const hasApprovePermission = hasPermission(req.user, 'vendor_agreements:approve');
+    const hasReadPermission = hasPermission(req.user, 'vendor_agreements:read');
     const hasWritePermission = hasPermission(req.user, 'vendor_agreements:write');
     const isAdminUser = userHasAdminAccess(req.user);
     
@@ -425,12 +434,15 @@ router.get('/init-data', async (req, res) => {
           SELECT v.id, v.vendor_name, v.vendor_code, v.status, v.vendor_type, v.vendor_onboarding_date,
                  v.contact_name, v.contact_email, v.contact_phone,
                  v.backup_contact_name, v.backup_contact_email, v.backup_contact_phone,
+                 v.vendor_user_id,
+                 bu.id AS backup_contact_user_id,
                  v.project_id, p.name as project_name,
                  p.drop_location_connection_id,
                  p.drop_location_bucket,
                  p.drop_location_prefix
           FROM vendors v
           LEFT JOIN projects p ON v.project_id = p.id
+          LEFT JOIN users bu ON LOWER(bu.email) = LOWER(v.backup_contact_email)
           WHERE v.status = 'active'
           ORDER BY v.vendor_name
         `);
@@ -450,12 +462,15 @@ router.get('/init-data', async (req, res) => {
             SELECT v.id, v.vendor_name, v.vendor_code, v.status, v.vendor_type, v.vendor_onboarding_date,
                    v.contact_name, v.contact_email, v.contact_phone,
                    v.backup_contact_name, v.backup_contact_email, v.backup_contact_phone,
+                   v.vendor_user_id,
+                   bu.id AS backup_contact_user_id,
                    v.project_id, p.name as project_name,
                    p.drop_location_connection_id,
                    p.drop_location_bucket,
                    p.drop_location_prefix
             FROM vendors v
             LEFT JOIN projects p ON v.project_id = p.id
+            LEFT JOIN users bu ON LOWER(bu.email) = LOWER(v.backup_contact_email)
             WHERE v.id = $1 AND v.status = 'active'
           `, [userVendorId]);
           vendors = vendorsResult.rows;
@@ -516,9 +531,96 @@ router.get('/init-data', async (req, res) => {
       userId: req.user.id,
       userRoles: req.user.roles,
       userEmail: req.user.email,
-      hasApprovePermission
+      hasApprovePermission,
+      hasReadPermission
     });
-    
+
+    const agreements = agreementsResult.agreements || [];
+
+    // Resolve chain approver names for all pending_approval agreements.
+    // Done server-side so every user type (admin, internal, vendor/contact) sees real names.
+    try {
+      const pendingIds = new Set();
+      for (const ag of agreements) {
+        if (ag.approval_status === 'pending_approval' && ag.approval_chain_config?.steps?.length) {
+          const stepIdx = (ag.current_approval_step || 1) - 1;
+          const step = ag.approval_chain_config.steps[stepIdx];
+          if (step?.approver_user_ids?.length) {
+            step.approver_user_ids.forEach(id => pendingIds.add(parseInt(id, 10)));
+          }
+        }
+      }
+      if (pendingIds.size > 0) {
+        const ids = [...pendingIds].filter(id => !isNaN(id));
+        const placeholders = ids.map((_, i) => `$${i + 1}`).join(', ');
+        const namesResult = await dbQuery(
+          `SELECT id, username, email, first_name, last_name,
+                  COALESCE(NULLIF(TRIM(first_name || ' ' || last_name), ''), username, email) AS display_name
+           FROM users WHERE id IN (${placeholders})`,
+          ids
+        );
+        const nameMap = {};
+        for (const row of namesResult.rows) nameMap[row.id] = row.display_name;
+
+        for (const ag of agreements) {
+          if (ag.approval_status === 'pending_approval' && ag.approval_chain_config?.steps?.length) {
+            const stepIdx = (ag.current_approval_step || 1) - 1;
+            const step = ag.approval_chain_config.steps[stepIdx];
+            ag.current_step_approver_names = (step?.approver_user_ids || [])
+              .map(id => nameMap[parseInt(id, 10)])
+              .filter(Boolean);
+          }
+        }
+      }
+    } catch (nameErr) {
+      systemLogger.warn('Could not resolve chain approver names for badge', { error: nameErr.message });
+    }
+
+    // Compute vote progress (approved_count / total_count) for pending_approval agreements.
+    // Only counts approvals from users who are configured in the step's approver_user_ids —
+    // admin out-of-chain votes are excluded so the count matches the service's quorum check.
+    try {
+      const pendingAgreements = agreements.filter(ag => ag.approval_status === 'pending_approval');
+      if (pendingAgreements.length > 0) {
+        const pendingAgreementIds = pendingAgreements.map(ag => ag.id);
+        // Fetch individual decision rows so we can filter by configured approver list in JS
+        const decisionsResult = await dbQuery(
+          `SELECT agreement_id, step_number, agreement_version, approver_user_id
+           FROM vendor_approval_step_decisions
+           WHERE agreement_id = ANY($1) AND action = 'approve'`,
+          [pendingAgreementIds]
+        );
+        // Build a lookup: agreementId -> stepNumber -> version -> Set<approver_user_id>
+        const decisionMap = {};
+        for (const row of decisionsResult.rows) {
+          const aid = row.agreement_id;
+          const sn = row.step_number;
+          const ver = row.agreement_version;
+          if (!decisionMap[aid]) decisionMap[aid] = {};
+          if (!decisionMap[aid][sn]) decisionMap[aid][sn] = {};
+          if (!decisionMap[aid][sn][ver]) decisionMap[aid][sn][ver] = new Set();
+          decisionMap[aid][sn][ver].add(parseInt(row.approver_user_id, 10));
+        }
+        for (const ag of pendingAgreements) {
+          const stepIdx = (ag.current_approval_step || 1) - 1;
+          const step = ag.approval_chain_config?.steps?.[stepIdx];
+          if (step) {
+            const stepNum = ag.current_approval_step || 1;
+            const version = ag.version; // va.* exposes 'version', not 'agreement_version'
+            const configuredIds = new Set((step.approver_user_ids || []).map(id => parseInt(id, 10)));
+            const voterSet = decisionMap[ag.id]?.[stepNum]?.[version] || new Set();
+            // Count only votes from users configured for this step (excludes out-of-chain admin votes)
+            const approvedCount = [...voterSet].filter(uid => configuredIds.has(uid)).length;
+            const totalCount = configuredIds.size;
+            const requireAll = step.require_all !== false; // default: all must approve
+            ag.current_step_vote_progress = { approved_count: approvedCount, total_count: totalCount, require_all: requireAll };
+          }
+        }
+      }
+    } catch (voteErr) {
+      systemLogger.warn('Could not compute vote progress for badge', { error: voteErr.message });
+    }
+
     let usersResult = { rows: [] };
     if (isAdminUser || hasWritePermission) {
       usersResult = await dbQuery(`
@@ -538,7 +640,7 @@ router.get('/init-data', async (req, res) => {
       vendorConnections,
       allConnections,
       vendors,
-      agreements: agreementsResult.agreements || [],
+      agreements,
       users: usersResult.rows,
       hasApprovePermission
     });
@@ -630,11 +732,80 @@ router.get('/:id/full', checkAgreementAccess, async (req, res) => {
       LIMIT 100
     `, [agreementId]);
     
+    // Timestamp of the most recent chain submission — used by the panel to separate
+    // current-round decisions from decisions that belong to earlier (rejected) rounds.
+    const lastSubmissionResult = await dbQuery(`
+      SELECT MAX(approval_timestamp) AS chain_submitted_at
+      FROM vendor_agreement_approvals
+      WHERE agreement_id = $1 AND approval_stage = 'chain_submission'
+    `, [agreementId]);
+    const chainSubmittedAt = lastSubmissionResult.rows[0]?.chain_submitted_at ?? null;
+
+    // Fetch configurable chain step decisions (new approval chain flow).
+    // Return ALL rows so the history tab can show a full audit trail; the panel
+    // uses chain_submitted_at (stamped on the agreement below) to isolate the
+    // current round rather than relying on agreement_version alone.
+    const stepDecisionsResult = await dbQuery(`
+      SELECT
+        vasd.id,
+        vasd.agreement_id,
+        vasd.step_number,
+        vasd.approver_user_id,
+        vasd.action,
+        vasd.comments,
+        vasd.decided_at,
+        vasd.agreement_version,
+        u.username,
+        u.email as user_email,
+        COALESCE(u.first_name || ' ' || u.last_name, u.username) as display_name,
+        -- Match the audit record so the history tab can look up attached documents
+        (SELECT vaa.id
+         FROM vendor_agreement_approvals vaa
+         WHERE vaa.agreement_id = vasd.agreement_id
+           AND vaa.approver_user_id = vasd.approver_user_id
+           AND vaa.approval_stage = 'chain_step_' || vasd.step_number
+           AND ABS(EXTRACT(EPOCH FROM (vaa.approval_timestamp - vasd.decided_at))) < 10
+         ORDER BY ABS(EXTRACT(EPOCH FROM (vaa.approval_timestamp - vasd.decided_at)))
+         LIMIT 1) AS approval_id
+      FROM vendor_approval_step_decisions vasd
+      LEFT JOIN users u ON vasd.approver_user_id = u.id
+      WHERE vasd.agreement_id = $1
+      ORDER BY vasd.step_number ASC, vasd.decided_at ASC
+    `, [agreementId]);
+
+    // Resolve all approver_user_ids from the chain config to names
+    // so vendor users (who can't hit stakeholder-options) still see real names
+    let chainUsers = [];
+    const chainConfig = req.agreement?.approval_chain_config;
+    if (chainConfig?.steps?.length) {
+      const allIds = [...new Set(
+        chainConfig.steps.flatMap(s => Array.isArray(s.approver_user_ids) ? s.approver_user_ids : [])
+          .map(id => parseInt(id, 10))
+          .filter(id => !isNaN(id))
+      )];
+      if (allIds.length) {
+        const placeholders = allIds.map((_, i) => `$${i + 1}`).join(', ');
+        const usersResult = await dbQuery(
+          `SELECT id, username, email, first_name, last_name,
+                  COALESCE(first_name || ' ' || last_name, username) as full_name
+           FROM users WHERE id IN (${placeholders})`,
+          allIds
+        );
+        chainUsers = usersResult.rows;
+      }
+    }
+
+    // Attach the last-submission timestamp so the panel can filter current-round
+    // decisions without relying solely on agreement_version.
+    const agreementWithMeta = { ...req.agreement, chain_submitted_at: chainSubmittedAt };
+
     res.json({
       success: true,
-      agreement: req.agreement,
+      agreement: agreementWithMeta,
       approvals: approvalsWithDocs,
       changes: changesResult.rows,
+      step_decisions: stepDecisionsResult.rows,
+      chain_users: chainUsers,
       userRole: req.isAdmin ? 'admin' : (req.isVendor ? 'vendor' : 'owner')
     });
     
@@ -664,9 +835,10 @@ router.get('/:id', checkAgreementAccess, async (req, res) => {
 
 /**
  * PUT /api/vendor-agreements/:id
- * Update agreement (Requires vendor_agreements:write permission, can modify locked agreements)
+ * Update agreement (Requires vendor_agreements:write permission AND association with the agreement)
+ * Admins can edit any agreement; Vendor Managers can only edit agreements they are associated with.
  */
-router.put('/:id', requirePermission('vendor_agreements:write'), upload.single('schemaFile'), async (req, res) => {
+router.put('/:id', requirePermission('vendor_agreements:write'), checkAgreementAccess, upload.single('schemaFile'), async (req, res) => {
   let schemaFilePath = null;
   
   try {
@@ -677,6 +849,7 @@ router.put('/:id', requirePermission('vendor_agreements:write'), upload.single('
     }
     
     const updateData = JSON.parse(req.body.updateData || '{}');
+    const isAdminUser = req.isAdmin || userHasAdminAccess(req.user);
     
     // If schema file is uploaded, use it
     if (req.file) {
@@ -687,7 +860,7 @@ router.put('/:id', requirePermission('vendor_agreements:write'), upload.single('
         agreementId,
         updateData,
         req.user.id,
-        true, // isAdmin
+        isAdminUser,
         schemaFilePath,
         fileType
       );
@@ -698,7 +871,7 @@ router.put('/:id', requirePermission('vendor_agreements:write'), upload.single('
         agreementId,
         updateData,
         req.user.id,
-        true // isAdmin
+        isAdminUser
       );
       
       res.json(result);
@@ -814,6 +987,138 @@ router.post('/:id/reject', checkAgreementAccess, async (req, res) => {
   } catch (error) {
     systemLogger.error('Error in POST /api/vendor-agreements/:id/reject', { error: error.message });
     res.status(400).json({ error: error.message });
+  }
+});
+
+/**
+ * ─────────────────────────────────────────────────────────────────────────────
+ * CONFIGURABLE N-STEP APPROVAL CHAIN ROUTES
+ * ─────────────────────────────────────────────────────────────────────────────
+ */
+
+/**
+ * GET /api/vendor-agreements/:id/approval-chain
+ * Retrieve the approval chain config and current step status for a contract.
+ * Accessible to anyone with read access to the agreement.
+ */
+router.get('/:id/approval-chain', checkAgreementAccess, async (req, res) => {
+  try {
+    const agreementId = parseInt(req.params.id);
+    const result = await vendorAgreementService.getApprovalChainConfig(agreementId);
+    res.json(result);
+  } catch (error) {
+    systemLogger.error('Error in GET /api/vendor-agreements/:id/approval-chain', { error: error.message });
+    res.status(error.message === 'Agreement not found' ? 404 : 500).json({ error: error.message });
+  }
+});
+
+/**
+ * PUT /api/vendor-agreements/:id/approval-chain
+ * Save (create or replace) the approval chain config for a contract.
+ * Restricted to the file owner and admins.
+ *
+ * Body: { steps: [{ name, approver_user_ids: [int], require_all: bool }, ...] }
+ */
+router.put('/:id/approval-chain', checkAgreementAccess, async (req, res) => {
+  try {
+    const agreementId = parseInt(req.params.id);
+
+    // Only admin or file owner may configure the chain
+    if (!req.isAdmin && !req.isOwner && !req.hasApprovePermission) {
+      return res.status(403).json({
+        error: 'Only the file owner or an admin can configure the approval chain'
+      });
+    }
+
+    const chainConfig = req.body;
+    const result = await vendorAgreementService.saveApprovalChainConfig(
+      agreementId,
+      chainConfig,
+      req.user.id,
+      req.isAdmin || false
+    );
+    res.json(result);
+  } catch (error) {
+    systemLogger.error('Error in PUT /api/vendor-agreements/:id/approval-chain', { error: error.message });
+    res.status(400).json({ error: error.message });
+  }
+});
+
+/**
+ * POST /api/vendor-agreements/:id/submit-for-approval
+ * Start the configurable approval chain for a contract.
+ * Transitions it to pending_approval and notifies step-1 approvers.
+ * If no chain config is set, returns a 400 instructing the user to configure it first.
+ */
+router.post('/:id/submit-for-approval', checkAgreementAccess, async (req, res) => {
+  try {
+    const agreementId = parseInt(req.params.id);
+
+    if (!req.isAdmin && !req.isOwner && !req.hasApprovePermission) {
+      // Created-by users can also submit — check that
+      const agreement = req.agreement;
+      if (agreement.created_by !== req.user.id) {
+        return res.status(403).json({
+          error: 'Only the file owner, creator, or an admin can submit this contract for approval'
+        });
+      }
+    }
+
+    const result = await vendorAgreementService.submitForApprovalChain(
+      agreementId,
+      req.user.id,
+      req.isAdmin || false
+    );
+    res.json(result);
+  } catch (error) {
+    systemLogger.error('Error in POST /api/vendor-agreements/:id/submit-for-approval', { error: error.message });
+    res.status(400).json({ error: error.message });
+  }
+});
+
+/**
+ * POST /api/vendor-agreements/:id/step-decision
+ * Record an approver's approve/reject decision for the current step.
+ * Evaluates quorum and automatically advances or finalises the chain.
+ *
+ * Body (multipart/form-data): action, comments, documents[] (optional, max 5 files)
+ */
+router.post('/:id/step-decision', checkAgreementAccess, approvalDocUpload.array('documents', 5), async (req, res) => {
+  try {
+    const agreementId = parseInt(req.params.id);
+    const { action, comments } = req.body;
+
+    if (!action) {
+      return res.status(400).json({ error: 'action is required (approve or reject)' });
+    }
+
+    const result = await vendorAgreementService.recordStepDecision(
+      agreementId,
+      req.user.id,
+      action,
+      comments || null,
+      req.isAdmin || false,
+      req.files || []
+    );
+    res.json(result);
+  } catch (error) {
+    systemLogger.error('Error in POST /api/vendor-agreements/:id/step-decision', { error: error.message });
+    res.status(400).json({ error: error.message });
+  }
+});
+
+/**
+ * GET /api/vendor-agreements/:id/step-decisions
+ * Get all step decisions for a contract (used to populate the approval history panel).
+ */
+router.get('/:id/step-decisions', checkAgreementAccess, async (req, res) => {
+  try {
+    const agreementId = parseInt(req.params.id);
+    const result = await vendorAgreementService.getStepDecisions(agreementId);
+    res.json(result);
+  } catch (error) {
+    systemLogger.error('Error in GET /api/vendor-agreements/:id/step-decisions', { error: error.message });
+    res.status(500).json({ error: 'Failed to fetch step decisions' });
   }
 });
 
@@ -1290,7 +1595,7 @@ router.post('/parse-template', templateUpload.single('templateFile'), async (req
 });
 
 // PATCH /api/vendor-agreements/:id/disable - Disable a vendor agreement
-router.patch('/:id/disable', requirePermission('vendor_agreements:write'), async (req, res) => {
+router.patch('/:id/disable', requirePermission('vendor_agreements:write'), checkAgreementAccess, async (req, res) => {
   try {
     const agreementId = parseInt(req.params.id);
     
@@ -1368,7 +1673,7 @@ router.get('/:id/check-dependencies', requirePermission('vendor_agreements:read'
 });
 
 // DELETE /api/vendor-agreements/:id - Delete a vendor agreement
-router.delete('/:id', requirePermission('vendor_agreements:write'), async (req, res) => {
+router.delete('/:id', requirePermission('vendor_agreements:write'), checkAgreementAccess, async (req, res) => {
   try {
     const agreementId = parseInt(req.params.id);
     
@@ -1591,7 +1896,7 @@ router.delete('/:id/documents/:docId', checkAgreementAccess, async (req, res) =>
  * POST /api/vendor-agreements/:id/archive-password
  * Store/update archive password for vendor agreement
  */
-router.post('/:id/archive-password', requirePermission('vendor_agreements:write'), async (req, res) => {
+router.post('/:id/archive-password', requirePermission('vendor_agreements:write'), checkAgreementAccess, async (req, res) => {
   try {
     const agreementId = parseInt(req.params.id);
     const { password } = req.body;
@@ -1679,7 +1984,7 @@ router.get('/:id/archive-password', requirePermission('vendor_agreements:read'),
  * DELETE /api/vendor-agreements/:id/archive-password
  * Delete archive password for vendor agreement
  */
-router.delete('/:id/archive-password', requirePermission('vendor_agreements:write'), async (req, res) => {
+router.delete('/:id/archive-password', requirePermission('vendor_agreements:write'), checkAgreementAccess, async (req, res) => {
   try {
     const agreementId = parseInt(req.params.id);
     
@@ -1831,7 +2136,7 @@ router.get('/:id/stakeholders', checkAgreementAccess, async (req, res) => {
  * PUT /:id/stakeholders
  * Update additional stakeholders for an agreement
  */
-router.put('/:id/stakeholders', requirePermission('vendor_agreements:write'), async (req, res) => {
+router.put('/:id/stakeholders', requirePermission('vendor_agreements:write'), checkAgreementAccess, async (req, res) => {
   try {
     const agreementId = parseInt(req.params.id);
     const { userIds = [], groupIds = [] } = req.body;

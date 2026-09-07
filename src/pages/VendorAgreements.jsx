@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { FiEye, FiEdit2, FiTrash2, FiSearch, FiSlash } from 'react-icons/fi';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -10,8 +10,10 @@ import NotificationModal from '../components/NotificationModal';
 import S3FolderBrowser from '../components/S3FolderBrowser';
 import VendorUserSelect from '../components/VendorUserSelect';
 import ThreeStageApprovalPanel from '../components/ThreeStageApprovalPanel';
+import DynamicApprovalPanel from '../components/DynamicApprovalPanel';
+import ApprovalChainConfig from '../components/ApprovalChainConfig';
 import FileSchemaManager from '../components/FileSchemaManager';
-import FileConfigurationsSection from '../components/FileConfigurationsSection';
+import FileConfigurationsSection, { normaliseSchema } from '../components/FileConfigurationsSection';
 import { useAuth } from '../context/AuthContext';
 import { isVendorUser } from '../utils/userHelpers';
 import { formatChangeSummary } from '../utils/formatters';
@@ -28,12 +30,18 @@ const VendorAgreements = () => {
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
+  const [pendingApprovalChain, setPendingApprovalChain] = useState(null);
+  const [autoApprovalChain, setAutoApprovalChain] = useState(null);
+  // True once the user has clicked Apply — prevents field changes from overwriting their work.
+  const chainManuallyApplied = useRef(false);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState('create');
   const [selectedAgreement, setSelectedAgreement] = useState(null);
   const [activeTab, setActiveTab] = useState('details');
   const [approvalHistory, setApprovalHistory] = useState([]);
   const [changeHistory, setChangeHistory] = useState([]);
+  const [stepDecisions, setStepDecisions] = useState([]);
+  const [agreementChainUsers, setAgreementChainUsers] = useState([]);
   const [rejectComments, setRejectComments] = useState('');
   const [detailModalError, setDetailModalError] = useState('');
   const [detailModalSuccess, setDetailModalSuccess] = useState('');
@@ -153,6 +161,36 @@ const VendorAgreements = () => {
   // Check for admin-level access (uses permission-based check for backward compatibility)
   const isAdmin = hasPermission('users:write') || hasPermission('project_management:write') || (hasRole && hasRole('Admin'));
   const isVendor = isVendorUser(currentUser);
+  // Internal user with write permission but not admin-level access
+  const isVendorManager = !isAdmin && !isVendor && (hasPermission && hasPermission('vendor_agreements:write'));
+
+  // Mirror the backend checkAgreementAccess association check for a specific agreement.
+  // Returns true if the current user has an explicit relationship with the agreement
+  // (file owner, creator, contact, or approval-chain member).
+  const isAssociatedWithAgreement = (agreement) => {
+    if (!currentUser || !agreement) return false;
+    if (isAdmin) return true;
+    if (agreement.file_owner_user_id === currentUser.id) return true;
+    if (agreement.created_by === currentUser.id) return true;
+    if (currentUser.email) {
+      if (agreement.primary_contact_email === currentUser.email) return true;
+      if (agreement.secondary_contact_email === currentUser.email) return true;
+    }
+    if (agreement.approval_chain_config?.steps?.length) {
+      return agreement.approval_chain_config.steps.some(
+        (step) =>
+          Array.isArray(step.approver_user_ids) &&
+          step.approver_user_ids.some((id) => parseInt(id, 10) === currentUser.id)
+      );
+    }
+    return false;
+  };
+
+  // A Vendor Manager can create new agreements only when they are already associated
+  // with at least one vendor (i.e., they appear as file owner on an existing agreement).
+  const canCreate = isAdmin || (
+    isVendorManager && agreements.some((a) => a.file_owner_user_id === currentUser?.id)
+  );
   
   useEffect(() => {
     if (!currentUser) {
@@ -161,6 +199,7 @@ const VendorAgreements = () => {
     }
     
     fetchData();
+    fetchStakeholderOptions();
   }, [currentUser, navigate]);
   
   // Handle opening agreement from notification
@@ -220,11 +259,13 @@ const VendorAgreements = () => {
   const fetchAgreementDetails = async (agreementId) => {
     try {
       const response = await axios.get(`/api/vendor-agreements/${agreementId}/full`);
-      const { agreement: agreementData, approvals, changes } = response.data;
+      const { agreement: agreementData, approvals, changes, step_decisions, chain_users } = response.data;
       
       setSelectedAgreement(agreementData);
       setApprovalHistory(Array.isArray(approvals) ? approvals : []);
       setChangeHistory(Array.isArray(changes) ? changes : []);
+      setStepDecisions(Array.isArray(step_decisions) ? step_decisions : []);
+      setAgreementChainUsers(Array.isArray(chain_users) ? chain_users : []);
     } catch (error) {
       console.error('Error fetching agreement details:', error);
       setError('Failed to load agreement details');
@@ -505,11 +546,15 @@ const VendorAgreements = () => {
         const newPrimaryContactName = selectedVendor.contact_name || '';
         const newPrimaryContactEmail = selectedVendor.contact_email || '';
         const newPrimaryContactPhone = selectedVendor.contact_phone || '';
-        
+        // vendor_user_id is the user account linked to the vendor's primary contact
+        const newPrimaryContactUserId = selectedVendor.vendor_user_id || '';
+
         // Extract secondary contact information from vendor's backup contact
         const newSecondaryContactName = selectedVendor.backup_contact_name || '';
         const newSecondaryContactEmail = selectedVendor.backup_contact_email || '';
         const newSecondaryContactPhone = selectedVendor.backup_contact_phone || '';
+        // backup_contact_user_id is resolved from the backup email in the init-data query
+        const newSecondaryContactUserId = selectedVendor.backup_contact_user_id || '';
         
         // Only update if the values would actually change
         if (formData.vendor_code !== newVendorCode || 
@@ -518,9 +563,11 @@ const VendorAgreements = () => {
             formData.primary_contact_name !== newPrimaryContactName ||
             formData.primary_contact_email !== newPrimaryContactEmail ||
             formData.primary_contact_phone !== newPrimaryContactPhone ||
+            formData.primary_contact_user_id !== newPrimaryContactUserId ||
             formData.secondary_contact_name !== newSecondaryContactName ||
             formData.secondary_contact_email !== newSecondaryContactEmail ||
-            formData.secondary_contact_phone !== newSecondaryContactPhone) {
+            formData.secondary_contact_phone !== newSecondaryContactPhone ||
+            formData.secondary_contact_user_id !== newSecondaryContactUserId) {
           setFormData(prev => ({
             ...prev,
             vendor_code: newVendorCode,
@@ -529,9 +576,11 @@ const VendorAgreements = () => {
             primary_contact_name: newPrimaryContactName,
             primary_contact_email: newPrimaryContactEmail,
             primary_contact_phone: newPrimaryContactPhone,
+            primary_contact_user_id: newPrimaryContactUserId,
             secondary_contact_name: newSecondaryContactName,
             secondary_contact_email: newSecondaryContactEmail,
-            secondary_contact_phone: newSecondaryContactPhone
+            secondary_contact_phone: newSecondaryContactPhone,
+            secondary_contact_user_id: newSecondaryContactUserId,
           }));
         }
       } else if (formData.vendor_code !== '' || formData.vendor_type !== '' || 
@@ -539,9 +588,11 @@ const VendorAgreements = () => {
                  formData.primary_contact_name !== '' ||
                  formData.primary_contact_email !== '' ||
                  formData.primary_contact_phone !== '' ||
+                 formData.primary_contact_user_id !== '' ||
                  formData.secondary_contact_name !== '' ||
                  formData.secondary_contact_email !== '' ||
-                 formData.secondary_contact_phone !== '') {
+                 formData.secondary_contact_phone !== '' ||
+                 formData.secondary_contact_user_id !== '') {
         // Vendor not found, clear vendor and contact fields
         setFormData(prev => ({
           ...prev,
@@ -551,9 +602,11 @@ const VendorAgreements = () => {
           primary_contact_name: '',
           primary_contact_email: '',
           primary_contact_phone: '',
+          primary_contact_user_id: '',
           secondary_contact_name: '',
           secondary_contact_email: '',
-          secondary_contact_phone: ''
+          secondary_contact_phone: '',
+          secondary_contact_user_id: '',
         }));
       }
     } else if (formData.vendor_code !== '' || formData.vendor_type !== '' || 
@@ -561,9 +614,11 @@ const VendorAgreements = () => {
                formData.primary_contact_name !== '' ||
                formData.primary_contact_email !== '' ||
                formData.primary_contact_phone !== '' ||
+               formData.primary_contact_user_id !== '' ||
                formData.secondary_contact_name !== '' ||
                formData.secondary_contact_email !== '' ||
-               formData.secondary_contact_phone !== '') {
+               formData.secondary_contact_phone !== '' ||
+               formData.secondary_contact_user_id !== '') {
       // No vendor selected, clear vendor and contact fields
       setFormData(prev => ({
         ...prev,
@@ -573,16 +628,20 @@ const VendorAgreements = () => {
         primary_contact_name: '',
         primary_contact_email: '',
         primary_contact_phone: '',
+        primary_contact_user_id: '',
         secondary_contact_name: '',
         secondary_contact_email: '',
-        secondary_contact_phone: ''
+        secondary_contact_phone: '',
+        secondary_contact_user_id: '',
       }));
     }
   }, [
-    formData.vendor_id, 
-    formData.vendor_code, 
-    formData.vendor_type, 
+    formData.vendor_id,
+    formData.vendor_code,
+    formData.vendor_type,
     formData.vendor_onboarding_date,
+    formData.primary_contact_user_id,
+    formData.secondary_contact_user_id,
     vendors
   ]);
   
@@ -618,7 +677,108 @@ const VendorAgreements = () => {
       }));
     }
   }, [formData.file_owner_user_id, formData.manager_contact, users]);
-  
+
+  // ── Auto-populate 3-step approval chain ─────────────────────────────────
+  // Triggers whenever the vendor manager or governance manager changes.
+  // Skipped if the user has already manually applied their own chain.
+  useEffect(() => {
+    if (modalMode !== 'create') return;
+    if (chainManuallyApplied.current) return;
+
+    const mgr = formData.file_owner_user_id;
+    const gov = formData.governance_manager_user_id;
+
+    // Both anchor roles must be selected before auto-populating.
+    if (!mgr || !gov) {
+      setAutoApprovalChain(null);
+      return;
+    }
+
+    const primaryId = formData.primary_contact_user_id
+      ? Number(formData.primary_contact_user_id)
+      : null;
+    const secondaryId = formData.secondary_contact_user_id
+      ? Number(formData.secondary_contact_user_id)
+      : null;
+
+    const steps = [];
+
+    // Step 1: vendor contacts — only included when the vendor has at least a
+    // primary contact linked to a user account.
+    if (primaryId) {
+      const step1Ids = [primaryId];
+      if (secondaryId && secondaryId !== primaryId) step1Ids.push(secondaryId);
+      steps.push({
+        step_number: 1,
+        name: 'Vendor Contact Approval',
+        approver_user_ids: step1Ids,
+        require_all: false,
+      });
+    }
+
+    steps.push({
+      step_number: steps.length + 1,
+      name: 'Vendor Manager Approval',
+      approver_user_ids: [Number(mgr)],
+      require_all: false,
+    });
+
+    steps.push({
+      step_number: steps.length + 1,
+      name: 'Governance Approval',
+      approver_user_ids: [Number(gov)],
+      require_all: false,
+    });
+
+    setAutoApprovalChain(steps);
+  }, [
+    modalMode,
+    formData.file_owner_user_id,
+    formData.governance_manager_user_id,
+    formData.primary_contact_user_id,
+    formData.secondary_contact_user_id,
+  ]);
+
+  // ── Merged user list for the approval chain picker ───────────────────────
+  // In create mode, vendor contacts (primary / secondary) may not be in
+  // stakeholderOptions.users (which is the internal-user list).  Build a
+  // combined list so their checkboxes show and pre-selections render correctly.
+  const chainUsers = useMemo(() => {
+    const base = stakeholderOptions.users || [];
+    if (modalMode !== 'create') return base;
+
+    const extra = [];
+    const addIfMissing = (id, name, email) => {
+      if (!id) return;
+      const numId = Number(id);
+      if (base.some((u) => u.id === numId)) return;
+      if (extra.some((u) => u.id === numId)) return;
+      extra.push({ id: numId, fullName: name || '', email: email || '' });
+    };
+
+    addIfMissing(
+      formData.primary_contact_user_id,
+      formData.primary_contact_name,
+      formData.primary_contact_email
+    );
+    addIfMissing(
+      formData.secondary_contact_user_id,
+      formData.secondary_contact_name,
+      formData.secondary_contact_email
+    );
+
+    return extra.length ? [...extra, ...base] : base;
+  }, [
+    stakeholderOptions.users,
+    modalMode,
+    formData.primary_contact_user_id,
+    formData.primary_contact_name,
+    formData.primary_contact_email,
+    formData.secondary_contact_user_id,
+    formData.secondary_contact_name,
+    formData.secondary_contact_email,
+  ]);
+
   const openCreateModal = () => {
     setFileConfigurations([]);
     setFormData({
@@ -676,6 +836,9 @@ const VendorAgreements = () => {
     });
     setTemplateFile(null);
     setTemplateError('');
+    setPendingApprovalChain(null);
+    setAutoApprovalChain(null);
+    chainManuallyApplied.current = false;
     setModalMode('create');
     setError('');
     setSuccessMessage('');
@@ -786,6 +949,7 @@ const VendorAgreements = () => {
       additional_stakeholder_group_ids: agreement.additional_stakeholder_group_ids || []
     });
     setTemplateFile(null);
+    setSelectedAgreement(agreement);
     setModalMode('edit');
     setSuccessMessage('');
     setModalOpen(true);
@@ -810,6 +974,7 @@ const VendorAgreements = () => {
     setSelectedAgreement(null);
     setApprovalHistory([]);
     setChangeHistory([]);
+    setStepDecisions([]);
     setRejectComments('');
     setDetailModalError('');
     setDetailModalSuccess('');
@@ -1050,6 +1215,16 @@ const VendorAgreements = () => {
       
       // Include file configurations count for backend validation
       agreementData.file_configurations_count = fileConfigurations?.length || 0;
+
+      // Embed the approval chain in the creation payload so it is saved
+      // transactionally — avoids the owner-only permission check on the
+      // separate PUT /:id/approval-chain endpoint.
+      if (modalMode === 'create') {
+        const chainToSave = pendingApprovalChain || autoApprovalChain;
+        if (chainToSave?.length) {
+          agreementData.initial_approval_chain = { steps: chainToSave };
+        }
+      }
       
       // Backend expects 'agreementData' for CREATE and 'updateData' for UPDATE
       const dataKey = modalMode === 'create' ? 'agreementData' : 'updateData';
@@ -1062,6 +1237,11 @@ const VendorAgreements = () => {
             'Content-Type': 'multipart/form-data'
           }
         });
+
+        // Chain was sent in the creation payload; clear local state.
+        setPendingApprovalChain(null);
+        setAutoApprovalChain(null);
+
         setNotificationModal({
           isOpen: true,
           type: 'success',
@@ -1564,7 +1744,58 @@ const VendorAgreements = () => {
       case 'manager_rejected':
         return <span className="approval-badge approval-pending">Pending Vendor Manager</span>;
       
+      case 'pending_approval': {
+        const chainCfg = agreement.approval_chain_config;
+        const currentStep = agreement.current_approval_step;
+        const totalSteps = chainCfg?.steps?.length || 0;
+        // Use server-resolved names (available to all user types) as primary source;
+        // fall back to client-side user lists for optimistic display before a fresh fetch.
+        let approverNames = agreement.current_step_approver_names || [];
+        if (!approverNames.length) {
+          const stepConfig = chainCfg?.steps?.find(s => s.step_number === currentStep);
+          const allUsers = [
+            ...stakeholderOptions.users,
+            ...users.filter(u => !stakeholderOptions.users.some(su => su.id === u.id))
+          ];
+          approverNames = (stepConfig?.approver_user_ids || [])
+            .map(uid => {
+              const id = parseInt(uid, 10);
+              const u = allUsers.find(u => u.id === id || parseInt(u.id, 10) === id);
+              if (!u) return null;
+              if (u.first_name && u.last_name) return `${u.first_name} ${u.last_name}`;
+              return u.full_name || u.fullName || u.username || u.email || null;
+            })
+            .filter(Boolean);
+        }
+        const voteProgress = agreement.current_step_vote_progress;
+        let voteProgressText = null;
+        if (voteProgress) {
+          const { approved_count, total_count, require_all } = voteProgress;
+          if (require_all) {
+            voteProgressText = `${approved_count}/${total_count} approved`;
+          } else {
+            voteProgressText = approved_count >= 1
+              ? '1 approved ✓'
+              : `Awaiting 1 of ${total_count}`;
+          }
+        }
+        return (
+          <span className="approval-badge approval-partial approval-badge-chain">
+            <span className="approval-chain-step">
+              ⛓ Step {currentStep}{totalSteps ? ` of ${totalSteps}` : ''} Active
+            </span>
+            {approverNames.length > 0 && (
+              <span className="approval-chain-approvers">{approverNames.join(', ')}</span>
+            )}
+            {voteProgressText && (
+              <span className="approval-chain-votes">{voteProgressText}</span>
+            )}
+          </span>
+        );
+      }
+
       case 'governance_approved':
+      case 'fully_approved':
         return <span className="approval-badge approval-approved">Fully Approved ✓</span>;
       
       case 'governance_rejected':
@@ -1682,8 +1913,8 @@ const VendorAgreements = () => {
         <>
           <div className="gps-page-header">
             <div className="gps-page-header-left">
-              <h1 className="gps-page-title">Vendor Contracts</h1>
-              <p className="gps-page-subtitle">Manage vendor file delivery agreements and contracts</p>
+              <h1 className="gps-page-title">Data Sharing Agreements</h1>
+              <p className="gps-page-subtitle">Manage data sharing agreements between internal and external parties</p>
             </div>
             <div className="gps-header-actions">
               <LineageBackButton />
@@ -1697,7 +1928,7 @@ const VendorAgreements = () => {
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
               </div>
-              {(isAdmin || (hasPermission && hasPermission('vendor_agreements:write'))) && !isVendor && (
+              {canCreate && (
                 <>
                   {isAdmin && (
                     <>
@@ -1727,7 +1958,7 @@ const VendorAgreements = () => {
                     className="gps-btn gps-btn--primary"
                     onClick={openCreateModal}
                   >
-                    Create Vendor Contract
+                    Create Data Sharing Agreement
                   </button>
                 </>
               )}
@@ -1816,7 +2047,7 @@ const VendorAgreements = () => {
                           >
                             <FiEye />
                           </button>
-                          {(isAdmin || (isVendor && currentUser.vendor_id === agreement.vendor_id && hasPermission && hasPermission('vendor_agreements:write'))) && (
+                          {(isAdmin || ((isVendorManager || isVendor) && isAssociatedWithAgreement(agreement))) && (
                             <button 
                               className="gps-icon-btn gps-icon-btn--edit" 
                               onClick={() => openEditModal(agreement)}
@@ -1867,7 +2098,7 @@ const VendorAgreements = () => {
             <ThreeSectionModal
               isOpen={modalOpen}
               onClose={closeModal}
-              title={modalMode === 'create' ? 'Create Vendor Contract' : 'Edit Vendor Contract'}
+              title={modalMode === 'create' ? 'Create Data Sharing Agreement' : 'Edit Data Sharing Agreement'}
               size="large"
               footer={
                 <>
@@ -1884,7 +2115,7 @@ const VendorAgreements = () => {
                     Save Draft
                   </button>
                   <button type="submit" form="agreement-form">
-                    {modalMode === 'create' || selectedAgreement?.status === 'draft' ? 'Create Contract' : 'Update Contract'}
+                    {modalMode === 'create' || selectedAgreement?.status === 'draft' ? 'Create Agreement' : 'Update Agreement'}
                   </button>
                 </>
               }
@@ -1959,11 +2190,11 @@ const VendorAgreements = () => {
                 <div className="form-section">
                   <h3 className="section-title">Agreement Information</h3>
                   
-                  {/* Row 1: Vendor and Description */}
+                  {/* Row 1: DP and Description */}
                   <div className="form-row-grid">
                     <div className="form-group">
                       <label htmlFor="vendor_id">
-                        Vendor Name {isAdmin && <span className="required-field">*</span>}
+                        DP Name {isAdmin && <span className="required-field">*</span>}
                       </label>
                       {isAdmin ? (
                         <select
@@ -1973,7 +2204,7 @@ const VendorAgreements = () => {
                           onChange={handleInputChange}
                           required
                         >
-                          <option value="">Select a vendor</option>
+                          <option value="">Select a DP</option>
                           {Array.isArray(vendors) && vendors.map(vendor => (
                             <option key={vendor.id} value={vendor.id}>
                               {vendor.vendor_name} ({vendor.vendor_code})
@@ -2017,9 +2248,9 @@ const VendorAgreements = () => {
                           id="project_name"
                           value={formData.project_name || ''}
                           readOnly
-                          placeholder={formData.project_name ? "" : "No project assigned to vendor"}
+                           placeholder={formData.project_name ? "" : "No project assigned to DP"}
                         />
-                        <span className="form-helper-text">Automatically assigned from the vendor's project</span>
+                         <span className="form-helper-text">Automatically assigned from the DP's project</span>
                       </div>
                       
                       {formData.project_id && (
@@ -2050,11 +2281,11 @@ const VendorAgreements = () => {
                     </div>
                   )}
                   
-                  {/* Row 2: Vendor Manager and Manager Contact */}
+                   {/* Row 2: DP Manager and Manager Contact */}
                   <div className="form-row-grid">
                     <div className="form-group">
                       <label htmlFor="file_owner_user_id">
-                        Vendor Manager/File Owner <span className="required-field">*</span>
+                         DP Manager/File Owner <span className="required-field">*</span>
                       </label>
                       <select
                         id="file_owner_user_id"
@@ -2084,9 +2315,9 @@ const VendorAgreements = () => {
                           value={formData.manager_contact}
                           onChange={handleInputChange}
                           readOnly
-                          placeholder="Auto-populated from vendor manager"
+                           placeholder="Auto-populated from DP manager"
                         />
-                        <span className="form-helper-text">Automatically populated from vendor manager's email</span>
+                         <span className="form-helper-text">Automatically populated from DP manager's email</span>
                       </div>
                     )}
                   </div>
@@ -2113,7 +2344,7 @@ const VendorAgreements = () => {
                             </option>
                           ))}
                       </select>
-                      <span className="form-helper-text">Responsible for final approval of the vendor contract</span>
+                       <span className="form-helper-text">Responsible for final approval of the DP contract</span>
                     </div>
                     
                     {formData.governance_manager_user_id && (
@@ -2132,41 +2363,41 @@ const VendorAgreements = () => {
                   </div>
                 </div>
                 
-                {/* Section 3: Vendor Information */}
+                {/* Section 3: Data Producer Information */}
                 {formData.vendor_id && (
                   <div className="form-section">
-                    <h3 className="section-title">Vendor Information</h3>
+                    <h3 className="section-title">Data Producer Information</h3>
                     
                     <div className="form-row-grid">
                       <div className="form-group">
-                        <label htmlFor="vendor_code">Vendor ID</label>
+                         <label htmlFor="vendor_code">DP ID</label>
                         <input
                           type="text"
                           id="vendor_code"
                           name="vendor_code"
                           value={formData.vendor_code}
                           readOnly
-                          placeholder="Auto from vendor"
+                           placeholder="Auto from DP"
                         />
-                        <span className="form-helper-text">Automatically assigned when vendor is selected</span>
+                         <span className="form-helper-text">Automatically assigned when DP is selected</span>
                       </div>
                       
                       <div className="form-group">
-                        <label htmlFor="vendor_type">Vendor Type</label>
+                         <label htmlFor="vendor_type">DP Type</label>
                         <input
                           type="text"
                           id="vendor_type"
                           name="vendor_type"
                           value={formData.vendor_type}
                           readOnly
-                          placeholder="Auto from vendor"
+                           placeholder="Auto from DP"
                         />
-                        <span className="form-helper-text">Automatically assigned when vendor is selected</span>
+                         <span className="form-helper-text">Automatically assigned when DP is selected</span>
                       </div>
                     </div>
                     
                     <div className="form-group">
-                      <label htmlFor="vendor_onboarding_date">Vendor Onboarding Date <span className="required-field">*</span></label>
+                       <label htmlFor="vendor_onboarding_date">DP Onboarding Date <span className="required-field">*</span></label>
                       <input
                         type="date"
                         id="vendor_onboarding_date"
@@ -2213,7 +2444,7 @@ const VendorAgreements = () => {
                   
                   <div className="form-row-grid">
                     <div className="form-group">
-                      <label htmlFor="vendor_department_team">Vendor Department/Team <span className="required-field">*</span></label>
+                       <label htmlFor="vendor_department_team">DP Department/Team <span className="required-field">*</span></label>
                       <input
                         type="text"
                         id="vendor_department_team"
@@ -2226,14 +2457,14 @@ const VendorAgreements = () => {
                     </div>
                     
                     <div className="form-group">
-                      <label htmlFor="vendor_department_email">Vendor Department Email <span className="required-field">*</span></label>
+                       <label htmlFor="vendor_department_email">DP Department Email <span className="required-field">*</span></label>
                       <input
                         type="email"
                         id="vendor_department_email"
                         name="vendor_department_email"
                         value={formData.vendor_department_email}
                         onChange={handleInputChange}
-                        placeholder="department@vendor.com"
+                         placeholder="department@dp.com"
                         required
                       />
                     </div>
@@ -2242,7 +2473,7 @@ const VendorAgreements = () => {
                 
                 {/* Section 4: Vendor Contact Information */}
                 <div className="form-section">
-                  <h3 className="section-title">Vendor Contact Information</h3>
+                  <h3 className="section-title">Contact Information</h3>
                   
                   <div className="two-column-grid">
                     {/* Primary Contact (Left Column) */}
@@ -2338,7 +2569,7 @@ const VendorAgreements = () => {
                   <h3 className="section-title">Additional Stakeholders</h3>
                   <p className="section-description" style={{ fontSize: '12px', color: '#666', marginBottom: '16px' }}>
                     Add internal users or groups who should receive notifications when this agreement is updated.
-                    These stakeholders will be notified in addition to the primary contacts, vendor manager, and governance manager.
+                     These stakeholders will be notified in addition to the primary contacts, DP manager, and governance manager.
                   </p>
                   
                   <div className="form-row-grid">
@@ -2428,6 +2659,76 @@ const VendorAgreements = () => {
                   </div>
                 </div>
                 
+                {/* Section 5b: Approval Chain — available in both create and edit modes */}
+                {modalMode === 'create' && (
+                  <div className="form-section">
+                    <h3 className="section-title">Approval Chain</h3>
+                    <p className="section-description" style={{ fontSize: '12px', color: '#666', marginBottom: '16px' }}>
+                      Optionally configure a sequential multi-step approval chain. Click &ldquo;Apply&rdquo; to
+                      confirm your steps — the chain will be saved automatically when the contract is created.
+                    </p>
+                    {autoApprovalChain && !pendingApprovalChain && (
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'flex-start',
+                        gap: '8px',
+                        padding: '10px 14px',
+                        marginBottom: '12px',
+                        background: '#eff6ff',
+                        border: '1px solid #bfdbfe',
+                        borderRadius: '6px',
+                        fontSize: '12px',
+                        color: '#1d4ed8',
+                        lineHeight: '1.5',
+                      }}>
+                        <span style={{ flexShrink: 0, fontSize: '14px' }}>ℹ️</span>
+                        <span>
+                          Approval chain auto-configured from the selected contacts. Open below to review or customise, then click <strong>Apply</strong> to confirm.
+                        </span>
+                      </div>
+                    )}
+                    <ApprovalChainConfig
+                      users={chainUsers}
+                      initialSteps={autoApprovalChain}
+                      onChange={(steps) => {
+                        chainManuallyApplied.current = true;
+                        setPendingApprovalChain(steps);
+                      }}
+                      onError={(msg) => setError(msg)}
+                      onSuccess={(msg) => {
+                        setSuccessMessage(msg);
+                        setTimeout(() => setSuccessMessage(''), 5000);
+                      }}
+                    />
+                  </div>
+                )}
+
+                {modalMode === 'edit' && selectedAgreement?.id && (
+                  <div className="form-section">
+                    <h3 className="section-title">Approval Chain</h3>
+                    <p className="section-description" style={{ fontSize: '12px', color: '#666', marginBottom: '16px' }}>
+                      Configure a sequential multi-step approval chain for this contract.
+                      After configuring, use the &ldquo;Submit for Chain Approval&rdquo; button inside
+                      the contract details view to start the approval process.
+                    </p>
+                    <ApprovalChainConfig
+                      agreement={selectedAgreement}
+                      users={stakeholderOptions.users}
+                      onSave={() => {
+                        /* Refresh the selected agreement so the badge updates */
+                        axios.get(`/api/vendor-agreements/${selectedAgreement.id}`)
+                          .then(r => setSelectedAgreement(r.data.agreement || r.data))
+                          .catch(() => {});
+                      }}
+                      onError={(msg) => setError(msg)}
+                      onSuccess={(msg) => {
+                        setSuccessMessage(msg);
+                        setTimeout(() => setSuccessMessage(''), 5000);
+                      }}
+                    />
+                  </div>
+                )}
+
                 {/* Section 6: Configuration */}
                 <div className="form-section">
                   <h3 className="section-title">Configuration</h3>
@@ -2638,7 +2939,7 @@ const VendorAgreements = () => {
                     
                     <div className="form-group">
                       <label htmlFor="vendor_connection_id">
-                        Vendor File Drop Connection <span className="required-field">*</span>
+                         DP File Drop Connection <span className="required-field">*</span>
                       </label>
                       <select
                         id="vendor_connection_id"
@@ -2647,14 +2948,14 @@ const VendorAgreements = () => {
                         onChange={handleInputChange}
                         required
                       >
-                        <option value="">Select a vendor connection</option>
+                         <option value="">Select a DP connection</option>
                         {filteredConnections.map(conn => (
                           <option key={conn.connection_id} value={conn.connection_id}>
                             {conn.name} ({conn.connection_type?.toUpperCase() || conn.storage_type?.toUpperCase() || 'AWS'})
                           </option>
                         ))}
                       </select>
-                      <span className="form-helper-text">Where vendor will drop files</span>
+                       <span className="form-helper-text">Where DP will drop files</span>
                     </div>
                     
                     <div className="form-group">
@@ -2819,22 +3120,134 @@ const VendorAgreements = () => {
                         </div>
                       </div>
                       
-                      <ThreeStageApprovalPanel
-                        agreement={selectedAgreement}
-                        currentUser={currentUser}
-                        onUpdate={() => fetchAgreementDetails(selectedAgreement.id)}
-                        onError={(msg) => setDetailModalError(msg)}
-                        onSuccess={(msg) => {
-                          setDetailModalSuccess(msg);
-                          setTimeout(() => setDetailModalSuccess(''), 5000);
-                          fetchData();
-                        }}
-                      />
+                      {/* Backward-compat guard: use DynamicApprovalPanel when a chain
+                          config is present, ThreeStageApprovalPanel for legacy contracts */}
+                      {selectedAgreement.approval_chain_config?.steps?.length > 0 ? (
+                        <DynamicApprovalPanel
+                          agreement={selectedAgreement}
+                          currentUser={currentUser}
+                          stepDecisions={stepDecisions}
+                          users={(() => {
+                            const base = agreementChainUsers.length ? agreementChainUsers : [];
+                            const extra = [...stakeholderOptions.users, ...users];
+                            const merged = [...base];
+                            for (const u of extra) {
+                              if (!merged.some(m => m.id === u.id)) merged.push(u);
+                            }
+                            return merged;
+                          })()}
+                          isAdmin={isAdmin}
+                          onUpdate={() => fetchAgreementDetails(selectedAgreement.id)}
+                          onError={(msg) => setDetailModalError(msg)}
+                          onSuccess={(msg) => {
+                            setDetailModalSuccess(msg);
+                            setTimeout(() => setDetailModalSuccess(''), 5000);
+                            fetchData();
+                          }}
+                        />
+                      ) : (
+                        <ThreeStageApprovalPanel
+                          agreement={selectedAgreement}
+                          currentUser={currentUser}
+                          onUpdate={() => fetchAgreementDetails(selectedAgreement.id)}
+                          onError={(msg) => setDetailModalError(msg)}
+                          onSuccess={(msg) => {
+                            setDetailModalSuccess(msg);
+                            setTimeout(() => setDetailModalSuccess(''), 5000);
+                            fetchData();
+                          }}
+                        />
+                      )}
                     </div>
                   )}
                   
                   {activeTab === 'approvals' && (
                     <div className="approvals-tab">
+                      {/* ── Chain step decisions (new N-step flow) ── */}
+                      {stepDecisions.length > 0 && (
+                        <>
+                          <h3>Approval Chain Decisions</h3>
+                          <table className="history-table" style={{ marginBottom: '20px' }}>
+                            <thead>
+                              <tr>
+                                <th>Step</th>
+                                <th>Timestamp</th>
+                                <th>Approver</th>
+                                <th>Action</th>
+                                <th>Comments</th>
+                                <th>Documents</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {stepDecisions.map((dec, index) => {
+                                const decDocs = dec.approval_id
+                                  ? (approvalHistory.find(a => a.id === dec.approval_id)?.documents || [])
+                                  : [];
+                                return (
+                                <tr key={index}>
+                                  <td>Step {dec.step_number}</td>
+                                  <td>{dec.decided_at ? new Date(dec.decided_at).toLocaleString() : '-'}</td>
+                                  <td>{dec.display_name || dec.username || dec.approver_user_id}</td>
+                                  <td>
+                                    <span className={`action-badge action-${dec.action}`}>
+                                      {dec.action}
+                                    </span>
+                                  </td>
+                                  <td>{dec.comments || '-'}</td>
+                                  <td>
+                                    {decDocs.length > 0 ? (
+                                      <div className="document-list">
+                                        {decDocs.map((doc, docIndex) => (
+                                          <div key={docIndex} className="document-item">
+                                            📎 <a
+                                              href="#"
+                                              className="document-link"
+                                              onClick={(e) => {
+                                                e.preventDefault();
+                                                const token = localStorage.getItem('token');
+                                                if (!token) {
+                                                  setError('Session expired. Please log in again.');
+                                                  return;
+                                                }
+                                                fetch(`/api/vendor-agreements/${selectedAgreement.id}/documents/${doc.id}/download`, {
+                                                  headers: { 'Authorization': `Bearer ${token}` }
+                                                })
+                                                .then(res => {
+                                                  if (!res.ok) throw new Error(res.status === 401 ? 'Session expired. Please log in again.' : 'Failed to download document');
+                                                  return res.blob();
+                                                })
+                                                .then(blob => {
+                                                  const url = window.URL.createObjectURL(blob);
+                                                  const a = document.createElement('a');
+                                                  a.href = url;
+                                                  a.download = doc.document_name;
+                                                  document.body.appendChild(a);
+                                                  a.click();
+                                                  window.URL.revokeObjectURL(url);
+                                                  document.body.removeChild(a);
+                                                })
+                                                .catch(err => {
+                                                  console.error('Download error:', err);
+                                                  setError(err.message || 'Failed to download document');
+                                                });
+                                              }}
+                                            >
+                                              {doc.document_name}
+                                            </a> ({(doc.file_size / 1024).toFixed(1)} KB)
+                                          </div>
+                                        ))}
+                                      </div>
+                                    ) : '-'}
+                                  </td>
+                                </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </>
+                      )}
+
+                      {/* ── Legacy 3-stage approval history ── */}
                       <h3>Approval History</h3>
                       {!Array.isArray(approvalHistory) || approvalHistory.length === 0 ? (
                         <p className="no-data">No approval history</p>

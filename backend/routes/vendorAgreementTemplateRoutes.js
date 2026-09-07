@@ -6,6 +6,7 @@ const path = require('path');
 const fs = require('fs');
 const authenticateToken = require('../middleware/authenticate');
 const vendorAgreementTemplateService = require('../services/vendorAgreementTemplateService');
+const pool = require('../db');
 
 const upload = multer({ 
   dest: 'uploads/templates/',
@@ -82,6 +83,16 @@ router.post('/vendor-agreement-template/upload', authenticateToken, upload.singl
       });
     }
     
+    // Resolve quality_rules type strings to existing DB rule IDs so the
+    // schemaRuleEnforcer's candidate-ID lookup fires for template-uploaded contracts.
+    try {
+      const allFileConfigs = result.agreements.flatMap(a => a.fileConfigurations || []);
+      await vendorAgreementTemplateService.resolveQualityRuleIds(pool, allFileConfigs);
+    } catch (resolveErr) {
+      // Non-fatal — the broad-type lookup in schemaRuleEnforcer is a safe fallback
+      console.warn('resolveQualityRuleIds failed (non-fatal):', resolveErr.message);
+    }
+
     console.log('Template parsed successfully, returning agreements:', result.agreements.length);
     res.json({
       success: true,

@@ -107,9 +107,13 @@ function VendorFileUpload() {
         headers: { Authorization: `Bearer ${token}` }
       });
       const agreements = response.data.agreements || [];
-      // Only show approved and locked agreements for file upload
+      // Show locked agreements that are fully approved — either via the legacy
+      // governance workflow ('governance_approved') or the newer chain-approval
+      // workflow ('fully_approved'). Both statuses indicate the contract has
+      // cleared all required approvals and is ready for file uploads.
       const approvedAgreements = agreements.filter(a => 
-        a.approval_status === 'governance_approved' && a.is_locked === true
+        (a.approval_status === 'governance_approved' || a.approval_status === 'fully_approved') &&
+        a.is_locked === true
       );
       setVendorAgreements(approvedAgreements);
     } catch (error) {
@@ -228,7 +232,7 @@ function VendorFileUpload() {
         
         // Redirect to the uploaded file's profile page after a short delay
         setTimeout(() => {
-          navigate(`/profile/${encodeURIComponent(fileDetails.fileId)}?t=${Date.now()}`);
+          navigate(`/profile/${encodeURIComponent(fileDetails.fileId)}?t=${Date.now()}`, { state: { fromVendorUpload: true } });
         }, 1500);
         
       } else if (virusScan && virusScan.scanned && !virusScan.clean) {
@@ -250,7 +254,7 @@ function VendorFileUpload() {
         
         // Redirect to the uploaded file's profile page after a short delay
         setTimeout(() => {
-          navigate(`/profile/${encodeURIComponent(fileDetails.fileId)}?t=${Date.now()}`);
+          navigate(`/profile/${encodeURIComponent(fileDetails.fileId)}?t=${Date.now()}`, { state: { fromVendorUpload: true } });
         }, 1500);
       }
       
@@ -785,9 +789,13 @@ function VendorFileUpload() {
                     const isExpanded = expandedSchemas[schema.id];
                     let schemaFields = [];
                     try {
-                      schemaFields = typeof schema.schema === 'string' 
-                        ? JSON.parse(schema.schema) 
-                        : schema.schema || [];
+                      const rawSchema = typeof schema.schema === 'string'
+                        ? JSON.parse(schema.schema)
+                        : schema.schema;
+                      // Normalize: legacy format is a bare array; new format is { columns, file_quality_rules }
+                      schemaFields = Array.isArray(rawSchema)
+                        ? rawSchema
+                        : (rawSchema && Array.isArray(rawSchema.columns) ? rawSchema.columns : []);
                     } catch (e) {
                       schemaFields = [];
                     }

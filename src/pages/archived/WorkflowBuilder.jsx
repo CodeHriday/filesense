@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import PropTypes from 'prop-types';
 import { useNavigate } from 'react-router-dom';
+import { FiMail } from 'react-icons/fi';
 import ReactFlow, {
   MiniMap,
   Controls,
@@ -62,6 +63,121 @@ StopNode.propTypes = {
     assetType: PropTypes.string,
     assetId: PropTypes.oneOfType([PropTypes.string, PropTypes.number])
   }).isRequired
+};
+
+// Jira Ticket node — creates a Jira issue from workflow execution context
+const JiraNode = ({ data, isConnectable }) => {
+  return (
+    <div className="workflow-job-node" style={{ borderLeft: '4px solid #0052CC', minWidth: 160 }}>
+      <Handle
+        type="target"
+        position={Position.Left}
+        id="input"
+        className="workflow-job-node-handle"
+      />
+      <div className="workflow-job-node-header" style={{ color: '#0052CC' }}>
+        <span style={{ marginRight: 6 }}>🎫</span>
+        <span className="workflow-job-node-title">Jira Ticket</span>
+        {data.executionStatus === 'completed' && (
+          <span className="workflow-job-node-status-badge workflow-job-node-status-success">✓</span>
+        )}
+        {data.executionStatus === 'failed' && (
+          <span className="workflow-job-node-status-badge workflow-job-node-status-error" title={data.executionError}>!</span>
+        )}
+      </div>
+      {data.config?.summary && (
+        <div className="workflow-job-node-description">
+          {data.config.summary.substring(0, 32)}{data.config.summary.length > 32 ? '…' : ''}
+        </div>
+      )}
+      {!data.config?.summary && (
+        <div className="workflow-job-node-description" style={{ color: '#888' }}>
+          Click to configure
+        </div>
+      )}
+      {data.config?.issueType && (
+        <div className="workflow-job-node-description" style={{ fontStyle: 'italic', fontSize: '11px' }}>
+          {data.config.issueType} · {data.config.priority || 'Medium'}
+        </div>
+      )}
+      <Handle
+        type="source"
+        position={Position.Right}
+        id="output"
+        className="workflow-job-node-handle"
+      />
+    </div>
+  );
+};
+
+JiraNode.propTypes = {
+  data: PropTypes.shape({
+    label: PropTypes.string,
+    assetType: PropTypes.string,
+    config: PropTypes.object,
+    executionStatus: PropTypes.string,
+    executionError: PropTypes.string
+  }).isRequired,
+  isConnectable: PropTypes.bool
+};
+
+// Email Notification node — sends a workflow-results email to configured recipients
+const EmailNode = ({ data, isConnectable }) => {
+  const recipientPreview = data.config?.recipients
+    ? data.config.recipients.split(/[,;]+/)[0].trim()
+    : null;
+  return (
+    <div className="workflow-job-node" style={{ borderLeft: '4px solid #1a73e8', minWidth: 160 }}>
+      <Handle
+        type="target"
+        position={Position.Left}
+        id="input"
+        className="workflow-job-node-handle"
+      />
+      <div className="workflow-job-node-header" style={{ color: '#1a73e8' }}>
+        <FiMail style={{ marginRight: 6, verticalAlign: 'middle' }} />
+        <span className="workflow-job-node-title">Email Notification</span>
+        {data.executionStatus === 'completed' && (
+          <span className="workflow-job-node-status-badge workflow-job-node-status-success">✓</span>
+        )}
+        {data.executionStatus === 'failed' && (
+          <span className="workflow-job-node-status-badge workflow-job-node-status-error" title={data.executionError}>!</span>
+        )}
+      </div>
+      {recipientPreview && (
+        <div className="workflow-job-node-description">
+          To: {recipientPreview}{data.config.recipients.includes(',') ? ' +more' : ''}
+        </div>
+      )}
+      {data.config?.subject && (
+        <div className="workflow-job-node-description" style={{ fontStyle: 'italic' }}>
+          {data.config.subject.substring(0, 30)}{data.config.subject.length > 30 ? '…' : ''}
+        </div>
+      )}
+      {!recipientPreview && (
+        <div className="workflow-job-node-description" style={{ color: '#c5221f' }}>
+          ⚠ Not configured — click to set up
+        </div>
+      )}
+      <Handle
+        type="source"
+        position={Position.Right}
+        id="output"
+        className="workflow-job-node-handle"
+      />
+    </div>
+  );
+};
+
+EmailNode.propTypes = {
+  data: PropTypes.shape({
+    label: PropTypes.string,
+    assetType: PropTypes.string,
+    config: PropTypes.object,
+    executionStatus: PropTypes.string,
+    executionError: PropTypes.string
+  }).isRequired,
+  isConnectable: PropTypes.bool
 };
 
 // Custom node component for ETL mapping jobs
@@ -126,7 +242,262 @@ JobNode.propTypes = {
 const nodeTypes = {
   job: JobNode,
   start: StartNode,
-  stop: StopNode
+  stop: StopNode,
+  email: EmailNode,
+  jira: JiraNode
+};
+
+// ── Jira Ticket config modal (WorkflowBuilder) ────────────────────────────────
+function JiraTicketConfigModal({ initialConfig, jiraConnections, onSave, onClose }) {
+  const [cfg, setCfg] = useState({
+    connectionId:  initialConfig.connectionId  || '',
+    projectKey:    initialConfig.projectKey    || '',
+    summary:       initialConfig.summary       || 'Workflow {status} — {workflowId}',
+    description:   initialConfig.description   || '',
+    issueType:     initialConfig.issueType     || 'Task',
+    priority:      initialConfig.priority      || 'Medium',
+    assignee:      initialConfig.assignee      || ''
+  });
+
+  return (
+    <div
+      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}
+      role="dialog" aria-modal="true" aria-label="Jira Ticket Configuration"
+      onClick={onClose}
+    >
+      <div
+        style={{ background: '#fff', borderRadius: 8, padding: 24, width: 480, maxWidth: '95vw', boxShadow: '0 8px 32px rgba(0,0,0,.2)' }}
+        onClick={e => e.stopPropagation()}
+      >
+        <h3 style={{ margin: '0 0 16px', display: 'flex', alignItems: 'center', gap: 8, fontSize: 16 }}>
+          🎫 Jira Ticket
+        </h3>
+
+        <label style={{ display: 'block', marginBottom: 12 }}>
+          <span style={{ fontSize: 13, fontWeight: 600, display: 'block', marginBottom: 4 }}>Jira Connection</span>
+          <select
+            value={cfg.connectionId}
+            onChange={e => setCfg(p => ({ ...p, connectionId: e.target.value }))}
+            style={{ width: '100%', padding: '6px 8px', borderRadius: 4, border: '1px solid #ddd' }}
+          >
+            <option value="">— use default connection —</option>
+            {jiraConnections.map(c => (
+              <option key={c.connection_id} value={c.connection_id}>{c.name}</option>
+            ))}
+          </select>
+          {jiraConnections.length === 0 && (
+            <span style={{ fontSize: 11, color: '#888' }}>No Jira connections found. Add one in Settings → Integrations.</span>
+          )}
+        </label>
+
+        <label style={{ display: 'block', marginBottom: 12 }}>
+          <span style={{ fontSize: 13, fontWeight: 600, display: 'block', marginBottom: 4 }}>Project Key override <span style={{ fontWeight: 400, color: '#888' }}>(optional)</span></span>
+          <input
+            type="text"
+            placeholder="Leave blank to use connection default"
+            value={cfg.projectKey}
+            onChange={e => setCfg(p => ({ ...p, projectKey: e.target.value }))}
+            style={{ width: '100%', padding: '6px 8px', borderRadius: 4, border: '1px solid #ddd', boxSizing: 'border-box' }}
+          />
+        </label>
+
+        <label style={{ display: 'block', marginBottom: 12 }}>
+          <span style={{ fontSize: 13, fontWeight: 600, display: 'block', marginBottom: 4 }}>Issue Summary</span>
+          <input
+            type="text"
+            placeholder="Workflow {status} — {workflowId}"
+            value={cfg.summary}
+            onChange={e => setCfg(p => ({ ...p, summary: e.target.value }))}
+            style={{ width: '100%', padding: '6px 8px', borderRadius: 4, border: '1px solid #ddd', boxSizing: 'border-box' }}
+          />
+          <span style={{ fontSize: 11, color: '#888' }}>Use &#123;status&#125; and &#123;workflowId&#125; as placeholders</span>
+        </label>
+
+        <label style={{ display: 'block', marginBottom: 12 }}>
+          <span style={{ fontSize: 13, fontWeight: 600, display: 'block', marginBottom: 4 }}>Description <span style={{ fontWeight: 400, color: '#888' }}>(optional)</span></span>
+          <textarea
+            rows={3}
+            placeholder="Auto-generated from execution results if left blank"
+            value={cfg.description}
+            onChange={e => setCfg(p => ({ ...p, description: e.target.value }))}
+            style={{ width: '100%', padding: '6px 8px', borderRadius: 4, border: '1px solid #ddd', boxSizing: 'border-box', resize: 'vertical' }}
+          />
+        </label>
+
+        <div style={{ display: 'flex', gap: 12, marginBottom: 12 }}>
+          <label style={{ flex: 1 }}>
+            <span style={{ fontSize: 13, fontWeight: 600, display: 'block', marginBottom: 4 }}>Issue Type</span>
+            <select
+              value={cfg.issueType}
+              onChange={e => setCfg(p => ({ ...p, issueType: e.target.value }))}
+              style={{ width: '100%', padding: '6px 8px', borderRadius: 4, border: '1px solid #ddd' }}
+            >
+              {['Task', 'Bug', 'Story', 'Epic', 'Sub-task'].map(t => <option key={t} value={t}>{t}</option>)}
+            </select>
+          </label>
+          <label style={{ flex: 1 }}>
+            <span style={{ fontSize: 13, fontWeight: 600, display: 'block', marginBottom: 4 }}>Priority</span>
+            <select
+              value={cfg.priority}
+              onChange={e => setCfg(p => ({ ...p, priority: e.target.value }))}
+              style={{ width: '100%', padding: '6px 8px', borderRadius: 4, border: '1px solid #ddd' }}
+            >
+              {['Highest', 'High', 'Medium', 'Low', 'Lowest'].map(p => <option key={p} value={p}>{p}</option>)}
+            </select>
+          </label>
+        </div>
+
+        <label style={{ display: 'block', marginBottom: 20 }}>
+          <span style={{ fontSize: 13, fontWeight: 600, display: 'block', marginBottom: 4 }}>Assignee account ID <span style={{ fontWeight: 400, color: '#888' }}>(optional)</span></span>
+          <input
+            type="text"
+            placeholder="Jira account ID"
+            value={cfg.assignee}
+            onChange={e => setCfg(p => ({ ...p, assignee: e.target.value }))}
+            style={{ width: '100%', padding: '6px 8px', borderRadius: 4, border: '1px solid #ddd', boxSizing: 'border-box' }}
+          />
+        </label>
+
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+          <button onClick={onClose} style={{ padding: '8px 16px', borderRadius: 4, border: '1px solid #ddd', background: '#fff', cursor: 'pointer' }}>Cancel</button>
+          <button
+            onClick={() => onSave(cfg)}
+            style={{ padding: '8px 16px', borderRadius: 4, border: 'none', background: '#0052CC', color: '#fff', cursor: 'pointer', fontWeight: 600 }}
+          >
+            Save
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+JiraTicketConfigModal.propTypes = {
+  initialConfig: PropTypes.object.isRequired,
+  jiraConnections: PropTypes.array.isRequired,
+  onSave: PropTypes.func.isRequired,
+  onClose: PropTypes.func.isRequired
+};
+
+// ── Reusable email notification config modal ─────────────────────────────────
+function EmailNotificationConfigModal({ initialConfig, emailConnections, onSave, onClose }) {
+  const [cfg, setCfg] = useState({
+    emailConnectionId: initialConfig.emailConnectionId || '',
+    recipients: initialConfig.recipients || '',
+    subject: initialConfig.subject || 'Workflow {status}',
+    notifyOnSuccess: initialConfig.notifyOnSuccess !== false,
+    notifyOnFailure: initialConfig.notifyOnFailure !== false,
+    includeStats: initialConfig.includeStats !== false
+  });
+
+  return (
+    <div
+      style={{
+        position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        zIndex: 9999
+      }}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Email Notification Configuration"
+      onClick={onClose}
+    >
+      <div
+        style={{
+          background: '#fff', borderRadius: 8, padding: 24, width: 480,
+          maxWidth: '95vw', boxShadow: '0 8px 32px rgba(0,0,0,.2)'
+        }}
+        onClick={e => e.stopPropagation()}
+      >
+        <h3 style={{ margin: '0 0 16px', display: 'flex', alignItems: 'center', gap: 8, fontSize: 16 }}>
+          📧 Email Notification
+        </h3>
+
+        <label style={{ display: 'block', marginBottom: 12 }}>
+          <span style={{ fontSize: 13, fontWeight: 600, display: 'block', marginBottom: 4 }}>Email Provider</span>
+          <select
+            value={cfg.emailConnectionId}
+            onChange={e => setCfg(p => ({ ...p, emailConnectionId: e.target.value }))}
+            style={{ width: '100%', padding: '6px 8px', borderRadius: 4, border: '1px solid #ddd' }}
+          >
+            <option value="">— select email connection —</option>
+            {emailConnections.map(c => (
+              <option key={c.connection_id} value={c.connection_id}>{c.name}</option>
+            ))}
+          </select>
+          {emailConnections.length === 0 && (
+            <span style={{ fontSize: 11, color: '#888' }}>No email connections found. Add one in Settings → Connections.</span>
+          )}
+        </label>
+
+        <label style={{ display: 'block', marginBottom: 12 }}>
+          <span style={{ fontSize: 13, fontWeight: 600, display: 'block', marginBottom: 4 }}>Recipients</span>
+          <input
+            type="text"
+            placeholder="alice@example.com, bob@example.com"
+            value={cfg.recipients}
+            onChange={e => setCfg(p => ({ ...p, recipients: e.target.value }))}
+            style={{ width: '100%', padding: '6px 8px', borderRadius: 4, border: '1px solid #ddd', boxSizing: 'border-box' }}
+          />
+          <span style={{ fontSize: 11, color: '#888' }}>Comma or semicolon separated</span>
+        </label>
+
+        <label style={{ display: 'block', marginBottom: 12 }}>
+          <span style={{ fontSize: 13, fontWeight: 600, display: 'block', marginBottom: 4 }}>Subject</span>
+          <input
+            type="text"
+            placeholder="Workflow {status}"
+            value={cfg.subject}
+            onChange={e => setCfg(p => ({ ...p, subject: e.target.value }))}
+            style={{ width: '100%', padding: '6px 8px', borderRadius: 4, border: '1px solid #ddd', boxSizing: 'border-box' }}
+          />
+          <span style={{ fontSize: 11, color: '#888' }}>Use &#123;status&#125; and &#123;workflowId&#125; as placeholders</span>
+        </label>
+
+        <div style={{ marginBottom: 12 }}>
+          <span style={{ fontSize: 13, fontWeight: 600 }}>Send when</span>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8, cursor: 'pointer' }}>
+            <input type="checkbox" checked={cfg.notifyOnSuccess}
+              onChange={e => setCfg(p => ({ ...p, notifyOnSuccess: e.target.checked }))} />
+            Workflow completes successfully
+          </label>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6, cursor: 'pointer' }}>
+            <input type="checkbox" checked={cfg.notifyOnFailure}
+              onChange={e => setCfg(p => ({ ...p, notifyOnFailure: e.target.checked }))} />
+            Workflow completes with errors
+          </label>
+        </div>
+
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20, cursor: 'pointer' }}>
+          <input type="checkbox" checked={cfg.includeStats}
+            onChange={e => setCfg(p => ({ ...p, includeStats: e.target.checked }))} />
+          <span style={{ fontSize: 13 }}>Include execution statistics in email body</span>
+        </label>
+
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+          <button
+            onClick={onClose}
+            style={{ padding: '8px 16px', borderRadius: 4, border: '1px solid #ddd', background: '#fff', cursor: 'pointer' }}
+          >
+            Cancel
+          </button>
+          <button
+            onClick={() => onSave(cfg)}
+            style={{ padding: '8px 16px', borderRadius: 4, border: 'none', background: '#1a73e8', color: '#fff', cursor: 'pointer', fontWeight: 600 }}
+          >
+            Save
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+EmailNotificationConfigModal.propTypes = {
+  initialConfig: PropTypes.object.isRequired,
+  emailConnections: PropTypes.array.isRequired,
+  onSave: PropTypes.func.isRequired,
+  onClose: PropTypes.func.isRequired
 };
 
 const WorkflowBuilderContent = () => {
@@ -162,6 +533,14 @@ const WorkflowBuilderContent = () => {
   // Palette panel visibility
   const [showPalette, setShowPalette] = useState(true);
   const [showConfig, setShowConfig] = useState(true);
+
+  // Email notification node state
+  const [emailConnections, setEmailConnections] = useState([]);
+  const [emailConfigNodeId, setEmailConfigNodeId] = useState(null); // node id being configured
+
+  // Jira ticket node state
+  const [jiraConnections, setJiraConnections] = useState([]);
+  const [jiraConfigNodeId, setJiraConfigNodeId] = useState(null);
   
   // Project context
   const [projectId, setProjectId] = useState(null);
@@ -577,6 +956,18 @@ const WorkflowBuilderContent = () => {
         assetId = null;
         assetType = 'stop';
         nodeType = 'stop';
+      } else if (assetData.assetType === 'email_notification') {
+        nodeId = `email-${Date.now()}`;
+        nodeLabel = 'Email Notification';
+        assetId = null;
+        assetType = 'email_notification';
+        nodeType = 'email';
+      } else if (assetData.assetType === 'jira_ticket') {
+        nodeId = `jira-${Date.now()}`;
+        nodeLabel = 'Jira Ticket';
+        assetId = null;
+        assetType = 'jira_ticket';
+        nodeType = 'jira';
       } else {
         return; // Unknown asset type
       }
@@ -588,7 +979,8 @@ const WorkflowBuilderContent = () => {
         data: {
           label: nodeLabel,
           assetId: assetId,
-          assetType: assetType
+          assetType: assetType,
+          config: assetData.config || {}
         }
       };
       
@@ -911,6 +1303,70 @@ const WorkflowBuilderContent = () => {
     setEdges((eds) => eds.filter((edge) => !edge.selected));
   };
   
+  // Fetch email provider connections once on mount
+  useEffect(() => {
+    const loadEmailConnections = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const response = await axios.get('/api/connections', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const connections = Array.isArray(response.data)
+          ? response.data
+          : (response.data?.connections || []);
+        setEmailConnections(connections.filter(c =>
+          c.type === 'email' || c.type === 'smtp' || c.type === 'sendgrid' || c.type === 'ses'
+        ));
+      } catch (err) {
+        console.log('Could not load email connections:', err.message);
+      }
+    };
+    loadEmailConnections();
+  }, []);
+
+  // Fetch Jira connections once on mount so the Jira config modal can populate its dropdown
+  useEffect(() => {
+    const loadJiraConnections = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const response = await axios.get('/api/jira/connections', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        setJiraConnections(Array.isArray(response.data) ? response.data : []);
+      } catch (err) {
+        console.log('Could not load Jira connections:', err.message);
+      }
+    };
+    loadJiraConnections();
+  }, []);
+
+  // Open config modal when a configurable node is clicked
+  const onNodeClick = useCallback((_event, node) => {
+    if (node.type === 'email') {
+      setEmailConfigNodeId(node.id);
+    } else if (node.type === 'jira') {
+      setJiraConfigNodeId(node.id);
+    }
+  }, []);
+
+  // Save email node config from modal
+  const handleSaveEmailConfig = useCallback((cfg) => {
+    setNodes(nds => nds.map(n => {
+      if (n.id !== emailConfigNodeId) return n;
+      return { ...n, data: { ...n.data, config: cfg } };
+    }));
+    setEmailConfigNodeId(null);
+  }, [emailConfigNodeId, setNodes]);
+
+  // Save Jira node config from modal
+  const handleSaveJiraConfig = useCallback((cfg) => {
+    setNodes(nds => nds.map(n => {
+      if (n.id !== jiraConfigNodeId) return n;
+      return { ...n, data: { ...n.data, config: cfg } };
+    }));
+    setJiraConfigNodeId(null);
+  }, [jiraConfigNodeId, setNodes]);
+
   // Filter assets by search query
   const filteredJobs = (Array.isArray(availableJobs) ? availableJobs : []).filter(job =>
     job.name?.toLowerCase().includes(searchQuery.toLowerCase())
@@ -1164,8 +1620,6 @@ const WorkflowBuilderContent = () => {
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' || e.key === ' ') {
                         e.preventDefault();
-                        // For keyboard users, we could implement a different interaction
-                        // For now, just prevent default to satisfy accessibility
                       }
                     }}
                   >
@@ -1183,14 +1637,52 @@ const WorkflowBuilderContent = () => {
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' || e.key === ' ') {
                         e.preventDefault();
-                        // For keyboard users, we could implement a different interaction
-                        // For now, just prevent default to satisfy accessibility
                       }
                     }}
                   >
                     <span className="workflow-builder-palette-control-icon workflow-builder-palette-stop-icon">●</span>
                     {' '}
                     Stop Node
+                  </div>
+                </div>
+              </div>
+
+              {/* Section 5: Actions */}
+              <div className="workflow-builder-palette-section">
+                <div className="workflow-builder-palette-section-header">
+                  <span className="workflow-builder-palette-section-toggle">▼</span>
+                  <span className="workflow-builder-palette-section-title">
+                    Actions
+                  </span>
+                </div>
+                <div className="workflow-builder-palette-section-items">
+                  <div
+                    className="workflow-builder-palette-item"
+                    draggable
+                    role="button"
+                    tabIndex="0"
+                    aria-label="Drag Email Notification node to canvas"
+                    style={{ borderLeft: '3px solid #1a73e8' }}
+                    onDragStart={(e) => onDragStart(e, { assetType: 'email_notification', config: {} })}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') e.preventDefault();
+                    }}
+                  >
+                    📧 Email Notification
+                  </div>
+                  <div
+                    className="workflow-builder-palette-item"
+                    draggable
+                    role="button"
+                    tabIndex="0"
+                    aria-label="Drag Jira Ticket node to canvas"
+                    style={{ borderLeft: '3px solid #0052CC' }}
+                    onDragStart={(e) => onDragStart(e, { assetType: 'jira_ticket', config: {} })}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') e.preventDefault();
+                    }}
+                  >
+                    🎫 Jira Ticket
                   </div>
                 </div>
               </div>
@@ -1218,6 +1710,7 @@ const WorkflowBuilderContent = () => {
             onInit={handleReactFlowInit}
             onDrop={onDrop}
             onDragOver={onDragOver}
+            onNodeClick={onNodeClick}
             nodeTypes={nodeTypes}
             fitView={false}
             minZoom={0.2}
@@ -1340,6 +1833,34 @@ const WorkflowBuilderContent = () => {
         )}
       </div>
       
+      {/* Email Notification Config Modal */}
+      {emailConfigNodeId && (() => {
+        const emailNode = nodes.find(n => n.id === emailConfigNodeId);
+        if (!emailNode) return null;
+        return (
+          <EmailNotificationConfigModal
+            initialConfig={emailNode.data?.config || {}}
+            emailConnections={emailConnections}
+            onSave={handleSaveEmailConfig}
+            onClose={() => setEmailConfigNodeId(null)}
+          />
+        );
+      })()}
+
+      {/* Jira Ticket Config Modal */}
+      {jiraConfigNodeId && (() => {
+        const jiraNode = nodes.find(n => n.id === jiraConfigNodeId);
+        if (!jiraNode) return null;
+        return (
+          <JiraTicketConfigModal
+            initialConfig={jiraNode.data?.config || {}}
+            jiraConnections={jiraConnections}
+            onSave={handleSaveJiraConfig}
+            onClose={() => setJiraConfigNodeId(null)}
+          />
+        );
+      })()}
+
       {/* Execution Console Panel */}
       <div 
         className={`workflow-builder-console ${showConsole ? 'workflow-builder-console-open' : ''}`}

@@ -1604,7 +1604,6 @@ const Connections = () => {
     );
   });
 
-  // All connections shown in unified list (no source/target filtering)
   const filteredConnections = searchedConnections;
 
   // Pagination logic

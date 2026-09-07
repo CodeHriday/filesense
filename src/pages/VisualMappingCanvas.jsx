@@ -362,17 +362,6 @@ const VisualMappingCanvasContent = () => {
   const [projects, setProjects] = useState([]);
   const [subProjects, setSubProjects] = useState([]);
   
-  // Notification settings
-  const [notificationSettings, setNotificationSettings] = useState({
-    enabled: false,
-    emailConnectionId: null,
-    recipients: '',
-    notifyOnSuccess: true,
-    notifyOnFailure: true
-  });
-  const [emailConnections, setEmailConnections] = useState([]);
-  const [showNotificationSettings, setShowNotificationSettings] = useState(false);
-  
   // Palette panel visibility
   const [showPalette, setShowPalette] = useState(true);
   const [showMappingDetails, setShowMappingDetails] = useState(true);
@@ -585,19 +574,6 @@ const VisualMappingCanvasContent = () => {
     fetchProjects();
   }, []);
   
-  // Load email connections for notifications
-  useEffect(() => {
-    const fetchEmailConnections = async () => {
-      try {
-        const response = await axios.get('/api/email-connections');
-        setEmailConnections(response.data.connections || response.data || []);
-      } catch (error) {
-        console.error('Error fetching email connections:', error);
-      }
-    };
-    fetchEmailConnections();
-  }, []);
-  
   // Load subprojects when project changes
   useEffect(() => {
     const fetchSubProjects = async () => {
@@ -645,13 +621,15 @@ const VisualMappingCanvasContent = () => {
         setProjectId(mapping.project_id);
         setSubProjectId(mapping.sub_project_id);
         
-        // Restore notification settings if present
-        if (mapping.notification_settings) {
-          setNotificationSettings(mapping.notification_settings);
-        }
-        
         if (mapping.graph_data && mapping.graph_data.nodes) {
-          const loadedNodes = mapping.graph_data.nodes.map(node => {
+          const removedNotificationNodeIds = new Set(
+            mapping.graph_data.nodes
+              .filter(node => node.type === 'emailNotification')
+              .map(node => node.id)
+          );
+          const loadedNodes = mapping.graph_data.nodes
+            .filter(node => node.type !== 'emailNotification')
+            .map(node => {
             // Strip transient ReactFlow UI flags that shouldn't persist
             const { hidden, selected, dragging, resizing, ...cleanNode } = node;
             return {
@@ -664,10 +642,12 @@ const VisualMappingCanvasContent = () => {
                 onConfigure: handleNodeConfigure
               }
             };
-          });
+            });
           console.log('Loaded nodes from database:', loadedNodes.map(n => ({ id: n.id, type: n.type, hidden: n.hidden })));
           setNodes(loadedNodes);
-          setEdges(mapping.graph_data.edges || []);
+          setEdges((mapping.graph_data.edges || []).filter(
+            edge => !removedNotificationNodeIds.has(edge.source) && !removedNotificationNodeIds.has(edge.target)
+          ));
         }
         
         // Store canvas state for viewport restoration once reactFlowInstance is ready
@@ -787,7 +767,10 @@ const VisualMappingCanvasContent = () => {
           name: col.column_name || col.name,
           type: col.data_type || col.type,
           description: col.description,
-          contains_pii: col.contains_pii || col.pii || false
+          contains_pii: col.contains_pii || col.pii || false,
+          // Preserve per-column quality_rules so ExpressionModal can auto-populate
+          // dqRuleAssignments on first open when backed by a vendor agreement.
+          quality_rules: col.quality_rules || []
         }));
         console.log(`getCumulativeSchema: Source Config node ${nodeId} output schema:`, transformedSchema.length, 'columns');
         return transformedSchema;
@@ -1205,17 +1188,22 @@ const VisualMappingCanvasContent = () => {
         project_id: projectId,
         sub_project_id: subProjectId,
         graph_data: {
-          nodes: nodes.map(n => ({
+          nodes: nodes
+            .filter(n => n.type !== 'emailNotification')
+            .map(n => ({
             ...n,
             data: {
               ...n.data,
               onConfigure: undefined  // Remove function before saving
             }
-          })),
-          edges
+            })),
+          edges: edges.filter(edge => {
+            const sourceNode = nodes.find(node => node.id === edge.source);
+            const targetNode = nodes.find(node => node.id === edge.target);
+            return sourceNode?.type !== 'emailNotification' && targetNode?.type !== 'emailNotification';
+          })
         },
-        canvas_state: canvasState,
-        notification_settings: notificationSettings.enabled ? notificationSettings : null
+        canvas_state: canvasState
       };
       
       if (isEditMode) {
@@ -1691,114 +1679,6 @@ const VisualMappingCanvasContent = () => {
               )}
             </div>
 
-            {/* Notification Settings Section */}
-            <div className="visual-mapping-sidebar-section">
-              <div 
-                className="visual-mapping-sidebar-header" 
-                role="button"
-                tabIndex="0"
-                aria-expanded={showNotificationSettings}
-                aria-label={`${showNotificationSettings ? 'Collapse' : 'Expand'} notification settings section`}
-                onClick={() => setShowNotificationSettings(!showNotificationSettings)}
-              >
-                <h3>Notification Settings</h3>
-                {showNotificationSettings ? <FaChevronUp /> : <FaChevronDown />}
-              </div>
-              {showNotificationSettings && (
-                <div className="visual-mapping-sidebar-content">
-                      <div className="visual-mapping-form-group">
-                        <label className="checkbox-label" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <input 
-                            type="checkbox"
-                            checked={notificationSettings.enabled}
-                            onChange={(e) => setNotificationSettings({
-                              ...notificationSettings,
-                              enabled: e.target.checked
-                            })}
-                            style={{ width: 'auto' }}
-                          />
-                          Enable Email Notifications
-                        </label>
-                      </div>
-                  
-                  {notificationSettings.enabled && (
-                    <>
-                      <div className="visual-mapping-form-group">
-                        <label htmlFor="email-provider-select">Email Provider</label>
-                        <select
-                          id="email-provider-select"
-                          value={notificationSettings.emailConnectionId || ''}
-                          onChange={(e) => setNotificationSettings({
-                            ...notificationSettings,
-                            emailConnectionId: e.target.value || null
-                          })}
-                          className="visual-mapping-select"
-                        >
-                          <option value="">Select Provider</option>
-                          {emailConnections.map(conn => (
-                            <option key={conn.connection_id} value={conn.connection_id}>
-                              {conn.name}
-                            </option>
-                          ))}
-                        </select>
-                        {emailConnections.length === 0 && (
-                          <span style={{ fontSize: '10px', color: '#6b7280', marginTop: '4px', display: 'block' }}>
-                            No email providers configured. Add one in Admin &gt; Email Providers.
-                          </span>
-                        )}
-                      </div>
-                      
-                      <div className="visual-mapping-form-group">
-                        <label htmlFor="recipients-input">Recipients</label>
-                        <input 
-                          id="recipients-input"
-                          type="text"
-                          value={notificationSettings.recipients}
-                          onChange={(e) => setNotificationSettings({
-                            ...notificationSettings,
-                            recipients: e.target.value
-                          })}
-                          placeholder="email1@example.com, email2@example.com"
-                          className="visual-mapping-input"
-                        />
-                        <span style={{ fontSize: '10px', color: '#6b7280', marginTop: '4px', display: 'block' }}>
-                          Comma-separated email addresses
-                        </span>
-                      </div>
-                      
-                      <div className="visual-mapping-form-group">
-                        <div className="group-label" style={{ marginBottom: '8px', display: 'block' }}>Notify When</div>
-                        <label className="checkbox-label" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-                          <input 
-                            type="checkbox"
-                            checked={notificationSettings.notifyOnSuccess}
-                            onChange={(e) => setNotificationSettings({
-                              ...notificationSettings,
-                              notifyOnSuccess: e.target.checked
-                            })}
-                            style={{ width: 'auto' }}
-                          />
-                          Job Completes Successfully
-                        </label>
-                        <label className="checkbox-label" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <input 
-                            type="checkbox"
-                            checked={notificationSettings.notifyOnFailure}
-                            onChange={(e) => setNotificationSettings({
-                              ...notificationSettings,
-                              notifyOnFailure: e.target.checked
-                            })}
-                            style={{ width: 'auto' }}
-                          />
-                          Job Fails
-                        </label>
-                      </div>
-                    </>
-                  )}
-                </div>
-              )}
-            </div>
-
             {/* Mapping Components Section */}
             <div className="visual-mapping-sidebar-section">
               <div 
@@ -1859,6 +1739,7 @@ const VisualMappingCanvasContent = () => {
                       <FaCheckCircle /> Target Config
                     </button>
                   </div>
+
                 </div>
               )}
             </div>
@@ -1934,6 +1815,24 @@ const VisualMappingCanvasContent = () => {
           onSave={handleSaveNodeConfig}
           initialConfig={getCurrentNodeConfig()}
           schema={getCumulativeSchema()}
+          agreementSourceConfig={(() => {
+            // Recursively walk ancestors to find the nearest source config node.
+            // A direct parent walk misses multi-hop topologies such as
+            // sourceConfig → rdmLookup → expression.
+            const findAncestorSourceConfig = (nodeId, visited = new Set()) => {
+              if (visited.has(nodeId)) return null;
+              visited.add(nodeId);
+              const node = nodes.find(n => n.id === nodeId);
+              if (!node) return null;
+              if (node.type === 'sourceConfig') return node.data?.config || null;
+              for (const e of edges.filter(e => e.target === nodeId)) {
+                const found = findAncestorSourceConfig(e.source, visited);
+                if (found) return found;
+              }
+              return null;
+            };
+            return findAncestorSourceConfig(configNodeId) || {};
+          })()}
         />
       )}
       

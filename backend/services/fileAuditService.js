@@ -400,7 +400,9 @@ async function getAuditRecords(pool, filters = {}) {
     // Add project filtering (unless admin)
     // Check both files table and transformation_mappings table for project association
     if (!isAdmin && projectIds.length > 0) {
-      conditions.push(`(f.project_id = ANY($${paramIndex}::integer[]) OR tm.project_id = ANY($${paramIndex}::integer[]))`);
+      // vm.project_id covers VM jobs whose temp transformation_mappings row has been deleted
+      // (so tm is NULL) and whose source file_id is synthetic (so f is NULL).
+      conditions.push(`(f.project_id = ANY($${paramIndex}::integer[]) OR tm.project_id = ANY($${paramIndex}::integer[]) OR vm.project_id = ANY($${paramIndex}::integer[]))`);
       params.push(projectIds);
       paramIndex++;
     }
@@ -482,6 +484,10 @@ async function getAuditRecords(pool, filters = {}) {
         ON fad.transformation_job_id = tj.id
       LEFT JOIN transformation_mappings tm 
         ON tj.mapping_id = tm.mapping_id
+      LEFT JOIN visual_mapping_executions vme
+        ON vme.job_id = tj.job_id
+      LEFT JOIN visual_mapping_defs vm
+        ON vm.id = vme.mapping_id
       ${whereClause}
     `;
     const countResult = await pool.query(countQuery, params.slice(0, paramIndex - 1));
@@ -505,31 +511,73 @@ async function getAuditRecords(pool, filters = {}) {
           f.project_id,
           COALESCE(f.sub_project_id, tm.sub_project_id) as sub_project_id,
           COALESCE(sp.name, tm_sp.name) as sub_project_name,
-          f.quality_score,
-          f.column_count as number_of_columns,
-          f.row_count,
+          COALESCE(
+            f.quality_score,
+            -- Fallback for VM files whose profiling files row does not exist yet:
+            -- derive quality_score from DQ rule results (passed rules / total rules * 100).
+            (
+              SELECT CASE
+                WHEN COUNT(DISTINCT fqr.quality_rule_id) = 0 THEN NULL
+                ELSE ROUND(
+                  (COUNT(DISTINCT fqr.quality_rule_id) -
+                    COUNT(DISTINCT qrv.rule_id))::numeric /
+                  COUNT(DISTINCT fqr.quality_rule_id) * 100,
+                  1
+                )
+              END
+              FROM file_quality_rules fqr
+              LEFT JOIN quality_rule_violations qrv
+                ON qrv.rule_id = fqr.quality_rule_id
+                AND qrv.file_id = fad.file_id
+              WHERE fqr.file_id = fad.file_id
+            )
+          ) as quality_score,
+          COALESCE(f.column_count, fad.number_of_columns) as number_of_columns,
+          COALESCE(f.row_count, fad.no_of_records_in_source) as row_count,
           tj.job_id,
           tj.schema_validation,
           lfg.has_schema_changes,
-          (
-            SELECT json_agg(
-              json_build_object(
-                'name', fc.column_name,
-                'column_name', fc.column_name,
-                'data_type', fc.column_type,
-                'type', fc.column_type,
-                'null_count', fc.null_count,
-                'missing', fc.null_count,
-                'unique_values', fc.unique_count,
-                'distinct_count', fc.unique_count,
-                'min_value', COALESCE(fc.min_value_decimal::text, fc.min_value),
-                'max_value', COALESCE(fc.max_value_decimal::text, fc.max_value)
+          COALESCE(
+            (
+              SELECT json_agg(
+                json_build_object(
+                  'name', fc.column_name,
+                  'column_name', fc.column_name,
+                  'data_type', fc.column_type,
+                  'type', fc.column_type,
+                  'null_count', fc.null_count,
+                  'missing', fc.null_count,
+                  'unique_values', fc.unique_count,
+                  'distinct_count', fc.unique_count,
+                  'min_value', COALESCE(fc.min_value_decimal::text, fc.min_value),
+                  'max_value', COALESCE(fc.max_value_decimal::text, fc.max_value)
+                )
+                ORDER BY fc.column_index
               )
-              ORDER BY fc.column_index
-            )
-            FROM file_columns fc
-            WHERE fc.file_id = fad.file_id
-              AND (fc.file_role = fad.file_role OR (fc.file_role IS NULL AND fad.file_role IS NULL))
+              FROM file_columns fc
+              WHERE fc.file_id = fad.file_id
+                AND (fc.file_role = fad.file_role OR (fc.file_role IS NULL AND fad.file_role IS NULL))
+            ),
+            CASE
+              WHEN fsd.file_schema IS NOT NULL AND fsd.file_schema ? 'columns' THEN (
+                SELECT json_agg(
+                  json_build_object(
+                    'name', col->>'name',
+                    'column_name', col->>'name',
+                    'data_type', col->>'type',
+                    'type', col->>'type',
+                    'null_count', NULL,
+                    'missing', NULL,
+                    'unique_values', NULL,
+                    'distinct_count', NULL,
+                    'min_value', NULL,
+                    'max_value', NULL
+                  )
+                )
+                FROM jsonb_array_elements(fsd.file_schema->'columns') AS col
+              )
+              ELSE NULL
+            END
           ) as column_stats
         FROM file_audit_details fad
         LEFT JOIN files f ON fad.file_id = f.file_id
@@ -553,6 +601,10 @@ async function getAuditRecords(pool, filters = {}) {
           ON tj.workflow_execution_id = nwr.id
         LEFT JOIN n_step_workflows nw 
           ON nwr.workflow_id = nw.id
+        LEFT JOIN visual_mapping_executions vme
+          ON vme.job_id = tj.job_id
+        LEFT JOIN visual_mapping_defs vm
+          ON vm.id = vme.mapping_id
         ${whereClause}
         ORDER BY fad.id, fad.created_dt DESC
       ) AS distinct_audits

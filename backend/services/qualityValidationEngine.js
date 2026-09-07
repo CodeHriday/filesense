@@ -83,7 +83,34 @@ class QualityValidationEngine {
       };
 
       if (!data || data.length === 0) {
-        systemLogger.warn('No data provided for validation', metadata);
+        // If actual_row_count is explicitly set, record_count rules can still be evaluated
+        // (e.g. a VM job that produced 0 output rows). Other rules need row data and are skipped.
+        const recordCountRules = rules.filter(r => r.enabled !== false &&
+          (r.rule_type === 'record_count' || r.rule_type === 'record_count_match'));
+        if (recordCountRules.length === 0 || metadata.actual_row_count === undefined) {
+          systemLogger.warn('No data provided for validation', metadata);
+          return { violations, errors, summary };
+        }
+        // Fall through with empty data — only record_count rules will produce results
+        for (const rule of recordCountRules) {
+          try {
+            const ruleViolations = await this.executeRule(rule, [], metadata);
+            violations.push(...ruleViolations);
+            ruleViolations.forEach(violation => {
+              summary.violations_found++;
+              if (violation.severity === 'critical') summary.critical_count++;
+              else if (violation.severity === 'error') summary.error_count++;
+              else if (violation.severity === 'warning') summary.warning_count++;
+            });
+          } catch (error) {
+            systemLogger.error('Error executing record_count quality rule on empty data', {
+              rule_id: rule.id,
+              rule_name: rule.rule_name,
+              error: error.message
+            });
+            errors.push({ rule_id: rule.id, rule_name: rule.rule_name, error_message: error.message });
+          }
+        }
         return { violations, errors, summary };
       }
 
@@ -154,6 +181,9 @@ class QualityValidationEngine {
         return this.validateUniqueness(rule, data, metadata);
       case 'freshness':
         return this.validateFreshness(rule, data, metadata);
+      case 'record_count':
+      case 'record_count_match':
+        return this.validateRecordCount(rule, data, metadata);
       // Generic rule types for contract/profiling modules
       case 'validity_check':
         return this.validateValidityCheck(rule, data, metadata);
@@ -161,6 +191,11 @@ class QualityValidationEngine {
         return this.validateLengthCheck(rule, data, metadata);
       case 'range_check':
         return this.validateRangeCheck(rule, data, metadata);
+      // Date/timestamp format checks — user-created rules store these as their own rule_type
+      case 'date_format':
+        return this.validateDateFormat(rule, data, metadata, false);
+      case 'timestamp_format':
+        return this.validateDateFormat(rule, data, metadata, true);
       default:
         throw new Error(`Unsupported rule type: ${ruleType}`);
     }
@@ -401,6 +436,99 @@ class QualityValidationEngine {
       default:
         return { valid: true, message: '' };
     }
+  }
+
+  /**
+   * Validate record count - check that the file's row count meets expectations
+   * rule_config: {
+   *   operator: 'at_least' | 'exactly' | 'at_most' | 'between',
+   *   expected_count: number (used by at_least / exactly / at_most),
+   *   min_count: number (used by between),
+   *   max_count: number (used by between),
+   *   tolerance_percent: number (optional, 0-100)
+   * }
+   */
+  async validateRecordCount(rule, data, metadata) {
+    const violations = [];
+    const config = typeof rule.rule_config === 'string' ? JSON.parse(rule.rule_config) : rule.rule_config;
+    const operator = config.operator || 'exactly';
+    const expectedCount = config.expected_count;
+    const minCount = config.min_count;
+    const maxCount = config.max_count;
+    const tolerancePercent = config.tolerance_percent || 0;
+
+    // Prefer the actual row count from metadata (full file) over the preview slice length
+    const actualCount = metadata.actual_row_count !== undefined
+      ? metadata.actual_row_count
+      : data.length;
+
+    let isViolation = false;
+    let expectedValue = '';
+    const actualValue = `${actualCount} records`;
+
+    switch (operator) {
+      case 'exactly': {
+        const tolerance = tolerancePercent > 0
+          ? Math.ceil(expectedCount * tolerancePercent / 100)
+          : 0;
+        isViolation = Math.abs(actualCount - expectedCount) > tolerance;
+        expectedValue = tolerancePercent > 0
+          ? `Exactly ${expectedCount} records (±${tolerancePercent}%)`
+          : `Exactly ${expectedCount} records`;
+        break;
+      }
+      case 'at_least': {
+        const threshold = tolerancePercent > 0
+          ? Math.floor(expectedCount * (1 - tolerancePercent / 100))
+          : expectedCount;
+        isViolation = actualCount < threshold;
+        expectedValue = tolerancePercent > 0
+          ? `At least ${expectedCount} records (−${tolerancePercent}% tolerance)`
+          : `At least ${expectedCount} records`;
+        break;
+      }
+      case 'at_most': {
+        const threshold = tolerancePercent > 0
+          ? Math.ceil(expectedCount * (1 + tolerancePercent / 100))
+          : expectedCount;
+        isViolation = actualCount > threshold;
+        expectedValue = tolerancePercent > 0
+          ? `At most ${expectedCount} records (+${tolerancePercent}% tolerance)`
+          : `At most ${expectedCount} records`;
+        break;
+      }
+      case 'between': {
+        isViolation = actualCount < minCount || actualCount > maxCount;
+        expectedValue = `Between ${minCount} and ${maxCount} records`;
+        break;
+      }
+      default:
+        systemLogger.warn('Unknown record_count operator', { rule_id: rule.id, operator });
+        return violations;
+    }
+
+    if (isViolation) {
+      violations.push({
+        rule_id: rule.id,
+        file_id: metadata.file_id || null,
+        job_id: metadata.job_id || null,
+        column_name: null,
+        expected_value: expectedValue,
+        actual_value: actualValue,
+        violation_details: {
+          rule_type: 'record_count',
+          operator,
+          expected_count: expectedCount,
+          min_count: minCount,
+          max_count: maxCount,
+          actual_count: actualCount,
+          tolerance_percent: tolerancePercent
+        },
+        severity: rule.severity
+      });
+    }
+
+    return violations;
   }
 
   /**
@@ -1118,6 +1246,149 @@ class QualityValidationEngine {
       }
     });
     
+    return violations;
+  }
+
+  /**
+   * Validate date / timestamp format.
+   * rule_config options (all optional):
+   *   format  — human-readable token string, e.g. "MM/DD/YYYY" or "YYYY-MM-DD HH:mm:ss".
+   *             Tokens YYYY, MM, DD, HH, mm, ss are converted to \d{N} patterns.
+   *   pattern — raw regex string (takes precedence over format).
+   * Falls back to broad date/timestamp regexes when neither is supplied.
+   * @param {boolean} isTimestamp - when true, use a timestamp-aware fallback regex.
+   */
+  validateDateFormat(rule, data, metadata, isTimestamp = false) {
+    const violations = [];
+    const config = typeof rule.rule_config === 'string'
+      ? JSON.parse(rule.rule_config)
+      : (rule.rule_config || {});
+
+    // Resolve the column to validate: quality_rules.column_name > rule_config.column_name > rule_config.column
+    const columnToValidate = rule.column_name || config.column_name || config.column || null;
+    if (!columnToValidate) {
+      systemLogger.warn('date_format rule requires column_name', {
+        rule_id: rule.id,
+        rule_config_keys: Object.keys(config),
+        hint: 'Set column_name on the quality_rules row, or add column_name/column to rule_config'
+      });
+      return violations;
+    }
+
+    // Convert a format token string (e.g. "YYYY-MM-DD") to an anchored regex
+    const formatToRegex = (fmt) => {
+      const escaped = fmt
+        .replace(/[.+?^${}()|[\]\\]/g, c => `\\${c}`)  // escape regex metacharacters first
+        .replace(/YYYY/g, '\\d{4}')
+        .replace(/MM/g,   '\\d{2}')
+        .replace(/DD/g,   '\\d{2}')
+        .replace(/HH/g,   '\\d{2}')
+        .replace(/mm/g,   '\\d{2}')
+        .replace(/ss/g,   '\\d{2}');
+      return new RegExp(`^${escaped}$`);
+    };
+
+    // Semantic date validation: extract year/month/day from a matched format and verify their ranges.
+    // This catches "2026-24-01" (month 24) even though it matches the YYYY-MM-DD format pattern.
+    const isDateSemanticValid = (strValue, fmt) => {
+      try {
+        const sepMatch = fmt.match(/[^A-Za-z0-9]/);
+        const sep = sepMatch ? sepMatch[0] : null;
+        if (!sep) return false;
+        const fmtParts = fmt.split(sep);
+        const valParts = strValue.split(sep);
+        if (fmtParts.length !== valParts.length) return false;
+        let year, month, day;
+        fmtParts.forEach((part, i) => {
+          const num = parseInt(valParts[i], 10);
+          if (part.includes('YYYY'))     year  = num;
+          else if (part.includes('MM'))  month = num;
+          else if (part.includes('DD'))  day   = num;
+        });
+        if (!year || !month || !day)         return false;
+        if (year  < 1000 || year  > 9999)   return false;
+        if (month < 1    || month > 12)      return false;
+        if (day   < 1    || day   > 31)      return false;
+        // Date constructor rolls over invalid days (e.g. Feb 30 → Mar 2) — detect that
+        const d = new Date(year, month - 1, day);
+        return d.getFullYear() === year && d.getMonth() === month - 1 && d.getDate() === day;
+      } catch {
+        return false;
+      }
+    };
+
+    // Build the list of format entries to test.
+    // Priority: config.formats[] > config.format > config.pattern > built-in fallback
+    let formatEntries; // [{fmt: string, regex: RegExp, rawPattern?: bool}]
+    let expectedDesc;
+
+    try {
+      if (Array.isArray(config.formats) && config.formats.length > 0) {
+        // Multi-format config: value must match at least one format AND pass semantic validation
+        formatEntries = config.formats.map(fmt => ({ fmt, regex: formatToRegex(fmt) }));
+        expectedDesc = config.formats.join(' or ');
+      } else if (config.format) {
+        formatEntries = [{ fmt: config.format, regex: formatToRegex(config.format) }];
+        expectedDesc = config.format;
+      } else if (config.pattern) {
+        validateRegexSafety(config.pattern);
+        formatEntries = [{ fmt: config.pattern, regex: new RegExp(config.pattern), rawPattern: true }];
+        expectedDesc = config.pattern;
+      } else if (isTimestamp) {
+        const tsRegex = /^\d{4}-\d{2}-\d{2}[T\s]\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:?\d{2})?$/;
+        formatEntries = [{ fmt: 'timestamp', regex: tsRegex, rawPattern: true }];
+        expectedDesc = 'timestamp format (YYYY-MM-DD HH:mm:ss)';
+      } else {
+        formatEntries = [
+          { fmt: 'YYYY-MM-DD', regex: /^\d{4}-\d{2}-\d{2}$/ },
+          { fmt: 'MM/DD/YYYY', regex: /^\d{2}\/\d{2}\/\d{4}$/ },
+          { fmt: 'DD/MM/YYYY', regex: /^\d{2}\/\d{2}\/\d{4}$/ },
+        ];
+        expectedDesc = 'date format (YYYY-MM-DD or MM/DD/YYYY)';
+      }
+    } catch (e) {
+      systemLogger.warn('Invalid pattern/format in date_format rule, skipping', { rule_id: rule.id, error: e.message });
+      return violations;
+    }
+
+    const primaryKeyColumn = metadata.primaryKeyColumn;
+
+    data.forEach((row, rowIndex) => {
+      const value = row[columnToValidate];
+
+      // Skip null / empty — completeness rules handle those separately
+      if (value === null || value === undefined || String(value).trim() === '') return;
+
+      const strValue = String(value).trim();
+
+      // Value is valid only if it matches at least one expected format regex AND passes semantic date validation
+      const matchedEntry = formatEntries.find(({ regex }) => regex.test(strValue));
+      const isValid = matchedEntry
+        ? (matchedEntry.rawPattern || isDateSemanticValid(strValue, matchedEntry.fmt))
+        : false;
+
+      if (!isValid) {
+        violations.push({
+          rule_id: rule.id,
+          file_id: metadata.file_id || null,
+          job_id: metadata.job_id || null,
+          row_number: rowIndex + 1,
+          column_name: columnToValidate,
+          expected_value: `Value must be a valid date (${expectedDesc})`,
+          actual_value: strValue,
+          primary_key_column: primaryKeyColumn,
+          primary_key_value: primaryKeyColumn ? String(row[primaryKeyColumn] || '') : '',
+          violation_details: {
+            rule_type: isTimestamp ? 'timestamp_format' : 'date_format',
+            expected_format: expectedDesc,
+            reason: `Value "${strValue}" does not match any accepted ${isTimestamp ? 'timestamp' : 'date'} format: ${expectedDesc}`
+          },
+          severity: rule.severity || 'warning',
+          record_snapshot: row
+        });
+      }
+    });
+
     return violations;
   }
 }

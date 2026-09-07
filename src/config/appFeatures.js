@@ -169,6 +169,14 @@ export const APP_FEATURES = [
     route: '/error-review',
     showInSidebar: true
   },
+  {
+    id: 'sla_monitoring',
+    name: 'SLA Monitoring',
+    category: 'Jobs and Monitoring',
+    icon: FiMonitor,
+    route: '/sla-monitoring',
+    showInSidebar: true
+  },
   
   // Governance
   { 
@@ -280,7 +288,7 @@ export const APP_FEATURES = [
   },
   { 
     id: 'vendor_management', 
-    name: 'Vendor Management', 
+    name: 'Data Provider Management',
     category: 'Administration',
     icon: FiTruck,
     route: null,
@@ -289,35 +297,8 @@ export const APP_FEATURES = [
     isParentOnly: true,
     children: [
       {
-        id: 'vendor_roles',
-        name: 'Vendor Role Management',
-        parentId: 'vendor_management',
-        category: 'Administration',
-        icon: null,
-        route: '/vendor-roles',
-        showInSidebar: true
-      },
-      {
-        id: 'vendor_users',
-        name: 'Vendor User Management',
-        parentId: 'vendor_management',
-        category: 'Administration',
-        icon: null,
-        route: '/vendor-users',
-        showInSidebar: true
-      },
-      {
-        id: 'vendor_connections',
-        name: 'Vendor Connections',
-        parentId: 'vendor_management',
-        category: 'Administration',
-        icon: null,
-        route: '/connections?type=vendor',
-        showInSidebar: true
-      },
-      {
         id: 'vendor_details',
-        name: 'Create/Edit Vendors',
+        name: 'Manage Data Providers',
         parentId: 'vendor_management',
         category: 'Administration',
         icon: null,
@@ -326,57 +307,18 @@ export const APP_FEATURES = [
       },
       {
         id: 'vendor_agreements',
-        name: 'Vendor Data Contracts',
+        name: 'Manage Data Sharing Agreements',
         parentId: 'vendor_management',
         category: 'Administration',
         icon: null,
         route: '/vendor-agreements',
         showInSidebar: true
-      },
-      {
-        id: 'sla_monitoring',
-        name: 'SLA Monitoring',
-        parentId: 'vendor_management',
-        category: 'Administration',
-        icon: null,
-        route: '/sla-monitoring',
-        showInSidebar: true
       }
     ]
   },
   {
-    id: 'vendor_users',
-    name: 'Vendor User Management',
-    category: 'Vendor Management',
-    parentId: 'vendor_management',
-    icon: null,
-    route: '/vendor-users',
-    showInSidebar: false,
-    isVendorSubmodule: true
-  },
-  {
-    id: 'vendor_roles',
-    name: 'Vendor Role Management',
-    category: 'Vendor Management',
-    parentId: 'vendor_management',
-    icon: null,
-    route: '/vendor-roles',
-    showInSidebar: false,
-    isVendorSubmodule: true
-  },
-  {
-    id: 'vendor_connections',
-    name: 'Vendor Connections',
-    category: 'Vendor Management',
-    parentId: 'vendor_management',
-    icon: null,
-    route: '/connections?type=vendor',
-    showInSidebar: false,
-    isVendorSubmodule: true
-  },
-  {
     id: 'vendor_details',
-    name: 'Create/Edit Vendors',
+    name: 'Manage Data Providers',
     category: 'Vendor Management',
     parentId: 'vendor_management',
     icon: null,
@@ -386,7 +328,7 @@ export const APP_FEATURES = [
   },
   {
     id: 'vendor_agreements',
-    name: 'Vendor Data Contracts',
+    name: 'Manage Data Sharing Agreements',
     category: 'Vendor Management',
     parentId: 'vendor_management',
     icon: null,
@@ -417,6 +359,14 @@ export const APP_FEATURES = [
     category: 'Administration',
     icon: FiSettings,
     route: '/dashboard-settings',
+    showInSidebar: true
+  },
+  {
+    id: 'digest_subscriptions',
+    name: 'Digest Subscriptions',
+    category: 'Administration',
+    icon: FiMail,
+    route: '/digest-subscriptions',
     showInSidebar: true
   },
   

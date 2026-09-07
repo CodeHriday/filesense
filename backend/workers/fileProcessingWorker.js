@@ -18,12 +18,14 @@ const axios = require('axios');
 const { captureFileAudit, captureFileSchema } = require('../services/fileAuditService');
 const { saveSchemaSnapshot } = require('../services/schemaService');
 const QualityValidationEngine = require('../services/qualityValidationEngine');
+const { enforceSchemaRules } = require('../services/schemaRuleEnforcer');
 const { persistGovernanceMetadata } = require('../services/governanceService');
 const { invalidateFileCache, invalidateFileCatalogCache } = require('../src/middleware/cache');
 const PasswordVaultService = require('../services/passwordVaultService');
 const ArchiveDetectionService = require('../services/archiveDetectionService');
 const ArchiveExtractionService = require('../services/archiveExtractionService');
 const DLQService = require('../services/dlqService');
+const { FINAL_APPROVED_AGREEMENT_STATUSES } = require('../utils/vendorAgreementApprovalStatus');
 
 // Archive and special format file extensions
 const ARCHIVE_EXTENSIONS = ['.zip', '.tar', '.tar.gz', '.tar.bz2', '.tgz', '.tbz2'];
@@ -1143,7 +1145,7 @@ class FileProcessingWorker {
       // Step 5.7: Apply vendor agreement governance metadata if contract validation mode
       if (agreementId && fileInfo.schema && fileInfo.schema.length > 0) {
         try {
-          await this.applyAgreementGovernance(fileId, agreementId, fileInfo.schema, originalName, projectId);
+          await this.applyAgreementGovernance(fileId, agreementId, fileInfo.schema, originalName, projectId, fileInfo.preview_data, fileInfo.row_count);
         } catch (govError) {
           this.logger.warn('Failed to apply vendor agreement governance', { 
             fileId, 
@@ -1272,7 +1274,13 @@ class FileProcessingWorker {
             // Use preview data for validation (up to 100 rows)
             const dataToValidate = fileInfo.preview_data || [];
             
-            if (dataToValidate.length > 0) {
+            // record_count rules are file-level and need actual_row_count but not row data,
+            // so allow validation even when preview is empty if the row count is known.
+            const hasRecordCountRules = rulesResult.rows.some(r => r.rule_type === 'record_count');
+            const canValidate = dataToValidate.length > 0 ||
+              (hasRecordCountRules && fileInfo.row_count !== undefined && fileInfo.row_count !== null);
+            
+            if (canValidate) {
               // Initialize quality validation engine
               const validationEngine = new QualityValidationEngine(this.dbPool);
               
@@ -1283,7 +1291,8 @@ class FileProcessingWorker {
                 {
                   file_id: fileId,
                   file_name: originalName,
-                  upload_date: new Date()
+                  upload_date: new Date(),
+                  actual_row_count: fileInfo.row_count
                 }
               );
               
@@ -1293,6 +1302,36 @@ class FileProcessingWorker {
                 errors: validationResult.errors.length,
                 summary: validationResult.summary
               });
+
+              // Stamp last_run_at only for rules that successfully executed.
+              // validationResult.errors contains entries for rules the engine could not run.
+              // When data is empty, the engine only runs record_count rules — other rules are
+              // silently skipped (not errored) and must NOT be stamped as "Not Run".
+              try {
+                const erroredRuleIds = new Set(validationResult.errors.map(e => e.rule_id));
+                // When no row data was available, the engine only executed record_count rules.
+                // Other rule types were silently skipped (not in errors) so must stay "Not Run".
+                const workerEvaluatedRuleIds = dataToValidate.length === 0
+                  ? rulesResult.rows
+                      .filter(r => r.rule_type === 'record_count' && !erroredRuleIds.has(r.id))
+                      .map(r => r.id)
+                  : rulesResult.rows
+                      .filter(r => !erroredRuleIds.has(r.id))
+                      .map(r => r.id);
+                if (workerEvaluatedRuleIds.length > 0) {
+                  await this.dbPool.query(
+                    `UPDATE file_quality_rules
+                     SET last_run_at = NOW()
+                     WHERE file_id = $1 AND quality_rule_id = ANY($2)`,
+                    [fileId, workerEvaluatedRuleIds]
+                  );
+                }
+              } catch (stampErr) {
+                this.logger.warn('Failed to stamp last_run_at after quality validation', {
+                  fileId,
+                  error: stampErr.message
+                });
+              }
               
               // Persist violations to database
               if (validationResult.violations.length > 0) {
@@ -2493,7 +2532,7 @@ print(json.dumps(result))
    * @param {string} filename - Original filename
    * @param {number} projectId - Project ID
    */
-  async applyAgreementGovernance(fileId, agreementId, schema, filename, projectId) {
+  async applyAgreementGovernance(fileId, agreementId, schema, filename, projectId, previewData = [], rowCount = 0) {
     this.logger.info('Applying vendor agreement governance', { fileId, agreementId, filename });
     
     // Fetch vendor agreement with file schemas (including quality_rule_ids for file-level tags)
@@ -2501,18 +2540,20 @@ print(json.dumps(result))
       SELECT 
         va.id,
         va.agreement_code,
+        va.project_id AS agreement_project_id,
         vafs.id as schema_id,
         vafs.file_name_pattern,
         vafs.schema,
+        vafs.column_metadata,
         vafs.contains_pii,
         vafs.data_classification,
         vafs.quality_rule_ids,
         vafs.priority
       FROM vendor_agreements va
       LEFT JOIN vendor_agreement_file_schemas vafs ON va.id = vafs.vendor_agreement_id AND vafs.is_active = true
-      WHERE va.id = $1 AND va.project_id = $2
+      WHERE va.id = $1
       ORDER BY vafs.priority ASC NULLS LAST
-    `, [agreementId, projectId]);
+    `, [agreementId]);
     
     this.logger.info('Fetched agreement schemas', {
       fileId,
@@ -2589,9 +2630,11 @@ print(json.dumps(result))
     }
     
     // Extract PII columns from schema
-    const schemaObj = typeof matchedSchema.schema === 'string' 
+    // Support both legacy bare array and new { columns, file_quality_rules } shape
+    const rawSchemaObj = typeof matchedSchema.schema === 'string' 
       ? JSON.parse(matchedSchema.schema) 
       : matchedSchema.schema;
+    const schemaObj = Array.isArray(rawSchemaObj) ? rawSchemaObj : (Array.isArray(rawSchemaObj?.columns) ? rawSchemaObj.columns : rawSchemaObj);
     
     this.logger.info('Processing agreement schema for PII', {
       fileId,
@@ -2601,25 +2644,43 @@ print(json.dumps(result))
       schemaColumns: Array.isArray(schemaObj) ? schemaObj.map(c => c.name || c.column_name) : []
     });
     
+    // Parse column_metadata (stored by FileSchemaManager as { colName: { contains_pii, pii_type, ... } })
+    const columnMetadata = (() => {
+      if (!matchedSchema.column_metadata) return {};
+      if (typeof matchedSchema.column_metadata === 'string') {
+        try { return JSON.parse(matchedSchema.column_metadata); } catch { return {}; }
+      }
+      return matchedSchema.column_metadata;
+    })();
+
     // Extract PII columns
     let piiColumnNames = [];
     if (Array.isArray(schemaObj) && schemaObj.length > 0) {
-      // Find PII columns (those with is_pii: true)
+      // Find PII columns via legacy is_pii/pii flags in the schema JSON
       const piiColumns = schemaObj.filter(col => col.is_pii === true || col.pii === true);
-      
+      const legacyPiiNames = new Set(piiColumns.map(col => col.name || col.column_name));
+
+      // Also find PII columns via column_metadata.contains_pii (set by FileSchemaManager UI)
+      const metadataPiiNames = new Set(
+        Object.entries(columnMetadata)
+          .filter(([, meta]) => meta && meta.contains_pii === true)
+          .map(([colName]) => colName)
+      );
+
+      // Union both sources so legacy schemas and UI-configured schemas both work
+      const allPiiNames = new Set([...legacyPiiNames, ...metadataPiiNames]);
+      piiColumnNames = [...allPiiNames].filter(Boolean);
+
       this.logger.info('PII columns detected in schema', {
         fileId,
-        piiColumnCount: piiColumns.length,
-        piiColumns: piiColumns.map(c => ({
-          name: c.name || c.column_name,
-          is_pii: c.is_pii,
-          pii: c.pii
-        })),
+        legacyPiiCount: legacyPiiNames.size,
+        metadataPiiCount: metadataPiiNames.size,
+        totalPiiCount: piiColumnNames.length,
+        piiColumns: piiColumnNames,
         totalSchemaColumns: schemaObj.length
       });
       
-      // Extract column names for governance persistence
-      piiColumnNames = piiColumns.map(col => col.name || col.column_name);
+      // (piiColumnNames already set above)
       
       // CRITICAL FIX: Create column_governance_tag_assignments for PII columns
       // This was accidentally removed during file processing worker refactor
@@ -2673,15 +2734,16 @@ print(json.dumps(result))
       }
     }
     
-    // Extract file-level tags from quality_rule_ids
+    // Extract file-level tags from quality_rule_ids and link rules to the file
     let fileTags = [];
-    if (matchedSchema.quality_rule_ids && Array.isArray(matchedSchema.quality_rule_ids)) {
+    if (matchedSchema.quality_rule_ids && Array.isArray(matchedSchema.quality_rule_ids) && matchedSchema.quality_rule_ids.length > 0) {
       // Fetch quality rule names to use as tags
       try {
         const rulesResult = await this.dbPool.query(`
           SELECT id, rule_name 
           FROM quality_rules 
           WHERE id = ANY($1::int[])
+            AND enabled = true
         `, [matchedSchema.quality_rule_ids]);
         
         fileTags = rulesResult.rows.map(r => r.rule_name);
@@ -2690,6 +2752,29 @@ print(json.dumps(result))
           fileId,
           ruleIds: matchedSchema.quality_rule_ids,
           tags: fileTags
+        });
+
+        // Also link these explicitly-chosen contract rules to the file so they are
+        // enforced alongside any schema-embedded quality_rules.
+        for (const row of rulesResult.rows) {
+          try {
+            await this.dbPool.query(
+              `INSERT INTO file_quality_rules (file_id, quality_rule_id)
+               VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+              [fileId, row.id]
+            );
+          } catch (linkErr) {
+            this.logger.warn('Failed to link contract quality rule to file', {
+              fileId,
+              ruleId: row.id,
+              ruleName: row.rule_name,
+              error: linkErr.message
+            });
+          }
+        }
+        this.logger.info('Linked contract quality_rule_ids to file', {
+          fileId,
+          linkedCount: rulesResult.rows.length
         });
       } catch (tagError) {
         this.logger.warn('Failed to fetch quality rule names for tags', {
@@ -2719,6 +2804,64 @@ print(json.dumps(result))
         fileId,
         error: result.error
       });
+    }
+
+    // Enforce schema-defined quality rules (per-column and file-level) if the schema defines any.
+    // Pass rawSchemaObj so enforceSchemaRules can access both columns and file_quality_rules.
+    const hasEnforceableSchemaRules = (() => {
+      if (!rawSchemaObj) return false;
+      if (Array.isArray(rawSchemaObj) && rawSchemaObj.length > 0) return true;
+      if (!Array.isArray(rawSchemaObj) && typeof rawSchemaObj === 'object') {
+        const cols = Array.isArray(rawSchemaObj.columns) && rawSchemaObj.columns.length > 0;
+        const fileLvl = Array.isArray(rawSchemaObj.file_quality_rules) && rawSchemaObj.file_quality_rules.length > 0;
+        return cols || fileLvl;
+      }
+      return false;
+    })();
+    // File-level rules (e.g. record_count) need only the authoritative rowCount from metadata,
+    // not actual preview rows. Allow enforcement to proceed when file-level rules exist even if
+    // previewData is empty (enforceSchemaRules handles the empty-preview case internally).
+    const hasFileLevelRulesInSchema = !Array.isArray(rawSchemaObj) &&
+      typeof rawSchemaObj === 'object' &&
+      Array.isArray(rawSchemaObj.file_quality_rules) &&
+      rawSchemaObj.file_quality_rules.length > 0;
+    if (hasEnforceableSchemaRules && ((previewData && previewData.length > 0) || hasFileLevelRulesInSchema)) {
+      try {
+        const schemaEnforcementResult = await enforceSchemaRules(
+          this.dbPool,
+          fileId,
+          rawSchemaObj,
+          previewData,
+          rowCount,
+          {
+            fileName: filename,
+            candidateRuleIds: Array.isArray(matchedSchema.quality_rule_ids)
+              ? matchedSchema.quality_rule_ids
+              : [],
+            // Pass the file's project so the enforcer can find project-scoped
+            // file-level rules (e.g. record_count with project_id = N) even
+            // when vafs.quality_rule_ids is empty.
+            // Use the agreement's project_id (not the file's) so the enforcer
+            // can find project-scoped rules (e.g. file_rec_count) that were defined
+            // in the context of the vendor agreement's project — even when the file
+            // was dropped into a different project.
+            projectId: matchedSchema.agreement_project_id || projectId
+          }
+        );
+        this.logger.info('Schema rule enforcement completed', {
+          fileId,
+          ...schemaEnforcementResult
+        });
+      } catch (enforcementErr) {
+        // QUALITY_ABORT is intentional — re-throw
+        if (enforcementErr.code === 'QUALITY_ABORT') throw enforcementErr;
+        this.logger.error('Schema rule enforcement failed (non-fatal)', {
+          fileId,
+          error: enforcementErr.message,
+          stack: enforcementErr.stack
+        });
+        // Don't fail the job — schema DQ enforcement is supplementary
+      }
     }
   }
 
@@ -2765,6 +2908,7 @@ print(json.dumps(result))
         vafs.id as schema_id,
         vafs.file_name_pattern,
         vafs.schema,
+        vafs.column_metadata,
         vafs.contains_pii,
         vafs.data_classification,
         vafs.quality_rule_ids,
@@ -2774,13 +2918,12 @@ print(json.dumps(result))
       FROM vendor_agreement_file_schemas vafs
       INNER JOIN vendor_agreements va ON vafs.vendor_agreement_id = va.id
       WHERE va.vendor_connection_id = $1
-        AND va.project_id = $2
-        AND va.approval_status = 'governance_approved'
+        AND va.approval_status = ANY($2::text[])
         AND va.is_locked = true
         AND va.status = 'active'
         AND vafs.is_active = true
       ORDER BY vafs.priority ASC NULLS LAST
-    `, [connectionId, projectId]);
+    `, [connectionId, FINAL_APPROVED_AGREEMENT_STATUSES]);
     
     this.logger.info('Fetched vendor agreement file schemas', {
       fileId,
@@ -2844,27 +2987,51 @@ print(json.dumps(result))
     const schemaObj = typeof matchedSchema.schema === 'string' 
       ? JSON.parse(matchedSchema.schema) 
       : matchedSchema.schema;
+
+    // Parse column_metadata (stored by FileSchemaManager as { colName: { contains_pii, pii_type, ... } })
+    const columnMetadata = (() => {
+      if (!matchedSchema.column_metadata) return {};
+      if (typeof matchedSchema.column_metadata === 'string') {
+        try { return JSON.parse(matchedSchema.column_metadata); } catch { return {}; }
+      }
+      return matchedSchema.column_metadata;
+    })();
     
     let piiColumnNames = [];
     if (Array.isArray(schemaObj) && schemaObj.length > 0) {
+      // Find PII columns via legacy is_pii/pii flags in the schema JSON
       const piiColumns = schemaObj.filter(col => col.is_pii === true || col.pii === true);
-      piiColumnNames = piiColumns.map(col => col.name || col.column_name);
+      const legacyPiiNames = new Set(piiColumns.map(col => col.name || col.column_name));
+
+      // Also find PII columns via column_metadata.contains_pii (set by FileSchemaManager UI)
+      const metadataPiiNames = new Set(
+        Object.entries(columnMetadata)
+          .filter(([, meta]) => meta && meta.contains_pii === true)
+          .map(([colName]) => colName)
+      );
+
+      // Union both sources so legacy schemas and UI-configured schemas both work
+      const allPiiNames = new Set([...legacyPiiNames, ...metadataPiiNames]);
+      piiColumnNames = [...allPiiNames].filter(Boolean);
       
       this.logger.info('PII columns detected in vendor file schema', {
         fileId,
-        piiColumnCount: piiColumns.length,
+        legacyPiiCount: legacyPiiNames.size,
+        metadataPiiCount: metadataPiiNames.size,
+        totalPiiCount: piiColumnNames.length,
         piiColumns: piiColumnNames
       });
     }
     
-    // Step 5: Extract file-level tags from quality_rule_ids
+    // Step 5: Extract file-level tags from quality_rule_ids and link rules to the file
     let fileTags = [];
-    if (matchedSchema.quality_rule_ids && Array.isArray(matchedSchema.quality_rule_ids)) {
+    if (matchedSchema.quality_rule_ids && Array.isArray(matchedSchema.quality_rule_ids) && matchedSchema.quality_rule_ids.length > 0) {
       try {
         const rulesResult = await this.dbPool.query(`
           SELECT id, rule_name 
           FROM quality_rules 
           WHERE id = ANY($1::int[])
+            AND enabled = true
         `, [matchedSchema.quality_rule_ids]);
         
         fileTags = rulesResult.rows.map(r => r.rule_name);
@@ -2873,6 +3040,28 @@ print(json.dumps(result))
           fileId,
           ruleIds: matchedSchema.quality_rule_ids,
           tags: fileTags
+        });
+
+        // Link these explicitly-chosen contract rules to the file so they are enforced.
+        for (const row of rulesResult.rows) {
+          try {
+            await this.dbPool.query(
+              `INSERT INTO file_quality_rules (file_id, quality_rule_id)
+               VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+              [fileId, row.id]
+            );
+          } catch (linkErr) {
+            this.logger.warn('Failed to link contract quality rule to vendor file', {
+              fileId,
+              ruleId: row.id,
+              ruleName: row.rule_name,
+              error: linkErr.message
+            });
+          }
+        }
+        this.logger.info('Linked contract quality_rule_ids to vendor file', {
+          fileId,
+          linkedCount: rulesResult.rows.length
         });
       } catch (tagError) {
         this.logger.warn('Failed to fetch quality rule names for vendor file tags', {

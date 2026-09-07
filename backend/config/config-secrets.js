@@ -20,12 +20,34 @@ const secretsClient = new SecretsManagerClient({
 
 let initialized = false;
 let cachedSecretData = null;
+
+function getEnvironmentSecretData() {
+  return {
+    DATABASE_URL: process.env.DATABASE_URL,
+    OKTA_CLIENT_ID: process.env.OKTA_CLIENT_ID || process.env.VITE_OKTA_CLIENT_ID,
+    OKTA_DOMAIN: process.env.OKTA_DOMAIN || process.env.VITE_OKTA_DOMAIN,
+    OKTA_ISSUER: process.env.OKTA_ISSUER || (process.env.OKTA_DOMAIN ? `https://${process.env.OKTA_DOMAIN}/oauth2/default` : undefined),
+    OKTA_REDIRECT_URI: process.env.OKTA_REDIRECT_URI || process.env.VITE_OKTA_REDIRECT_URI,
+    BACKEND_URL: process.env.BACKEND_URL || process.env.VITE_BACKEND_URL,
+  };
+}
+
 /**
  * Initialize secrets manager and override environment variables
  * This runs once at startup and makes all existing code work transparently
  */
 async function initializeSecrets() {
   if (initialized) return;
+
+  // Replit injects DATABASE_URL directly. Do not contact AWS in that case:
+  // the AWS SDK's credential-provider retries add startup delay and misleading
+  // errors even though the database configuration is already complete.
+  if (process.env.DATABASE_URL) {
+    cachedSecretData = getEnvironmentSecretData();
+    initialized = true;
+    console.log('✅ Using DATABASE_URL from environment variables');
+    return;
+  }
   
   try {
     console.log("Initializing AWS Secrets Manager integration...");
@@ -72,19 +94,7 @@ async function initializeSecrets() {
       }
     }
   } catch (error) {
-    console.error("❌ AWS Secrets Manager failed:", error.message);
-    
-    // Provide specific guidance based on error type
-    if (error.name === 'CredentialsProviderError' || error.message.includes('credentials')) {
-      console.error("💡 Please set AWS credentials in .env file:");
-      console.error("   AWS_ACCESS_KEY_ID=your_access_key");
-      console.error("   AWS_SECRET_ACCESS_KEY=your_secret_key");
-      console.error("   AWS_REGION=us-east-2");
-    } else if (error.name === 'ResourceNotFoundException') {
-      console.error("💡 Secret 'filevantage-prod' not found in AWS Secrets Manager");
-    }
-    
-    throw error; // Re-throw to prevent fallback to .env
+    console.warn('AWS Secrets Manager unavailable; continuing with environment configuration.', error.message);
   }
   
   // Fallback: use existing DATABASE_URL from .env
@@ -94,12 +104,20 @@ async function initializeSecrets() {
     console.error("❌ No DATABASE_URL found in Secrets Manager or environment variables");
   }
   
+  cachedSecretData = getEnvironmentSecretData();
   initialized = true;
 }
 
 async function getAllSecretData() {
   // If already fetched and cached, return it
   if (cachedSecretData) {
+    return cachedSecretData;
+  }
+
+  // Prefer credentials already supplied by the deployment environment. This
+  // avoids an unnecessary AWS credential lookup on every cold start.
+  if (process.env.DATABASE_URL) {
+    cachedSecretData = getEnvironmentSecretData();
     return cachedSecretData;
   }
 
@@ -123,17 +141,8 @@ async function getAllSecretData() {
     // Fallback to environment variables for development
     console.warn('AWS Secrets Manager unavailable, using environment variables');
     
-    const envSecrets = {
-      DATABASE_URL: process.env.DATABASE_URL,
-      OKTA_CLIENT_ID: process.env.OKTA_CLIENT_ID || process.env.VITE_OKTA_CLIENT_ID,
-      OKTA_DOMAIN: process.env.OKTA_DOMAIN || process.env.VITE_OKTA_DOMAIN,
-      OKTA_ISSUER: process.env.OKTA_ISSUER || (process.env.OKTA_DOMAIN ? `https://${process.env.OKTA_DOMAIN}/oauth2/default` : undefined),
-      OKTA_REDIRECT_URI: process.env.OKTA_REDIRECT_URI || process.env.VITE_OKTA_REDIRECT_URI,
-      BACKEND_URL: process.env.BACKEND_URL || process.env.VITE_BACKEND_URL,
-    };
-    
-    cachedSecretData = envSecrets;
-    return envSecrets;
+    cachedSecretData = getEnvironmentSecretData();
+    return cachedSecretData;
   }
 }
 

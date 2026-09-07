@@ -1,7 +1,6 @@
 const { systemLogger } = require('../utils/logger');
 
 class VisualMappingCompiler {
-  
   /**
    * Compiles a visual mapping graph into an executable transformation mapping
    * @param {Object} visualMapping - The visual mapping definition with nodes and edges
@@ -89,6 +88,8 @@ class VisualMappingCompiler {
         schema_drift_handling: compiledSteps.schemaDriftHandling || 'none',
         violation_handling: compiledSteps.violationHandling || 'log_continue',
         quality_rule_ids: compiledSteps.qualityRuleIds || [],
+        quality_rule_actions: compiledSteps.qualityRuleActions || {},
+        quality_rule_columns: compiledSteps.qualityRuleColumns || {},
         enable_anomaly_detection: compiledSteps.enableAnomalyDetection || false,
         node_execution_map: executionOrder.executionMap,
         vendor_agreement_id: compiledSteps.vendorAgreementId || null,
@@ -101,6 +102,13 @@ class VisualMappingCompiler {
         has_multi_source_join: hasMultipleSources && hasJoins
       };
       
+      if (compiledSteps.qualityRuleIds.length === 0) {
+        systemLogger.warn('Visual mapping compiled with no quality rule IDs — DQ validation will be skipped at execution time', {
+          mappingId: visualMapping.id,
+          hint: 'Open the expression node and save DQ rule assignments, or add rules via the Target Rules node'
+        });
+      }
+
       systemLogger.info('Visual mapping compiled successfully', {
         mappingId: visualMapping.id,
         nodeCount: nodes.length,
@@ -124,7 +132,7 @@ class VisualMappingCompiler {
       };
     }
   }
-  
+
   /**
    * Validates the graph structure
    */
@@ -151,7 +159,7 @@ class VisualMappingCompiler {
     });
     
     const orphanedNodes = nodes.filter(n => 
-      !connectedNodeIds.has(n.id) && n.type !== 'sourceConfig'
+      !connectedNodeIds.has(n.id) && n.type !== 'sourceConfig' && n.type !== 'emailNotification' && n.type !== 'jiraTicket'
     );
     
     if (orphanedNodes.length > 0) {
@@ -207,7 +215,7 @@ class VisualMappingCompiler {
       errors
     };
   }
-  
+
   /**
    * Helper to get human-readable node type label
    */
@@ -223,7 +231,7 @@ class VisualMappingCompiler {
     };
     return labels[type] || type;
   }
-  
+
   /**
    * Validates individual node configuration
    */
@@ -296,7 +304,7 @@ class VisualMappingCompiler {
     
     return errors;
   }
-  
+
   /**
    * Propagates schemas through the graph in execution order
    */
@@ -428,7 +436,7 @@ class VisualMappingCompiler {
       };
     }
   }
-  
+
   /**
    * Gets the combined schema from all upstream nodes
    */
@@ -461,7 +469,7 @@ class VisualMappingCompiler {
     
     return combinedSchema;
   }
-  
+
   /**
    * Builds execution order using topological sort
    */
@@ -527,7 +535,7 @@ class VisualMappingCompiler {
       };
     }
   }
-  
+
   /**
    * Compiles nodes into transformation configuration
    * Enhanced to support multi-source joins with proper source cataloging
@@ -542,6 +550,13 @@ class VisualMappingCompiler {
       variables: [],
       piiColumns: [],
       qualityRuleIds: [],
+      // Maps ruleId -> errorAction for per-rule On Failure behaviour.
+      // Populated from expression node dqRuleAssignments and targetRules selectedQualityRules.
+      qualityRuleActions: {},
+      // Maps ruleId -> columnName for rules whose column is assigned at the node level
+      // (e.g. date_format rules on expression nodes via dqRuleAssignments) rather than
+      // stored globally on the quality_rules row. Used by the DQ step as a column override.
+      qualityRuleColumns: {},
       enableAnomalyDetection: false,
       // Multi-source support: collect all source configurations
       sourceCatalog: [],
@@ -595,6 +610,29 @@ class VisualMappingCompiler {
             }
             if (config.piiColumns) {
               result.piiColumns.push(...config.piiColumns);
+            }
+            // Collect DQ rule IDs from dqRuleAssignments so they are inserted into
+            // transformation_quality_rules and enforced during execution.
+            if (config.dqRuleAssignments && typeof config.dqRuleAssignments === 'object') {
+              for (const [columnName, assignments] of Object.entries(config.dqRuleAssignments)) {
+                if (Array.isArray(assignments)) {
+                  for (const a of assignments) {
+                    if (a.ruleId && !result.qualityRuleIds.includes(a.ruleId)) {
+                      result.qualityRuleIds.push(a.ruleId);
+                    }
+                    // Persist per-rule errorAction so the engine can honour Warn/Abort per rule
+                    if (a.ruleId && a.errorAction) {
+                      result.qualityRuleActions[a.ruleId] = a.errorAction;
+                    }
+                    // Capture column → rule mapping so the DQ step knows which column to validate
+                    // when the quality_rules row itself has no column_name (e.g. date_format rules
+                    // assigned to a specific column in the VM expression node).
+                    if (a.ruleId && columnName) {
+                      result.qualityRuleColumns[a.ruleId] = columnName;
+                    }
+                  }
+                }
+              }
             }
             break;
             
@@ -740,13 +778,34 @@ class VisualMappingCompiler {
             }
             break;
             
+          case 'emailNotification':
+            // Side-effect node: extract config for the job notification service.
+            // Does not produce a data transformation step.
+            if (!result.emailNotificationNodes) result.emailNotificationNodes = [];
+            result.emailNotificationNodes.push({
+              nodeId,
+              emailConnectionId: config.emailConnectionId || null,
+              recipients: config.recipients || '',
+              subject: config.subject || '',
+              notifyOnSuccess: config.notifyOnSuccess !== false,
+              notifyOnFailure: config.notifyOnFailure !== false,
+              includeStats: config.includeStats !== false
+            });
+            break;
+
           case 'targetRules':
             result.targetConnectionId = config.connectionId;
             result.targetFilePath = config.filePath;
             result.targetFileName = config.fileName;
             result.targetFileFormat = config.fileFormat;
             result.violationHandling = config.violationHandling;
-            result.qualityRuleIds = config.selectedQualityRules || [];
+            // Merge selectedQualityRules with any IDs already collected from
+            // expression-node dqRuleAssignments (avoid overwriting them).
+            for (const ruleId of (config.selectedQualityRules || [])) {
+              if (!result.qualityRuleIds.includes(ruleId)) {
+                result.qualityRuleIds.push(ruleId);
+              }
+            }
             result.enableAnomalyDetection = config.anomalyDetection || false;
             // Capture orderedColumns for filtering/reordering fieldMappings
             result.orderedColumns = config.orderedColumns || [];
@@ -819,7 +878,7 @@ class VisualMappingCompiler {
       };
     }
   }
-  
+
   /**
    * Extracts schema from upstream nodes for a given node
    * Expression nodes act as strict column boundaries - only their explicit mappings pass through

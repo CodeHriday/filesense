@@ -284,6 +284,31 @@ function QualityRules() {
           errors.timestamp_column = 'Timestamp column is required';
         }
         break;
+
+      case 'record_count': {
+        const op = config.operator || 'exactly';
+        if (!config.operator) {
+          errors.operator = 'Operator is required';
+        }
+        if (op === 'between') {
+          if (config.min_count === undefined || config.min_count === null || config.min_count < 0) {
+            errors.count_range = 'Minimum count must be 0 or greater';
+          } else if (config.max_count === undefined || config.max_count === null || config.max_count < 0) {
+            errors.count_range = 'Maximum count must be 0 or greater';
+          } else if (config.max_count < config.min_count) {
+            errors.count_range = 'Maximum count must be greater than or equal to minimum count';
+          }
+        } else {
+          if (config.expected_count === undefined || config.expected_count === null || config.expected_count < 0) {
+            errors.expected_count = 'Expected count must be 0 or greater';
+          }
+        }
+        if (config.tolerance_percent !== undefined && config.tolerance_percent !== null &&
+            (config.tolerance_percent < 0 || config.tolerance_percent > 100)) {
+          errors.tolerance_percent = 'Tolerance must be between 0 and 100';
+        }
+        break;
+      }
     }
     
     setFormErrors(errors);
@@ -359,6 +384,7 @@ function QualityRules() {
       consistency: 'Check that related data fields are logically consistent',
       uniqueness: 'Verify that values are unique (no duplicates)',
       freshness: 'Monitor data age and detect stale information',
+      record_count: 'Flag files whose row count falls outside an expected range',
       validity_check: 'General validity validation with pattern or datatype checks',
       length_check: 'Validate string length within min/max bounds',
       range_check: 'Validate numeric values within min/max bounds'
@@ -488,7 +514,11 @@ function QualityRules() {
                   id="validity-datatype"
                   className="gps-form-select"
                   value={config.datatype || ''}
-                  onChange={(e) => updateRuleConfig('datatype', e.target.value)}
+                  onChange={(e) => {
+                    updateRuleConfig('datatype', e.target.value);
+                    // Clear any date_format when switching away from date
+                    if (e.target.value !== 'date') updateRuleConfig('date_format', undefined);
+                  }}
                 >
                   <option value="">Select data type...</option>
                   <option value="string">Text</option>
@@ -496,11 +526,60 @@ function QualityRules() {
                   <option value="float">Decimal Number</option>
                   <option value="boolean">True/False</option>
                   <option value="date">Date</option>
-                  <option value="datetime">Date & Time</option>
+                  <option value="datetime">Date &amp; Time</option>
                 </select>
                 {formErrors.datatype && <span className="gps-form-hint" style={{ color: '#e53e3e' }}>{formErrors.datatype}</span>}
               </div>
             )}
+            {config.validity_type === 'datatype' && config.datatype === 'date' && (() => {
+              const KNOWN_DATE_FORMATS = ['YYYY-MM-DD', 'MM/DD/YYYY', 'DD/MM/YYYY', 'MM-DD-YYYY', 'DD-MM-YYYY', 'YYYY/MM/DD', 'DD.MM.YYYY'];
+              const isCustom = config.date_format && !KNOWN_DATE_FORMATS.includes(config.date_format);
+              const pickerValue = isCustom ? 'custom' : (config.date_format || '');
+              return (
+                <div className="gps-form-group">
+                  <label htmlFor="validity-date-format" className="gps-form-label">Date Format</label>
+                  <span className="gps-form-hint" style={{ marginTop: 0, marginBottom: '6px' }}>
+                    Choose a format to enforce strictly, or leave blank to accept any recognised date format.
+                  </span>
+                  <select
+                    id="validity-date-format"
+                    className="gps-form-select"
+                    value={pickerValue}
+                    onChange={(e) => {
+                      if (e.target.value === 'custom') {
+                        updateRuleConfig('date_format', '');
+                      } else {
+                        updateRuleConfig('date_format', e.target.value || undefined);
+                      }
+                    }}
+                  >
+                    <option value="">Any recognised date format</option>
+                    <option value="YYYY-MM-DD">YYYY-MM-DD (e.g. 2024-01-15)</option>
+                    <option value="MM/DD/YYYY">MM/DD/YYYY (e.g. 01/15/2024)</option>
+                    <option value="DD/MM/YYYY">DD/MM/YYYY (e.g. 15/01/2024)</option>
+                    <option value="MM-DD-YYYY">MM-DD-YYYY (e.g. 01-15-2024)</option>
+                    <option value="DD-MM-YYYY">DD-MM-YYYY (e.g. 15-01-2024)</option>
+                    <option value="YYYY/MM/DD">YYYY/MM/DD (e.g. 2024/01/15)</option>
+                    <option value="DD.MM.YYYY">DD.MM.YYYY (e.g. 15.01.2024)</option>
+                    <option value="custom">Custom format…</option>
+                  </select>
+                  {(pickerValue === 'custom' || isCustom) && (
+                    <input
+                      id="validity-date-format-custom"
+                      type="text"
+                      className="gps-form-input"
+                      style={{ marginTop: '8px' }}
+                      placeholder="e.g. YYYY/DD/MM or DD.YYYY.MM"
+                      value={isCustom ? config.date_format : ''}
+                      onChange={(e) => updateRuleConfig('date_format', e.target.value)}
+                    />
+                  )}
+                  <span className="gps-form-hint" style={{ marginTop: '4px' }}>
+                    Use tokens: <code>YYYY</code> (4-digit year), <code>MM</code> (2-digit month), <code>DD</code> (2-digit day)
+                  </span>
+                </div>
+              );
+            })()}
             
             <div className="gps-form-group" style={{ marginBottom: 0 }}>
               <label htmlFor="validity-column-name" className="gps-form-label">Column Name</label>
@@ -813,6 +892,87 @@ function QualityRules() {
           </div>
         );
         
+      case 'record_count':
+        return (
+          <div className="gps-section" style={{ marginTop: '16px', padding: '16px', backgroundColor: '#f9fafb', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+            <div className="gps-form-group">
+              <label htmlFor="record-count-operator" className="gps-form-label">Operator</label>
+              <span className="gps-form-hint" style={{ marginTop: 0, marginBottom: '8px' }}>How the actual row count should compare to the expected count</span>
+              <select
+                id="record-count-operator"
+                className="gps-form-select"
+                value={config.operator || 'exactly'}
+                onChange={(e) => updateRuleConfig('operator', e.target.value)}
+              >
+                <option value="exactly">Exactly</option>
+                <option value="at_least">At Least</option>
+                <option value="at_most">At Most</option>
+                <option value="between">Between</option>
+              </select>
+              {formErrors.operator && <span className="gps-form-hint" style={{ color: '#e53e3e' }}>{formErrors.operator}</span>}
+            </div>
+
+            {(config.operator || 'exactly') !== 'between' ? (
+              <div className="gps-form-group">
+                <label htmlFor="record-count-expected" className="gps-form-label">Expected Record Count</label>
+                <input
+                  id="record-count-expected"
+                  type="number"
+                  className="gps-form-input"
+                  min="0"
+                  value={config.expected_count !== undefined ? config.expected_count : ''}
+                  onChange={(e) => updateRuleConfig('expected_count', e.target.value !== '' ? parseInt(e.target.value, 10) : undefined)}
+                  placeholder="e.g., 1000"
+                />
+                {formErrors.expected_count && <span className="gps-form-hint" style={{ color: '#e53e3e' }}>{formErrors.expected_count}</span>}
+              </div>
+            ) : (
+              <div className="gps-form-row">
+                <div className="gps-form-group">
+                  <label htmlFor="record-count-min" className="gps-form-label">Minimum Count</label>
+                  <input
+                    id="record-count-min"
+                    type="number"
+                    className="gps-form-input"
+                    min="0"
+                    value={config.min_count !== undefined ? config.min_count : ''}
+                    onChange={(e) => updateRuleConfig('min_count', e.target.value !== '' ? parseInt(e.target.value, 10) : undefined)}
+                    placeholder="e.g., 900"
+                  />
+                </div>
+                <div className="gps-form-group">
+                  <label htmlFor="record-count-max" className="gps-form-label">Maximum Count</label>
+                  <input
+                    id="record-count-max"
+                    type="number"
+                    className="gps-form-input"
+                    min="0"
+                    value={config.max_count !== undefined ? config.max_count : ''}
+                    onChange={(e) => updateRuleConfig('max_count', e.target.value !== '' ? parseInt(e.target.value, 10) : undefined)}
+                    placeholder="e.g., 1100"
+                  />
+                </div>
+                {formErrors.count_range && <span className="gps-form-hint" style={{ color: '#e53e3e', gridColumn: '1 / -1' }}>{formErrors.count_range}</span>}
+              </div>
+            )}
+
+            <div className="gps-form-group" style={{ marginBottom: 0 }}>
+              <label htmlFor="record-count-tolerance" className="gps-form-label">Tolerance (%) — Optional</label>
+              <span className="gps-form-hint" style={{ marginTop: 0, marginBottom: '8px' }}>Allow the count to vary by this percentage before flagging a violation</span>
+              <input
+                id="record-count-tolerance"
+                type="number"
+                className="gps-form-input"
+                min="0"
+                max="100"
+                value={config.tolerance_percent !== undefined ? config.tolerance_percent : ''}
+                onChange={(e) => updateRuleConfig('tolerance_percent', e.target.value !== '' ? parseFloat(e.target.value) : undefined)}
+                placeholder="e.g., 5 (for ±5%)"
+              />
+            </div>
+          </div>
+        );
+
       default:
         return null;
     }
@@ -908,6 +1068,7 @@ function QualityRules() {
           <option value="consistency">Consistency</option>
           <option value="uniqueness">Uniqueness</option>
           <option value="freshness">Freshness</option>
+          <option value="record_count">Record Count</option>
           <option value="validity_check">Validity Check</option>
           <option value="length_check">Length Check</option>
           <option value="range_check">Range Check</option>
@@ -1160,6 +1321,7 @@ function QualityRules() {
                       <option value="consistency">Consistency</option>
                       <option value="uniqueness">Uniqueness</option>
                       <option value="freshness">Freshness</option>
+                      <option value="record_count">Record Count</option>
                       <option value="validity_check">Validity Check (Generic)</option>
                       <option value="length_check">Length Check (Generic)</option>
                       <option value="range_check">Range Check (Generic)</option>

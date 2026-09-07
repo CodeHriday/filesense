@@ -179,7 +179,7 @@ def fetch_database_url():
         return _database_url
     
     try:
-        API_BASE_URL = "http://localhost:5001"
+        API_BASE_URL = os.environ.get("BACKEND_API_URL", "http://localhost:5000").rstrip("/")
         response = requests.get(f"{API_BASE_URL}/api/db_url")
         if not response.ok:
             raise Exception('Failed to load database URL from backend')
@@ -1958,7 +1958,7 @@ def generate_dq_suggestions():
                 cursor.close()
                 
                 ai_enabled = settings.get('ai_dq_suggestions_enabled', 'true').lower() == 'true'
-                configured_provider = settings.get('ai_provider', 'auto')
+                configured_provider = settings.get('ai_provider', 'rule-based')
                 
                 if not ai_enabled:
                     return jsonify({
@@ -1971,7 +1971,7 @@ def generate_dq_suggestions():
         
         from backend.ai_providers import AIProviderFactory
         
-        provider_name = requested_provider or configured_provider or os.environ.get('AI_PROVIDER', 'auto')
+        provider_name = requested_provider or configured_provider or os.environ.get('AI_PROVIDER', 'rule-based')
         provider = AIProviderFactory.get_provider(provider_name)
         provider_info = provider.get_provider_info()
         
@@ -2017,7 +2017,7 @@ def list_ai_providers():
         providers = AIProviderFactory.list_providers()
         
         conn = get_db_connection()
-        current_provider = os.environ.get('AI_PROVIDER', 'auto')
+        current_provider = os.environ.get('AI_PROVIDER', 'rule-based')
         ai_enabled = True
         
         if conn:
@@ -2083,8 +2083,21 @@ def set_ai_provider():
             
             logger.info(f"AI provider updated to: {provider_name}")
             
-            provider = AIProviderFactory.get_provider(provider_name)
-            provider_info = provider.get_provider_info()
+            # Return static provider info without initialising the full provider object.
+            # Full initialisation (AIProviderFactory.get_provider) may probe external APIs
+            # and take 30+ seconds, causing a Node.js response timeout.
+            _STATIC_PROVIDER_INFO = {
+                'auto':       {'name': 'auto',       'display_name': 'Auto-detect',   'privacy_level': 'varies', 'requires_external_call': False, 'available': True},
+                'openai':     {'name': 'openai',     'display_name': 'OpenAI',        'privacy_level': 'cloud',  'requires_external_call': True,  'available': True},
+                'bedrock':    {'name': 'bedrock',    'display_name': 'AWS Bedrock',   'privacy_level': 'cloud',  'requires_external_call': True,  'available': True},
+                'azure':      {'name': 'azure',      'display_name': 'Azure OpenAI',  'privacy_level': 'cloud',  'requires_external_call': True,  'available': True},
+                'gemini':     {'name': 'gemini',     'display_name': 'Google Gemini', 'privacy_level': 'cloud',  'requires_external_call': True,  'available': True},
+                'rule-based': {'name': 'rule-based', 'display_name': 'Rule-Based',    'privacy_level': 'local',  'requires_external_call': False, 'available': True},
+            }
+            provider_info = _STATIC_PROVIDER_INFO.get(
+                provider_name,
+                {'name': provider_name, 'display_name': provider_name, 'privacy_level': 'unknown', 'available': True}
+            )
             
             return jsonify({
                 'success': True,
@@ -2117,6 +2130,17 @@ def get_setting(setting_key):
             cursor.close()
             
             if not result:
+                # Return sensible defaults for known settings instead of 404
+                defaults = {
+                    'ai_dq_suggestions_enabled': 'true',
+                    'ai_provider': 'rule-based',
+                }
+                if setting_key in defaults:
+                    return jsonify({
+                        'key': setting_key,
+                        'value': defaults[setting_key],
+                        'description': None
+                    }), 200
                 return jsonify({'error': 'Setting not found'}), 404
             
             return jsonify({
@@ -2147,20 +2171,18 @@ def update_setting(setting_key):
         try:
             cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
             cursor.execute("""
-                UPDATE app_settings 
-                SET setting_value = %s, updated_at = NOW()
-                WHERE setting_key = %s
+                INSERT INTO app_settings (setting_key, setting_value, updated_at)
+                VALUES (%s, %s, NOW())
+                ON CONFLICT (setting_key)
+                DO UPDATE SET setting_value = EXCLUDED.setting_value, updated_at = NOW()
                 RETURNING setting_key, setting_value, description
-            """, (str(data['value']), setting_key))
+            """, (setting_key, str(data['value'])))
             
             result = cursor.fetchone()
             conn.commit()
             cursor.close()
             
-            if not result:
-                return jsonify({'error': 'Setting not found'}), 404
-            
-            logger.info(f"Setting updated: {setting_key} = {data['value']}")
+            logger.info(f"Setting upserted: {setting_key} = {data['value']}")
             
             return jsonify({
                 'key': result['setting_key'],
@@ -2173,6 +2195,37 @@ def update_setting(setting_key):
     except Exception as e:
         logger.error(f"Error updating setting: {str(e)}")
         return jsonify({'error': str(e)}), 500
+
+def initialize_settings():
+    """Seed default app_settings rows so they always exist on first boot."""
+    defaults = [
+        ('ai_dq_suggestions_enabled', 'true',
+         'Enable AI-powered DQ suggestions feature'),
+        ('ai_provider', 'rule-based',
+         'AI provider for DQ suggestions (openai, bedrock, azure, gemini, rule-based, auto)'),
+    ]
+    try:
+        conn = get_db_connection()
+        if not conn:
+            logger.warning("initialize_settings: database unavailable, skipping seed")
+            return
+        try:
+            cursor = conn.cursor()
+            for key, value, description in defaults:
+                cursor.execute("""
+                    INSERT INTO app_settings (setting_key, setting_value, description, updated_at)
+                    VALUES (%s, %s, %s, NOW())
+                    ON CONFLICT (setting_key) DO UPDATE
+                    SET setting_value = EXCLUDED.setting_value, updated_at = NOW()
+                """, (key, value, description))
+            conn.commit()
+            cursor.close()
+            logger.info("Default app_settings rows ensured")
+        finally:
+            conn.close()
+    except Exception as e:
+        logger.error(f"initialize_settings error: {str(e)}")
+
 
 # Initialize database connection at startup
 def initialize_app():
@@ -2196,6 +2249,9 @@ def initialize_app():
             logger.error(f"Database connection test error: {str(e)}")
     else:
         logger.warning("No DATABASE_URL available - some features may not work")
+
+    # Seed default settings rows (INSERT … ON CONFLICT DO NOTHING)
+    initialize_settings()
 
 if __name__ == '__main__':
     # Initialize the app

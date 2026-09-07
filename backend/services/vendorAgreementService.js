@@ -131,7 +131,8 @@ class VendorAgreementService {
         frequency_pattern,
         arrival_time,
         arrival_days,
-        alert_threshold_minutes
+        alert_threshold_minutes,
+        initial_approval_chain
       } = agreementData;
       
       // Check for duplicate file_name
@@ -230,9 +231,12 @@ class VendorAgreementService {
         if (typeof schema === 'string' && schema.trim() !== '' && schema !== '[]') {
           try {
             const schemaObj = JSON.parse(schema);
-            if (Array.isArray(schemaObj) && schemaObj.length > 0) {
+            // Support both legacy bare array and new { columns, file_quality_rules } shape
+            const schemaArray = Array.isArray(schemaObj) ? schemaObj
+              : (Array.isArray(schemaObj?.columns) ? schemaObj.columns : []);
+            if (schemaArray.length > 0) {
               // Filter out empty objects - check for any meaningful data
-              const validRows = schemaObj.filter(row => {
+              const validRows = schemaArray.filter(row => {
                 if (!row || typeof row !== 'object') return false;
                 // Check if row has any non-empty, non-null values
                 const hasData = (row.column_name && row.column_name.trim()) || 
@@ -333,7 +337,51 @@ class VendorAgreementService {
         ) VALUES ($1, 'created', $2, 'Agreement created', 1, $3, CURRENT_TIMESTAMP)`,
         [agreement.id, JSON.stringify(agreement), createdBy]
       );
-      
+
+      // Save initial approval chain if provided.
+      // Done within this transaction so it is atomic with agreement creation and
+      // does not require the creator to be the file owner (the PUT endpoint does).
+      if (initial_approval_chain) {
+        const chainValidationError = this._validateChainConfig(initial_approval_chain);
+        if (chainValidationError) {
+          throw new Error(`Invalid approval chain: ${chainValidationError}`);
+        }
+
+        const normalisedSteps = initial_approval_chain.steps.map((s, idx) => ({
+          step_number: idx + 1,
+          name: s.name || `Step ${idx + 1}`,
+          approver_user_ids: s.approver_user_ids.map(Number),
+          require_all: Boolean(s.require_all),
+        }));
+        const normalisedConfig = { steps: normalisedSteps };
+
+        // Verify all approver IDs exist
+        const allApproverIds = normalisedSteps.flatMap(s => s.approver_user_ids);
+        const uniqueApproverIds = [...new Set(allApproverIds)];
+        const approverCheck = await client.query(
+          'SELECT id FROM users WHERE id = ANY($1::int[])',
+          [uniqueApproverIds]
+        );
+        const foundApproverIds = new Set(approverCheck.rows.map(r => r.id));
+        const missingApproverIds = uniqueApproverIds.filter(id => !foundApproverIds.has(id));
+        if (missingApproverIds.length > 0) {
+          throw new Error(`Approval chain references unknown user IDs: ${missingApproverIds.join(', ')}`);
+        }
+
+        await client.query(
+          `UPDATE vendor_agreements
+             SET approval_chain_config = $1, updated_at = CURRENT_TIMESTAMP
+           WHERE id = $2`,
+          [JSON.stringify(normalisedConfig), agreement.id]
+        );
+
+        systemLogger.info('Initial approval chain saved during agreement creation', {
+          agreementId: agreement.id,
+          stepCount: normalisedSteps.length,
+          createdBy,
+        });
+      }
+
       // Create notifications for vendor users (primary and secondary contacts)
       // Skip notification if this is a draft or if no contacts are specified
       if (finalStatus !== 'draft') {
@@ -562,9 +610,12 @@ class VendorAgreementService {
         if (typeof schema === 'string' && schema.trim() !== '' && schema !== '[]') {
           try {
             const schemaObj = JSON.parse(schema);
-            if (Array.isArray(schemaObj) && schemaObj.length > 0) {
+            // Support both legacy bare array and new { columns, file_quality_rules } shape
+            const schemaArray = Array.isArray(schemaObj) ? schemaObj
+              : (Array.isArray(schemaObj?.columns) ? schemaObj.columns : []);
+            if (schemaArray.length > 0) {
               // Filter out empty objects - check for any meaningful data
-              const validRows = schemaObj.filter(row => {
+              const validRows = schemaArray.filter(row => {
                 if (!row || typeof row !== 'object') return false;
                 // Check if row has any non-empty, non-null values
                 const hasData = (row.column_name && row.column_name.trim()) || 
@@ -2610,7 +2661,8 @@ class VendorAgreementService {
         userId,
         userRoles = [],
         userEmail = null,
-        hasApprovePermission = false
+        hasApprovePermission = false,
+        hasReadPermission = false
       } = options;
       
       const offset = (page - 1) * pageSize;
@@ -2653,52 +2705,65 @@ class VendorAgreementService {
         paramCounter++;
       }
       
-      // Apply role-based filtering for non-admin users
-      // Only true admin access (userHasAdminAccess) bypasses contact filtering
-      // Users with vendor_agreements:approve permission (e.g. Vendor Manager, Vendor Approver)
-      // still get filtered — they only see agreements where they are designated as a contact
+      // Apply role-based filtering for non-admin users.
+      // Only users with Admin role/access see all agreements without restriction.
+      // All other users — including those with vendor_agreements:read or vendor_agreements:approve —
+      // are scoped to agreements where they hold an explicit, agreement-level association.
+      // Permissions (read/approve/write) control WHAT operations are permitted on accessible
+      // agreements; they do not grant global list visibility. Project membership is also excluded:
+      // being a member of a project grants access to project files, not to vendor agreements.
       if (!isAdmin && userId) {
         if (userEmail) {
-          // Allow access if user is:
+          // Visible when the user is explicitly named on the agreement as:
           // 1. File owner (by user ID)
           // 2. Vendor user (by user ID)
-          // 3. Primary or secondary contact (by email)
-          // 4. Manager contact (by email)
-          // 5. Governance manager (by user ID)
-          // 6. Member of the vendor's project (direct or via access group)
+          // 3. Governance manager (by user ID)
+          // 4. Primary contact, secondary contact, or manager contact (by email)
+          // 5. Additional stakeholder (user ID in JSONB column)
+          // 6. Member of an explicitly listed stakeholder group on the agreement
+          // 7. Agreement creator
+          // 8. Configured approver in any step of the approval chain
           whereClauses.push(`(
-            va.file_owner_user_id = $${paramCounter} 
+            va.file_owner_user_id = $${paramCounter}
             OR v.vendor_user_id = $${paramCounter}
             OR va.governance_manager_user_id = $${paramCounter}
             OR va.primary_contact_email = $${paramCounter + 1}
             OR va.secondary_contact_email = $${paramCounter + 1}
             OR va.manager_contact = $${paramCounter + 1}
+            OR va.additional_stakeholder_user_ids @> jsonb_build_array($${paramCounter})
             OR EXISTS (
-              SELECT 1 FROM project_members pm 
-              WHERE pm.project_id = v.project_id AND pm.user_id = $${paramCounter}
+              SELECT 1 FROM access_group_members agm2
+              WHERE agm2.user_id = $${paramCounter}
+              AND va.additional_stakeholder_group_ids @> jsonb_build_array(agm2.group_id)
             )
+            OR va.created_by = $${paramCounter}
             OR EXISTS (
-              SELECT 1 FROM access_group_members agm
-              JOIN project_access_groups pag ON agm.group_id = pag.group_id
-              WHERE pag.project_id = v.project_id AND agm.user_id = $${paramCounter}
+              SELECT 1 FROM jsonb_array_elements(
+                COALESCE(va.approval_chain_config->'steps', '[]'::jsonb)
+              ) AS step
+              WHERE (step->'approver_user_ids') @> jsonb_build_array($${paramCounter})
             )
           )`);
           queryParams.push(userId, userEmail);
           paramCounter += 2;
         } else {
-          // Fallback if email not provided - check file owner, vendor user, governance manager, and project membership
+          // Fallback when email is not available — same checks minus email-based fields
           whereClauses.push(`(
-            va.file_owner_user_id = $${paramCounter} 
+            va.file_owner_user_id = $${paramCounter}
             OR v.vendor_user_id = $${paramCounter}
             OR va.governance_manager_user_id = $${paramCounter}
+            OR va.additional_stakeholder_user_ids @> jsonb_build_array($${paramCounter})
             OR EXISTS (
-              SELECT 1 FROM project_members pm 
-              WHERE pm.project_id = v.project_id AND pm.user_id = $${paramCounter}
+              SELECT 1 FROM access_group_members agm2
+              WHERE agm2.user_id = $${paramCounter}
+              AND va.additional_stakeholder_group_ids @> jsonb_build_array(agm2.group_id)
             )
+            OR va.created_by = $${paramCounter}
             OR EXISTS (
-              SELECT 1 FROM access_group_members agm
-              JOIN project_access_groups pag ON agm.group_id = pag.group_id
-              WHERE pag.project_id = v.project_id AND agm.user_id = $${paramCounter}
+              SELECT 1 FROM jsonb_array_elements(
+                COALESCE(va.approval_chain_config->'steps', '[]'::jsonb)
+              ) AS step
+              WHERE (step->'approver_user_ids') @> jsonb_build_array($${paramCounter})
             )
           )`);
           queryParams.push(userId);
@@ -3184,6 +3249,735 @@ class VendorAgreementService {
     } finally {
       client.release();
     }
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // CONFIGURABLE N-STEP APPROVAL CHAIN
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  /**
+   * Validate an approval chain config object.
+   * Returns null on success or a string error message.
+   */
+  _validateChainConfig(chainConfig) {
+    if (!chainConfig || typeof chainConfig !== 'object') {
+      return 'approval_chain_config must be an object';
+    }
+    const { steps } = chainConfig;
+    if (!Array.isArray(steps) || steps.length === 0) {
+      return 'steps must be a non-empty array';
+    }
+    if (steps.length > 5) {
+      return 'A maximum of 5 approval steps is supported';
+    }
+    for (let i = 0; i < steps.length; i++) {
+      const s = steps[i];
+      if (!Array.isArray(s.approver_user_ids) || s.approver_user_ids.length === 0) {
+        return `Step ${i + 1} must have at least one approver_user_id`;
+      }
+      if (s.approver_user_ids.some(id => !Number.isInteger(id) || id <= 0)) {
+        return `Step ${i + 1} has an invalid approver_user_id (must be a positive integer)`;
+      }
+      if (typeof s.require_all !== 'boolean') {
+        return `Step ${i + 1} must specify require_all as a boolean`;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Get the approval chain config for a contract.
+   */
+  async getApprovalChainConfig(agreementId) {
+    const result = await pool.query(
+      `SELECT id, approval_chain_config, current_approval_step, approval_status, version
+       FROM vendor_agreements WHERE id = $1`,
+      [agreementId]
+    );
+    if (result.rows.length === 0) throw new Error('Agreement not found');
+
+    const agreement = result.rows[0];
+    const config = agreement.approval_chain_config;
+
+    // Load current-step decisions if a chain is in progress
+    let stepDecisions = [];
+    if (agreement.approval_status === 'pending_approval' && agreement.current_approval_step) {
+      const decisionsResult = await pool.query(
+        `SELECT vasd.*, u.username, u.first_name, u.last_name, u.email
+         FROM vendor_approval_step_decisions vasd
+         JOIN users u ON u.id = vasd.approver_user_id
+         WHERE vasd.agreement_id = $1
+           AND vasd.step_number = $2
+           AND vasd.agreement_version = $3
+         ORDER BY vasd.decided_at ASC`,
+        [agreementId, agreement.current_approval_step, agreement.version]
+      );
+      stepDecisions = decisionsResult.rows;
+    }
+
+    return {
+      success: true,
+      approval_chain_config: config,
+      current_approval_step: agreement.current_approval_step,
+      approval_status: agreement.approval_status,
+      step_decisions: stepDecisions
+    };
+  }
+
+  /**
+   * Save (create or replace) the approval chain config for a contract.
+   * Only admins or the file owner may do this.
+   */
+  async saveApprovalChainConfig(agreementId, chainConfig, userId, isAdmin = false) {
+    const validationError = this._validateChainConfig(chainConfig);
+    if (validationError) throw new Error(validationError);
+
+    // Normalise step numbers to be 1-based sequential
+    const normalisedSteps = chainConfig.steps.map((s, idx) => ({
+      step_number: idx + 1,
+      name: s.name || `Step ${idx + 1}`,
+      approver_user_ids: s.approver_user_ids.map(Number),
+      require_all: Boolean(s.require_all)
+    }));
+    const normalisedConfig = { steps: normalisedSteps };
+
+    // Verify all user IDs exist
+    const allUserIds = normalisedSteps.flatMap(s => s.approver_user_ids);
+    const uniqueIds = [...new Set(allUserIds)];
+    const usersResult = await pool.query(
+      'SELECT id FROM users WHERE id = ANY($1::int[])',
+      [uniqueIds]
+    );
+    const foundIds = new Set(usersResult.rows.map(r => r.id));
+    const missingIds = uniqueIds.filter(id => !foundIds.has(id));
+    if (missingIds.length > 0) {
+      throw new Error(`Approver user IDs not found: ${missingIds.join(', ')}`);
+    }
+
+    // Permission check
+    const agreementResult = await pool.query(
+      'SELECT id, file_owner_user_id, is_locked, approval_status FROM vendor_agreements WHERE id = $1',
+      [agreementId]
+    );
+    if (agreementResult.rows.length === 0) throw new Error('Agreement not found');
+    const agreement = agreementResult.rows[0];
+
+    if (!isAdmin && agreement.file_owner_user_id !== userId) {
+      throw new Error('Only the file owner or an admin can configure the approval chain');
+    }
+    if (agreement.is_locked && !isAdmin) {
+      throw new Error('Agreement is locked. Only an admin can modify the approval chain');
+    }
+    if (agreement.approval_status === 'pending_approval') {
+      throw new Error('Cannot modify approval chain while an approval round is in progress');
+    }
+
+    await pool.query(
+      `UPDATE vendor_agreements
+         SET approval_chain_config = $1, updated_at = CURRENT_TIMESTAMP
+       WHERE id = $2`,
+      [JSON.stringify(normalisedConfig), agreementId]
+    );
+
+    systemLogger.info('Approval chain config saved', { agreementId, userId, stepCount: normalisedSteps.length });
+    return { success: true, approval_chain_config: normalisedConfig };
+  }
+
+  /**
+   * Start the approval chain for a contract.
+   * Transitions the contract to pending_approval at step 1 and notifies step-1 approvers.
+   */
+  async submitForApprovalChain(agreementId, userId, isAdmin = false) {
+    const client = await pool.connect();
+
+    try {
+      await client.query('BEGIN');
+
+      const agreementResult = await client.query(
+        `SELECT va.*, v.vendor_user_id
+         FROM vendor_agreements va
+         JOIN vendors v ON va.vendor_id = v.id
+         WHERE va.id = $1
+         FOR UPDATE`,
+        [agreementId]
+      );
+      if (agreementResult.rows.length === 0) throw new Error('Agreement not found');
+
+      const agreement = agreementResult.rows[0];
+
+      if (!agreement.approval_chain_config) {
+        throw new Error('No approval chain configured for this contract. Please configure the approval chain before submitting.');
+      }
+
+      const chainConfig = agreement.approval_chain_config;
+      const validationError = this._validateChainConfig(chainConfig);
+      if (validationError) throw new Error(`Invalid approval chain configuration: ${validationError}`);
+
+      const allowedStatuses = ['draft', 'pending_vendor_acceptance', 'vendor_rejected', 'manager_rejected', 'governance_rejected', 'rejected'];
+      if (!allowedStatuses.includes(agreement.approval_status)) {
+        throw new Error(`Cannot submit for approval in current status: ${agreement.approval_status}`);
+      }
+
+      if (!isAdmin && agreement.file_owner_user_id !== userId && agreement.created_by !== userId) {
+        throw new Error('Only the file owner, creator, or an admin can submit this contract for approval');
+      }
+
+      // Transition to pending_approval at step 1.
+      // Always bump version so each approval round has a distinct agreement_version;
+      // this prevents step decisions from a previous (rejected) round from polluting
+      // the hasVoted / quorum logic in the current round.
+      await client.query(
+        `UPDATE vendor_agreements
+           SET approval_status = 'pending_approval',
+               current_approval_step = 1,
+               version = version + 1,
+               updated_at = CURRENT_TIMESTAMP
+         WHERE id = $1`,
+        [agreementId]
+      );
+
+      const newVersion = agreement.version + 1;
+
+      // Audit record (use newVersion so this entry belongs to the fresh round)
+      await client.query(
+        `INSERT INTO vendor_agreement_approvals (
+           agreement_id, approver_type, approver_user_id, action, comments,
+           agreement_version, approval_timestamp, approval_stage
+         ) VALUES ($1, 'manager', $2, 'approved', 'Submitted for configurable approval chain',
+                   $3, CURRENT_TIMESTAMP, 'chain_submission')`,
+        [agreementId, userId, newVersion]
+      );
+
+      // In-app notifications for step-1 approvers
+      const step1Config = chainConfig.steps[0];
+      const contractLabel = agreement.file_name || agreement.agreement_code;
+      for (const approverId of step1Config.approver_user_ids) {
+        await client.query(
+          `INSERT INTO notifications (
+             user_id, notification_type, title, message, entity_type, entity_id, action_url, metadata
+           ) VALUES ($1, 'vendor_contract_approval_requested', $2, $3, 'vendor_agreement', $4, $5, $6)`,
+          [
+            approverId,
+            'Approval Required: Vendor Contract',
+            `Contract "${contractLabel}" has been submitted for approval and requires your review at Step 1 (${step1Config.name}).`,
+            agreementId,
+            `/vendor-agreements?view=${agreementId}`,
+            JSON.stringify({
+              agreement_id: agreementId,
+              agreement_code: agreement.agreement_code,
+              step_number: 1,
+              step_name: step1Config.name
+            })
+          ]
+        );
+      }
+
+      // In-app notifications for additional stakeholders (observers)
+      const stakeholderIds = Array.isArray(agreement.additional_stakeholder_user_ids)
+        ? agreement.additional_stakeholder_user_ids
+        : [];
+      for (const observerId of stakeholderIds) {
+        if (!step1Config.approver_user_ids.includes(observerId)) {
+          await client.query(
+            `INSERT INTO notifications (
+               user_id, notification_type, title, message, entity_type, entity_id, action_url, metadata
+             ) VALUES ($1, 'vendor_contract_status_update', $2, $3, 'vendor_agreement', $4, $5, $6)`,
+            [
+              observerId,
+              'Vendor Contract Submitted for Approval',
+              `Contract "${contractLabel}" has been submitted for approval and is pending Step 1 (${step1Config.name}).`,
+              agreementId,
+              `/vendor-agreements?view=${agreementId}`,
+              JSON.stringify({ agreement_id: agreementId, agreement_code: agreement.agreement_code })
+            ]
+          );
+        }
+      }
+
+      await client.query('COMMIT');
+
+      systemLogger.info('Contract submitted for approval chain', {
+        agreementId,
+        userId,
+        step1Approvers: step1Config.approver_user_ids
+      });
+
+      // Fire-and-forget email notification to step-1 approvers
+      try {
+        const VendorAgreementNotificationService = require('./VendorAgreementNotificationService');
+        const updatedResult = await pool.query('SELECT * FROM vendor_agreements WHERE id = $1', [agreementId]);
+        if (updatedResult.rows.length > 0) {
+          VendorAgreementNotificationService.sendChainStepApprovalRequest({
+            agreement: updatedResult.rows[0],
+            stepConfig: step1Config,
+            stepNumber: 1,
+            totalSteps: chainConfig.steps.length,
+            submittedByUserId: userId,
+            baseUrl: process.env.APP_URL || 'https://your-app-url.replit.app'
+          }).catch(err => systemLogger.error('Failed to send chain step 1 email', { agreementId, error: err.message }));
+        }
+      } catch (emailErr) {
+        systemLogger.warn('Email notification skipped for chain submission', { error: emailErr.message });
+      }
+
+      return {
+        success: true,
+        message: 'Contract submitted for approval. Step-1 approvers have been notified.',
+        approval_status: 'pending_approval',
+        current_approval_step: 1
+      };
+
+    } catch (error) {
+      await client.query('ROLLBACK');
+      systemLogger.error('Error submitting contract for approval chain', { agreementId, error: error.message });
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  /**
+   * Record an approver's decision on the current step of the approval chain.
+   * Evaluates quorum and either advances to the next step, finalises approval,
+   * or cancels the chain on rejection.
+   */
+  async recordStepDecision(agreementId, userId, action, comments = null, isAdmin = false, files = []) {
+    if (!['approve', 'reject'].includes(action)) {
+      throw new Error('Invalid action. Must be "approve" or "reject"');
+    }
+    if (action === 'reject' && !comments) {
+      throw new Error('Comments are required for rejection');
+    }
+
+    const client = await pool.connect();
+
+    try {
+      await client.query('BEGIN');
+
+      // Lock the agreement row to prevent race conditions
+      const agreementResult = await client.query(
+        `SELECT va.* FROM vendor_agreements va WHERE va.id = $1 FOR UPDATE`,
+        [agreementId]
+      );
+      if (agreementResult.rows.length === 0) throw new Error('Agreement not found');
+
+      const agreement = agreementResult.rows[0];
+
+      if (agreement.approval_status !== 'pending_approval') {
+        throw new Error(`No active approval chain for this contract (status: ${agreement.approval_status})`);
+      }
+
+      const chainConfig = agreement.approval_chain_config;
+      if (!chainConfig || !Array.isArray(chainConfig.steps)) {
+        throw new Error('Approval chain configuration is missing');
+      }
+
+      const currentStep = agreement.current_approval_step;
+      const stepIndex = currentStep - 1;
+      const stepConfig = chainConfig.steps[stepIndex];
+
+      if (!stepConfig) {
+        throw new Error(`Invalid current step: ${currentStep}`);
+      }
+
+      // Authorization: caller must be a configured approver or an admin.
+      // approver_user_ids may contain strings or numbers — use parseInt comparison to avoid
+      // strict-equality mismatches (e.g. "56" !== 56).
+      const isConfiguredApprover = stepConfig.approver_user_ids.some(
+        (id) => parseInt(id, 10) === parseInt(userId, 10)
+      );
+      if (!isAdmin && !isConfiguredApprover) {
+        throw new Error(`You are not a configured approver for Step ${currentStep} (${stepConfig.name})`);
+      }
+
+      // Determine when the current approval round started (most recent chain submission).
+      // This is used to exclude decisions from previous (rejected) rounds when checking
+      // for duplicate votes — a voter who voted in round 1 may vote again in round 2.
+      const lastSubmissionResult = await client.query(
+        `SELECT MAX(approval_timestamp) AS chain_submitted_at
+         FROM vendor_agreement_approvals
+         WHERE agreement_id = $1 AND approval_stage = 'chain_submission'`,
+        [agreementId]
+      );
+      const chainSubmittedAt = lastSubmissionResult.rows[0]?.chain_submitted_at ?? null;
+
+      // Lazy version bump: if stale decisions from a previous round exist under the
+      // current version (i.e. the agreement was resubmitted before the per-round version
+      // increment was introduced), bump the version now so the DB unique constraint
+      // (agreement_id, step_number, approver_user_id, agreement_version) doesn't block
+      // the new decision. This is a one-time catch-up per affected agreement.
+      if (chainSubmittedAt) {
+        const staleForCurrentVersion = await client.query(
+          `SELECT id FROM vendor_approval_step_decisions
+           WHERE agreement_id = $1
+             AND agreement_version = $2
+             AND decided_at < $3::timestamptz`,
+          [agreementId, agreement.version, chainSubmittedAt]
+        );
+        if (staleForCurrentVersion.rows.length > 0) {
+          await client.query(
+            `UPDATE vendor_agreements SET version = version + 1 WHERE id = $1`,
+            [agreementId]
+          );
+          agreement.version = agreement.version + 1;
+        }
+      }
+
+      // Prevent duplicate votes within the current round only.
+      // Filter by decided_at >= chain_submitted_at so that votes from earlier rounds
+      // do not falsely block the voter in the new round.
+      const existingVote = await client.query(
+        `SELECT id FROM vendor_approval_step_decisions
+         WHERE agreement_id = $1
+           AND step_number = $2
+           AND approver_user_id = $3
+           AND agreement_version = $4
+           AND ($5::timestamptz IS NULL OR decided_at >= $5::timestamptz)`,
+        [agreementId, currentStep, userId, agreement.version, chainSubmittedAt]
+      );
+      if (existingVote.rows.length > 0) {
+        throw new Error('You have already submitted your decision for this step');
+      }
+
+      // Record the decision
+      await client.query(
+        `INSERT INTO vendor_approval_step_decisions
+           (agreement_id, step_number, approver_user_id, action, comments, decided_at, agreement_version)
+         VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP, $6)`,
+        [agreementId, currentStep, userId, action, comments, agreement.version]
+      );
+
+      // Audit trail in vendor_agreement_approvals — RETURNING id so we can link documents
+      const auditInsert = await client.query(
+        `INSERT INTO vendor_agreement_approvals (
+           agreement_id, approver_type, approver_user_id, action, comments,
+           agreement_version, approval_timestamp, approval_stage
+         ) VALUES ($1, 'manager', $2, $3, $4, $5, CURRENT_TIMESTAMP, $6)
+         RETURNING id`,
+        [agreementId, userId, action === 'approve' ? 'approved' : 'rejected', comments, agreement.version, `chain_step_${currentStep}`]
+      );
+      const approvalId = auditInsert.rows[0]?.id ?? null;
+
+      // Attach any uploaded documents to this audit record
+      if (approvalId && Array.isArray(files) && files.length > 0) {
+        for (const file of files) {
+          const base64Data = file.buffer.toString('base64');
+          await client.query(
+            `INSERT INTO vendor_agreement_documents
+               (agreement_id, approval_id, document_name, document_type,
+                file_path, file_size, mime_type, uploaded_by, approval_stage)
+             VALUES ($1, $2, $3, 'approval_document', $4, $5, $6, $7, $8)`,
+            [
+              agreementId,
+              approvalId,
+              file.originalname,
+              base64Data,
+              file.size,
+              file.mimetype,
+              userId,
+              `chain_step_${currentStep}`
+            ]
+          );
+        }
+      }
+
+      const contractLabel = agreement.file_name || agreement.agreement_code;
+
+      if (action === 'reject') {
+        // ── REJECTION: cancel the chain ──
+        await client.query(
+          `UPDATE vendor_agreements
+             SET approval_status = 'rejected',
+                 current_approval_step = NULL,
+                 is_locked = false,
+                 updated_at = CURRENT_TIMESTAMP
+           WHERE id = $1`,
+          [agreementId]
+        );
+
+        // Notify all stakeholders of rejection
+        const stakeholderIds = Array.isArray(agreement.additional_stakeholder_user_ids)
+          ? agreement.additional_stakeholder_user_ids : [];
+        const notifyIds = new Set([
+          ...(agreement.file_owner_user_id ? [agreement.file_owner_user_id] : []),
+          ...(agreement.created_by ? [agreement.created_by] : []),
+          ...stakeholderIds
+        ]);
+        notifyIds.delete(userId); // don't notify the rejecter about their own action
+
+        for (const notifyId of notifyIds) {
+          await client.query(
+            `INSERT INTO notifications (
+               user_id, notification_type, title, message, entity_type, entity_id, action_url, metadata
+             ) VALUES ($1, 'vendor_contract_rejected', $2, $3, 'vendor_agreement', $4, $5, $6)`,
+            [
+              notifyId,
+              'Vendor Contract Rejected',
+              `Contract "${contractLabel}" was rejected at Step ${currentStep} (${stepConfig.name}). Reason: ${comments}`,
+              agreementId,
+              `/vendor-agreements?view=${agreementId}`,
+              JSON.stringify({
+                agreement_id: agreementId,
+                agreement_code: agreement.agreement_code,
+                step_number: currentStep,
+                step_name: stepConfig.name,
+                rejected_by: userId,
+                rejection_reason: comments
+              })
+            ]
+          );
+        }
+
+        await client.query('COMMIT');
+
+        // Fire-and-forget rejection email
+        try {
+          const VendorAgreementNotificationService = require('./VendorAgreementNotificationService');
+          const updatedResult = await pool.query('SELECT * FROM vendor_agreements WHERE id = $1', [agreementId]);
+          if (updatedResult.rows.length > 0) {
+            VendorAgreementNotificationService.sendChainRejected({
+              agreement: updatedResult.rows[0],
+              stepNumber: currentStep,
+              stepName: stepConfig.name,
+              rejectedByUserId: userId,
+              rejectionReason: comments,
+              baseUrl: process.env.APP_URL || 'https://your-app-url.replit.app'
+            }).catch(err => systemLogger.error('Failed to send chain rejection email', { agreementId, error: err.message }));
+          }
+        } catch (emailErr) {
+          systemLogger.warn('Email notification skipped for chain rejection', { error: emailErr.message });
+        }
+
+        return {
+          success: true,
+          message: `Contract rejected at Step ${currentStep}. All stakeholders have been notified.`,
+          approval_status: 'rejected',
+          current_approval_step: null
+        };
+      }
+
+      // ── APPROVE: evaluate quorum ──
+      // Only count approvals from the current round (decided_at >= chainSubmittedAt).
+      // Also filter to the current version so we don't mix rounds for agreements where
+      // the version was correctly bumped on resubmission.
+      const approvalsResult = await client.query(
+        `SELECT approver_user_id FROM vendor_approval_step_decisions
+         WHERE agreement_id = $1
+           AND step_number = $2
+           AND agreement_version = $3
+           AND action = 'approve'
+           AND ($4::timestamptz IS NULL OR decided_at >= $4::timestamptz)`,
+        [agreementId, currentStep, agreement.version, chainSubmittedAt]
+      );
+      // Normalise all IDs to integers for consistent comparison regardless of how
+      // approver_user_ids are stored in the JSONB config (strings vs numbers).
+      const approvedUserIds = approvalsResult.rows.map(r => parseInt(r.approver_user_id, 10));
+      const configuredApprovers = stepConfig.approver_user_ids.map(id => parseInt(id, 10));
+      const requireAll = stepConfig.require_all;
+
+      const quorumMet = requireAll
+        ? configuredApprovers.every(id => approvedUserIds.includes(id))
+        : approvedUserIds.length >= 1;
+
+      if (!quorumMet) {
+        // Quorum not yet met — just acknowledge the vote
+        await client.query('COMMIT');
+        const remaining = requireAll
+          ? configuredApprovers.filter(id => !approvedUserIds.includes(id)).length
+          : 0;
+        return {
+          success: true,
+          message: `Your approval has been recorded. ${remaining} more approval(s) required to complete this step.`,
+          approval_status: 'pending_approval',
+          current_approval_step: currentStep,
+          quorum_met: false
+        };
+      }
+
+      // Quorum met — advance or finalise
+      const isLastStep = currentStep >= chainConfig.steps.length;
+
+      if (!isLastStep) {
+        // ── Advance to next step ──
+        const nextStep = currentStep + 1;
+        const nextStepConfig = chainConfig.steps[nextStep - 1];
+
+        await client.query(
+          `UPDATE vendor_agreements
+             SET current_approval_step = $1, updated_at = CURRENT_TIMESTAMP
+           WHERE id = $2`,
+          [nextStep, agreementId]
+        );
+
+        // In-app notifications for next-step approvers
+        for (const approverId of nextStepConfig.approver_user_ids) {
+          await client.query(
+            `INSERT INTO notifications (
+               user_id, notification_type, title, message, entity_type, entity_id, action_url, metadata
+             ) VALUES ($1, 'vendor_contract_approval_requested', $2, $3, 'vendor_agreement', $4, $5, $6)`,
+            [
+              approverId,
+              'Approval Required: Vendor Contract',
+              `Contract "${contractLabel}" has advanced to Step ${nextStep} (${nextStepConfig.name}) and requires your approval.`,
+              agreementId,
+              `/vendor-agreements?view=${agreementId}`,
+              JSON.stringify({
+                agreement_id: agreementId,
+                agreement_code: agreement.agreement_code,
+                step_number: nextStep,
+                step_name: nextStepConfig.name
+              })
+            ]
+          );
+        }
+
+        // Notify observers of step advancement
+        const stakeholderIds = Array.isArray(agreement.additional_stakeholder_user_ids)
+          ? agreement.additional_stakeholder_user_ids : [];
+        for (const observerId of stakeholderIds) {
+          if (!nextStepConfig.approver_user_ids.includes(observerId)) {
+            await client.query(
+              `INSERT INTO notifications (
+                 user_id, notification_type, title, message, entity_type, entity_id, action_url, metadata
+               ) VALUES ($1, 'vendor_contract_status_update', $2, $3, 'vendor_agreement', $4, $5, $6)`,
+              [
+                observerId,
+                'Vendor Contract Approval Progress',
+                `Contract "${contractLabel}" completed Step ${currentStep} and is now pending Step ${nextStep} (${nextStepConfig.name}).`,
+                agreementId,
+                `/vendor-agreements?view=${agreementId}`,
+                JSON.stringify({ agreement_id: agreementId, agreement_code: agreement.agreement_code })
+              ]
+            );
+          }
+        }
+
+        await client.query('COMMIT');
+
+        // Fire-and-forget email to next-step approvers
+        try {
+          const VendorAgreementNotificationService = require('./VendorAgreementNotificationService');
+          const updatedResult = await pool.query('SELECT * FROM vendor_agreements WHERE id = $1', [agreementId]);
+          if (updatedResult.rows.length > 0) {
+            VendorAgreementNotificationService.sendChainStepApprovalRequest({
+              agreement: updatedResult.rows[0],
+              stepConfig: nextStepConfig,
+              stepNumber: nextStep,
+              totalSteps: chainConfig.steps.length,
+              submittedByUserId: null,
+              baseUrl: process.env.APP_URL || 'https://your-app-url.replit.app'
+            }).catch(err => systemLogger.error('Failed to send chain step advance email', { agreementId, error: err.message }));
+          }
+        } catch (emailErr) {
+          systemLogger.warn('Email notification skipped for chain step advance', { error: emailErr.message });
+        }
+
+        return {
+          success: true,
+          message: `Step ${currentStep} approved. Contract has advanced to Step ${nextStep} (${nextStepConfig.name}).`,
+          approval_status: 'pending_approval',
+          current_approval_step: nextStep,
+          quorum_met: true
+        };
+
+      } else {
+        // ── Final step approved → fully_approved ──
+        await client.query(
+          `UPDATE vendor_agreements
+             SET approval_status = 'fully_approved',
+                 current_approval_step = NULL,
+                 is_locked = true,
+                 locked_at = CURRENT_TIMESTAMP,
+                 updated_at = CURRENT_TIMESTAMP
+           WHERE id = $1`,
+          [agreementId]
+        );
+
+        // Audit lock event
+        await client.query(
+          `INSERT INTO vendor_agreement_changes (
+             agreement_id, change_type, changes_summary, to_version, changed_by, changed_at
+           ) VALUES ($1, 'locked', 'Agreement locked after configurable approval chain completed', $2, $3, CURRENT_TIMESTAMP)`,
+          [agreementId, agreement.version, userId]
+        );
+
+        // Notify all stakeholders of final approval
+        const stakeholderIds = Array.isArray(agreement.additional_stakeholder_user_ids)
+          ? agreement.additional_stakeholder_user_ids : [];
+        const finalNotifyIds = new Set([
+          ...(agreement.file_owner_user_id ? [agreement.file_owner_user_id] : []),
+          ...(agreement.created_by ? [agreement.created_by] : []),
+          ...stakeholderIds
+        ]);
+
+        for (const notifyId of finalNotifyIds) {
+          await client.query(
+            `INSERT INTO notifications (
+               user_id, notification_type, title, message, entity_type, entity_id, action_url, metadata
+             ) VALUES ($1, 'vendor_contract_approved_final', $2, $3, 'vendor_agreement', $4, $5, $6)`,
+            [
+              notifyId,
+              'Vendor Contract Fully Approved',
+              `Contract "${contractLabel}" has been fully approved through all ${chainConfig.steps.length} approval steps and is now locked.`,
+              agreementId,
+              `/vendor-agreements?view=${agreementId}`,
+              JSON.stringify({ agreement_id: agreementId, agreement_code: agreement.agreement_code, total_steps: chainConfig.steps.length })
+            ]
+          );
+        }
+
+        await client.query('COMMIT');
+
+        // Fire-and-forget fully-approved email
+        try {
+          const VendorAgreementNotificationService = require('./VendorAgreementNotificationService');
+          const updatedResult = await pool.query('SELECT * FROM vendor_agreements WHERE id = $1', [agreementId]);
+          if (updatedResult.rows.length > 0) {
+            VendorAgreementNotificationService.sendChainFullyApproved({
+              agreement: updatedResult.rows[0],
+              approvedByUserId: userId,
+              totalSteps: chainConfig.steps.length,
+              baseUrl: process.env.APP_URL || 'https://your-app-url.replit.app'
+            }).catch(err => systemLogger.error('Failed to send chain fully-approved email', { agreementId, error: err.message }));
+          }
+        } catch (emailErr) {
+          systemLogger.warn('Email notification skipped for chain final approval', { error: emailErr.message });
+        }
+
+        systemLogger.info('Contract fully approved through approval chain', { agreementId, userId });
+
+        return {
+          success: true,
+          message: `All ${chainConfig.steps.length} approval steps completed. Contract is now fully approved and locked.`,
+          approval_status: 'fully_approved',
+          current_approval_step: null,
+          quorum_met: true
+        };
+      }
+
+    } catch (error) {
+      await client.query('ROLLBACK');
+      systemLogger.error('Error recording step decision', { agreementId, userId, action, error: error.message });
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  /**
+   * Get all step decisions for a contract (used by the approval history endpoint).
+   */
+  async getStepDecisions(agreementId) {
+    const result = await pool.query(
+      `SELECT vasd.*, 
+              u.username, u.first_name, u.last_name, u.email
+       FROM vendor_approval_step_decisions vasd
+       JOIN users u ON u.id = vasd.approver_user_id
+       WHERE vasd.agreement_id = $1
+       ORDER BY vasd.step_number ASC, vasd.decided_at ASC`,
+      [agreementId]
+    );
+    return { success: true, decisions: result.rows };
   }
 }
 

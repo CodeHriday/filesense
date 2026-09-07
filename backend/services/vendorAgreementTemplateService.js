@@ -1,6 +1,19 @@
 const XLSX = require('xlsx');
 const path = require('path');
 const fs = require('fs');
+const { resolveRuleType } = require('./schemaRuleEnforcer');
+const { systemLogger } = require('../utils/logger');
+
+// Rule types whose effective config is fully determined by the type itself —
+// safe to do a broad DB lookup without risking mis-matched thresholds or patterns.
+// Config-sensitive types (record_count, length_check, range_check, validity_check) are
+// excluded because their parameters vary per schema.
+// special_character_presence maps to validity_check (config-sensitive) so it is also excluded.
+const BROAD_LOOKUP_SAFE = new Set([
+  'null_check', 'column_completeness', 'isna_check',
+  'duplicate_check', 'uniqueness',
+  'email_validity', 'phone_validity', 'date_format', 'timestamp_format', 'numeric_only_string'
+]);
 
 class VendorAgreementTemplateService {
   constructor() {
@@ -145,6 +158,34 @@ class VendorAgreementTemplateService {
       }
     }
 
+    // Add a cell comment to the Schema (JSON) header so users see the warning
+    // at the exact moment they are about to paste into that column.
+    const schemaColIndex = this.fileConfigFields.findIndex(f => f.field === 'schema');
+    if (schemaColIndex !== -1) {
+      const schemaHeaderCell = XLSX.utils.encode_cell({ r: 0, c: schemaColIndex });
+      if (ws[schemaHeaderCell]) {
+        ws[schemaHeaderCell].c = [
+          {
+            a: 'Note',
+            t: 'Paste single-line JSON only. Use the Copy button in the app Schema Preview \u2014 do NOT paste formatted (multi-line) JSON directly.'
+          }
+        ];
+        // Keep the comment hidden by default (shown as a hover tooltip in Excel)
+        ws[schemaHeaderCell].c.hidden = true;
+      }
+
+      // Disable text-wrap on Schema data cells so a multi-line paste is visually obvious
+      for (let R = 1; R <= 2; R++) {
+        const schemaDataCell = XLSX.utils.encode_cell({ r: R, c: schemaColIndex });
+        if (ws[schemaDataCell]) {
+          ws[schemaDataCell].s = {
+            ...(ws[schemaDataCell].s || {}),
+            alignment: { horizontal: 'left', vertical: 'center', wrapText: false }
+          };
+        }
+      }
+    }
+
     return ws;
   }
 
@@ -284,14 +325,22 @@ class VendorAgreementTemplateService {
       ['For password-protected archive files (zip, 7z, tar, etc.), configure the password manually in the UI after importing the template.'],
       ['This ensures passwords are stored securely and not exposed in spreadsheet files.'],
       [''],
-      ['Schema: JSON array of field definitions with embedded quality rules.'],
+      ['Schema: JSON for field definitions and file-level quality rules.'],
+      [''],
+      ['  *** IMPORTANT: Schema JSON must be on a SINGLE LINE in the cell. ***'],
+      ['  Multi-line (formatted) JSON pasted into Excel gets split across rows and causes a validation error.'],
+      ['  Use the "Copy" button in the app Schema Preview tab — it automatically copies single-line JSON.'],
+      ['  Do NOT manually select and copy the formatted text shown in the preview.'],
       [''],
       ['  FOR LARGE SCHEMAS (200+ fields): Use reference tokens instead of JSON - attach schema file separately after upload:'],
       ['    {external}                  - Schema will be uploaded as a separate JSON file after template import'],
       ['    {schema:my_schema.json}     - Reference a specific schema filename (upload the JSON file after import)'],
       [''],
-      ['  STANDARD FORMAT (for files with headers - csv, json, xlsx, etc.):'],
-      ['  [{"name":"FieldName","type":"string","description":"Description","nullable":true,"pii":false,"quality_rules":["rule_type1","rule_type2"]}]'],
+      ['  STANDARD FORMAT (columns only, no file-level rules):'],
+      ['  [{"name":"FieldName","type":"string","description":"Description","nullable":true,"pii":false,"quality_rules":["rule_type1"]}]'],
+      [''],
+      ['  FORMAT WITH FILE-LEVEL RULES (e.g. record_count):'],
+      ['  {"columns":[{"name":"FieldName","type":"string","nullable":true,"pii":false}],"file_quality_rules":[{"rule_type":"record_count"}]}'],
       [''],
       ['  EXTENDED FORMAT (for fixed-width, binary, dat files OR headerless files):'],
       ['  [{"name":"FieldName","type":"string","width":10,"start_position":0,"nullable":true,"pii":false,"quality_rules":["rule_type"]}]'],
@@ -394,38 +443,52 @@ class VendorAgreementTemplateService {
 
       const agreementHeaders = agreementData[0];
       
-      // Smart row detection: skip example rows if present (rows starting with "e.g." or containing example markers)
-      // Check if row 2 looks like an example row
+      // Smart row detection: skip the built-in example row when present.
+      // The generated template uses usable-looking sample values (AGR001), not an
+      // "Example" prefix, so recognize that complete generated sample explicitly.
       const isAgreementExampleRow = (row) => {
         if (!row || row.length === 0) return false;
         const firstCell = String(row[0] || '').toLowerCase().trim();
-        return firstCell.startsWith('e.g.') || firstCell.startsWith('example') || firstCell === '';
+        const description = String(row[1] || '').trim();
+        return firstCell.startsWith('e.g.') ||
+          firstCell.startsWith('example') ||
+          (firstCell === 'agr001' && description === 'Customer data export agreement');
       };
       
-      // Skip example row if present (row index 1), otherwise start from row 1
+      // Skip every consecutive generated/example row; blank rows are handled by
+      // the normal row loop and must not alter the source-row calculation.
       let agreementStartRow = 1;
-      if (agreementData.length > 2 && isAgreementExampleRow(agreementData[1])) {
-        agreementStartRow = 2;
+      while (
+        agreementStartRow < agreementData.length &&
+        isAgreementExampleRow(agreementData[agreementStartRow])
+      ) {
+        agreementStartRow++;
       }
       const agreementRows = agreementData.slice(agreementStartRow);
       
       const fileConfigHeaders = fileConfigData[0];
       
-      // For file configurations, check if rows 1-2 are example rows
+      // For file configurations, recognize both legacy "Example" rows and the
+      // two concrete samples emitted by generateTemplate().
       const isFileConfigExampleRow = (row) => {
         if (!row || row.length === 0) return false;
         const firstCell = String(row[0] || '').toLowerCase().trim();
-        return firstCell.startsWith('e.g.') || firstCell.startsWith('example') || 
-               firstCell.includes('acme') || firstCell === '' || firstCell.startsWith('agr-');
+        const filePattern = String(row[1] || '').toLowerCase().trim();
+        return firstCell.startsWith('e.g.') ||
+          firstCell.startsWith('example') ||
+          firstCell.includes('acme') ||
+          firstCell.startsWith('agr-') ||
+          (firstCell === 'agr001' &&
+            ['customer_data', 'legacy_transactions'].includes(filePattern));
       };
       
-      // Determine where data rows start by checking for example rows
+      // Determine where data rows start by checking for actual example rows.
       let fileConfigStartRow = 1;
-      if (fileConfigData.length > 2 && isFileConfigExampleRow(fileConfigData[1])) {
-        fileConfigStartRow = 2;
-        if (fileConfigData.length > 3 && isFileConfigExampleRow(fileConfigData[2])) {
-          fileConfigStartRow = 3;
-        }
+      while (
+        fileConfigStartRow < fileConfigData.length &&
+        isFileConfigExampleRow(fileConfigData[fileConfigStartRow])
+      ) {
+        fileConfigStartRow++;
       }
       const fileConfigRows = fileConfigData.slice(fileConfigStartRow);
 
@@ -462,7 +525,7 @@ class VendorAgreementTemplateService {
         if (rowErrors.length > 0) {
           errors.push({
             sheet: 'Agreement Info',
-            row: i + 3,
+            row: agreementStartRow + i + 1,
             errors: rowErrors
           });
         } else if (agreement.agreement_id) {
@@ -525,10 +588,11 @@ class VendorAgreementTemplateService {
         }
 
         // Validate that headerless files have schema defined (for non-archive types)
-        // Schema can be either a parsed JSON array or a schema reference token
+        // Schema can be a parsed JSON array, a { columns, file_quality_rules } object, or a schema reference token
         const hasValidSchema = fileConfig.schema && (
-          Array.isArray(fileConfig.schema) || 
-          (fileConfig.schema._schemaRef === true)
+          Array.isArray(fileConfig.schema) ||
+          (fileConfig.schema._schemaRef === true) ||
+          (fileConfig.schema.columns && Array.isArray(fileConfig.schema.columns))
         );
         if (!hasHeader && !hasValidSchema && !this.ARCHIVE_FILE_TYPES.includes(fileType)) {
           rowErrors.push(`Schema: Required when Has Header is FALSE. Provide field definitions with name, type, and width, or use {external} token.`);
@@ -537,7 +601,7 @@ class VendorAgreementTemplateService {
         if (rowErrors.length > 0) {
           errors.push({
             sheet: 'File Configurations',
-            row: i + 4,
+            row: fileConfigStartRow + i + 1,
             errors: rowErrors
           });
         } else if (agreementId && agreements[agreementId]) {
@@ -545,8 +609,11 @@ class VendorAgreementTemplateService {
           const basePattern = fileConfig.file_name_pattern || '';
           
           // Don't use schema reference tokens as header_definition - only use actual parsed schema arrays
+          // Accept both plain array and { columns, file_quality_rules } object formats
           const isSchemaRef = fileConfig.schema && fileConfig.schema._schemaRef === true;
-          const schemaArray = Array.isArray(fileConfig.schema) ? fileConfig.schema : null;
+          const schemaArray = Array.isArray(fileConfig.schema)
+            ? fileConfig.schema
+            : (fileConfig.schema && Array.isArray(fileConfig.schema.columns) ? fileConfig.schema.columns : null);
           
           const fullConfig = {
             file_name_pattern_base: basePattern,
@@ -591,6 +658,143 @@ class VendorAgreementTemplateService {
     } catch (error) {
       throw new Error(`Failed to parse template: ${error.message}`);
     }
+  }
+
+  /**
+   * Resolve quality_rules type strings in parsed file configurations to existing
+   * enabled global quality rule IDs.
+   *
+   * For each schema column that carries quality_rules (e.g. ["null_check","date_format"]),
+   * looks up matching enabled global quality_rules rows in the DB and collects their IDs
+   * into quality_rule_ids on the file configuration.
+   *
+   * This ensures the schemaRuleEnforcer's candidate-ID lookup (step 0) fires for
+   * template-uploaded contracts instead of always falling through to the broad lookup.
+   *
+   * Config-sensitive rule types (record_count, length_check, range_check, validity_check)
+   * are skipped because their effective config varies per schema and cannot be safely
+   * matched to an arbitrary existing rule.
+   *
+   * @param {import('pg').Pool} db
+   * @param {Array<Object>}     fileConfigurations - Parsed file configs from parseTemplateUpload
+   * @returns {Promise<Array<Object>>} Same array, mutated in-place with quality_rule_ids added
+   */
+  async resolveQualityRuleIds(db, fileConfigurations) {
+    // Collect all distinct UI rule type strings used across all file configs
+    const allRuleTypes = new Set();
+    for (const fileConfig of fileConfigurations) {
+      const schema = fileConfig.schema;
+      if (!schema) continue;
+      const columns = Array.isArray(schema) ? schema : (schema.columns || []);
+      for (const col of columns) {
+        if (Array.isArray(col.quality_rules)) {
+          for (const rt of col.quality_rules) {
+            const normalized = (rt || '').toLowerCase().trim();
+            if (normalized && BROAD_LOOKUP_SAFE.has(normalized)) {
+              allRuleTypes.add(normalized);
+            }
+          }
+        }
+      }
+    }
+
+    if (allRuleTypes.size === 0) return fileConfigurations;
+
+    // For each distinct rule type, find matching enabled global quality rules in the DB.
+    // Mirrors the broad-lookup logic in schemaRuleEnforcer step 0b.
+    const ruleTypeToIds = new Map();
+
+    for (const uiRuleType of allRuleTypes) {
+      const resolution = resolveRuleType(uiRuleType);
+      if (!resolution) continue;
+
+      const { engineType, config: defaultConfig } = resolution;
+
+      let result;
+      try {
+        if (engineType === 'validity' && defaultConfig.datatype) {
+          // Discriminate by datatype to avoid cross-type matches (email vs date vs phone vs number).
+          // Exclude __schema_default__ synthetic rows — only reuse genuine user/admin-created rules.
+          result = await db.query(
+            `SELECT id FROM quality_rules
+             WHERE rule_type = $1
+               AND enabled = true
+               AND NOT starts_with(rule_name, '__schema_default__')
+               AND project_id IS NULL
+               AND rule_config->>'datatype' = $2
+             ORDER BY id`,
+            [engineType, defaultConfig.datatype]
+          );
+        } else if (engineType === 'completeness') {
+          // Only match strict null checks (threshold = 1.0).
+          // Exclude __schema_default__ synthetic rows.
+          result = await db.query(
+            `SELECT id FROM quality_rules
+             WHERE rule_type = $1
+               AND enabled = true
+               AND NOT starts_with(rule_name, '__schema_default__')
+               AND project_id IS NULL
+               AND COALESCE((rule_config->>'threshold')::numeric, 1.0) = 1.0
+             ORDER BY id`,
+            [engineType]
+          );
+        } else {
+          // uniqueness — config is always empty; any matching non-synthetic rule is safe.
+          // Exclude __schema_default__ synthetic rows.
+          result = await db.query(
+            `SELECT id FROM quality_rules
+             WHERE rule_type = $1
+               AND enabled = true
+               AND NOT starts_with(rule_name, '__schema_default__')
+               AND project_id IS NULL
+             ORDER BY id`,
+            [engineType]
+          );
+        }
+      } catch (err) {
+        systemLogger.warn('[VendorAgreementTemplateService] resolveQualityRuleIds DB error', {
+          uiRuleType, engineType, error: err.message
+        });
+        continue;
+      }
+
+      if (result.rows.length > 0) {
+        ruleTypeToIds.set(uiRuleType, result.rows.map(r => r.id));
+        systemLogger.debug('[VendorAgreementTemplateService] Resolved rule type to IDs', {
+          uiRuleType, engineType, ids: result.rows.map(r => r.id)
+        });
+      }
+    }
+
+    if (ruleTypeToIds.size === 0) return fileConfigurations;
+
+    // Populate quality_rule_ids on each file configuration
+    for (const fileConfig of fileConfigurations) {
+      const schema = fileConfig.schema;
+      if (!schema) continue;
+      const columns = Array.isArray(schema) ? schema : (schema.columns || []);
+
+      const resolvedIds = new Set();
+      for (const col of columns) {
+        if (Array.isArray(col.quality_rules)) {
+          for (const rt of col.quality_rules) {
+            const normalized = (rt || '').toLowerCase().trim();
+            const ids = ruleTypeToIds.get(normalized);
+            if (ids) ids.forEach(id => resolvedIds.add(id));
+          }
+        }
+      }
+
+      if (resolvedIds.size > 0) {
+        fileConfig.quality_rule_ids = [...resolvedIds];
+        systemLogger.info('[VendorAgreementTemplateService] Populated quality_rule_ids', {
+          pattern: fileConfig.file_name_pattern,
+          ids: fileConfig.quality_rule_ids
+        });
+      }
+    }
+
+    return fileConfigurations;
   }
 
   _validateField(fieldDef, value) {
@@ -715,17 +919,39 @@ class VendorAgreementTemplateService {
             };
           }
           
+          // Helper: try to parse JSON, normalising common Excel mangling first
+          const tryParseSchemaJSON = (raw) => {
+            // First attempt: parse as-is
+            try { return JSON.parse(raw); } catch (_) {}
+            // Second attempt: replace Excel smart-quotes with straight quotes
+            const normalised = raw
+              .replace(/[\u201C\u201D\u201E\u201F]/g, '"') // curly double quotes → "
+              .replace(/[\u2018\u2019\u201A\u201B]/g, "'") // curly single quotes → '
+              .replace(/[\u2013\u2014]/g, '-');             // en/em dashes → -
+            try { return JSON.parse(normalised); } catch (_) {}
+            // Third attempt: strip a leading BOM or non-breaking space Excel may prepend
+            const stripped = raw.replace(/^[\uFEFF\u00A0\s]+/, '').replace(/[\uFEFF\u00A0\s]+$/, '');
+            return JSON.parse(stripped); // throws if still invalid — caught below
+          };
+
           try {
-            const parsed = JSON.parse(strValue);
-            // Validate it's an array with proper structure
-            if (!Array.isArray(parsed)) {
+            const parsed = tryParseSchemaJSON(strValue);
+            // Accept both formats:
+            //   Legacy: a plain array of column definitions
+            //   New:    { columns: [...], file_quality_rules: [...] }
+            let columns;
+            if (Array.isArray(parsed)) {
+              columns = parsed;
+            } else if (parsed && Array.isArray(parsed.columns)) {
+              columns = parsed.columns;
+            } else {
               return {
                 valid: false,
-                error: 'Schema must be a JSON array'
+                error: 'Must be valid JSON array or object with columns array'
               };
             }
             // Check each item has required fields (support both old and new format)
-            for (const col of parsed) {
+            for (const col of columns) {
               // New format: name + type
               const hasNewFormat = col.name && col.type;
               // Old format (backwards compatibility): column_name + data_type
@@ -763,7 +989,7 @@ class VendorAgreementTemplateService {
           } catch (e) {
             return {
               valid: false,
-              error: 'Must be valid JSON array format'
+              error: 'Must be valid JSON array or object with columns array'
             };
           }
         }

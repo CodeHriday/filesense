@@ -141,78 +141,59 @@ const IncidentIntegration = ({
     };
   }, []);
   
-  // Load existing integrations
-  const loadIntegrations = () => {
-    // Simulated API call - in a real app, this would call the backend
-    setTimeout(() => {
+  // Load existing integrations — real Jira connections from backend + localStorage for others
+  const loadIntegrations = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const { default: axios } = await import('axios');
+      const { API_BASE_URL } = await import('../config');
+
+      // Load real Jira connections from backend
+      let jiraIntegrations = [];
+      try {
+        const jiraRes = await axios.get(`${API_BASE_URL}/api/jira/connections`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        jiraIntegrations = (jiraRes.data || []).map(conn => ({
+          id: conn.connection_id,
+          type: 'jira',
+          name: conn.name,
+          status: conn.status,
+          settings: {
+            url:             conn.instance_url,
+            projectKey:      conn.project_key,
+            // The form renders 'username' (from INTEGRATION_TYPES.jira.fields).
+            // Keep it empty so unchanged saves never send the masked display value
+            // to the backend as a real credential. Use email_display only for UI.
+            username:      '',
+            email_display: conn.email_display,
+            apiToken:      ''
+          },
+          active: conn.status === 'active',
+          isRealConnection: true,
+          lastTriggered: conn.updated_at
+        }));
+      } catch (jiraErr) {
+        console.warn('Could not load Jira connections:', jiraErr.message);
+      }
+
+      // Load non-Jira integrations from localStorage (legacy)
       const savedIntegrations = localStorage.getItem('dfo-incident-integrations');
+      let otherIntegrations = [];
       if (savedIntegrations) {
         try {
-          setIntegrations(JSON.parse(savedIntegrations));
-        } catch (error) {
-          console.error('Error parsing saved integrations:', error);
-          setIntegrations([]);
+          const parsed = JSON.parse(savedIntegrations);
+          otherIntegrations = parsed.filter(i => i.type !== 'jira');
+        } catch (e) {
+          otherIntegrations = [];
         }
-      } else {
-        // Example integrations for demo
-        const demoIntegrations = [
-          {
-            id: 'int-001',
-            type: 'slack',
-            name: 'Data Quality Alerts',
-            settings: {
-              webhookUrl: 'https://example.com/your-slack-webhook-url',
-              channelName: '#data-quality-alerts'
-            },
-            active: true,
-            lastTriggered: '2025-04-15T10:30:45Z',
-            triggerConditions: {
-              severity: ['critical', 'high'],
-              metricTypes: ['completeness', 'accuracy', 'timeliness'],
-              thresholds: {
-                qualityScore: 75
-              }
-            }
-          },
-          {
-            id: 'int-002',
-            type: 'jira',
-            name: 'Critical Data Issues',
-            settings: {
-              url: 'https://example.atlassian.net',
-              projectKey: 'DQ'
-            },
-            active: true,
-            lastTriggered: '2025-04-10T14:22:30Z',
-            triggerConditions: {
-              severity: ['critical'],
-              metricTypes: ['completeness', 'accuracy', 'consistency', 'timeliness'],
-              thresholds: {
-                qualityScore: 60
-              }
-            }
-          },
-          {
-            id: 'int-003',
-            type: 'email',
-            name: 'Weekly Data Quality Report',
-            settings: {
-              recipients: 'data-team@example.com,managers@example.com'
-            },
-            active: false,
-            lastTriggered: '2025-04-05T09:15:00Z',
-            triggerConditions: {
-              severity: ['critical', 'high', 'medium', 'low'],
-              metricTypes: ['completeness', 'accuracy', 'consistency', 'timeliness', 'uniqueness'],
-              schedule: 'weekly'
-            }
-          }
-        ];
-        
-        setIntegrations(demoIntegrations);
-        localStorage.setItem('dfo-incident-integrations', JSON.stringify(demoIntegrations));
       }
-    }, 500);
+
+      setIntegrations([...jiraIntegrations, ...otherIntegrations]);
+    } catch (error) {
+      console.error('Error loading integrations:', error);
+      setIntegrations([]);
+    }
   };
   
   // Load existing incidents
@@ -417,30 +398,73 @@ const IncidentIntegration = ({
   };
   
   // Save integration
-  const handleSaveIntegration = () => {
+  const handleSaveIntegration = async () => {
+    const token = localStorage.getItem('token');
+    const { default: axios } = await import('axios');
+    const { API_BASE_URL } = await import('../config');
+
     if (editingIntegration !== null) {
-      // Save edited integration
-      localStorage.setItem('dfo-incident-integrations', JSON.stringify(integrations));
-      setEditingIntegration(null);
-      
-      // Call the onSaveIntegration callback if provided
-      if (onSaveIntegration) {
-        onSaveIntegration(integrations[editingIntegration]);
+      const integration = integrations[editingIntegration];
+
+      if (integration.type === 'jira') {
+        // Update Jira connection via real backend.
+        // Only send email / apiToken if the admin explicitly typed new values —
+        // the backend will keep the existing encrypted credentials otherwise.
+        // NEVER send settings.email_display (masked value) as a credential.
+        try {
+          const updatePayload = {
+            name:        integration.name,
+            instanceUrl: integration.settings?.url,
+            projectKey:  integration.settings?.projectKey
+          };
+          // The Jira form field is named 'username' (see INTEGRATION_TYPES.jira).
+          // Only include credentials if the admin entered new values.
+          const newEmail    = (integration.settings?.username || '').trim();
+          const newApiToken = (integration.settings?.apiToken || '').trim();
+          if (newEmail)    updatePayload.email    = newEmail;
+          if (newApiToken) updatePayload.apiToken = newApiToken;
+
+          await axios.put(`${API_BASE_URL}/api/jira/connections/${integration.id}`, updatePayload,
+            { headers: { Authorization: `Bearer ${token}` } });
+          await loadIntegrations();
+        } catch (err) {
+          console.error('Failed to update Jira connection', err);
+        }
+      } else {
+        localStorage.setItem('dfo-incident-integrations', JSON.stringify(integrations));
       }
+
+      setEditingIntegration(null);
+      if (onSaveIntegration) onSaveIntegration(integration);
     } else {
       // Add new integration
-      const integration = {
-        ...newIntegration,
-        id: `int-${Date.now()}`,
-        lastTriggered: null
-      };
-      
-      const updatedIntegrations = [...integrations, integration];
-      setIntegrations(updatedIntegrations);
-      localStorage.setItem('dfo-incident-integrations', JSON.stringify(updatedIntegrations));
+      if (newIntegration.type === 'jira') {
+        // Create Jira connection via real backend
+        try {
+          await axios.post(`${API_BASE_URL}/api/jira/connections`, {
+            name: newIntegration.name || 'Jira Connection',
+            instanceUrl: newIntegration.settings?.url,
+            email: newIntegration.settings?.username,
+            apiToken: newIntegration.settings?.apiToken,
+            projectKey: newIntegration.settings?.projectKey
+          }, { headers: { Authorization: `Bearer ${token}` } });
+          await loadIntegrations();
+        } catch (err) {
+          console.error('Failed to create Jira connection', err);
+        }
+      } else {
+        const integration = {
+          ...newIntegration,
+          id: `int-${Date.now()}`,
+          lastTriggered: null
+        };
+        const updatedIntegrations = [...integrations.filter(i => i.type !== 'jira'), integration];
+        setIntegrations(updatedIntegrations);
+        localStorage.setItem('dfo-incident-integrations', JSON.stringify(updatedIntegrations.filter(i => i.type !== 'jira')));
+        if (onSaveIntegration) onSaveIntegration(integration);
+      }
+
       setShowAddForm(false);
-      
-      // Reset form
       setNewIntegration({
         type: 'slack',
         name: '',
@@ -449,16 +473,9 @@ const IncidentIntegration = ({
         triggerConditions: {
           severity: ['critical', 'high'],
           metricTypes: ['completeness', 'accuracy'],
-          thresholds: {
-            qualityScore: 70
-          }
+          thresholds: { qualityScore: 70 }
         }
       });
-      
-      // Call the onSaveIntegration callback if provided
-      if (onSaveIntegration) {
-        onSaveIntegration(integration);
-      }
     }
   };
   
@@ -468,22 +485,30 @@ const IncidentIntegration = ({
       isOpen: true,
       title: 'Confirm Deletion',
       message: 'Are you sure you want to delete this integration?',
-      action: () => {
+      action: async () => {
         const integrationToDelete = integrations[index];
-        const updatedIntegrations = integrations.filter((_, i) => i !== index);
-        
-        setIntegrations(updatedIntegrations);
-        localStorage.setItem('dfo-incident-integrations', JSON.stringify(updatedIntegrations));
-        
-        // If we're editing this integration, close the form
-        if (editingIntegration === index) {
-          setEditingIntegration(null);
+
+        if (integrationToDelete.type === 'jira' && integrationToDelete.isRealConnection) {
+          // Delete real Jira connection via backend
+          try {
+            const token = localStorage.getItem('token');
+            const { default: axios } = await import('axios');
+            const { API_BASE_URL } = await import('../config');
+            await axios.delete(`${API_BASE_URL}/api/jira/connections/${integrationToDelete.id}`, {
+              headers: { Authorization: `Bearer ${token}` }
+            });
+          } catch (err) {
+            console.error('Failed to delete Jira connection', err);
+          }
+          await loadIntegrations();
+        } else {
+          const updatedIntegrations = integrations.filter((_, i) => i !== index);
+          setIntegrations(updatedIntegrations);
+          localStorage.setItem('dfo-incident-integrations', JSON.stringify(updatedIntegrations.filter(i => i.type !== 'jira')));
         }
-        
-        // Call the onDeleteIntegration callback if provided
-        if (onDeleteIntegration) {
-          onDeleteIntegration(integrationToDelete);
-        }
+
+        if (editingIntegration === index) setEditingIntegration(null);
+        if (onDeleteIntegration) onDeleteIntegration(integrationToDelete);
       }
     });
   };
@@ -496,34 +521,64 @@ const IncidentIntegration = ({
     
     setTestResult({
       status: 'testing',
-      message: `Testing ${INTEGRATION_TYPES[integration.type].name} integration...`
+      message: `Testing ${INTEGRATION_TYPES[integration.type]?.name || integration.type} integration...`
     });
     
     try {
-      // Simulated API call - in a real app, this would call the backend
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      // Simulate success for the demo
-      setTestResult({
-        status: 'success',
-        message: `Successfully connected to ${INTEGRATION_TYPES[integration.type].name}.`
-      });
-      
-      // Call the onTestIntegration callback if provided
-      if (onTestIntegration) {
-        onTestIntegration(integration);
+      if (integration.type === 'jira') {
+        const token = localStorage.getItem('token');
+        const { default: axios } = await import('axios');
+        const { API_BASE_URL } = await import('../config');
+
+        // For existing (real) connections the backend always uses the stored
+        // encrypted credentials. Only send overrides if the admin has typed new
+        // credentials into the form — never forward settings.email_display.
+        const testPayload = {};
+        if (integration.isRealConnection) {
+          testPayload.connectionId = integration.id;
+          // The form field is 'username' — only forward if the admin typed a new value.
+          const newEmail    = (integration.settings?.username || '').trim();
+          const newApiToken = (integration.settings?.apiToken || '').trim();
+          if (newEmail)    testPayload.email    = newEmail;
+          if (newApiToken) testPayload.apiToken = newApiToken;
+        } else {
+          testPayload.instanceUrl = integration.settings?.url;
+          testPayload.email       = (integration.settings?.username || '').trim();
+          testPayload.apiToken    = (integration.settings?.apiToken || '').trim();
+        }
+
+        const res = await axios.post(`${API_BASE_URL}/api/jira/connections/test`, testPayload,
+          { headers: { Authorization: `Bearer ${token}` } });
+
+        if (res.data?.success) {
+          setTestResult({
+            status: 'success',
+            message: `Connected to Jira${res.data.displayName ? ` as ${res.data.displayName}` : ''}.`
+          });
+        } else {
+          setTestResult({
+            status: 'error',
+            message: `Jira connection failed: ${res.data?.error || 'unknown error'}`
+          });
+        }
+      } else {
+        // Non-Jira: simulated test
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        setTestResult({
+          status: 'success',
+          message: `Successfully connected to ${INTEGRATION_TYPES[integration.type]?.name || integration.type}.`
+        });
       }
+
+      if (onTestIntegration) onTestIntegration(integration);
     } catch (error) {
       setTestResult({
         status: 'error',
-        message: `Failed to connect: ${error.message}`
+        message: `Failed to connect: ${error.response?.data?.error || error.message}`
       });
     }
     
-    // Clear test result after 5 seconds
-    setTimeout(() => {
-      setTestResult(null);
-    }, 5000);
+    setTimeout(() => setTestResult(null), 5000);
   };
   
   // Render settings fields for the selected integration type

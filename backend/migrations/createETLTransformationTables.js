@@ -223,6 +223,22 @@ async function initETLTransformationTables(pool) {
       END $$;
     `);
     systemLogger.info('✓ Extended files table with schema_definition column');
+
+    // Add quality_rule_columns to transformation_mappings if not present.
+    // Stores a {ruleId: columnName} map so VM expression-node column assignments
+    // can override a null column_name on the global quality_rules row.
+    await pool.query(`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_name = 'transformation_mappings' AND column_name = 'quality_rule_columns'
+        ) THEN
+          ALTER TABLE transformation_mappings ADD COLUMN quality_rule_columns JSONB DEFAULT '{}'::jsonb;
+        END IF;
+      END $$;
+    `);
+    systemLogger.info('✓ Extended transformation_mappings with quality_rule_columns column');
     
     systemLogger.info('ETL transformation system tables initialized successfully');
     

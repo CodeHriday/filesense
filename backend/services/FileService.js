@@ -391,8 +391,13 @@ class FileService extends ServiceBase {
       const sortCol = sortColumn === 'id' || sortColumn === 'filename' || sortColumn === 'file_type' || 
                       sortColumn === 'file_size' || sortColumn === 'created_at' || sortColumn === 'quality_score' 
                       ? `files.${sortColumn}` : sortColumn;
-      query += ` ORDER BY ${sortCol} ${order} LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
-      params.push(limit, offset);
+      // limit: null means "no limit" (used by the file-catalog init-data endpoint to return all visible files)
+      if (limit !== null && limit !== undefined) {
+        query += ` ORDER BY ${sortCol} ${order} LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
+        params.push(limit, offset);
+      } else {
+        query += ` ORDER BY ${sortCol} ${order}`;
+      }
       
       const result = await this.executeQuery(query, params, { traceId });
       

@@ -369,6 +369,9 @@ const ProcessedFileCatalog = () => {
                       <th>Mapping</th>
                       <th>Source File</th>
                       <th>Target File</th>
+                      <th style={{ textAlign: 'right' }}>Rows</th>
+                      <th style={{ textAlign: 'right' }}>Columns</th>
+                      <th style={{ textAlign: 'right' }}>Quality</th>
                       <th>Created</th>
                       <th>Project</th>
                       <th>Actions</th>
@@ -397,6 +400,21 @@ const ProcessedFileCatalog = () => {
                           </div>
                         </td>
                         <td>{file.file_name}</td>
+                        <td style={{ textAlign: 'right' }}>
+                          {file.load_step_1_rec_cnt != null
+                            ? file.load_step_1_rec_cnt.toLocaleString()
+                            : file.row_count != null
+                              ? file.row_count.toLocaleString()
+                              : '-'}
+                        </td>
+                        <td style={{ textAlign: 'right' }}>
+                          {file.number_of_columns != null ? file.number_of_columns : '-'}
+                        </td>
+                        <td style={{ textAlign: 'right' }}>
+                          {file.quality_score != null && !isNaN(parseFloat(file.quality_score))
+                            ? `${parseFloat(file.quality_score).toFixed(1)}%`
+                            : <span style={{ color: '#6b7280' }}>N/A</span>}
+                        </td>
                         <td style={{ whiteSpace: 'nowrap' }}>
                           {file.created_dt ? formatDate(file.created_dt) : '-'}
                         </td>

@@ -6,7 +6,7 @@ import PropTypes from 'prop-types';
 
 const STORAGE_KEY_PREFIX = 'ai_dq_suggestions_';
 
-const AIDQSuggestionsTab = ({ fileId, filename, columns, projectId }) => {
+const AIDQSuggestionsTab = ({ fileId, filename, columns = [], projectId = null }) => {
   const [suggestions, setSuggestions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -18,7 +18,7 @@ const AIDQSuggestionsTab = ({ fileId, filename, columns, projectId }) => {
   const [createdRules, setCreatedRules] = useState(new Set());
   const [toggleUpdating, setToggleUpdating] = useState(false);
   const [providers, setProviders] = useState([]);
-  const [currentProvider, setCurrentProvider] = useState('auto');
+  const [currentProvider, setCurrentProvider] = useState('rule-based');
   const [providerInfo, setProviderInfo] = useState(null);
   const [showProviderSelect, setShowProviderSelect] = useState(false);
   const [providerUpdating, setProviderUpdating] = useState(false);
@@ -69,7 +69,7 @@ const AIDQSuggestionsTab = ({ fileId, filename, columns, projectId }) => {
       if (response.ok) {
         const data = await response.json();
         setProviders(data.providers || []);
-        setCurrentProvider(data.current_provider || 'auto');
+        setCurrentProvider(data.current_provider || 'rule-based');
       }
     } catch (err) {
       console.error('Error fetching providers:', err);
@@ -77,12 +77,15 @@ const AIDQSuggestionsTab = ({ fileId, filename, columns, projectId }) => {
   };
 
   const updateProvider = async (providerName) => {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10-second hard limit
     try {
       setProviderUpdating(true);
       const response = await fetch('/profile-api/api/ai-providers/current', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ provider: providerName })
+        body: JSON.stringify({ provider: providerName }),
+        signal: controller.signal
       });
       
       if (response.ok) {
@@ -98,8 +101,11 @@ const AIDQSuggestionsTab = ({ fileId, filename, columns, projectId }) => {
         }
       }
     } catch (err) {
-      console.error('Error updating provider:', err);
+      if (err.name !== 'AbortError') {
+        console.error('Error updating provider:', err);
+      }
     } finally {
+      clearTimeout(timeoutId);
       setProviderUpdating(false);
       setShowProviderSelect(false);
     }
@@ -137,21 +143,27 @@ const AIDQSuggestionsTab = ({ fileId, filename, columns, projectId }) => {
   };
 
   const toggleFeature = async () => {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10-second hard limit
     try {
       setToggleUpdating(true);
       const newValue = !featureEnabled;
       const response = await fetch('/profile-api/api/settings/ai_dq_suggestions_enabled', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ value: newValue.toString() })
+        body: JSON.stringify({ value: newValue.toString() }),
+        signal: controller.signal
       });
       
       if (response.ok) {
         setFeatureEnabled(newValue);
       }
     } catch (err) {
-      console.error('Error toggling feature:', err);
+      if (err.name !== 'AbortError') {
+        console.error('Error toggling feature:', err);
+      }
     } finally {
+      clearTimeout(timeoutId);
       setToggleUpdating(false);
     }
   };
@@ -162,6 +174,11 @@ const AIDQSuggestionsTab = ({ fileId, filename, columns, projectId }) => {
       return;
     }
 
+    const controller = new AbortController();
+    // 90-second client-side limit — OpenAI typically replies in 20-60 s; beyond that
+    // the browser fetch would hang forever without an abort signal.
+    const timeoutId = setTimeout(() => controller.abort(), 90000);
+
     try {
       setLoading(true);
       setError(null);
@@ -170,9 +187,13 @@ const AIDQSuggestionsTab = ({ fileId, filename, columns, projectId }) => {
         name: col.name,
         type: col.type,
         completeness: col.completeness || (100 - (col.nullPercentage || 0)),
-        uniqueCount: col.uniqueCount || col.distinct_count,
+        uniqueCount: col.uniqueCount || col.distinct_count || col.unique_count,
+        totalCount: col.totalCount || col.total_count || 0,
+        sampleValues: col.sampleValues || col.sample_values || [],
+        minLength: col.minLength ?? col.min_length ?? null,
+        maxLength: col.maxLength ?? col.max_length ?? null,
         patterns: col.patterns || [],
-        semanticType: col.semanticType,
+        semanticType: col.semanticType || col.semantic_type,
         hasNulls: col.nullPercentage > 0 || col.null_count > 0
       }));
 
@@ -183,7 +204,8 @@ const AIDQSuggestionsTab = ({ fileId, filename, columns, projectId }) => {
           fileId,
           filename,
           columns: columnData
-        })
+        }),
+        signal: controller.signal
       });
 
       const data = await response.json();
@@ -216,9 +238,14 @@ const AIDQSuggestionsTab = ({ fileId, filename, columns, projectId }) => {
         createdRules: []
       });
     } catch (err) {
-      console.error('Error generating suggestions:', err);
-      setError('Failed to generate suggestions. Please try again.');
+      if (err.name === 'AbortError') {
+        setError('Analysis is taking too long — please try again.');
+      } else {
+        console.error('Error generating suggestions:', err);
+        setError('Failed to generate suggestions. Please try again.');
+      }
     } finally {
+      clearTimeout(timeoutId);
       setLoading(false);
     }
   };
@@ -616,11 +643,6 @@ AIDQSuggestionsTab.propTypes = {
     PropTypes.string,
     PropTypes.number
   ])
-};
-
-AIDQSuggestionsTab.defaultProps = {
-  columns: [],
-  projectId: null
 };
 
 export default AIDQSuggestionsTab;
