@@ -38,5 +38,5 @@ jobs:
             -Dsonar.sources=. \
             -Dsonar.exclusions=backend/tests/** \
             -Dsonar.host.url=https://sonar.blumetra.com \
-            -Dsonar.token=squ_8794d294412fef835664dd0ddc44be35aa0cb610
+            -Dsonar.token=sqp_d0ef74be8529c59c0ac5845b0d42184542b7f4a1
 
