@@ -36,7 +36,6 @@ jobs:
           sonar-scanner \
             -Dsonar.projectKey=filesense-main \
             -Dsonar.sources=. \
-            -Dsonar.exclusions=backend/tests/** \
+            -Dsonar.exclusions=backend/tests/**,coverage/** \
             -Dsonar.host.url=https://sonar.blumetra.com \
-            -Dsonar.token=sqp_d0ef74be8529c59c0ac5845b0d42184542b7f4a1
-
+            -Dsonar.token=sqp_ad81709a509142c22675a7cbd01b656f908e67fc
