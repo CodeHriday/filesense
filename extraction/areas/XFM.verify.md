@@ -1,0 +1,36 @@
+# XFM verification (round 2, after fix round 1)
+
+Verdict: PASS
+
+Counts: about 48 claims checked, 0 WRONG, 2 UNSUPPORTED (attribution only, content correct), 0 missing entry points, 0 new missed behaviours of substance.
+
+Coverage: inventory rows 719, 722, 858, 955, 962, 1022 all have a subsection or an open question (858 worker row = OQ 6). The full-file rewrite lost nothing of the first-pass content; every first-pass item (engine rules, parser rules, EP5-EP9, BUG 1-17) is still present.
+
+## Round-1 changes, checked
+
+- Liveness, CORRECT. `integration.js:10` requires `./routes/transformationRoutes`; `server.js:26` imports integration and `server.js:13965` calls `setupEnhancedFeatures(app)`. `di/services.js:21-33` requires every `*Service.js` (`bootstrapper.js:111`, `db.js:6` confirm the chain). `server.js:1228-1252` `/api/test-di` has no `authenticateToken`, calls `diContainer.get('transformationService')` at :1230 and reads the prototype method count at :1239. Constructor is `(dbPool, logger, fileService)` (`TransformationService.js:30`); DI passes `dbPool, logger` only (`di/services.js:54-59`). SECURITY 6 and OQ 2 (narrowed to dbtService) are right.
+- EP1 delay rule, CORRECT. `delayMappings = hasJoin || hasCrosswalkEnrichment` (`jobExecutionEngine.js:3293`, repeated :3345-3404), empty mappings and variables passed, `transformRow` returns the row at `transformationEngine.js:948-950`. Post-join pass at :3542-3578 is unconditional on crosswalk; post-crosswalk pass :3662-3683 runs when crosswalk enrichment is present, so double application needs both (comment :3657-3661). UNCLEAR 1 is consistent.
+- Variable `data_type` cast dead (EP1, DEAD 8, BUG 20), CORRECT. Engine casts at :1003-1005; `convertVariables` (:4980-5021) returns only `{name, sourceFields, transformations}`.
+- EP2 `rdm_crosswalk_lookup`, CORRECT (`transformationEngine.js:811-848`): `sourceField` unused; missing id, crosswalk or map return `defaultValue`; missing key returns `defaultValue` or the input when `defaultValue` is null. `cast` unknown type returns value (:553-554). `date_format` falsy input returns input (:175).
+- BUG 3 carve-out, CORRECT. Parser skips `$` fields in compound `if` (`expressionParser.js:896, 933`); VARIABLE args are never added to sourceFields (:840-842, 863-865, 881-883); concat variable parts index `value[...]` on null and throw (`transformationEngine.js:146-151`), swallowed by the catch.
+- BUG 18 (`expressionParser.js:594, 609, 638, 650` call `buildTransformation(name.toLowerCase())`, bypassing aliases and `functionMap` at :269-321), BUG 19 (`case_when()` with zero args: `hasDefault` true, `args[-1]` is undefined, `.type` TypeError at :709-710; FUNCTION result/compare left unset :685-700), BUG 21: all CORRECT. For BUG 21, `loadRDMContext` is called with the raw `mapping.field_mappings` (`jobExecutionEngine.js:1316-1317`), and `rdmContextLoader.js:161-177, 211-227` scans only `mapping.transformations[]` and `variable.transformations[]`; `convertFieldMappings` (:4849-4958) never reads a `transformations` array. OQ 8 is the honest residual.
+- Data touched, CORRECT with one attribution gap. Prod `transformations` (DDL :3755-3774), `transformation_lineage` `output_file_id text NOT NULL` (:3703), `transformation_outputs` (:3737) all match. The four `CREATE TABLE IF NOT EXISTS transformations` statements match the notes' column lists at `server.js:11839` (IIFE at boot), `backend/config/database.js:292`, `backend/migrations/createTransformationTables.js:23`, `backend/src/migrations/index.js:88`. `TransformationService` lineage insert (:122-125) omits `output_file_id`, and the `last_execution_id` update (:422-427) hits a column prod lacks. `asyncTransformationService.js:32, 55` writes `status`, which prod lacks. BUG 22 and DUPLICATE 6 are right.
+
+## Items the fixer attributed to me, verified
+
+1. `transformation_executions` prod columns (DDL :3677-3690): `id, execution_id (UNIQUE), transformation_id, status, started_at, completed_at, parameters jsonb, result jsonb, created_at, updated_at`. The notes say "result jsonb and updated_at", which is correct. The `TransformationService` insert columns (:402-410: execution_id, transformation_id, status, started_at, parameters, created_at) all exist in prod. UNSUPPORTED (attribution only): the notes wrote ":3677 was not re-read here ... per the verifier", so the notes never cite the column list themselves. Content is right; suggest citing :3677-3690.
+2. `backend/src/routes/index.js` `./transformation`: CORRECT. Lines 14 and 29 are commented out and name `./transformation`; `backend/src/routes/` contains only `auth.js, index.js, transformations.js`, so that file does not exist. Notes say "per the verifier" (second UNSUPPORTED attribution, content right).
+
+## Missed item 7 settled
+
+The fixer was right. `convertVariables` does check `variable.transformation !== 'none'` (`jobExecutionEngine.js:5013`) and, like `convertFieldMappings`, copies `source_field` first (:5007-5011). My first-pass claims that it lacks the `none` check, and that a variable with neither `expression` nor `transformation` yields `undefined`, were wrong: such a variable gets empty `sourceFields` and `transformations`, so `transformRow` evaluates `applyTransformationChain(null, [])`, which is `null` (`transformationEngine.js:997-1000`). Item 7 is withdrawn. Remaining true differences, already in the notes: variable legacy reads `params`, not `transformation_params`, and has no name normalisation (EP4 line 62).
+
+## Other claims spot-checked, all CORRECT
+
+Engine: concat formats (:143-166), math `|| 0`/`|| 1` (:569-575, 647, 688), divide-by-zero null (:676-679), lookup `in` (:705), hash catch (:722-725), split (:731-743), system_date (:748-766), pad/coalesce (:771-805), date_format (:172-209), transformRow priority/`$`/fallback (:1030-1062), variable double-store (:1008-1010). Parser: 26-entry `functionMap` (count verified), aliases, `Unknown function` (:319-321), `case_when` default detection (:665-666), parse wrapping (:755), empty returns null (:737-739). Controller: `createdBy` default 2 (:20), `userId` default 2 (:117), permission check (:107), arity mismatch (:120 vs `TransformationService.js:387`), class import (:8). Routes list (`transformationRoutes.js:49-58`); real mount `server.js:5207-5208`. `TransformationService`: ID (:68), sort whitelist (:164), updatable fields (:275-278), delete `OR id = $2` (:357), always true (:368). `asyncProcessor.js:420-426` has no `executeTransformation`. `backend/src` routes and permissions, `setTimeout(1000)` (:286), `file_lineage` deletes. DBT: allow-list (:169), selector regexp (:174), `shell:false` (:315), `userId || 'system'` (:191).
+
+## Minor omissions (do not change verdict)
+
+- `integration.js:34` still logs "Registered enhanced transformation routes" although the mount is commented out (misleading log; not in notes).
+- `TransformationService.createTransformation` creates `transformation_lineage` inline with an FK to `transformations(transformation_id)` (:106-117); notes mention only that it is created on the fly. On prod the table exists without that FK, so it is a no-op.
+- Delete in `TransformationService` does not delete `transformation_lineage`/`transformation_outputs` rows (:344-366).

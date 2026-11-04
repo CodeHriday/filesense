@@ -22,11 +22,11 @@ Mounts: `/api/vendors` with `authenticateToken` (server.js:13880-13881) and `/ap
 ### GET /api/vendors/init-data (vendorRoutes.js:93)
 - Auth: JWT, plus the non-blocking `isVendorUser`.
 - Defaults: page=1, pageSize=10 (:99-100).
-- A vendor user without manage rights gets only their own vendor.
+- A vendor user without manage rights gets only their own vendor. If `getVendorByUserId` does not succeed, the response is still 200 with the initial empty vendor list (`vendors: []`, totalCount 0), not 404 (:103, :107-115).
 - Everyone else gets the vendor list, including non-vendor users without manage rights. Only `search` is applied; `status` and `project_id` are ignored (:116-125).
 - If `canManage` is true, it also returns:
   - Top-level projects (`parent_id IS NULL`). Users without `userHasAllProjectAccess` see only projects reached through `project_members` or group membership (:127-151).
-  - All users with `internal_user = false AND user_type = 'Vendor'` (:158-172), including email, phone and state.
+  - All users with `internal_user = false AND user_type = 'Vendor'` (:158-172), including email, phone and state. Contact users created by `createVendor` do not have `user_type` set (see BUG 11), so they are not in this list.
 - Failures in the projects or users queries are logged and swallowed (:153-155, :174-176).
 - Response: `{success, vendors, pagination, isOwnProfile, projects, vendorUsers, canManageVendors}`.
 
@@ -49,6 +49,7 @@ Mounts: `/api/vendors` with `authenticateToken` (server.js:13880-13881) and `/ap
 - Rules:
   - Vendor code is the first 3 characters of the name, uppercased, with non-letters replaced by `X`, then `-` and 6 random hex characters (:16-20). It is re-rolled until unique (:101-112).
   - The primary contact's user is looked up by `email` (case-sensitive). If found it is reused. Otherwise a user is created with username = email, a random 16-byte hex password hashed with bcrypt cost 10, `auth_provider='local'`, `first_name=contact_name`, `last_name=''`, and the `Vendor` role. A missing `Vendor` role throws (:116-170).
+  - The user INSERT lists only `username, email, password, first_name, last_name, auth_provider, created_at` (:149-154; backup contact :319-324; update path :923-928). It does not set `user_type` or `internal_user`. `users.user_type` has no default (database_ddl_2026-01-07.sql:2420) and `internal_user` defaults to false, so these users fail `isVendorUser` (userHelpers.js:17). Effects: `req.isVendor` stays false for them, `attachVendorProfile` is not triggered by user attributes, the App.jsx vendor redirects do not apply, and they are not in the init-data `vendorUsers` list. The vendor-access routes still work because they key on `vendors.vendor_user_id` (vendorAccessRoutes.js:22-32).
   - A `user_roles` row is inserted only for newly created users. A reused user does not get the Vendor role.
   - Project: if `project_id` is absent, a project is auto-created with name `VEND-<10 alnum chars of name or "VENDOR">-<8 hex>`, description `Auto-created project for vendor: <name>` and type `external` (:26-38, :177-205). If `project_id` is given, the project must exist and have `project_type === 'external'` (:213-227).
   - The primary user is added to `project_members` with `can_invite=false` and `can_manage_members=false`. `invited_by` is NULL if the creator id is not in `users` (:231-279).
@@ -56,7 +57,7 @@ Mounts: `/api/vendors` with `authenticateToken` (server.js:13880-13881) and `/ap
   - The vendor row is inserted with `status='active'` and `vendor_onboarding_date=CURRENT_TIMESTAMP` (:361-373). `users.vendor_id` is set for both contacts (:377-399).
   - The whole operation runs in one transaction with ROLLBACK on error (:50, :401, :425).
 - Output: 201 `{success, vendor (with project_name), userId}`. Any error, including validation, returns 400 `{error: message}` (vendorRoutes.js:237-240).
-- Side effect: no email is sent. The temp password is written to the system log (vendorService.js:165-169; see SECURITY).
+- Side effect: no email is sent. The primary contact's temp password is written to the system log (vendorService.js:165-169; see SECURITY). The backup contact's random password is never logged or returned (:300-339).
 
 ### PUT /api/vendors/:id (vendorRoutes.js:247)
 - Auth: `requireVendorManagement`.
@@ -68,6 +69,7 @@ Mounts: `/api/vendors` with `authenticateToken` (server.js:13880-13881) and `/ap
   - Deletes all `project_members` rows for the vendor's primary user across every project (:724).
   - Inserts a membership in the new project (:727-732).
   - Does not verify that the new project exists or is external, unlike create.
+- Setting `project_id` to a falsy value (null) writes `project_id = NULL` and skips the membership change (:712-735).
 - Contact change rules:
   - A changed primary email clears `users.vendor_id` on the old primary user, unless that user is the backup contact or is a contact of another vendor (:778-816).
   - It sets `vendor_id` on the user matching the new email, if one exists (:819-836). No user is created for a new primary email.
@@ -83,7 +85,7 @@ Mounts: `/api/vendors` with `authenticateToken` (server.js:13880-13881) and `/ap
 - The comment says "deactivate", but the service performs a hard delete (vendorService.js:1069-1071, :1262-1265).
 - Blocked if any agreement for the vendor is `status='active'`, `is_locked=true` or `approval_status='fully_approved'` (:1002-1046, :1099). The result is `{success:false, error:'Cannot delete vendor - has N active agreement(s), ...', canDelete:false, dependencies}`.
 - The route maps every `success:false` to 404, so a blocked delete returns 404 (vendorRoutes.js:283-285).
-- Agreements in `draft`, `inactive` or `archived` do not block. Whether agreements cascade or block through a foreign key is not shown (see Open questions).
+- Agreements in `draft`, `inactive` or `archived` do not block the dependency check. Whether they then block the delete through the foreign key depends on which schema is live (see BUG 13 and Open questions).
 - Steps in one transaction:
   1. Delete `storage_connections` whose `config.vendor_id` equals the vendor id (:1142-1148).
   2. Clear `users.vendor_id` for the primary and backup contact users, if they are not tied to another vendor (:1157-1195).
@@ -117,6 +119,7 @@ Mounts: `/api/vendors` with `authenticateToken` (server.js:13880-13881) and `/ap
 - Returns connection fields and `drop_location_path` and agreement info. `config` is reduced to `region`, `bucket` (or `bucket_name`), `container_name`, `account_name` and `gcp_bucket` (:156-176).
 - `sc.path` is returned as is.
 - `JSON.parse(conn.config)` is not guarded. A null config would throw on `config.region` and give 500.
+- src/pages/FileUpload.jsx:460 calls `/api/vendor-access/connections/${selectedConnection}`. vendorAccessRoutes.js defines no such route (only `/projects`, `/connections`, `/browse`), so that call has no handler here.
 
 ### POST /api/vendor-access/browse (vendorAccessRoutes.js:197)
 - Auth: JWT. Body: `agreementId` (required, else 400) and optional `s3Path`.
@@ -127,6 +130,7 @@ Mounts: `/api/vendors` with `authenticateToken` (server.js:13880-13881) and `/ap
 
 ### GET /api/vendor-files (server.js:1626)
 - Auth: `authenticateToken`, `attachVendorProfile` and `cacheMiddleware(300)`. `attachVendorProfile` sets `req.vendorProfile` only for an active vendor row (vendorAccessControl.js:14-40).
+- The cache key is `cache:${userId}:${originalUrl}` (cacheMiddleware.js:19-24), so it is per user.
 - Requires one of `file_view`, `file:read`, `file_upload:read` or `vendor_file_quality:read` (server.js:1632). Otherwise 403.
 - Pagination: page defaults to 1, pageSize defaults to 25 and is capped at 100 (:1649-1651).
 - `userHasAllProjectAccess` (hasAdminRole, `project_management:write`, `all_projects:read`, `users:write`, `roles:write`) sees all vendor files. Others are limited to their projects. A user with zero projects gets an empty list (:1655-1666).
@@ -159,7 +163,7 @@ Mounts: `/api/vendors` with `authenticateToken` (server.js:13880-13881) and `/ap
 - The vendor ownership check `req.vendorProfile && profilingData.vendor_id !== req.vendorProfile.id` (:2477) is dead for the same reason. Any JWT holder can read any file's profiling result.
 
 ### Frontend routes
-- `/vendor-management` and `/vendors` render VendorManagement.jsx, wrapped only in `ProtectedRoute` (src/App.jsx:406-407). It calls `GET /api/vendors/init-data` (:85), `POST /api/vendors` (:314), `PUT /api/vendors/:id` (:329) and `DELETE /api/vendors/:id` (:365). A delete-confirm modal is used (:51, :756).
+- `/vendor-management` and `/vendors` render VendorManagement.jsx, wrapped only in `ProtectedRoute` (src/App.jsx:406-407). The page itself redirects to `/login` when there is no user and to `/` when `canAccessVendorDetails` is false (VendorManagement.jsx:104-113); that flag comes from the `vendor_details:read` permission (:63-65). It calls `GET /api/vendors/init-data` (:85), `POST /api/vendors` (:314), `PUT /api/vendors/:id` (:329) and `DELETE /api/vendors/:id` (:365). A delete-confirm modal is used (:51, :756).
 - `/vendor-file-upload` renders VendorFileUpload.jsx (App.jsx:409).
   - Agreements come from `/api/vendor-agreements?pageSize=1000&filterByMyVendor=true` (VendorFileUpload.jsx:106).
   - Upload is `POST /api/files/drop?connectionId&agreementId&folder` (:161), with `folder` = the selected folder or the agreement `drop_location_path` (:162-166).
@@ -170,7 +174,7 @@ Mounts: `/api/vendors` with `authenticateToken` (server.js:13880-13881) and `/ap
 - Vendor users are redirected to `/vendor-file-upload` from the home route and from the regular upload route (App.jsx:221-243).
 
 ## Data touched
-- `vendors`: read and written by vendorService. Columns used include vendor_code, vendor_name, contact_*, backup_contact_*, vendor_user_id, project_id, vendor_onboarding_date, vendor_type, status, created_by, updated_by. Migration status check is `'active','inactive','suspended'` (createVendorManagement.js:39). Code also references `'deleted'` (vendorService.js:457).
+- `vendors`: read and written by vendorService. Columns used include vendor_code, vendor_name, contact_*, backup_contact_*, vendor_user_id, project_id, vendor_onboarding_date, vendor_type, status, created_by, updated_by. Migration status check is `'active','inactive','suspended'` (createVendorManagement.js:39). Code also references `'deleted'` (vendorService.js:457); no migration allows that value.
 - `users` (insert; `vendor_id` update; reads of `internal_user`, `user_type`), `roles` (`Vendor`), `user_roles`.
 - `projects` (insert with type external; delete on vendor delete), `project_members`, `project_access_groups`, `user_groups`.
 - `vendor_agreements` (read-only here), `storage_connections` (read; delete by `config.vendor_id`).
@@ -184,9 +188,8 @@ SECURITY
 2. `DELETE /api/vendor-files/bulk` (server.js:1777-1780): a non-admin with zero accessible projects skips the project filter and can delete any `is_vendor_file` rows, provided they hold one of the write permissions.
 3. `GET /api/vendors` and `GET /api/vendors/:id` (vendorRoutes.js:50, :199) have no permission requirement for non-vendor users. Any JWT holder without manage rights falls into the list branch or the id lookup, so all vendor contact data is exposed.
 4. `POST /api/vendor-access/browse` (vendorAccessRoutes.js:204, :278-281): the caller's `s3Path` is passed to the connection browser with no check that it lies under the agreement's `drop_location_path`. A vendor can browse the whole bucket of the vendor connection.
-5. A temporary password for new vendor users is written to the application log (vendorService.js:165-169). Comment: "In production, this should be sent via email". No email is sent anywhere in the flow, so new vendor accounts have an unknown random password.
+5. A temporary password for a newly created primary contact user is written to the application log (vendorService.js:165-169). Comment: "In production, this should be sent via email". No email is sent anywhere in the flow. Backup contact users get a random password that is never logged or returned (:300-339, :904-943), so it is unrecoverable.
 6. The vendor-access routes do not check roles or user attributes, only an active `vendors` row linked by `vendor_user_id` (vendorAccessRoutes.js:22-32).
-7. `/api/vendor-files` caches for 300 seconds. The cache key includes the user id (cacheMiddleware.js:22 shows `userId` used), but this was not fully traced. See Open questions.
 
 BUG
 1. A blocked vendor delete returns HTTP 404 instead of a conflict code (vendorRoutes.js:283-285), because every `success:false` is mapped to 404.
@@ -198,21 +201,26 @@ BUG
 7. `checkVendorDependencies` uses `totalCount = Math.max(...)` of the three lists, not a distinct count (vendorService.js:1047-1051).
 8. `updateVendor` no-updates path returns without ROLLBACK or COMMIT (vendorService.js:749-751). The client is released in `finally`, so the transaction is left open until the connection is reused or the session ends.
 9. `/api/vendor-access/connections` crashes with 500 if `sc.config` is null (vendorAccessRoutes.js:157-171).
-10. `getAllVendors` filters out `status != 'deleted'` while the migration CHECK permits only `active`, `inactive` and `suspended`. The `'deleted'` value can never be stored unless a later migration changes the check (not verified).
+10. `getAllVendors` filters out `status != 'deleted'` while the migration CHECK permits only `active`, `inactive` and `suspended`. No migration allows `'deleted'`, so the value cannot be stored and the filter has no effect.
+11. `createVendor` (and the backup-contact path in `updateVendor`) inserts users without `user_type` or `internal_user` (vendorService.js:149-154, :319-324, :923-928). `user_type` has no DB default (database_ddl_2026-01-07.sql:2420), so these users fail `isVendorUser` (userHelpers.js:17). `req.isVendor`, `attachVendorProfile` and the App.jsx vendor redirects do not apply to them, and the init-data `vendorUsers` list omits them. Vendor-access routes still work (keyed on `vendor_user_id`).
+12. src/pages/FileUpload.jsx:460 calls `/api/vendor-access/connections/:id`, which does not exist in vendorAccessRoutes.js.
+13. Vendor delete vs. foreign keys. The schema dump and the migration disagree, so which one is live is unconfirmed. The dump has no ON DELETE action on these constraints:
+    - `vendor_agreements_vendor_id_fkey` (database_ddl_2026-01-07.sql:3545), while createVendorManagement.js:56 says `ON DELETE CASCADE`. A vendor with only draft, inactive or archived agreements passes the dependency check, but the vendor DELETE (vendorService.js:1262-1265) would fail with an FK error, returned as 500 `Failed to delete vendor`.
+    - `vendor_file_profiling_results_vendor_id_fkey` (:3553): a vendor with profiling rows cannot be deleted either (500).
+    - `vendors_project_id_fkey` (:3565), while createVendorManagement.js:33 says `ON DELETE SET NULL`. `deleteVendor` deletes the project (vendorService.js:1244-1247) before the vendor row (:1262-1265). In the common case (no other vendor or members on the project) the project DELETE would violate this FK, the transaction rolls back, and the result is 500.
 
 DUPLICATE
 1. Three overlapping vendor-detection mechanisms: `isVendorUser(user)` on user attributes (userHelpers.js:11), `attachVendorProfile` on an active `vendors` row (vendorAccessControl.js:14), and the inline vendor lookups in vendorAccessRoutes.js (lines 22, 101, 214). They differ in what counts as a vendor. `getVendorByUserId` has no status filter (vendorService.js:568), the others require `status='active'`.
-2. Backup-contact user creation is copied three times: create (vendorService.js:286-339), and update (:891-943). Primary-user creation (:137-163) is a fourth variant.
+2. Backup-contact user creation is copied twice: create (vendorService.js:286-339) and update (:891-943). Primary-user creation (:137-163) is a third variant.
 3. The vendor-files list at server.js:1626 duplicates `/api/files` with `is_vendor_file = true` (see FILE.md:312). Admin checks vary: `userHasAllProjectAccess` in server.js versus `userHasAdminAccess` in vendorRoutes.js versus `roles.includes('Admin')` in vendorAccessControl.js:86, :115.
 4. Permission name checks are hand-rolled inline in server.js:1630-1635 and :1731-1736, while `hasPermission` exists in vendorPermissions.js:14.
 
 DEAD
-1. `filterVendorFiles`, `requireOwnVendorAccess` and `requireOwnAgreementAccess` (vendorAccessControl.js:46, :83, :112) are not used in server.js. Only `attachVendorProfile` and `filterVendorFiles` are imported (server.js:91), and `filterVendorFiles` is never applied there. Whether other files use `requireOwnVendorAccess` or `requireOwnAgreementAccess` was not checked.
-2. `isUserVendor` and `getVendorIdForUser` (vendorAccessControl.js:172-199) were not shown to be used.
-3. `requirePermission`, `checkPermission` and `hasAnyPermission` (vendorPermissions.js:36-96) were not shown to be used in this area. Only `hasPermission` is imported in vendorRoutes.js.
-4. The `vendor_users` table has no code path in this area.
-5. The vendor-scoping branches inside `/api/vendor-file-profiling` (server.js:2354-2357, :2477-2479) can never run.
-6. The `result.rows.length === 0` branch in `updateVendor` (vendorService.js:770-773) is unreachable after the pre-read.
+1. `filterVendorFiles` is imported at server.js:91 and never applied. `requireOwnVendorAccess` and `requireOwnAgreementAccess` (vendorAccessControl.js:83, :112) are referenced nowhere outside their definition and export in vendorAccessControl.js.
+2. `isUserVendor` and `getVendorIdForUser` (vendorAccessControl.js:172-199) are referenced nowhere outside vendorAccessControl.js.
+3. The `vendor_users` table has no code path in this area.
+4. The vendor-scoping branches inside `/api/vendor-file-profiling` (server.js:2354-2357, :2477-2479) can never run.
+5. The `result.rows.length === 0` branch in `updateVendor` (vendorService.js:770-773) is unreachable after the pre-read.
 
 UNCLEAR
 1. `/api/vendor-files` does not filter on the vendor's `vendor_id` or drop path, only on project membership. Vendor users are added to an external project on creation, so project scoping may be the intended vendor boundary.
@@ -230,11 +238,8 @@ UNCLEAR
 - Fully approved and locked agreement: `approval_status='fully_approved'`, `is_locked=true`, `status='active'`.
 
 ## Open questions
-1. Which migration allows `vendors.status = 'deleted'`, if any (enhanceVendorManagement.js and others were not read)?
-2. Are `requireOwnVendorAccess` and `requireOwnAgreementAccess` used outside server.js, for example in vendorAgreementRoutes.js (VAG area)?
-3. Does the foreign key from `vendor_agreements.vendor_id` to `vendors` cascade? A delete of a vendor with only draft, inactive or archived agreements depends on it.
-4. Does the cache key in `cacheMiddleware` (backend/middleware/cacheMiddleware.js:22) separate users for `/api/vendor-files`? Only a `userId` read was seen, not the full key.
-5. Why can the `Vendor` role not be assigned on the create path when the primary user already exists? It could be intended, with the user holding another role.
-6. Do the route-level permissions `vendor_management:write`, `vendor_file_quality:read`, `file_drop` and `file_upload:write` map to seeded roles? bridgeVendorAdministrationPermissions.js was not read.
-7. What `/api/files/drop` does for vendor uploads (checked by ING area, not here).
-8. Is there an email or onboarding flow for the temporary password? None was found in this area.
+1. Is the schema dump authoritative over the migration? The dump shows no cascade on `vendor_agreements.vendor_id` (database_ddl_2026-01-07.sql:3545), while the migration says CASCADE (createVendorManagement.js:56). See BUG 13.
+2. Why can the `Vendor` role not be assigned on the create path when the primary user already exists? It could be intended, with the user holding another role.
+3. Do the route-level permissions `vendor_management:write`, `vendor_file_quality:read`, `file_drop` and `file_upload:write` map to seeded roles? bridgeVendorAdministrationPermissions.js was not read.
+4. What `/api/files/drop` does for vendor uploads (checked by ING area, not here).
+5. Is there an email or onboarding flow for the temporary password? None was found in this area.

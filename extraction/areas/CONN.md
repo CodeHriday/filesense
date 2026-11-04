@@ -116,6 +116,7 @@ Common facts. Auth: every route requires a valid token via `authenticateToken` (
 - BUG: GCP and Azure saved connections store different keys than the tests read. This is a likely cause of GCP tests failing. See Flags.
 - Errors give 500 `{success:false, message}`. The test itself catches errors and returns 200 `{success:false}`.
 - Logs the connection id and whether credentials exist (:1098, :1120).
+- Called from the frontend at src/api/connectionService.js:80 (`axios.get(.../connections/${id}/test)`).
 
 ### 10. POST /api/connections/:id/test (connectionRoutes.js:1145)
 - Same `connection:execute` check, but NO project check (SECURITY). Any user with the permission can test any connection by id, and can send form credentials.
@@ -199,7 +200,7 @@ Common facts. Auth: every route requires a valid token via `authenticateToken` (
 - Not traced in detail: delete flow (`ConnectionDeleteModal`), how soft-delete and restore are triggered. Not read.
 
 ### 16. getAssumedRoleCredentials (ConnectionService.js:79-148)
-Internal service method, not a route. Used by the AWS test (:1111) and the IAM-role browse path.
+Internal service method, not a route. Callers: the AWS test (ConnectionService.js:1111), the IAM-role browse path (connectionRoutes.js:1538), `getAwsCredentials` (ConnectionService.js:58, which is used by `createS3Client` :182 and `createSesClient` :217), and BulkProfilingService.js:230. BulkProfilingService shares the same `assumedRoleCache` through this method.
 - Input: `authConfig {role_arn, external_id, session_duration=3600, session_name, source_access_key, source_secret_key}`, `region='us-east-1'` (:79-80).
 - Missing `role_arn` throws `role_arn is required for AssumeRole authentication` (:82-84).
 - Cache: in-memory `Map` (`assumedRoleCache`, :10), keyed `${role_arn}:${external_id || 'none'}` (:86). A hit returns when `cached.expiration > Date.now()` (:89-91). On success the entry is stored with `expiration = Date.now() + ASSUMED_ROLE_CACHE_TTL`, where the TTL is `45 * 60 * 1000` ms (:11, :137-140).
@@ -248,6 +249,7 @@ Internal service method, not a route. Used by the AWS test (:1111) and the IAM-r
 13. Assumed-role cache is keyed only by role and external id and has a fixed 45 min TTL, regardless of the requested session duration (ConnectionService.js:86, :137-140). A 900 s credential can be served from cache for up to 45 min.
 14. `Range: 'bytes=0-102400'` is 100 KB + 1 byte (minor).
 15. Non-admin cannot update, delete or restore global connections they could create (create allows `project_id` null, but the project check fails for null). Intent unclear.
+16. `getAwsCredentials` reads `authConfig.role_arn` (ConnectionService.js:57), but the create route stores `auth_config.iam_role_arn` (connectionRoutes.js:330). For a saved `aws-iam-role` connection `role_arn` is therefore undefined, so `getAwsCredentials` returns `null` (:60). `createS3Client` and `createSesClient` then set no `credentials` (:183-185, :218-220), so the client silently uses the default AWS credential chain instead of the role.
 
 ### DEAD
 1. `backend/utils/credentialSanitizer.js` is not used by any CONN route (only by email adapters and NotificationService). The routes do their own sanitizing inline.
