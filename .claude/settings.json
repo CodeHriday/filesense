@@ -1,0 +1,26 @@
+{
+  "permissions": {
+    "allow": [
+      "Edit(./extraction/**)",
+      "Bash(node .claude/hooks/extraction-guard.js:*)"
+    ],
+    "deny": [
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Read(./**/.env)",
+      "Read(./**/.env.*)",
+      "Read(./**/*.pem)",
+      "Read(./**/*.key)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit|MultiEdit|NotebookEdit|Bash",
+        "hooks": [
+          { "type": "command", "command": "node .claude/hooks/extraction-guard.js" }
+        ]
+      }
+    ]
+  }
+}
